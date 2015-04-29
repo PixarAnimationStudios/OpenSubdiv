@@ -34,9 +34,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-CpuD3D11VertexBuffer::CpuD3D11VertexBuffer(int numElements,
-                                                 int numVertices,
-                                                 ID3D11Device *device)
+CpuD3D11VertexBuffer::CpuD3D11VertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _d3d11Buffer(NULL), _cpuBuffer(NULL) {
 }
@@ -49,19 +47,25 @@ CpuD3D11VertexBuffer::~CpuD3D11VertexBuffer() {
 }
 
 CpuD3D11VertexBuffer *
-CpuD3D11VertexBuffer::Create(int numElements, int numVertices, ID3D11Device *device) {
+CpuD3D11VertexBuffer::Create(int numElements, int numVertices,
+                             ID3D11DeviceContext *deviceContext) {
 
     CpuD3D11VertexBuffer *instance =
-        new CpuD3D11VertexBuffer(numElements, numVertices, device);
+        new CpuD3D11VertexBuffer(numElements, numVertices);
+    ID3D11Device *device;
+    deviceContext->GetDevice(&device);
     if (instance->allocate(device)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-CpuD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, void *param) {
+CpuD3D11VertexBuffer::UpdateData(const float *src, int startVertex,
+                                 int numVertices,
+                                 void * /*deviceContext*/) {
 
-    memcpy(_cpuBuffer + startVertex * _numElements, src, _numElements * numVertices * sizeof(float));
+    memcpy(_cpuBuffer + startVertex * _numElements, src,
+           _numElements * numVertices * sizeof(float));
 }
 
 int

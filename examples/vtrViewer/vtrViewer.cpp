@@ -50,6 +50,7 @@ GLFWmonitor* g_primary=0;
 #include <osd/cpuGLVertexBuffer.h>
 
 #include <far/gregoryBasis.h>
+#include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/patchTablesFactory.h>
 #include <far/stencilTables.h>
 #include <far/stencilTablesFactory.h>
@@ -119,7 +120,8 @@ int   g_displayPatchColor    = 1,
       g_numPatches           = 0,               
       g_maxValence           = 0,               
       g_currentPatch         = 0,               
-      g_Adaptive             = true;            
+      g_Adaptive             = true,
+      g_useStencils          = true;
 
 typedef OpenSubdiv::Sdc::Options SdcOptions;
 
@@ -631,7 +633,6 @@ static void
 createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
         std::vector<Vertex> const & vertexBuffer) {
 
-    typedef OpenSubdiv::Far::PatchTables PatchTables;
     typedef OpenSubdiv::Far::PatchDescriptor PatchDescriptor;
 
     int npatches = 0;
@@ -723,7 +724,6 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
             int * remap = 0;
             switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
                 case Descriptor::REGULAR:          remap = regular; break;
-                case Descriptor::SINGLE_CREASE:    remap = boundary; break;
                 case Descriptor::BOUNDARY:         remap = boundary; break;
                 case Descriptor::CORNER:           remap = corner; break;
                 case Descriptor::GREGORY:
@@ -751,67 +751,49 @@ createVtrMesh(Shape * shape, int maxlevel) {
     Stopwatch s;
     s.Start();
 
+    using namespace OpenSubdiv;
+
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options    sdcoptions = GetSdcOptions(*shape);
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options    sdcoptions = GetSdcOptions(*shape);
 
     sdcoptions.SetFVarLinearInterpolation(g_fvarInterpolation);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     if (g_Adaptive) {
-        OpenSubdiv::Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
+        Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
         options.useSingleCreasePatch = false;
         refiner->RefineAdaptive(options);
     } else {
-        OpenSubdiv::Far::TopologyRefiner::UniformOptions options(maxlevel);
+        Far::TopologyRefiner::UniformOptions options(maxlevel);
         options.fullTopologyInLastLevel = true;
         refiner->RefineUniform(options);
     }
 
-    //
-    // Stencils
-    //
-
-//#define no_stencils
-#ifdef no_stencils
-    {
-        s.Start();
-        // populate buffer with Vtr interpolated vertex data
-        refiner->Interpolate(verts, verts + ncoarseverts);
-        s.Stop();
-        //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
-        //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
-    }
-#else
-    OpenSubdiv::Far::StencilTables const * stencilTables = 0;
-    {
-        OpenSubdiv::Far::StencilTablesFactory::Options options;
-        options.generateOffsets=true;
-        options.generateIntermediateLevels=true;
-
-        stencilTables =
-            OpenSubdiv::Far::StencilTablesFactory::Create(*refiner, options);
-    }
-#endif
+    int numTotalVerts = refiner->GetNumVerticesTotal();
 
     //
     // Patch tables
     //
-
     std::vector<Vertex> fvarBuffer;
-    OpenSubdiv::Far::PatchTables * patchTables = 0;
+    Far::PatchTables * patchTables = 0;
     bool createFVarWire = g_VtrDrawFVarPatches or g_VtrDrawFVarVerts;
+
     if (g_Adaptive) {
-        assert(stencilTables);
-
-        OpenSubdiv::Far::PatchTablesFactory::Options options;
-        options.adaptiveStencilTables = stencilTables;
+        Far::PatchTablesFactory::Options options;
         options.generateFVarTables = createFVarWire;
+        options.shareEndCapPatchPoints = false;
 
-        patchTables = OpenSubdiv::Far::PatchTablesFactory::Create(*refiner, options);
+        patchTables =
+            Far::PatchTablesFactory::Create(*refiner, options);
+
+        // increase vertex buffer for the additional endcap verts
+        if (patchTables->GetEndCapVertexStencilTables()) {
+            numTotalVerts += patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
+        }
 
         g_numPatches = patchTables->GetNumPatchesTotal();
         g_maxValence = patchTables->GetMaxValence();
@@ -820,14 +802,14 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
             // interpolate fvar values
 
-            //OpenSubdiv::Far::FVarPatchTables const * fvarTables =
+            //Far::FVarPatchTables const * fvarTables =
             //    patchTables->GetFVarPatchTables();
             //assert(fvarTables);
 
             int channel = 0;
 
             // XXXX should use a (u,v) vertex class
-            fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0.0f);
+            fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0);
             Vertex * values = &fvarBuffer[0];
 
             int nCoarseValues = refiner->GetNumFVarValues(0);
@@ -836,26 +818,13 @@ createVtrMesh(Shape * shape, int maxlevel) {
                 float const * ptr = &shape->uvs[i*2];
                 values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
             }
-
             refiner->InterpolateFaceVarying(values, values + nCoarseValues);
         }
     }
-    // note: gregoryBasisStencilTables is owned by patchTables.
-    OpenSubdiv::Far::StencilTables const * gregoryBasisStencilTables =
-        patchTables->GetEndCapVertexStencilTables();
 
-    if (gregoryBasisStencilTables) {
-        OpenSubdiv::Far::StencilTables const *inStencilTables[] = {
-            stencilTables, gregoryBasisStencilTables
-        };
-        OpenSubdiv::Far::StencilTables const *concatStencilTables = 
-            concatStencilTables = OpenSubdiv::Far::StencilTablesFactory::Create(
-                2, inStencilTables);
-        delete stencilTables;
-        stencilTables = concatStencilTables;
-    }
-
-    int numTotalVerts = shape->GetNumVertices() + stencilTables->GetNumStencils();
+    //
+    // interpolate vertices
+    //
 
     // create vertex primvar data buffer
     std::vector<Vertex> vertexBuffer(numTotalVerts);
@@ -868,11 +837,45 @@ createVtrMesh(Shape * shape, int maxlevel) {
         verts[i].SetPosition(ptr[0], ptr[1], ptr[2]);
     }
 
-    //
-    // apply stencils
-    //
-    stencilTables->UpdateValues(verts, verts + ncoarseverts);
+    s.Start();
+    if (g_useStencils) {
+        //
+        // Stencil interpolation
+        //
+        Far::StencilTables const * stencilTables = 0;
+        Far::StencilTablesFactory::Options options;
+        options.generateOffsets=true;
+        options.generateIntermediateLevels=true;
+        stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
 
+        // append endpatch stencils if needed
+        if (patchTables->GetEndCapVertexStencilTables()) {
+            if (Far::StencilTables const * stencilTablesWithEndCap =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *refiner, stencilTables,
+                    patchTables->GetEndCapVertexStencilTables())) {
+                delete stencilTables;
+                stencilTables = stencilTablesWithEndCap;
+            }
+        }
+
+        //
+        // apply stencils
+        //
+        stencilTables->UpdateValues(verts, verts + ncoarseverts);
+
+        delete stencilTables;
+    } else {
+        //
+        // TopologyRefiner interpolation
+        //
+        // populate buffer with Vtr interpolated vertex data
+        refiner->Interpolate(verts, verts + ncoarseverts);
+        //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
+        //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
+
+        // TODO: endpatch basis conversion comes here
+    }
     s.Stop();
 
     //
@@ -928,7 +931,6 @@ createVtrMesh(Shape * shape, int maxlevel) {
 
     delete refiner;
     delete patchTables;
-    delete stencilTables;
 }
 
 //------------------------------------------------------------------------------
@@ -1284,6 +1286,13 @@ callbackAdaptive(bool checked, int /* a */)
 }
 
 static void
+callbackUseStencils(bool checked, int /* a */)
+{
+    g_useStencils = checked;
+    rebuildOsdMeshes();
+}
+
+static void
 callbackCheckBox(bool checked, int button) {
 
     switch (button) {
@@ -1413,7 +1422,8 @@ initHUD() {
     g_hud.AddCheckBox("Edge Sharp", g_VtrDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
     g_hud.AddCheckBox("Gregory Basis", g_VtrDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
 
-    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 350, callbackAdaptive, 0, '`');
+    g_hud.AddCheckBox("Use Stencils (s)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
+    g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 370, callbackAdaptive, 0, '`');
 
 
     g_hud.AddSlider("Font Scale", 0.0f, 0.1f, 0.01f,
@@ -1433,7 +1443,7 @@ initHUD() {
    g_hud.AddCheckBox("FVar Verts",  g_VtrDrawFVarVerts!=0, 300, 10, callbackDrawIDs, 10);
    g_hud.AddCheckBox("FVar Patches",  g_VtrDrawFVarPatches!=0, 300, 30, callbackDrawIDs, 11);
 
-   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, g_VtrDrawFVarPatchTess,
+   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, (float)g_VtrDrawFVarPatchTess,
                     300, 50, 25, true, callbackFVarTess, 0);
 
     int fvar_pulldown = g_hud.AddPullDown("FVar Interpolation (i)", 300, 90, 250, callbackFVarInterpolation, 'i');

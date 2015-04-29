@@ -488,32 +488,6 @@ public:
 
     //@}
 
-    //@{
-    /// Ptex
-    ///
-
-    /// \brief Returns the number of ptex faces in the mesh
-    int GetNumPtexFaces() const;
-
-    /// \brief Returns the ptex face index given a coarse face 'f' or -1
-    int GetPtexIndex(Index f) const;
-
-    /// \brief Returns ptex face adjacency information for a given coarse face
-    ///
-    /// @param face      coarse face index
-    ///
-    /// @param quadrant  quadrant index if 'face' is not a quad (the local ptex
-    //                   sub-face index). Must be less than the number of face
-    //                   vertices.
-    ///
-    /// @param adjFaces  ptex face indices of adjacent faces
-    ///
-    /// @param adjEdges  ptex edge indices of adjacent faces
-    ///
-    void GetPtexAdjacency(int face, int quadrant,
-        int adjFaces[4], int adjEdges[4]) const;
-
-    //@}
 
     //@{
     /// @name Debugging aides
@@ -587,8 +561,10 @@ protected:
     //  Lower level protected methods intended strictly for internal use:
     //
     friend class TopologyRefinerFactoryBase;
-    friend class GregoryBasisFactory;
     friend class PatchTablesFactory;
+    friend class EndCapGregoryBasisPatchFactory;
+    friend class EndCapLegacyGregoryPatchFactory;
+    friend class PtexIndices;
 
     Vtr::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::Level const & getLevel(int l) const { return *_levels[l]; }
@@ -615,7 +591,6 @@ private:
 
     template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingLimit(T const & src, U * dst, int channel) const;
 
-    void initializePtexIndices() const;
 
     void initializeInventory();
     void updateInventory(Vtr::Level const & newLevel);
@@ -645,8 +620,6 @@ private:
 
     std::vector<Vtr::Level *>      _levels;
     std::vector<Vtr::Refinement *> _refinements;
-
-    std::vector<Index> _ptexIndices;
 };
 
 

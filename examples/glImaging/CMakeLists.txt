@@ -34,7 +34,6 @@ set(SHADER_FILES
 
 set(SOURCE_FILES
     glImaging.cpp
-    ../common/patchColors.cpp
 )
 
 set(PLATFORM_LIBRARIES
@@ -59,11 +58,23 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_possibly_cuda_executable(glImaging
+# optional dependency - enables screenshots
+# XXX: this is actually unnecessary for this test since glImaging
+# use stb_image_write, however, examples_common_obj has libpng
+# dependency so we need to add here. We'll remove the libpng dependency soon.
+find_package(PNG)
+if (PNG_FOUND)
+    include_directories("${PNG_INCLUDE_DIRS}")
+    list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
+    add_definitions(-DOPENSUBDIV_HAS_PNG)
+endif()
+
+_add_glfw_executable(glImaging
     "${SOURCE_FILES}"
     "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:examples_common_obj>
 )
 
 add_dependencies(glImaging blarg )
@@ -73,3 +84,8 @@ target_link_libraries(glImaging
 )
 
 install(TARGETS glImaging DESTINATION "${CMAKE_BINDIR_BASE}")
+
+if (NOT NO_GLTESTS)
+    add_test(glImaging ${EXECUTABLE_OUTPUT_PATH}/glImaging -w test -l 3 -s 256 256 -a)
+endif()
+

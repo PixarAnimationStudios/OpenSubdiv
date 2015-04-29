@@ -29,8 +29,6 @@
 
 #include "../far/interpolate.h"
 #include "../far/patchDescriptor.h"
-#include "../far/stencilTables.h"
-#include "../far/stencilTables.h"
 
 #include "../sdc/options.h"
 
@@ -173,9 +171,17 @@ public:
         return _vertexValenceTable;
     }
 
-    /// \brief Returns a stencil table for the control vertices of end-cap patches
-    StencilTables const * GetEndCapVertexStencilTables() const { return _endcapVertexStencilTables; }
-    StencilTables const * GetEndCapVaryingStencilTables() const { return _endcapVaryingStencilTables; }
+    /// \brief Returns the basis conversion stencil tables to get endcap patch points.
+    ///        This stencil is relative to the max level refined vertices.
+    StencilTables const *GetEndCapVertexStencilTables() const {
+        return _vertexStencilTables;
+    }
+
+    /// \brief Returns the varying stencil tables for the endcap patches
+    ///        which has same ordering as the endcap vertex stencil tables.
+    StencilTables const *GetEndCapVaryingStencilTables() const {
+        return _varyingStencilTables;
+    }
 
     //@}
 
@@ -337,6 +343,7 @@ public:
 protected:
 
     friend class PatchTablesFactory;
+    friend class EndCapLegacyGregoryPatchFactory;
 
     // Factory constructor
     PatchTables(int maxvalence);
@@ -411,15 +418,15 @@ private:
     PatchParamTable      _paramTable;   // PatchParam bitfields (one per patch)
 
     //
-    // Extraordinary vertex closed-form evaluation
+    // Extraordinary vertex closed-form evaluation / endcap basis conversion
     //
-
-    // XXXX manuelk end-cap stencils will obsolete the other tables
-
-    StencilTables const * _endcapVertexStencilTables;
-    StencilTables const * _endcapVaryingStencilTables;
+    // XXXtakahito: these data will probably be replaced with mask coefficient or something
+    //              SchemeWorker populates.
+    //
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
+    StencilTables const * _vertexStencilTables;  // endcap basis conversion stencils
+    StencilTables const * _varyingStencilTables; // endcap varying stencils (for convenience)
 
     //
     // Face-varying data
@@ -461,36 +468,18 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
 
     float Q[16], Qd1[16], Qd2[16];
 
-    if (ptype>=PatchDescriptor::REGULAR and ptype<=PatchDescriptor::CORNER) {
+    if (ptype==PatchDescriptor::REGULAR) {
 
         GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
 
         ConstIndexArray cvs = GetPatchVertices(handle);
 
-        switch (ptype) {
-            case PatchDescriptor::REGULAR:
-                InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::SINGLE_CREASE:
-                // TODO: implement InterpolateSingleCreasePatch().
-                //InterpolateRegularPatch(cvs, Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::BOUNDARY:
-                InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::CORNER:
-                InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-                break;
-            case PatchDescriptor::GREGORY:
-            case PatchDescriptor::GREGORY_BOUNDARY:
-                assert(0);
-                break;
-            default:
-                assert(0);
-        }
-    } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
+        InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+        // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+        // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
 
-        assert(_endcapVertexStencilTables);
+
+    } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
 
         ConstIndexArray cvs = GetPatchVertices(handle);
 
@@ -537,14 +526,8 @@ PatchTables::EvaluateFaceVarying(int channel, PatchHandle const & handle,
         case PatchDescriptor::REGULAR:
             GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
             InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            break;
-        case PatchDescriptor::BOUNDARY:
-            GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-            InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            break;
-        case PatchDescriptor::CORNER:
-            GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-            InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+            // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
+            // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
             break;
         default:
             assert(0);

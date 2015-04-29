@@ -26,17 +26,11 @@
 // Patches.Common
 //----------------------------------------------------------
 
-#ifndef OSD_TRANSITION_ROTATE
-#define OSD_TRANSITION_ROTATE 0
-#endif
+// XXXdyu-patch-drawing support for fractional spacing
+#undef OSD_FRACTIONAL_ODD_SPACING
+#undef OSD_FRACTIONAL_EVEN_SPACING
 
-#if defined OSD_PATCH_BOUNDARY
-    #define OSD_PATCH_INPUT_SIZE 12
-#elif defined OSD_PATCH_CORNER
-    #define OSD_PATCH_INPUT_SIZE 9
-#else
-    #define OSD_PATCH_INPUT_SIZE 16
-#endif
+#define OSD_PATCH_INPUT_SIZE 16
 
 #define M_PI 3.14159265359f
 
@@ -50,7 +44,7 @@ struct HullVertex {
     float4 patchCoord : PATCHCOORD; // u, v, level, faceID
     int4 ptexInfo : PTEXINFO;       // u offset, v offset, 2^ptexlevel, rotation
     int3 clipFlag : CLIPFLAG;
-#if defined OSD_PATCH_SINGLE_CREASE
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     float4 P1 : POSITION1;
     float4 P2 : POSITION2;
     float sharpness : BLENDWEIGHT0;
@@ -68,6 +62,9 @@ struct OutputVertex {
 #if defined(OSD_COMPUTE_NORMAL_DERIVATIVES)
     float3 Nu : TANGENT2;
     float3 Nv : TANGENT3;
+#endif
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness : BLENDWEIGHT0;
 #endif
 };
 
@@ -98,6 +95,8 @@ struct GregDomainVertex {
 struct HS_CONSTANT_FUNC_OUT {
     float tessLevelInner[2] : SV_InsideTessFactor;
     float tessLevelOuter[4] : SV_TessFactor;
+    float4 tessOuterLo : TRANSITIONLO;
+    float4 tessOuterHi : TRANSITIONHI;
 };
 
 // osd shaders need following functions defined
@@ -134,18 +133,21 @@ float TessAdaptive(float3 p0, float3 p1)
     // length of the projected edge itself to avoid problems near silhouettes.
     float3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
-    return max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter));
+    return round(max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter)));
 }
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
-#if defined OSD_PATCH_SINGLE_CREASE
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     Buffer<uint3> OsdPatchParamBuffer : register( t3 );
 #else
     Buffer<uint2> OsdPatchParamBuffer : register( t3 );
 #endif
+
+#define GetPatchParam(primitiveID)                                      \
+    (OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].y)
 
 #define GetPatchLevel(primitiveID)                                      \
     (OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].y & 0xf)
@@ -157,12 +159,11 @@ float TessAdaptive(float3 p0, float3 p1)
     {                                                                   \
         int2 ptexIndex = OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].xy; \
         int faceID = ptexIndex.x;                                       \
-        int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1)); \
-        int u = (ptexIndex.y >> 17) & 0x3ff;                            \
-        int v = (ptexIndex.y >> 7) & 0x3ff;                             \
-        int rotation = (ptexIndex.y >> 5) & 0x3;                        \
+        int lv = 1 << ((ptexIndex.y & 0x7) - ((ptexIndex.y >> 3) & 1)); \
+        int u = (ptexIndex.y >> 22) & 0x3ff;                            \
+        int v = (ptexIndex.y >> 12) & 0x3ff;                            \
         output.patchCoord.w = faceID+0.5;                               \
-        output.ptexInfo = int4(u, v, lv, rotation);                     \
+        output.ptexInfo = int4(u, v, lv, 0);                            \
     }
 
 #define OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER                            \
@@ -171,55 +172,7 @@ float TessAdaptive(float3 p0, float3 p1)
         int2 p = patch[0].ptexInfo.xy;                                  \
         int lv = patch[0].ptexInfo.z;                                   \
         int rot = patch[0].ptexInfo.w;                                  \
-        uv.xy = float(rot==0)*uv.xy                                     \
-            + float(rot==1)*float2(1.0-uv.y, uv.x)                      \
-            + float(rot==2)*float2(1.0-uv.x, 1.0-uv.y)                  \
-            + float(rot==3)*float2(uv.y, 1.0-uv.x);                     \
         output.patchCoord.xy = (uv * float2(1.0,1.0)/lv) + float2(p.x, p.y)/lv; \
-    }
-
-#define OSD_COMPUTE_PTEX_COMPATIBLE_TANGENT(ROTATE)                 \
-    {                                                               \
-        int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;             \
-        if (rot == 1) {                                             \
-            output.tangent = -BiTangent;                            \
-            output.bitangent = Tangent;                             \
-        } else if (rot == 2) {                                      \
-            output.tangent = -Tangent;                              \
-            output.bitangent = -BiTangent;                          \
-        } else if (rot == 3) {                                      \
-            output.tangent = BiTangent;                             \
-            output.bitangent = -Tangent;                            \
-        } else {                                                    \
-            output.tangent = Tangent;                               \
-            output.bitangent = BiTangent;                           \
-        }                                                           \
-    }
-
-#define OSD_COMPUTE_PTEX_COMPATIBLE_DERIVATIVES(ROTATE)             \
-    {                                                               \
-        int rot = (patch[0].ptexInfo.w + 4 - ROTATE)%4;             \
-        if (rot == 1) {                                             \
-            output.tangent = -BiTangent;                            \
-            output.bitangent = Tangent;                             \
-            output.Nu = -Nv;                                        \
-            output.Nv = Nv;                                         \
-        } else if (rot == 2) {                                      \
-            output.tangent = -Tangent;                              \
-            output.bitangent = -BiTangent;                          \
-            output.Nu = -Nu;                                        \
-            output.Nv = -Nv;                                        \
-        } else if (rot == 3) {                                      \
-            output.tangent = BiTangent;                             \
-            output.bitangent = -Tangent;                            \
-            output.Nu = Nv;                                         \
-            output.Nv = -Nu;                                        \
-        } else {                                                    \
-            output.tangent = Tangent;                               \
-            output.bitangent = BiTangent;                           \
-            output.Nu = Nu;                                         \
-            output.Nv = Nv;                                         \
-        }                                                           \
     }
 
 
@@ -318,3 +271,32 @@ Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
     C[2] = A1 - A2;
     C[3] = A2;
 }
+
+// ----------------------------------------------------------------------------
+
+float3
+EvalBezier(float3 cp[16], float2 uv)
+{
+    float3 BUCP[4] = { float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0) };
+
+    float B[4], D[4];
+
+    Univar4x4(uv.x, B, D);
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            float3 A = cp[4*i + j];
+            BUCP[i] += A * B[j];
+        }
+    }
+
+    float3 position = float3(0,0,0);
+
+    Univar4x4(uv.y, B, D);
+    for (int k=0; k<4; ++k) {
+        position  += B[k] * BUCP[k];
+    }
+
+    return position;
+}
+
+// ----------------------------------------------------------------------------

@@ -37,39 +37,85 @@ namespace Vtr { class Level; }
 
 namespace Far {
 
-class StencilTables;
+class PtexIndices;
 class TopologyRefiner;
 
-
-
-/// \brief A specialized factory for feature adaptive PatchTables
-///
-/// PatchTables contain the lists of vertices for each patch of an adaptive
-/// mesh representation.
-///
 class PatchTablesFactory {
-
 public:
+    //  PatchFaceTag
+    //  A simple struct containing all information gathered about a face that is relevant
+    //  to constructing a patch for it (some of these enums should probably be defined more
+    //  as part of PatchTables)
+    //
+    //  Like the HbrFace<T>::AdaptiveFlags, this struct aggregates all of the face tags
+    //  supporting feature adaptive refinement.  For now it is not used elsewhere and can
+    //  remain local to this implementation, but we may want to move it into a header of
+    //  its own if it has greater use later.
+    //
+    //  Note that several properties being assigned here attempt to do so given a 4-bit
+    //  mask of properties at the edges or vertices of the quad.  Still not sure exactly
+    //  what will be done this way, but the goal is to create lookup tables (of size 16
+    //  for the 4 bits) to quickly determine was is needed, rather than iteration and
+    //  branching on the edges or vertices.
+    //
+    struct PatchFaceTag {
+    public:
+        unsigned int   _hasPatch        : 1;
+        unsigned int   _isRegular       : 1;
+        unsigned int   _transitionMask  : 4;
+        unsigned int   _boundaryMask    : 4;
+        unsigned int   _boundaryIndex   : 2;
+        unsigned int   _boundaryCount   : 3;
+        unsigned int   _hasBoundaryEdge : 3;
+        unsigned int   _isSingleCrease  : 1;
+
+        void clear();
+        void assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask);
+        void assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask);
+        void assignTransitionPropertiesFromEdgeMask(int transitionMask) {
+            _transitionMask = transitionMask;
+        }
+    };
+    typedef std::vector<PatchFaceTag> PatchTagVector;
 
     struct Options {
+
+        enum EndCapType {
+            ENDCAP_NONE = 0,             ///< no endcap
+            ENDCAP_BILINEAR_BASIS,       ///< use bilinear quads (4 cp) as end-caps
+            ENDCAP_BSPLINE_BASIS,        ///< use BSpline basis patches (16 cp) as end-caps
+            ENDCAP_GREGORY_BASIS,        ///< use Gregory basis patches (20 cp) as end-caps
+            ENDCAP_LEGACY_GREGORY        ///< use legacy (2.x) Gregory patches (4 cp + valence table) as end-caps
+        };
 
         Options(unsigned int maxIsolation=10) :
              generateAllLevels(false),
              triangulateQuads(false),
              useSingleCreasePatch(false),
              maxIsolationLevel(maxIsolation),
+             endCapType(ENDCAP_GREGORY_BASIS),
+             shareEndCapPatchPoints(true),
              generateFVarTables(false),
              useFVarQuadEndCaps(true), // XXXX change to false when FVar Gregory is ready
              numFVarChannels(-1),
-             fvarChannelIndices(0),
-             adaptiveStencilTables(0),
-             adaptiveVaryingStencilTables(0)
+             fvarChannelIndices(0)
         { }
+
+        /// \brief Get endcap patch type
+        EndCapType GetEndCapType() const { return (EndCapType)endCapType; }
+
+        /// \brief Set endcap patch type
+        void SetEndCapType(EndCapType e) { endCapType = e; }
 
         unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      triangulateQuads     : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
                      useSingleCreasePatch : 1, ///< Use single crease patch
                      maxIsolationLevel    : 4, ///< Cap adaptive feature isolation to the given level (max. 10)
+
+                     // end-capping
+                     endCapType              : 3, ///< EndCapType
+                     shareEndCapPatchPoints  : 1, ///< Share endcap patch points among adjacent endcap patches.
+                                                  ///< currently only work with GregoryBasis.
 
                      // face-varying
                      generateFVarTables   : 1, ///< Generate face-varying patch tables
@@ -77,36 +123,33 @@ public:
 
         int          numFVarChannels;          ///< Number of channel indices and interpolation modes passed
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory
-
-        StencilTables const * adaptiveStencilTables;  ///< Passing a valid stencil table allows the factory to generate
-                                                      ///< stencils for gregory patches and replace them with a much
-                                                      ///< more efficient basis.
-        StencilTables const * adaptiveVaryingStencilTables;
     };
 
     /// \brief Factory constructor for PatchTables
     ///
-    /// @param refiner  TopologyRefiner from which to generate patches
+    /// @param refiner              TopologyRefiner from which to generate patches
     ///
-    /// @param options       Options controlling the creation of the tables
+    /// @param options              Options controlling the creation of the tables
     ///
-    /// @return              A new instance of PatchTables
+    /// @return                     A new instance of PatchTables
     ///
-    static PatchTables * Create(TopologyRefiner const & refiner, Options options=Options());
+    static PatchTables * Create(TopologyRefiner const & refiner,
+                                Options options=Options());
 
 private:
-
     //
     // Private helper structures
     //
-
     struct AdaptiveContext;
 
-private:
+    //
+    //  Methods for allocating and managing the patch table data arrays:
+    //
+    static PatchTables * createUniform(TopologyRefiner const & refiner,
+                                       Options options);
 
-    static PatchTables * createUniform(TopologyRefiner const & refiner, Options options);
-
-    static PatchTables * createAdaptive(TopologyRefiner const & refiner, Options options);
+    static PatchTables * createAdaptive(TopologyRefiner const & refiner,
+                                        Options options);
 
     //
     //  High-level methods for identifying and populating patches associated with faces:
@@ -114,11 +157,8 @@ private:
 
     static void identifyAdaptivePatches(AdaptiveContext & state);
 
-    static void populateAdaptivePatches(AdaptiveContext & state);
-
-    //
-    //  Methods for allocating and managing the patch table data arrays:
-    //
+    static void populateAdaptivePatches(AdaptiveContext & state,
+                                        PtexIndices const &ptexIndices);
 
     static void allocateVertexTables(PatchTables * tables, int nlevels, bool hasSharpness);
 
@@ -126,14 +166,14 @@ private:
          Options options, int npatches, PatchTables * tables);
 
     static PatchParam * computePatchParam(TopologyRefiner const & refiner,
-        int level, int face, int rotation, PatchParam * coord);
+        PtexIndices const & ptexIndices,
+        int level, int face,
+        int boundaryMask, int transitionMask, PatchParam * coord);
 
     static int gatherFVarData(AdaptiveContext & state,
-        int level, Index faceIndex, Index levelFaceOffset, int rotation, Index const * levelOffsets, Index fofss, Index ** fptrs);
+        int level, Index faceIndex, Index levelFaceOffset, int rotation,
+                              Index const * levelOffsets, Index fofss, Index ** fptrs);
 
-    static void getQuadOffsets(Vtr::Level const & level, int face, unsigned int * result);
-
-private:
 };
 
 } // end namespace Far
@@ -142,5 +182,6 @@ private:
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
+
 
 #endif /* FAR_PATCH_TABLES_FACTORY_H */

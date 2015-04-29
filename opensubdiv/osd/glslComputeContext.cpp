@@ -212,7 +212,8 @@ GLSLComputeContext::UnbindStencilTables() const {
 
 GLSLComputeContext *
 GLSLComputeContext::Create(Far::StencilTables const * vertexStencilTables,
-                              Far::StencilTables const * varyingStencilTables) {
+                           Far::StencilTables const * varyingStencilTables,
+                           void * /*deviceContext*/) {
 
     GLSLComputeContext *result =
         new GLSLComputeContext(vertexStencilTables, varyingStencilTables);

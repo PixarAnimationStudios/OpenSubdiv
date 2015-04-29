@@ -211,8 +211,15 @@ TopologyRefinerFactory<Shape>::assignComponentTopology(
             Far::IndexArray dstFaceVerts = refiner.setBaseFaceVertices(i);
             //IndexArray dstFaceEdges = refiner.setBaseFaceEdges(i);
 
-            for (int j=0; j<dstFaceVerts.size(); ++j) {
-                dstFaceVerts[j] = shape.faceverts[ofs++];
+            if (shape.isLeftHanded) {
+                dstFaceVerts[0] = shape.faceverts[ofs++];
+                for (int j=dstFaceVerts.size()-1; j>0; --j) {
+                    dstFaceVerts[j] = shape.faceverts[ofs++];
+                }
+            } else {
+                for (int j=0; j<dstFaceVerts.size(); ++j) {
+                    dstFaceVerts[j] = shape.faceverts[ofs++];
+                }
             }
         }
     }
@@ -236,8 +243,15 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
             Far::IndexArray dstFaceUVs =
                 refiner.setBaseFVarFaceValues(i, channel);
 
-            for (int j=0; j<dstFaceUVs.size(); ++j) {
-                dstFaceUVs[j] = shape.faceuvs[ofs++];
+            if (shape.isLeftHanded) {
+                dstFaceUVs[0] = shape.faceuvs[ofs++];
+                for (int j=dstFaceUVs.size()-1; j > 0; --j) {
+                    dstFaceUVs[j] = shape.faceuvs[ofs++];
+                }
+            } else {
+                for (int j=0; j<dstFaceUVs.size(); ++j) {
+                    dstFaceUVs[j] = shape.faceuvs[ofs++];
+                }
             }
         }
     }

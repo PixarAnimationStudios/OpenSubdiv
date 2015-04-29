@@ -45,7 +45,8 @@ CpuVertexBuffer::~CpuVertexBuffer() {
 }
 
 CpuVertexBuffer *
-CpuVertexBuffer::Create(int numElements, int numVertices) {
+CpuVertexBuffer::Create(int numElements, int numVertices,
+                        void * /*deviceContext*/) {
 
     return new CpuVertexBuffer(numElements, numVertices);
 }

@@ -80,10 +80,9 @@ OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
 
-    #include "../common/clInit.h"
+    #include "../common/clDeviceContext.h"
 
-    cl_context g_clContext = NULL;
-    cl_command_queue g_clQueue = NULL;
+    CLDeviceContext g_clDeviceContext;
     OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
@@ -92,12 +91,9 @@ OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
 
-    #include <cuda_runtime_api.h>
-    #include <cuda_gl_interop.h>
+    #include "../common/cudaDeviceContext.h"
 
-    #include "../common/cudaInit.h"
-
-    bool g_cudaInitialized = false;
+    CudaDeviceContext g_cudaDeviceContext;
     OpenSubdiv::Osd::CudaComputeController * g_cudaComputeController = NULL;
 #endif
 
@@ -1033,7 +1029,7 @@ createOsdMesh(int level, int kernel) {
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshPtexData, true);
-    bits.set(OpenSubdiv::Osd::MeshUseGregoryBasis, true);
+    bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
@@ -1081,16 +1077,19 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (kernel == kCL) {
         if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(g_clContext, g_clQueue);
+            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
+                g_clDeviceContext.GetContext(),
+                g_clDeviceContext.GetCommandQueue());
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
                                          OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
+                                         OpenSubdiv::Osd::GLDrawContext,
+                                         CLDeviceContext>(
                                                 g_clComputeController,
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, g_clContext, g_clQueue);
+                                                level, bits, &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (kernel == kCUDA) {
@@ -1755,7 +1754,7 @@ drawCageEdges() {
     typedef OpenSubdiv::Far::PatchDescriptor FDesc;
 
     OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        FDesc(FDesc::LINES, FDesc::NON_TRANSITION, 0), 0, 0, 0);
+        FDesc(FDesc::LINES), 0, 0);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 
@@ -2034,12 +2033,10 @@ void uninitGL() {
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     delete g_clComputeController;
-    uninitCL(g_clContext, g_clQueue);
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     delete g_cudaComputeController;
-    cudaDeviceReset();
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
@@ -2084,10 +2081,18 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext == NULL) {
+    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
         // Initialize OpenCL
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+        if (g_clDeviceContext.Initialize() == false) {
             printf("Error in initializing OpenCL\n");
+            exit(1);
+        }
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+        if (g_cudaDeviceContext.Initialize() == false) {
+            printf("Error in initializing Cuda\n");
             exit(1);
         }
     }
@@ -2466,12 +2471,6 @@ int main(int argc, char ** argv) {
     // activate feature adaptive tessellation if OSD supports it
     g_adaptive = OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation();
 
-#if OPENSUBDIV_HAS_CUDA
-    // Note: This function randomly crashes with linux 5.0-dev driver.
-    // cudaGetDeviceProperties overrun stack..?
-    cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
-#endif
-
     int windowWidth = g_width, windowHeight = g_height;
 
     // window size might not match framebuffer size on a high DPI display
@@ -2533,7 +2532,7 @@ int main(int argc, char ** argv) {
     g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (HAS_CL_VERSION_1_1()) {
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
         g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
     }
 #endif

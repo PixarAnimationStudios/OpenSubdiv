@@ -100,7 +100,6 @@ public:
     }
 
 protected:
-    friend class GregoryBasisFactory;
     friend class StencilTablesFactory;
     friend class LimitStencilTablesFactory;
 
@@ -206,7 +205,8 @@ protected:
     StencilTables() : _numControlVertices(0) {}
 
     friend class StencilTablesFactory;
-    friend class GregoryBasisFactory;
+    // XXX: temporarily, GregoryBasis class will go away.
+    friend class GregoryBasis;
 
     int _numControlVertices;              // number of control vertices
 

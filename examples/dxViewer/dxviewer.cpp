@@ -53,8 +53,17 @@ OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
 
     #include "../common/clInit.h"
 
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
+    struct CLContext {
+        cl_context GetContext() const { return clContext; }
+        cl_command_queue GetCommandQueue() const { return clQueue; }
+        ID3D11DeviceContext *GetDeviceContext() const { return pd3dDeviceContext;  }
+
+        cl_context clContext;
+        cl_command_queue clQueue;
+        ID3D11DeviceContext *pd3dDeviceContext;
+    };
+    CLContext g_clContext;
+
     OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
@@ -323,6 +332,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    // gregory basis hasn't supported yet in D3D11Mesh
+    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
 
     int numVertexElements = 6;
     int numVaryingElements = 0;
@@ -333,7 +344,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CpuComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_cpuComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -346,7 +358,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
                                          OpenSubdiv::Osd::OmpComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_ompComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -360,7 +373,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
                                          OpenSubdiv::Osd::TbbComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_tbbComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -370,16 +384,19 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
         if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(g_clContext, g_clQueue);
+            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
+                g_clContext.clContext, g_clContext.clQueue);
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         CLContext>(
                                                 g_clComputeController,
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, g_clContext, g_clQueue, g_pd3dDeviceContext);
+                                                level, bits,
+                                                &g_clContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
@@ -388,7 +405,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CudaComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_cudaComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -401,7 +419,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::D3D11VertexBuffer,
                                          OpenSubdiv::Osd::D3D11ComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext>(
+                                         OpenSubdiv::Osd::D3D11DrawContext,
+                                         ID3D11DeviceContext>(
                                                 g_d3d11ComputeController,
                                                 refiner,
                                                 numVertexElements,
@@ -832,7 +851,7 @@ display() {
 #endif
 
     // patch drawing
-    int patchCount[12][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[12]; // [Type] (see far/patchTables.h)
     int numTotalPatches = 0;
     int numDrawCalls = 0;
 
@@ -841,13 +860,8 @@ display() {
 
         OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
-        int patchPattern = desc.GetPattern();
-        int patchRotation = desc.GetRotation();
-        int subPatch = desc.GetSubPatch();
 
-        if (subPatch == 0) {
-            patchCount[patchType][patchPattern][patchRotation] += patch.GetNumPatches();
-        }
+        patchCount[patchType] += patch.GetNumPatches();
         numTotalPatches += patch.GetNumPatches();
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
@@ -901,48 +915,21 @@ display() {
 
         if (g_displayPatchCounts) {
             int x = -280;
-            int y = -480;
+            int y = -180;
             g_hud->DrawString(x, y, "NonPatch         : %d",
-                             patchCount[Descriptor::QUADS][0][0]); y += 20;
+                             patchCount[Descriptor::QUADS]); y += 20;
             g_hud->DrawString(x, y, "Regular          : %d",
-                             patchCount[Descriptor::REGULAR][0][0]); y+= 20;
+                             patchCount[Descriptor::REGULAR]); y+= 20;
             g_hud->DrawString(x, y, "Boundary         : %d",
-                             patchCount[Descriptor::BOUNDARY][0][0]); y+= 20;
+                             patchCount[Descriptor::BOUNDARY]); y+= 20;
             g_hud->DrawString(x, y, "Corner           : %d",
-                             patchCount[Descriptor::CORNER][0][0]); y+= 20;
-            g_hud->DrawString(x, y, "Single Crease    : %d",
-                             patchCount[Descriptor::SINGLE_CREASE][0][0]); y+= 20;
+                             patchCount[Descriptor::CORNER]); y+= 20;
             g_hud->DrawString(x, y, "Gregory          : %d",
-                             patchCount[Descriptor::GREGORY][0][0]); y+= 20;
+                             patchCount[Descriptor::GREGORY]); y+= 20;
             g_hud->DrawString(x, y, "Boundary Gregory : %d",
-                             patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
-            g_hud->DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN2][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN3][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN4][0]); y+= 20;
-            for (int i=0; i < 5; i++) {
-                g_hud->DrawString(x, y, "Trans. Boundary%d : %d %d %d %d", i,
-                                 patchCount[Descriptor::BOUNDARY][i+1][0],
-                                 patchCount[Descriptor::BOUNDARY][i+1][1],
-                                 patchCount[Descriptor::BOUNDARY][i+1][2],
-                                 patchCount[Descriptor::BOUNDARY][i+1][3]); y+= 20;
-            }
-            for (int i=0; i < 5; i++) {
-                g_hud->DrawString(x, y, "Trans. Corner%d  : %d %d %d %d", i,
-                                 patchCount[Descriptor::CORNER][i+1][0],
-                                 patchCount[Descriptor::CORNER][i+1][1],
-                                 patchCount[Descriptor::CORNER][i+1][2],
-                                 patchCount[Descriptor::CORNER][i+1][3]); y+= 20;
-            }
-            for (int i=0; i < 5; i++) {
-                g_hud->DrawString(x, y, "Trans. Single Crease%d : %d %d %d %d", i,
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][0],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][1],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][2],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][3]); y+= 20;
-            }
+                             patchCount[Descriptor::GREGORY_BOUNDARY]); y+= 20;
+            g_hud->DrawString(x, y, "Gregory Basis    : %d",
+                             patchCount[Descriptor::GREGORY_BASIS]); y+= 20;
         }
 
         g_hud->DrawString(10, -120, "Tess level : %d", g_tessLevel);
@@ -1032,7 +1019,7 @@ quit() {
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     delete g_clComputeController;
-    uninitCL(g_clContext, g_clQueue);
+    uninitCL(g_clContext.clContext, g_clContext.clQueue);
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -1074,11 +1061,12 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext == NULL) {
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+    if (g_kernel == kCL and g_clContext.clContext == NULL) {
+        if (initCL(&g_clContext.clContext, &g_clContext.clQueue) == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
         }
+        g_clContext.pd3dDeviceContext = g_pd3dDeviceContext;
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -1504,7 +1492,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
     wcex.hIcon          = NULL;
-    wcex.hCursor        = NULL;
+    wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
     wcex.lpszMenuName   = NULL;
     wcex.lpszClassName  = szWindowClass;

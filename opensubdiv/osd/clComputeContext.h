@@ -30,12 +30,10 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/opencl.h"
 
-#include <vector>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Far{ class StencilTables; }
+namespace Far { class StencilTables; }
 
 namespace Osd {
 
@@ -53,7 +51,20 @@ class CLComputeContext : public NonCopyable<CLComputeContext> {
 public:
     /// Creates an CLComputeContext instance
     ///
+    /// @param vertexStencilTables   The Far::StencilTables used for vertex
+    ///                              interpolation
+    ///
+    /// @param varyingStencilTables  The Far::StencilTables used for varying
+    ///                              interpolation
+    ///
     /// @param clContext             An active OpenCL compute context
+    ///
+    static CLComputeContext * Create(
+        Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables,
+        cl_context clContext);
+
+    /// Creates an CLComputeContext instance (template version)
     ///
     /// @param vertexStencilTables   The Far::StencilTables used for vertex
     ///                              interpolation
@@ -61,9 +72,17 @@ public:
     /// @param varyingStencilTables  The Far::StencilTables used for varying
     ///                              interpolation
     ///
-    static CLComputeContext * Create(cl_context clContext,
-                                        Far::StencilTables const * vertexStencilTables,
-                                        Far::StencilTables const * varyingStencilTables=0);
+    /// @param context               A user defined class to provide cl_context.
+    ///                              must implement GetContext()
+    ///
+    template<typename DEVICE_CONTEXT>
+    static CLComputeContext * Create(
+        Far::StencilTables const * vertexStencilTables,
+        Far::StencilTables const * varyingStencilTables,
+        DEVICE_CONTEXT context) {
+        return Create(vertexStencilTables, varyingStencilTables,
+                      context->GetContext());
+    }
 
     /// Destructor
     virtual ~CLComputeContext();
@@ -114,11 +133,10 @@ public:
 
 protected:
     explicit CLComputeContext(Far::StencilTables const * vertexStencilTables,
-                                 Far::StencilTables const * varyingStencilTables,
-                                 cl_context clContext);
+                              Far::StencilTables const * varyingStencilTables,
+                              cl_context clContext);
 
 private:
-
     class CLStencilTables;
 
     CLStencilTables * _vertexStencilTables,

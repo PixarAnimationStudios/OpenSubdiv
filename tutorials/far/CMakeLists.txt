@@ -39,6 +39,8 @@ foreach(tutorial ${TUTORIALS})
 
     list(APPEND TUTORIAL_TARGETS "far_${tutorial}")
 
+    add_test(far_${tutorial} ${EXECUTABLE_OUTPUT_PATH}/far_${tutorial})
+
 endforeach()
 
 add_custom_target(far_tutorials DEPENDS ${TUTORIAL_TARGETS})

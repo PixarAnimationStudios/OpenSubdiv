@@ -46,16 +46,16 @@ namespace Osd {
 class D3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static D3D11VertexBuffer * Create(int numElements, 
-                                         int numVertices, 
-                                         ID3D11Device *device);
+    static D3D11VertexBuffer * Create(int numElements, int numVertices,
+                                      ID3D11DeviceContext *deviceContext);
 
     /// Destructor.
     virtual ~D3D11VertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices, void *param);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    ID3D11DeviceContext *deviceContext);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -66,14 +66,17 @@ public:
     /// Returns the D3D11 buffer object.
     ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
 
+    /// Returns the D3D11 buffer object (for Osd::Mesh interface)
+    ID3D11Buffer *BindVBO(ID3D11DeviceContext *deviceContext) {
+        return BindD3D11Buffer(deviceContext);
+    }
+
     /// Returns the D3D11 UAV
     ID3D11UnorderedAccessView *BindD3D11UAV(ID3D11DeviceContext *deviceContext);
 
 protected:
     /// Constructor.
-    D3D11VertexBuffer(int numElements, 
-                         int numVertices, 
-                         ID3D11Device *device);
+    D3D11VertexBuffer(int numElements, int numVertices);
 
     // Allocates D3D11 buffer
     bool allocate(ID3D11Device *device);

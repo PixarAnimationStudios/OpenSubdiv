@@ -24,6 +24,7 @@
 #include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/array.h"
+#include "../vtr/stackBuffer.h"
 #include "../vtr/refinement.h"
 #include "../vtr/fvarLevel.h"
 
@@ -527,7 +528,7 @@ FVarRefinement::reclassifySemisharpValues() {
     //
     bool hasDependentSharpness = _parentFVar._hasDependentSharpness;
 
-    Index * cVertEdgeBuffer = (Index*) alloca(_childLevel._maxValence * sizeof(Index));
+    internal::StackBuffer<Index,16> cVertEdgeBuffer(_childLevel._maxValence);
 
     FVarLevel::ValueTag valTagCrease;
     valTagCrease.clear();
@@ -644,6 +645,8 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
     //  this method and re-using them for each sibling, i.e. passing them to this
     //  method somehow.  We may also need them there for mask-related purposes...
     //
+    internal::StackBuffer<Index,16> cVertEdgeBuffer;
+
     ConstIndexArray pVertEdges = _parentLevel.getVertexEdges(pVert);
     ConstIndexArray cVertEdges;
 
@@ -651,8 +654,7 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
     if (_childLevel.getNumVertexEdgesTotal()) {
         cVertEdges = _childLevel.getVertexEdges(cVert);
     } else {
-        //  Scope of alloca() is function not block, so we can limit the declaration:
-        Index * cVertEdgeBuffer = (Index*) alloca(pVertEdges.size() * sizeof(Index));
+        cVertEdgeBuffer.SetSize(pVertEdges.size());
 
         ConstLocalIndexArray pVertInEdge = _parentLevel.getVertexEdgeLocalIndices(pVert);
         for (int i = 0; i < pVertEdges.size(); ++i) {
@@ -661,8 +663,9 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
         cVertEdges = IndexArray(cVertEdgeBuffer, pVertEdges.size());
     }
  
-    float * pEdgeSharpness = (float*) alloca(2 * pVertEdges.size() * sizeof(float));
-    float * cEdgeSharpness = pEdgeSharpness + pVertEdges.size();
+    internal::StackBuffer<float,32> sharpnessBuffer(2 * pVertEdges.size());
+    float * pEdgeSharpness = sharpnessBuffer;
+    float * cEdgeSharpness = sharpnessBuffer + pVertEdges.size();
 
     FVarLevel::CreaseEndPair pValueCreaseEnds = _parentFVar.getVertexValueCreaseEnds(pVert)[pSibling];
 

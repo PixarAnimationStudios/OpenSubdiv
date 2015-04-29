@@ -91,7 +91,8 @@ int main(int, char **) {
             Far::StencilTablesFactory::Create(*refiner, options);
 
         // Create an Osd Compute Context from the stencil tables
-        context = Osd::CpuComputeContext::Create(stencilTables);
+        context = Osd::CpuComputeContext::Create(stencilTables,
+                                                 /*vayingStencil=*/NULL);
 
         nCoarseVerts = refiner->GetNumVertices(0);
         nRefinedVerts = stencilTables->GetNumStencils();

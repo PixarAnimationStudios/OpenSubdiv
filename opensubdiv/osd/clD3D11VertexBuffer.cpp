@@ -23,22 +23,21 @@
 //
 
 #include "../osd/clD3D11VertexBuffer.h"
-#include "../far/error.h"
 
+#include <cassert>
 #include <D3D11.h>
 #include <CL/cl_d3d11.h>
-#include <cassert>
+
+#include "../far/error.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-CLD3D11VertexBuffer::CLD3D11VertexBuffer(int numElements, int numVertices,
-                                               cl_context clContext, ID3D11Device *device) 
+CLD3D11VertexBuffer::CLD3D11VertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _d3d11Buffer(NULL), _clMemory(NULL), _clQueue(NULL), _clMapped(false) {
-;
 }
 
 CLD3D11VertexBuffer::~CLD3D11VertexBuffer() {
@@ -50,16 +49,22 @@ CLD3D11VertexBuffer::~CLD3D11VertexBuffer() {
 
 CLD3D11VertexBuffer *
 CLD3D11VertexBuffer::Create(int numElements, int numVertices,
-                               cl_context clContext, ID3D11Device *device) {
+                            cl_context clContext,
+                            ID3D11DeviceContext *deviceContext) {
     CLD3D11VertexBuffer *instance =
-        new CLD3D11VertexBuffer(numElements, numVertices, clContext, device);
+        new CLD3D11VertexBuffer(numElements, numVertices);
+
+    ID3D11Device *device;
+    deviceContext->GetDevice(&device);
+
     if (instance->allocate(clContext, device)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-CLD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
+CLD3D11VertexBuffer::UpdateData(const float *src, int startVertex,
+                                int numVertices, cl_command_queue queue) {
 
     size_t size = numVertices * _numElements * sizeof(float);
     size_t offset = startVertex * _numElements * sizeof(float);
@@ -95,7 +100,7 @@ CLD3D11VertexBuffer::allocate(cl_context clContext, ID3D11Device *device) {
 
     HRESULT hr;
     hr = device->CreateBuffer(&hBufferDesc, NULL, &_d3d11Buffer);
-    if(FAILED(hr)) {
+    if (FAILED(hr)) {
         Far::Error(Far::FAR_RUNTIME_ERROR, "Fail in CreateBuffer\n");
         return false;
     }

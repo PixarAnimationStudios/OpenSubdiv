@@ -49,6 +49,7 @@ GLFWmonitor* g_primary=0;
 #include "../common/gl_hud.h"
 
 #include <far/patchTablesFactory.h>
+#include <far/ptexIndices.h>
 #include <far/stencilTablesFactory.h>
 
 #include <osd/cpuGLVertexBuffer.h>
@@ -327,7 +328,8 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
         refiner->RefineAdaptive(options);
     }
 
-    int nfaces = refiner->GetNumPtexFaces();
+    Far::PtexIndices ptexIndices(*refiner);
+    int nfaces = ptexIndices.GetNumFaces();
 
     float * u = new float[g_nsamples*nfaces], * uPtr = u,
           * v = new float[g_nsamples*nfaces], * vPtr = v;

@@ -486,7 +486,7 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
                 if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
                     color = getAdaptivePatchColor(
-                        OpenSubdiv::Far::PatchDescriptor(type, 0, 0));
+                        OpenSubdiv::Far::PatchDescriptor(type));
                 } else {
                     static float quadColor[3] = { 1.0f, 1.0f, 0.0f };
                     color = quadColor;
@@ -496,8 +496,8 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
             for (int edge=0; edge<nedgesperpatch; ++edge) {
 
-                eao.push_back(eao.size());
-                eao.push_back(eao.size());
+                eao.push_back((int)eao.size());
+                eao.push_back((int)eao.size());
 
                 int v0 = offset + basisedges[edge*2],
                     v1 = offset + basisedges[edge*2+1];

@@ -66,6 +66,7 @@ public:
     };
 
     struct Options {
+        Options() : vertColorMode(0), edgeColorMode(0), faceColorMode(0) {}
         unsigned int vertColorMode:3,
                      edgeColorMode:3,
                      faceColorMode:3;

@@ -61,11 +61,13 @@ Shape::~Shape() {
 }
 
 //------------------------------------------------------------------------------
-Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme, int axis, bool parsemtl) {
+Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
+                        bool isLeftHanded, int axis, bool parsemtl) {
 
     Shape * s = new Shape;
 
     s->scheme = shapescheme;
+    s->isLeftHanded = isLeftHanded;
 
     char * str=const_cast<char *>(shapestr), line[256], buf[256], usemtl=-1;
     bool done = false;
@@ -103,8 +105,8 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme, int axis, boo
                           while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
                               nverts++;
                               s->faceverts.push_back(vi-1);
-                              if(nitems >= 1) s->faceuvs.push_back(ti-1);
-                              if(nitems >= 2) s->facenormals.push_back(ni-1);
+                              if(nitems > 1) s->faceuvs.push_back(ti-1);
+                              if(nitems > 2) s->facenormals.push_back(ni-1);
                               while (*cp && *cp != ' ') cp++;
                               while (*cp == ' ') cp++;
                           }

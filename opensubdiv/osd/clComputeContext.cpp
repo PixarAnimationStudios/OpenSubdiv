@@ -22,9 +22,11 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/stencilTables.h"
-
 #include "../osd/clComputeContext.h"
+
+#include <vector>
+
+#include "../far/stencilTables.h"
 #include "../far/error.h"
 
 namespace OpenSubdiv {
@@ -37,12 +39,16 @@ namespace Osd {
 template <class T> cl_mem
 createCLBuffer(std::vector<T> const & src, cl_context clContext) {
 
-    cl_mem devicePtr=0; cl_int errNum;
+    cl_mem devicePtr = 0;
+    cl_int errNum = 0;
 
-    devicePtr = clCreateBuffer(clContext, CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
-            src.size()*sizeof(T), (void*)(&src.at(0)), &errNum);
+    devicePtr = clCreateBuffer(clContext,
+                               CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
+                               src.size()*sizeof(T),
+                               (void*)(&src.at(0)),
+                               &errNum);
 
-    if (errNum!=CL_SUCCESS) {
+    if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR, "clCreateBuffer: %d", errNum);
     }
 
@@ -54,13 +60,14 @@ createCLBuffer(std::vector<T> const & src, cl_context clContext) {
 class CLComputeContext::CLStencilTables {
 
 public:
-
-    CLStencilTables(Far::StencilTables const & stencilTables, cl_context clContext) {
+    CLStencilTables(Far::StencilTables const & stencilTables,
+                    cl_context clContext) {
         _numStencils = stencilTables.GetNumStencils();
         if (_numStencils > 0) {
             _sizes = createCLBuffer(stencilTables.GetSizes(), clContext);
             _offsets = createCLBuffer(stencilTables.GetOffsets(), clContext);
-            _indices = createCLBuffer(stencilTables.GetControlIndices(), clContext);
+            _indices = createCLBuffer(stencilTables.GetControlIndices(),
+                                      clContext);
             _weights = createCLBuffer(stencilTables.GetWeights(), clContext);
         } else {
             _sizes = _offsets = _indices = _weights = NULL;
@@ -99,7 +106,6 @@ public:
     }
 
 private:
-
     cl_mem _sizes,
            _offsets,
            _indices,
@@ -117,15 +123,18 @@ CLComputeContext::CLComputeContext(
                 _numControlVertices(0) {
 
     if (vertexStencilTables) {
-        _vertexStencilTables = new CLStencilTables(*vertexStencilTables, clContext);
+        _vertexStencilTables = new CLStencilTables(*vertexStencilTables,
+                                                   clContext);
         _numControlVertices = vertexStencilTables->GetNumControlVertices();
     }
 
     if (varyingStencilTables) {
-        _varyingStencilTables = new CLStencilTables(*varyingStencilTables, clContext);
+        _varyingStencilTables = new CLStencilTables(*varyingStencilTables,
+                                                    clContext);
 
         if (_numControlVertices) {
-            assert(_numControlVertices==varyingStencilTables->GetNumControlVertices());
+            assert(_numControlVertices
+                   == varyingStencilTables->GetNumControlVertices());
         } else {
             _numControlVertices = varyingStencilTables->GetNumControlVertices();
         }
@@ -206,9 +215,9 @@ CLComputeContext::GetVaryingStencilTablesWeights() const {
 // -----------------------------------------------------------------------------
 
 CLComputeContext *
-CLComputeContext::Create(cl_context clContext,
-    Far::StencilTables const * vertexStencilTables,
-        Far::StencilTables const * varyingStencilTables) {
+CLComputeContext::Create(Far::StencilTables const * vertexStencilTables,
+                         Far::StencilTables const * varyingStencilTables,
+                         cl_context clContext) {
 
     CLComputeContext *result =
         new CLComputeContext(

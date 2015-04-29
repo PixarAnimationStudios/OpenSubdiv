@@ -56,16 +56,34 @@ namespace Osd {
 class CLD3D11VertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static CLD3D11VertexBuffer * Create(int numElements, 
-                                           int numVertices,
-                                           cl_context clContext,
-                                           ID3D11Device *device);
+    static CLD3D11VertexBuffer * Create(int numElements, int numVertices,
+                                        cl_context clContext,
+                                        ID3D11DeviceContext *deviceContext);
+
+    /// template version for custom context (OpenCL) used by OsdMesh
+    template<typename DEVICE_CONTEXT>
+    static CLD3D11VertexBuffer * Create(int numElements, int numVertices,
+                                        DEVICE_CONTEXT context) {
+        return Create(numElements, numVertices,
+                      context->GetContext(),
+                      context->GetDeviceContext());
+    }
+
+
     /// Destructor.
     virtual ~CLD3D11VertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    cl_command_queue clQueue);
+
+    /// template version for custom context (OpenCL) used by OsdMesh
+    template<typename DEVICE_CONTEXT>
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    DEVICE_CONTEXT context) {
+        UpdateData(src, startVertex, numVertices, context->GetCommandQueue());
+    }
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -79,12 +97,20 @@ public:
     /// Returns the D3D11 buffer object.
     ID3D11Buffer *BindD3D11Buffer(ID3D11DeviceContext *deviceContext);
 
+    /// Returns the D3D11 buffer object (for Osd::Mesh interface)
+    ID3D11Buffer *BindVBO(ID3D11DeviceContext *deviceContext) {
+        return BindD3D11Buffer(deviceContext);
+    }
+
+    /// template version for custom context (OpenCL) used by OsdMesh
+    template<typename DEVICE_CONTEXT>
+    ID3D11Buffer *BindVBO(DEVICE_CONTEXT context) {
+        return BindD3D11Buffer(context->GetDeviceContext());
+    }
+
 protected:
     /// Constructor.
-    CLD3D11VertexBuffer(int numElements, 
-                           int numVertices, 
-                           cl_context clContext, 
-                           ID3D11Device *device);
+    CLD3D11VertexBuffer(int numElements, int numVertices);
 
     /// Allocates this buffer and registers as a cl resource.
     /// Returns true if success.

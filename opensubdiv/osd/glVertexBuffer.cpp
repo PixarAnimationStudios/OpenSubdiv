@@ -34,8 +34,7 @@ namespace Osd {
 GLVertexBuffer::GLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements),
       _numVertices(numVertices),
-      _vbo(0)
-{
+      _vbo(0) {
 }
 
 GLVertexBuffer::~GLVertexBuffer() {
@@ -44,7 +43,7 @@ GLVertexBuffer::~GLVertexBuffer() {
 }
 
 GLVertexBuffer *
-GLVertexBuffer::Create(int numElements, int numVertices) {
+GLVertexBuffer::Create(int numElements, int numVertices, void *) {
 
     GLVertexBuffer *instance =
         new GLVertexBuffer(numElements, numVertices);
@@ -54,18 +53,22 @@ GLVertexBuffer::Create(int numElements, int numVertices) {
 }
 
 void
-GLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+GLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
+                           void * /*deviceContext*/) {
 
     int size = numVertices * _numElements * sizeof(float);
 #if defined(GL_EXT_direct_state_access)
     if (glNamedBufferSubDataEXT) {
-        glNamedBufferSubDataEXT(_vbo, startVertex * _numElements * sizeof(float), size, src);
+        glNamedBufferSubDataEXT(_vbo,
+                                startVertex * _numElements * sizeof(float),
+size, src);
     } else {
 #else
     {
 #endif
         glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-        glBufferSubData(GL_ARRAY_BUFFER, startVertex * _numElements * sizeof(float), size, src);
+        glBufferSubData(GL_ARRAY_BUFFER,
+                        startVertex * _numElements * sizeof(float), size, src);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 }
@@ -83,7 +86,7 @@ GLVertexBuffer::GetNumVertices() const {
 }
 
 GLuint
-GLVertexBuffer::BindVBO() {
+GLVertexBuffer::BindVBO(void * /*deviceContext*/) {
 
     return _vbo;
 }

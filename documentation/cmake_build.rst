@@ -80,8 +80,8 @@ ________
     - `GLFW <https://github.com/glfw/glfw>`__ (required for standalone examples
       and some regression tests)
     - `Docutils <http://docutils.sourceforge.net/>`__ (required for reST-based documentation)
-    - `Python Pygments <http://www.pygments.org/>`__ (required for Docutils reST styling)
-    - `Doxygen <www.doxygen.org/>`__
+    - `Python Pygments <http://pygments.org/>`__ (required for Docutils reST styling)
+    - `Doxygen <http://www.doxygen.org/>`__
 
 ----
 

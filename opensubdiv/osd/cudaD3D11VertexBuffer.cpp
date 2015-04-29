@@ -35,9 +35,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-CudaD3D11VertexBuffer::CudaD3D11VertexBuffer(int numElements,
-                                                   int numVertices,
-                                                   ID3D11Device *device) 
+CudaD3D11VertexBuffer::CudaD3D11VertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _d3d11Buffer(NULL), _cudaBuffer(NULL), _cudaResource(NULL) {
 }
@@ -51,16 +49,21 @@ CudaD3D11VertexBuffer::~CudaD3D11VertexBuffer() {
 
 CudaD3D11VertexBuffer *
 CudaD3D11VertexBuffer::Create(int numElements, int numVertices,
-                                 ID3D11Device *device) {
+                              ID3D11DeviceContext *deviceContext) {
     CudaD3D11VertexBuffer *instance =
-        new CudaD3D11VertexBuffer(numElements, numVertices, device);
+        new CudaD3D11VertexBuffer(numElements, numVertices);
+
+    ID3D11Device *device;
+    deviceContext->GetDevice(&device);
     if (instance->allocate(device)) return instance;
     delete instance;
     return NULL;
 }
 
 void
-CudaD3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, void *param) {
+CudaD3D11VertexBuffer::UpdateData(const float *src,
+                                  int startVertex, int numVertices,
+                                  void * /*deviceContext*/) {
 
     map();
     cudaMemcpy((float*)_cudaBuffer + _numElements * startVertex,

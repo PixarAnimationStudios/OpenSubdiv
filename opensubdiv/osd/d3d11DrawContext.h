@@ -75,8 +75,16 @@ public:
     /// @param numVertexElements    The number of vertex elements
     ///
     static D3D11DrawContext *Create(Far::PatchTables const *patchTables,
-                                       ID3D11DeviceContext *pd3d11DeviceContext,
-                                       int numVertexElements);
+                                    int numVertexElements,
+                                    ID3D11DeviceContext *pd3d11DeviceContext);
+
+    /// template version for custom context (OpenCL) used by OsdMesh
+    template<typename DEVICE_CONTEXT>
+    static D3D11DrawContext *Create(Far::PatchTables const *patchtables,
+                                    int numVertexElements,
+                                    DEVICE_CONTEXT context) {
+        return Create(patchtables, numVertexElements, context->GetDeviceContext());
+    }
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
     ///
@@ -91,6 +99,12 @@ public:
                                 pd3d11DeviceContext,
                                 vbo->GetNumVertices(),
                                 vbo->GetNumElements());
+    }
+
+    /// template version for custom context (OpenCL) used by OsdMesh
+    template<class VERTEX_BUFFER, class DEVICE_CONTEXT>
+    void UpdateVertexTexture(VERTEX_BUFFER *vbo, DEVICE_CONTEXT context) {
+        UpdateVertexTexture(vbo, context->GetDeviceContext());
     }
 
     ID3D11Buffer             *patchIndexBuffer;
@@ -120,8 +134,17 @@ public:
     /// @return                     True if the operation was successful
     ///
     bool SetFVarDataTexture(Far::PatchTables const & patchTables,
-                            ID3D11DeviceContext *pd3d11DeviceContext,
-                            int fvarWidth, FVarData const & fvarData);
+                            int fvarWidth, FVarData const & fvarData,
+                            ID3D11DeviceContext *pd3d11DeviceContext);
+
+    /// template version for custom context (OpenCL) used by OsdMesh
+    template<typename DEVICE_CONTEXT>
+    bool SetFVarDataTexture(Far::PatchTables const & patchTables,
+                            int fvarWidth, FVarData const & fvarData,
+                            DEVICE_CONTEXT context) {
+        return SetFVarDataTexture(patchTables, fvarWidth, fvarData,
+                                  context->GetDeviceContext());
+    }
 
 private:
     D3D11DrawContext();
@@ -129,8 +152,8 @@ private:
 
     // allocate buffers from patchTables
     bool create(Far::PatchTables const &patchTables,
-                ID3D11DeviceContext *pd3d11DeviceContext,
-                int numVertexElements);
+                int numVertexElements,
+                ID3D11DeviceContext *pd3d11DeviceContext);
 
     void updateVertexTexture(ID3D11Buffer *vbo,
                              ID3D11DeviceContext *pd3d11DeviceContext,

@@ -47,52 +47,55 @@ GLFWmonitor* g_primary=0;
 #include <osd/glDrawRegistry.h>
 #include <osd/glMesh.h>
 #include <far/error.h>
+#include <far/ptexIndices.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuComputeContext.h>
 #include <osd/cpuComputeController.h>
+OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <osd/ompComputeController.h>
+    OpenSubdiv::Osd::OmpComputeController *g_ompComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
     #include <osd/tbbComputeController.h>
+    OpenSubdiv::Osd::TbbComputeController *g_tbbComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clGLVertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
+    OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
 
-    #include "../common/clInit.h"
-
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
+    #include "../common/clDeviceContext.h"
+    CLDeviceContext g_clDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaGLVertexBuffer.h>
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
+    OpenSubdiv::Osd::CudaComputeController *g_cudaComputeController = NULL;
 
-    #include <cuda_runtime_api.h>
-    #include <cuda_gl_interop.h>
-
-    #include "../common/cudaInit.h"
-    bool g_cudaInitialized = false;
+    #include "../common/cudaDeviceContext.h"
+    CudaDeviceContext g_cudaDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     #include <osd/glslTransformFeedbackComputeContext.h>
     #include <osd/glslTransformFeedbackComputeController.h>
     #include <osd/glVertexBuffer.h>
+    OpenSubdiv::Osd::GLSLTransformFeedbackComputeController *g_glslXFBComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     #include <osd/glslComputeContext.h>
     #include <osd/glslComputeController.h>
     #include <osd/glVertexBuffer.h>
+    OpenSubdiv::Osd::GLSLComputeController *g_glslComputeController = NULL;
 #endif
 
 
@@ -154,16 +157,18 @@ private:
     int _numVertices;                // # of vertices of single instance
 };
 
-template <class VERTEX_BUFFER>
+template <class VERTEX_BUFFER, class DEVICE_CONTEXT>
 class Instances : public InstancesBase {
 public:
     Instances(int numInstances,
               Osd::VertexBufferDescriptor const &vertexDesc,
               Osd::VertexBufferDescriptor const &varyingDesc,
               bool interleaved,
-              int numVertices) :
+              int numVertices,
+              DEVICE_CONTEXT *deviceContext) :
         InstancesBase(vertexDesc, varyingDesc, numVertices),
-        _vertexBuffer(NULL), _varyingBuffer(NULL), _interleaved(interleaved) {
+        _vertexBuffer(NULL), _varyingBuffer(NULL), _interleaved(interleaved),
+        _deviceContext(deviceContext) {
 
         if (interleaved) {
             assert(vertexDesc.stride == varyingDesc.stride);
@@ -205,11 +210,12 @@ public:
     }
 
     VERTEX_BUFFER *createVertexBuffer(int numElements, int numVertices) {
-        return VERTEX_BUFFER::Create(numElements, numVertices);
+        return VERTEX_BUFFER::Create(numElements, numVertices, _deviceContext);
     }
-    void updateVertexBuffer(VERTEX_BUFFER *vertexBuffer, const float *src, int startVertex,
+    void updateVertexBuffer(VERTEX_BUFFER *vertexBuffer,
+                            const float *src, int startVertex,
                             int numVertices) {
-        vertexBuffer->UpdateData(src, startVertex, numVertices);
+        vertexBuffer->UpdateData(src, startVertex, numVertices, _deviceContext);
     }
 
     VERTEX_BUFFER *GetVertexBuffer() const { return _vertexBuffer; }
@@ -219,6 +225,7 @@ private:
     VERTEX_BUFFER *_vertexBuffer;
     VERTEX_BUFFER *_varyingBuffer;
     bool _interleaved;
+    DEVICE_CONTEXT *_deviceContext;
 };
 
 // ---------------------------------------------------------------------------
@@ -281,19 +288,27 @@ private:
     std::vector<float> _restPosition;
 };
 
-template <class COMPUTE_CONTROLLER, class VERTEX_BUFFER>
+template <class COMPUTE_CONTROLLER, class VERTEX_BUFFER,
+          class DEVICE_CONTEXT=void>
 class Topology : public TopologyBase {
 
 public:
 
+    typedef COMPUTE_CONTROLLER ComputeController;
     typedef typename COMPUTE_CONTROLLER::ComputeContext ComputeContext;
+    typedef DEVICE_CONTEXT DeviceContext;
 
-    Topology(Far::PatchTables const * patchTables,
-        Far::StencilTables const * vertexStencils,
-            Far::StencilTables const * varyingStencils)
-                : TopologyBase(patchTables) {
+    Topology(ComputeController * computeController,
+             Far::PatchTables const * patchTables,
+             Far::StencilTables const * vertexStencils,
+             Far::StencilTables const * varyingStencils,
+             DeviceContext * deviceContext = NULL)
+        : TopologyBase(patchTables),
+          _computeController(computeController),
+          _deviceContext(deviceContext) {
 
-        _computeContext = ComputeContext::Create(vertexStencils, varyingStencils);
+        _computeContext = ComputeContext::Create(
+            vertexStencils, varyingStencils, deviceContext);
 
         _numVertices = vertexStencils->GetNumStencils() +
             vertexStencils->GetNumControlVertices();
@@ -310,8 +325,8 @@ public:
         Osd::VertexBufferDescriptor const &globalVaryingDesc =
             instance->GetVaryingDesc();
 
-        Instances<VERTEX_BUFFER> *typedInstance =
-            static_cast<Instances<VERTEX_BUFFER> *>(instance);
+        Instances<VERTEX_BUFFER, DEVICE_CONTEXT> *typedInstance =
+            static_cast<Instances<VERTEX_BUFFER, DEVICE_CONTEXT> *>(instance);
 
         for (int i = 0; i < numInstances; ++i) {
 
@@ -325,11 +340,11 @@ public:
                 globalVaryingDesc.length,
                 globalVaryingDesc.stride);
 
-            _computeController.Compute(_computeContext,
-                                      typedInstance->GetVertexBuffer(),
-                                      typedInstance->GetVaryingBuffer(),
-                                      &vertexDesc,
-                                      &varyingDesc);
+            _computeController->Compute(_computeContext,
+                                        typedInstance->GetVertexBuffer(),
+                                        typedInstance->GetVaryingBuffer(),
+                                        &vertexDesc,
+                                        &varyingDesc);
         }
     }
 
@@ -339,64 +354,28 @@ public:
         Osd::VertexBufferDescriptor const &varyingDesc,
         bool interleaved) {
 
-        return new Instances<VERTEX_BUFFER>(numInstances,
-                                            vertexDesc,
-                                            varyingDesc,
-                                            interleaved,
-                                            _numVertices);
+        return new Instances<VERTEX_BUFFER, DEVICE_CONTEXT>(
+            numInstances, vertexDesc, varyingDesc,
+            interleaved, _numVertices, _deviceContext);
     }
 
     virtual void Synchronize() {
-        _computeController.Synchronize();
+        _computeController->Synchronize();
     }
 
     virtual void UpdateVertexTexture(InstancesBase *instances) {
-        Instances<VERTEX_BUFFER> *typedInstance =
-            static_cast<Instances<VERTEX_BUFFER> *>(instances);
+        Instances<VERTEX_BUFFER, DEVICE_CONTEXT> *typedInstance =
+            static_cast<Instances<VERTEX_BUFFER, DEVICE_CONTEXT> *>(instances);
         GetDrawContext()->UpdateVertexTexture(typedInstance->GetVertexBuffer());
 
         updateVertexBufferStride(typedInstance->GetVertexBuffer()->GetNumElements());
     }
 
 private:
-    COMPUTE_CONTROLLER _computeController;
+    ComputeController *_computeController;
     ComputeContext *_computeContext;
+    DeviceContext *_deviceContext;
 };
-
-// ---------------------------------------------------------------------------
-
-// CL specializations
-#ifdef OPENSUBDIV_HAS_OPENCL
-
-template<> Osd::CLGLVertexBuffer *
-Instances<Osd::CLGLVertexBuffer>::createVertexBuffer(
-    int numElements, int numVertices) {
-    return Osd::CLGLVertexBuffer::Create(
-        numElements, numVertices, g_clContext);
-}
-
-template<> void
-Instances<Osd::CLGLVertexBuffer>::updateVertexBuffer(
-    Osd::CLGLVertexBuffer *vertexBuffer,
-    const float *src, int startVertex, int numVertices) {
-    vertexBuffer->UpdateData(src, startVertex, numVertices, g_clQueue);
-}
-
-template<>
-Topology<Osd::CLComputeController, Osd::CLGLVertexBuffer>::
-Topology(Far::PatchTables const * patchTables,
-    Far::StencilTables const * vertexStencils, Far::StencilTables const * varyingStencils) :
-        TopologyBase(patchTables), _computeController(g_clContext, g_clQueue) {
-
-    _computeContext = ComputeContext::Create(g_clContext, vertexStencils, varyingStencils);
-
-    _numVertices = vertexStencils->GetNumStencils() +
-        vertexStencils->GetNumControlVertices();
-}
-#endif
-
-// ---------------------------------------------------------------------------
-
 
 TopologyBase *g_topology = NULL;
 InstancesBase *g_instances = NULL;
@@ -588,7 +567,8 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
         }
 
         // create ptex index to coarse face index mapping
-        int numPtexFaces = refiner->GetNumPtexFaces();
+        Far::PtexIndices ptexIndices(*refiner);
+        int numPtexFaces = ptexIndices.GetNumFaces();
 
         // XXX: duped logic to simpleHbr
         std::vector<int> ptexIndexToFaceMapping(numPtexFaces);
@@ -614,7 +594,8 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
     bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark);
 
     if (doAdaptive) {
-        refiner->RefineAdaptive(Far::TopologyRefiner::AdaptiveOptions(level));
+        Far::TopologyRefiner::AdaptiveOptions options(level);
+        refiner->RefineAdaptive(options);
     } else {
         Far::TopologyRefiner::UniformOptions options(level);
         options.fullTopologyInLastLevel = true;
@@ -636,45 +617,82 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
         assert(vertexStencils);
     }
 
-    Far::PatchTables const * patchTables =
-        Far::PatchTablesFactory::Create(*refiner);
+    Far::PatchTables const * patchTables = NULL;
+    {
+        Far::PatchTablesFactory::Options poptions(level);
+        poptions.SetEndCapType(
+            Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
+        patchTables = Far::PatchTablesFactory::Create(*refiner, poptions);
+    }
 
 
     // create partitioned patcharray
     TopologyBase *topology = NULL;
 
     if (g_kernel == kCPU) {
+        if (not g_cpuComputeController)
+            g_cpuComputeController = new Osd::CpuComputeController();
         topology = new Topology<Osd::CpuComputeController,
-            Osd::CpuGLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::CpuGLVertexBuffer>(g_cpuComputeController,
+                                    patchTables,
+                                    vertexStencils, varyingStencils);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
+        if (not g_ompComputeController)
+            g_ompComputeController = new Osd::OmpComputeController();
         topology = new Topology<Osd::OmpComputeController,
-            Osd::CpuGLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::CpuGLVertexBuffer>(g_ompComputeController,
+                                    patchTables,
+                                    vertexStencils, varyingStencils);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (g_kernel == kTBB) {
+        if (not g_tbbComputeController)
+            g_tbbComputeController = new Osd::TbbComputeController();
         topology = new Topology<Osd::TbbComputeController,
-            Osd::CpuGLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::CpuGLVertexBuffer>(g_tbbComputeController,
+                                    patchTables,
+                                    vertexStencils, varyingStencils);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
+        if (not g_cudaComputeController)
+            g_cudaComputeController = new Osd::CudaComputeController();
         topology = new Topology<Osd::CudaComputeController,
-            Osd::CudaGLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::CudaGLVertexBuffer>(g_cudaComputeController,
+                                     patchTables,
+                                     vertexStencils, varyingStencils);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
+        if (not g_clComputeController)
+            g_clComputeController = new Osd::CLComputeController(
+                g_clDeviceContext.GetContext(),
+                g_clDeviceContext.GetCommandQueue());
         topology = new Topology<Osd::CLComputeController,
-            Osd::CLGLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::CLGLVertexBuffer,
+            CLDeviceContext>(g_clComputeController,
+                             patchTables,
+                             vertexStencils, varyingStencils,
+                             &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if (g_kernel == kGLSL) {
+        if (not g_glslXFBComputeController)
+            g_glslXFBComputeController = new Osd::GLSLTransformFeedbackComputeController();
         topology = new Topology<Osd::GLSLTransformFeedbackComputeController,
-            Osd::GLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::GLVertexBuffer>(g_glslXFBComputeController,
+                                 patchTables,
+                                 vertexStencils, varyingStencils);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if (g_kernel == kGLSLCompute) {
+        if (not g_glslComputeController)
+            g_glslComputeController = new Osd::GLSLComputeController();
         topology = new Topology<Osd::GLSLComputeController,
-            Osd::GLVertexBuffer>(patchTables, vertexStencils, varyingStencils);
+            Osd::GLVertexBuffer>(g_glslComputeController,
+                                 patchTables,
+                                 vertexStencils, varyingStencils);
 #endif
     } else {
     }
@@ -1255,10 +1273,27 @@ uninitGL() {
     if (g_topology)
         delete g_topology;
 
-#ifdef OPENSUBDIV_HAS_OPENCL
-    uninitCL(g_clContext, g_clQueue);
+    delete g_cpuComputeController;
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+    delete g_ompComputeController;
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    delete g_tbbComputeController;
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    delete g_clComputeController;
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    delete g_cudaComputeController;
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    delete g_glslXFBComputeController;
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    delete g_glslComputeController;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1361,8 +1396,8 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext == NULL) {
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+        if (g_clDeviceContext.Initialize() == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
         }
@@ -1370,9 +1405,11 @@ callbackKernel(int k) {
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and g_cudaInitialized == false) {
-        g_cudaInitialized = true;
-        cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+        if (g_cudaDeviceContext.Initialize() == false) {
+            printf("Error in initializing Cuda\n");
+            exit(1);
+        }
     }
 #endif
 
@@ -1455,7 +1492,7 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (HAS_CL_VERSION_1_1()) {
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
         g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
     }
 #endif

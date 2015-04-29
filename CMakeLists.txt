@@ -311,6 +311,8 @@ option(NO_OPENCL "Disable OpenCL backend" OFF)
 option(NO_CLEW "Disable CLEW wrapper library" OFF)
 option(NO_OPENGL "Disable OpenGL support")
 option(NO_DX "Disable DirectX support")
+option(NO_TESTS "Disable all tests")
+option(NO_GLTESTS "Disable GL tests")
 
 # Check for dependencies
 if(NOT NO_OMP)
@@ -360,7 +362,7 @@ endif()
 
 if (NOT NO_DOC)
     find_package(Doxygen 1.8.4)
-    find_package(Docutils 0.6)
+    find_package(Docutils 0.9)
 else()
     set(DOXYGEN_EXECUTABLE )
 endif()
@@ -681,6 +683,10 @@ endmacro()
 
 #-------------------------------------------------------------------------------
 # Build targets
+
+if (NOT NO_TESTS)
+    enable_testing()
+endif()
 
 add_subdirectory(opensubdiv)
 

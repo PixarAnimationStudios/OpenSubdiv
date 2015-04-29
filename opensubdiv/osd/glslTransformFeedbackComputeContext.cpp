@@ -234,7 +234,8 @@ GLSLTransformFeedbackComputeContext::GetVaryingStencilTablesWeights() const {
 GLSLTransformFeedbackComputeContext *
 GLSLTransformFeedbackComputeContext::Create(
     Far::StencilTables const * vertexStencilTables,
-        Far::StencilTables const * varyingStencilTables) {
+    Far::StencilTables const * varyingStencilTables,
+    void * /*deviceContext*/) {
 
     GLSLTransformFeedbackComputeContext *result =
         new GLSLTransformFeedbackComputeContext(
