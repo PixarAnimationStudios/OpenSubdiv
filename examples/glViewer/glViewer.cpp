@@ -112,13 +112,57 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/objAnim.h"
 #include "../common/patchColors.h"
 
-static const char *shaderSource =
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #include "shader.gen.h"
-#else
-    #include "shader_gl3.gen.h"
+
+#if defined(OSD_USES_GLEW)
+static bool uses_tesselation_shaders(){
+
+	bool initialized = false, uses = false;
+	if (!initialized){
+		uses = glewGetExtension("GL_ARB_tessellation_shader") ||
+			(GLEW_VERSION_4_0
+			&& glewGetExtension("GL_ARB_tessellation_shader"));
+		initialized = true;
+	}
+	return initialized;
+}
 #endif
-;
+
+/* Function to get the correct shader file based on the opengl version.
+  The implentation varies depending if glew is available or not. In case
+  is available the capabilities are queried during execution and the correct
+  source is returned. If glew in not available during compile time the version
+  is determined*/
+static const char *shaderSource(){
+#if not defined(OSD_USES_GLEW)
+	return
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+#include "shader.gen.h"
+#else
+#include "shader_gl3.gen.h"
+#endif
+#else
+		static char *res = NULL;
+		if (!res){
+			static char *gen =
+#include "shader.gen.h"
+				;
+			static char *gen3 =
+#include "shader_gl3.gen.h"
+				;
+			//Determine the shader file to use. Since some opengl implementations
+			//define that an extension is available but not an implementation 
+			//for it you cannnot trust in the glew header definitions to know that is 
+			//available, but you need to query it during runtime.
+			if (uses_tesselation_shaders())
+				res = gen;
+			else
+				res = gen3;
+		}
+		return res;
+
+#endif
+
+}
 
 #include <cfloat>
 #include <vector>
@@ -264,17 +308,93 @@ compileShader(GLenum shaderType, const char *source)
     return shader;
 }
 
+///Helper function that parses the open gl version string, retrieving the major 
+///and minor version from it.
+static void get_major_minor_version(int *major, int *minor){
+	static bool initialized = false;
+	int _major = -1, _minor = -1;
+	if (!initialized || _major == -1 || _minor == -1){
+		const GLubyte *ver = glGetString(GL_SHADING_LANGUAGE_VERSION);
+		if (!ver){
+			_major = -1;
+			_minor = -1;
+		}
+		else{
+			std::string major_str(ver, ver + 1);
+			std::string minor_str(ver + 2, ver + 3);
+			std::stringstream ss;
+			ss << major_str << " " << minor_str;
+			ss >> _major;
+			ss >> _minor;
+		}
+		initialized = true;
+	}
+	*major = _major;
+	*minor = _minor;
+
+}
+
+/** Gets the shader version based on the current opengl version and returns 
+ * it in a string form */
+
+const std::string &get_shader_version(){
+	static bool initialized = false;
+	static std::string shader_version;
+	if (!initialized){
+
+		int major, minor;
+		get_major_minor_version(&major, &minor);
+		int version_number = major * 10 + minor;
+		switch (version_number){
+		case 20:
+			shader_version = "110";
+			break;
+		case 21:
+			shader_version = "120";
+			break;
+		case 30:
+			shader_version = "130";
+			break;
+		case 31:
+			shader_version = "140";
+			break;
+		case 32:
+			shader_version = "150";
+			break;
+		default:
+			std::stringstream ss;
+			ss << version_number;
+			shader_version = ss.str() + "0";
+			break;
+		}
+		initialized = true;
+	}
+	return shader_version;
+}
+
+/* Generates the version defintion needed by the glsl shaders based on the 
+ * opengl string
+*/
+static const std::string &get_shader_version_include(){
+	static bool initialized = false;
+	static std::string include;
+	if (!initialized){
+		include = "#version " + get_shader_version() + "\n";
+		initialized = true;
+	}
+	return include;
+}
+
+
+
 static bool
 linkDefaultProgram() {
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #define GLSL_VERSION_DEFINE "#version 400\n"
-#else
-    #define GLSL_VERSION_DEFINE "#version 150\n"
-#endif
+	const std::string glsl_version = get_shader_version_include();
 
-    static const char *vsSrc =
-        GLSL_VERSION_DEFINE
+
+    static const std::string vsSrc =
+		glsl_version +
         "in vec3 position;\n"
         "in vec3 color;\n"
         "out vec4 fragColor;\n"
@@ -285,8 +405,8 @@ linkDefaultProgram() {
         "                  vec4(position, 1);\n"
         "}\n";
 
-    static const char *fsSrc =
-        GLSL_VERSION_DEFINE
+    static const std::string fsSrc =
+		glsl_version +
         "in vec4 fragColor;\n"
         "out vec4 color;\n"
         "void main() {\n"
@@ -294,8 +414,8 @@ linkDefaultProgram() {
         "}\n";
 
     GLuint program = glCreateProgram();
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc);
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc.c_str());
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
 
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
@@ -851,26 +971,23 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
 
     assert(sconfig);
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
-#else
-    const char *glslVersion = "#version 330\n";
-#endif
+	const std::string glslVersionStr = get_shader_version_include();
+    const char *glslVersion = glslVersionStr.c_str();
 
     if (desc.first.GetType() == Descriptor::QUADS or
         desc.first.GetType() == Descriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
+        sconfig->vertexShader.source = shaderSource();
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
         sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     }
 
-    sconfig->geometryShader.source = shaderSource;
+    sconfig->geometryShader.source = shaderSource();
     sconfig->geometryShader.version = glslVersion;
     sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
 
-    sconfig->fragmentShader.source = shaderSource;
+    sconfig->fragmentShader.source = shaderSource();
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
@@ -887,9 +1004,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
         // adaptive
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+        sconfig->vertexShader.source = shaderSource() + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource() + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource() + sconfig->tessEvalShader.source;
 
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -961,40 +1078,53 @@ EffectDrawRegistry::_CreateDrawConfig(
         glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
 
     GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE4
-    }
+
+	bool use_ver_4_1_separate_shader_objects =
+#if defined(OSD_USES_GLEW)
+		!(GLEW_ARB_separate_shader_objects || GLEW_VERSION_4_1)
 #else
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
-    }
+#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
+		false
+#else true;
 #endif
+#endif
+		;
+
+	if (use_ver_4_1_separate_shader_objects){
+		glUseProgram(config->program);
+		if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
+			glUniform1i(loc, 0); // GL_TEXTURE0
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
+			glUniform1i(loc, 1); // GL_TEXTURE1
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
+			glUniform1i(loc, 2); // GL_TEXTURE2
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+			glUniform1i(loc, 3); // GL_TEXTURE3
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+			glUniform1i(loc, 4); // GL_TEXTURE4
+		}
+	}
+	else{
+		if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
+		}
+	}
 
     return config;
 }
@@ -1169,6 +1299,17 @@ display() {
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
 #endif
 
+	bool tesselation_shaders =
+#if defined(OSD_USES_GLEW)
+		uses_tesselation_shaders()
+#else
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+		true
+#else
+		false
+#endif
+#endif
+		;
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
@@ -1193,42 +1334,44 @@ display() {
             primType = GL_TRIANGLES;
             break;
         default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
+			if (tesselation_shaders){
+				primType = GL_PATCHES;
+				glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
+			}
+			else
+				primType = GL_POINTS;
         }
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(), patch);
+		if (tesselation_shaders){
+			GLuint program = bindProgram(GetEffect(), patch);
 
-        GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
+			GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
 
-        if (g_displayPatchColor and primType == GL_PATCHES) {
-            float const * color = getAdaptivePatchColor( desc );
-            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
-        } else {
-            glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-        }
+			if (g_displayPatchColor and primType == GL_PATCHES) {
+				float const * color = getAdaptivePatchColor(desc);
+				glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
+			}
+			else {
+				glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
+			}
 
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
+			GLuint uniformGregoryQuadOffsetBase =
+				glGetUniformLocation(program, "GregoryQuadOffsetBase");
+			GLuint uniformPrimitiveIdBase =
+				glGetUniformLocation(program, "PrimitiveIdBase");
 
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
+			glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+				patch.GetQuadOffsetIndex());
+			glProgramUniform1i(program, uniformPrimitiveIdBase,
+				patch.GetPatchIndex());
+		}
+		else{
+			GLuint program = bindProgram(GetEffect(), patch);
+			GLint uniformPrimitiveIdBase =
+				glGetUniformLocation(program, "PrimitiveIdBase");
+			if (uniformPrimitiveIdBase != -1)
+				glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+		}
 
         if (g_displayStyle == kWire) {
             glDisable(GL_CULL_FACE);
@@ -1724,18 +1867,10 @@ setGLCoreProfile() {
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
 
-#else
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
     glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
+
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
