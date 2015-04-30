@@ -41,6 +41,10 @@ include_directories(
     "${PTEX_INCLUDE_DIR}"
 )
 
+if (OPENCL_FOUND)
+    include_directories("${OPENCL_INCLUDE_DIRS}")
+endif()
+
 set(SOURCE_FILES
     dxPtexViewer.cpp
 )

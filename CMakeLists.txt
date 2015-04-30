@@ -355,6 +355,10 @@ if (OPENGL_FOUND AND NOT IOS)
     endif()
 endif()
 
+if (WIN32 AND NOT NO_DX)
+   find_package(DXSDK)
+endif()
+
 if (NOT NO_MAYA)
 find_package(Maya 201200)
 endif()
