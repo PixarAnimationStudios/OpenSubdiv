@@ -411,14 +411,18 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
     std::vector<float> vertex;
     vertex.resize(nverts * numVertexElements);
     for (int i = 0; i < nverts; ++i) {
+        // normalize xyz
         for (int j = 0; j < 3; ++j) {
             vertex[i*numVertexElements+j] =
                 (shape->verts[i*3+j] - center[j])/radius;
         }
-        for (int j = 0; j < 4; ++j) {
+        // set rgb from xyz
+        for (int j = 0; j < 3; ++j) {
             vertex[i*numVertexElements+j+3] =
                 (shape->verts[i*3+j] - pmin[j])*2.0f/radius;
         }
+        // set alpha to 1.0
+        vertex[i*numVertexElements+3+3] = 1.0f;
     }
     mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
