@@ -1859,15 +1859,15 @@ callbackErrorGLFW(int error, const char* description) {
 }
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile() {
+setGLCoreProfile(int major, int minor) {
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
 
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
@@ -1875,86 +1875,107 @@ setGLCoreProfile() {
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
-    bool fullscreen = false;
-    std::string str;
-    std::vector<char const *> animobjs;
+	bool fullscreen = false;
+	std::string str;
+	std::vector<char const *> animobjs;
 
-    for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
-            animobjs.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-axis")) {
-            g_axis = false;
-        } else if (!strcmp(argv[i], "-d")) {
-            g_level = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-c")) {
-            g_repeatCount = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-f")) {
-            fullscreen = true;
-        } else {
-            std::ifstream ifs(argv[1]);
-            if (ifs) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                ifs.close();
-                str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
-            }
-        }
-    }
+	for (int i = 1; i < argc; ++i) {
+		if (strstr(argv[i], ".obj")) {
+			animobjs.push_back(argv[i]);
+		}
+		else if (!strcmp(argv[i], "-axis")) {
+			g_axis = false;
+		}
+		else if (!strcmp(argv[i], "-d")) {
+			g_level = atoi(argv[++i]);
+		}
+		else if (!strcmp(argv[i], "-c")) {
+			g_repeatCount = atoi(argv[++i]);
+		}
+		else if (!strcmp(argv[i], "-f")) {
+			fullscreen = true;
+		}
+		else {
+			std::ifstream ifs(argv[1]);
+			if (ifs) {
+				std::stringstream ss;
+				ss << ifs.rdbuf();
+				ifs.close();
+				str = ss.str();
+				g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+			}
+		}
+	}
 
-    if (not animobjs.empty()) {
+	if (not animobjs.empty()) {
 
-        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
+		g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
 
-        g_objAnim = ObjAnim::Create(animobjs, g_axis);
-    }
+		g_objAnim = ObjAnim::Create(animobjs, g_axis);
+	}
 
-    initShapes();
+	initShapes();
 
-    g_fpsTimer.Start();
+	g_fpsTimer.Start();
 
-    OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
+	OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
-    glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
-        printf("Failed to initialize GLFW\n");
-        return 1;
-    }
+	glfwSetErrorCallback(callbackErrorGLFW);
+	if (not glfwInit()) {
+		printf("Failed to initialize GLFW\n");
+		return 1;
+	}
 
-    static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
+	static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
 
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
-    setGLCoreProfile();
+	setGLCoreProfile(4, 4);
 #endif
 
-    if (fullscreen) {
+	if (fullscreen) {
 
-        g_primary = glfwGetPrimaryMonitor();
+		g_primary = glfwGetPrimaryMonitor();
 
-        // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
-        // settle for the first one in the list
-        if (not g_primary) {
-            int count=0;
-            GLFWmonitor ** monitors = glfwGetMonitors(&count);
+		// apparently glfwGetPrimaryMonitor fails under linux : if no primary,
+		// settle for the first one in the list
+		if (not g_primary) {
+			int count = 0;
+			GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
-            if (count)
-                g_primary = monitors[0];
-        }
+			if (count)
+				g_primary = monitors[0];
+		}
 
-        if (g_primary) {
-            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode->width;
-            g_height = vidmode->height;
-        }
-    }
+		if (g_primary) {
+			GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+			g_width = vidmode->width;
+			g_height = vidmode->height;
+		}
+	}
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
-        glfwTerminate();
-        return 1;
-    }
+	g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+		fullscreen and g_primary ? g_primary : NULL, NULL);
+
+#ifdef CORE_PROFILE
+	if (not g_window){
+		setGLCoreProfile(4, 2);
+		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+			fullscreen and g_primary ? g_primary : NULL, NULL);
+	}
+	if (not g_window){
+		setGLCoreProfile(3, 2);
+		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+			fullscreen and g_primary ? g_primary : NULL, NULL);
+	}
+
+#endif
+	if (not g_window){
+		glfwTerminate();
+		return 1;
+	}
+
+    
     glfwMakeContextCurrent(g_window);
 
     // accommocate high DPI displays (e.g. mac retina displays)
