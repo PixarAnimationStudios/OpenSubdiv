@@ -38,10 +38,6 @@ list(APPEND PLATFORM_LIBRARIES
     "${PTEX_LIBRARY}"
 )
 
-if (APPLE)
-    list(APPEND PLATFORM_LIBRARIES -lz)
-endif()
-
 include_directories(
     "${PROJECT_SOURCE_DIR}/opensubdiv"
     "${PROJECT_SOURCE_DIR}/regression"
