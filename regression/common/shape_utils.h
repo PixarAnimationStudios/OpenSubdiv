@@ -81,6 +81,8 @@ struct Shape {
 
     std::string genRIB() const;
 
+    Shape() : scheme(kCatmark), isLeftHanded(false) { }
+
     ~Shape();
 
     int GetNumVertices() const { return (int)verts.size()/3; }
