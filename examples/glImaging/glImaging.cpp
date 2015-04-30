@@ -103,10 +103,8 @@
 
 #include <common/vtr_utils.h>
 #include "../common/patchColors.h"
+#include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "init_shapes.h"
-
-#define STB_IMAGE_WRITE_IMPLEMENTATION 1
-#include "stb_image_write.h"
 
 using namespace OpenSubdiv;
 

@@ -30,11 +30,12 @@
 #include <cassert>
 #include <iostream>
 
-#ifdef OPENSUBDIV_HAS_PNG
-    #include <zlib.h>
-    #include <png.h>
-#endif
+#define STB_IMAGE_WRITE_IMPLEMENTATION 1
+#include "stb_image_write.h"
 
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
 
 GLFrameBuffer::GLFrameBuffer() :
 _width(0), _height(0),
@@ -303,12 +304,10 @@ private:
 void
 GLFrameBuffer::Screenshot() const {
 
-#ifdef OPENSUBDIV_HAS_PNG
-
     int width = GetWidth(),
         height = GetHeight();
 
-    void * buf = malloc(GetWidth() * GetHeight() * 4 /*RGBA*/);
+    std::vector<unsigned char> data(width*height*4 /*RGBA*/);
 
     PixelStoreState pixelStore;
 
@@ -326,7 +325,7 @@ GLFrameBuffer::Screenshot() const {
     glActiveTexture( GL_TEXTURE0 );
 
     glBindTexture( GL_TEXTURE_2D, _frameBufferColor );
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
 
     glActiveTexture( restoreActiveTexture );
     glBindTexture( GL_TEXTURE_2D, restoreBinding );
@@ -339,44 +338,10 @@ GLFrameBuffer::Screenshot() const {
     char fname[64];
     snprintf(fname, 64, "screenshot.%d.png", counter++);
 
-    if (FILE * f = fopen( fname, "w" )) {
+    // flip vertical
+    stbi_write_png(fname, width, height, 4, &data[width*4*(height-1)], -width*4);
 
-        png_structp png_ptr =
-            png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-        assert(png_ptr);
-
-        png_infop info_ptr =
-            png_create_info_struct(png_ptr);
-        assert(info_ptr);
-
-        png_set_IHDR(png_ptr, info_ptr, width, height, 8,
-                         PNG_COLOR_TYPE_RGB_ALPHA,
-                         PNG_INTERLACE_NONE,
-                         PNG_COMPRESSION_TYPE_DEFAULT,
-                         PNG_FILTER_TYPE_DEFAULT );
-
-        png_set_compression_level(png_ptr, Z_BEST_COMPRESSION);
-
-        png_bytep rows_ptr[ height ];
-        for(int i = 0; i<height; ++i ) {
-            rows_ptr[height-i-1] = ((png_byte *)buf) + i*width*4;
-        }
-
-        png_set_rows(png_ptr, info_ptr, rows_ptr);
-
-        png_init_io(png_ptr, f);
-
-        png_write_png( png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, 0 );
-
-        png_destroy_write_struct(&png_ptr, &info_ptr);
-
-        fclose(f);
-        fprintf(stdout, "Saved %s\n", fname);
-    } else {
-        fprintf(stderr, "Error creating: %s\n", fname);
-    }
-    free(buf);
-#endif
+    fprintf(stdout, "Saved %s\n", fname);
 }
 
 
