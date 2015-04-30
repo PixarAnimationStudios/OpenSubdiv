@@ -41,22 +41,14 @@ OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
     OpenSubdiv::Osd::OmpComputeController * g_ompComputeController = NULL;
 #endif
 
-#undef OPENSUBDIV_HAS_OPENCL    // XXX: dyu OpenCL D3D11 interop needs work...
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clD3D11VertexBuffer.h>
     #include <osd/clComputeContext.h>
     #include <osd/clComputeController.h>
 
-    #include "../common/clInit.h"
+    #include "../common/clDeviceContext.h"
 
-    struct CLContext {
-        cl_context GetContext() const { return clContext; }
-        cl_command_queue GetCommandQueue() const { return clQueue; }
-        cl_context clContext;
-        cl_command_queue clQueue;
-        ID3D11DeviceContext *pd3dDeviceContext;
-    };
-    CLContext g_clContext;
+    CLD3D11DeviceContext g_clDeviceContext;
     OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
@@ -65,10 +57,9 @@ OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
     #include <osd/cudaComputeContext.h>
     #include <osd/cudaComputeController.h>
 
-    #include <cuda_runtime_api.h>
-    #include <cuda_d3d11_interop.h>
+    #include "../common/cudaDeviceContext.h"
 
-    bool g_cudaInitialized = false;
+    CudaDeviceContext g_cudaDeviceContext;
     OpenSubdiv::Osd::CudaComputeController * g_cudaComputeController = NULL;
 #endif
 
@@ -695,6 +686,8 @@ createOsdMesh(int level, int kernel) {
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshPtexData, true);
+    // gregory basis hasn't supported yet in D3D11Mesh
+    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
 
     int numVertexElements = 6; //g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
@@ -731,17 +724,18 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kCL) {
         if (not g_clComputeController) {
             g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
-                g_clContext.clContext, g_clContext.clQueue);
+                g_clDeviceContext.GetContext(),
+                g_clDeviceContext.GetCommandQueue());
         }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLD3D11VertexBuffer,
                                          OpenSubdiv::Osd::CLComputeController,
                                          OpenSubdiv::Osd::D3D11DrawContext,
-                                         CLContext>(
+                                         CLD3D11DeviceContext>(
                                                 g_clComputeController,
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, &g_clContext);
+                                                level, bits, &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (kernel == kCUDA) {
@@ -1137,12 +1131,10 @@ quit() {
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     delete g_clComputeController;
-    uninitCL(g_clContext.clContext, g_clContext.clQueue);
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     delete g_cudaComputeController;
-    cudaDeviceReset();
 #endif
 
     delete g_d3d11ComputeController;
@@ -1179,18 +1171,19 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext.clContext == NULL) {
-        if (initCL(&g_clContext.clContext, &g_clContext.clQueue) == false) {
+    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+        if (g_clDeviceContext.Initialize(g_pd3dDeviceContext) == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
         }
-        g_clContext.pd3dDeviceContext = g_pd3dDeviceContext;
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and g_cudaInitialized == false) {
-        g_cudaInitialized = true;
-        cudaD3D11SetDirect3DDevice( g_pd3dDevice );
+    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+        if (g_cudaDeviceContext.Initialize(g_pd3dDevice) == false) {
+            printf("Error in initializing Cuda\n");
+            exit(1);
+        }
     }
 #endif
 
@@ -1288,7 +1281,7 @@ initHUD() {
     g_hud->AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'K');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (HAS_CL_VERSION_1_1()) {
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
         g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
     }
 #endif

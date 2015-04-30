@@ -51,7 +51,6 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_possibly_cuda_executable(dxPtexViewer WIN32
     "${SOURCE_FILES}"
-    "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:regression_vtr_utils_obj>
