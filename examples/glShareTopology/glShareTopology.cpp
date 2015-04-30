@@ -620,9 +620,29 @@ createOsdMesh( const std::string &shapeStr, int level, Scheme scheme=kCatmark ) 
     Far::PatchTables const * patchTables = NULL;
     {
         Far::PatchTablesFactory::Options poptions(level);
-        poptions.SetEndCapType(
-            Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
         patchTables = Far::PatchTablesFactory::Create(*refiner, poptions);
+    }
+
+    // append gregory vertices into stencils
+    {
+        if (Far::StencilTables const *vertexStencilsWithEndCap =
+            Far::StencilTablesFactory::AppendEndCapStencilTables(
+                *refiner,
+                vertexStencils,
+                patchTables->GetEndCapVertexStencilTables())) {
+            delete vertexStencils;
+            vertexStencils = vertexStencilsWithEndCap;
+        }
+        if (varyingStencils) {
+            if (Far::StencilTables const *varyingStencilsWithEndCap =
+                Far::StencilTablesFactory::AppendEndCapStencilTables(
+                    *refiner,
+                    varyingStencils,
+                    patchTables->GetEndCapVaryingStencilTables())) {
+                delete varyingStencils;
+                varyingStencils = varyingStencilsWithEndCap;
+            }
+        }
     }
 
 
