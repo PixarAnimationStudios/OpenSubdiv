@@ -36,7 +36,7 @@
 #include <cstring>
 #include <string>
 
-#if defined(OPENSUBDIV_HAS_DX)
+#if defined(OPENSUBDIV_HAS_DX11SDK)
 #include <D3D11.h>
 #include <CL/cl_d3d11.h>
 #endif
@@ -268,7 +268,7 @@ CLDeviceContext::Initialize() {
 bool
 CLD3D11DeviceContext::Initialize(ID3D11DeviceContext *d3dDeviceContext) {
 
-#if defined(OPENSUBDIV_HAS_DX)
+#if defined(OPENSUBDIV_HAS_DX11SDK)
     _d3dDeviceContext = d3dDeviceContext;
 
     cl_int ciErrNum;

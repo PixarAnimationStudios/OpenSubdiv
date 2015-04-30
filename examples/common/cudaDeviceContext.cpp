@@ -38,7 +38,7 @@
 #include <cuda_runtime_api.h>
 #include <cuda_gl_interop.h>
 
-#if defined(OPENSUBDIV_HAS_DX)
+#if defined(OPENSUBDIV_HAS_DX11SDK)
 #include <cuda_d3d11_interop.h>
 #endif
 
@@ -143,7 +143,7 @@ CudaDeviceContext::Initialize() {
 bool
 CudaDeviceContext::Initialize(ID3D11Device *device) {
 
-#if defined(OPENSUBDIV_HAS_DX)
+#if defined(OPENSUBDIV_HAS_DX11SDK)
     cudaD3D11SetDirect3DDevice(device);
     return true;
 #else
