@@ -42,6 +42,7 @@ set(EXAMPLES_COMMON_HEADER_FILES
     objAnim.h
     patchColors.h
     simple_math.h
+    stb_image_write.h 
     stopwatch.h
 )
 
