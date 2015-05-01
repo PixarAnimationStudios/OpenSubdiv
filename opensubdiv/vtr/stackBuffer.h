@@ -72,8 +72,8 @@ public:
 
 private:
     //  Non-copyable:
-    StackBuffer(const StackBuffer<TYPE,SIZE> & source) { }
-    StackBuffer& operator=(const StackBuffer<TYPE,SIZE> & source) { }
+    StackBuffer(const StackBuffer<TYPE,SIZE> &) { }
+    StackBuffer& operator=(const StackBuffer<TYPE,SIZE> &) { return *this; }
 
     void allocate(size_type capacity);
     void deallocate();
