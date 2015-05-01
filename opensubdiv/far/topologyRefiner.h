@@ -35,6 +35,7 @@
 #include "../vtr/fvarLevel.h"
 #include "../vtr/refinement.h"
 #include "../vtr/fvarRefinement.h"
+#include "../vtr/stackBuffer.h"
 #include "../vtr/maskInterfaces.h"
 #include "../far/types.h"
 #include "../far/error.h"
@@ -289,7 +290,10 @@ public:
     ///
     /// @param dst  Destination primvar buffer (vertex data at the limit)
     ///
-    template <class T, class U> void Limit(T const & src, U * dst) const;
+    template <class T, class U> void Limit(T const & src, U & dstPos) const;
+
+    template <class T, class U, class U1, class U2>
+    void Limit(T const & src, U & dstPos, U1 & dstTan1, U2 & dstTan2) const;
 
     //@}
 
@@ -573,6 +577,11 @@ protected:
     Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
 
 private:
+    //  Not default constructible or copyable:
+    TopologyRefiner() : _uniformOptions(0), _adaptiveOptions(0) { }
+    TopologyRefiner(TopologyRefiner const &) : _uniformOptions(0), _adaptiveOptions(0) { }
+    TopologyRefiner & operator=(TopologyRefiner const &) { return *this; }
+
     void selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector);
 
     template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
@@ -587,7 +596,7 @@ private:
     template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
     template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
 
-    template <Sdc::SchemeType SCHEME, class T, class U> void limit(T const & src, U * dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U, class U1, class U2> void limit(T const & src, U & pos, U1 * tan1, U2 * tan2) const;
 
     template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingLimit(T const & src, U * dst, int channel) const;
 
@@ -713,7 +722,7 @@ TopologyRefiner::interpolateChildVertsFromFaces(
 
     const Vtr::Level& parent = refinement.parent();
 
-    float * fVertWeights = (float *)alloca(parent.getMaxValence()*sizeof(float));
+    Vtr::internal::StackBuffer<float,16> fVertWeights(parent.getMaxValence());
 
     for (int face = 0; face < parent.getNumFaces(); ++face) {
 
@@ -755,8 +764,8 @@ TopologyRefiner::interpolateChildVertsFromEdges(
 
     Vtr::EdgeInterface eHood(parent);
 
-    float   eVertWeights[2],
-          * eFaceWeights = (float *)alloca(parent.getMaxEdgeFaces()*sizeof(float));
+    float                               eVertWeights[2];
+    Vtr::internal::StackBuffer<float,8> eFaceWeights(parent.getMaxEdgeFaces());
 
     for (int edge = 0; edge < parent.getNumEdges(); ++edge) {
 
@@ -827,7 +836,7 @@ TopologyRefiner::interpolateChildVertsFromVerts(
 
     Vtr::VertexInterface vHood(parent, child);
 
-    float * weightBuffer = (float *)alloca(2*parent.getMaxValence()*sizeof(float));
+    Vtr::internal::StackBuffer<float,32> weightBuffer(2*parent.getMaxValence());
 
     for (int vert = 0; vert < parent.getNumVertices(); ++vert) {
 
@@ -1047,7 +1056,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromFaces(
     const Vtr::FVarLevel& parentFVar = *parentLevel._fvarChannels[channel];
     const Vtr::FVarLevel& childFVar  = *childLevel._fvarChannels[channel];
 
-    float * fValueWeights = (float *)alloca(parentLevel.getMaxValence()*sizeof(float));
+    Vtr::internal::StackBuffer<float,16> fValueWeights(parentLevel.getMaxValence());
 
     for (int face = 0; face < parentLevel.getNumFaces(); ++face) {
 
@@ -1097,8 +1106,8 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromEdges(
     //  Allocate and intialize (if linearly interpolated) interpolation weights for
     //  the edge mask:
     //
-    float   eVertWeights[2],
-          * eFaceWeights = (float *)alloca(parentLevel.getMaxEdgeFaces()*sizeof(float));
+    float                               eVertWeights[2];
+    Vtr::internal::StackBuffer<float,8> eFaceWeights(parentLevel.getMaxEdgeFaces());
 
     Vtr::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
 
@@ -1238,9 +1247,9 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
 
     bool isLinearFVar = parentFVar._isLinear;
 
-    float * weightBuffer = (float *)alloca(2*parentLevel.getMaxValence()*sizeof(float));
+    Vtr::internal::StackBuffer<float,32> weightBuffer(2*parentLevel.getMaxValence());
 
-    Vtr::Index * vEdgeValues = (Vtr::Index *)alloca(parentLevel.getMaxValence()*sizeof(Vtr::Index));
+    Vtr::internal::StackBuffer<Vtr::Index,16> vEdgeValues(parentLevel.getMaxValence());
 
     Vtr::VertexInterface vHood(parentLevel, childLevel);
 
@@ -1390,7 +1399,7 @@ TopologyRefiner::faceVaryingInterpolateChildVertsFromVerts(
 
 template <class T, class U>
 inline void
-TopologyRefiner::Limit(T const & src, U * dst) const {
+TopologyRefiner::Limit(T const & src, U & dst) const {
 
     if (getLevel(GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
@@ -1400,40 +1409,71 @@ TopologyRefiner::Limit(T const & src, U * dst) const {
 
     switch (_subdivType) {
     case Sdc::SCHEME_CATMARK:
-        limit<Sdc::SCHEME_CATMARK>(src, dst);
+        limit<Sdc::SCHEME_CATMARK>(src, dst, (U*)0, (U*)0);
         break;
     case Sdc::SCHEME_LOOP:
-        limit<Sdc::SCHEME_LOOP>(src, dst);
+        limit<Sdc::SCHEME_LOOP>(src, dst, (U*)0, (U*)0);
         break;
     case Sdc::SCHEME_BILINEAR:
-        limit<Sdc::SCHEME_BILINEAR>(src, dst);
+        limit<Sdc::SCHEME_BILINEAR>(src, dst, (U*)0, (U*)0);
         break;
     }
 }
 
-template <Sdc::SchemeType SCHEME, class T, class U>
+template <class T, class U, class U1, class U2>
 inline void
-TopologyRefiner::limit(T const & src, U * dst) const {
+TopologyRefiner::Limit(T const & src, U & dstPos, U1 & dstTan1, U2 & dstTan2) const {
 
-    //
-    //  Work in progress...
-    //      - does not support tangents yet (unclear how)
-    //      - need to verify that each vertex is "limitable", i.e.:
-    //          - is not semi-sharp, inf-sharp or non-manifold
-    //          - is "complete" wrt its parent (if refinement is sparse)
-    //      - copy (or weight by 1.0) src to dst when not "limitable"
-    //      - currently requires one refinement to get rid of N-sided faces:
-    //          - could limit regular vertices from level 0
-    //
+    if (getLevel(GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot compute limit points -- last level of refinement does not include full topology.");
+        return;
+    }
+
+    switch (_subdivType) {
+    case Sdc::SCHEME_CATMARK:
+        limit<Sdc::SCHEME_CATMARK>(src, dstPos, &dstTan1, &dstTan2);
+        break;
+    case Sdc::SCHEME_LOOP:
+        limit<Sdc::SCHEME_LOOP>(src, dstPos, &dstTan1, &dstTan2);
+        break;
+    case Sdc::SCHEME_BILINEAR:
+        limit<Sdc::SCHEME_BILINEAR>(src, dstPos, &dstTan1, &dstTan2);
+        break;
+    }
+}
+
+template <Sdc::SchemeType SCHEME, class T, class U, class U1, class U2>
+inline void
+TopologyRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Ptr) const {
+
     Sdc::Scheme<SCHEME> scheme(_subdivOptions);
 
     Vtr::Level const & level = getLevel(GetMaxLevel());
 
-    int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
+    int  maxWeightsPerMask = 1 + 2 * level.getMaxValence();
+    bool hasTangents = (dstTan1Ptr && dstTan2Ptr);
+    int  numMasks = 1 + (hasTangents ? 2 : 0);
 
-    float * weightBuffer = (float *)alloca(maxWeightsPerMask * sizeof(float));
+    Vtr::internal::StackBuffer<Index,33> indexBuffer(maxWeightsPerMask);
+    Vtr::internal::StackBuffer<float,99> weightBuffer(numMasks * maxWeightsPerMask);
 
-    //  This is a bit obscure -- assign both parent and child as last level
+    float * vPosWeights = weightBuffer,
+          * ePosWeights = vPosWeights + 1,
+          * fPosWeights = ePosWeights + level.getMaxValence();
+    float * vTan1Weights = vPosWeights + maxWeightsPerMask,
+          * eTan1Weights = ePosWeights + maxWeightsPerMask,
+          * fTan1Weights = fPosWeights + maxWeightsPerMask;
+    float * vTan2Weights = vTan1Weights + maxWeightsPerMask,
+          * eTan2Weights = eTan1Weights + maxWeightsPerMask,
+          * fTan2Weights = fTan1Weights + maxWeightsPerMask;
+
+    Vtr::MaskInterface posMask( vPosWeights,  ePosWeights,  fPosWeights);
+    Vtr::MaskInterface tan1Mask(vTan1Weights, eTan1Weights, fTan1Weights);
+    Vtr::MaskInterface tan2Mask(vTan2Weights, eTan2Weights, fTan2Weights);
+
+    //  This is a bit obscure -- assigning both parent and child as last level -- but
+    //  this mask type was intended for another purpose.  Consider one for the limit:
     Vtr::VertexInterface vHood(level, level);
 
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
@@ -1442,59 +1482,98 @@ TopologyRefiner::limit(T const & src, U * dst) const {
         //  Incomplete vertices (present in sparse refinement) do not have their full
         //  topological neighborhood to determine a proper limit -- just leave the
         //  vertex at the refined location and continue to the next:
-        //
         if (level._vertTags[vert]._incomplete || (vEdges.size() == 0)) {
-            dst[vert].Clear();
-            dst[vert].AddWithWeight(src[vert], 1.0);
+            dstPos[vert].Clear();
+            dstPos[vert].AddWithWeight(src[vert], 1.0);
+            if (hasTangents) {
+                (*dstTan1Ptr)[vert].Clear();
+                (*dstTan2Ptr)[vert].Clear();
+            }
             continue;
         }
 
-        //  Assign the mask weights to the common buffer and compute the mask:
         //
-        float * vWeights = weightBuffer,
-              * eWeights = vWeights + 1,
-              * fWeights = eWeights + vEdges.size();
-
-        Vtr::MaskInterface vMask(vWeights, eWeights, fWeights);
+        //  Limit masks require the subdivision Rule for the vertex in order to deal
+        //  with infinitely sharp features correctly -- including boundaries and corners.
+        //  The vertex neighborhood is minimally defined with vertex and edge counts.
+        //
+        Sdc::Crease::Rule vRule = level.getVertexRule(vert);
 
         //  This is a bit obscure -- child vertex index will be ignored here
         vHood.SetIndex(vert, vert);
 
-        scheme.ComputeVertexLimitMask(vHood, vMask, level.getVertexRule(vert));
+        if (hasTangents) {
+            scheme.ComputeVertexLimitMask(vHood, posMask, tan1Mask, tan2Mask, vRule);
+        } else {
+            scheme.ComputeVertexLimitMask(vHood, posMask, vRule);
+        }
 
-        //  Apply the weights to the vertex, the vertices opposite its incident
-        //  edges, and the opposite vertices of its incident faces:
         //
-        //  As with applying refinment masks to vertex data, in order to improve
-        //  numerical precision, its better to apply smaller weights first, so
-        //  begin with the face-weights followed by the edge-weights and the vertex
-        //  weight last.
+        //  Gather the neighboring vertices of this vertex -- the vertices opposite its
+        //  incident edges, and the opposite vertices of its incident faces:
+        //
+        Index * eIndices = indexBuffer;
+        Index * fIndices = indexBuffer + vEdges.size();
 
-        dst[vert].Clear();
-        if (vMask.GetNumFaceWeights() > 0) {
-            assert(!vMask.AreFaceWeightsForFaceCenters());
+        for (int i = 0; i < vEdges.size(); ++i) {
+            ConstIndexArray eVerts = level.getEdgeVertices(vEdges[i]);
 
+            eIndices[i] = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
+        }
+        if (posMask.GetNumFaceWeights() || (hasTangents && tan1Mask.GetNumFaceWeights())) {
             ConstIndexArray      vFaces = level.getVertexFaces(vert);
             ConstLocalIndexArray vInFace = level.getVertexFaceLocalIndices(vert);
+
             for (int i = 0; i < vFaces.size(); ++i) {
                 ConstIndexArray fVerts = level.getFaceVertices(vFaces[i]);
 
                 LocalIndex vOppInFace = (vInFace[i] + 2);
                 if (vOppInFace >= fVerts.size()) vOppInFace -= (LocalIndex)fVerts.size();
-                Index vertOppositeFace = level.getFaceVertices(vFaces[i])[vOppInFace];
 
-                dst[vert].AddWithWeight(src[vertOppositeFace], fWeights[i]);
+                fIndices[i] = level.getFaceVertices(vFaces[i])[vOppInFace];
             }
         }
-        if (vMask.GetNumEdgeWeights() > 0) {
-            for (int i = 0; i < vEdges.size(); ++i) {
-                ConstIndexArray eVerts = level.getEdgeVertices(vEdges[i]);
-                Index vertOppositeEdge = (eVerts[0] == vert) ? eVerts[1] : eVerts[0];
 
-                dst[vert].AddWithWeight(src[vertOppositeEdge], eWeights[i]);
-            }
+        //
+        //  Combine the weights and indices for position and tangents.  As with applying
+        //  refinment masks to vertex data, in order to improve numerical precision, its
+        //  better to apply smaller weights first, so begin with the face-weights followed
+        //  by the edge-weights and the vertex weight last.
+        //
+        dstPos[vert].Clear();
+        for (int i = 0; i < posMask.GetNumFaceWeights(); ++i) {
+            dstPos[vert].AddWithWeight(src[fIndices[i]], fPosWeights[i]);
         }
-        dst[vert].AddWithWeight(src[vert], vWeights[0]);
+        for (int i = 0; i < posMask.GetNumEdgeWeights(); ++i) {
+            dstPos[vert].AddWithWeight(src[eIndices[i]], ePosWeights[i]);
+        }
+        dstPos[vert].AddWithWeight(src[vert], vPosWeights[0]);
+
+        //
+        //  Apply the tangent masks -- both will have the same number of weights and 
+        //  indices (one tangent may be "padded" to accomodate the other), but these
+        //  may differ from those of the position:
+        //
+        if (hasTangents) {
+            assert(tan1Mask.GetNumFaceWeights() == tan2Mask.GetNumFaceWeights());
+            assert(tan1Mask.GetNumEdgeWeights() == tan2Mask.GetNumEdgeWeights());
+
+            U1 & dstTan1 = *dstTan1Ptr;
+            U2 & dstTan2 = *dstTan2Ptr;
+
+            dstTan1[vert].Clear();
+            dstTan2[vert].Clear();
+            for (int i = 0; i < tan1Mask.GetNumFaceWeights(); ++i) {
+                dstTan1[vert].AddWithWeight(src[fIndices[i]], fTan1Weights[i]);
+                dstTan2[vert].AddWithWeight(src[fIndices[i]], fTan2Weights[i]);
+            }
+            for (int i = 0; i < tan1Mask.GetNumEdgeWeights(); ++i) {
+                dstTan1[vert].AddWithWeight(src[eIndices[i]], eTan1Weights[i]);
+                dstTan2[vert].AddWithWeight(src[eIndices[i]], eTan2Weights[i]);
+            }
+            dstTan1[vert].AddWithWeight(src[vert], vTan1Weights[0]);
+            dstTan2[vert].AddWithWeight(src[vert], vTan2Weights[0]);
+        }
     }
 }
 
@@ -1532,8 +1611,8 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
 
     int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
 
-    float * weightBuffer = (float *)alloca(maxWeightsPerMask * sizeof(float));
-    Index * indexBuffer  = (Index *)alloca(level.getMaxValence() * sizeof(Index));
+    Vtr::internal::StackBuffer<float,33> weightBuffer(maxWeightsPerMask);
+    Vtr::internal::StackBuffer<Index,16> vEdgeBuffer(level.getMaxValence());
 
     //  This is a bit obscure -- assign both parent and child as last level
     Vtr::VertexInterface vHood(level, level);
@@ -1598,7 +1677,7 @@ TopologyRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
                 }
             }
             if (vMask.GetNumEdgeWeights() > 0) {
-                Index * vEdgeValues = indexBuffer;
+                Index * vEdgeValues = vEdgeBuffer;
                 fvarChannel.getVertexEdgeValues(vert, vEdgeValues);
 
                 for (int i = 0; i < vEdges.size(); ++i) {
