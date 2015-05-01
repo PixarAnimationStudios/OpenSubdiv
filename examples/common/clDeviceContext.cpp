@@ -151,7 +151,7 @@ CLDeviceContext::HAS_CL_VERSION_1_1 () {
         clewInitialized = true;
         clewLoadSuccess = clewInit() == CLEW_SUCCESS;
         if (not clewLoadSuccess) {
-            error(stderr, "Loading OpenCL failed.\n");
+            error("Loading OpenCL failed.\n");
         }
     }
     return clewLoadSuccess;
