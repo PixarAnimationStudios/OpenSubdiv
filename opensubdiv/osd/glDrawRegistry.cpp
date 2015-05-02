@@ -55,9 +55,6 @@ static const char *gregoryShaderSource =
 static const char *gregoryBasisShaderSource =
 #include "glslPatchGregoryBasis.gen.h"
 ;
-static const char *transitionShaderSource =
-#include "glslPatchTransition.gen.h"
-;
 #endif
 
 GLDrawRegistryBase::~GLDrawRegistryBase() {}
@@ -93,12 +90,10 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
         sconfig->vertexShader.source = bsplineShaderSource;
         sconfig->vertexShader.version = "#version 410\n";
         sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
-        sconfig->tessControlShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->tessControlShader.source = bsplineShaderSource;
         sconfig->tessControlShader.version = "#version 410\n";
         sconfig->tessControlShader.AddDefine("OSD_PATCH_TESS_CONTROL_BSPLINE_SHADER");
-        sconfig->tessEvalShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->tessEvalShader.source = bsplineShaderSource;
         sconfig->tessEvalShader.version = "#version 410\n";
         sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
         break;

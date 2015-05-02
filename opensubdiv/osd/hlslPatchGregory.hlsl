@@ -267,31 +267,29 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
-    int patchLevel = GetPatchLevel(primitiveID);
+
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
 
     OSD_PATCH_CULL(4);
 
-#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-    output.tessLevelOuter[0] =
-        TessAdaptive(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz);
-    output.tessLevelOuter[1] =
-        TessAdaptive(patch[0].hullPosition.xyz, patch[3].hullPosition.xyz);
-    output.tessLevelOuter[2] =
-        TessAdaptive(patch[2].hullPosition.xyz, patch[3].hullPosition.xyz);
-    output.tessLevelOuter[3] =
-        TessAdaptive(patch[1].hullPosition.xyz, patch[2].hullPosition.xyz);
-    output.tessLevelInner[0] =
-        max(output.tessLevelOuter[1], output.tessLevelOuter[3]);
-    output.tessLevelInner[1] =
-        max(output.tessLevelOuter[0], output.tessLevelOuter[2]);
-#else
-    output.tessLevelInner[0] = GetTessLevel(patchLevel);
-    output.tessLevelInner[1] = GetTessLevel(patchLevel);
-    output.tessLevelOuter[0] = GetTessLevel(patchLevel);
-    output.tessLevelOuter[1] = GetTessLevel(patchLevel);
-    output.tessLevelOuter[2] = GetTessLevel(patchLevel);
-    output.tessLevelOuter[3] = GetTessLevel(patchLevel);
-#endif
+    float4 tessLevelOuter = float4(0,0,0,0);
+    float4 tessLevelInner = float4(0,0,0,0);
+
+    OsdGetTessLevels(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz,
+                     patch[2].hullPosition.xyz, patch[3].hullPosition.xyz,
+                     patchParam, tessLevelOuter, tessLevelInner);
+
+    output.tessLevelOuter[0] = tessLevelOuter[0];
+    output.tessLevelOuter[1] = tessLevelOuter[1];
+    output.tessLevelOuter[2] = tessLevelOuter[2];
+    output.tessLevelOuter[3] = tessLevelOuter[3];
+
+    output.tessLevelInner[0] = tessLevelInner[0];
+    output.tessLevelInner[1] = tessLevelInner[1];
+
+    output.tessOuterLo = float4(0,0,0,0);
+    output.tessOuterHi = float4(0,0,0,0);
+
     return output;
 }
 
@@ -446,12 +444,9 @@ GregDomainVertex hs_main_patches(
     output.Fp = Fp;
     output.Fm = Fm;
 
-    int patchLevel = GetPatchLevel(primitiveID);
-    output.patchCoord = float4(0, 0,
-                               patchLevel+0.5f,
-                               GetPrimitiveID(primitiveID)+0.5f);
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
 
-    OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
+    output.patchCoord = OsdGetPatchCoord(patchParam);
 
     return output;
 }
@@ -527,8 +522,6 @@ void ds_main_patches(
     float3 Tangent   = float3(0, 0, 0);
     float3 BiTangent = float3(0, 0, 0);
 
-#line 519
-
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
 
@@ -564,7 +557,7 @@ void ds_main_patches(
         dUV += D[i] * DUCP[i];
     }
 
-    int level = int(patch[0].ptexInfo.z);
+    int level = patch[0].patchCoord.z;
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
     dUU *= 6 * level;
@@ -619,7 +612,7 @@ void ds_main_patches(
         Tangent   += B[i] * DUCP[i];
         BiTangent += D[i] * BUCP[i];
     }
-    int level = int(patch[0].ptexInfo.z);
+    int level = patch[0].patchCoord.z;
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
 
@@ -635,12 +628,10 @@ void ds_main_patches(
     output.tangent = BiTangent;
     output.bitangent = Tangent;
 
-    output.patchCoord = patch[0].patchCoord;
-    output.patchCoord.xy = float2(v, u);
-	
-	output.edgeDistance = 0;
+    output.edgeDistance = 0;
 
-    OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
+    float2 UV = float2(v, u);
+    output.patchCoord = OsdInterpolatePatchCoord(UV, patch[0].patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 

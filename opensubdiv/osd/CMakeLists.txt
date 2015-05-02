@@ -201,7 +201,6 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
             glslPatchGregoryBasis.glsl
-            glslPatchTransition.glsl
             glslPtexCommon.glsl
         )
     endif()
@@ -284,7 +283,6 @@ if( DXSDK_FOUND )
         hlslPatchCommon.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
-        hlslPatchTransition.hlsl
         hlslPtexCommon.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES

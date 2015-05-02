@@ -21,7 +21,6 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#line 25
 
 //--------------------------------------------------------------
 // Common
@@ -30,17 +29,10 @@
 uniform float displacementScale = 1.0;
 uniform float mipmapBias = 0;
 
-vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
+vec4 GeneratePatchCoord(vec2 uv, int primitiveID) // for non-adaptive
 {
-    ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, primitiveID).xy;
-    int faceID = ptexIndex.x;
-    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
-    int u = (ptexIndex.y >> 17) & 0x3ff;
-    int v = (ptexIndex.y >> 7) & 0x3ff;
-    vec2 uv = localUV;
-    uv = (uv * vec2(1.0)/lv) + vec2(u, v)/lv;
-
-    return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
+    ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
+    return OsdInterpolatePatchCoord(uv, OsdGetPatchCoord(patchParam));
 }
 
 #if    defined(DISPLACEMENT_HW_BILINEAR)        \
@@ -490,14 +482,14 @@ GetOverrideColor(int patchParam)
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
-    int edgeCount = bitCount((patchParam >> 4) & 0xf);
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
     }
     if (edgeCount == 2) {
         patchType = 3; // CORNER
     }
-    int pattern = bitCount((patchParam >> 8) & 0xf);
+    int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
     int offset = 7*patchType + pattern;
     return patchColors[offset];
 }
@@ -675,7 +667,7 @@ main()
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
-    vec4 texColor = edgeColor(lighting(GetOverrideColor(GetPatchParam()), inpt.v.position.xyz, normal, 1, 0));
+    vec4 texColor = edgeColor(lighting(GetOverrideColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID))), inpt.v.position.xyz, normal, 1, 0));
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD

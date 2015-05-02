@@ -71,17 +71,11 @@
 //         mix(input[c].var, input[d].var, UV.x), UV.y)
 #endif
 
-#ifndef OSD_TRANSITION_ROTATE
-#define OSD_TRANSITION_ROTATE 0
-#endif
+// XXXdyu-patch-drawing support for fractional spacing
+#undef OSD_FRACTIONAL_ODD_SPACING
+#undef OSD_FRACTIONAL_EVEN_SPACING
 
-#if defined OSD_PATCH_BOUNDARY
-    #define OSD_PATCH_INPUT_SIZE 12
-#elif defined OSD_PATCH_CORNER
-    #define OSD_PATCH_INPUT_SIZE 9
-#else
-    #define OSD_PATCH_INPUT_SIZE 16
-#endif
+#define OSD_PATCH_INPUT_SIZE 16
 
 #define M_PI 3.14159265359f
 
@@ -91,8 +85,7 @@
 
 struct ControlVertex {
     vec4 position;
-    centroid vec4 patchCoord; // u, v, level, faceID
-    ivec4 ptexInfo;  // U offset, V offset, 2^ptexlevel', rotation
+    ivec4 patchCoord;  // U offset, V offset, faceLevel, faceId
 #ifdef OSD_ENABLE_PATCH_CULL
     ivec3 clipFlag;
 #endif
@@ -101,10 +94,10 @@ struct ControlVertex {
 struct OutputVertex {
     vec4 position;
     vec3 normal;
-    centroid vec4 patchCoord; // u, v, level, faceID
-    centroid vec2 tessCoord; // tesscoord.st
     vec3 tangent;
     vec3 bitangent;
+    centroid vec4 patchCoord; // u, v, faceLevel, faceId
+    centroid vec2 tessCoord; // tesscoord.st
 #if defined OSD_COMPUTE_NORMAL_DERIVATIVES
     vec3 Nu;
     vec3 Nv;
@@ -131,8 +124,7 @@ struct GregEvalVertex {
     vec3 Em;
     vec3 Fp;
     vec3 Fm;
-    centroid vec4 patchCoord;
-    ivec4 ptexInfo;
+    ivec4 patchCoord;
 };
 
 // osd shaders need following functions defined
@@ -144,74 +136,93 @@ int OsdGregoryQuadOffsetBase();
 int OsdPrimitiveIdBase();
 int OsdBaseVertex();
 
-float GetTessLevel(int patchLevel)
-{
-#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-    return OsdTessLevel();
-#else
-    return OsdTessLevel() / pow(2, patchLevel-1);
-#endif
-}
-
-#ifndef GetPrimitiveID
-#define GetPrimitiveID() (gl_PrimitiveID + OsdPrimitiveIdBase())
-#endif
-
-float GetPostProjectionSphereExtent(vec3 center, float diameter)
-{
-    vec4 p = OsdProjectionMatrix() * vec4(center, 1.0);
-    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
-}
-
-float TessAdaptive(vec3 p0, vec3 p1)
-{
-    // Adaptive factor can be any computation that depends only on arg values.
-    // Project the diameter of the edge's bounding sphere instead of using the
-    // length of the projected edge itself to avoid problems near silhouettes.
-    vec3 center = (p0 + p1) / 2.0;
-    float diameter = distance(p0, p1);
-    return round(max(1.0, OsdTessLevel() * GetPostProjectionSphereExtent(center, diameter)));
-}
-
 #ifndef OSD_DISPLACEMENT_CALLBACK
 #define OSD_DISPLACEMENT_CALLBACK
 #endif
 
 // ----------------------------------------------------------------------------
-// ptex coordinates
+// Patch Parameters
 // ----------------------------------------------------------------------------
+
+//
+// Each patch has a corresponding patchParam. This is a set of three values
+// specifying additional information about the patch:
+//
+//    faceId    -- topological face identifier (e.g. Ptex FaceId)
+//    bitfield  -- refinement-level, non-quad, boundary, transition, uv-offset
+//    sharpness -- crease sharpness for single-crease patches
+//
+// These are stored in OsdPatchParamBuffer indexed by the value returned
+// from OsdGetPatchIndex() which is a function of the current PrimitiveID
+// along with an optional client provided offset.
+//
 
 uniform isamplerBuffer OsdPatchParamBuffer;
 
-#define GetPatchParam()                                                 \
-    (texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).y)
+int OsdGetPatchIndex(int primitiveId)
+{
+    return (primitiveId + OsdPrimitiveIdBase());
+}
 
-#define GetPatchLevel()                                                 \
-    (texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).y & 0xf)
+ivec3 OsdGetPatchParam(int patchIndex)
+{
+    return texelFetch(OsdPatchParamBuffer, patchIndex).xyz;
+}
 
-#define GetSharpness()                                                  \
-    (intBitsToFloat(texelFetch(OsdPatchParamBuffer, GetPrimitiveID()).z))
+int OsdGetPatchFaceId(ivec3 patchParam)
+{
+    return patchParam.x;
+}
 
-#define OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER                       \
-    {                                                                   \
-        ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer,               \
-                                     GetPrimitiveID()).xy;              \
-        int faceID = ptexIndex.x;                                       \
-        int lv = 1 << ((ptexIndex.y & 0x7) - ((ptexIndex.y >> 3) & 1)); \
-        int u = (ptexIndex.y >> 22) & 0x3ff;                            \
-        int v = (ptexIndex.y >> 12) & 0x3ff;                            \
-        outpt[ID].v.patchCoord.w = faceID+0.5;                          \
-        outpt[ID].v.ptexInfo = ivec4(u, v, lv, 0);                      \
-    }
+int OsdGetPatchFaceLevel(ivec3 patchParam)
+{
+    return (1 << ((patchParam.y & 0x7) - ((patchParam.y >> 3) & 1)));
+}
 
-#define OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER                          \
-    {                                                                   \
-        vec2 uv = outpt.v.patchCoord.xy;                                \
-        ivec2 p = inpt[0].v.ptexInfo.xy;                                \
-        int lv = inpt[0].v.ptexInfo.z;                                  \
-        outpt.v.tessCoord.xy = uv;                                      \
-        outpt.v.patchCoord.xy = (uv * vec2(1.0)/lv) + vec2(p.x, p.y)/lv;\
-    }
+int OsdGetPatchRefinementLevel(ivec3 patchParam)
+{
+    return (patchParam.y & 0x7);
+}
+
+int OsdGetPatchBoundaryMask(ivec3 patchParam)
+{
+    return ((patchParam.y >> 4) & 0xf);
+}
+
+int OsdGetPatchTransitionMask(ivec3 patchParam)
+{
+    return ((patchParam.y >> 8) & 0xf);
+}
+
+ivec2 OsdGetPatchFaceUV(ivec3 patchParam)
+{
+    int u = (patchParam.y >> 22) & 0x3ff;
+    int v = (patchParam.y >> 12) & 0x3ff;
+    return ivec2(u,v);
+}
+
+float OsdGetPatchSharpness(ivec3 patchParam)
+{
+    return intBitsToFloat(patchParam.z);
+}
+
+ivec4 OsdGetPatchCoord(ivec3 patchParam)
+{
+    int faceId = OsdGetPatchFaceId(patchParam);
+    int faceLevel = OsdGetPatchFaceLevel(patchParam);
+    ivec2 faceUV = OsdGetPatchFaceUV(patchParam);
+    return ivec4(faceUV.x, faceUV.y, faceLevel, faceId);
+}
+
+vec4 OsdInterpolatePatchCoord(vec2 localUV, ivec4 perPrimPatchCoord)
+{
+    int faceId = perPrimPatchCoord.w;
+    int faceLevel = perPrimPatchCoord.z;
+    vec2 faceUV = vec2(perPrimPatchCoord.x, perPrimPatchCoord.y);
+    vec2 uv = localUV/faceLevel + faceUV/faceLevel;
+    // add 0.5 to integer values for more robust interpolation
+    return vec4(uv.x, uv.y, faceLevel+0.5f, faceId+0.5f);
+}
 
 // ----------------------------------------------------------------------------
 // face varyings
@@ -229,7 +240,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_1(result, fvarOffset, tessCoord)       \
     {                                                                   \
         float v[4];                                                     \
-        int primOffset = GetPrimitiveID() * 4;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 4;          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = texelFetch(OsdFVarDataBuffer, index).s               \
@@ -242,7 +253,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_2(result, fvarOffset, tessCoord)       \
     {                                                                   \
         vec2 v[4];                                                      \
-        int primOffset = GetPrimitiveID() * 4;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 4;          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = vec2(texelFetch(OsdFVarDataBuffer, index).s,         \
@@ -256,7 +267,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_3(result, fvarOffset, tessCoord)       \
     {                                                                   \
         vec3 v[4];                                                      \
-        int primOffset = GetPrimitiveID() * 4;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 4;          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = vec3(texelFetch(OsdFVarDataBuffer, index).s,         \
@@ -271,7 +282,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #define OSD_COMPUTE_FACE_VARYING_4(result, fvarOffset, tessCoord)       \
     {                                                                   \
         vec4 v[4];                                                      \
-        int primOffset = GetPrimitiveID() * 4;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 4;          \
         for (int i = 0; i < 4; ++i) {                                   \
             int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;     \
             v[i] = vec4(texelFetch(OsdFVarDataBuffer, index).s,         \
@@ -289,14 +300,14 @@ uniform samplerBuffer OsdFVarDataBuffer;
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_1(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = GetPrimitiveID() * 3;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 3;          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = texelFetch(OsdFVarDataBuffer, index).s;                \
     }
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_2(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = GetPrimitiveID() * 3;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 3;          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = vec2(texelFetch(OsdFVarDataBuffer, index).s,           \
                       texelFetch(OsdFVarDataBuffer, index + 1).s);      \
@@ -304,7 +315,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_3(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = GetPrimitiveID() * 3;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 3;          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = vec3(texelFetch(OsdFVarDataBuffer, index).s,           \
                       texelFetch(OsdFVarDataBuffer, index + 1).s,       \
@@ -313,7 +324,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_4(result, fvarOffset, triVert)     \
     {                                                                   \
-        int primOffset = GetPrimitiveID() * 3;                          \
+        int primOffset = OsdGetPatchIndex(gl_PrimitiveID) * 3;          \
         int index = (primOffset+triVert)*OSD_FVAR_WIDTH + fvarOffset;   \
         result = vec4(texelFetch(OsdFVarDataBuffer, index).s,           \
                       texelFetch(OsdFVarDataBuffer, index + 1).s,       \
@@ -409,7 +420,7 @@ Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
 // ----------------------------------------------------------------------------
 
 vec3
-EvalBezier(vec3 cp[16], vec2 uv)
+OsdEvalBezier(vec3 cp[16], vec2 uv)
 {
     vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
 
@@ -434,3 +445,304 @@ EvalBezier(vec3 cp[16], vec2 uv)
 }
 
 // ----------------------------------------------------------------------------
+// Boundary Interpolation
+// ----------------------------------------------------------------------------
+
+void
+OsdComputeBSplineBoundaryPoints(inout vec3 cpt[16], ivec3 patchParam)
+{
+    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+
+    if ((boundaryMask & 1) != 0) {
+        cpt[0] = 2*cpt[4] - cpt[8];
+        cpt[1] = 2*cpt[5] - cpt[9];
+        cpt[2] = 2*cpt[6] - cpt[10];
+        cpt[3] = 2*cpt[7] - cpt[11];
+    }
+    if ((boundaryMask & 2) != 0) {
+        cpt[3] = 2*cpt[2] - cpt[1];
+        cpt[7] = 2*cpt[6] - cpt[5];
+        cpt[11] = 2*cpt[10] - cpt[9];
+        cpt[15] = 2*cpt[14] - cpt[13];
+    }
+    if ((boundaryMask & 4) != 0) {
+        cpt[12] = 2*cpt[8] - cpt[4];
+        cpt[13] = 2*cpt[9] - cpt[5];
+        cpt[14] = 2*cpt[10] - cpt[6];
+        cpt[15] = 2*cpt[11] - cpt[7];
+    }
+    if ((boundaryMask & 8) != 0) {
+        cpt[0] = 2*cpt[1] - cpt[2];
+        cpt[4] = 2*cpt[5] - cpt[6];
+        cpt[8] = 2*cpt[9] - cpt[10];
+        cpt[12] = 2*cpt[13] - cpt[14];
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Tessellation
+// ----------------------------------------------------------------------------
+
+//
+// Organization of B-spline and Bezier control points.
+//
+// Each patch is defined by 16 control points (labeled 0-15).
+//
+// The patch will be evaluated across the domain from (0,0) at
+// the lower-left to (1,1) at the upper-right. When computing
+// adaptive tessellation metrics, we consider refined vertex-vertex
+// and edge-vertex points along the transition edges of the patch
+// (labeled vv* and ev* respectively).
+//
+// The two segments of each transition edge are labeled Lo and Hi,
+// with the Lo segment occuring before the Hi segment along the
+// transition edge's domain parameterization. These Lo and Hi segment
+// tessellation levels determine how domain evaluation coordinates
+// are remapped along transition edges. The Hi segment value will
+// be zero for a non-transition edge.
+//
+// (0,1)                                         (1,1)
+//
+//   vv3                  ev23                   vv2
+//        |       Lo3       |       Hi3       |
+//      --O-----------O-----+-----O-----------O--
+//        | 12        | 13     14 |        15 |
+//        |           |           |           |
+//        |           |           |           |
+//    Hi0 |           |           |           | Hi2
+//        |           |           |           |
+//        O-----------O-----------O-----------O
+//        | 8         | 9      10 |        11 |
+//        |           |           |           |
+// ev03 --+           |           |           +-- ev12
+//        |           |           |           |
+//        | 4         | 5       6 |         7 |
+//        O-----------O-----------O-----------O
+//        |           |           |           |
+//    Lo0 |           |           |           | Lo2
+//        |           |           |           |
+//        |           |           |           |
+//        | 0         | 1       2 |         3 |
+//      --O-----------O-----+-----O-----------O--
+//        |       Lo1       |       Hi1       |
+//   vv0                  ev01                   vv1
+//
+// (0,0)                                         (1,0)
+//
+
+float OsdComputePostProjectionSphereExtent(vec3 center, float diameter)
+{
+    vec4 p = OsdProjectionMatrix() * vec4(center, 1.0);
+    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
+}
+
+float OsdComputeTessLevel(vec3 p0, vec3 p1)
+{
+    // Adaptive factor can be any computation that depends only on arg values.
+    // Project the diameter of the edge's bounding sphere instead of using the
+    // length of the projected edge itself to avoid problems near silhouettes.
+    vec3 center = (p0 + p1) / 2.0;
+    float diameter = distance(p0, p1);
+    float projLength = OsdComputePostProjectionSphereExtent(center, diameter);
+    return round(max(1.0, OsdTessLevel() * projLength));
+}
+
+void
+OsdGetTessLevelsUniform(ivec3 patchParam,
+                        inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+{
+    int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
+    float tessLevel = OsdTessLevel() / pow(2, refinementLevel-1);
+
+    tessOuterLo = vec4(tessLevel);
+    tessOuterHi = vec4(0);
+}
+
+void
+OsdGetTessLevelsRefinedPoints(vec3 cp[16], ivec3 patchParam,
+                              inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+{
+    // Each edge of a transition patch is adjacent to one or two patches
+    // at the next refined level of subdivision. We compute the corresponding
+    // vertex-vertex and edge-vertex refined points along the edges of the
+    // patch using Catmull-Clark subdivision stencil weights.
+    // For simplicity, we let the optimizer discard unused computation.
+
+    vec3 vv0 = (cp[0] + cp[2] + cp[8] + cp[10]) * 0.015625 +
+               (cp[1] + cp[4] + cp[6] + cp[9]) * 0.09375 + cp[5] * 0.5625;
+    vec3 ev01 = (cp[1] + cp[2] + cp[9] + cp[10]) * 0.0625 +
+                (cp[5] + cp[6]) * 0.375;
+
+    vec3 vv1 = (cp[1] + cp[3] + cp[9] + cp[11]) * 0.015625 +
+               (cp[2] + cp[5] + cp[7] + cp[10]) * 0.09375 + cp[6] * 0.5625;
+    vec3 ev12 = (cp[5] + cp[7] + cp[9] + cp[11]) * 0.0625 +
+                (cp[6] + cp[10]) * 0.375;
+
+    vec3 vv2 = (cp[5] + cp[7] + cp[13] + cp[15]) * 0.015625 +
+               (cp[6] + cp[9] + cp[11] + cp[14]) * 0.09375 + cp[10] * 0.5625;
+    vec3 ev23 = (cp[5] + cp[6] + cp[13] + cp[14]) * 0.0625 +
+                (cp[9] + cp[10]) * 0.375;
+
+    vec3 vv3 = (cp[4] + cp[6] + cp[12] + cp[14]) * 0.015625 +
+               (cp[5] + cp[8] + cp[10] + cp[13]) * 0.09375 + cp[9] * 0.5625;
+    vec3 ev03 = (cp[4] + cp[6] + cp[8] + cp[10]) * 0.0625 +
+                (cp[5] + cp[9]) * 0.375;
+
+    tessOuterLo = vec4(0);
+    tessOuterHi = vec4(0);
+
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+
+    if ((transitionMask & 8) != 0) {
+        tessOuterLo[0] = OsdComputeTessLevel(vv0, ev03);
+        tessOuterHi[0] = OsdComputeTessLevel(vv3, ev03);
+    } else {
+        tessOuterLo[0] = OsdComputeTessLevel(cp[5], cp[9]);
+    }
+    if ((transitionMask & 1) != 0) {
+        tessOuterLo[1] = OsdComputeTessLevel(vv0, ev01);
+        tessOuterHi[1] = OsdComputeTessLevel(vv1, ev01);
+    } else {
+        tessOuterLo[1] = OsdComputeTessLevel(cp[5], cp[6]);
+    }
+    if ((transitionMask & 2) != 0) {
+        tessOuterLo[2] = OsdComputeTessLevel(vv1, ev12);
+        tessOuterHi[2] = OsdComputeTessLevel(vv2, ev12);
+    } else {
+        tessOuterLo[2] = OsdComputeTessLevel(cp[6], cp[10]);
+    }
+    if ((transitionMask & 4) != 0) {
+        tessOuterLo[3] = OsdComputeTessLevel(vv3, ev23);
+        tessOuterHi[3] = OsdComputeTessLevel(vv2, ev23);
+    } else {
+        tessOuterLo[3] = OsdComputeTessLevel(cp[9], cp[10]);
+    }
+}
+
+void
+OsdGetTessLevelsLimitPoints(vec3 cpBezier[16], ivec3 patchParam,
+                            inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+{
+    // Each edge of a transition patch is adjacent to one or two patches
+    // at the next refined level of subdivision. When the patch control
+    // points have been converted to the Bezier basis, the control points
+    // at the four corners are on the limit surface (since a Bezier patch
+    // interpolates its corner control points). We can compute an adaptive
+    // tessellation level for transition edges on the limit surface by
+    // evaluating a limit position at the mid point of each transition edge.
+
+    tessOuterLo = vec4(0);
+    tessOuterHi = vec4(0);
+
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+
+    if ((transitionMask & 8) != 0) {
+        vec3 ev03 = OsdEvalBezier(cpBezier, vec2(0.0, 0.5));
+        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0], ev03);
+        tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12], ev03);
+    } else {
+        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0], cpBezier[12]);
+    }
+    if ((transitionMask & 1) != 0) {
+        vec3 ev01 = OsdEvalBezier(cpBezier, vec2(0.5, 0.0));
+        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0], ev01);
+        tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3], ev01);
+    } else {
+        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0], cpBezier[3]);
+    }
+    if ((transitionMask & 2) != 0) {
+        vec3 ev12 = OsdEvalBezier(cpBezier, vec2(1.0, 0.5));
+        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3], ev12);
+        tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15], ev12);
+    } else {
+        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3], cpBezier[15]);
+    }
+    if ((transitionMask & 4) != 0) {
+        vec3 ev23 = OsdEvalBezier(cpBezier, vec2(0.5, 1.0));
+        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12], ev23);
+        tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15], ev23);
+    } else {
+        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12], cpBezier[15]);
+    }
+}
+
+void
+OsdGetTessLevels(vec3 cp[16], ivec3 patchParam,
+                 inout vec4 tessLevelOuter, inout vec2 tessLevelInner,
+                 inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+{
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    OsdGetTessLevelsLimitPoints(cp, patchParam, tessOuterLo, tessOuterHi);
+#elif defined OSD_ENABLE_SCREENSPACE_TESSELLATION_REFINED
+    OsdGetTessLevelsRefinedPoints(cp, patchParam, tessOuterLo, tessOuterHi);
+#else
+    OsdGetTessLevelsUniform(patchParam, tessOuterLo, tessOuterHi);
+#endif
+
+    // Outer levels are the sum of the Lo and Hi segments where the Hi
+    // segments will have a length of zero for non-transition edges.
+    tessLevelOuter = tessOuterLo + tessOuterHi;
+
+    // Inner levels are the average the corresponding outer levels.
+    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
+    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+}
+
+void
+OsdGetTessLevels(vec3 cp0, vec3 cp1, vec3 cp2, vec3 cp3,
+                 ivec3 patchParam,
+                 inout vec4 tessLevelOuter, inout vec2 tessLevelInner)
+{
+    vec4 tessOuterLo = vec4(0);
+    vec4 tessOuterHi = vec4(0);
+
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    tessOuterLo[0] = OsdComputeTessLevel(cp0, cp1);
+    tessOuterLo[1] = OsdComputeTessLevel(cp0, cp3);
+    tessOuterLo[2] = OsdComputeTessLevel(cp2, cp3);
+    tessOuterLo[3] = OsdComputeTessLevel(cp1, cp2);
+    tessOuterHi = vec4(0);
+#else
+    OsdGetTessLevelsUniform(patchParam, tessOuterLo, tessOuterHi);
+#endif
+
+    // Outer levels are the sum of the Lo and Hi segments where the Hi
+    // segments will have a length of zero for non-transition edges.
+    tessLevelOuter = tessOuterLo + tessOuterHi;
+
+    // Inner levels are the average the corresponding outer levels.
+    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
+    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+}
+
+float
+OsdGetTessTransitionSplit(float t, float n0, float n1)
+{
+    float ti = round(t * (n0 + n1));
+
+    if (ti <= n0) {
+        return 0.5 * (ti / n0);
+    } else {
+        return 0.5 * ((ti - n0) / n1) + 0.5;
+    }
+}
+
+vec2
+OsdGetTessParameterization(vec2 uv, vec4 tessOuterLo, vec4 tessOuterHi)
+{
+    vec2 UV = uv;
+    if (UV.x == 0 && tessOuterHi[0] > 0) {
+        UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
+    } else
+    if (UV.y == 0 && tessOuterHi[1] > 0) {
+        UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
+    } else
+    if (UV.x == 1 && tessOuterHi[2] > 0) {
+        UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
+    } else
+    if (UV.y == 1 && tessOuterHi[3] > 0) {
+        UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
+    }
+    return UV;
+}
+
