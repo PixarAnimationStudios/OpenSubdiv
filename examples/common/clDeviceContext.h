@@ -47,11 +47,24 @@ public:
         return _clCommandQueue;
     }
 
-private:
+protected:
     cl_context _clContext;
     cl_command_queue _clCommandQueue;
 };
 
+struct ID3D11DeviceContext;
+
+class CLD3D11DeviceContext : public CLDeviceContext {
+public:
+    bool Initialize(ID3D11DeviceContext *deviceContext);
+
+    ID3D11DeviceContext *GetDeviceContext() const {
+        return _d3dDeviceContext;
+    }
+
+private:
+    ID3D11DeviceContext *_d3dDeviceContext;
+};
 
 
 #endif  // OSD_EXAMPLES_COMMON_CL_DEVICE_CONTEXT_H

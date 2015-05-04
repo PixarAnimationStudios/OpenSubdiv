@@ -339,7 +339,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
     //  reassessed here for each level.
     //
     int  numFVarChannels      = level.getNumFVarChannels();
-    bool considerFVarChannels = (numFVarChannels > 0);
+    bool considerFVarChannels = false;
 
     if (considerFVarChannels) {
         considerFVarChannels = false;

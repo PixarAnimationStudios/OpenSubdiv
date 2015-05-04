@@ -47,8 +47,6 @@ _add_executable(osd_regression
     $<TARGET_OBJECTS:regression_common_obj>
 )
 
-add_dependencies(osd_regression blarg )
-
 target_link_libraries(osd_regression
     ${PLATFORM_LIBRARIES}
 )

@@ -58,17 +58,6 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-# optional dependency - enables screenshots
-# XXX: this is actually unnecessary for this test since glImaging
-# use stb_image_write, however, examples_common_obj has libpng
-# dependency so we need to add here. We'll remove the libpng dependency soon.
-find_package(PNG)
-if (PNG_FOUND)
-    include_directories("${PNG_INCLUDE_DIRS}")
-    list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
-    add_definitions(-DOPENSUBDIV_HAS_PNG)
-endif()
-
 _add_glfw_executable(glImaging
     "${SOURCE_FILES}"
     "${SHADER_FILES}"
@@ -76,8 +65,6 @@ _add_glfw_executable(glImaging
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
-
-add_dependencies(glImaging blarg )
 
 target_link_libraries(glImaging
     ${PLATFORM_LIBRARIES}

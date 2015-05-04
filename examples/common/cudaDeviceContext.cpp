@@ -38,6 +38,10 @@
 #include <cuda_runtime_api.h>
 #include <cuda_gl_interop.h>
 
+#if defined(OPENSUBDIV_HAS_DX11SDK)
+#include <cuda_d3d11_interop.h>
+#endif
+
 #define message(fmt, ...)
 //#define message(fmt, ...)  fprintf(stderr, fmt, __VA_ARGS__)
 #define error(fmt, ...)  fprintf(stderr, fmt, __VA_ARGS__)
@@ -134,4 +138,16 @@ CudaDeviceContext::Initialize() {
     cudaGLSetGLDevice(_GetCudaDeviceForCurrentGLContext());
     _initialized = true;
     return true;
+}
+
+bool
+CudaDeviceContext::Initialize(ID3D11Device *device) {
+
+#if defined(OPENSUBDIV_HAS_DX11SDK)
+    cudaD3D11SetDirect3DDevice(device);
+    return true;
+#else
+    (void)device;  // unused
+    return false;
+#endif
 }
