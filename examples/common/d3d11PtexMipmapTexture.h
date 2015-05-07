@@ -22,12 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_D3D11_PTEX_MIPMAP_TEXTURE_H
-#define OSD_D3D11_PTEX_MIPMAP_TEXTURE_H
+#ifndef OPENSUBDIV_EXAMPLES_D3D11_PTEX_MIPMAP_TEXTURE_H
+#define OPENSUBDIV_EXAMPLES_D3D11_PTEX_MIPMAP_TEXTURE_H
 
-#include "../version.h"
-
-#include "../osd/nonCopyable.h"
+#include <osd/nonCopyable.h>
 
 class PtexTexture;
 struct ID3D11Buffer;
@@ -35,16 +33,14 @@ struct ID3D11Texture2D;
 struct ID3D11DeviceContext;
 struct ID3D11ShaderResourceView;
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
-
-class D3D11PtexMipmapTexture : NonCopyable<D3D11PtexMipmapTexture> {
+class D3D11PtexMipmapTexture : OpenSubdiv::Osd::NonCopyable<D3D11PtexMipmapTexture> {
 public:
     static D3D11PtexMipmapTexture * Create(ID3D11DeviceContext *deviceContext,
                                               PtexTexture * reader,
                                               int maxLevels=10);
+
+    /// Returns GLSL shader snippet to fetch ptex
+    static const char *GetShaderSource();
 
     /// Returns the texture buffer containing the layout of the ptex faces
     /// in the texels texture array.
@@ -74,11 +70,4 @@ private:
     ID3D11ShaderResourceView *_texelsSRV;
 };
 
-}  // end namespace Osd
-
-}  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-}  // end namespace OpenSubdiv
-
-#endif  // OSD_D3D11_PTEX_TEXTURE_H
+#endif  // OPENSUBDIV_EXAMPLES_D3D11_PTEX_TEXTURE_H

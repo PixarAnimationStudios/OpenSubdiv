@@ -25,10 +25,8 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
-#include <osd/d3d11PtexMipmapTexture.h>
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
@@ -78,6 +76,7 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11_hud.h"
+#include "../common/d3d11PtexMipmapTexture.h"
 
 static const char *g_shaderSource =
 #include "shader.gen.h"
@@ -214,10 +213,10 @@ float g_animTime = 0;
 std::vector<float> g_positions,
                    g_normals;
 
-OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexImage = 0;
-OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexDisplacement = 0;
-OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexOcclusion = 0;
-OpenSubdiv::Osd::D3D11PtexMipmapTexture * g_osdPTexSpecular = 0;
+D3D11PtexMipmapTexture * g_osdPTexImage = 0;
+D3D11PtexMipmapTexture * g_osdPTexDisplacement = 0;
+D3D11PtexMipmapTexture * g_osdPTexOcclusion = 0;
+D3D11PtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 
 ID3D11Device * g_pd3dDevice = NULL;
@@ -450,11 +449,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
 {
     Effect effect = desc.second;
 
-    SetPtexEnabled(true);
-
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first, pd3dDevice);
     assert(sconfig);
+
+    // add ptex functions
+    sconfig->commonShader.source += D3D11PtexMipmapTexture::GetShaderSource();
 
     if (effect.patchCull)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
@@ -600,7 +600,7 @@ EffectDrawRegistry::_CreateDrawConfig(
 EffectDrawRegistry effectRegistry;
 
 //------------------------------------------------------------------------------
-OpenSubdiv::Osd::D3D11PtexMipmapTexture *
+D3D11PtexMipmapTexture *
 createPtex(const char *filename) {
 
     Ptex::String ptexError;
@@ -620,9 +620,8 @@ createPtex(const char *filename) {
         printf("Error in reading %s\n", filename);
         exit(1);
     }
-    OpenSubdiv::Osd::D3D11PtexMipmapTexture *osdPtex =
-        OpenSubdiv::Osd::D3D11PtexMipmapTexture::Create(g_pd3dDeviceContext,
-                                                      ptex, g_maxMipmapLevels);
+    D3D11PtexMipmapTexture *osdPtex = D3D11PtexMipmapTexture::Create(
+        g_pd3dDeviceContext, ptex, g_maxMipmapLevels);
 
     ptex->release();
 

@@ -28,7 +28,6 @@
 #include <common/vtr_utils.h>
 #include <common/hbr_utils.h>
 #include <far/patchTables.h>
-#include <osd/vertex.h>
 
 #include "../common/gl_common.h"
 

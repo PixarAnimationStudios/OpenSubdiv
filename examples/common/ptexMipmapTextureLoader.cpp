@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/ptexMipmapTextureLoader.h"
+#include "ptexMipmapTextureLoader.h"
 
 #include <Ptexture.h>
 #include <vector>
@@ -31,11 +31,6 @@
 #include <cstdio>
 #include <cstring>
 #include <cassert>
-
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
 
 // sample neighbor pixels and populate around blocks
 void
@@ -997,9 +992,3 @@ PtexMipmapTextureLoader::generateBuffers()
     fclose(fp);
 #endif
 }
-
-
-} // end namespace Osd
-
-} // end namespace OPENSUBDIV_VERSION
-} // end namespace OpenSubdiv

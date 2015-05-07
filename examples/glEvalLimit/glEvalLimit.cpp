@@ -50,7 +50,6 @@ GLFWmonitor* g_primary=0;
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/drawContext.h>
 #include <osd/mesh.h>
-#include <osd/vertex.h>
 #include <far/gregoryBasis.h>
 #include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/topologyRefiner.h>

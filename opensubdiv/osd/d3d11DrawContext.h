@@ -29,7 +29,6 @@
 
 #include "../far/patchTables.h"
 #include "../osd/drawContext.h"
-#include "../osd/vertex.h"
 
 #include <map>
 

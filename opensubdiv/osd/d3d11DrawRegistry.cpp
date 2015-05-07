@@ -47,9 +47,6 @@ D3D11DrawConfig::~D3D11DrawConfig()
 static const char *commonShaderSource =
 #include "hlslPatchCommon.gen.h"
 ;
-static const char *ptexShaderSource =
-#include "hlslPtexCommon.gen.h"
-;
 static const char *bsplineShaderSource =
 #include "hlslPatchBSpline.gen.h"
 ;
@@ -66,10 +63,6 @@ D3D11DrawRegistryBase::_CreateDrawSourceConfig(
     D3D11DrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
-
-    if (IsPtexEnabled()) {
-        sconfig->commonShader.source += ptexShaderSource;
-    }
 
     {
         std::ostringstream ss;

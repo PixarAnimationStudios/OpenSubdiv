@@ -70,56 +70,11 @@ set(PUBLIC_HEADER_FILES
     opengl.h
     drawContext.h
     drawRegistry.h
-    vertex.h
     vertexDescriptor.h
 )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
-#-------------------------------------------------------------------------------
-set(GL_PTEX_PUBLIC_HEADERS
-    glPtexTexture.h
-    glPtexMipmapTexture.h
-)
-set(DX_PTEX_PUBLIC_HEADERS
-    d3d11PtexTexture.h
-    d3d11PtexMipmapTexture.h
-)
-
-if( PTEX_FOUND )
-    list(APPEND PUBLIC_HEADER_FILES
-        ptexTextureLoader.h
-        ptexMipmapTextureLoader.h
-    )
-    list(APPEND CPU_SOURCE_FILES
-        ptexTextureLoader.cpp
-        ptexMipmapTextureLoader.cpp
-    )
-    if( OPENGL_FOUND )
-        list(APPEND GPU_SOURCE_FILES
-            glPtexTexture.cpp
-            glPtexMipmapTexture.cpp
-        )
-        list(APPEND PUBLIC_HEADER_FILES
-            ${GL_PTEX_PUBLIC_HEADERS}
-        )
-    endif()
-    if( DXSDK_FOUND )
-        list(APPEND GPU_SOURCE_FILES
-            d3d11PtexTexture.cpp
-            d3d11PtexMipmapTexture.cpp
-        )
-        list(APPEND PUBLIC_HEADER_FILES
-            ${DX_PTEX_PUBLIC_HEADERS}
-        )
-    endif()
-    include_directories( "${PTEX_INCLUDE_DIR}" )
-    list(APPEND PLATFORM_CPU_LIBRARIES
-        ${PTEX_LIBRARY}
-    )
-endif()
-
-list(APPEND DOXY_HEADER_FILES ${GL_PTEX_PUBLIC_HEADERS} ${DX_PTEX_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
 set(OPENMP_PUBLIC_HEADERS
@@ -201,7 +156,6 @@ if( OPENGL_FOUND OR OPENGLES_FOUND )
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
             glslPatchGregoryBasis.glsl
-            glslPtexCommon.glsl
         )
     endif()
 endif()
@@ -283,7 +237,6 @@ if( DXSDK_FOUND )
         hlslPatchCommon.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
-        hlslPtexCommon.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${DXSDK_LIBRARIES}

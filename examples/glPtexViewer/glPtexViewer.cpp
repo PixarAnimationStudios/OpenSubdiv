@@ -52,7 +52,6 @@ GLFWmonitor* g_primary = 0;
 
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
-#include <osd/glPtexMipmapTexture.h>
 #include <far/error.h>
 
 #include <osd/cpuGLVertexBuffer.h>
@@ -120,6 +119,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/patchColors.h"
 #include "../common/hdr_reader.h"
 #include "../common/stb_image_write.h"
+#include "../common/glPtexMipmapTexture.h"
 
 static const char *g_defaultShaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -328,10 +328,10 @@ struct ImageShader {
 
 //------------------------------------------------------------------------------
 
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexImage = 0;
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexDisplacement = 0;
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexOcclusion = 0;
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexSpecular = 0;
+GLPtexMipmapTexture * g_osdPTexImage = 0;
+GLPtexMipmapTexture * g_osdPTexDisplacement = 0;
+GLPtexMipmapTexture * g_osdPTexOcclusion = 0;
+GLPtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 size_t g_ptexMemoryUsage = 0;
 
@@ -636,7 +636,7 @@ static GLuint compileShader(GLenum shaderType,
 
 //------------------------------------------------------------------------------
 
-int bindPTexture(GLint program, OpenSubdiv::Osd::GLPtexMipmapTexture *osdPTex,
+int bindPTexture(GLint program, GLPtexMipmapTexture *osdPTex,
                  GLuint data, GLuint packing, int samplerUnit) {
 
 #if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
@@ -695,16 +695,16 @@ protected:
 };
 
 //------------------------------------------------------------------------------
-
 EffectDrawRegistry::SourceConfigType *
 EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
 
     Effect effect = desc.second;
 
-    SetPtexEnabled(true);
-
     SourceConfigType * sconfig =
         BaseRegistry::_CreateDrawSourceConfig(desc.first);
+
+    // add ptex functions
+    sconfig->commonShader.source += GLPtexMipmapTexture::GetShaderSource();
 
     if (effect.patchCull)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
@@ -922,7 +922,7 @@ getInstance(Effect effect,
 }
 
 //------------------------------------------------------------------------------
-OpenSubdiv::Osd::GLPtexMipmapTexture *
+GLPtexMipmapTexture *
 createPtex(const char *filename, int memLimit) {
 
     Ptex::String ptexError;
@@ -945,10 +945,8 @@ createPtex(const char *filename, int memLimit) {
 
     size_t targetMemory = memLimit * 1024 * 1024; // MB
 
-    OpenSubdiv::Osd::GLPtexMipmapTexture *osdPtex =
-        OpenSubdiv::Osd::GLPtexMipmapTexture::Create(ptex,
-                                                   g_maxMipmapLevels,
-                                                   targetMemory);
+    GLPtexMipmapTexture *osdPtex = GLPtexMipmapTexture::Create(
+        ptex, g_maxMipmapLevels, targetMemory);
 
     GLuint texture = osdPtex->GetTexelsTexture();
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture);

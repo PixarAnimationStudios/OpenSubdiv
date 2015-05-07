@@ -43,9 +43,6 @@ GLDrawConfig::~GLDrawConfig()
 static const char *commonShaderSource =
 #include "glslPatchCommon.gen.h"
 ;
-static const char *ptexShaderSource =
-#include "glslPtexCommon.gen.h"
-;
 static const char *bsplineShaderSource =
 #include "glslPatchBSpline.gen.h"
 ;
@@ -67,10 +64,6 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
     GLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
-
-    if (IsPtexEnabled()) {
-        sconfig->commonShader.source += ptexShaderSource;
-    }
 
     {
         std::ostringstream ss;

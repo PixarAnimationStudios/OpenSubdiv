@@ -37,7 +37,6 @@
 #include "../far/stencilTables.h"
 #include "../far/stencilTablesFactory.h"
 
-#include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {

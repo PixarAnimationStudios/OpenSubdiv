@@ -30,7 +30,6 @@
 #include "../far/patchTables.h"
 
 #include "../osd/nonCopyable.h"
-#include "../osd/vertex.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
