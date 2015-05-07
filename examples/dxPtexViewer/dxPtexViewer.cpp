@@ -25,7 +25,6 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/vertex.h>
 #include <osd/d3d11DrawContext.h>
 #include <osd/d3d11DrawRegistry.h>
 #include <osd/d3d11PtexMipmapTexture.h>

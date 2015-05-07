@@ -28,8 +28,6 @@
 #include "../version.h"
 
 #include "../osd/drawRegistry.h"
-#include "../osd/vertex.h"
-
 #include "../osd/opengl.h"
 
 #include <map>

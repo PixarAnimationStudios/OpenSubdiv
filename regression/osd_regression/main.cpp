@@ -46,7 +46,6 @@ GLFWwindow* g_window=0;
 #include <stdio.h>
 #include <cassert>
 
-#include <osd/vertex.h>
 #include <osd/cpuVertexBuffer.h>
 #include <osd/cpuComputeController.h>
 #include <osd/cpuComputeContext.h>

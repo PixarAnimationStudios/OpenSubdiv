@@ -70,7 +70,6 @@ set(PUBLIC_HEADER_FILES
     opengl.h
     drawContext.h
     drawRegistry.h
-    vertex.h
     vertexDescriptor.h
 )
 

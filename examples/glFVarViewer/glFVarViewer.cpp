@@ -42,7 +42,6 @@
 GLFWwindow* g_window = 0;
 GLFWmonitor* g_primary = 0;
 
-#include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 #include <far/error.h>
