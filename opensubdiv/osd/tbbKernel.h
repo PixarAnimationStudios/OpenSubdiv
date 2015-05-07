@@ -35,9 +35,10 @@ namespace Osd {
 struct VertexBufferDescriptor;
 
 void
-TbbComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                   float const * vertexSrc,
-                   float * vertexDst,
+TbbComputeStencils(float const * src,
+                   VertexBufferDescriptor const &srcDesc,
+                   float * dst,
+                   VertexBufferDescriptor const &dstDesc,
                    unsigned char const * sizes,
                    int const * offsets,
                    int const * indices,

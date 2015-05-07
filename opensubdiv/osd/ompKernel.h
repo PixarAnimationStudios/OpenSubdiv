@@ -27,24 +27,23 @@
 
 #include "../version.h"
 
-#include "../osd/vertexDescriptor.h"
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-struct VertexDescriptor;
+struct VertexBufferDescriptor;
 
 void
-OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                      float const * vertexSrc,
-                      float * vertexDst,
-                      unsigned char const * sizes,
-                      int const * offsets,
-                      int const * indices,
-                      float const * weights,
-                      int start, int end);
+OmpComputeStencils(float const * src,
+                   VertexBufferDescriptor const &srcDesc,
+                   float * dst,
+                   VertexBufferDescriptor const &dstDesc,
+                   unsigned char const * sizes,
+                   int const * offsets,
+                   int const * indices,
+                   float const * weights,
+                   int start, int end);
 
 } // end namespace Osd
 

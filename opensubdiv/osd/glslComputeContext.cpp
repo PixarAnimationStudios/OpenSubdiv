@@ -110,17 +110,17 @@ public:
     }
 
     void Bind() const {
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _sizes);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _offsets);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _indices);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _weights);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, _sizes);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, _offsets);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, _indices);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, _weights);
     }
 
     static void Unbind() {
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, 0);
 
         glUseProgram(0);
     }

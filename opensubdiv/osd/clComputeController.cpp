@@ -63,16 +63,22 @@ class CLComputeController::KernelBundle :
 
 public:
 
-    bool Compile(cl_context clContext, VertexBufferDescriptor const & desc) {
+    bool Compile(cl_context clContext,
+                 VertexBufferDescriptor const & srcDesc,
+                 VertexBufferDescriptor const & dstDesc) {
 
         cl_int errNum;
 
-        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+        // XXX: only store srcDesc.
+        //      this is ok since currently this kernel doesn't get called with
+        //      different strides for src and dst. This function will be
+        //      refactored soon.
+        _desc = VertexBufferDescriptor(0, srcDesc.length, srcDesc.stride);
 
         std::ostringstream defines;
-        defines << "#define OFFSET " << _desc.offset << "\n"
-                << "#define LENGTH " << _desc.length << "\n"
-                << "#define STRIDE " << _desc.stride << "\n";
+        defines << "#define LENGTH "     << srcDesc.length << "\n"
+                << "#define SRC_STRIDE " << srcDesc.stride << "\n"
+                << "#define DST_STRIDE " << dstDesc.stride << "\n";
         std::string defineStr = defines.str();
 
         const char *sources[] = { defineStr.c_str(), clSource };
@@ -147,8 +153,6 @@ CLComputeController::ApplyStencilTableKernel(ComputeContext const *context) {
 
     size_t globalWorkSize = 0;
 
-    int ncvs = context->GetNumControlVertices();
-
     if (context->HasVertexStencilTables()) {
         int start = 0;
         int end = context->GetNumStencilsInVertexStencilTables();
@@ -163,18 +167,23 @@ CLComputeController::ApplyStencilTableKernel(ComputeContext const *context) {
                indices = context->GetVertexStencilTablesIndices(),
                weights = context->GetVertexStencilTablesWeights();
 
-        clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.vertexBuffer);
+        cl_mem src = _currentBindState.vertexBuffer;
+        cl_mem dst = _currentBindState.vertexBuffer;
 
-        clSetKernelArg(kernel, 1, sizeof(cl_mem), &sizes);
-        clSetKernelArg(kernel, 2, sizeof(cl_mem), &offsets);
-        clSetKernelArg(kernel, 3, sizeof(cl_mem), &indices);
-        clSetKernelArg(kernel, 4, sizeof(cl_mem), &weights);
+        VertexBufferDescriptor srcDesc = _currentBindState.vertexDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += context->GetNumControlVertices() * dstDesc.stride;
 
-        clSetKernelArg(kernel, 5, sizeof(int), &start);
-        clSetKernelArg(kernel, 6, sizeof(int), &end);
-
-        clSetKernelArg(kernel, 7, sizeof(int), &_currentBindState.vertexDesc.offset);
-        clSetKernelArg(kernel, 8, sizeof(int), &ncvs);
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &src);
+        clSetKernelArg(kernel, 1, sizeof(int), &srcDesc.offset);
+        clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst);
+        clSetKernelArg(kernel, 3, sizeof(int), &dstDesc.offset);
+        clSetKernelArg(kernel, 4, sizeof(cl_mem), &sizes);
+        clSetKernelArg(kernel, 5, sizeof(cl_mem), &offsets);
+        clSetKernelArg(kernel, 6, sizeof(cl_mem), &indices);
+        clSetKernelArg(kernel, 7, sizeof(cl_mem), &weights);
+        clSetKernelArg(kernel, 8, sizeof(int), &start);
+        clSetKernelArg(kernel, 9, sizeof(int), &end);
 
         errNum = clEnqueueNDRangeKernel(
             _clQueue, kernel, 1, NULL, &globalWorkSize, NULL, 0, NULL, NULL);
@@ -198,18 +207,23 @@ CLComputeController::ApplyStencilTableKernel(ComputeContext const *context) {
                indices = context->GetVaryingStencilTablesIndices(),
                weights = context->GetVaryingStencilTablesWeights();
 
-        clSetKernelArg(kernel, 0, sizeof(cl_mem), &_currentBindState.varyingBuffer);
+        cl_mem src = _currentBindState.varyingBuffer;
+        cl_mem dst = _currentBindState.varyingBuffer;
 
-        clSetKernelArg(kernel, 1, sizeof(cl_mem), &sizes);
-        clSetKernelArg(kernel, 2, sizeof(cl_mem), &offsets);
-        clSetKernelArg(kernel, 3, sizeof(cl_mem), &indices);
-        clSetKernelArg(kernel, 4, sizeof(cl_mem), &weights);
+        VertexBufferDescriptor srcDesc = _currentBindState.varyingDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += context->GetNumControlVertices() * dstDesc.stride;
 
-        clSetKernelArg(kernel, 5, sizeof(int), &start);
-        clSetKernelArg(kernel, 6, sizeof(int), &end);
-
-        clSetKernelArg(kernel, 7, sizeof(int), &_currentBindState.varyingDesc.offset);
-        clSetKernelArg(kernel, 8, sizeof(int), &ncvs);
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &src);
+        clSetKernelArg(kernel, 1, sizeof(int), &srcDesc.offset);
+        clSetKernelArg(kernel, 2, sizeof(cl_mem), &dst);
+        clSetKernelArg(kernel, 3, sizeof(int), &dstDesc.offset);
+        clSetKernelArg(kernel, 4, sizeof(cl_mem), &sizes);
+        clSetKernelArg(kernel, 5, sizeof(cl_mem), &offsets);
+        clSetKernelArg(kernel, 6, sizeof(cl_mem), &indices);
+        clSetKernelArg(kernel, 7, sizeof(cl_mem), &weights);
+        clSetKernelArg(kernel, 8, sizeof(int), &start);
+        clSetKernelArg(kernel, 9, sizeof(int), &end);
 
         errNum = clEnqueueNDRangeKernel(
             _clQueue, kernel, 1, NULL, &globalWorkSize, NULL, 0, NULL, NULL);
@@ -234,7 +248,7 @@ CLComputeController::getKernel(VertexBufferDescriptor const &desc) {
         return *it;
     } else {
         KernelBundle * kernelBundle = new KernelBundle();
-        kernelBundle->Compile(_clContext, desc);
+        kernelBundle->Compile(_clContext, desc, desc);
         _kernelRegistry.push_back(kernelBundle);
         return kernelBundle;
     }

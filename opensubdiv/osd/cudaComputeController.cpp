@@ -29,15 +29,17 @@
 #include <cassert>
 
 extern "C" {
-
-    void CudaComputeStencils(float const *src, float * dst,
-                                int length, int stride,
-                                unsigned char const * sizes,
-                                int const * offsets,
-                                int const * indices,
-                                float const * weights,
-                                int start, int end);
-
+    void CudaComputeStencils(const float *src,
+                             float *dst,
+                             int length,
+                             int srcStride,
+                             int dstStride,
+                             const unsigned char * sizes,
+                             const int * offsets,
+                             const int * indices,
+                             const float * weights,
+                             int start,
+                             int end);
 }
 
 namespace OpenSubdiv {
@@ -51,21 +53,23 @@ CudaComputeController::ApplyStencilTableKernel(
 
     assert(context);
 
-    if (context->HasVertexStencilTables()) {
-
-        int length = _currentBindState.vertexDesc.length,
-            stride = _currentBindState.vertexDesc.stride;
+    if (context->HasVertexStencilTables() and _currentBindState.vertexBuffer) {
+        VertexBufferDescriptor srcDesc = _currentBindState.vertexDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += context->GetNumControlVertices() * dstDesc.stride;
 
         int start = 0;
         int end = context->GetNumStencilsInVertexStencilTables();
 
-        float const * src = _currentBindState.GetVertexBufferAtOffset();
-
-        float * dst = const_cast<float *>(src) +
-            context->GetNumControlVertices() * stride;
+        float const * src = _currentBindState.vertexBuffer;
+        float * dst       = _currentBindState.vertexBuffer;
 
         if (end > start) {
-            CudaComputeStencils(src, dst, length, stride,
+            CudaComputeStencils(src + srcDesc.offset,
+                                dst + dstDesc.offset,
+                                srcDesc.length,
+                                srcDesc.stride,
+                                dstDesc.stride,
                                 (unsigned char const *)context->GetVertexStencilTablesSizes(),
                                 (int const *)context->GetVertexStencilTablesOffsets(),
                                 (int const *)context->GetVertexStencilTablesIndices(),
@@ -75,21 +79,23 @@ CudaComputeController::ApplyStencilTableKernel(
         }
     }
 
-    if (context->HasVaryingStencilTables()) {
-
-        int length = _currentBindState.varyingDesc.length,
-            stride = _currentBindState.varyingDesc.stride;
+    if (context->HasVaryingStencilTables() and _currentBindState.varyingBuffer) {
+        VertexBufferDescriptor srcDesc = _currentBindState.varyingDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += context->GetNumControlVertices() * dstDesc.stride;
 
         int start = 0;
         int end = context->GetNumStencilsInVaryingStencilTables();
 
-        float const * src = _currentBindState.GetVaryingBufferAtOffset();
-
-        float * dst = const_cast<float *>(src) +
-            context->GetNumControlVertices() * stride;
+        float const * src = _currentBindState.varyingBuffer;
+        float * dst       = _currentBindState.varyingBuffer;
 
         if (end > start) {
-            CudaComputeStencils(src, dst, length, stride,
+            CudaComputeStencils(src + srcDesc.offset,
+                                dst + dstDesc.offset,
+                                srcDesc.length,
+                                srcDesc.stride,
+                                dstDesc.stride,
                                 (unsigned char const *)context->GetVaryingStencilTablesSizes(),
                                 (int const *)context->GetVaryingStencilTablesOffsets(),
                                 (int const *)context->GetVaryingStencilTablesIndices(),
