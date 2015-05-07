@@ -114,19 +114,10 @@ float4 displacement(float4 position, float3 normal, float4 patchCoord)
 }
 #endif
 
-#line 20117
-float4 GeneratePatchCoord(float2 localUV, int primitiveID)  // for non-adpative
+float4 GeneratePatchCoord(float2 uv, int primitiveID)  // for non-adaptive
 {
-    int2 ptexIndex = OsdPatchParamBuffer[GetPrimitiveID(primitiveID)].xy;
-
-    int faceID = ptexIndex.x;
-    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
-    int u = (ptexIndex.y >> 17) & 0x3ff;
-    int v = (ptexIndex.y >> 7) & 0x3ff;
-    float2 uv = localUV;
-    uv = (uv * float2(1, 1)/lv) + float2(u, v)/lv;
-
-    return float4(uv.x, uv.y, lv+0.5, faceID+0.5);
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
+    return OsdInterpolatePatchCoord(uv, OsdGetPatchCoord(patchParam));
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +130,11 @@ void vs_main( in InputVertex input,
     output.positionOut = mul(ModelViewProjectionMatrix, input.position);
     output.position = mul(ModelViewMatrix, input.position);
     output.normal = mul(ModelViewMatrix,float4(input.normal, 0)).xyz;
+
+    output.patchCoord = float4(0,0,0,0);
+    output.tangent = float3(0,0,0);
+    output.bitangent = float3(0,0,0);
+    output.edgeDistance = float4(0,0,0,0);
 }
 
 // ---------------------------------------------------------------------------

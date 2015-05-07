@@ -397,37 +397,28 @@ void main()
 
     OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
 
-    int patchLevel = GetPatchLevel();
-    outpt[ID].v.patchCoord = vec4(0, 0,
-                                  patchLevel+0.5f,
-                                  GetPrimitiveID()+0.5f);
+    ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID));
 
-    OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
+    outpt[ID].v.patchCoord = OsdGetPatchCoord(patchParam);
 
     if (ID == 0) {
         OSD_PATCH_CULL(4);
 
-#ifdef OSD_ENABLE_SCREENSPACE_TESSELLATION
-        gl_TessLevelOuter[0] =
-            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz);
-        gl_TessLevelOuter[1] =
-            TessAdaptive(inpt[0].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
-        gl_TessLevelOuter[2] =
-            TessAdaptive(inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz);
-        gl_TessLevelOuter[3] =
-            TessAdaptive(inpt[1].v.hullPosition.xyz, inpt[2].v.hullPosition.xyz);
-        gl_TessLevelInner[0] =
-            max(gl_TessLevelOuter[1], gl_TessLevelOuter[3]);
-        gl_TessLevelInner[1] =
-            max(gl_TessLevelOuter[0], gl_TessLevelOuter[2]);
-#else
-        gl_TessLevelInner[0] = GetTessLevel(patchLevel);
-        gl_TessLevelInner[1] = GetTessLevel(patchLevel);
-        gl_TessLevelOuter[0] = GetTessLevel(patchLevel);
-        gl_TessLevelOuter[1] = GetTessLevel(patchLevel);
-        gl_TessLevelOuter[2] = GetTessLevel(patchLevel);
-        gl_TessLevelOuter[3] = GetTessLevel(patchLevel);
-#endif
+        vec4 tessLevelOuter = vec4(0);
+        vec2 tessLevelInner = vec2(0);
+
+        OsdGetTessLevels(
+                    inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz,
+                    inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz,
+                    patchParam, tessLevelOuter, tessLevelInner);
+
+        gl_TessLevelOuter[0] = tessLevelOuter[0];
+        gl_TessLevelOuter[1] = tessLevelOuter[1];
+        gl_TessLevelOuter[2] = tessLevelOuter[2];
+        gl_TessLevelOuter[3] = tessLevelOuter[3];
+
+        gl_TessLevelInner[0] = tessLevelInner[0];
+        gl_TessLevelInner[1] = tessLevelInner[1];
     }
 }
 
@@ -441,13 +432,11 @@ void main()
 layout(quads) in;
 layout(cw) in;
 
-/* XXXdyu-patch-drawing support for frational spacing
 #if defined OSD_FRACTIONAL_ODD_SPACING
     layout(fractional_odd_spacing) in;
 #elif defined OSD_FRACTIONAL_EVEN_SPACING
     layout(fractional_even_spacing) in;
 #endif
-*/
 
 in block {
     GregEvalVertex v;
@@ -554,7 +543,7 @@ void main()
         dUV += D[i] * DUCP[i];
     }
 
-    int level = int(inpt[0].v.ptexInfo.z);
+    int level = inpt[0].v.patchCoord.z;
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
     dUU *= 6 * level;
@@ -609,7 +598,7 @@ void main()
         Tangent   += B[i] * DUCP[i];
         BiTangent += D[i] * BUCP[i];
     }
-    int level = int(inpt[0].v.ptexInfo.z);
+    int level = inpt[0].v.patchCoord.z;
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
 
@@ -627,10 +616,9 @@ void main()
 
     OSD_USER_VARYING_PER_EVAL_POINT(vec2(u,v), 0, 3, 1, 2);
 
-    outpt.v.patchCoord = inpt[0].v.patchCoord;
-    outpt.v.patchCoord.xy = vec2(v, u);
-
-    OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
+    vec2 UV = vec2(v, u);
+    outpt.v.tessCoord = UV;
+    outpt.v.patchCoord = OsdInterpolatePatchCoord(UV, inpt[0].v.patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 

@@ -61,35 +61,6 @@ static float4x4 Mi = {
     0.f,     0.f,     1.f,     0.f
 };
 
-void
-reflectBoundaryEdges(inout float3 cpt[16], int patchParam)
-{
-    if (((patchParam >> 4) & 1) != 0) {
-        cpt[0] = 2*cpt[4] - cpt[8];
-        cpt[1] = 2*cpt[5] - cpt[9];
-        cpt[2] = 2*cpt[6] - cpt[10];
-        cpt[3] = 2*cpt[7] - cpt[11];
-    }
-    if (((patchParam >> 4) & 2) != 0) {
-        cpt[3] = 2*cpt[2] - cpt[1];
-        cpt[7] = 2*cpt[6] - cpt[5];
-        cpt[11] = 2*cpt[10] - cpt[9];
-        cpt[15] = 2*cpt[14] - cpt[13];
-    }
-    if (((patchParam >> 4) & 4) != 0) {
-        cpt[12] = 2*cpt[8] - cpt[4];
-        cpt[13] = 2*cpt[9] - cpt[5];
-        cpt[14] = 2*cpt[10] - cpt[6];
-        cpt[15] = 2*cpt[11] - cpt[7];
-    }
-    if (((patchParam >> 4) & 8) != 0) {
-        cpt[0] = 2*cpt[1] - cpt[2];
-        cpt[4] = 2*cpt[5] - cpt[6];
-        cpt[8] = 2*cpt[9] - cpt[10];
-        cpt[12] = 2*cpt[13] - cpt[14];
-    }
-}
-
 // compute single-crease patch matrix
 float4x4
 ComputeMatrixSimplified(float sharpness)
@@ -118,33 +89,34 @@ HSConstFunc(
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
-    int patchParam = GetPatchParam(primitiveID);
-    int patchLevel = GetPatchLevel(primitiveID);
 
     float3 position[16];
     for (int p=0; p<16; ++p) {
         position[p] = bezierPatch[p].position.xyz;
     }
 
-    reflectBoundaryEdges(position, patchParam);
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
+
+    OsdComputeBSplineBoundaryPoints(position, patchParam);
 
     OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
 
-    float4 outerLevel = float4(0,0,0,0);
-    float4 innerLevel = float4(0,0,0,0);
+    float4 tessLevelOuter = float4(0,0,0,0);
+    float4 tessLevelInner = float4(0,0,0,0);
     float4 tessOuterLo = float4(0,0,0,0);
     float4 tessOuterHi = float4(0,0,0,0);
-    GetTransitionTessLevels(position, patchParam, patchLevel,
-                            outerLevel, innerLevel,
-                            tessOuterLo, tessOuterHi);
 
-    output.tessLevelOuter[0] = outerLevel[0];
-    output.tessLevelOuter[1] = outerLevel[1];
-    output.tessLevelOuter[2] = outerLevel[2];
-    output.tessLevelOuter[3] = outerLevel[3];
+    OsdGetTessLevels(position, patchParam,
+                     tessLevelOuter, tessLevelInner,
+                     tessOuterLo, tessOuterHi);
 
-    output.tessLevelInner[0] = innerLevel[0];
-    output.tessLevelInner[1] = innerLevel[1];
+    output.tessLevelOuter[0] = tessLevelOuter[0];
+    output.tessLevelOuter[1] = tessLevelOuter[1];
+    output.tessLevelOuter[2] = tessLevelOuter[2];
+    output.tessLevelOuter[3] = tessLevelOuter[3];
+
+    output.tessLevelInner[0] = tessLevelInner[0];
+    output.tessLevelInner[1] = tessLevelInner[1];
 
     output.tessOuterLo = tessOuterLo;
     output.tessOuterHi = tessOuterHi;
@@ -170,9 +142,9 @@ HullVertex hs_main_patches(
         position[p] = patch[p].position.xyz;
     }
 
-    int patchParam = GetPatchParam(primitiveID);
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
 
-    reflectBoundaryEdges(position, patchParam);
+    OsdComputeBSplineBoundaryPoints(position, patchParam);
 
     float3 H[4];
     for (int l=0; l<4; ++l) {
@@ -184,7 +156,7 @@ HullVertex hs_main_patches(
 
     HullVertex output;
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness = GetSharpness(primitiveID);
+    float sharpness = OsdGetPatchSharpness(patchParam);
     if (sharpness > 0) {
         float Sf = floor(sharpness);
         float Sc = ceil(sharpness);
@@ -222,14 +194,7 @@ HullVertex hs_main_patches(
     output.position = float4(pos, 1.0);
 #endif
 
-    int patchLevel = GetPatchLevel(primitiveID);
-
-    // +0.5 to avoid interpolation error of integer value
-    output.patchCoord = float4(0, 0,
-                               patchLevel+0.5,
-                               GetPrimitiveID(primitiveID)+0.5);
-
-    OSD_COMPUTE_PTEX_COORD_HULL_SHADER;
+    output.patchCoord = OsdGetPatchCoord(patchParam);
 
     return output;
 }
@@ -245,7 +210,9 @@ void ds_main_patches(
     in float2 domainCoord : SV_DomainLocation,
     out OutputVertex output )
 {
-    float2 UV = GetTransitionParameterization(input, domainCoord);
+    float2 UV = OsdGetTessParameterization(domainCoord,
+                                           input.tessOuterLo,
+                                           input.tessOuterHi);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
@@ -337,7 +304,7 @@ void ds_main_patches(
         dUV += D[k] * DUCP[k];
     }
 
-    int level = int(patch[0].ptexInfo.z);
+    int level = patch[0].patchCoord.z;
     Tangent *= 3 * level;
     BiTangent *= 3 * level;
     dUU *= 6 * level;
@@ -372,7 +339,7 @@ void ds_main_patches(
         Tangent   += B[k] * DUCP[k];
         BiTangent += D[k] * BUCP[k];
     }
-    int level = int(patch[0].ptexInfo.z);
+    int level = patch[0].patchCoord.z;
     Tangent *= 3 * level;
     BiTangent *= 3 * level;
 
@@ -385,11 +352,7 @@ void ds_main_patches(
     output.position = float4(WorldPos, 1.0f);
     output.normal = normal;
 
-    output.patchCoord = patch[0].patchCoord;
-
-    output.patchCoord.xy = float2(UV.x, UV.y);
-
-    OSD_COMPUTE_PTEX_COORD_DOMAIN_SHADER;
+    output.patchCoord = OsdInterpolatePatchCoord(UV, patch[0].patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 
