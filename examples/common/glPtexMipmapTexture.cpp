@@ -22,17 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/glPtexMipmapTexture.h"
-#include "../osd/ptexMipmapTextureLoader.h"
+#include "glPtexMipmapTexture.h"
+#include "ptexMipmapTextureLoader.h"
 
-#include "../osd/opengl.h"
+#include <osd/opengl.h>
 
 #include <Ptexture.h>
-
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
 
 GLPtexMipmapTexture::GLPtexMipmapTexture()
     : _width(0), _height(0), _depth(0), _layout(0), _texels(0), _memoryUsage(0)
@@ -46,6 +41,16 @@ GLPtexMipmapTexture::~GLPtexMipmapTexture()
 
     if (glIsTexture(_texels))
        glDeleteTextures(1, &_texels);
+}
+
+/*static*/
+const char *
+GLPtexMipmapTexture::GetShaderSource()
+{
+    static const char *ptexShaderSource =
+#include "glslPtexCommon.gen.h"
+        ;
+    return ptexShaderSource;
 }
 
 static GLuint
@@ -154,8 +159,3 @@ GLPtexMipmapTexture::Create(PtexTexture * reader,
 
     return result;
 }
-
-}  // end namespace Osd
-
-}  // end namespace OPENSUBDIV_VERSION
-}  // end namespace OpenSubdiv

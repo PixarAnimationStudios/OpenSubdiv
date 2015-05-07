@@ -22,21 +22,14 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_PTEX_MIPMAP_TEXTURE_LOADER_H
-#define OSD_PTEX_MIPMAP_TEXTURE_LOADER_H
-
-#include "../version.h"
+#ifndef OPENSUBDIV_EXAMPLES_PTEX_MIPMAP_TEXTURE_LOADER_H
+#define OPENSUBDIV_EXAMPLES_PTEX_MIPMAP_TEXTURE_LOADER_H
 
 #include <stdlib.h>
 #include <stdint.h>
 #include <vector>
 
 class PtexTexture;
-
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
 
 class PtexMipmapTextureLoader {
 public:
@@ -158,12 +151,4 @@ private:
     size_t _memoryUsage;
 };
 
-
-} // end namespace Osd
-
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-} // end namespace OpenSubdiv
-
-#endif // OSD_PTEX_MIPMAP_TEXTURE_LOADER_H
+#endif // OPENSUBDIV_EXAMPLES_PTEX_MIPMAP_TEXTURE_LOADER_H

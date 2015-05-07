@@ -25,6 +25,8 @@
 set(EXAMPLES_COMMON_SHADER_FILES
      framebuffer.glsl
      ssao.glsl
+     glslPtexCommon.glsl
+     hlslPtexCommon.hlsl
 )
 
 set(EXAMPLES_COMMON_SOURCE_FILES
@@ -107,6 +109,36 @@ if(CUDA_FOUND)
     )
 endif()
 
+#-------------------------------------------------------------------------------
+if( PTEX_FOUND )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        ptexMipmapTextureLoader.h
+    )
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        ptexMipmapTextureLoader.cpp
+    )
+    if( OPENGL_FOUND )
+        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+            glPtexMipmapTexture.cpp
+        )
+        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+            glPtexMipmapTexture.h
+        )
+    endif()
+    if( DXSDK_FOUND )
+        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+            d3d11PtexMipmapTexture.cpp
+        )
+        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+            d3d11PtexMipmapTexture.h
+        )
+    endif()
+    include_directories( "${PTEX_INCLUDE_DIR}" )
+    list(APPEND PLATFORM_CPU_LIBRARIES
+        ${PTEX_LIBRARY}
+    )
+endif()
+#-------------------------------------------------------------------------------
 
 include_directories(
     "${PROJECT_SOURCE_DIR}/opensubdiv"

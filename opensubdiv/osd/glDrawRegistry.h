@@ -67,17 +67,9 @@ public:
     typedef GLDrawConfig ConfigType;
     typedef GLDrawSourceConfig SourceConfigType;
 
-    GLDrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+    GLDrawRegistryBase() { }
 
     virtual ~GLDrawRegistryBase();
-
-    bool IsPtexEnabled() const {
-        return _enablePtex;
-    }
-    
-    void SetPtexEnabled(bool b) {
-        _enablePtex=b;
-    }
 
 protected:
     virtual ConfigType * _NewDrawConfig() {
@@ -90,11 +82,8 @@ protected:
     virtual SourceConfigType * _NewDrawSourceConfig() { 
         return new SourceConfigType(); 
     }
-    
-    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc);
 
-private:
-    bool _enablePtex;
+    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc);
 };
 
 //------------------------------------------------------------------------------

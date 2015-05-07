@@ -22,28 +22,24 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_GL_PTEX_MIPMAP_TEXTURE_H
-#define OSD_GL_PTEX_MIPMAP_TEXTURE_H
+#ifndef OPENSUBDIV_EXAMPLES_GL_PTEX_MIPMAP_TEXTURE_H
+#define OPENSUBDIV_EXAMPLES_GL_PTEX_MIPMAP_TEXTURE_H
 
-#include "../version.h"
-
-#include "../osd/nonCopyable.h"
-#include "../osd/opengl.h"
+#include <osd/nonCopyable.h>
+#include <osd/opengl.h>
 
 #include <stdlib.h>
 
 class PtexTexture;
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
-
-class GLPtexMipmapTexture : NonCopyable<GLPtexMipmapTexture> {
+class GLPtexMipmapTexture : OpenSubdiv::Osd::NonCopyable<GLPtexMipmapTexture> {
 public:
     static GLPtexMipmapTexture * Create(PtexTexture * reader,
                                            int maxLevels=-1,
                                            size_t targetMemory=0);
+
+    /// Returns GLSL shader snippet to fetch ptex
+    static const char *GetShaderSource();
 
     /// Returns the texture buffer containing the layout of the ptex faces
     /// in the texels texture array.
@@ -72,11 +68,4 @@ private:
     size_t _memoryUsage;  // total amount of memory used (estimate)
 };
 
-}  // end namespace Osd
-
-}  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-}  // end namespace OpenSubdiv
-
-#endif  // OSD_GL_PTEX_MIPMAP_TEXTURE_H
+#endif  // OPENSUBDIV_EXAMPLES_GL_PTEX_MIPMAP_TEXTURE_H
