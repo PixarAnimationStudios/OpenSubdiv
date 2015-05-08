@@ -48,18 +48,6 @@ static const char *shaderSource =
 #include "../osd/glslTransformFeedbackKernel.gen.h"
 ;
 
-static const char *shaderDefines = ""
-#ifdef OPT_CATMARK_V_IT_VEC2
-"#define OPT_CATMARK_V_IT_VEC2\n"
-#endif
-#ifdef OPT_E0_IT_VEC4
-"#define OPT_E0_IT_VEC4\n"
-#endif
-#ifdef OPT_E0_S_VEC2
-"#define OPT_E0_S_VEC2\n"
-#endif
-;
-
 // ----------------------------------------------------------------------------
 static void
 bindTexture(GLint sampler, GLuint texture, int unit) {
@@ -87,7 +75,7 @@ public:
         _uniformWeights(0),
         _uniformStart(0),
         _uniformEnd(0),
-        _uniformPrimvarOffset(0) { }
+        _uniformSrcOffset(0) { }
 
     ~KernelBundle() {
         if (_program) {
@@ -99,9 +87,14 @@ public:
         glUseProgram(_program);
     }
 
-    bool Compile(VertexBufferDescriptor const & desc) {
+    bool Compile(VertexBufferDescriptor const & srcDesc,
+                 VertexBufferDescriptor const & dstDesc) {
 
-        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+        // XXX: only store srcDesc.
+        //      this is ok since currently this kernel doesn't get called with
+        //      different strides for src and dst. This function will be
+        //      refactored soon.
+        _desc = VertexBufferDescriptor(0, srcDesc.length, dstDesc.stride);
 
         if (_program) {
             glDeleteProgram(_program);
@@ -112,16 +105,15 @@ public:
         GLuint shader = glCreateShader(GL_VERTEX_SHADER);
 
         std::ostringstream defines;
-        defines << "#define LENGTH " << desc.length << "\n"
-                << "#define STRIDE " << desc.stride << "\n";
+        defines << "#define LENGTH " << srcDesc.length << "\n"
+                << "#define SRC_STRIDE " << srcDesc.stride << "\n";
         std::string defineStr = defines.str();
 
-        const char *shaderSources[4] = {"#version 410\n", 0, 0, 0};
+        const char *shaderSources[3] = {"#version 410\n", 0, 0};
 
         shaderSources[1] = defineStr.c_str();
-        shaderSources[2] = shaderDefines;
-        shaderSources[3] = shaderSource;
-        glShaderSource(shader, 4, shaderSources, NULL);
+        shaderSources[2] = shaderSource;
+        glShaderSource(shader, 3, shaderSources, NULL);
         glCompileShader(shader);
         glAttachShader(_program, shader);
 
@@ -141,15 +133,15 @@ public:
             // interleaved components even if gl_SkipComponents is used.
             //
             char attrName[32];
-            int primvarOffset = (desc.offset % desc.stride);
+            int primvarOffset = (dstDesc.offset % dstDesc.stride);
             for (int i = 0; i < primvarOffset; ++i) {
                 outputs.push_back("gl_SkipComponents1");
             }
-            for (int i = 0; i < desc.length; ++i) {
+            for (int i = 0; i < dstDesc.length; ++i) {
                 snprintf(attrName, 32, "outVertexBuffer[%d]", i);
                 outputs.push_back(attrName);
             }
-            for (int i = primvarOffset + desc.length; i < desc.stride; ++i) {
+            for (int i = primvarOffset + dstDesc.length; i < dstDesc.stride; ++i) {
                 outputs.push_back("gl_SkipComponents1");
             }
 
@@ -192,7 +184,7 @@ public:
         _uniformStart   = glGetUniformLocation(_program, "batchStart");
         _uniformEnd     = glGetUniformLocation(_program, "batchEnd");
 
-        _uniformPrimvarOffset = glGetUniformLocation(_program, "primvarOffset");
+        _uniformSrcOffset = glGetUniformLocation(_program, "srcOffset");
 
         OSD_DEBUG_CHECK_GL_ERROR("KernelBundle::Compile");
 
@@ -217,30 +209,61 @@ public:
         return _uniformWeights;
     }
 
-    void TransformPrimvarBuffer(GLuint primvarBuffer,
-        int offset, int numCVs, int start, int end) const {
+    void ApplyStencilTableKernel(GLuint srcBuffer,
+                                 VertexBufferDescriptor const &srcDesc,
+                                 GLuint dstBuffer,
+                                 VertexBufferDescriptor const &dstDesc,
+                                 int start, int end) const {
 
         assert(end >= start);
 
+        (void)srcBuffer;   // already bound in bindBufferAndProgram().
+
         // set batch range
-        glUniform1i(_uniformStart,  start);
-        glUniform1i(_uniformEnd,    end);
-        glUniform1i(_uniformPrimvarOffset, offset);
+        glUniform1i(_uniformStart,     start);
+        glUniform1i(_uniformEnd,       end);
+        glUniform1i(_uniformSrcOffset, srcDesc.offset);
 
-        int count = end - start,
-            stride = _desc.stride*sizeof(float);
+        int count = end - start;
 
-        // note: offset includes both "batching offset" and "primvar offset".
-        // 
+        // The destination buffer is bound at vertex boundary.
+        //
+        // Example: When we have a batched and interleaved vertex buffer
+        //
+        //  Obj  X    |    Obj Y                                  |
+        // -----------+-------------------------------------------+-------
+        //            |    vtx 0      |    vtx 1      |           |
+        // -----------+---------------+---------------+-----------+-------
+        //            | x y z r g b a | x y z r g b a | ....      |
+        // -----------+---------------+---------------+-----------+-------
+        //                    ^
+        //                    srcDesc.offset for Obj Y color
+        //
+        //            ^-------------------------------------------^
+        //                    XFB destination buffer range
+        //              S S S * * * *
+        //              k k k
+        //              i i i
+        //              p p p
+        //
+        //  We use gl_SkipComponents to skip the first 3 XYZ so the
+        //  buffer itself needs to be bound for entire section of ObjY.
+        //
+        //  Note that for the source buffer (texture) we bind the whole
+        //  buffer (all VBO range) and use srcOffset=srcDesc.offset for
+        //  indexing.
+        //
+        int dstBufferBindOffset =
+            dstDesc.offset - (dstDesc.offset % dstDesc.stride);
+
+        // bind destination buffer
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
-                          0, primvarBuffer,
-                          (start + numCVs)*stride + (offset - offset%stride)*sizeof(float),
-                          count*stride);
+                          0, dstBuffer,
+                          dstBufferBindOffset * sizeof(float),
+                          count * dstDesc.stride * sizeof(float));
 
         glBeginTransformFeedback(GL_POINTS);
-
         glDrawArrays(GL_POINTS, 0, count);
-
         glEndTransformFeedback();
 
         glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
@@ -248,13 +271,6 @@ public:
         //OSD_DEBUG_CHECK_GL_ERROR("TransformPrimvarBuffer\n");
     }
 
-    void ApplyStencilTableKernel(GLuint primvarBuffer,
-                                 int offset, int numCVs,
-                                 int start, int end) const {
-
-        TransformPrimvarBuffer(primvarBuffer,
-                               offset, numCVs, start, end);
-    }
 
     struct Match {
 
@@ -282,7 +298,7 @@ private:
           _uniformStart,     // batch
           _uniformEnd,
 
-          _uniformPrimvarOffset;
+          _uniformSrcOffset;
 
     VertexBufferDescriptor _desc; // primvar buffer descriptor
 };
@@ -374,7 +390,7 @@ GLSLTransformFeedbackComputeController::getKernel(
         return *it;
     } else {
         KernelBundle * kernelBundle = new KernelBundle();
-        kernelBundle->Compile(desc);
+        kernelBundle->Compile(desc, desc);
         _kernelRegistry.push_back(kernelBundle);
         return kernelBundle;
     }
@@ -391,9 +407,15 @@ GLSLTransformFeedbackComputeController::ApplyStencilTableKernel(
     int start = 0;
     int end = numStencils;
 
+    VertexBufferDescriptor srcDesc = _currentBindState.desc;
+    VertexBufferDescriptor dstDesc(srcDesc);
+    dstDesc.offset += context->GetNumControlVertices() * dstDesc.stride;
+
     _currentBindState.kernelBundle->ApplyStencilTableKernel(
-        _currentBindState.buffer, _currentBindState.desc.offset,
-        context->GetNumControlVertices(),
+        _currentBindState.buffer,
+        srcDesc,
+        _currentBindState.buffer,
+        dstDesc,
         start,
         end);
 }

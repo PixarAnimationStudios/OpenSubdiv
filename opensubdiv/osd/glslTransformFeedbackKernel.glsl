@@ -36,7 +36,7 @@ uniform samplerBuffer  weights;
 uniform int batchStart = 0;
 uniform int batchEnd = 0;
 
-uniform int primvarOffset = 0;
+uniform int srcOffset = 0;
 
 //------------------------------------------------------------------------------
 
@@ -58,17 +58,11 @@ void addWithWeight(inout Vertex v, Vertex src, float weight) {
 
 Vertex readVertex(int index) {
     Vertex v;
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = srcOffset + index * SRC_STRIDE;
     for(int j = 0; j < LENGTH; j++) {
         v.vertexData[j] = texelFetch(vertexBuffer, vertexIndex+j).x;
     }
     return v;
-}
-
-void copyVertex(out Vertex dst, int index) {
-    for(int i = 0; i < LENGTH; i++) {
-        dst.vertexData[i] = texelFetch(vertexBuffer, index*STRIDE+i).x;
-    }
 }
 
 void writeVertex(Vertex v) {

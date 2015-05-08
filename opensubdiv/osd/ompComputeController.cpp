@@ -47,20 +47,18 @@ OmpComputeController::ApplyStencilTableKernel(
     Far::StencilTables const * vertexStencils = context->GetVertexStencilTables();
 
     if (vertexStencils and _currentBindState.vertexBuffer) {
+        VertexBufferDescriptor srcDesc = _currentBindState.vertexDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += vertexStencils->GetNumControlVertices() * dstDesc.stride;
 
         int start = 0;
         int end = vertexStencils->GetNumStencils();
 
-        VertexBufferDescriptor const & desc = _currentBindState.vertexDesc;
-
-        float const * srcBuffer = _currentBindState.vertexBuffer + desc.offset;
-
-        float * destBuffer = _currentBindState.vertexBuffer + desc.offset +
-            vertexStencils->GetNumControlVertices() * desc.stride;
-
         if (end > start) {
-            OmpComputeStencils(_currentBindState.vertexDesc,
-                               srcBuffer, destBuffer,
+            OmpComputeStencils(_currentBindState.vertexBuffer,
+                               srcDesc,
+                               _currentBindState.vertexBuffer,
+                               dstDesc,
                                &vertexStencils->GetSizes().at(0),
                                &vertexStencils->GetOffsets().at(0),
                                &vertexStencils->GetControlIndices().at(0),
@@ -73,20 +71,18 @@ OmpComputeController::ApplyStencilTableKernel(
     Far::StencilTables const * varyingStencils = context->GetVaryingStencilTables();
 
     if (varyingStencils and _currentBindState.varyingBuffer) {
+        VertexBufferDescriptor srcDesc = _currentBindState.varyingDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += varyingStencils->GetNumControlVertices() * dstDesc.stride;
 
         int start = 0;
         int end = varyingStencils->GetNumStencils();
 
-        VertexBufferDescriptor const & desc = _currentBindState.varyingDesc;
-
-        float const * srcBuffer = _currentBindState.varyingBuffer + desc.offset;
-
-        float * destBuffer = _currentBindState.varyingBuffer + desc.offset +
-            varyingStencils->GetNumControlVertices() * desc.stride;
-
         if (end > start) {
-            OmpComputeStencils(_currentBindState.varyingDesc,
-                               srcBuffer, destBuffer,
+            OmpComputeStencils(_currentBindState.varyingBuffer,
+                               srcDesc,
+                               _currentBindState.varyingBuffer,
+                               dstDesc,
                                &varyingStencils->GetSizes().at(0),
                                &varyingStencils->GetOffsets().at(0),
                                &varyingStencils->GetControlIndices().at(0),

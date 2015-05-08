@@ -98,12 +98,14 @@ computeStencils(float const * cvs, float * vbuffer,
 
 __global__ void
 computeStencils(float const * cvs, float * dst,
-               int length, int stride,
-               unsigned char const * sizes,
-               int const * offsets,
-               int const * indices,
-               float const * weights,
-               int start, int end) {
+                int length,
+                int srcStride,
+                int dstStride,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
 
     int first = start + threadIdx.x + blockIdx.x*blockDim.x;
 
@@ -112,12 +114,12 @@ computeStencils(float const * cvs, float * dst,
         int const * lindices = indices + offsets[i];
         float const * lweights = weights + offsets[i];
 
-        float * dstVert = dst + i*stride;
+        float * dstVert = dst + i*dstStride;
         clear(dstVert, length);
 
         for (int j=0; j<sizes[i]; ++j) {
 
-            float const * srcVert = cvs + lindices[j]*stride;
+            float const * srcVert = cvs + lindices[j]*srcStride;
 
             addWithWeight(dstVert, srcVert, lweights[j], length);
         }
@@ -220,7 +222,7 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
     for( int j = offsets[i], j_end = offsets[i]+sizes[i] ; j < j_end ; ++j )
     {
       float w = weights[j];
-      float4 tmp = reinterpret_cast<const float4 *__restrict>(cvs)[indices[j]];
+      float4 tmp = reinterpret_cast<const float4 *>(cvs)[indices[j]];
       x.x += w*tmp.x;
       x.y += w*tmp.y;
       x.z += w*tmp.z;
@@ -239,14 +241,14 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
 #include "../version.h"
 
 #define OPT_KERNEL(NUM_ELEMENTS, KERNEL, X, Y, ARG) \
-    if (length==NUM_ELEMENTS && stride==length) {   \
+    if (length==NUM_ELEMENTS && srcStride==length && dstStride==length) {   \
         KERNEL<NUM_ELEMENTS><<<X,Y>>>ARG;             \
         return;                                     \
     }
 
 #ifdef USE_NVIDIA_OPTIMIZATION
 #define OPT_KERNEL_NVIDIA(NUM_ELEMENTS, KERNEL, X, Y, ARG) \
-    if (length==NUM_ELEMENTS && stride==length) {   \
+    if (length==NUM_ELEMENTS && srcStride==length && dstStride==length) {   \
         int gridDim = min(X, (end-start+Y-1)/Y); \
         KERNEL<NUM_ELEMENTS, Y><<<gridDim, Y>>>ARG; \
         return;                                     \
@@ -255,35 +257,45 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
 
 extern "C" {
 
-void
-CudaComputeStencils(float const *cvs, float * dst,
-                    int length, int stride,
-                    unsigned char const * sizes,
-                    int const * offsets,
-                    int const * indices,
-                    float const * weights,
-                    int start, int end)
+void CudaComputeStencils(const float *src,
+                         float *dst,
+                         int length,
+                         int srcStride,
+                         int dstStride,
+                         const unsigned char * sizes,
+                         const int * offsets,
+                         const int * indices,
+                         const float * weights,
+                         int start,
+                         int end)
 {
-    assert(cvs and dst and sizes and offsets and indices and weights and (end>=start));
+//    assert(cvs and dst and sizes and offsets and indices and weights and (end>=start));
 
-    if (length==0 or stride==0) {
+    if (length == 0 or srcStride == 0 or dstStride == 0 or (end <= start)) {
         return;
     }
 
 #ifdef USE_NVIDIA_OPTIMIZATION
-    OPT_KERNEL_NVIDIA(3, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
-    //OPT_KERNEL_NVIDIA(4, computeStencilsNv, 2048, 256, (cvs, dst, sizes, offsets, indices, weights, start, end));
-    if( length==4 && stride==length ) {
+    OPT_KERNEL_NVIDIA(3, computeStencilsNv, 2048, 256,
+                      (src, dst, sizes, offsets, indices, weights, start, end));
+    //OPT_KERNEL_NVIDIA(4, computeStencilsNv, 2048, 256,
+    //                  (cvs, dst, sizes, offsets, indices, weights, start, end));
+    if (length == 4 && srcStride == length && dstStride == length) {
       int gridDim = min(2048, (end-start+256-1)/256);
-      computeStencilsNv_v4<256><<<gridDim, 256>>>(cvs, dst, sizes, offsets, indices, weights, start, end);
+      computeStencilsNv_v4<256><<<gridDim, 256>>>(
+          src, dst, sizes, offsets, indices, weights, start, end);
       return;
     }
 #else
-    OPT_KERNEL(3, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
-    OPT_KERNEL(4, computeStencils, 512, 32, (cvs, dst, sizes, offsets, indices, weights, start, end));
+    OPT_KERNEL(3, computeStencils, 512, 32,
+               (src, dst, sizes, offsets, indices, weights, start, end));
+    OPT_KERNEL(4, computeStencils, 512, 32,
+               (src, dst, sizes, offsets, indices, weights, start, end));
 #endif
 
-    computeStencils <<<512, 32>>>(cvs, dst, length, stride,
+    // generic case (slow)
+    computeStencils <<<512, 32>>>(
+        src, dst, length, srcStride, dstStride,
         sizes, offsets, indices, weights, start, end);
 }
 

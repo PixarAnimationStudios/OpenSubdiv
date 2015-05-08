@@ -53,11 +53,10 @@ __declspec(align(16))
 
 struct KernelUniformArgs {
 
-    int uniformStart,     // batch
-        uniformEnd,
-
-        uniformOffset,    // primvar buffer descriptor
-        uniformNumCVs;    // number of const control vertices padded at
+    int start;     // batch
+    int end;
+    int srcOffset;
+    int dstOffset;
 };
 
 // ----------------------------------------------------------------------------
@@ -70,22 +69,29 @@ public:
     KernelBundle() :
         _computeShader(0),
         _classLinkage(0),
-        _subStencilKernel(0),
+        _singleBufferKernel(0),
+        _separateBufferKernel(0),
         _uniformArgs(0),
         _workGroupSize(64) { }
 
     ~KernelBundle() {
         SAFE_RELEASE(_computeShader);
         SAFE_RELEASE(_classLinkage);
-        SAFE_RELEASE(_subStencilKernel);
+        SAFE_RELEASE(_singleBufferKernel);
+        SAFE_RELEASE(_separateBufferKernel);
         SAFE_RELEASE(_uniformArgs);
     }
 
 
-    bool Compile(ID3D11DeviceContext *deviceContext,
-        VertexBufferDescriptor const &desc) {
+    bool Compile(VertexBufferDescriptor const &srcDesc,
+                 VertexBufferDescriptor const &dstDesc,
+                 ID3D11DeviceContext *deviceContext) {
 
-        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+        // XXX: only store srcDesc.
+        //      this is ok since currently this kernel doesn't get called with
+        //      different strides for src and dst. This function will be
+        //      refactored soon.
+        _desc = VertexBufferDescriptor(0, srcDesc.length, srcDesc.stride);
 
         DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
     #ifdef _DEBUG
@@ -93,16 +99,15 @@ public:
     #endif
 
         std::ostringstream ss;
-
-        ss << _desc.offset;   std::string offsetValue(ss.str()); ss.str("");
-        ss << _desc.length;   std::string lengthValue(ss.str()); ss.str("");
-        ss << _desc.stride;   std::string strideValue(ss.str()); ss.str("");
-        ss << _workGroupSize; std::string workgroupSizeValue(ss.str()); ss.str("");
+        ss << srcDesc.length;  std::string lengthValue(ss.str()); ss.str("");
+        ss << srcDesc.stride;  std::string srcStrideValue(ss.str()); ss.str("");
+        ss << dstDesc.stride;  std::string dstStrideValue(ss.str()); ss.str("");
+        ss << _workGroupSize;  std::string workgroupSizeValue(ss.str()); ss.str("");
 
         D3D_SHADER_MACRO defines[] =
-            { "OFFSET", offsetValue.c_str(),
-              "LENGTH", lengthValue.c_str(),
-              "STRIDE", strideValue.c_str(),
+            { "LENGTH", lengthValue.c_str(),
+              "SRC_STRIDE", srcStrideValue.c_str(),
+              "DST_STRIDE", dstStrideValue.c_str(),
               "WORK_GROUP_SIZE", workgroupSizeValue.c_str(),
               0, 0 };
 
@@ -148,46 +153,28 @@ public:
 
         computeShaderBuffer->Release();
 
-        _classLinkage->GetClassInstance("computeStencil", 0, &_subStencilKernel);
-        assert(_subStencilKernel);
+        _classLinkage->GetClassInstance("singleBufferCompute", 0, &_singleBufferKernel);
+        assert(_singleBufferKernel);
+        _classLinkage->GetClassInstance("separateBufferCompute", 0, &_separateBufferKernel);
+        assert(_separateBufferKernel);
 
         return true;
     }
 
-    void ApplyStencilTableKernel(ID3D11DeviceContext *deviceContext,
-                                 int offset, int numCVs, int start, int end) {
+    void ApplyStencilTableKernel(VertexBufferDescriptor const &srcDesc,
+                                 VertexBufferDescriptor const &dstDesc,
+                                 int start,
+                                 int end,
+                                 ID3D11DeviceContext *deviceContext) {
+
+        int count = end - start;
+        if (count <= 0) return;
 
         KernelUniformArgs args;
-        args.uniformStart = start;
-        args.uniformEnd = end;
-        args.uniformOffset = offset;
-        args.uniformNumCVs = numCVs;
-
-        dispatchCompute(deviceContext, _subStencilKernel, args);
-    }
-
-
-    struct Match {
-
-        Match(VertexBufferDescriptor const & d) : desc(d) { }
-
-        bool operator() (KernelBundle const * kernel) {
-            return (desc.length==kernel->_desc.length and
-                    desc.stride==kernel->_desc.stride);
-        }
-
-        VertexBufferDescriptor desc;
-    };
-
-private:
-
-    void dispatchCompute(ID3D11DeviceContext *deviceContext,
-        ID3D11ClassInstance * kernel, KernelUniformArgs const & args) {
-
-        assert(deviceContext);
-
-        int count = args.uniformEnd - args.uniformStart;
-        if (count <= 0) return;
+        args.start = start;
+        args.end = end;
+        args.srcOffset = srcDesc.offset;
+        args.dstOffset = dstDesc.offset;
 
         if (not _uniformArgs) {
             ID3D11Device *device = NULL;
@@ -212,19 +199,30 @@ private:
         deviceContext->Unmap(_uniformArgs, 0);
         deviceContext->CSSetConstantBuffers(0, 1, &_uniformArgs); // b0
 
-        deviceContext->CSSetShader(_computeShader, &kernel, 1);
-		deviceContext->Dispatch((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
+        deviceContext->CSSetShader(_computeShader, &_singleBufferKernel, 1);
+        deviceContext->Dispatch((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
     }
 
+    struct Match {
+
+        Match(VertexBufferDescriptor const & d) : desc(d) { }
+
+        bool operator() (KernelBundle const * kernel) {
+            return (desc.length==kernel->_desc.length and
+                    desc.stride==kernel->_desc.stride);
+        }
+
+        VertexBufferDescriptor desc;
+    };
 
 private:
-
 
     ID3D11ComputeShader * _computeShader;
 
     ID3D11ClassLinkage * _classLinkage;
 
-    ID3D11ClassInstance * _subStencilKernel; // stencil compute kernel HLSL subroutine
+    ID3D11ClassInstance * _singleBufferKernel;
+    ID3D11ClassInstance * _separateBufferKernel;
 
     ID3D11Buffer * _uniformArgs; // uniform paramaeters for kernels
 
@@ -266,7 +264,7 @@ D3D11ComputeController::getKernel(VertexBufferDescriptor const &desc) {
     } else {
         assert(_deviceContext);
         KernelBundle * kernelBundle = new KernelBundle();
-        kernelBundle->Compile(_deviceContext, desc);
+        kernelBundle->Compile(desc, desc, _deviceContext);
         _kernelRegistry.push_back(kernelBundle);
         return kernelBundle;
     }
@@ -307,12 +305,16 @@ D3D11ComputeController::ApplyStencilTableKernel(
     D3D11ComputeController::KernelBundle * bundle =
         const_cast<D3D11ComputeController::KernelBundle *>(_currentBindState.kernelBundle);
 
-    bundle->ApplyStencilTableKernel(
-        _deviceContext,
-        _currentBindState.desc.offset,
-        context->GetNumControlVertices(),
-        0,
-        numStencils);
+    VertexBufferDescriptor srcDesc = _currentBindState.desc;
+    VertexBufferDescriptor dstDesc(srcDesc);
+    dstDesc.offset += context->GetNumControlVertices() * dstDesc.stride;
+
+    bundle->ApplyStencilTableKernel(srcDesc,
+                                    dstDesc,
+                                    0,
+                                    numStencils,
+                                    _deviceContext);
+
 }
 
 

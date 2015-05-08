@@ -160,14 +160,6 @@ private:
             varyingDesc.Reset();
         }
 
-        float *GetVertexBufferAtOffset() const {
-            return vertexBuffer ? vertexBuffer + vertexDesc.offset : 0;
-        }
-
-        float *GetVaryingBufferAtOffset() const {
-            return varyingBuffer ? varyingBuffer + varyingDesc.offset : 0;
-        }
-
         float * vertexBuffer,   // cuda buffers
               * varyingBuffer;
 

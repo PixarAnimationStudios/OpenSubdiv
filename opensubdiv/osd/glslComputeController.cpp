@@ -56,8 +56,8 @@ public:
         _uniformWeights(0),
         _uniformStart(0),
         _uniformEnd(0),
-        _uniformOffset(0),
-        _uniformNumCVs(0),
+        _uniformSrcOffset(0),
+        _uniformDstOffset(0),
         _workGroupSize(64) { }
 
     ~KernelBundle() {
@@ -66,16 +66,18 @@ public:
         }
     }
 
-    void UseProgram(int primvarOffset) const {
+    void UseProgram() const {
         glUseProgram(_program);
-        glUniform1i(_uniformOffset, primvarOffset);
-
-        //OSD_DEBUG_CHECK_GL_ERROR("UseProgram");
     }
 
-    bool Compile(VertexBufferDescriptor const & desc) {
+    bool Compile(VertexBufferDescriptor const &srcDesc,
+                 VertexBufferDescriptor const &dstDesc) {
 
-        _desc = VertexBufferDescriptor(0, desc.length, desc.stride);
+        // XXX: only store srcDesc.
+        //      this is ok since currently this kernel doesn't get called with
+        //      different strides for src and dst. This function will be
+        //      refactored soon.
+        _desc = VertexBufferDescriptor(0, srcDesc.length, srcDesc.stride);
 
         if (_program) {
             glDeleteProgram(_program);
@@ -86,9 +88,9 @@ public:
         GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
 
         std::ostringstream defines;
-        defines << "#define OFFSET " << _desc.offset << "\n"
-                << "#define LENGTH " << _desc.length << "\n"
-                << "#define STRIDE " << _desc.stride << "\n"
+        defines << "#define LENGTH "     << srcDesc.length << "\n"
+                << "#define SRC_STRIDE " << srcDesc.stride << "\n"
+                << "#define DST_STRIDE " << dstDesc.stride << "\n"
                 << "#define WORK_GROUP_SIZE " << _workGroupSize << "\n";
         std::string defineStr = defines.str();
 
@@ -119,26 +121,24 @@ public:
         glDeleteShader(shader);
 
         // set uniform locations for compute kernels
-        _uniformSizes   = glGetUniformLocation(_program, "sterncilSizes");
-        _uniformOffsets = glGetUniformLocation(_program, "sterncilOffsets");
-        _uniformIndices = glGetUniformLocation(_program, "sterncilIndices");
-        _uniformWeights = glGetUniformLocation(_program, "sterncilIWeights");
+        _uniformSizes   = glGetUniformLocation(_program, "stencilSizes");
+        _uniformOffsets = glGetUniformLocation(_program, "stencilOffsets");
+        _uniformIndices = glGetUniformLocation(_program, "stencilIndices");
+        _uniformWeights = glGetUniformLocation(_program, "stencilIWeights");
 
         _uniformStart   = glGetUniformLocation(_program, "batchStart");
         _uniformEnd     = glGetUniformLocation(_program, "batchEnd");
 
-        _uniformOffset  = glGetUniformLocation(_program, "primvarOffset");
-        _uniformNumCVs  = glGetUniformLocation(_program, "numCVs");
-
-        //OSD_DEBUG_CHECK_GL_ERROR("Compile");
+        _uniformSrcOffset = glGetUniformLocation(_program, "srcOffset");
+        _uniformDstOffset = glGetUniformLocation(_program, "dstOffset");
 
         return true;
     }
 
-    void ApplyStencilTableKernel(int offset, int numCVs,
+    void ApplyStencilTableKernel(int srcOffset, int dstOffset,
                                  int start, int end) const {
 
-        dispatchCompute(offset, numCVs, start, end);
+        dispatchCompute(srcOffset, dstOffset, start, end);
     }
 
     struct Match {
@@ -155,7 +155,7 @@ public:
 
 protected:
 
-    void dispatchCompute(int offset, int numCVs, int start, int end) const {
+    void dispatchCompute(int srcOffset, int dstOffset, int start, int end) const {
 
         int count = end - start;
         if (count<=0) {
@@ -166,10 +166,10 @@ protected:
         glUniform1i(_uniformStart, start);
         glUniform1i(_uniformEnd, end);
 
-        glUniform1i(_uniformOffset, offset);
-        glUniform1i(_uniformNumCVs, numCVs);
+        glUniform1i(_uniformSrcOffset, srcOffset);
+        glUniform1i(_uniformDstOffset, dstOffset);
 
-		glDispatchCompute((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
+        glDispatchCompute((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
 
         // sync for later reading.
         // XXX: in theory, just SHADER_STORAGE_BARRIER is needed here. However
@@ -194,9 +194,8 @@ private:
            _uniformStart,     // batch
            _uniformEnd,
 
-           _uniformOffset,    // GL primvar buffer descriptor
-           _uniformNumCVs;    // number of const control vertices padded at
-                              // the beginning of the buffer
+           _uniformSrcOffset,    // src buffer offset (in elements)
+           _uniformDstOffset;    // dst buffer offset (in elements)
 
     VertexBufferDescriptor _desc; // primvar buffer descriptor
 
@@ -219,7 +218,8 @@ GLSLComputeController::ApplyStencilTableKernel(
     int end = numStencils;
 
     _currentBindState.kernelBundle->ApplyStencilTableKernel(
-        _currentBindState.desc.offset, context->GetNumControlVertices(),
+        _currentBindState.desc.offset,
+        _currentBindState.desc.offset + context->GetNumControlVertices() * _currentBindState.desc.stride,
         start, end);
 }
 
@@ -254,7 +254,7 @@ GLSLComputeController::getKernel(VertexBufferDescriptor const &desc) {
         return *it;
     } else {
         KernelBundle * kernelBundle = new KernelBundle();
-        kernelBundle->Compile(desc);
+        kernelBundle->Compile(desc, desc);
         _kernelRegistry.push_back(kernelBundle);
         return kernelBundle;
     }
@@ -263,10 +263,14 @@ GLSLComputeController::getKernel(VertexBufferDescriptor const &desc) {
 void
 GLSLComputeController::bindBufferAndProgram() {
 
-    if (_currentBindState.buffer)
+    if (_currentBindState.buffer) {
+        // src
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, _currentBindState.buffer);
+        // dst
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, _currentBindState.buffer);
+    }
 
-    _currentBindState.kernelBundle->UseProgram(_currentBindState.desc.offset);
+    _currentBindState.kernelBundle->UseProgram();
 
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
 }
@@ -276,6 +280,7 @@ GLSLComputeController::unbindBufferAndProgram() {
 
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
     glUseProgram(0);
 }
 
