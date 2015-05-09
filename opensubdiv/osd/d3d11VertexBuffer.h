@@ -41,7 +41,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for DirectX subvision and DirectX drawing.
 ///
 /// D3D11VertexBuffer implements D3D11VertexBufferInterface. An instance
-/// of this buffer class can be passed to D3D11ComputeController.
+/// of this buffer class can be passed to D3D11ComputeEvaluator.
 ///
 class D3D11VertexBuffer {
 public:

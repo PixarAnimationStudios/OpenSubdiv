@@ -47,10 +47,8 @@ GLFWmonitor* g_primary=0;
 #include <far/error.h>
 #include <far/ptexIndices.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh;
@@ -240,14 +238,11 @@ createOsdMesh() {
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshPtexData, true);
 
-    if (not g_cpuComputeController) {
-        g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-    }
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-        OpenSubdiv::Osd::CpuComputeController,
-        OpenSubdiv::Osd::GLDrawContext>(
-            g_cpuComputeController,
-            refiner, 3, 0, g_level, bits);
+                                       OpenSubdiv::Far::StencilTables,
+                                       OpenSubdiv::Osd::CpuEvaluator,
+                                       OpenSubdiv::Osd::GLDrawContext>(
+                                           refiner, 3, 0, g_level, bits);
 
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
@@ -1095,8 +1090,6 @@ uninitGL() {
 
     if (g_mesh)
         delete g_mesh;
-
-    delete g_cpuComputeController;
 }
 
 //------------------------------------------------------------------------------

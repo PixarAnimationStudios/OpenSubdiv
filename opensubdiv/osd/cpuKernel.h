@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CPU_KERNEL_H
-#define OSD_CPU_KERNEL_H
+#ifndef OPENSUBDIV_OSD_CPU_KERNEL_H
+#define OPENSUBDIV_OSD_CPU_KERNEL_H
 
 #include "../version.h"
 #include <cstring>
@@ -36,32 +36,32 @@ namespace Osd {
 struct VertexBufferDescriptor;
 
 void
-CpuComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end);
+CpuEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end);
 
 void
-CpuComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   float * dstDu,
-                   VertexBufferDescriptor const &dstDuDesc,
-                   float * dstDv,
-                   VertexBufferDescriptor const &dstDvDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   float const * duWeights,
-                   float const * dvWeights,
-                   int start, int end);
+CpuEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                float * dstDu,
+                VertexBufferDescriptor const &dstDuDesc,
+                float * dstDv,
+                VertexBufferDescriptor const &dstDvDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end);
 
 //
 // SIMD ICC optimization of the stencil kernel

@@ -257,17 +257,17 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
 
 extern "C" {
 
-void CudaComputeStencils(const float *src,
-                         float *dst,
-                         int length,
-                         int srcStride,
-                         int dstStride,
-                         const unsigned char * sizes,
-                         const int * offsets,
-                         const int * indices,
-                         const float * weights,
-                         int start,
-                         int end)
+void CudaEvalStencils(const float *src,
+                      float *dst,
+                      int length,
+                      int srcStride,
+                      int dstStride,
+                      const unsigned char * sizes,
+                      const int * offsets,
+                      const int * indices,
+                      const float * weights,
+                      int start,
+                      int end)
 {
 //    assert(cvs and dst and sizes and offsets and indices and weights and (end>=start));
 

@@ -64,8 +64,6 @@
 #include <far/stencilTablesFactory.h>
 
 #include <osd/mesh.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
 #include <osd/cpuVertexBuffer.h>
 
 
