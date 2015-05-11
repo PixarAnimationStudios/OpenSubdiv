@@ -52,6 +52,9 @@ void GetBezierWeights(PatchParam::BitField bits,
 void GetBSplineWeights(PatchParam::BitField bits,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]);
 
+void GetGregoryWeights(PatchParam::BitField bits,
+    float s, float t, float point[20], float deriv1[20], float deriv2[20]);
+
 
 /// \brief Interpolate the (s,t) parametric location of a bilinear (quad)
 /// patch
