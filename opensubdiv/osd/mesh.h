@@ -49,13 +49,12 @@ namespace Osd {
 enum MeshBits {
     MeshAdaptive             = 0,
     MeshInterleaveVarying    = 1,
-    MeshPtexData             = 2,
-    MeshFVarData             = 3,
-    MeshUseSingleCreasePatch = 4,
-    MeshEndCapBSplineBasis   = 5,  // exclusive
-    MeshEndCapGregoryBasis   = 6,  // exclusive
-    MeshEndCapLegacyGregory  = 7,  // exclusive
-    NUM_MESH_BITS            = 8,
+    MeshFVarData             = 2,
+    MeshUseSingleCreasePatch = 3,
+    MeshEndCapBSplineBasis   = 4,  // exclusive
+    MeshEndCapGregoryBasis   = 5,  // exclusive
+    MeshEndCapLegacyGregory  = 6,  // exclusive
+    NUM_MESH_BITS            = 7,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 

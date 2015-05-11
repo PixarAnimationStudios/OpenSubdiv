@@ -84,17 +84,9 @@ public:
     typedef D3D11DrawConfig ConfigType;
     typedef D3D11DrawSourceConfig SourceConfigType;
 
-    D3D11DrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+    D3D11DrawRegistryBase() { }
 
     virtual ~D3D11DrawRegistryBase();
-
-    bool IsPtexEnabled() const {
-        return _enablePtex;
-    }
-
-    void SetPtexEnabled(bool b) {
-        _enablePtex=b;
-    }
 
 protected:
     virtual ConfigType * _NewDrawConfig() { return new ConfigType(); }
@@ -109,9 +101,6 @@ protected:
     virtual SourceConfigType * _NewDrawSourceConfig() { return new SourceConfigType(); }
     virtual SourceConfigType *
     _CreateDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice);
-
-private:
-    bool _enablePtex;
 };
 
 //------------------------------------------------------------------------------

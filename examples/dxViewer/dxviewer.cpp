@@ -762,9 +762,11 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     if (g_mesh->GetDrawContext()->quadOffsetBufferSRV) {
         g_pd3dDeviceContext->HSSetShaderResources(2, 1, &g_mesh->GetDrawContext()->quadOffsetBufferSRV);
     }
-    if (g_mesh->GetDrawContext()->ptexCoordinateBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
-        g_pd3dDeviceContext->DSSetShaderResources(3, 1, &g_mesh->GetDrawContext()->ptexCoordinateBufferSRV);
+    if (g_mesh->GetDrawContext()->patchParamBufferSRV) {
+        g_pd3dDeviceContext->HSSetShaderResources(
+            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
+        g_pd3dDeviceContext->DSSetShaderResources(
+            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
     }
 }
 

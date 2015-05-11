@@ -108,8 +108,8 @@ public:
 
     ID3D11Buffer             *patchIndexBuffer;
 
-    ID3D11Buffer             *ptexCoordinateBuffer;
-    ID3D11ShaderResourceView *ptexCoordinateBufferSRV;
+    ID3D11Buffer             *patchParamBuffer;
+    ID3D11ShaderResourceView *patchParamBufferSRV;
 
     ID3D11Buffer             *fvarDataBuffer;
     ID3D11ShaderResourceView *fvarDataBufferSRV;

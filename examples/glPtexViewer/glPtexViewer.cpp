@@ -1005,7 +1005,6 @@ createOsdMesh(int level, int kernel) {
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshPtexData, true);
     bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
