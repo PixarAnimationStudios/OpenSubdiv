@@ -73,16 +73,15 @@ copy(float *dst, int dstIndex, const float *src,
 // XXXX manuelk this should be optimized further by using SIMD - considering
 //              OMP is somewhat obsolete - this is probably not worth it.
 void
-OmpComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end) {
-
+OmpEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
     if (start > 0) {
         sizes += start;
         indices += offsets[start];

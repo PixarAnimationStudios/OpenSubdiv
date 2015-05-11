@@ -70,15 +70,15 @@ copy(float *dst, int dstIndex, const float *src,
 }
 
 void
-CpuComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end) {
+CpuEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
 
     assert(start>=0 and start<end);
 
@@ -125,21 +125,21 @@ CpuComputeStencils(float const * src,
 }
 
 void
-CpuComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   float * dstDu,
-                   VertexBufferDescriptor const &dstDuDesc,
-                   float * dstDv,
-                   VertexBufferDescriptor const &dstDvDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   float const * duWeights,
-                   float const * dvWeights,
-                   int start, int end) {
+CpuEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                float * dstDu,
+                VertexBufferDescriptor const &dstDuDesc,
+                float * dstDv,
+                VertexBufferDescriptor const &dstDvDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end) {
     if (start > 0) {
         sizes += start;
         indices += offsets[start];

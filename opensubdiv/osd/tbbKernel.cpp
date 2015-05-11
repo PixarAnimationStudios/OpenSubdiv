@@ -161,15 +161,15 @@ public:
 };
 
 void
-TbbComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end) {
+TbbEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
 
     if (start > 0) {
         sizes += start;

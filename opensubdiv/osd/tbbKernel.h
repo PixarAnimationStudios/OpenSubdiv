@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_TBB_KERNEL_H
-#define OSD_TBB_KERNEL_H
+#ifndef OPENSUBDIV_OSD_TBB_KERNEL_H
+#define OPENSUBIDV_OSD_TBB_KERNEL_H
 
 #include "../version.h"
 
@@ -35,15 +35,15 @@ namespace Osd {
 struct VertexBufferDescriptor;
 
 void
-TbbComputeStencils(float const * src,
-                   VertexBufferDescriptor const &srcDesc,
-                   float * dst,
-                   VertexBufferDescriptor const &dstDesc,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end);
+TbbEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end);
 
 }  // end namespace Osd
 
@@ -52,4 +52,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_TBB_KERNEL_H
+#endif  // OPENSUBDIV_OSD_TBB_KERNEL_H

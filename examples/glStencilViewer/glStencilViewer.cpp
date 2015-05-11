@@ -54,8 +54,7 @@ GLFWmonitor* g_primary=0;
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuVertexBuffer.h>
-#include <osd/cpuEvalStencilsContext.h>
-#include <osd/cpuEvalStencilsController.h>
+#include <osd/cpuEvaluator.h>
 
 #include <cfloat>
 #include <list>
@@ -154,18 +153,12 @@ Osd::VertexBufferDescriptor g_controlDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*
                             g_outputDuDesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 18 ),
                             g_outputDvDesc( /*offset*/ 9, /*legnth*/ 3, /*stride*/ 18 );
 
-Osd::CpuEvalStencilsContext * g_evalCtx=0;
-
-Osd::CpuEvalStencilsController g_evalCpuCtrl;
-
 #if defined(OPENSUBDIV_HAS_OPENMP)
-    #include <osd/ompEvalStencilsController.h>
-    Osd::OmpEvalStencilsController g_evalOmpCtrl;
+    #include <osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbEvalStencilsController.h>
-    Osd::TbbEvalStencilsController g_evalTbbCtrl;
+    #include <osd/tbbEvaluator.h>
 #endif
 
 
@@ -200,48 +193,41 @@ updateGeom() {
     float * ptr = g_stencilValues->BindCpuBuffer();
     memset(ptr, 0, g_controlStencils->GetNumStencils() * 18 * sizeof(float));
 
-    // Uppdate random points by applying point & tangent stencils
+    // Update random points by applying point & tangent stencils
     switch (g_kernel) {
         case kCPU: {
-            g_evalCpuCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDataDesc, g_stencilValues );
-
-            g_evalCpuCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDuDesc, g_stencilValues,
-                g_outputDvDesc, g_stencilValues );
+            Osd::CpuEvaluator::EvalStencils(
+                g_controlValues, g_controlDesc,     // input
+                g_stencilValues, g_outputDataDesc,  // position
+                g_stencilValues, g_outputDuDesc,    // Du
+                g_stencilValues, g_outputDvDesc,    // Dv
+                                                    // Normals will be filled afterwards
+                g_controlStencils);
         } break;
 
 #if defined(OPENSUBDIV_HAS_OPENMP)
         case kOPENMP: {
-            g_evalOmpCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDataDesc, g_stencilValues );
-
-            g_evalOmpCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDuDesc, g_stencilValues,
-                g_outputDvDesc, g_stencilValues );
+// FIXME: implements OmpEvaluator
+            Osd::CpuEvaluator::EvalStencils(
+                g_controlValues, g_controlDesc,     // input
+                g_stencilValues, g_outputDataDesc,  // position
+                g_stencilValues, g_outputDuDesc,    // Du
+                g_stencilValues, g_outputDvDesc,    // Dv
+                                                    // Normals will be filled afterwards
+                g_controlStencils);
         } break;
 #endif
 
 #if defined(OPENSUBDIV_HAS_TBB)
+// FIXME: implements TbbEvaluator
         case kTBB: {
-            g_evalTbbCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDataDesc, g_stencilValues );
-
-            g_evalTbbCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDuDesc, g_stencilValues,
-                g_outputDvDesc, g_stencilValues );
+            Osd::CpuEvaluator::EvalStencils(
+                g_controlValues, g_controlDesc,     // input
+                g_stencilValues, g_outputDataDesc,  // position
+                g_stencilValues, g_outputDuDesc,    // Du
+                g_stencilValues, g_outputDvDesc,    // Dv
+                                                    // Normals will be filled afterwards
+                g_controlStencils);
         } break;
 #endif
         default:
@@ -364,9 +350,6 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     g_controlValues = Osd::CpuVertexBuffer::Create(3, nverts);
 
     // Create eval context & data buffers
-    delete g_evalCtx;
-    g_evalCtx = Osd::CpuEvalStencilsContext::Create(g_controlStencils);
-
     delete g_stencilValues;
     g_stencilValues = Osd::CpuGLVertexBuffer::Create(3, g_controlStencils->GetNumStencils() * 6 );
 
@@ -674,6 +657,7 @@ drawStencils() {
 
     g_samplesProgram.EnableVertexAttributes();
 
+    glDrawArrays(GL_POINTS, 0, numEdges*2);
     glDrawArrays(GL_LINES, 0, numEdges*2);
 
     glBindVertexArray(0);

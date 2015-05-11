@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,53 +22,48 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_CPU_EVALSTENCILS_CONTEXT_H
-#define FAR_CPU_EVALSTENCILS_CONTEXT_H
-
-#include "../version.h"
-
-#include "../far/stencilTables.h"
-
-#include "../osd/vertexDescriptor.h"
-#include "../osd/nonCopyable.h"
+#include "../osd/ompEvaluator.h"
+#include "../osd/ompKernel.h"
+#include <omp.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-///
-/// \brief CPU stencils evaluation context
-///
-///
-class CpuEvalStencilsContext : private NonCopyable<CpuEvalStencilsContext> {
+/* static */
+bool
+OmpEvaluator::EvalStencils(const float *src,
+                           VertexBufferDescriptor const &srcDesc,
+                           float *dst,
+                           VertexBufferDescriptor const &dstDesc,
+                           const unsigned char * sizes,
+                           const int * offsets,
+                           const int * indices,
+                           const float * weights,
+                           int start, int end) {
+    if (end <= start) return true;
 
-public:
-    /// \brief Creates an CpuEvalStencilsContext instance
-    ///
-    /// @param stencils  a pointer to the Far::StencilTables
-    ///
-    static CpuEvalStencilsContext * Create(Far::LimitStencilTables const *stencils);
+    // we can probably expand cpuKernel.cpp to here.
+    OmpEvalStencils(src, srcDesc, dst, dstDesc,
+                    sizes, offsets, indices, weights, start, end);
 
-    /// \brief Returns the Far::StencilTables applied
-    Far::LimitStencilTables const * GetStencilTables() const {
-        return _stencils;
-    }
+    return true;
+}
 
-protected:
+/* static */
+void
+OmpEvaluator::Synchronize(void * /*deviceContext*/) {
+    // we use "omp parallel for" and it synchronizes by itself
+}
 
-    CpuEvalStencilsContext(Far::LimitStencilTables const *stencils);
+/* static */
+void
+OmpEvaluator::SetNumThreads(int numThreads) {
+    omp_set_num_threads(numThreads);
+}
 
-private:
+}  // end namespace Osd
 
-    Far::LimitStencilTables const * _stencils;
-};
-
-} // end namespace Osd
-
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-} // end namespace OpenSubdiv
-
-#endif // FAR_CPU_EVALSTENCILS_CONTEXT_H
+}  // end namespace OPENSUBDIV_VERSION
+}  // end namespace OpenSubdiv

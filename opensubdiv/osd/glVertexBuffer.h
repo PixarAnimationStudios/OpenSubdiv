@@ -39,8 +39,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for GLSL subvision and OpenGL drawing.
 ///
 /// GLVertexBuffer implements GLVertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdGLComputeController
-/// and OsdGLDrawController
+/// of this buffer class can be passed to OsdGLComputeEvaluator.
 ///
 class GLVertexBuffer {
 public:

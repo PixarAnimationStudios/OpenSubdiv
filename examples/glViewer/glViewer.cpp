@@ -46,55 +46,41 @@ GLFWmonitor* g_primary=0;
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompComputeController.h>
-    OpenSubdiv::Osd::OmpComputeController *g_ompComputeController = NULL;
+    #include <osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbComputeController.h>
-    OpenSubdiv::Osd::TbbComputeController *g_tbbComputeController = NULL;
+    #include <osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clGLVertexBuffer.h>
-    #include <osd/clComputeContext.h>
-    #include <osd/clComputeController.h>
-
+    #include <osd/clEvaluator.h>
     #include "../common/clDeviceContext.h"
 
     CLDeviceContext g_clDeviceContext;
-    OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaGLVertexBuffer.h>
-    #include <osd/cudaComputeContext.h>
-    #include <osd/cudaComputeController.h>
-
+    #include <osd/cudaEvaluator.h>
     #include "../common/cudaDeviceContext.h"
 
     CudaDeviceContext g_cudaDeviceContext;
-    OpenSubdiv::Osd::CudaComputeController *g_cudaComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackComputeContext.h>
-    #include <osd/glslTransformFeedbackComputeController.h>
+    #include <osd/glXFBEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLTransformFeedbackComputeController *g_glslTransformFeedbackComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslComputeContext.h>
-    #include <osd/glslComputeController.h>
+    #include <osd/glComputeEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLComputeController *g_glslComputeController = NULL;
 #endif
 
 #include <osd/glMesh.h>
@@ -438,13 +424,7 @@ updateGeom() {
     Stopwatch s;
     s.Start();
 
-    if (g_displayStyle == kInterleavedVaryingColor) {
-        OpenSubdiv::Osd::VertexBufferDescriptor vertexDesc(0, 3, 7);
-        OpenSubdiv::Osd::VertexBufferDescriptor varyingDesc(3, 4, 7);
-        g_mesh->Refine(&vertexDesc, &varyingDesc, true);
-    } else {
-        g_mesh->Refine();
-    }
+    g_mesh->Refine();
 
     s.Stop();
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
@@ -481,7 +461,8 @@ getKernelName(int kernel) {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
 
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
+    using namespace OpenSubdiv;
+    typedef Far::ConstIndexArray IndexArray;
 
     bool doAnim = g_objAnim and g_currentShape==0;
 
@@ -493,12 +474,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     }
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner->GetNumEdges(0),
@@ -533,117 +514,104 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
          interleaveVarying = g_displayStyle == kInterleavedVaryingColor,
          doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
 
-    OpenSubdiv::Osd::MeshBitset bits;
-    bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
-    bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, interleaveVarying);
-    bits.set(OpenSubdiv::Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
-    bits.set(OpenSubdiv::Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
-    bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
-    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
+    Osd::MeshBitset bits;
+    bits.set(Osd::MeshAdaptive, doAdaptive);
+    bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
+    bits.set(Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
+    bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
+    bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
+    bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 3;
     int numVaryingElements =
         (g_displayStyle == kVaryingColor or interleaveVarying) ? 4 : 0;
 
     if (kernel == kCPU) {
-        if (not g_cpuComputeController) {
-            g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::CpuComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_cpuComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
+                               Far::StencilTables,
+                               Osd::CpuEvaluator,
+                               Osd::GLDrawContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
-        if (not g_ompComputeController) {
-            g_ompComputeController = new OpenSubdiv::Osd::OmpComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::OmpComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_ompComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
+                               Far::StencilTables,
+                               Osd::OmpEvaluator,
+                               Osd::GLDrawContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
-        if (not g_tbbComputeController) {
-            g_tbbComputeController = new OpenSubdiv::Osd::TbbComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::TbbComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_tbbComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
+                               Far::StencilTables,
+                               Osd::TbbEvaluator,
+                               Osd::GLDrawContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
-        if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
-                g_clDeviceContext.GetContext(),
-                g_clDeviceContext.GetCommandQueue());
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
-                                         OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext,
-                                         CLDeviceContext>(
-                                                g_clComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, &g_clDeviceContext);
+        // CLKernel
+        static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::CLGLVertexBuffer,
+                               Osd::CLStencilTables,
+                               Osd::CLEvaluator,
+                               Osd::GLDrawContext,
+                               CLDeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &clEvaluatorCache,
+                                   &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
-        if (not g_cudaComputeController) {
-            g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
-                                         OpenSubdiv::Osd::CudaComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                         g_cudaComputeController,
-                                         refiner,
-                                         numVertexElements,
-                                         numVaryingElements,
-                                         level, bits);
+        g_mesh = new Osd::Mesh<Osd::CudaGLVertexBuffer,
+                               Osd::CudaStencilTables,
+                               Osd::CudaEvaluator,
+                               Osd::GLDrawContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
-        if (not g_glslTransformFeedbackComputeController) {
-            g_glslTransformFeedbackComputeController = new OpenSubdiv::Osd::GLSLTransformFeedbackComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                         OpenSubdiv::Osd::GLSLTransformFeedbackComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_glslTransformFeedbackComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        static Osd::EvaluatorCacheT<Osd::GLXFBEvaluator> glXFBEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::GLVertexBuffer,
+                               Osd::GLStencilTablesTBO,
+                               Osd::GLXFBEvaluator,
+                               Osd::GLDrawContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &glXFBEvaluatorCache);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
-        if (not g_glslComputeController) {
-            g_glslComputeController = new OpenSubdiv::Osd::GLSLComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                         OpenSubdiv::Osd::GLSLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                         g_glslComputeController,
-                                         refiner,
-                                         numVertexElements,
-                                         numVaryingElements,
-                                         level, bits);
+        static Osd::EvaluatorCacheT<Osd::GLComputeEvaluator> glComputeEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::GLVertexBuffer,
+                               Osd::GLStencilTablesSSBO,
+                               Osd::GLComputeEvaluator,
+                               Osd::GLDrawContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &glComputeEvaluatorCache);
+
+
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
@@ -1384,28 +1352,6 @@ uninitGL() {
 
     if (g_mesh)
         delete g_mesh;
-
-    delete g_cpuComputeController;
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-    delete g_ompComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_TBB
-    delete g_tbbComputeController;
-#endif
-#ifdef OPENSUBDIV_HAS_OPENCL
-    delete g_clComputeController;
-#endif
-#ifdef OPENSUBDIV_HAS_CUDA
-    delete g_cudaComputeController;
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    delete g_glslTransformFeedbackComputeController;
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    delete g_glslComputeController;
-#endif
 }
 
 //------------------------------------------------------------------------------

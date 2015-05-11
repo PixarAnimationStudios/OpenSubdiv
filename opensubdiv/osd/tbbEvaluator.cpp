@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,23 +22,51 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/cpuEvalStencilsContext.h"
+#include "../osd/tbbEvaluator.h"
+#include "../osd/tbbKernel.h"
+
+#include <tbb/task_scheduler_init.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-CpuEvalStencilsContext::CpuEvalStencilsContext(Far::LimitStencilTables const *stencils) :
-    _stencils(stencils) {
+/* static */
+bool
+TbbEvaluator::EvalStencils(const float *src,
+                           VertexBufferDescriptor const &srcDesc,
+                           float *dst,
+                           VertexBufferDescriptor const &dstDesc,
+                           const unsigned char * sizes,
+                           const int * offsets,
+                           const int * indices,
+                           const float * weights,
+                           int start, int end) {
+    if (end <= start) return true;
+
+    TbbEvalStencils(src, srcDesc, dst, dstDesc,
+                    sizes, offsets, indices, weights, start, end);
+
+    return true;
 }
 
-CpuEvalStencilsContext *
-CpuEvalStencilsContext::Create(Far::LimitStencilTables const *stencils) {
-    return new CpuEvalStencilsContext(stencils);
+/* static */
+void
+TbbEvaluator::Synchronize(void *) {
 }
 
-} // end namespace Osd
+/* static */
+void
+TbbEvaluator::SetNumThreads(int numThreads) {
+    if (numThreads == -1) {
+        tbb::task_scheduler_init init;
+    } else {
+        tbb::task_scheduler_init init(numThreads);
+    }
+}
+
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

@@ -30,46 +30,32 @@
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
+#include <osd/cpuEvaluator.h>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompComputeController.h>
-    OpenSubdiv::Osd::OmpComputeController * g_ompComputeController = NULL;
+    #include <osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbComputeController.h>
-    OpenSubdiv::Osd::TbbComputeController *g_tbbComputeController = NULL;
+    #include <osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clD3D11VertexBuffer.h>
-    #include <osd/clComputeContext.h>
-    #include <osd/clComputeController.h>
-
+    #include <osd/clEvaluator.h>
     #include "../common/clDeviceContext.h"
-
     CLD3D11DeviceContext g_clDeviceContext;
-    OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaD3D11VertexBuffer.h>
-    #include <osd/cudaComputeContext.h>
-    #include <osd/cudaComputeController.h>
-
+    #include <osd/cudaEvaluator.h>
     #include "../common/cudaDeviceContext.h"
-
     CudaDeviceContext g_cudaDeviceContext;
-    OpenSubdiv::Osd::CudaComputeController * g_cudaComputeController = NULL;
 #endif
 
 #include <osd/d3d11VertexBuffer.h>
-#include <osd/d3d11ComputeContext.h>
-#include <osd/d3d11ComputeController.h>
-OpenSubdiv::Osd::D3D11ComputeController * g_d3d11ComputeController = NULL;
+#include <osd/d3d11ComputeEvaluator.h>
 
 #include <osd/d3d11Mesh.h>
 OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
@@ -272,17 +258,18 @@ getKernelName(int kernel) {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
 
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
+    using namespace OpenSubdiv;
+    typedef Far::ConstIndexArray IndexArray;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
     // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
     int nedges = refiner->GetNumEdges(0),
@@ -316,104 +303,90 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark),
          doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
 
-    OpenSubdiv::Osd::MeshBitset bits;
-    bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    Osd::MeshBitset bits;
+    bits.set(Osd::MeshAdaptive, doAdaptive);
+    bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     // gregory basis hasn't supported yet in D3D11Mesh
-    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
+    bits.set(Osd::MeshEndCapLegacyGregory, true);
 
     int numVertexElements = 6;
     int numVaryingElements = 0;
 
     if (g_kernel == kCPU) {
-        if (not g_cpuComputeController) {
-            g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
-                                         OpenSubdiv::Osd::CpuComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext,
-                                         ID3D11DeviceContext>(
-                                                g_cpuComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, g_pd3dDeviceContext);
+        g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
+                               Far::StencilTables,
+                               Osd::CpuEvaluator,
+                               Osd::D3D11DrawContext,
+                               ID3D11DeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits, NULL, g_pd3dDeviceContext);
+
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
-        if (not g_ompComputeController) {
-            g_ompComputeController = new OpenSubdiv::Osd::OmpComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
-                                         OpenSubdiv::Osd::OmpComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext,
-                                         ID3D11DeviceContext>(
-                                                g_ompComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, g_pd3dDeviceContext);
+        g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
+                               Far::StencilTables,
+                               Osd::OmpEvaluator,
+                               Osd::D3D11DrawContext,
+                               ID3D11DeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits, NULL, g_pd3dDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
-        if (not g_tbbComputeController) {
-            g_tbbComputeController = new OpenSubdiv::Osd::TbbComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuD3D11VertexBuffer,
-                                         OpenSubdiv::Osd::TbbComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext,
-                                         ID3D11DeviceContext>(
-                                                g_tbbComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, g_pd3dDeviceContext);
+        g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
+                               Far::StencilTables,
+                               Osd::TbbEvaluator,
+                               Osd::D3D11DrawContext,
+                               ID3D11DeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits, NULL, g_pd3dDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
-        if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
-                g_clDeviceContext.GetContext(),
-                g_clDeviceContext.GetCommandQueue());
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLD3D11VertexBuffer,
-                                         OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext,
-                                         CLD3D11DeviceContext>(
-                                                g_clComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits,
-                                                &g_clDeviceContext);
+        static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
+                               Osd::CLStencilTables,
+                               Osd::CLEvaluator,
+                               Osd::D3D11DrawContext,
+                               CLD3D11DeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &clEvaluatorCache,
+                                   &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
-        if (not g_cudaComputeController) {
-            g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaD3D11VertexBuffer,
-                                         OpenSubdiv::Osd::CudaComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext,
-                                         ID3D11DeviceContext>(
-                                                g_cudaComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, g_pd3dDeviceContext);
+        g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
+                               Osd::CudaStencilTables,
+                               Osd::CudaEvaluator,
+                               Osd::D3D11DrawContext,
+                               ID3D11DeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits, NULL, g_pd3dDeviceContext);
 #endif
     } else if (g_kernel == kDirectCompute) {
-        if (not g_d3d11ComputeController) {
-            g_d3d11ComputeController = new OpenSubdiv::Osd::D3D11ComputeController(g_pd3dDeviceContext);
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::D3D11VertexBuffer,
-                                         OpenSubdiv::Osd::D3D11ComputeController,
-                                         OpenSubdiv::Osd::D3D11DrawContext,
-                                         ID3D11DeviceContext>(
-                                                g_d3d11ComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, g_pd3dDeviceContext);
+        static Osd::EvaluatorCacheT<Osd::D3D11ComputeEvaluator> d3d11ComputeEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
+                               Osd::D3D11StencilTables,
+                               Osd::D3D11ComputeEvaluator,
+                               Osd::D3D11DrawContext,
+                               ID3D11DeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &d3d11ComputeEvaluatorCache,
+                                   g_pd3dDeviceContext);
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
@@ -994,26 +967,6 @@ quit() {
     SAFE_RELEASE(g_pSwapChain);
     SAFE_RELEASE(g_pd3dDeviceContext);
     SAFE_RELEASE(g_pd3dDevice);
-
-    delete g_cpuComputeController;
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-    delete g_ompComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_TBB
-    delete g_tbbComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-    delete g_clComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-    delete g_cudaComputeController;
-#endif
-
-    delete g_d3d11ComputeController;
 
     PostQuitMessage(0);
     exit(0);

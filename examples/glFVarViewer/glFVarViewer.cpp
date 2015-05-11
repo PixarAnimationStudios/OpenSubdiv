@@ -46,10 +46,8 @@ GLFWmonitor* g_primary = 0;
 #include <osd/glDrawRegistry.h>
 #include <far/error.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
@@ -358,20 +356,15 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     int numVertexElements = 3;
     int numVaryingElements = 0;
 
-    if (not g_cpuComputeController) {
-        g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-    }
-
     delete g_mesh;
-
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-        OpenSubdiv::Osd::CpuComputeController,
-        OpenSubdiv::Osd::GLDrawContext>(
-            g_cpuComputeController,
-            refiner,
-            numVertexElements,
-            numVaryingElements,
-            level, bits);
+                                       OpenSubdiv::Far::StencilTables,
+                                       OpenSubdiv::Osd::CpuEvaluator,
+                                       OpenSubdiv::Osd::GLDrawContext>(
+                                           refiner,
+                                           numVertexElements,
+                                           numVaryingElements,
+                                           level, bits);
 
     std::vector<float> fvarData;
 
@@ -1008,8 +1001,6 @@ uninitGL() {
 
     if (g_mesh)
         delete g_mesh;
-
-    delete g_cpuComputeController;
 }
 
 //------------------------------------------------------------------------------
