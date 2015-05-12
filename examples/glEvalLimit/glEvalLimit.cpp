@@ -137,7 +137,7 @@ int g_nparticles=0,
     g_nsamples=101,
     g_nsamplesFound=0;
 
-bool g_randomStart=true;
+bool g_randomStart=false;
 
 GLuint g_cageEdgeVAO = 0,
        g_cageEdgeVBO = 0,
@@ -337,7 +337,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     // location samples (ptex face index, (s,t) and updates them between frames.
     // Note: the number of limit locations can be entirely arbitrary
     delete g_particles;
-    g_particles = new STParticles(*g_topologyRefiner, g_nsamples, g_randomStart);
+    g_particles = new STParticles(*g_topologyRefiner, g_nsamples, !g_randomStart);
     g_nparticles = g_particles->GetNumParticles();
     g_particles->SetSpeed(speed);
 
@@ -896,7 +896,7 @@ callbackFreeze(bool checked, int /* f */) {
 //------------------------------------------------------------------------------
 static void
 callbackCentered(bool checked, int /* f */) {
-    g_randomStart = !checked;
+    g_randomStart = checked;
     createOsdMesh(g_defaultShapes[g_currentShape], g_level);
 }
 
@@ -939,7 +939,7 @@ initHUD() {
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
     g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
 
-    g_hud.AddCheckBox("Random Start", false, 10, 120, callbackCentered, 0);
+    g_hud.AddCheckBox("Random Start", false, 10, 120, callbackCentered, g_randomStart);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackDisplayVaryingColors, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Random", kRANDOM, g_drawMode==kRANDOM);

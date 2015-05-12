@@ -90,9 +90,6 @@ struct PatchParam {
         /// \brief Returns the boundary edge encoding for the patch.
         unsigned short GetBoundary() const { return (unsigned short)((field >> 4) & 0xf); }
 
-        /// \brief Deprecated XXXdyu-patch-drawing (patches rotated when gathered from refiner)
-        unsigned char GetRotation() const { return 0; }
-
         /// \brief True if the parent coarse face is a non-quad
         bool NonQuadRoot() const { return (field >> 3) & 0x1; }
 
