@@ -23,7 +23,7 @@
 //
 
 #ifndef OPENSUBDIV_OSD_TBB_KERNEL_H
-#define OPENSUBIDV_OSD_TBB_KERNEL_H
+#define OPENSUBDIV_OSD_TBB_KERNEL_H
 
 #include "../version.h"
 

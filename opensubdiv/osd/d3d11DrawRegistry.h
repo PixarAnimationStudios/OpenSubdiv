@@ -80,7 +80,7 @@ struct D3D11DrawSourceConfig {
 class D3D11DrawRegistryBase {
 
 public:
-    typedef DrawContext::PatchDescriptor DescType;
+    typedef Far::PatchDescriptor DescType;
     typedef D3D11DrawConfig ConfigType;
     typedef D3D11DrawSourceConfig SourceConfigType;
 
@@ -105,7 +105,7 @@ protected:
 
 //------------------------------------------------------------------------------
 
-template <class DESC_TYPE = DrawContext::PatchDescriptor,
+template <class DESC_TYPE = Far::PatchDescriptor,
           class CONFIG_TYPE = D3D11DrawConfig,
           class SOURCE_CONFIG_TYPE = D3D11DrawSourceConfig>
 class D3D11DrawRegistry : public D3D11DrawRegistryBase {

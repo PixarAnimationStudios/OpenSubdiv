@@ -37,7 +37,7 @@ DrawContext::~DrawContext() {}
 
 void
 DrawContext::ConvertPatchArrays(Far::PatchTables const &patchTables,
-    PatchArrayVector &osdPatchArrays, int maxValence, int numElements) {
+                                PatchArrayVector &osdPatchArrays) {
 
     int narrays = patchTables.GetNumPatchArrays();
 
@@ -47,17 +47,16 @@ DrawContext::ConvertPatchArrays(Far::PatchTables const &patchTables,
 
     for (int array=0, pidx=0, vidx=0, qidx=0; array<narrays; ++array) {
 
-        Far::PatchDescriptor srcDesc = patchTables.GetPatchArrayDescriptor(array);
+        Far::PatchDescriptor desc = patchTables.GetPatchArrayDescriptor(array);
 
         int npatches = patchTables.GetNumPatches(array),
-            nverts = srcDesc.GetNumControlVertices();
+            nverts = desc.GetNumControlVertices();
 
-        PatchDescriptor desc(srcDesc, maxValence, numElements);
         osdPatchArrays.push_back(PatchArray(desc, npatches, vidx, pidx, qidx));
 
         vidx += npatches * nverts;
         pidx += npatches;
-        qidx += (srcDesc.GetType() == Far::PatchDescriptor::GREGORY) ? npatches*nverts  : 0;
+        qidx += (desc.GetType() == Far::PatchDescriptor::GREGORY) ? npatches*nverts  : 0;
     }
 }
 

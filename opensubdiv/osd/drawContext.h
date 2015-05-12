@@ -59,60 +59,6 @@ namespace Osd {
 class DrawContext {
 
 public:
-
-    class PatchDescriptor {
-    public:
-        /// Constructor
-        ///
-        /// @param farDesc      Patch type descriptor
-        ///
-        /// @param maxValence   Highest vertex valence in the primitive
-        ///
-        /// @param numElements  The size of the vertex and varying data per-vertex
-        ///                     (in floats)
-        ///
-        PatchDescriptor(Far::PatchDescriptor farDesc, unsigned char maxValence, unsigned char numElements) :
-            _farDesc(farDesc), _maxValence(maxValence), _numElements(numElements) { }
-
-
-        /// Returns the type of the patch
-        Far::PatchDescriptor::Type GetType() const {
-            return _farDesc.GetType();
-        }
-
-        /// Returns the number of control vertices expected for a patch of the
-        /// type described
-        int GetNumControlVertices() const {
-            return _farDesc.GetNumControlVertices();
-        }
-
-        /// Returns the max valence
-        int GetMaxValence() const {
-            return _maxValence;
-        }
-
-        /// Returns the number of vertex elements
-        int GetNumElements() const {
-            return _numElements;
-        }
-
-        /// Set the number of vertex elements
-        void SetNumElements(int numElements) {
-            _numElements = (unsigned char)numElements;
-        }
-
-        /// Allows ordering of patches by type
-        bool operator < ( PatchDescriptor const other ) const;
-
-        /// True if the descriptors are identical
-        bool operator == ( PatchDescriptor const other ) const;
-
-    private:
-        Far::PatchDescriptor _farDesc;
-        unsigned char _maxValence;
-        unsigned char _numElements;
-    };
-
     typedef Far::Index Index;
 
     class PatchArray {
@@ -130,18 +76,18 @@ public:
         ///
         /// @param qoIndex    Index of the first quad-offset entry
         ///
-        PatchArray(PatchDescriptor desc, int npatches,
+        PatchArray(Far::PatchDescriptor desc, int npatches,
             Index vertIndex, Index patchIndex, Index qoIndex) :
                 _desc(desc), _npatches(npatches),
                     _vertIndex(vertIndex), _patchIndex(patchIndex), _quadOffsetIndex(qoIndex) { }
 
         /// Returns a patch descriptor defining the type of patches in the array
-        PatchDescriptor GetDescriptor() const {
+        Far::PatchDescriptor GetDescriptor() const {
             return _desc;
         }
 
         /// Update a patch descriptor
-        void SetDescriptor(PatchDescriptor desc) {
+        void SetDescriptor(Far::PatchDescriptor desc) {
             _desc = desc;
         }
 
@@ -178,7 +124,7 @@ public:
         }
 
     private:
-        PatchDescriptor _desc;
+        Far::PatchDescriptor _desc;
         int _npatches;
         Index _vertIndex,
               _patchIndex,
@@ -186,7 +132,7 @@ public:
     };
 
     /// Constructor
-    DrawContext() : _isAdaptive(false) {}
+    DrawContext(int maxValence) : _isAdaptive(false), _maxValence(maxValence) {}
 
     /// Descrtuctor
     virtual ~DrawContext();
@@ -212,10 +158,15 @@ public:
     // processes FarPatchArrays and inserts requisite sub-patches for the arrays
     // containing transition patches
     static void ConvertPatchArrays(Far::PatchTables const &patchTables,
-        DrawContext::PatchArrayVector &osdPatchArrays, int maxValence, int numElements);
+                                   DrawContext::PatchArrayVector &osdPatchArrays);
 
+    // maxValence is needed for legacy gregorypatch drawing
+    int GetMaxValence() const {
+        return _maxValence;
+    }
 
     typedef std::vector<float> FVarData;
+
 
 protected:
 
@@ -232,27 +183,9 @@ protected:
     PatchArrayVector _patchArrays;
 
     bool _isAdaptive;
+
+    int _maxValence;
 };
-
-// Allows ordering of patches by type
-inline bool
-DrawContext::PatchDescriptor::operator < ( PatchDescriptor const other ) const
-{
-    return _farDesc < other._farDesc or (_farDesc == other._farDesc and
-          (_maxValence < other._maxValence or ((_maxValence == other._maxValence) and
-          (_numElements < other._numElements))));
-}
-
-// True if the descriptors are identical
-inline bool
-DrawContext::PatchDescriptor::operator == ( PatchDescriptor const other ) const
-{
-    return _farDesc == other._farDesc and
-           _maxValence == other._maxValence and
-           _numElements == other._numElements;
-}
-
-
 
 }  // end namespace Osd
 
