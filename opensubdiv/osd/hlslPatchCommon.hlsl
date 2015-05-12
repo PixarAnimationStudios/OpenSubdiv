@@ -78,7 +78,7 @@ struct GregHullVertex {
     float3 e1 : POSITION2;
     uint zerothNeighbor : BLENDINDICE1;
     float3 org : POSITION3;
-#if OSD_MAX_VALENCE > 0
+#if defined OSD_MAX_VALENCE && OSD_MAX_VALENCE > 0
     float3 r[OSD_MAX_VALENCE] : POSITION4;
 #endif
 };
