@@ -58,21 +58,11 @@ GLDrawRegistryBase::~GLDrawRegistryBase() {}
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
 GLDrawSourceConfig *
-GLDrawRegistryBase::_CreateDrawSourceConfig(
-    DrawContext::PatchDescriptor const & desc)
+GLDrawRegistryBase::_CreateDrawSourceConfig(Far::PatchDescriptor const & desc)
 {
     GLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
-
-    {
-        std::ostringstream ss;
-        ss << (int)desc.GetMaxValence();
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
-        ss.str("");
-        ss << (int)desc.GetNumElements();
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
 
     switch (desc.GetType()) {
     case Far::PatchDescriptor::REGULAR:
@@ -136,8 +126,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
 }
 #else
 GLDrawSourceConfig *
-GLDrawRegistryBase::_CreateDrawSourceConfig(
-    DrawContext::PatchDescriptor const &)
+GLDrawRegistryBase::_CreateDrawSourceConfig(Far::PatchDescriptor const &)
 {
     return _NewDrawSourceConfig();
 }
@@ -190,7 +179,7 @@ _CompileShader(
 
 GLDrawConfig *
 GLDrawRegistryBase::_CreateDrawConfig(
-        DrawContext::PatchDescriptor const & /* desc */,
+        Far::PatchDescriptor const & /* desc */,
         GLDrawSourceConfig const * sconfig)
 {
     assert(sconfig);

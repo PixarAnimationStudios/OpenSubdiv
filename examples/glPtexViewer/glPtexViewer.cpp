@@ -664,27 +664,42 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
+
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return desc < e.desc || (desc == e.desc &&
+              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+              (effect < e.effect))));
+    }
+};
 
 class EffectDrawRegistry : public OpenSubdiv::Osd::GLDrawRegistry<EffectDesc> {
 
 protected:
 
     virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
+    _CreateDrawConfig(EffectDesc const & desc, SourceConfigType const * sconfig);
 
     virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
+    _CreateDrawSourceConfig(EffectDesc const & desc);
 };
 
 //------------------------------------------------------------------------------
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
+EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc) {
 
-    Effect effect = desc.second;
+    Effect effect = effectDesc.effect;
 
     SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first);
+        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc);
 
     // add ptex functions
     sconfig->commonShader.source += GLPtexMipmapTexture::GetShaderSource();
@@ -702,15 +717,27 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     const char *glslVersion = "#version 330\n";
 #endif
 
+    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
+    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
+        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
+        std::ostringstream ss;
+        ss << effectDesc.maxValence;
+        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        ss.str("");
+
+        ss << effectDesc.numElements;
+        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
+    }
+
     int nverts = 4;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
+    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
         if (effect.displacement) {
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
+    } else if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
         nverts = 2;
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
@@ -831,10 +858,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
 
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
+        DescType const & effectDesc,
         SourceConfigType const * sconfig) {
 
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
+    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig);
     assert(config);
 
     // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
@@ -893,9 +920,17 @@ EffectDrawRegistry effectRegistry;
 
 EffectDrawRegistry::ConfigType *
 getInstance(Effect effect,
-    OpenSubdiv::Osd::DrawContext::PatchDescriptor const & patchDesc) {
+    OpenSubdiv::Far::PatchDescriptor const & patchDesc) {
 
     EffectDesc desc(patchDesc, effect);
+
+    // only legacy gregory needs maxValence and numElements
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+    if (patchDesc.GetType() == Descriptor::GREGORY or
+        patchDesc.GetType() == Descriptor::GREGORY_BOUNDARY) {
+        desc.maxValence = g_mesh->GetDrawContext()->GetMaxValence();
+        desc.numElements = 3;
+    }
 
     EffectDrawRegistry::ConfigType * config =
         effectRegistry.GetDrawConfig(desc);
@@ -1455,7 +1490,7 @@ updateUniformBlocks() {
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchDescriptor const &desc) {
+bindProgram(Effect effect, OpenSubdiv::Far::PatchDescriptor const &desc) {
 
     EffectDrawRegistry::ConfigType *
         config = getInstance(effect, desc);
@@ -1537,7 +1572,7 @@ drawModel() {
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
@@ -1712,8 +1747,7 @@ drawCageEdges() {
 
     typedef OpenSubdiv::Far::PatchDescriptor FDesc;
 
-    OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        FDesc(FDesc::LINES), 0, 0);
+    FDesc desc(FDesc::LINES);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 

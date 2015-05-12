@@ -33,7 +33,8 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-D3D11DrawContext::D3D11DrawContext() :
+D3D11DrawContext::D3D11DrawContext(int maxValence) :
+    DrawContext(maxValence),
     patchIndexBuffer(NULL),
     patchParamBuffer(NULL),
     patchParamBufferSRV(NULL),
@@ -63,11 +64,11 @@ D3D11DrawContext::~D3D11DrawContext()
 
 D3D11DrawContext *
 D3D11DrawContext::Create(Far::PatchTables const *patchTables,
-                         int numVertexElements,
                          ID3D11DeviceContext *pd3d11DeviceContext)
 {
-    D3D11DrawContext * result = new D3D11DrawContext();
-    if (result->create(*patchTables, numVertexElements, pd3d11DeviceContext))
+    int maxValence = patchTables->GetMaxValence();
+    D3D11DrawContext * result = new D3D11DrawContext(maxValence);
+    if (result->create(*patchTables, pd3d11DeviceContext))
         return result;
 
     delete result;
@@ -76,7 +77,6 @@ D3D11DrawContext::Create(Far::PatchTables const *patchTables,
 
 bool
 D3D11DrawContext::create(Far::PatchTables const &patchTables,
-                         int numVertexElements,
                          ID3D11DeviceContext *pd3d11DeviceContext)
 {
     // adaptive patches
@@ -111,8 +111,7 @@ D3D11DrawContext::create(Far::PatchTables const &patchTables,
 
     pd3d11DeviceContext->Unmap(patchIndexBuffer, 0);
 
-    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
-        patchTables.GetMaxValence(), numVertexElements);
+    DrawContext::ConvertPatchArrays(patchTables, _patchArrays);
 
     // allocate and initialize additional buffer data
 
@@ -278,9 +277,9 @@ D3D11DrawContext::SetFVarDataTexture(Far::PatchTables const & patchTables,
 
 void
 D3D11DrawContext::updateVertexTexture(ID3D11Buffer *vbo,
-                                         ID3D11DeviceContext *pd3d11DeviceContext,
-                                         int numVertices,
-                                         int numVertexElements)
+                                      ID3D11DeviceContext *pd3d11DeviceContext,
+                                      int numVertices,
+                                      int numVertexElements)
 {
     ID3D11Device *pd3d11Device = NULL;
     pd3d11DeviceContext->GetDevice(&pd3d11Device);

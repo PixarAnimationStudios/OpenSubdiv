@@ -32,7 +32,8 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-GLDrawContext::GLDrawContext() :
+GLDrawContext::GLDrawContext(int maxValence) :
+    DrawContext(maxValence),
     _patchIndexBuffer(0), _patchParamTextureBuffer(0), _fvarDataTextureBuffer(0),
     _vertexTextureBuffer(0), _vertexValenceTextureBuffer(0), _quadOffsetsTextureBuffer(0)
 {
@@ -98,14 +99,14 @@ createTextureBuffer(T const &data, GLint format, int offset=0)
 }
 
 GLDrawContext *
-GLDrawContext::Create(Far::PatchTables const * patchTables,
-                      int numVertexElements, void * /*deviceContext*/) {
+GLDrawContext::Create(Far::PatchTables const * patchTables, void * /*deviceContext*/) {
 
     if (patchTables) {
 
-        GLDrawContext * result = new GLDrawContext();
+        int maxValence = patchTables->GetMaxValence();
+        GLDrawContext * result = new GLDrawContext(maxValence);
 
-        if (result->create(*patchTables, numVertexElements)) {
+        if (result->create(*patchTables)) {
             return result;
         } else {
             delete result;
@@ -115,7 +116,7 @@ GLDrawContext::Create(Far::PatchTables const * patchTables,
 }
 
 bool
-GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElements) {
+GLDrawContext::create(Far::PatchTables const & patchTables) {
 
     _isAdaptive = patchTables.IsFeatureAdaptive();
 
@@ -138,8 +139,7 @@ GLDrawContext::create(Far::PatchTables const & patchTables, int numVertexElement
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
-    DrawContext::ConvertPatchArrays(patchTables, _patchArrays,
-        patchTables.GetMaxValence(), numVertexElements);
+    DrawContext::ConvertPatchArrays(patchTables, _patchArrays);
 
     // allocate and initialize additional buffer data
 

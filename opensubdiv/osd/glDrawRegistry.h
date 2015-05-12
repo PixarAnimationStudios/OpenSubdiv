@@ -63,7 +63,7 @@ struct GLDrawSourceConfig : public DrawSourceConfig {
 class GLDrawRegistryBase {
 
 public:
-    typedef DrawContext::PatchDescriptor DescType;
+    typedef Far::PatchDescriptor DescType;
     typedef GLDrawConfig ConfigType;
     typedef GLDrawSourceConfig SourceConfigType;
 
@@ -88,7 +88,7 @@ protected:
 
 //------------------------------------------------------------------------------
 
-template <class DESC_TYPE = DrawContext::PatchDescriptor,
+template <class DESC_TYPE = Far::PatchDescriptor,
           class CONFIG_TYPE = GLDrawConfig,
           class SOURCE_CONFIG_TYPE = GLDrawSourceConfig >
 

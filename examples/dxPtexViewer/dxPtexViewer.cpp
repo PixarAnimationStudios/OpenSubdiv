@@ -413,14 +413,28 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
 
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return desc < e.desc || (desc == e.desc &&
+              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+              (effect < e.effect))));
+    }
+};
 
 class EffectDrawRegistry : public OpenSubdiv::Osd::D3D11DrawRegistry<EffectDesc> {
 
 protected:
     virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc,
+    _CreateDrawConfig(EffectDesc const & desc,
                       SourceConfigType const * sconfig,
                       ID3D11Device * pd3dDevice,
                       ID3D11InputLayout ** ppInputLayout,
@@ -428,17 +442,29 @@ protected:
                       int numInputElements);
 
     virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice);
+    _CreateDrawSourceConfig(EffectDesc const & desc, ID3D11Device * pd3dDevice);
 };
 
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device *pd3dDevice)
+EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const &effectDesc, ID3D11Device *pd3dDevice)
 {
-    Effect effect = desc.second;
+    Effect effect = effectDesc.effect;
 
     SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first, pd3dDevice);
+        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc, pd3dDevice);
     assert(sconfig);
+
+    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
+    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
+        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
+        std::ostringstream ss;
+        ss << effectDesc.maxValence;
+        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        ss.str("");
+
+        ss << effectDesc.numElements;
+        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
+    }
 
     // add ptex functions
     sconfig->commonShader.source += D3D11PtexMipmapTexture::GetShaderSource();
@@ -451,8 +477,8 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
         sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
 
     bool quad = true;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
-        desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
+    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
+        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main";
@@ -570,14 +596,14 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc, ID3D11Device 
 
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
+        EffectDesc const & effectDesc,
         SourceConfigType const * sconfig,
         ID3D11Device * pd3dDevice,
         ID3D11InputLayout ** ppInputLayout,
         D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
         int numInputElements) {
 
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig,
+    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig,
         pd3dDevice, ppInputLayout, pInputElementDescs, numInputElements);
     assert(config);
 
@@ -673,7 +699,6 @@ createOsdMesh(int level, int kernel) {
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshPtexData, true);
     // gregory basis hasn't supported yet in D3D11Mesh
     bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
 
@@ -767,6 +792,17 @@ static void
 bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
+
+    // only legacy gregory needs maxValence and numElements
+    int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
+    int numElements = 6;
+
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
+        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
+        effectDesc.maxValence = maxValence;
+        effectDesc.numElements = numElements;
+    }
 
     // input layout
     const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {

@@ -277,7 +277,7 @@ public:
 
         initializeContext(numVertexElements,
                           numVaryingElements,
-                          vertexBufferStride, level, bits);
+                          level, bits);
 
         initializeVertexBuffers(_numVertices,
                                 vertexBufferStride,
@@ -413,7 +413,7 @@ public:
 private:
     void initializeContext(int numVertexElements,
                            int numVaryingElements,
-                           int numElements, int level, MeshBitset bits) {
+                           int level, MeshBitset bits) {
         assert(_refiner);
 
         Far::StencilTablesFactory::Options options;
@@ -482,8 +482,7 @@ private:
             }
         }
 
-        _drawContext = DrawContext::Create(_patchTables, numElements,
-                                           _deviceContext);
+        _drawContext = DrawContext::Create(_patchTables, _deviceContext);
 
         // numvertices = coarse verts + refined verts + gregory basis verts
         _numVertices = vertexStencils->GetNumControlVertices()

@@ -58,10 +58,9 @@ public:
     ///
     /// @param patchTables          a valid set of Far::PatchTables
     ///
-    /// @param numVertexElements    the number of vertex elements
+    /// @param deviceContext        not used in GLDrawContext
     ///
     static GLDrawContext * Create(Far::PatchTables const * patchTables,
-                                  int numVertexElements,
                                   void *deviceContext = NULL);
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
@@ -137,10 +136,10 @@ protected:
     GLuint _vertexValenceTextureBuffer;
     GLuint _quadOffsetsTextureBuffer;
 
-    GLDrawContext();
+    GLDrawContext(int maxValence);
 
     // allocate buffers from patchTables
-    bool create(Far::PatchTables const & patchTables, int numElements);
+    bool create(Far::PatchTables const & patchTables);
 
     void updateVertexTexture(GLuint vbo);
 };

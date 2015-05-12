@@ -425,7 +425,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
 
     for (int i=0; i<(int)patches.size(); ++i) {
         Osd::DrawContext::PatchArray const & patch = patches[i];
-        Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        Far::PatchDescriptor desc = patch.GetDescriptor();
         Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;

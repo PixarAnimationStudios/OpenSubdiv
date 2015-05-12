@@ -255,18 +255,7 @@ public:
 protected:
 
     TopologyBase(Far::PatchTables const * patchTables) {
-        _drawContext = Osd::GLDrawContext::Create(patchTables, 7);
-    }
-
-    void updateVertexBufferStride(int stride) {
-        // modifying patchArrays in drawcontext.
-        Osd::DrawContext::PatchArrayVector &patchArrays =
-            _drawContext->GetPatchArrays();
-        for (int i = 0; i < (int)patchArrays.size(); ++i) {
-            Osd::DrawContext::PatchDescriptor desc = patchArrays[i].GetDescriptor();
-            desc.SetNumElements(stride);
-            patchArrays[i].SetDescriptor(desc);
-        }
+        _drawContext = Osd::GLDrawContext::Create(patchTables);
     }
 
     int _numVertices;
@@ -400,8 +389,6 @@ public:
         Instances<VERTEX_BUFFER, DEVICE_CONTEXT> *typedInstance =
             static_cast<Instances<VERTEX_BUFFER, DEVICE_CONTEXT> *>(instances);
         GetDrawContext()->UpdateVertexTexture(typedInstance->GetVertexBuffer());
-
-        updateVertexBufferStride(typedInstance->GetVertexBuffer()->GetNumElements());
     }
 
 private:
@@ -809,25 +796,40 @@ union Effect {
     }
 };
 
-typedef std::pair<Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
+
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return desc < e.desc || (desc == e.desc &&
+              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+              (effect < e.effect))));
+    }
+};
 
 class EffectDrawRegistry : public Osd::GLDrawRegistry<EffectDesc> {
 
 protected:
     virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
+    _CreateDrawConfig(EffectDesc const & desc, SourceConfigType const * sconfig);
 
     virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
+    _CreateDrawSourceConfig(EffectDesc const & desc);
 };
 
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
+EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc) {
 
-    Effect effect = desc.second;
+    Effect effect = effectDesc.effect;
 
     SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first);
+        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc);
 
     assert(sconfig);
 
@@ -837,8 +839,20 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     const char *glslVersion = "#version 330\n";
 #endif
 
-    if (desc.first.GetType() == Far::PatchDescriptor::QUADS or
-        desc.first.GetType() == Far::PatchDescriptor::TRIANGLES) {
+    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
+    if (effectDesc.desc.GetType() == Far::PatchDescriptor::GREGORY or
+        effectDesc.desc.GetType() == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+        std::ostringstream ss;
+        ss << effectDesc.maxValence;
+        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        ss.str("");
+
+        ss << effectDesc.numElements;
+        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
+    }
+
+    if (effectDesc.desc.GetType() == Far::PatchDescriptor::QUADS or
+        effectDesc.desc.GetType() == Far::PatchDescriptor::TRIANGLES) {
         sconfig->vertexShader.source = shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
@@ -854,12 +868,12 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
-    if (desc.first.GetType() == Far::PatchDescriptor::QUADS) {
+    if (effectDesc.desc.GetType() == Far::PatchDescriptor::QUADS) {
         // uniform catmark, bilinear
         sconfig->geometryShader.AddDefine("PRIM_QUAD");
         sconfig->fragmentShader.AddDefine("PRIM_QUAD");
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == Far::PatchDescriptor::TRIANGLES) {
+    } else if (effectDesc.desc.GetType() == Far::PatchDescriptor::TRIANGLES) {
         // uniform loop
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -903,7 +917,7 @@ EffectDrawRegistry::_CreateDrawConfig(
         DescType const & desc,
         SourceConfigType const * sconfig) {
 
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
+    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.desc, sconfig);
     assert(config);
 
     GLuint uboIndex;
@@ -976,6 +990,18 @@ static GLuint
 bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
+
+    // only legacy gregory needs maxValence and numElements
+    int maxValence = g_topology->GetDrawContext()->GetMaxValence();
+    int numElements = (g_displayStyle == kVaryingInterleaved ? 7 : 3);
+
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
+        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
+        effectDesc.maxValence = maxValence;
+        effectDesc.numElements = numElements;
+    }
+
     EffectDrawRegistry::ConfigType *
         config = effectRegistry.GetDrawConfig(effectDesc);
 
@@ -1092,7 +1118,7 @@ drawPatches(Osd::DrawContext::PatchArrayVector const &patches,
 
         Osd::DrawContext::PatchArray const & patch = patches[i];
 
-        Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        Far::PatchDescriptor desc = patch.GetDescriptor();
         Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;

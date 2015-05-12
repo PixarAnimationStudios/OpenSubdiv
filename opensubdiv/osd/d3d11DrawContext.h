@@ -71,18 +71,14 @@ public:
     ///
     /// @param pd3d11DeviceContext  A device context
     ///
-    /// @param numVertexElements    The number of vertex elements
-    ///
     static D3D11DrawContext *Create(Far::PatchTables const *patchTables,
-                                    int numVertexElements,
                                     ID3D11DeviceContext *pd3d11DeviceContext);
 
     /// template version for custom context (OpenCL) used by OsdMesh
     template<typename DEVICE_CONTEXT>
     static D3D11DrawContext *Create(Far::PatchTables const *patchtables,
-                                    int numVertexElements,
                                     DEVICE_CONTEXT context) {
-        return Create(patchtables, numVertexElements, context->GetDeviceContext());
+        return Create(patchtables, context->GetDeviceContext());
     }
 
     /// Set vbo as a vertex texture (for gregory patch drawing)
@@ -146,12 +142,11 @@ public:
     }
 
 private:
-    D3D11DrawContext();
+    D3D11DrawContext(int maxValence);
 
 
     // allocate buffers from patchTables
     bool create(Far::PatchTables const &patchTables,
-                int numVertexElements,
                 ID3D11DeviceContext *pd3d11DeviceContext);
 
     void updateVertexTexture(ID3D11Buffer *vbo,
