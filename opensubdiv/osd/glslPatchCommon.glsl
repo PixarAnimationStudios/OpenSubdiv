@@ -113,7 +113,7 @@ struct GregControlVertex {
     vec3 e1;
     uint zerothNeighbor;
     vec3 org;
-#if OSD_MAX_VALENCE > 0
+#if defined OSD_MAX_VALENCE && OSD_MAX_VALENCE > 0
     vec3 r[OSD_MAX_VALENCE];
 #endif
 };
