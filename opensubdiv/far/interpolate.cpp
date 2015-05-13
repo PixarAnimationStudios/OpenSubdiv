@@ -53,6 +53,10 @@ public:
     // patch weights
     static void GetPatchWeights(PatchParam::BitField bits,
         float s, float t, float point[], float deriv1[], float deriv2[]);
+
+    // adjust patch weights for boundary (and corner) edges
+    static void AdjustBoundaryWeights(PatchParam::BitField bits,
+        float sWeights[4], float tWeights[4]);
 };
 
 template <>
@@ -162,52 +166,62 @@ template <>
 inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam::BitField bits,
     float s, float t, float point[4], float deriv1[4], float deriv2[4]) {
 
-    static int const rots[4][4] =
-        { { 0, 1, 2, 3 },
-          { 3, 0, 1, 2 },
-          { 2, 3, 0, 1 },
-          { 1, 2, 3, 0 } };
-
-    assert(bits.GetRotation()<4);
-    int const * rot = rots[bits.GetRotation()];
-
     bits.Normalize(s,t);
 
     float os = 1.0f - s,
           ot = 1.0f - t;
 
     if (point) {
-        point[rot[0]] = os*ot;
-        point[rot[1]] = s*ot; 
-        point[rot[2]] = s*t;
-        point[rot[3]] = os*t;
+        point[0] = os*ot;
+        point[1] = s*ot;
+        point[2] = s*t;
+        point[3] = os*t;
     }
     
     if (deriv1 and deriv2) {
-        deriv1[rot[0]] = t-1.0f;
-        deriv1[rot[1]] = ot;   
-        deriv1[rot[2]] = t;   
-        deriv1[rot[3]] = -t;
+        deriv1[0] = t-1.0f;
+        deriv1[1] = ot;
+        deriv1[2] = t;
+        deriv1[3] = -t;
 
-        deriv2[rot[0]] = s-1.0f;   
-        deriv2[rot[1]] = -s;
-        deriv2[rot[2]] = s; 
-        deriv2[rot[3]] = os;
+        deriv2[0] = s-1.0f;
+        deriv2[1] = -s;
+        deriv2[2] = s;
+        deriv2[3] = os;
+    }
+}
+
+template <SplineBasis BASIS>
+void Spline<BASIS>::AdjustBoundaryWeights(PatchParam::BitField bits,
+    float sWeights[4], float tWeights[4]) {
+
+    int boundary = bits.GetBoundary();
+
+    if (boundary & 1) {
+        tWeights[2] -= tWeights[0];
+        tWeights[1] += 2*tWeights[0];
+        tWeights[0] = 0;
+    }
+    if (boundary & 2) {
+        sWeights[1] -= sWeights[3];
+        sWeights[2] += 2*sWeights[3];
+        sWeights[3] = 0;
+    }
+    if (boundary & 4) {
+        tWeights[1] -= tWeights[3];
+        tWeights[2] += 2*tWeights[3];
+        tWeights[3] = 0;
+    }
+    if (boundary & 8) {
+        sWeights[2] -= sWeights[0];
+        sWeights[1] += 2*sWeights[0];
+        sWeights[0] = 0;
     }
 }
 
 template <SplineBasis BASIS>
 void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
     float s, float t, float point[16], float derivS[16], float derivT[16]) {
-
-    static int const rots[4][16] =
-        { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
-          { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 },
-          { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },
-          { 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 } };
-
-    assert(bits.GetRotation()<4);
-    int const * rot = rots[bits.GetRotation()];
 
     float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
 
@@ -216,13 +230,17 @@ void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
     Spline<BASIS>::GetWeights(s, point ? sWeights : 0, derivS ? dsWeights : 0);
     Spline<BASIS>::GetWeights(t, point ? tWeights : 0, derivT ? dtWeights : 0);
 
+    int boundary = bits.GetBoundary();
+
     if (point) {
         // Compute the tensor product weight of the (s,t) basis function
         // corresponding to each control vertex:
 
+        AdjustBoundaryWeights(bits, sWeights, tWeights);
+
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                point[rot[4*i+j]] = sWeights[j] * tWeights[i];
+                point[4*i+j] = sWeights[j] * tWeights[i];
             }
         }
     }
@@ -233,10 +251,12 @@ void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
 
         float dScale = (float)(1 << bits.GetDepth());
 
+        AdjustBoundaryWeights(bits, dsWeights, dtWeights);
+
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                derivS[rot[4*i+j]] = dsWeights[j] * tWeights[i] * dScale;
-                derivT[rot[4*i+j]] = sWeights[j] * dtWeights[i] * dScale;
+                derivS[4*i+j] = dsWeights[j] * tWeights[i] * dScale;
+                derivT[4*i+j] = sWeights[j] * dtWeights[i] * dScale;
             }
         }
     }
