@@ -920,10 +920,6 @@ display() {
                              patchCount[Descriptor::QUADS]); y += 20;
             g_hud->DrawString(x, y, "Regular          : %d",
                              patchCount[Descriptor::REGULAR]); y+= 20;
-            g_hud->DrawString(x, y, "Boundary         : %d",
-                             patchCount[Descriptor::BOUNDARY]); y+= 20;
-            g_hud->DrawString(x, y, "Corner           : %d",
-                             patchCount[Descriptor::CORNER]); y+= 20;
             g_hud->DrawString(x, y, "Gregory          : %d",
                              patchCount[Descriptor::GREGORY]); y+= 20;
             g_hud->DrawString(x, y, "Boundary Gregory : %d",

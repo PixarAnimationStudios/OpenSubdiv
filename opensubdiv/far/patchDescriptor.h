@@ -45,7 +45,7 @@ namespace Far {
 ///   or TRIANGLES
 ///
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
-///   BOUNDARY, CORNER, GREGORY, GREGORY_BOUNDARY, GREGOYR_BASIS.
+///   GREGORY, GREGORY_BOUNDARY, GREGORY_BASIS.
 ///   These bicubic patches are also further distinguished by a transition
 ///   pattern as well as a rotational orientation.
 ///
@@ -71,8 +71,6 @@ public:
         LOOP,              ///< Loop patch
 
         REGULAR,           ///< feature-adaptive bicubic patches
-        BOUNDARY,
-        CORNER,
         GREGORY,
         GREGORY_BOUNDARY,
         GREGORY_BASIS
@@ -128,12 +126,6 @@ public:
     /// \brief Number of control vertices of Regular Patches in table.
     static short GetRegularPatchSize() { return 16; }
 
-    /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetBoundaryPatchSize() { return 16; }
-
-    /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetCornerPatchSize() { return 16; }
-
     /// \brief Number of control vertices of Gregory (and Gregory Boundary) Patches in table.
     static short GetGregoryPatchSize() { return 4; }
 
@@ -169,8 +161,6 @@ PatchDescriptor::GetNumControlVertices( Type type ) {
         case GREGORY           :
         case GREGORY_BOUNDARY  : return GetGregoryPatchSize();
         case GREGORY_BASIS     : return GetGregoryBasisPatchSize();
-        case BOUNDARY          : return GetBoundaryPatchSize();
-        case CORNER            : return GetCornerPatchSize();
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;
@@ -185,8 +175,6 @@ PatchDescriptor::GetNumFVarControlVertices( Type type ) {
         case REGULAR           : return GetRegularPatchSize();
         case QUADS             : return 4;
         case TRIANGLES         : return 3;
-        case BOUNDARY          : return GetBoundaryPatchSize();
-        case CORNER            : return GetCornerPatchSize();
         case LINES             : return 2;
         case POINTS            : return 1;
         case GREGORY_BASIS     : assert(0); return GetGregoryBasisPatchSize();

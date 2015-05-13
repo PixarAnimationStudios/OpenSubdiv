@@ -708,16 +708,6 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
                     eao[face*4+1] = cvs[ 6];
                     eao[face*4+2] = cvs[10];
                     eao[face*4+3] = cvs[ 9];
-                } else if (desc.GetType()==Descriptor::BOUNDARY) {
-                    eao[face*4  ] = cvs[ 2];
-                    eao[face*4+1] = cvs[ 6];
-                    eao[face*4+2] = cvs[ 5];
-                    eao[face*4+3] = cvs[ 1];
-                } else if (desc.GetType()==Descriptor::CORNER) {
-                    eao[face*4  ] = cvs[ 1];
-                    eao[face*4+1] = cvs[ 2];
-                    eao[face*4+2] = cvs[ 5];
-                    eao[face*4+3] = cvs[ 4];
                 } else {
                     memcpy(&eao[face*4], cvs.begin(), 4*sizeof(OpenSubdiv::Far::Index));
                 }
