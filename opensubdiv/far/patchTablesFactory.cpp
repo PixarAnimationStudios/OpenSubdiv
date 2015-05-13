@@ -47,8 +47,6 @@ struct PatchTypes {
 
 
     TYPE R,    // regular patch
-         B,    // boundary patch (4 rotations)
-         C,    // corner patch (4 rotations)
          G,    // gregory patch
          GB,   // gregory boundary patch
          GP;   // gregory basis patch
@@ -59,8 +57,6 @@ struct PatchTypes {
     TYPE & getValue( Far::PatchDescriptor desc ) {
         switch (desc.GetType()) {
             case Far::PatchDescriptor::REGULAR          : return R;
-            case Far::PatchDescriptor::BOUNDARY         : return B;
-            case Far::PatchDescriptor::CORNER           : return C;
             case Far::PatchDescriptor::GREGORY          : return G;
             case Far::PatchDescriptor::GREGORY_BOUNDARY : return GB;
             case Far::PatchDescriptor::GREGORY_BASIS    : return GP;
@@ -75,8 +71,6 @@ struct PatchTypes {
     int getNumPatchArrays() const {
         int result=0;
         if (R) ++result;
-        if (B) ++result;
-        if (C) ++result;
         if (G) ++result;
         if (GB) ++result;
         if (GP) ++result;
@@ -573,10 +567,6 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
                 // compute the 20 cvs basis)
                 fvarPatchType = context.options.useFVarQuadEndCaps ?
                     PatchDescriptor::QUADS : PatchDescriptor::GREGORY_BASIS;
-            } else if (fvarPatchTag._boundaryCount > 1) {
-                fvarPatchType = PatchDescriptor::CORNER;
-            } else if (fvarPatchTag._boundaryCount == 1) {
-                fvarPatchType = PatchDescriptor::BOUNDARY;
             } else if (fvarPatchTag._isSingleCrease) {
                 fvarPatchType = PatchDescriptor::REGULAR;
             }
@@ -596,17 +586,31 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
             //     revisited...
             int orientationIndex = fvarPatchTag._boundaryIndex;
             if (fvarPatchType == PatchDescriptor::REGULAR) {
-                static int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                vtxLevel.gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
-                permutation = permuteRegular;
-            } else if (fvarPatchType == PatchDescriptor::CORNER) {
-                static int const permuteCorner[9] = { 8, 3, 0, 7, 2, 1, 6, 5, 4 };
-                vtxLevel.gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
-                permutation = permuteCorner;
-            } else if (fvarPatchType == PatchDescriptor::BOUNDARY) {
-                static int const permuteBoundary[12] = { 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 };
-                vtxLevel.gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
-                permutation = permuteBoundary;
+                if (fvarPatchTag._boundaryCount == 0) {
+                    static int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                    permutation = permuteRegular;
+                    vtxLevel.gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
+                } else if (fvarPatchTag._boundaryCount == 1) {
+                    // Expand boundary patch vertices and rotate to restore correct orientation.
+                    static int const permuteBoundary[4][16] = {
+                        { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
+                        { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
+                        { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
+                        { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
+                    permutation = permuteBoundary[orientationIndex];
+                    vtxLevel.gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, orientationIndex);
+                } else if (fvarPatchTag._boundaryCount == 2) {
+                    // Expand corner patch vertices and rotate to restore correct orientation.
+                    static int const permuteCorner[4][16] = {
+                        { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
+                        { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
+                        { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
+                        { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
+                    permutation = permuteCorner[orientationIndex];
+                    vtxLevel.gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
+                } else {
+                    assert(fvarPatchTag._boundaryCount >=0 && fvarPatchTag._boundaryCount <= 2);
+                }
             } else if (fvarPatchType == PatchDescriptor::QUADS) {
                 vtxLevel.gatherQuadLinearPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
                 permutation = 0;

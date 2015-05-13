@@ -66,8 +66,6 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(Far::PatchDescriptor const & desc)
 
     switch (desc.GetType()) {
     case Far::PatchDescriptor::REGULAR:
-    case Far::PatchDescriptor::BOUNDARY:
-    case Far::PatchDescriptor::CORNER:
         sconfig->commonShader.AddDefine("OSD_PATCH_BSPLINE");
         sconfig->commonShader.AddDefine("OSD_PATCH_ENABLE_SINGLE_CREASE");
         sconfig->vertexShader.source = bsplineShaderSource;

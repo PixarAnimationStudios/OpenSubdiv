@@ -47,11 +47,7 @@ PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
     };
 
     static PatchDescriptor _catmarkDescriptors[] = {
-
-        // XXXdyu-patch-drawing 
         PatchDescriptor(REGULAR),
-        PatchDescriptor(BOUNDARY),
-        PatchDescriptor(CORNER),
         PatchDescriptor(GREGORY),
         PatchDescriptor(GREGORY_BOUNDARY),
         PatchDescriptor(GREGORY_BASIS),
@@ -75,9 +71,8 @@ PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
 void
 PatchDescriptor::print() const {
     static char const * types[13] = {
-        "NON_PATCH", "POINTS", "LINES", "QUADS", "TRIANGLES", "LOOP", "REGULAR",
-            "SINGLE_CREASE", "BOUNDARY", "CORNER", "GREGORY",
-                "GREGORY_BOUNDARY", "GREGORY_BASIS" };
+        "NON_PATCH", "POINTS", "LINES", "QUADS", "TRIANGLES", "LOOP",
+            "REGULAR", "GREGORY", "GREGORY_BOUNDARY", "GREGORY_BASIS" };
 
     printf("    type %s\n",
         types[_type]);

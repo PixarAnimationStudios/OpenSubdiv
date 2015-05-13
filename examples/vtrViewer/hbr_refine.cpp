@@ -455,8 +455,6 @@ private:
     template<class TYPE> struct PatchTypes {
 
         TYPE R,    // regular patch
-             B,    // boundary patch (4 rotations)
-             C,    // corner patch (4 rotations)
              G,    // gregory patch
              GB,   // gregory boundary patch
              GP;   // gregory basis
@@ -484,8 +482,6 @@ Far::PatchTablesFactory::PatchTypes<TYPE>::getValue( Far::PatchDescriptor desc )
 
     switch (desc.GetType()) {
         case Far::PatchDescriptor::REGULAR          : return R;
-        case Far::PatchDescriptor::BOUNDARY         : return B;
-        case Far::PatchDescriptor::CORNER           : return C;
         case Far::PatchDescriptor::GREGORY          : return G;
         case Far::PatchDescriptor::GREGORY_BOUNDARY : return GB;
         case Far::PatchDescriptor::GREGORY_BASIS    : return GP;
@@ -500,10 +496,9 @@ Far::PatchTablesFactory::PatchTypes<TYPE>::getNumPatchArrays() const {
 
     int result=0;
     if (R) ++result;
-    if (B) ++result;
-    if (C) ++result;
     if (G) ++result;
     if (GB) ++result;
+    if (GP) ++result;
 
     return result;
 }
@@ -690,12 +685,12 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
                         case 2 : {   // Boundary patch
                                      f->_adaptiveFlags.rots=computeBoundaryPatchRotation(f);
-                                     patchCtr.B++;
+                                     patchCtr.R++;
                                  } break;
 
                         case 3 : {   // Corner patch
                                      f->_adaptiveFlags.rots=computeCornerPatchRotation(f);
-                                     patchCtr.C++;
+                                     patchCtr.R++;
                                  } break;
 
                         default : break;
@@ -784,7 +779,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
                                      f->_adaptiveFlags.rots=rot; // override the transition rotation
 
-                                     patchCtr.B++;
+                                     patchCtr.R++;
                                  } break;
 
                         case 3 : {   // corner patch
@@ -794,7 +789,7 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
                                      f->_adaptiveFlags.rots=rot; // override the transition rotation
 
-                                     patchCtr.C++;
+                                     patchCtr.R++;
                                  } break;
 
                         default : assert(0); break;
@@ -808,8 +803,8 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
 
     static const Far::Index remapRegular        [16] = {5,6,10,9,4,0,1,2,3,7,11,15,14,13,12,8};
-    static const Far::Index remapRegularBoundary[12] = {1,2,6,5,0,3,7,11,10,9,8,4};
-    static const Far::Index remapRegularCorner  [ 9] = {1,2,5,4,0,8,7,6,3};
+    static const Far::Index remapRegularBoundary[16] = {5,6,10,9,4,7,11,15,14,13,12,8,0,1,2,3};
+    static const Far::Index remapRegularCorner  [16] = {5,6,10,9,7,11,15,14,13,12,8,4,0,1,2,3};
 
     int fvarwidth=0;
 
@@ -878,16 +873,16 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
                         case 2 : {   // Boundary Patch (12 CVs)
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
-                                     iptrs.B = getOneRing(f, 12, remapRegularBoundary, iptrs.B);
-                                     pptrs.B = computePatchParam(f, pptrs.B);
-                                     //fptrs.B[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.B[0][0], /*isAdaptive=*/true);
+                                     iptrs.R = getOneRing(f, 12, remapRegularBoundary, iptrs.R);
+                                     pptrs.R = computePatchParam(f, pptrs.R);
+                                     //fptrs.R[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.R[0][0], /*isAdaptive=*/true);
                                  } break;
 
                         case 3 : {   // Corner Patch (9 CVs)
                                      f->_adaptiveFlags.brots = (f->_adaptiveFlags.rots+1)%4;
-                                     iptrs.C = getOneRing(f, 9, remapRegularCorner, iptrs.C);
-                                     pptrs.C = computePatchParam(f, pptrs.C);
-                                     //fptrs.C[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.C[0][0], /*isAdaptive=*/true);
+                                     iptrs.R = getOneRing(f, 9, remapRegularCorner, iptrs.R);
+                                     pptrs.R = computePatchParam(f, pptrs.R);
+                                     //fptrs.R[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.R[0][0], /*isAdaptive=*/true);
                                  } break;
 
                         default : assert(0);
@@ -938,16 +933,16 @@ Far::PatchTablesFactory::Create(Hmesh & mesh, int maxvalence) {
 
                     case 2 : {   // Boundary Transition Patch (12 CVs)
                                  //unsigned rot = f->_adaptiveFlags.brots;
-                                 iptrs.B = getOneRing(f, 12, remapRegularBoundary, iptrs.B);
-                                 pptrs.B = computePatchParam(f, pptrs.B);
-                                 //fptrs.B[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.B[pattern][rot], /*isAdaptive=*/true);
+                                 iptrs.R = getOneRing(f, 12, remapRegularBoundary, iptrs.R);
+                                 pptrs.R = computePatchParam(f, pptrs.R);
+                                 //fptrs.R[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.R[pattern][rot], /*isAdaptive=*/true);
                              } break;
 
                     case 3 : {   // Corner Transition Patch (9 CVs)
                                  //unsigned rot = f->_adaptiveFlags.brots;
-                                 iptrs.C = getOneRing(f, 9, remapRegularCorner, iptrs.C);
-                                 pptrs.C = computePatchParam(f, pptrs.C);
-                                 //fptrs.C[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.C[pattern][rot], /*isAdaptive=*/true);
+                                 iptrs.R = getOneRing(f, 9, remapRegularCorner, iptrs.R);
+                                 pptrs.R = computePatchParam(f, pptrs.R);
+                                 //fptrs.R[pattern][rot] = computeFVarData(f, fvarwidth, fptrs.R[pattern][rot], /*isAdaptive=*/true);
                              } break;
                 }
             } else
@@ -1106,10 +1101,10 @@ Far::PatchTablesFactory::getOneRing(Hface const * f,
 
         // Boundary case
         //
-        //         4      0      3      5
+        //         4      0      1      5
         //  ---- o ---- o ---- o ---- o ----
         //       |      |      |      |
-        //       | 11   | 1    | 2    | 6
+        //       | 11   | 3    | 2    | 6
         //  ---- o ---- o ---- o ---- o ----
         //       |      |      |      |
         //       | 10   | 9    | 8    | 7
@@ -1141,7 +1136,10 @@ Far::PatchTablesFactory::getOneRing(Hface const * f,
             result[remap[idx++ % ringsize]] = e->GetOrgVertex()->GetID();
         }
 
-        result += 12;
+        for (int i=12; i<16; ++i) {
+            result[remap[idx++]] = result[0];
+        }
+        result += 16;
 
     } else if (ringsize==9) {
 
@@ -1176,10 +1174,13 @@ Far::PatchTablesFactory::getOneRing(Hface const * f,
             result[remap[idx++ % ringsize]] = e->GetOrgVertex()->GetID();
         }
 
-        result += 9;
+        for (int i=9; i<16; ++i) {
+            result[remap[idx++]] = result[0];
+        }
+        result += 16;
 
     }
-    assert(idx==ringsize);
+    assert(idx==16);
     return result;
 }
 
