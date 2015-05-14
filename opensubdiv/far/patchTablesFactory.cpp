@@ -1294,7 +1294,7 @@ PatchTablesFactory::populateAdaptivePatches(
     int * levelFVarVertOffsets = 0;
     if (context.RequiresFVarPatches()) {
          int nchannels = refiner.GetNumFVarChannels();
-         levelFVarVertOffsets = (int *)alloca(nchannels);
+         levelFVarVertOffsets = (int *)alloca(nchannels*sizeof(int));
          memset(levelFVarVertOffsets, 0, nchannels*sizeof(int));
     }
 
