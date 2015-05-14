@@ -121,9 +121,9 @@ int   g_freeze = 0,
       g_mbutton[3] = {0, 0, 0};
 
 int   g_displayPatchColor = 1,
-      g_screenSpaceTess = 0,
-      g_fractionalSpacing = 0,
-      g_patchCull = 0,
+      g_screenSpaceTess = 1,
+      g_fractionalSpacing = 1,
+      g_patchCull = 1,
       g_displayPatchCounts = 0;
 
 float g_rotate[2] = {0, 0},
