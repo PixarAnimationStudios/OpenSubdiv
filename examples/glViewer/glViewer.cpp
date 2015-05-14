@@ -91,15 +91,47 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/simple_math.h"
 #include "../common/gl_hud.h"
 #include "../common/objAnim.h"
+#include "../common/objAnim.h" 
 #include "../common/patchColors.h"
+#include "../common/gl_common.h"
 
-static const char *shaderSource =
+
+/* Function to get the correct shader file based on the opengl version.
+  The implentation varies depending if glew is available or not. In case
+  is available the capabilities are queried during execution and the correct
+  source is returned. If glew in not available during compile time the version
+  is determined*/
+static const char *shaderSource(){
+#if not defined(OSD_USES_GLEW)
+	return
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #include "shader.gen.h"
+#include "shader.gen.h"
 #else
-    #include "shader_gl3.gen.h"
+#include "shader_gl3.gen.h"
 #endif
-;
+#else
+		static char *res = NULL;
+		if (!res){
+			static char *gen =
+#include "shader.gen.h"
+				;
+			static char *gen3 =
+#include "shader_gl3.gen.h"
+				;
+			//Determine the shader file to use. Since some opengl implementations
+			//define that an extension is available but not an implementation 
+			//for it you cannnot trust in the glew header definitions to know that is 
+			//available, but you need to query it during runtime.
+			if (uses_tesselation_shaders())
+				res = gen;
+			else
+				res = gen3;
+		}
+		return res;
+
+#endif
+
+}
 
 #include <cfloat>
 #include <vector>
@@ -231,39 +263,18 @@ struct Program
     GLuint attrColor;
 } g_defaultProgram;
 
-static void
-checkGLErrors(std::string const & where = "")
-{
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
-}
 
-//------------------------------------------------------------------------------
-static GLuint
-compileShader(GLenum shaderType, const char *source)
-{
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-    checkGLErrors("compileShader");
-    return shader;
-}
+
+
 
 static bool
 linkDefaultProgram() {
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #define GLSL_VERSION_DEFINE "#version 400\n"
-#else
-    #define GLSL_VERSION_DEFINE "#version 150\n"
-#endif
+	const std::string glsl_version = get_shader_version_include();
 
-    static const char *vsSrc =
-        GLSL_VERSION_DEFINE
+
+    static const std::string vsSrc =
+		glsl_version +
         "in vec3 position;\n"
         "in vec3 color;\n"
         "out vec4 fragColor;\n"
@@ -274,8 +285,8 @@ linkDefaultProgram() {
         "                  vec4(position, 1);\n"
         "}\n";
 
-    static const char *fsSrc =
-        GLSL_VERSION_DEFINE
+    static const std::string fsSrc =
+		glsl_version +
         "in vec4 fragColor;\n"
         "out vec4 color;\n"
         "void main() {\n"
@@ -283,8 +294,8 @@ linkDefaultProgram() {
         "}\n";
 
     GLuint program = glCreateProgram();
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc);
+    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc.c_str());
+    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
 
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
@@ -842,11 +853,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc)
 
     assert(sconfig);
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
-#else
-    const char *glslVersion = "#version 330\n";
-#endif
+	const std::string glslVersionStr = get_shader_version_include();
+    const char *glslVersion = glslVersionStr.c_str();
+
 
     // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
     if (effectDesc.desc.GetType() == Descriptor::GREGORY or
@@ -862,18 +871,18 @@ EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc)
 
     if (effectDesc.desc.GetType() == Descriptor::QUADS or
         effectDesc.desc.GetType() == Descriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
+        sconfig->vertexShader.source = shaderSource();
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
     } else {
         sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
     }
 
-    sconfig->geometryShader.source = shaderSource;
+    sconfig->geometryShader.source = shaderSource();
     sconfig->geometryShader.version = glslVersion;
     sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
 
-    sconfig->fragmentShader.source = shaderSource;
+    sconfig->fragmentShader.source = shaderSource();
     sconfig->fragmentShader.version = glslVersion;
     sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
 
@@ -890,9 +899,9 @@ EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc)
         sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
     } else {
         // adaptive
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
+        sconfig->vertexShader.source = shaderSource() + sconfig->vertexShader.source;
+        sconfig->tessControlShader.source = shaderSource() + sconfig->tessControlShader.source;
+        sconfig->tessEvalShader.source = shaderSource() + sconfig->tessEvalShader.source;
 
         sconfig->geometryShader.AddDefine("PRIM_TRI");
         sconfig->fragmentShader.AddDefine("PRIM_TRI");
@@ -964,40 +973,53 @@ EffectDrawRegistry::_CreateDrawConfig(
         glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
 
     GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE4
-    }
+
+	bool use_ver_4_1_separate_shader_objects =
+#if defined(OSD_USES_GLEW)
+		!(GLEW_ARB_separate_shader_objects || GLEW_VERSION_4_1)
 #else
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
-    }
+#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
+		false
+#else true;
 #endif
+#endif
+		;
+
+	if (use_ver_4_1_separate_shader_objects){
+		glUseProgram(config->program);
+		if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
+			glUniform1i(loc, 0); // GL_TEXTURE0
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
+			glUniform1i(loc, 1); // GL_TEXTURE1
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
+			glUniform1i(loc, 2); // GL_TEXTURE2
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+			glUniform1i(loc, 3); // GL_TEXTURE3
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+			glUniform1i(loc, 4); // GL_TEXTURE4
+		}
+	}
+	else{
+		if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
+		}
+		if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
+			glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
+		}
+	}
 
     return config;
 }
@@ -1184,6 +1206,8 @@ display() {
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
 #endif
 
+	bool tesselation_shaders =
+		uses_tesselation_shaders();
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
@@ -1203,42 +1227,44 @@ display() {
             primType = GL_TRIANGLES;
             break;
         default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
+			if (tesselation_shaders){
+				primType = GL_PATCHES;
+				glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
+			}
+			else
+				primType = GL_POINTS;
         }
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(), patch);
+		if (tesselation_shaders){
+			GLuint program = bindProgram(GetEffect(), patch);
 
-        GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
+			GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
 
-        if (g_displayPatchColor and primType == GL_PATCHES) {
-            float const * color = getAdaptivePatchColor( desc );
-            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
-        } else {
-            glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-        }
+			if (g_displayPatchColor and primType == GL_PATCHES) {
+				float const * color = getAdaptivePatchColor(desc);
+				glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
+			}
+			else {
+				glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
+			}
 
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
+			GLuint uniformGregoryQuadOffsetBase =
+				glGetUniformLocation(program, "GregoryQuadOffsetBase");
+			GLuint uniformPrimitiveIdBase =
+				glGetUniformLocation(program, "PrimitiveIdBase");
 
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
+			glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
+				patch.GetQuadOffsetIndex());
+			glProgramUniform1i(program, uniformPrimitiveIdBase,
+				patch.GetPatchIndex());
+		}
+		else{
+			GLuint program = bindProgram(GetEffect(), patch);
+			GLint uniformPrimitiveIdBase =
+				glGetUniformLocation(program, "PrimitiveIdBase");
+			if (uniformPrimitiveIdBase != -1)
+				glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+		}
 
         if (g_displayStyle == kWire) {
             glDisable(GL_CULL_FACE);
@@ -1696,110 +1722,123 @@ callbackErrorGLFW(int error, const char* description) {
 }
 //------------------------------------------------------------------------------
 static void
-setGLCoreProfile() {
+setGLCoreProfile(int major, int minor) {
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
 
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
+
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
-    bool fullscreen = false;
-    std::string str;
-    std::vector<char const *> animobjs;
+	bool fullscreen = false;
+	std::string str;
+	std::vector<char const *> animobjs;
 
-    for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
-            animobjs.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-axis")) {
-            g_axis = false;
-        } else if (!strcmp(argv[i], "-d")) {
-            g_level = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-c")) {
-            g_repeatCount = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-f")) {
-            fullscreen = true;
-        } else {
-            std::ifstream ifs(argv[1]);
-            if (ifs) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                ifs.close();
-                str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
-            }
-        }
-    }
+	for (int i = 1; i < argc; ++i) {
+		if (strstr(argv[i], ".obj")) {
+			animobjs.push_back(argv[i]);
+		}
+		else if (!strcmp(argv[i], "-axis")) {
+			g_axis = false;
+		}
+		else if (!strcmp(argv[i], "-d")) {
+			g_level = atoi(argv[++i]);
+		}
+		else if (!strcmp(argv[i], "-c")) {
+			g_repeatCount = atoi(argv[++i]);
+		}
+		else if (!strcmp(argv[i], "-f")) {
+			fullscreen = true;
+		}
+		else {
+			std::ifstream ifs(argv[1]);
+			if (ifs) {
+				std::stringstream ss;
+				ss << ifs.rdbuf();
+				ifs.close();
+				str = ss.str();
+				g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+			}
+		}
+	}
 
-    if (not animobjs.empty()) {
+	if (not animobjs.empty()) {
 
-        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
+		g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
 
-        g_objAnim = ObjAnim::Create(animobjs, g_axis);
-    }
+		g_objAnim = ObjAnim::Create(animobjs, g_axis);
+	}
 
-    initShapes();
+	initShapes();
 
-    g_fpsTimer.Start();
+	g_fpsTimer.Start();
 
-    OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
+	OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
-    glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
-        printf("Failed to initialize GLFW\n");
-        return 1;
-    }
+	glfwSetErrorCallback(callbackErrorGLFW);
+	if (not glfwInit()) {
+		printf("Failed to initialize GLFW\n");
+		return 1;
+	}
 
-    static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
+	static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
 
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
-    setGLCoreProfile();
+	setGLCoreProfile(4, 4);
 #endif
 
-    if (fullscreen) {
+	if (fullscreen) {
 
-        g_primary = glfwGetPrimaryMonitor();
+		g_primary = glfwGetPrimaryMonitor();
 
-        // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
-        // settle for the first one in the list
-        if (not g_primary) {
-            int count=0;
-            GLFWmonitor ** monitors = glfwGetMonitors(&count);
+		// apparently glfwGetPrimaryMonitor fails under linux : if no primary,
+		// settle for the first one in the list
+		if (not g_primary) {
+			int count = 0;
+			GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
-            if (count)
-                g_primary = monitors[0];
-        }
+			if (count)
+				g_primary = monitors[0];
+		}
 
-        if (g_primary) {
-            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
-            g_width = vidmode->width;
-            g_height = vidmode->height;
-        }
-    }
+		if (g_primary) {
+			GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+			g_width = vidmode->width;
+			g_height = vidmode->height;
+		}
+	}
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
-        glfwTerminate();
-        return 1;
-    }
+	g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+		fullscreen and g_primary ? g_primary : NULL, NULL);
+
+#ifdef CORE_PROFILE
+	if (not g_window){
+		setGLCoreProfile(4, 2);
+		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+			fullscreen and g_primary ? g_primary : NULL, NULL);
+	}
+	if (not g_window){
+		setGLCoreProfile(3, 2);
+		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+			fullscreen and g_primary ? g_primary : NULL, NULL);
+	}
+
+#endif
+	if (not g_window){
+		glfwTerminate();
+		return 1;
+	}
+
+    
     glfwMakeContextCurrent(g_window);
 
     // accommocate high DPI displays (e.g. mac retina displays)
