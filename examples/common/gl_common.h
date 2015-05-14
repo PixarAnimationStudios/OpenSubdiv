@@ -35,4 +35,14 @@ void checkGLErrors(std::string const & where = "");
 
 GLuint compileShader(GLenum shaderType, const char *source);
 
+void get_major_minor_version(int *major, int *minor);
+
+
+const std::string &get_shader_version();
+
+const std::string &get_shader_version_include();
+
+bool uses_tesselation_shaders();
+
+bool GL_ARB_separate_shader_objects_or_GL_VERSION_4_1();
 #endif // GL_FRAMEBUFFER_H
