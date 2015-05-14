@@ -230,8 +230,6 @@ void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
     Spline<BASIS>::GetWeights(s, point ? sWeights : 0, derivS ? dsWeights : 0);
     Spline<BASIS>::GetWeights(t, point ? tWeights : 0, derivT ? dtWeights : 0);
 
-    int boundary = bits.GetBoundary();
-
     if (point) {
         // Compute the tensor product weight of the (s,t) basis function
         // corresponding to each control vertex:
