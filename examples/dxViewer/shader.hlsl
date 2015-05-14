@@ -79,12 +79,20 @@ void vs_main( in InputVertex input,
 //  Geometry Shader
 // ---------------------------------------------------------------------------
 
-OutputVertex
-outputVertex(OutputVertex input, float3 normal)
+struct GS_OUT
 {
-    OutputVertex v = input;
-    v.normal = normal;
-    return v;
+    OutputVertex v;
+    uint primitiveID : SV_PrimitiveID;
+};
+
+GS_OUT
+outputVertex(OutputVertex input, float3 normal, uint primitiveID)
+{
+    GS_OUT gsout;
+    gsout.v = input;
+    gsout.v.normal = normal;
+    gsout.primitiveID = primitiveID;
+    return gsout;
 }
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
@@ -104,35 +112,37 @@ float edgeDistance(float2 p, float2 p0, float2 p1)
             (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
 }
 
-OutputVertex
+GS_OUT
 outputWireVertex(OutputVertex input, float3 normal,
-                 int index, float2 edgeVerts[EDGE_VERTS])
+                 int index, float2 edgeVerts[EDGE_VERTS], uint primitiveID)
 {
-    OutputVertex v = input;
-    v.normal = normal;
+    GS_OUT gsout;
+    gsout.v = input;
+    gsout.v.normal = normal;
 
-    v.edgeDistance[0] =
+    gsout.v.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    v.edgeDistance[1] =
+    gsout.v.edgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    v.edgeDistance[2] =
+    gsout.v.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
-    v.edgeDistance[2] =
+    gsout.v.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    v.edgeDistance[3] =
+    gsout.v.edgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
-
-    return v;
+    gsout.primitiveID = primitiveID;
+    return gsout;
 }
 #endif
 
 [maxvertexcount(6)]
 void gs_quad( lineadj OutputVertex input[4],
-              inout TriangleStream<OutputVertex> triStream )
+              uint primitiveID : SV_PrimitiveID,
+              inout TriangleStream<GS_OUT> triStream )
 {
     float3 A = (input[0].position - input[1].position).xyz;
     float3 B = (input[3].position - input[1].position).xyz;
@@ -140,13 +150,13 @@ void gs_quad( lineadj OutputVertex input[4],
 
     float3 n0 = normalize(cross(B, A));
 
-    triStream.Append(outputVertex(input[0], n0));
-    triStream.Append(outputVertex(input[1], n0));
-    triStream.Append(outputVertex(input[3], n0));
+    triStream.Append(outputVertex(input[0], n0, primitiveID));
+    triStream.Append(outputVertex(input[1], n0, primitiveID));
+    triStream.Append(outputVertex(input[3], n0, primitiveID));
     triStream.RestartStrip();
-    triStream.Append(outputVertex(input[3], n0));
-    triStream.Append(outputVertex(input[1], n0));
-    triStream.Append(outputVertex(input[2], n0));
+    triStream.Append(outputVertex(input[3], n0, primitiveID));
+    triStream.Append(outputVertex(input[1], n0, primitiveID));
+    triStream.Append(outputVertex(input[2], n0, primitiveID));
     triStream.RestartStrip();
 }
 
@@ -154,7 +164,8 @@ void gs_quad( lineadj OutputVertex input[4],
 #ifdef PRIM_QUAD
 [maxvertexcount(6)]
 void gs_quad_wire( lineadj OutputVertex input[4],
-              inout TriangleStream<OutputVertex> triStream )
+              uint primitiveID : SV_PrimitiveID,
+              inout TriangleStream<GS_OUT> triStream )
 {
     float3 A = (input[0].position - input[1].position).xyz;
     float3 B = (input[3].position - input[1].position).xyz;
@@ -168,13 +179,13 @@ void gs_quad_wire( lineadj OutputVertex input[4],
     edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
     edgeVerts[3] = input[3].positionOut.xy / input[3].positionOut.w;
 
-    triStream.Append(outputWireVertex(input[0], n0, 0, edgeVerts));
-    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts));
-    triStream.Append(outputWireVertex(input[3], n0, 3, edgeVerts));
+    triStream.Append(outputWireVertex(input[0], n0, 0, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[3], n0, 3, edgeVerts, primitiveID));
     triStream.RestartStrip();
-    triStream.Append(outputWireVertex(input[3], n0, 3, edgeVerts));
-    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts));
-    triStream.Append(outputWireVertex(input[2], n0, 2, edgeVerts));
+    triStream.Append(outputWireVertex(input[3], n0, 3, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[2], n0, 2, edgeVerts, primitiveID));
     triStream.RestartStrip();
 }
 #endif
@@ -182,32 +193,35 @@ void gs_quad_wire( lineadj OutputVertex input[4],
 
 [maxvertexcount(3)]
 void gs_triangle( triangle OutputVertex input[3],
-                  inout TriangleStream<OutputVertex> triStream )
+                  uint primitiveID : SV_PrimitiveID,
+                  inout TriangleStream<GS_OUT> triStream )
 {
     float3 A = (input[0].position - input[1].position).xyz;
     float3 B = (input[2].position - input[1].position).xyz;
 
     float3 n0 = normalize(cross(B, A));
 
-    triStream.Append(outputVertex(input[0], n0));
-    triStream.Append(outputVertex(input[1], n0));
-    triStream.Append(outputVertex(input[2], n0));
+    triStream.Append(outputVertex(input[0], n0, primitiveID));
+    triStream.Append(outputVertex(input[1], n0, primitiveID));
+    triStream.Append(outputVertex(input[2], n0, primitiveID));
 }
 
 [maxvertexcount(3)]
 void gs_triangle_smooth( triangle OutputVertex input[3],
-                         inout TriangleStream<OutputVertex> triStream )
+                         uint primitiveID : SV_PrimitiveID,
+                         inout TriangleStream<GS_OUT> triStream )
 {
-    triStream.Append(outputVertex(input[0], input[0].normal));
-    triStream.Append(outputVertex(input[1], input[1].normal));
-    triStream.Append(outputVertex(input[2], input[2].normal));
+    triStream.Append(outputVertex(input[0], input[0].normal, primitiveID));
+    triStream.Append(outputVertex(input[1], input[1].normal, primitiveID));
+    triStream.Append(outputVertex(input[2], input[2].normal, primitiveID));
 }
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
 #ifdef PRIM_TRI
 [maxvertexcount(3)]
 void gs_triangle_wire( triangle OutputVertex input[3],
-                       inout TriangleStream<OutputVertex> triStream )
+                       uint primitiveID : SV_PrimitiveID,
+                       inout TriangleStream<GS_OUT> triStream )
 {
     float3 A = (input[0].position - input[1].position).xyz;
     float3 B = (input[2].position - input[1].position).xyz;
@@ -219,23 +233,24 @@ void gs_triangle_wire( triangle OutputVertex input[3],
     edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
     edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
 
-    triStream.Append(outputWireVertex(input[0], n0, 0, edgeVerts));
-    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts));
-    triStream.Append(outputWireVertex(input[2], n0, 2, edgeVerts));
+    triStream.Append(outputWireVertex(input[0], n0, 0, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[1], n0, 1, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[2], n0, 2, edgeVerts, primitiveID));
 }
 
 [maxvertexcount(3)]
 void gs_triangle_smooth_wire( triangle OutputVertex input[3],
-                              inout TriangleStream<OutputVertex> triStream )
+                              uint primitiveID : SV_PrimitiveID,
+                              inout TriangleStream<GS_OUT> triStream )
 {
     float2 edgeVerts[3];
     edgeVerts[0] = input[0].positionOut.xy / input[0].positionOut.w;
     edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
     edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
 
-    triStream.Append(outputWireVertex(input[0], input[0].normal, 0, edgeVerts));
-    triStream.Append(outputWireVertex(input[1], input[1].normal, 1, edgeVerts));
-    triStream.Append(outputWireVertex(input[2], input[2].normal, 2, edgeVerts));
+    triStream.Append(outputWireVertex(input[0], input[0].normal, 0, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[1], input[1].normal, 1, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[2], input[2].normal, 2, edgeVerts, primitiveID));
 }
 #endif
 #endif
@@ -273,7 +288,7 @@ cbuffer Material : register( b3 ){
 }
 
 float4
-lighting(float3 Peye, float3 Neye)
+lighting(float4 diffuse, float3 Peye, float3 Neye)
 {
     float4 color = float4(0.0, 0.0, 0.0, 0.0);
     //float4 material = float4(0.4, 0.4, 0.8, 1);
@@ -292,8 +307,8 @@ lighting(float3 Peye, float3 Neye)
         float d = max(0.0, dot(n, l));
         float s = pow(max(0.0, dot(n, h)), 500.0f);
 
-        color += lightSource[i].ambient * materialColor
-            + d * lightSource[i].diffuse * materialColor
+        color += lightSource[i].ambient
+            + d * lightSource[i].diffuse * diffuse
             + s * lightSource[i].specular;
     }
 
@@ -319,7 +334,8 @@ edgeColor(float4 Cfill, float4 edgeDistance)
         min(min(edgeDistance[0], edgeDistance[1]),
             min(edgeDistance[2], edgeDistance[3]));
 #endif
-    float4 Cedge = float4(1.0, 1.0, 0.0, 1.0);
+    float v = 0.5;
+    float4 Cedge = float4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)
@@ -331,17 +347,104 @@ edgeColor(float4 Cfill, float4 edgeDistance)
     return Cfill;
 }
 
+float4
+getAdaptivePatchColor(int3 patchParam, float sharpness)
+{
+    const float4 patchColors[7*6] = {
+        float4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
+        float4(0.0f,  1.0f,  1.0f,  1.0f),   // regular pattern 0
+        float4(0.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 1
+        float4(0.0f,  0.5f,  0.5f,  1.0f),   // regular pattern 2
+        float4(0.5f,  0.0f,  1.0f,  1.0f),   // regular pattern 3
+        float4(1.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 4
+
+        float4(1.0f,  0.5f,  0.5f,  1.0f),   // single crease
+        float4(1.0f,  0.70f,  0.6f,  1.0f),  // single crease pattern 0
+        float4(1.0f,  0.65f,  0.6f,  1.0f),  // single crease pattern 1
+        float4(1.0f,  0.60f,  0.6f,  1.0f),  // single crease pattern 2
+        float4(1.0f,  0.55f,  0.6f,  1.0f),  // single crease pattern 3
+        float4(1.0f,  0.50f,  0.6f,  1.0f),  // single crease pattern 4
+
+        float4(0.8f,  0.0f,  0.0f,  1.0f),   // boundary
+        float4(0.0f,  0.0f,  0.75f, 1.0f),   // boundary pattern 0
+        float4(0.0f,  0.2f,  0.75f, 1.0f),   // boundary pattern 1
+        float4(0.0f,  0.4f,  0.75f, 1.0f),   // boundary pattern 2
+        float4(0.0f,  0.6f,  0.75f, 1.0f),   // boundary pattern 3
+        float4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
+
+        float4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f)    // gregory basis
+    };
+
+    int patchType = 0;
+#if defined OSD_PATCH_GREGORY
+    patchType = 4;
+#elif defined OSD_PATCH_GREGORY_BOUNDARY
+    patchType = 5;
+#elif defined OSD_PATCH_GREGORY_BASIS
+    patchType = 6;
+#endif
+
+    int edgeCount = countbits(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
+    int pattern = countbits(OsdGetPatchTransitionMask(patchParam));
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (sharpness > 0) pattern += 6;
+#endif
+
+    return patchColors[6*patchType + pattern];
+}
+
 // ---------------------------------------------------------------------------
 //  Pixel Shader
 // ---------------------------------------------------------------------------
 
 void
 ps_main( in OutputVertex input,
+         uint primitiveID : SV_PrimitiveID,
          bool isFrontFacing : SV_IsFrontFace,
          out float4 colorOut : SV_Target )
 {
+    float sharpness = 0;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    sharpness = input.sharpness;
+#endif
+    float4 color = getAdaptivePatchColor(
+        OsdGetPatchParam(OsdGetPatchIndex(primitiveID)), sharpness);
+
     float3 N = (isFrontFacing ? input.normal : -input.normal);
-    colorOut = edgeColor(lighting(input.position.xyz, N), input.edgeDistance);
+    colorOut = edgeColor(lighting(color, input.position.xyz, N), input.edgeDistance);
 }
 
 void

@@ -23,11 +23,35 @@
 //
 
 //--------------------------------------------------------------
-// Common
+// Uniforms / Uniform Blocks
 //--------------------------------------------------------------
 
-uniform float displacementScale = 1.0;
-uniform float mipmapBias = 0;
+#define NUM_LIGHTS 2
+
+struct LightSource {
+    vec4 position;
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+};
+
+layout(std140) uniform Constant {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+    LightSource lightSource[NUM_LIGHTS];
+    float TessLevel;
+    float displacementScale;
+    float mipmapBias;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
+
+//--------------------------------------------------------------
+// Common
+//--------------------------------------------------------------
 
 vec4 GeneratePatchCoord(vec2 uv, int primitiveID) // for non-adaptive
 {
@@ -75,24 +99,6 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
     return position + vec4(disp * normal, 0) * displacementScale;
 }
 #endif
-
-//--------------------------------------------------------------
-// Uniforms / Uniform Blocks
-//--------------------------------------------------------------
-
-layout(std140) uniform Transform {
-    mat4 ModelViewMatrix;
-    mat4 ProjectionMatrix;
-    mat4 ModelViewProjectionMatrix;
-    mat4 ModelViewInverseMatrix;
-};
-
-layout(std140) uniform Tessellation {
-    float TessLevel;
-};
-
-uniform int GregoryQuadOffsetBase;
-uniform int PrimitiveIdBase;
 
 //--------------------------------------------------------------
 // Osd external functions
@@ -401,25 +407,12 @@ uniform sampler2DArray textureSpecular_Data;
 uniform isamplerBuffer textureSpecular_Packing;
 #endif
 
-#define NUM_LIGHTS 2
-
-struct LightSource {
-    vec4 position;
-    vec4 ambient;
-    vec4 diffuse;
-    vec4 specular;
-};
-
-layout(std140) uniform Lighting {
-    LightSource lightSource[NUM_LIGHTS];
-};
-
 #if defined COLOR_PATCHTYPE
 
 uniform vec4 overrideColor;
 
 vec4
-GetOverrideColor(int patchParam)
+GetOverrideColor(ivec3 patchParam)
 {
     const vec4 patchColors[7*6] = vec4[7*6](
         vec4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
@@ -490,7 +483,7 @@ GetOverrideColor(int patchParam)
         patchType = 3; // CORNER
     }
     int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
-    int offset = 7*patchType + pattern;
+    int offset = 6*patchType + pattern;
     return patchColors[offset];
 }
 

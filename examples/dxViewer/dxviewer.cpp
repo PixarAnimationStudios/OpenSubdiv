@@ -26,7 +26,6 @@
 #include <D3Dcompiler.h>
 
 #include <osd/d3d11DrawContext.h>
-#include <osd/d3d11DrawRegistry.h>
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
@@ -64,8 +63,9 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11_hud.h"
-#include "../common/patchColors.h"
+#include "../common/d3d11ShaderCache.h"
 
+#include <osd/hlslPatchShaderSource.h>
 static const char *shaderSource =
 #include "shader.gen.h"
 ;
@@ -88,13 +88,10 @@ enum KernelType { kCPU           = 0,
                   kCL            = 4,
                   kDirectCompute = 5 };
 
-enum DisplayStyle { kQuadWire = 0,
-                    kQuadFill = 1,
-                    kQuadLine = 2,
-                    kTriWire = 3,
-                    kTriFill = 4,
-                    kTriLine = 5,
-                    kPoint = 6 };
+enum DisplayStyle { kWire = 0,
+                    kShaded,
+                    kWireShaded,
+                    kPoint };
 
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_DISPLAY_CAGE_VERTS,
@@ -114,7 +111,7 @@ int   g_frame = 0,
 
 // GUI variables
 int   g_freeze = 0,
-      g_wire = 2,
+      g_displayStyle = kWireShaded,
       g_adaptive = 1,
       g_singleCreasePatch = 1,
       g_drawCageEdges = 1,
@@ -461,176 +458,150 @@ struct EffectDesc {
     }
 };
 
-class EffectDrawRegistry : public OpenSubdiv::Osd::D3D11DrawRegistry<EffectDesc> {
+static Effect
+GetEffect()
+{
+    return Effect(g_displayStyle,
+                  g_screenSpaceTess,
+                  g_fractionalSpacing,
+                  g_patchCull);
+}
 
-protected:
-    virtual ConfigType *
-    _CreateDrawConfig(EffectDesc const & desc,
-                      SourceConfigType const * sconfig,
-                      ID3D11Device * pd3dDevice,
-                      ID3D11InputLayout ** ppInputLayout,
-                      D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-                      int numInputElements);
+// ---------------------------------------------------------------------------
 
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(EffectDesc const & desc, ID3D11Device * pd3dDevice);
-};
+class ShaderCache : public D3D11ShaderCache<EffectDesc> {
+public:
+    virtual D3D11DrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
+        using namespace OpenSubdiv;
 
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(
-    EffectDesc const &effectDesc, ID3D11Device * pd3dDevice) {
+        D3D11DrawConfig *config = new D3D11DrawConfig();
 
-    Effect effect = effectDesc.effect;
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
 
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc, pd3dDevice);
+        // common defines
+        std::stringstream ss;
 
-    sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
+        }
 
-    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
-        std::ostringstream ss;
-        ss << effectDesc.maxValence;
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        // OSD tessellation controls
+        if (effectDesc.effect.screenSpaceTess) {
+            ss << "#define OSD_ENABLE_SCREENSPACE_TESSELLATION\n";
+        }
+        if (effectDesc.effect.fractionalSpacing) {
+            ss << "#define OSD_FRACTIONAL_ODD_SPACING\n";
+        }
+        if (effectDesc.effect.patchCull) {
+            ss << "#define OSD_ENABLE_PATCH_CULL\n";
+        }
+        if (g_singleCreasePatch) {
+            ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
+        }
+        // for legacy gregory
+        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
+        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
+
+        // display styles
+        std::string gs_entry =
+            (type == Far::PatchDescriptor::QUADS ? "gs_quad" : "gs_triangle");
+        if (effectDesc.desc.IsAdaptive()) gs_entry += "_smooth";
+
+        switch (effectDesc.effect.displayStyle) {
+        case kWire:
+            ss << "#define GEOMETRY_OUT_WIRE\n";
+            gs_entry = gs_entry + "_wire";
+            break;
+        case kWireShaded:
+            ss << "#define GEOMETRY_OUT_LINE\n";
+            gs_entry = gs_entry + "_wire";
+            break;
+        case kShaded:
+            ss << "#define GEOMETRY_OUT_FILL\n";
+            break;
+        }
+
+        // need for patch color-coding : we need these defines in the fragment shader
+        if (type == Far::PatchDescriptor::GREGORY) {
+            ss << "#define OSD_PATCH_GREGORY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+            ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
+            ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        }
+
+        // include osd PatchCommon
+        ss << Osd::HLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
         ss.str("");
 
-        ss << effectDesc.numElements;
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
+        // input layout
+        const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4*3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        };
 
-    bool smoothNormals = false;
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.target = "vs_5_0";
-        sconfig->vertexShader.entry = "vs_main";
-    } else if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
-        if (effect.displayStyle == kQuadWire) effect.displayStyle = kTriWire;
-        if (effect.displayStyle == kQuadFill) effect.displayStyle = kTriFill;
-        if (effect.displayStyle == kQuadLine) effect.displayStyle = kTriLine;
-        smoothNormals = true;
-    } else {
-        // adaptive
-        if (effect.displayStyle == kQuadWire) effect.displayStyle = kTriWire;
-        if (effect.displayStyle == kQuadFill) effect.displayStyle = kTriFill;
-        if (effect.displayStyle == kQuadLine) effect.displayStyle = kTriLine;
-        smoothNormals = true;
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->hullShader.source = shaderSource + sconfig->hullShader.source;
-        sconfig->domainShader.source = shaderSource + sconfig->domainShader.source;
-    }
-    assert(sconfig);
-
-    sconfig->geometryShader.source = shaderSource;
-    sconfig->geometryShader.target = "gs_5_0";
-
-    sconfig->pixelShader.source = shaderSource;
-    sconfig->pixelShader.target = "ps_5_0";
-
-    if (effect.screenSpaceTess) {
-        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
-    }
-    if (effect.fractionalSpacing) {
-        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
-    }
-    if (effect.patchCull) {
-        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    }
+        // vertex shader
+        ss << common
+           << shaderSource
+           << Osd::HLSLPatchShaderSource::GetVertexShaderSource(type);
+        if (effectDesc.desc.IsAdaptive()) {
+            config->CompileVertexShader("vs_5_0", "vs_main_patches", ss.str(),
+                                        &g_pInputLayout,
+                                        hInElementDesc,
+                                        ARRAYSIZE(hInElementDesc),
+                                        g_pd3dDevice);
+        } else {
+            config->CompileVertexShader("vs_5_0", "vs_main",
+                                        ss.str(),
+                                        &g_pInputLayout,
+                                        hInElementDesc,
+                                        ARRAYSIZE(hInElementDesc),
+                                        g_pd3dDevice);
+        }
+        ss.str("");
 
 
-    switch (effect.displayStyle) {
-        case kQuadWire:
-            sconfig->geometryShader.entry = "gs_quad_wire";
-            sconfig->geometryShader.AddDefine("PRIM_QUAD");
-            sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-            sconfig->pixelShader.entry = "ps_main";
-            sconfig->pixelShader.AddDefine("PRIM_QUAD");
-            sconfig->pixelShader.AddDefine("GEOMETRY_OUT_WIRE");
-            break;
-        case kQuadFill:
-            sconfig->geometryShader.entry = "gs_quad";
-            sconfig->geometryShader.AddDefine("PRIM_QUAD");
-            sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-            sconfig->pixelShader.entry = "ps_main";
-            sconfig->pixelShader.AddDefine("PRIM_QUAD");
-            sconfig->pixelShader.AddDefine("GEOMETRY_OUT_FILL");
-            break;
-        case kQuadLine:
-            sconfig->geometryShader.entry = "gs_quad_wire";
-            sconfig->geometryShader.AddDefine("PRIM_QUAD");
-            sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-            sconfig->pixelShader.entry = "ps_main";
-            sconfig->pixelShader.AddDefine("PRIM_QUAD");
-            sconfig->pixelShader.AddDefine("GEOMETRY_OUT_LINE");
-            break;
-        case kTriWire:
-            sconfig->geometryShader.entry =
-                smoothNormals ? "gs_triangle_smooth_wire" : "gs_triangle_wire";
-            sconfig->geometryShader.AddDefine("PRIM_TRI");
-            sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-            sconfig->pixelShader.entry = "ps_main";
-            sconfig->pixelShader.AddDefine("PRIM_TRI");
-            sconfig->pixelShader.AddDefine("GEOMETRY_OUT_WIRE");
-            break;
-        case kTriFill:
-            sconfig->geometryShader.entry =
-                smoothNormals ? "gs_triangle_smooth" : "gs_triangle";
-            sconfig->geometryShader.AddDefine("PRIM_TRI");
-            sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-            sconfig->pixelShader.entry = "ps_main";
-            sconfig->pixelShader.AddDefine("PRIM_TRI");
-            sconfig->pixelShader.AddDefine("GEOMETRY_OUT_FILL");
-            break;
-        case kTriLine:
-            sconfig->geometryShader.entry =
-                smoothNormals ? "gs_triangle_smooth_wire" : "gs_triangle_wire";
-            sconfig->geometryShader.AddDefine("PRIM_TRI");
-            sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-            sconfig->pixelShader.entry = "ps_main";
-            sconfig->pixelShader.AddDefine("PRIM_TRI");
-            sconfig->pixelShader.AddDefine("GEOMETRY_OUT_LINE");
-            break;
-        case kPoint:
-            sconfig->geometryShader.entry = "gs_point";
-            sconfig->pixelShader.entry = "ps_main_point";
-            break;
-    }
+        if (effectDesc.desc.IsAdaptive()) {
+            // hull shader
+            ss << common
+               << shaderSource
+               << Osd::HLSLPatchShaderSource::GetHullShaderSource(type);
+            config->CompileHullShader("hs_5_0", "hs_main_patches", ss.str(),
+                                      g_pd3dDevice);
+            ss.str("");
 
-    return sconfig;
-}
+            // domain shader
+            ss << common
+               << shaderSource
+               << Osd::HLSLPatchShaderSource::GetDomainShaderSource(type);
+            config->CompileDomainShader("ds_5_0", "ds_main_patches", ss.str(),
+                                        g_pd3dDevice);
+            ss.str("");
+        }
 
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
-        SourceConfigType const * sconfig,
-        ID3D11Device * pd3dDevice,
-        ID3D11InputLayout ** ppInputLayout,
-        D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-        int numInputElements) {
+        // geometry shader
+        ss << common
+           << shaderSource;
+        config->CompileGeometryShader("gs_5_0", gs_entry,
+                                      ss.str(),
+                                      g_pd3dDevice);
+        ss.str("");
 
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.desc, sconfig,
-        pd3dDevice, ppInputLayout, pInputElementDescs, numInputElements);
-    assert(config);
+        // pixel shader
+        ss << common
+           << shaderSource;
+        config->CompilePixelShader("ps_5_0", "ps_main", ss.str(),
+                                   g_pd3dDevice);
+        ss.str("");
 
-    return config;
-}
+        return config;
+    };
+};
 
-EffectDrawRegistry effectRegistry;
-
-static Effect
-GetEffect() {
-
-   DisplayStyle style;
-
-    if (g_scheme == kLoop) {
-        style = (g_wire == 0 ? kTriWire : (g_wire == 1 ? kTriFill : kTriLine));
-    } else {
-        style = (g_wire == 0 ? style=kQuadWire : (g_wire == 1 ? kQuadFill : kQuadLine));
-    }
-    return Effect(style, g_screenSpaceTess, g_fractionalSpacing, g_patchCull);
-}
+ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
 static void
@@ -649,16 +620,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         effectDesc.numElements = numElements;
     }
 
-    // input layout
-    const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4*3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
-
-    EffectDrawRegistry::ConfigType *
-        config = effectRegistry.GetDrawConfig(
-                effectDesc, g_pd3dDevice,
-                &g_pInputLayout, hInElementDesc, ARRAYSIZE(hInElementDesc));
+    D3D11DrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
 
     assert(g_pInputLayout);
 
@@ -758,34 +720,28 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         g_pd3dDeviceContext->Map(g_pcbMaterial, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
         Material * pData = ( Material* )MappedResource.pData;
 
-        float const * patchColor;
-        if (g_displayPatchColor and g_mesh->GetDrawContext()->IsAdaptive()) {
-            patchColor = getAdaptivePatchColor( patch.GetDescriptor() );
-        } else {
-            static float const uniformColor[4] = {0.13f, 0.13f, 0.61f, 1.0f};
-            patchColor = uniformColor;
-        }
-        memcpy(pData->color, patchColor, 4*sizeof(float));
+        static float const uniformColor[4] = {0.13f, 0.13f, 0.61f, 1.0f};
+        memcpy(pData->color, uniformColor, 4*sizeof(float));
 
         g_pd3dDeviceContext->Unmap( g_pcbMaterial, 0 );
     }
 
     g_pd3dDeviceContext->IASetInputLayout(g_pInputLayout);
 
-    g_pd3dDeviceContext->VSSetShader(config->vertexShader, NULL, 0);
+    g_pd3dDeviceContext->VSSetShader(config->GetVertexShader(), NULL, 0);
     g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &g_pcbPerFrame);
 
-    g_pd3dDeviceContext->HSSetShader(config->hullShader, NULL, 0);
+    g_pd3dDeviceContext->HSSetShader(config->GetHullShader(), NULL, 0);
     g_pd3dDeviceContext->HSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->HSSetConstantBuffers(1, 1, &g_pcbTessellation);
 
-    g_pd3dDeviceContext->DSSetShader(config->domainShader, NULL, 0);
+    g_pd3dDeviceContext->DSSetShader(config->GetDomainShader(), NULL, 0);
     g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &g_pcbPerFrame);
 
-    g_pd3dDeviceContext->GSSetShader(config->geometryShader, NULL, 0);
+    g_pd3dDeviceContext->GSSetShader(config->GetGeometryShader(), NULL, 0);
     g_pd3dDeviceContext->GSSetConstantBuffers(0, 1, &g_pcbPerFrame);
 
-    g_pd3dDeviceContext->PSSetShader(config->pixelShader, NULL, 0);
+    g_pd3dDeviceContext->PSSetShader(config->GetPixelShader(), NULL, 0);
     g_pd3dDeviceContext->PSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->PSSetConstantBuffers(2, 1, &g_pcbLighting);
     g_pd3dDeviceContext->PSSetConstantBuffers(3, 1, &g_pcbMaterial);
@@ -803,6 +759,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         g_pd3dDeviceContext->HSSetShaderResources(
             3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
         g_pd3dDeviceContext->DSSetShaderResources(
+            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
+        g_pd3dDeviceContext->PSSetShaderResources(
             3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
     }
 }
@@ -1025,8 +983,8 @@ keyboard(char key) {
 
 //------------------------------------------------------------------------------
 static void
-callbackWireframe(int b) {
-    g_wire = b;
+callbackDisplayStyle(int b) {
+    g_displayStyle = b;
 }
 
 static void
@@ -1165,10 +1123,10 @@ initHUD() {
 #endif
     g_hud->AddPullDownButton(compute_pulldown, "HLSL Compute", kDirectCompute);
 
-    int shading_pulldown = g_hud->AddPullDown("Shading (W)", 200, 10, 250, callbackWireframe, 'W');
-    g_hud->AddPullDownButton(shading_pulldown, "Wire",        0, g_wire==0);
-    g_hud->AddPullDownButton(shading_pulldown, "Shaded",      1, g_wire==1);
-    g_hud->AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_wire==2);
+    int shading_pulldown = g_hud->AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'W');
+    g_hud->AddPullDownButton(shading_pulldown, "Wire",        0, g_displayStyle==kWire);
+    g_hud->AddPullDownButton(shading_pulldown, "Shaded",      1, g_displayStyle==kShaded);
+    g_hud->AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_displayStyle==kWireShaded);
 
 //    g_hud->AddCheckBox("Cage Edges (H)",         true,  10, 10, callbackDisplayCageEdges, 0, 'H');
 //    g_hud->AddCheckBox("Cage Verts (J)",         false, 10, 30, callbackDisplayCageVertices, 0, 'J');
