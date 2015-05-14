@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,17 +22,34 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/drawRegistry.h"
+#ifndef OPENSUBDIV_OSD_HLSL_PATCH_SHADER_SOURCE_H
+#define OPENSUBDIV_OSD_HLSL_PATCH_SHADER_SOURCE_H
+
+#include "../version.h"
+#include <string>
+#include "../far/patchDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-DrawConfig::~DrawConfig() {}
-DrawSourceConfig::~DrawSourceConfig() {}
+class HLSLPatchShaderSource {
+public:
+    static std::string GetCommonShaderSource();
+
+    static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type);
+
+    static std::string GetHullShaderSource(Far::PatchDescriptor::Type type);
+
+    static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type);
+};
 
 }  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
 } // end namespace OpenSubdiv
+
+#endif  // OPENSUBDIV_OSD_HLSL_PATCH_SHADER_SOURCE_H

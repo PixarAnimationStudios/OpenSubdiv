@@ -43,7 +43,6 @@ GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
 #include <osd/glDrawContext.h>
-#include <osd/glDrawRegistry.h>
 #include <osd/glMesh.h>
 #include <far/error.h>
 #include <far/stencilTables.h>
@@ -94,7 +93,9 @@ GLFWmonitor* g_primary=0;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/gl_hud.h"
+#include "../common/glShaderCache.h"
 
+#include <osd/glslPatchShaderSource.h>
 static const char *shaderSource =
 #include "shader.gen.h"
 ;
@@ -796,6 +797,12 @@ union Effect {
     }
 };
 
+static Effect
+GetEffect() {
+
+    return Effect(g_displayStyle);
+}
+
 struct EffectDesc {
     EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
                Effect effect) : desc(desc), effect(effect),
@@ -813,202 +820,150 @@ struct EffectDesc {
     }
 };
 
-class EffectDrawRegistry : public Osd::GLDrawRegistry<EffectDesc> {
+class ShaderCache : public GLShaderCache<EffectDesc> {
+public:
+    virtual GLDrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
 
-protected:
-    virtual ConfigType *
-    _CreateDrawConfig(EffectDesc const & desc, SourceConfigType const * sconfig);
+        using namespace OpenSubdiv;
 
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(EffectDesc const & desc);
-};
-
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc) {
-
-    Effect effect = effectDesc.effect;
-
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc);
-
-    assert(sconfig);
-
+        // compile shader program
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
+        const char *glslVersion = "#version 400\n";
 #else
-    const char *glslVersion = "#version 330\n";
+        const char *glslVersion = "#version 330\n";
 #endif
+        GLDrawConfig *config = new GLDrawConfig(glslVersion);
 
-    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
-    if (effectDesc.desc.GetType() == Far::PatchDescriptor::GREGORY or
-        effectDesc.desc.GetType() == Far::PatchDescriptor::GREGORY_BOUNDARY) {
-        std::ostringstream ss;
-        ss << effectDesc.maxValence;
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
-        ss.str("");
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
 
-        ss << effectDesc.numElements;
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
+        std::string primTypeDefine =
+            (type == Far::PatchDescriptor::QUADS ?
+             "#define PRIM_QUAD\n" : "#define PRIM_TRI\n");
 
-    if (effectDesc.desc.GetType() == Far::PatchDescriptor::QUADS or
-        effectDesc.desc.GetType() == Far::PatchDescriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
-    } else {
-        sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
-    }
+        // common defines
+        std::stringstream ss;
 
-    sconfig->geometryShader.source = shaderSource;
-    sconfig->geometryShader.version = glslVersion;
-    sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
-
-    sconfig->fragmentShader.source = shaderSource;
-    sconfig->fragmentShader.version = glslVersion;
-    sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
-
-    if (effectDesc.desc.GetType() == Far::PatchDescriptor::QUADS) {
-        // uniform catmark, bilinear
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (effectDesc.desc.GetType() == Far::PatchDescriptor::TRIANGLES) {
-        // uniform loop
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->commonShader.AddDefine("LOOP");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else {
-        // adaptive
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
-
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-    }
-
-    switch (effect.displayStyle) {
+        // display styles
+        switch (effectDesc.effect.displayStyle) {
         case kWire:
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
+            ss << "#define GEOMETRY_OUT_WIRE\n";
             break;
         case kWireShaded:
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
+            ss << "#define GEOMETRY_OUT_LINE\n";
             break;
         case kShaded:
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+            ss << "#define GEOMETRY_OUT_FILL\n";
             break;
         case kVarying:
-            sconfig->commonShader.AddDefine("VARYING_COLOR");
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+            ss << "#define VARYING_COLOR\n";
+            ss << "#define GEOMETRY_OUT_FILL\n";
             break;
         case kVaryingInterleaved:
-            sconfig->commonShader.AddDefine("VARYING_COLOR");
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
+            ss << "#define VARYING_COLOR\n";
+            ss << "#define GEOMETRY_OUT_FILL\n";
             break;
+        }
+
+        // for legacy gregory
+        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
+        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
+
+        // include osd PatchCommon
+        ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
+        ss.str("");
+
+        // vertex shader
+        ss << common
+           << (effectDesc.desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n")
+           << shaderSource
+           << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
+        config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
+        ss.str("");
+
+        if (effectDesc.desc.IsAdaptive()) {
+            // tess control shader
+            ss << common
+               << shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
+            ss.str("");
+
+            // tess eval shader
+            ss << common
+               << shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
+            ss.str("");
+        }
+
+        // geometry shader
+        ss << common
+           << "#define GEOMETRY_SHADER\n" // for my shader source
+           << primTypeDefine
+           << shaderSource;
+        config->CompileAndAttachShader(GL_GEOMETRY_SHADER, ss.str());
+        ss.str("");
+
+        // fragment shader
+        ss << common
+           << "#define FRAGMENT_SHADER\n" // for my shader source
+           << primTypeDefine
+           << shaderSource;
+        config->CompileAndAttachShader(GL_FRAGMENT_SHADER, ss.str());
+        ss.str("");
+
+        if (!config->Link()) {
+            delete config;
+            return NULL;
+        }
+
+        // assign uniform locations
+        GLuint uboIndex;
+        GLuint program = config->GetProgram();
+        g_transformBinding = 0;
+        uboIndex = glGetUniformBlockIndex(program, "Transform");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_transformBinding);
+
+        g_tessellationBinding = 1;
+        uboIndex = glGetUniformBlockIndex(program, "Tessellation");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
+
+        g_lightingBinding = 2;
+        uboIndex = glGetUniformBlockIndex(program, "Lighting");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_lightingBinding);
+
+
+        // assign texture locations
+        GLint loc;
+        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
+            glProgramUniform1i(program, loc, 0); // GL_TEXTURE0
+        }
+        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
+            glProgramUniform1i(program, loc, 1); // GL_TEXTURE1
+        }
+        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
+            glProgramUniform1i(program, loc, 2); // GL_TEXTURE2
+        }
+        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
+            glProgramUniform1i(program, loc, 3); // GL_TEXTURE3
+        }
+        if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
+            glProgramUniform1i(program, loc, 4); // GL_TEXTURE4
+        }
+
+        return config;
     }
+};
 
-    return sconfig;
-}
-
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
-        SourceConfigType const * sconfig) {
-
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.desc, sconfig);
-    assert(config);
-
-    GLuint uboIndex;
-
-    // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
-    g_transformBinding = 0;
-    uboIndex = glGetUniformBlockIndex(config->program, "Transform");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_transformBinding);
-
-    g_tessellationBinding = 1;
-    uboIndex = glGetUniformBlockIndex(config->program, "Tessellation");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_tessellationBinding);
-
-    g_lightingBinding = 2;
-    uboIndex = glGetUniformBlockIndex(config->program, "Lighting");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
-
-    GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE4
-    }
-#else
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
-    }
-#endif
-
-    return config;
-}
-
-EffectDrawRegistry effectRegistry;
-
-static Effect
-GetEffect() {
-
-    return Effect(g_displayStyle);
-}
+ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
-static GLuint
-bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch) {
-
-    EffectDesc effectDesc(patch.GetDescriptor(), effect);
-
-    // only legacy gregory needs maxValence and numElements
-    int maxValence = g_topology->GetDrawContext()->GetMaxValence();
-    int numElements = (g_displayStyle == kVaryingInterleaved ? 7 : 3);
-
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
-        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        effectDesc.maxValence = maxValence;
-        effectDesc.numElements = numElements;
-    }
-
-    EffectDrawRegistry::ConfigType *
-        config = effectRegistry.GetDrawConfig(effectDesc);
-
-    GLuint program = config->program;
-
-    glUseProgram(program);
-
+static void
+updateUniformBlocks() {
     if (! g_transformUB) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
@@ -1074,6 +1029,10 @@ bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch) {
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_lightingBinding, g_lightingUB);
 
+}
+
+static void
+bindTextures() {
     Osd::GLDrawContext *drawContext = g_topology->GetDrawContext();
 
     if (drawContext->GetVertexTextureBuffer()) {
@@ -1104,7 +1063,73 @@ bindProgram(Effect effect, Osd::DrawContext::PatchArray const & patch) {
 
     glActiveTexture(GL_TEXTURE0);
 
-    return program;
+}
+
+static GLenum
+bindProgram(Effect effect,
+            Osd::DrawContext::PatchArray const & patch,
+            GLfloat const *color,
+            int baseVertex) {
+
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
+
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
+        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
+        // only legacy gregory needs maxValence and numElements
+        int maxValence = g_topology->GetDrawContext()->GetMaxValence();
+        int numElements = (g_displayStyle == kVaryingInterleaved ? 7 : 3);
+
+        effectDesc.maxValence = maxValence;
+        effectDesc.numElements = numElements;
+    }
+
+    // lookup shader cache (compile the shader if needed)
+    GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
+    if (!config) return 0;
+
+    GLuint program = config->GetProgram();
+
+    glUseProgram(program);
+
+    // bind standalone uniforms
+    GLint uniformPrimitiveIdBase =
+        glGetUniformLocation(program, "PrimitiveIdBase");
+    if (uniformPrimitiveIdBase >=0)
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+    GLint uniformColor = glGetUniformLocation(program, "diffuseColor");
+    if (uniformColor >= 0)
+        glUniform4f(uniformColor, color[0], color[1], color[2], 1);
+
+    // used by legacy gregory
+    GLint uniformBaseVertex = glGetUniformLocation(program, "BaseVertex");
+    if (uniformBaseVertex >= 0)
+        glUniform1i(uniformBaseVertex, baseVertex);
+    GLint uniformGregoryQuadOffsetBase =
+        glGetUniformLocation(program, "GregoryQuadOffsetBase");
+    if (uniformGregoryQuadOffsetBase >= 0)
+        glUniform1i(uniformGregoryQuadOffsetBase, patch.GetQuadOffsetIndex());
+
+    // return primtype
+    GLenum primType;
+    switch(effectDesc.desc.GetType()) {
+    case Descriptor::QUADS:
+        primType = GL_LINES_ADJACENCY;
+        break;
+    case Descriptor::TRIANGLES:
+        primType = GL_TRIANGLES;
+        break;
+    default:
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        primType = GL_PATCHES;
+        glPatchParameteri(GL_PATCH_VERTICES, effectDesc.desc.GetNumControlVertices());
+#else
+        primType = GL_POINTS;
+#endif
+        break;
+    }
+
+    return primType;
 }
 
 //------------------------------------------------------------------------------
@@ -1118,58 +1143,9 @@ drawPatches(Osd::DrawContext::PatchArrayVector const &patches,
 
         Osd::DrawContext::PatchArray const & patch = patches[i];
 
-        Far::PatchDescriptor desc = patch.GetDescriptor();
-        Far::PatchDescriptor::Type patchType = desc.GetType();
-
-        GLenum primType;
-
-        switch(patchType) {
-        case Far::PatchDescriptor::QUADS:
-            primType = GL_LINES_ADJACENCY;
-            break;
-        case Far::PatchDescriptor::TRIANGLES:
-            primType = GL_TRIANGLES;
-            break;
-        default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
-        }
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(), patch);
-
-        GLuint uniformColor =
-          glGetUniformLocation(program, "diffuseColor");
-
-        glProgramUniform4f(program, uniformColor, color[0], color[1], color[2], 1);
-
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
-
-        GLvoid *indices = (void *)(patch.GetVertIndex() * sizeof(unsigned int));
-
         int baseVertex = g_topology->GetNumVertices() * instanceIndex;
-
-        glProgramUniform1i(program, glGetUniformLocation(program, "BaseVertex"),
-                           baseVertex);
+        GLvoid *indices = (void *)(patch.GetVertIndex() * sizeof(unsigned int));
+        GLenum primType = bindProgram(GetEffect(), patch, color, baseVertex);
 
         glDrawElementsBaseVertex(primType,
                                  patch.GetNumIndices(),
@@ -1258,6 +1234,9 @@ display() {
 #if defined(GL_VERSION_3_3)
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
 #endif
+
+    updateUniformBlocks();
+    bindTextures();
 
     // draw instances with same topology
     for (int i = 0; i < g_numInstances; ++i) {

@@ -43,6 +43,7 @@ set(EXAMPLES_COMMON_HEADER_FILES
     hud.h
     objAnim.h
     patchColors.h
+    shaderCache.h
     simple_math.h
     stb_image_write.h 
     stopwatch.h
@@ -51,15 +52,18 @@ set(EXAMPLES_COMMON_HEADER_FILES
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+      # we will rename gl_xxx to glXxx
         gl_common.cpp
         gl_framebuffer.cpp
         gl_hud.cpp
+        glShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
         gl_common.h
         gl_framebuffer.h
         gl_hud.h
+        glShaderCache.h
     )
 
     if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
@@ -77,10 +81,12 @@ if(DXSDK_FOUND)
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
         d3d11_hud.cpp
+        d3d11ShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
         d3d11_hud.h
+        d3d11ShaderCache.h
     )
 
     include_directories("${DXSDK_INCLUDE_DIR}")

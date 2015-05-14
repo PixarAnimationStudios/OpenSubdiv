@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/glDrawRegistry.h"
 #include "../osd/glDrawContext.h"
 
 #include "../osd/opengl.h"

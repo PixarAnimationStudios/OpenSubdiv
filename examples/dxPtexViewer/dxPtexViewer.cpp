@@ -26,7 +26,6 @@
 #include <D3Dcompiler.h>
 
 #include <osd/d3d11DrawContext.h>
-#include <osd/d3d11DrawRegistry.h>
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
@@ -64,7 +63,9 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include "../common/simple_math.h"
 #include "../common/d3d11_hud.h"
 #include "../common/d3d11PtexMipmapTexture.h"
+#include "../common/d3d11ShaderCache.h"
 
+#include <osd/hlslPatchShaderSource.h>
 static const char *g_shaderSource =
 #include "shader.gen.h"
 ;
@@ -430,187 +431,212 @@ struct EffectDesc {
     }
 };
 
-class EffectDrawRegistry : public OpenSubdiv::Osd::D3D11DrawRegistry<EffectDesc> {
+class ShaderCache : public D3D11ShaderCache<EffectDesc> {
+public:
+    virtual D3D11DrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
+        using namespace OpenSubdiv;
 
-protected:
-    virtual ConfigType *
-    _CreateDrawConfig(EffectDesc const & desc,
-                      SourceConfigType const * sconfig,
-                      ID3D11Device * pd3dDevice,
-                      ID3D11InputLayout ** ppInputLayout,
-                      D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-                      int numInputElements);
+        D3D11DrawConfig *config = new D3D11DrawConfig();
 
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(EffectDesc const & desc, ID3D11Device * pd3dDevice);
-};
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
 
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const &effectDesc, ID3D11Device *pd3dDevice)
-{
-    Effect effect = effectDesc.effect;
+        // common defines
+        std::stringstream ss;
 
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc, pd3dDevice);
-    assert(sconfig);
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
+        }
 
-    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
-        std::ostringstream ss;
-        ss << effectDesc.maxValence;
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        // OSD tessellation controls
+        if (effectDesc.effect.screenSpaceTess) {
+            ss << "#define OSD_ENABLE_SCREENSPACE_TESSELLATION\n";
+        }
+        if (effectDesc.effect.fractionalSpacing) {
+            ss << "#define OSD_FRACTIONAL_ODD_SPACING\n";
+        }
+        if (effectDesc.effect.patchCull) {
+            ss << "#define OSD_ENABLE_PATCH_CULL\n";
+        }
+
+        // for legacy gregory
+        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
+        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
+
+       // add ptex functions
+        ss << D3D11PtexMipmapTexture::GetShaderSource();
+
+        // -------------------------------------------------------------
+        // display styles
+        // -------------------------------------------------------------
+
+        // mipmap
+        if (effectDesc.effect.seamless) {
+            ss << "#define SEAMLESS_MIPMAP\n";
+        }
+
+        //  wire
+        if (effectDesc.effect.wire == 0) {
+            ss << "#define GEOMETRY_OUT_WIRE\n";
+        } else if (effectDesc.effect.wire == 1) {
+            ss << "#define GEOMETRY_OUT_FILL\n";
+        } else if (effectDesc.effect.wire == 2) {
+            ss << "#define GEOMETRY_OUT_LINE\n";
+        }
+
+        //  color
+        switch(effectDesc.effect.color) {
+        case COLOR_NONE:
+            break;
+        case COLOR_PTEX_NEAREST:
+            ss << "#define COLOR_PTEX_NEAREST\n";
+            break;
+        case COLOR_PTEX_HW_BILINEAR:
+            ss << "#define COLOR_PTEX_HW_BILINEAR\n";
+            break;
+        case COLOR_PTEX_BILINEAR:
+            ss << "#define COLOR_PTEX_BILINEAR\n";
+            break;
+        case COLOR_PTEX_BIQUADRATIC:
+            ss << "#define COLOR_PTEX_BIQUADRATIC\n";
+            break;
+        case COLOR_PATCHTYPE:
+            ss << "#define COLOR_PATCHTYPE\n";
+            break;
+        case COLOR_PATCHCOORD:
+            ss << "#define COLOR_PATCHCOORD\n";
+            break;
+        case COLOR_NORMAL:
+            ss << "#define COLOR_NORMAL\n";
+            break;
+        }
+
+        // displacement
+        switch (effectDesc.effect.displacement) {
+        case DISPLACEMENT_NONE:
+            break;
+        case DISPLACEMENT_HW_BILINEAR:
+            ss << "#define DISPLACEMENT_HW_BILINEAR\n";
+            break;
+        case DISPLACEMENT_BILINEAR:
+            ss << "#define DISPLACEMENT_BILINEAR\n";
+            break;
+        case DISPLACEMENT_BIQUADRATIC:
+            ss << "#define DISPLACEMENT_BIQUADRATIC\n";
+            break;
+        }
+
+        // normal
+        switch (effectDesc.effect.normal) {
+        case NORMAL_FACET:
+            ss << "#define NORMAL_FACET\n";
+            break;
+        case NORMAL_HW_SCREENSPACE:
+            ss << "#define NORMAL_HW_SCREENSPACE\n";
+            break;
+        case NORMAL_SCREENSPACE:
+            ss << "#define NORMAL_SCREENSPACE\n";
+            break;
+        case NORMAL_BIQUADRATIC:
+            ss << "#define NORMAL_BIQUADRATIC\n";
+            break;
+        case NORMAL_BIQUADRATIC_WG:
+            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
+            ss << "#define NORMAL_BIQUADRATIC_WG\n";
+            break;
+        }
+
+        // occlusion
+        if (effectDesc.effect.occlusion)
+            ss << "#define USE_PTEX_OCCLUSION\n";
+
+        // specular
+        if (effectDesc.effect.specular)
+            ss << "#define USE_PTEX_SPECULAR\n";
+
+        // IBL
+        if (effectDesc.effect.ibl)
+            ss << "#define USE_IBL\n";
+
+        // need for patch color-coding : we need these defines in the fragment shader
+        if (type == Far::PatchDescriptor::GREGORY) {
+            ss << "#define OSD_PATCH_GREGORY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+            ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
+            ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        }
+
+        // include osd PatchCommon
+        ss << Osd::HLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
         ss.str("");
 
-        ss << effectDesc.numElements;
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
+        // input layout
+        const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4*3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        };
 
-    // add ptex functions
-    sconfig->commonShader.source += D3D11PtexMipmapTexture::GetShaderSource();
-
-    if (effect.patchCull)
-        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    if (effect.screenSpaceTess)
-        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
-    if (effect.fractionalSpacing)
-        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
-
-    bool quad = true;
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
-        sconfig->vertexShader.source = g_shaderSource;
-        sconfig->vertexShader.target = "vs_5_0";
-        sconfig->vertexShader.entry = "vs_main";
-        if (effect.displacement) {
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
+        // vertex shader
+        ss << common
+           << g_shaderSource
+           << Osd::HLSLPatchShaderSource::GetVertexShaderSource(type);
+        if (effectDesc.desc.IsAdaptive()) {
+            config->CompileVertexShader("vs_5_0", "vs_main_patches", ss.str(),
+                                        &g_pInputLayout,
+                                        hInElementDesc,
+                                        ARRAYSIZE(hInElementDesc),
+                                        g_pd3dDevice);
+        } else {
+            config->CompileVertexShader("vs_5_0", "vs_main",
+                                        ss.str(),
+                                        &g_pInputLayout,
+                                        hInElementDesc,
+                                        ARRAYSIZE(hInElementDesc),
+                                        g_pd3dDevice);
         }
-    } else {
-        quad = false;
-        sconfig->vertexShader.source = g_shaderSource + sconfig->vertexShader.source;
-        sconfig->domainShader.source = g_shaderSource + sconfig->domainShader.source;
-        sconfig->hullShader.source = g_shaderSource + sconfig->hullShader.source;
-        if (effect.displacement and (not effect.normal))
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
-    }
+        ss.str("");
 
-    sconfig->geometryShader.source = g_shaderSource;
-    sconfig->geometryShader.target = "gs_5_0";
-    sconfig->geometryShader.entry = "gs_main";
 
-    sconfig->pixelShader.source = g_shaderSource;
-    sconfig->pixelShader.target = "ps_5_0";
-    sconfig->pixelShader.entry = "ps_main";
+        if (effectDesc.desc.IsAdaptive()) {
+            // hull shader
+            ss << common
+               << g_shaderSource
+               << Osd::HLSLPatchShaderSource::GetHullShaderSource(type);
+            config->CompileHullShader("hs_5_0", "hs_main_patches", ss.str(),
+                                      g_pd3dDevice);
+            ss.str("");
 
-    switch (effect.color) {
-    case COLOR_NONE:
-        break;
-    case COLOR_PTEX_NEAREST:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_NEAREST");
-        break;
-    case COLOR_PTEX_HW_BILINEAR:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_HW_BILINEAR");
-        break;
-    case COLOR_PTEX_BILINEAR:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_BILINEAR");
-        break;
-    case COLOR_PTEX_BIQUADRATIC:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_BIQUADRATIC");
-        break;
-    case COLOR_PATCHTYPE:
-        sconfig->pixelShader.AddDefine("COLOR_PATCHTYPE");
-        break;
-    case COLOR_PATCHCOORD:
-        sconfig->pixelShader.AddDefine("COLOR_PATCHCOORD");
-        break;
-    case COLOR_NORMAL:
-        sconfig->pixelShader.AddDefine("COLOR_NORMAL");
-        break;
-    }
+            // domain shader
+            ss << common
+               << g_shaderSource
+               << Osd::HLSLPatchShaderSource::GetDomainShaderSource(type);
+            config->CompileDomainShader("ds_5_0", "ds_main_patches", ss.str(),
+                                        g_pd3dDevice);
+            ss.str("");
+        }
 
-    switch (effect.displacement) {
-    case DISPLACEMENT_NONE:
-        break;
-    case DISPLACEMENT_HW_BILINEAR:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_HW_BILINEAR");
-        break;
-    case DISPLACEMENT_BILINEAR:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_BILINEAR");
-        break;
-    case DISPLACEMENT_BIQUADRATIC:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_BIQUADRATIC");
-        break;
-    }
+        // geometry shader
+        ss << common
+           << g_shaderSource;
+        config->CompileGeometryShader("gs_5_0", "gs_main", ss.str(),
+                                      g_pd3dDevice);
+        ss.str("");
 
-    switch (effect.normal) {
-    case NORMAL_FACET:
-        sconfig->commonShader.AddDefine("NORMAL_FACET");
-        break;
-    case NORMAL_HW_SCREENSPACE:
-        sconfig->commonShader.AddDefine("NORMAL_HW_SCREENSPACE");
-        break;
-    case NORMAL_SCREENSPACE:
-        sconfig->commonShader.AddDefine("NORMAL_SCREENSPACE");
-        break;
-    case NORMAL_BIQUADRATIC:
-        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC");
-        break;
-    case NORMAL_BIQUADRATIC_WG:
-        sconfig->commonShader.AddDefine("OSD_COMPUTE_NORMAL_DERIVATIVES");
-        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC_WG");
-        break;
-    }
+        // pixel shader
+        ss << common
+           << g_shaderSource;
+        config->CompilePixelShader("ps_5_0", "ps_main", ss.str(),
+                                   g_pd3dDevice);
+        ss.str("");
 
-    if (effect.occlusion)
-        sconfig->pixelShader.AddDefine("USE_PTEX_OCCLUSION");
-    if (effect.specular)
-        sconfig->pixelShader.AddDefine("USE_PTEX_SPECULAR");
-    if (effect.ibl)
-        sconfig->pixelShader.AddDefine("USE_IBL");
+        return config;
+    };
+};
 
-    if (quad) {
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->pixelShader.AddDefine("PRIM_QUAD");
-    } else {
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->pixelShader.AddDefine("PRIM_TRI");
-    }
-
-    if (effect.seamless) {
-        sconfig->commonShader.AddDefine("SEAMLESS_MIPMAP");
-    }
-
-    if (effect.wire == 0) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-        sconfig->pixelShader.AddDefine("GEOMETRY_OUT_WIRE");
-    } else if (effect.wire == 1) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->pixelShader.AddDefine("GEOMETRY_OUT_FILL");
-    } else if (effect.wire == 2) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->pixelShader.AddDefine("GEOMETRY_OUT_LINE");
-    }
-
-    return sconfig;
-}
-
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        EffectDesc const & effectDesc,
-        SourceConfigType const * sconfig,
-        ID3D11Device * pd3dDevice,
-        ID3D11InputLayout ** ppInputLayout,
-        D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-        int numInputElements) {
-
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig,
-        pd3dDevice, ppInputLayout, pInputElementDescs, numInputElements);
-    assert(config);
-
-    return config;
-}
-
-EffectDrawRegistry effectRegistry;
+ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
 D3D11PtexMipmapTexture *
@@ -804,16 +830,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         effectDesc.numElements = numElements;
     }
 
-    // input layout
-    const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4*3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
-
-    EffectDrawRegistry::ConfigType *
-        config = effectRegistry.GetDrawConfig(
-                effectDesc, g_pd3dDevice,
-                &g_pInputLayout, hInElementDesc, ARRAYSIZE(hInElementDesc));
+    D3D11DrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
 
     assert(g_pInputLayout);
 
@@ -921,17 +938,17 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 
     g_pd3dDeviceContext->IASetInputLayout(g_pInputLayout);
 
-    g_pd3dDeviceContext->VSSetShader(config->vertexShader, NULL, 0);
+    g_pd3dDeviceContext->VSSetShader(config->GetVertexShader(), NULL, 0);
     g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &g_pcbPerFrame);
-    g_pd3dDeviceContext->HSSetShader(config->hullShader, NULL, 0);
+    g_pd3dDeviceContext->HSSetShader(config->GetHullShader(), NULL, 0);
     g_pd3dDeviceContext->HSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->HSSetConstantBuffers(1, 1, &g_pcbTessellation);
-    g_pd3dDeviceContext->DSSetShader(config->domainShader, NULL, 0);
+    g_pd3dDeviceContext->DSSetShader(config->GetDomainShader(), NULL, 0);
     g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->DSSetConstantBuffers(3, 1, &g_pcbConfig);
-    g_pd3dDeviceContext->GSSetShader(config->geometryShader, NULL, 0);
+    g_pd3dDeviceContext->GSSetShader(config->GetGeometryShader(), NULL, 0);
     g_pd3dDeviceContext->GSSetConstantBuffers(0, 1, &g_pcbPerFrame);
-    g_pd3dDeviceContext->PSSetShader(config->pixelShader, NULL, 0);
+    g_pd3dDeviceContext->PSSetShader(config->GetPixelShader(), NULL, 0);
     g_pd3dDeviceContext->PSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->PSSetConstantBuffers(2, 1, &g_pcbLighting);
     g_pd3dDeviceContext->PSSetConstantBuffers(3, 1, &g_pcbConfig);
@@ -951,6 +968,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         g_pd3dDeviceContext->DSSetShaderResources(
             3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
         g_pd3dDeviceContext->GSSetShaderResources(
+            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
+        g_pd3dDeviceContext->PSSetShaderResources(
             3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
     }
 

@@ -141,21 +141,31 @@ void vs_main( in InputVertex input,
 //  Geometry Shader
 // ---------------------------------------------------------------------------
 
-OutputVertex
-outputVertex(OutputVertex input, float3 normal)
+struct GS_OUT
 {
-    OutputVertex v = input;
-    v.normal = normal;
-    return v;
+    OutputVertex v;
+    uint primitiveID : SV_PrimitiveID;
+};
+
+GS_OUT
+outputVertex(OutputVertex input, float3 normal, uint primitiveID)
+{
+    GS_OUT gsout;
+    gsout.v = input;
+    gsout.v.normal = normal;
+    gsout.primitiveID = primitiveID;
+    return gsout;
 }
 
-OutputVertex
-outputVertex(OutputVertex input, float3 normal, float4 patchCoord)
+GS_OUT
+outputVertex(OutputVertex input, float3 normal, float4 patchCoord, uint primitiveID)
 {
-    OutputVertex v = input;
-    v.normal = normal;
-    v.patchCoord = patchCoord;
-    return v;
+    GS_OUT gsout;
+    gsout.v = input;
+    gsout.v.normal = normal;
+    gsout.v.patchCoord = patchCoord;
+    gsout.primitiveID = primitiveID;
+    return gsout;
 }
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
@@ -175,36 +185,37 @@ float edgeDistance(float2 p, float2 p0, float2 p1)
             (p.y - p0.y) * (p1.x - p0.x)) / length(p1.xy - p0.xy);
 }
 
-OutputVertex
+GS_OUT
 outputWireVertex(OutputVertex input, float3 normal,
-                 int index, float2 edgeVerts[EDGE_VERTS])
+                 int index, float2 edgeVerts[EDGE_VERTS], uint primitiveID)
 {
-    OutputVertex v = input;
-    v.normal = normal;
+    GS_OUT gsout;
+    gsout.v = input;
+    gsout.v.normal = normal;
 
-    v.edgeDistance[0] =
+    gsout.v.edgeDistance[0] =
         edgeDistance(edgeVerts[index], edgeVerts[0], edgeVerts[1]);
-    v.edgeDistance[1] =
+    gsout.v.edgeDistance[1] =
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
-    v.edgeDistance[2] =
+    gsout.v.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
-    v.edgeDistance[2] =
+    gsout.v.edgeDistance[2] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[3]);
-    v.edgeDistance[3] =
+    gsout.v.edgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[3], edgeVerts[0]);
 #endif
-
-    return v;
+    gsout.primitiveID = primitiveID;
+    return gsout;
 }
 #endif
 
 #ifdef PRIM_QUAD
 [maxvertexcount(6)]
 void gs_main( lineadj OutputVertex input[4],
-              inout TriangleStream<OutputVertex> triStream,
+              inout TriangleStream<GS_OUT> triStream,
               uint primitiveID : SV_PrimitiveID)
 {
     float3 A = (input[0].position - input[1].position).xyz;
@@ -219,19 +230,20 @@ void gs_main( lineadj OutputVertex input[4],
     patchCoord[2] = GeneratePatchCoord(float2(1, 1), primitiveID);
     patchCoord[3] = GeneratePatchCoord(float2(0, 1), primitiveID);
 
-    triStream.Append(outputVertex(input[0], n0, patchCoord[0]));
-    triStream.Append(outputVertex(input[1], n0, patchCoord[1]));
-    triStream.Append(outputVertex(input[3], n0, patchCoord[3]));
+    triStream.Append(outputVertex(input[0], n0, patchCoord[0], primitiveID));
+    triStream.Append(outputVertex(input[1], n0, patchCoord[1], primitiveID));
+    triStream.Append(outputVertex(input[3], n0, patchCoord[3], primitiveID));
     triStream.RestartStrip();
-    triStream.Append(outputVertex(input[3], n0, patchCoord[3]));
-    triStream.Append(outputVertex(input[1], n0, patchCoord[1]));
-    triStream.Append(outputVertex(input[2], n0, patchCoord[2]));
+    triStream.Append(outputVertex(input[3], n0, patchCoord[3], primitiveID));
+    triStream.Append(outputVertex(input[1], n0, patchCoord[1], primitiveID));
+    triStream.Append(outputVertex(input[2], n0, patchCoord[2], primitiveID));
     triStream.RestartStrip();
 }
 #else // PRIM_TRI
 [maxvertexcount(3)]
 void gs_main( triangle OutputVertex input[3],
-              inout TriangleStream<OutputVertex> triStream )
+              inout TriangleStream<GS_OUT> triStream,
+              uint primitiveID : SV_PrimitiveID)
 {
     float4 position[3];
     float4 patchCoord[3];
@@ -265,13 +277,13 @@ void gs_main( triangle OutputVertex input[3],
     edgeVerts[1] = input[1].positionOut.xy / input[1].positionOut.w;
     edgeVerts[2] = input[2].positionOut.xy / input[2].positionOut.w;
 
-    triStream.Append(outputWireVertex(input[0], normal[0], 0, edgeVerts));
-    triStream.Append(outputWireVertex(input[1], normal[1], 1, edgeVerts));
-    triStream.Append(outputWireVertex(input[2], normal[2], 2, edgeVerts));
+    triStream.Append(outputWireVertex(input[0], normal[0], 0, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[1], normal[1], 1, edgeVerts, primitiveID));
+    triStream.Append(outputWireVertex(input[2], normal[2], 2, edgeVerts, primitiveID));
 #else
-    triStream.Append(outputVertex(input[0], normal[0]));
-    triStream.Append(outputVertex(input[1], normal[1]));
-    triStream.Append(outputVertex(input[2], normal[2]));
+    triStream.Append(outputVertex(input[0], normal[0], primitiveID));
+    triStream.Append(outputVertex(input[1], normal[1], primitiveID));
+    triStream.Append(outputVertex(input[2], normal[2], primitiveID));
 #endif
 }
 
@@ -373,8 +385,88 @@ Texture2DArray textureSpecular_Data : register(t10);
 Buffer<uint> textureSpecular_Packing : register(t11);
 #endif
 
+float4
+getAdaptivePatchColor(int3 patchParam, float sharpness)
+{
+    const float4 patchColors[7*6] = {
+        float4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
+        float4(0.0f,  1.0f,  1.0f,  1.0f),   // regular pattern 0
+        float4(0.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 1
+        float4(0.0f,  0.5f,  0.5f,  1.0f),   // regular pattern 2
+        float4(0.5f,  0.0f,  1.0f,  1.0f),   // regular pattern 3
+        float4(1.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 4
+
+        float4(1.0f,  0.5f,  0.5f,  1.0f),   // single crease
+        float4(1.0f,  0.70f,  0.6f,  1.0f),  // single crease pattern 0
+        float4(1.0f,  0.65f,  0.6f,  1.0f),  // single crease pattern 1
+        float4(1.0f,  0.60f,  0.6f,  1.0f),  // single crease pattern 2
+        float4(1.0f,  0.55f,  0.6f,  1.0f),  // single crease pattern 3
+        float4(1.0f,  0.50f,  0.6f,  1.0f),  // single crease pattern 4
+
+        float4(0.8f,  0.0f,  0.0f,  1.0f),   // boundary
+        float4(0.0f,  0.0f,  0.75f, 1.0f),   // boundary pattern 0
+        float4(0.0f,  0.2f,  0.75f, 1.0f),   // boundary pattern 1
+        float4(0.0f,  0.4f,  0.75f, 1.0f),   // boundary pattern 2
+        float4(0.0f,  0.6f,  0.75f, 1.0f),   // boundary pattern 3
+        float4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
+
+        float4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
+        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        float4(1.0f,  0.7f,  0.3f,  1.0f)    // gregory basis
+    };
+
+    int patchType = 0;
+#if defined OSD_PATCH_GREGORY
+    patchType = 4;
+#elif defined OSD_PATCH_GREGORY_BOUNDARY
+    patchType = 5;
+#elif defined OSD_PATCH_GREGORY_BASIS
+    patchType = 6;
+#endif
+
+    int edgeCount = countbits(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
+    int pattern = countbits(OsdGetPatchTransitionMask(patchParam));
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (sharpness > 0) pattern += 6;
+#endif
+
+    return patchColors[6*patchType + pattern];
+}
+
 void
 ps_main(in OutputVertex input,
+        uint primitiveID : SV_PrimitiveID,
         out float4 outColor : SV_Target )
 {
     // ------------ normal ---------------
@@ -425,7 +517,9 @@ ps_main(in OutputVertex input,
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined(COLOR_PATCHTYPE)
-    float4 texColor = edgeColor(lighting(overrideColor, input.position.xyz, normal, 0),
+    float4 patchColor = getAdaptivePatchColor(
+        OsdGetPatchParam(OsdGetPatchIndex(primitiveID)), 0);
+    float4 texColor = edgeColor(lighting(patchColor, input.position.xyz, normal, 0),
                                 input.edgeDistance);
     outColor = texColor;
     return;
@@ -446,9 +540,9 @@ ps_main(in OutputVertex input,
     // ------------ occlusion ---------------
 
 #ifdef USE_PTEX_OCCLUSION
-    float occ = PtexLookup(input.patchCoord,
-                           textureOcclusion_Data,
-                           textureOcclusion_Packing).x;
+    float occ = PtexMipmapLookup(input.patchCoord, mipmapBias,
+                                 textureOcclusion_Data,
+                                 textureOcclusion_Packing).x;
 #else
     float occ = 0.0;
 #endif
@@ -456,9 +550,9 @@ ps_main(in OutputVertex input,
     // ------------ specular ---------------
 
 #ifdef USE_PTEX_SPECULAR
-    float specular = PtexLookup(input.patchCoord,
-                                textureSpecular_Data,
-                                textureSpecular_Packing).x;
+    float specular = PtexMipmapLookup(input.patchCoord, mipmapBias,
+                                      textureSpecular_Data,
+                                      textureSpecular_Packing).x;
 #else
     float specular = 1.0;
 #endif

@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,50 +22,31 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_DRAW_REGISTRY_H
-#define OSD_DRAW_REGISTRY_H
+#ifndef OPENSUBDIV_OSD_GLSL_PATCH_SHADER_SOURCE_H
+#define OPENSUBDIV_OSD_GLSL_PATCH_SHADER_SOURCE_H
 
 #include "../version.h"
-
-#include "../osd/drawContext.h"
-
-#include <utility>
 #include <string>
-#include <vector>
+#include "../far/patchDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-struct DrawShaderSource {
-    typedef std::pair< std::string, std::string > Define;
-    typedef std::vector< Define > DefineVector;
+class GLSLPatchShaderSource {
+public:
+    static std::string GetCommonShaderSource();
 
-    void AddDefine(std::string const & name,
-                   std::string const & value = "1") {
-        defines.push_back( Define(name, value) );
-    }
+    static std::string GetVertexShaderSource(
+        Far::PatchDescriptor::Type type);
 
-    std::string source;
-    std::string version;
-    std::string target;
-    std::string entry;
+    static std::string GetTessControlShaderSource(
+        Far::PatchDescriptor::Type type);
 
-    DefineVector defines;
+    static std::string GetTessEvalShaderSource(
+        Far::PatchDescriptor::Type type);
 };
-
-struct DrawConfig {
-    virtual ~DrawConfig();
-    // any base class behaviors?
-};
-
-struct DrawSourceConfig {
-    virtual ~DrawSourceConfig();
-    // any base class behaviors?
-};
-
-////////////////////////////////////////////////////////////
 
 }  // end namespace Osd
 
@@ -74,4 +55,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* OSD_DRAW_REGISTRY_H */
+#endif  // OPENSUBDIV_OSD_GLSL_PATCH_SHADER_SOURCE

@@ -83,16 +83,17 @@
 #endif
 
 #include <osd/glDrawContext.h>
-#include <osd/glDrawRegistry.h>
 #include <osd/glMesh.h>
 
 #include <common/vtr_utils.h>
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
+#include "../common/glShaderCache.h"
 #include "init_shapes.h"
 
 using namespace OpenSubdiv;
 
+#include <osd/glslPatchShaderSource.h>
 static const char *shaderSource =
 #include "shader.gen.h"
 ;
@@ -119,104 +120,106 @@ setGLCoreProfile() {
     glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
-
-// ---------------------------------------------------------------------------
-
-class DrawRegistry : public Osd::GLDrawRegistry<> {
+class ShaderCache : public GLShaderCache<OpenSubdiv::Far::PatchDescriptor> {
 public:
-    DrawRegistry(std::string const &displayMode)
-        : _displayMode(displayMode) { }
+    ShaderCache(std::string const &displayMode) : _displayMode(displayMode) { }
 
-protected:
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
+    virtual GLDrawConfig *CreateDrawConfig(OpenSubdiv::Far::PatchDescriptor const &desc) {
 
-    virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc,
-                      SourceConfigType const * sconfig);
+        using namespace OpenSubdiv;
 
+        // compile shader program
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        const char *glslVersion = "#version 400\n";
+#else
+        const char *glslVersion = "#version 330\n";
+#endif
+        GLDrawConfig *config = new GLDrawConfig(glslVersion);
+
+        Far::PatchDescriptor::Type type = desc.GetType();
+
+        // common defines
+        std::stringstream ss;
+
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
+        }
+
+        if (desc.IsAdaptive()) {
+            ss << "#define SMOOTH_NORMALS\n";
+        }
+        ss << "#define DISPLAY_MODE_" <<  _displayMode << "\n";
+        ss << "#define OSD_ENABLE_PATCH_CULL\n";
+        ss << "#define GEOMETRY_OUT_LINE\n";
+
+        // include osd PatchCommon
+        ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
+        ss.str("");
+
+        // vertex shader
+        ss << common
+           << (desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n") // for my shader source
+           << shaderSource
+           << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
+        config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
+        ss.str("");
+
+        if (desc.IsAdaptive()) {
+            // tess control shader
+            ss << common
+               << shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
+            ss.str("");
+
+            // tess eval shader
+            ss << common
+               << shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
+            ss.str("");
+        }
+
+        // geometry shader
+        ss << common
+           << "#define GEOMETRY_SHADER\n" // for my shader source
+           << shaderSource;
+        config->CompileAndAttachShader(GL_GEOMETRY_SHADER, ss.str());
+        ss.str("");
+
+        // fragment shader
+        ss << common
+           << "#define FRAGMENT_SHADER\n" // for my shader source
+           << shaderSource;
+        config->CompileAndAttachShader(GL_FRAGMENT_SHADER, ss.str());
+        ss.str("");
+
+        if (!config->Link()) {
+            delete config;
+            return NULL;
+        }
+
+        // assign uniform locations
+        GLuint uboIndex;
+        GLuint program = config->GetProgram();
+        uboIndex = glGetUniformBlockIndex(program, "Transform");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, 0);
+
+        // assign texture locations
+        GLint loc;
+        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
+            glProgramUniform1i(program, loc, 0); // GL_TEXTURE0
+        }
+
+        return config;
+    }
 private:
     std::string _displayMode;
 };
-
-DrawRegistry::ConfigType *
-DrawRegistry::_CreateDrawConfig(DescType const & desc,
-                                SourceConfigType const * sconfig) {
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc, sconfig);
-    assert(config);
-
-    GLuint uboIndex = glGetUniformBlockIndex(config->program, "Transform");
-    glUniformBlockBinding(config->program, uboIndex, 0);
-
-    GLint loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer");
-    if (loc != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
-    }
-
-    return config;
-
-};
-
-DrawRegistry::SourceConfigType *
-DrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
-    typedef Far::PatchDescriptor Descriptor;
-
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc);
-
-    assert(sconfig);
-
-    const char *glslVersion = "#version 410\n";
-    if (desc.GetType() == Descriptor::QUADS or
-        desc.GetType() == Descriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
-    } else {
-        sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
-    }
-
-    sconfig->geometryShader.source = shaderSource;
-    sconfig->geometryShader.version = glslVersion;
-    sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
-
-    sconfig->fragmentShader.source = shaderSource;
-    sconfig->fragmentShader.version = glslVersion;
-    sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
-
-    if (desc.GetType() == Descriptor::QUADS) {
-        // uniform catmark, bilinear
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.GetType() == Descriptor::TRIANGLES) {
-        // uniform loop
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->commonShader.AddDefine("LOOP");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else {
-        // adaptive
-        sconfig->vertexShader.source =
-            shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source =
-            shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source =
-            shaderSource + sconfig->tessEvalShader.source;
-
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-    }
-
-    sconfig->commonShader.AddDefine("DISPLAY_MODE_" + _displayMode);
-
-//    sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
-//    sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
-    sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
-
-    return sconfig;
-}
 
 // ---------------------------------------------------------------------------
 
@@ -314,7 +317,7 @@ createOsdMesh(std::string const &kernel,
 
 void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
              int level, bool adaptive,
-             DrawRegistry *drawRegistry) {
+             ShaderCache *shaderCache) {
 
     std::cout << "Testing " << shapeDesc.name << ", kernel = " << kernel << "\n";
 
@@ -441,7 +444,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
             glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
         }
 
-        GLuint program = drawRegistry->GetDrawConfig(desc)->program;
+        GLuint program = shaderCache->GetDrawConfig(desc)->GetProgram();
         glUseProgram(program);
 
         GLuint diffuseColor =
@@ -628,7 +631,7 @@ int main(int argc, char ** argv) {
     glBindBufferBase(GL_UNIFORM_BUFFER, /*binding=*/0, transformUB);
 
     // create draw registry;
-    DrawRegistry drawRegistry(displayMode);
+    ShaderCache shaderCache(displayMode);
 
     // write report html
     if (writeToFile) {
@@ -705,7 +708,7 @@ int main(int argc, char ** argv) {
 #endif
         for (size_t i = 0; i < g_shapes.size(); ++i) {
             // run test
-            runTest(g_shapes[i], kernel, isolationLevel, adaptive, &drawRegistry);
+            runTest(g_shapes[i], kernel, isolationLevel, adaptive, &shaderCache);
 
             if (writeToFile) {
                 // read back pixels
