@@ -37,7 +37,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for cpu subvision.
 ///
 /// CpuVertexBuffer implements the VertexBufferInterface. An instance
-/// of this buffer class can be passed to CpuComputeController
+/// of this buffer class can be passed to CpuEvaluator
 ///
 class CpuVertexBuffer {
 public:

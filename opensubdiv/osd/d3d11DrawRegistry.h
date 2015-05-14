@@ -29,7 +29,6 @@
 
 #include "../far/patchTables.h"
 #include "../osd/drawRegistry.h"
-#include "../osd/vertex.h"
 
 #include <map>
 
@@ -81,21 +80,13 @@ struct D3D11DrawSourceConfig {
 class D3D11DrawRegistryBase {
 
 public:
-    typedef DrawContext::PatchDescriptor DescType;
+    typedef Far::PatchDescriptor DescType;
     typedef D3D11DrawConfig ConfigType;
     typedef D3D11DrawSourceConfig SourceConfigType;
 
-    D3D11DrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+    D3D11DrawRegistryBase() { }
 
     virtual ~D3D11DrawRegistryBase();
-
-    bool IsPtexEnabled() const {
-        return _enablePtex;
-    }
-
-    void SetPtexEnabled(bool b) {
-        _enablePtex=b;
-    }
 
 protected:
     virtual ConfigType * _NewDrawConfig() { return new ConfigType(); }
@@ -110,14 +101,11 @@ protected:
     virtual SourceConfigType * _NewDrawSourceConfig() { return new SourceConfigType(); }
     virtual SourceConfigType *
     _CreateDrawSourceConfig(DescType const & desc, ID3D11Device * pd3dDevice);
-
-private:
-    bool _enablePtex;
 };
 
 //------------------------------------------------------------------------------
 
-template <class DESC_TYPE = DrawContext::PatchDescriptor,
+template <class DESC_TYPE = Far::PatchDescriptor,
           class CONFIG_TYPE = D3D11DrawConfig,
           class SOURCE_CONFIG_TYPE = D3D11DrawSourceConfig>
 class D3D11DrawRegistry : public D3D11DrawRegistryBase {

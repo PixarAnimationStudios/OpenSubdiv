@@ -82,36 +82,9 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt[];
 
-#define ID gl_InvocationID
+patch out vec4 tessOuterLo, tessOuterHi;
 
-void
-reflectBoundaryEdges(inout vec3 cpt[16], int patchParam)
-{
-    if (((patchParam >> 4) & 1) != 0) {
-        cpt[0] = 2*cpt[4] - cpt[8];
-        cpt[1] = 2*cpt[5] - cpt[9];
-        cpt[2] = 2*cpt[6] - cpt[10];
-        cpt[3] = 2*cpt[7] - cpt[11];
-    }
-    if (((patchParam >> 4) & 2) != 0) {
-        cpt[3] = 2*cpt[2] - cpt[1];
-        cpt[7] = 2*cpt[6] - cpt[5];
-        cpt[11] = 2*cpt[10] - cpt[9];
-        cpt[15] = 2*cpt[14] - cpt[13];
-    }
-    if (((patchParam >> 4) & 4) != 0) {
-        cpt[12] = 2*cpt[8] - cpt[4];
-        cpt[13] = 2*cpt[9] - cpt[5];
-        cpt[14] = 2*cpt[10] - cpt[6];
-        cpt[15] = 2*cpt[11] - cpt[7];
-    }
-    if (((patchParam >> 4) & 8) != 0) {
-        cpt[0] = 2*cpt[1] - cpt[2];
-        cpt[4] = 2*cpt[5] - cpt[6];
-        cpt[8] = 2*cpt[9] - cpt[10];
-        cpt[12] = 2*cpt[13] - cpt[14];
-    }
-}
+#define ID gl_InvocationID
 
 // compute single-crease patch matrix
 mat4
@@ -143,9 +116,9 @@ void main()
         position[i] = inpt[i].v.position.xyz;
     }
 
-    int patchParam = GetPatchParam();
+    ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID));
 
-    reflectBoundaryEdges(position, patchParam);
+    OsdComputeBSplineBoundaryPoints(position, patchParam);
 
     vec3 H[4];
     for (int l=0; l<4; ++l) {
@@ -156,7 +129,7 @@ void main()
     }
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness = GetSharpness();
+    float sharpness = OsdGetPatchSharpness(patchParam);
     if (sharpness > 0) {
         float Sf = floor(sharpness);
         float Sc = ceil(sharpness);
@@ -200,14 +173,7 @@ void main()
 
     OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
 
-    int patchLevel = GetPatchLevel();
-
-    // +0.5 to avoid interpolation error of integer value
-    outpt[ID].v.patchCoord = vec4(0, 0,
-                                  patchLevel+0.5,
-                                  GetPrimitiveID()+0.5);
-
-    OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
+    outpt[ID].v.patchCoord = OsdGetPatchCoord(patchParam);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
     // Wait for all basis conversion to be finished
@@ -216,26 +182,27 @@ void main()
     if (ID == 0) {
         OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
 
-        vec4 outerLevel = vec4(0);
-        vec2 innerLevel = vec2(0);
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
-        vec3 cpBezier[16];
         for (int i=0; i<16; ++i) {
-            cpBezier[i] = outpt[i].v.position.xyz;
+            position[i] = outpt[i].v.position.xyz;
         }
-        GetTransitionTessLevels(cpBezier, patchParam, outerLevel, innerLevel);
-#else
-        GetTransitionTessLevels(position, patchParam, outerLevel, innerLevel);
 #endif
 
-        gl_TessLevelOuter[0] = outerLevel[0];
-        gl_TessLevelOuter[1] = outerLevel[1];
-        gl_TessLevelOuter[2] = outerLevel[2];
-        gl_TessLevelOuter[3] = outerLevel[3];
+        vec4 tessLevelOuter = vec4(0);
+        vec2 tessLevelInner = vec2(0);
 
-        gl_TessLevelInner[0] = innerLevel[0];
-        gl_TessLevelInner[1] = innerLevel[1];
+        OsdGetTessLevels(position, patchParam,
+                         tessLevelOuter, tessLevelInner,
+                         tessOuterLo, tessOuterHi);
+
+        gl_TessLevelOuter[0] = tessLevelOuter[0];
+        gl_TessLevelOuter[1] = tessLevelOuter[1];
+        gl_TessLevelOuter[2] = tessLevelOuter[2];
+        gl_TessLevelOuter[3] = tessLevelOuter[3];
+
+        gl_TessLevelInner[0] = tessLevelInner[0];
+        gl_TessLevelInner[1] = tessLevelInner[1];
     }
 }
 
@@ -246,19 +213,13 @@ void main()
 //----------------------------------------------------------
 #ifdef OSD_PATCH_TESS_EVAL_BSPLINE_SHADER
 
-#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
-    layout(triangles) in;
-#else
-    layout(quads) in;
-#endif
+layout(quads) in;
 
-/* XXXdyu-patch-drawing support for frational spacing
 #if defined OSD_FRACTIONAL_ODD_SPACING
     layout(fractional_odd_spacing) in;
 #elif defined OSD_FRACTIONAL_EVEN_SPACING
     layout(fractional_even_spacing) in;
 #endif
-*/
 
 in block {
     ControlVertex v;
@@ -278,9 +239,13 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt;
 
+patch in vec4 tessOuterLo, tessOuterHi;
+
 void main()
 {
-    vec2 UV = GetTransitionParameterization();
+    vec2 UV = OsdGetTessParameterization(gl_TessCoord.xy,
+                                         tessOuterLo,
+                                         tessOuterHi);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
@@ -372,7 +337,7 @@ void main()
         dUV += D[k] * DUCP[k];
     }
 
-    int level = int(inpt[0].v.ptexInfo.z);
+    int level = inpt[0].v.patchCoord.z;
     Tangent *= 3 * level;
     BiTangent *= 3 * level;
     dUU *= 6 * level;
@@ -407,7 +372,7 @@ void main()
         Tangent   += B[k] * DUCP[k];
         BiTangent += D[k] * BUCP[k];
     }
-    int level = int(inpt[0].v.ptexInfo.z);
+    int level = inpt[0].v.patchCoord.z;
     Tangent *= 3 * level;
     BiTangent *= 3 * level;
 
@@ -422,11 +387,8 @@ void main()
 
     OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
-    outpt.v.patchCoord = inpt[0].v.patchCoord;
-
-    outpt.v.patchCoord.xy = vec2(UV.x, UV.y);
-
-    OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
+    outpt.v.tessCoord = UV;
+    outpt.v.patchCoord = OsdInterpolatePatchCoord(UV, inpt[0].v.patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 

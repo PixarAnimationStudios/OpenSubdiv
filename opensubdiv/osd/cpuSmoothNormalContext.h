@@ -29,7 +29,6 @@
 
 #include "../osd/nonCopyable.h"
 #include "../osd/vertexDescriptor.h"
-#include "../osd/vertex.h"
 #include "../far/types.h"
 
 #include <vector>

@@ -470,14 +470,10 @@ PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
 
     if (ptype==PatchDescriptor::REGULAR) {
 
-        GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-
         ConstIndexArray cvs = GetPatchVertices(handle);
 
+        GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
         InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-        // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-        // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-
 
     } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
 
@@ -526,8 +522,6 @@ PatchTables::EvaluateFaceVarying(int channel, PatchHandle const & handle,
         case PatchDescriptor::REGULAR:
             GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
             InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
             break;
         default:
             assert(0);

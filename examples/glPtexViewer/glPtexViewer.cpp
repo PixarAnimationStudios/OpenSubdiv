@@ -52,59 +52,41 @@ GLFWmonitor* g_primary = 0;
 
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
-#include <osd/glPtexMipmapTexture.h>
 #include <far/error.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController * g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompComputeController.h>
-    OpenSubdiv::Osd::OmpComputeController * g_ompComputeController = NULL;
+    #include <osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbComputeController.h>
-    OpenSubdiv::Osd::TbbComputeController *g_tbbComputeController = NULL;
+    #include <osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osd/clEvaluator.h>
     #include <osd/clGLVertexBuffer.h>
-    #include <osd/clComputeContext.h>
-    #include <osd/clComputeController.h>
-
     #include "../common/clDeviceContext.h"
-
     CLDeviceContext g_clDeviceContext;
-    OpenSubdiv::Osd::CLComputeController * g_clComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
+    #include <osd/cudaEvaluator.h>
     #include <osd/cudaGLVertexBuffer.h>
-    #include <osd/cudaComputeContext.h>
-    #include <osd/cudaComputeController.h>
-
     #include "../common/cudaDeviceContext.h"
-
     CudaDeviceContext g_cudaDeviceContext;
-    OpenSubdiv::Osd::CudaComputeController * g_cudaComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackComputeContext.h>
-    #include <osd/glslTransformFeedbackComputeController.h>
+    #include <osd/glXFBEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLTransformFeedbackComputeController
-        *g_glslTransformFeedbackComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslComputeContext.h>
-    #include <osd/glslComputeController.h>
+    #include <osd/glComputeEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLComputeController * g_glslComputeController = NULL;
 #endif
 
 #include <osd/glMesh.h>
@@ -120,6 +102,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/patchColors.h"
 #include "../common/hdr_reader.h"
 #include "../common/stb_image_write.h"
+#include "../common/glPtexMipmapTexture.h"
 
 static const char *g_defaultShaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -328,10 +311,10 @@ struct ImageShader {
 
 //------------------------------------------------------------------------------
 
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexImage = 0;
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexDisplacement = 0;
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexOcclusion = 0;
-OpenSubdiv::Osd::GLPtexMipmapTexture * g_osdPTexSpecular = 0;
+GLPtexMipmapTexture * g_osdPTexImage = 0;
+GLPtexMipmapTexture * g_osdPTexDisplacement = 0;
+GLPtexMipmapTexture * g_osdPTexOcclusion = 0;
+GLPtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 size_t g_ptexMemoryUsage = 0;
 
@@ -636,7 +619,7 @@ static GLuint compileShader(GLenum shaderType,
 
 //------------------------------------------------------------------------------
 
-int bindPTexture(GLint program, OpenSubdiv::Osd::GLPtexMipmapTexture *osdPTex,
+int bindPTexture(GLint program, GLPtexMipmapTexture *osdPTex,
                  GLuint data, GLuint packing, int samplerUnit) {
 
 #if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
@@ -681,30 +664,45 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
+
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return desc < e.desc || (desc == e.desc &&
+              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+              (effect < e.effect))));
+    }
+};
 
 class EffectDrawRegistry : public OpenSubdiv::Osd::GLDrawRegistry<EffectDesc> {
 
 protected:
 
     virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
+    _CreateDrawConfig(EffectDesc const & desc, SourceConfigType const * sconfig);
 
     virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
+    _CreateDrawSourceConfig(EffectDesc const & desc);
 };
 
 //------------------------------------------------------------------------------
-
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
+EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc) {
 
-    Effect effect = desc.second;
-
-    SetPtexEnabled(true);
+    Effect effect = effectDesc.effect;
 
     SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first);
+        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc);
+
+    // add ptex functions
+    sconfig->commonShader.source += GLPtexMipmapTexture::GetShaderSource();
 
     if (effect.patchCull)
         sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
@@ -719,15 +717,27 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
     const char *glslVersion = "#version 330\n";
 #endif
 
+    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
+    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
+        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
+        std::ostringstream ss;
+        ss << effectDesc.maxValence;
+        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        ss.str("");
+
+        ss << effectDesc.numElements;
+        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
+    }
+
     int nverts = 4;
-    if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
+    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
         sconfig->vertexShader.AddDefine("VERTEX_SHADER");
         if (effect.displacement) {
             sconfig->geometryShader.AddDefine("FLAT_NORMALS");
         }
-    } else if (desc.first.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
+    } else if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
         nverts = 2;
         sconfig->vertexShader.source = g_shaderSource;
         sconfig->vertexShader.version = glslVersion;
@@ -848,10 +858,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
 
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
+        DescType const & effectDesc,
         SourceConfigType const * sconfig) {
 
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
+    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig);
     assert(config);
 
     // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
@@ -910,9 +920,17 @@ EffectDrawRegistry effectRegistry;
 
 EffectDrawRegistry::ConfigType *
 getInstance(Effect effect,
-    OpenSubdiv::Osd::DrawContext::PatchDescriptor const & patchDesc) {
+    OpenSubdiv::Far::PatchDescriptor const & patchDesc) {
 
     EffectDesc desc(patchDesc, effect);
+
+    // only legacy gregory needs maxValence and numElements
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+    if (patchDesc.GetType() == Descriptor::GREGORY or
+        patchDesc.GetType() == Descriptor::GREGORY_BOUNDARY) {
+        desc.maxValence = g_mesh->GetDrawContext()->GetMaxValence();
+        desc.numElements = 3;
+    }
 
     EffectDrawRegistry::ConfigType * config =
         effectRegistry.GetDrawConfig(desc);
@@ -922,7 +940,7 @@ getInstance(Effect effect,
 }
 
 //------------------------------------------------------------------------------
-OpenSubdiv::Osd::GLPtexMipmapTexture *
+GLPtexMipmapTexture *
 createPtex(const char *filename, int memLimit) {
 
     Ptex::String ptexError;
@@ -945,10 +963,8 @@ createPtex(const char *filename, int memLimit) {
 
     size_t targetMemory = memLimit * 1024 * 1024; // MB
 
-    OpenSubdiv::Osd::GLPtexMipmapTexture *osdPtex =
-        OpenSubdiv::Osd::GLPtexMipmapTexture::Create(ptex,
-                                                   g_maxMipmapLevels,
-                                                   targetMemory);
+    GLPtexMipmapTexture *osdPtex = GLPtexMipmapTexture::Create(
+        ptex, g_maxMipmapLevels, targetMemory);
 
     GLuint texture = osdPtex->GetTexelsTexture();
     glBindTexture(GL_TEXTURE_2D_ARRAY, texture);
@@ -1024,33 +1040,26 @@ createOsdMesh(int level, int kernel) {
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshPtexData, true);
     bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
 
     if (kernel == kCPU) {
-        if (not g_cpuComputeController) {
-            g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-        }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::CpuComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_cpuComputeController,
+                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Osd::CpuEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
                                                 level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
-        if (not g_ompComputeController) {
-            g_ompComputeController = new OpenSubdiv::Osd::OmpComputeController();
-        }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::OmpComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_ompComputeController,
+                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Osd::OmpEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1058,13 +1067,10 @@ createOsdMesh(int level, int kernel) {
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
-        if (not g_tbbComputeController) {
-            g_tbbComputeController = new OpenSubdiv::Osd::TbbComputeController();
-        }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::TbbComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_tbbComputeController,
+                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Osd::TbbEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1072,30 +1078,25 @@ createOsdMesh(int level, int kernel) {
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (kernel == kCL) {
-        if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(
-                g_clDeviceContext.GetContext(),
-                g_clDeviceContext.GetCommandQueue());
-        }
+        static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
-                                         OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext,
-                                         CLDeviceContext>(
-                                                g_clComputeController,
+                                           OpenSubdiv::Osd::CLStencilTables,
+                                           OpenSubdiv::Osd::CLEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext,
+                                           CLDeviceContext>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits, &g_clDeviceContext);
+                                                level, bits,
+                                                &clEvaluatorCache,
+                                                &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (kernel == kCUDA) {
-        if (not g_cudaComputeController) {
-            g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
-        }
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
-                                         OpenSubdiv::Osd::CudaComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_cudaComputeController,
+                                           OpenSubdiv::Osd::CudaStencilTables,
+                                           OpenSubdiv::Osd::CudaEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1103,32 +1104,29 @@ createOsdMesh(int level, int kernel) {
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if (kernel == kGLSL) {
-        if (not g_glslTransformFeedbackComputeController) {
-            g_glslTransformFeedbackComputeController =
-                new OpenSubdiv::Osd::GLSLTransformFeedbackComputeController();
-        }
+        static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::GLXFBEvaluator> glXFBEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                         OpenSubdiv::Osd::GLSLTransformFeedbackComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_glslTransformFeedbackComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+                                           OpenSubdiv::Osd::GLStencilTablesTBO,
+                                           OpenSubdiv::Osd::GLXFBEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext>(
+                                               refiner,
+                                               numVertexElements,
+                                               numVaryingElements,
+                                               level, bits,
+                                               &glXFBEvaluatorCache);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if (kernel == kGLSLCompute) {
-        if (not g_glslComputeController) {
-            g_glslComputeController = new OpenSubdiv::Osd::GLSLComputeController();
-        }
+        static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::GLComputeEvaluator> glComputeEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                         OpenSubdiv::Osd::GLSLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_glslComputeController,
+                                           OpenSubdiv::Osd::GLStencilTablesSSBO,
+                                           OpenSubdiv::Osd::GLComputeEvaluator,
+                                           OpenSubdiv::Osd::GLDrawContext>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
-                                                level, bits);
+                                                level, bits,
+                                               &glComputeEvaluatorCache);
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
@@ -1492,7 +1490,7 @@ updateUniformBlocks() {
 
 //------------------------------------------------------------------------------
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchDescriptor const &desc) {
+bindProgram(Effect effect, OpenSubdiv::Far::PatchDescriptor const &desc) {
 
     EffectDrawRegistry::ConfigType *
         config = getInstance(effect, desc);
@@ -1574,7 +1572,7 @@ drawModel() {
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;
@@ -1749,8 +1747,7 @@ drawCageEdges() {
 
     typedef OpenSubdiv::Far::PatchDescriptor FDesc;
 
-    OpenSubdiv::Osd::DrawContext::PatchDescriptor desc(
-        FDesc(FDesc::LINES), 0, 0);
+    FDesc desc(FDesc::LINES);
     EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
     glUseProgram(config->program);
 
@@ -1978,32 +1975,6 @@ void uninitGL() {
 
     if (g_mesh)
         delete g_mesh;
-
-    delete g_cpuComputeController;
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-    delete g_ompComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_TBB
-    delete g_tbbComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_OPENCL
-    delete g_clComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_CUDA
-    delete g_cudaComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    delete g_glslTransformFeedbackComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    delete g_glslComputeController;
-#endif
 
     if (g_diffuseEnvironmentMap)
         glDeleteTextures(1, &g_diffuseEnvironmentMap);

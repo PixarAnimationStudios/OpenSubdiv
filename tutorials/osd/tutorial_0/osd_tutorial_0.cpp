@@ -32,8 +32,7 @@
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/stencilTablesFactory.h>
-#include <opensubdiv/osd/cpuComputeContext.h>
-#include <opensubdiv/osd/cpuComputeController.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
 #include <opensubdiv/osd/cpuVertexBuffer.h>
 
 #include <cstdio>
@@ -73,11 +72,10 @@ int main(int, char **) {
         nCoarseVerts=0,
         nRefinedVerts=0;
 
-    Osd::CpuComputeContext * context=0;
-
     //
     // Setup phase
     //
+    Far::StencilTables const * stencilTables = NULL;
     { // Setup Context
         Far::TopologyRefiner const * refiner = createTopologyRefiner(maxlevel);
 
@@ -87,23 +85,14 @@ int main(int, char **) {
         options.generateOffsets=true;
         options.generateIntermediateLevels=false;
 
-        Far::StencilTables const * stencilTables =
-            Far::StencilTablesFactory::Create(*refiner, options);
-
-        // Create an Osd Compute Context from the stencil tables
-        context = Osd::CpuComputeContext::Create(stencilTables,
-                                                 /*vayingStencil=*/NULL);
+        stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
 
         nCoarseVerts = refiner->GetNumVertices(0);
         nRefinedVerts = stencilTables->GetNumStencils();
 
         // We are done with Far: cleanup tables
         delete refiner;
-        delete stencilTables;
     }
-
-    // Setup Controller
-    Osd::CpuComputeController controller;
 
     // Setup a buffer for vertex primvar data:
     Osd::CpuVertexBuffer * vbuffer =
@@ -117,8 +106,14 @@ int main(int, char **) {
         // and update every time control data changes
         vbuffer->UpdateData(g_verts, 0, nCoarseVerts);
 
+
+        Osd::VertexBufferDescriptor srcDesc(0, 3, 3);
+        Osd::VertexBufferDescriptor dstDesc(nCoarseVerts*3, 3, 3);
+
         // Launch the computation
-        controller.Compute(context, vbuffer);
+        Osd::CpuEvaluator::EvalStencils(vbuffer, srcDesc,
+                                        vbuffer, dstDesc,
+                                        stencilTables);
     }
 
     { // Visualization with Maya : print a MEL script that generates particles
@@ -133,8 +128,8 @@ int main(int, char **) {
         printf("-c 1;\n");
     }
 
+    delete stencilTables;
     delete vbuffer;
-    delete context;
 }
 
 //------------------------------------------------------------------------------

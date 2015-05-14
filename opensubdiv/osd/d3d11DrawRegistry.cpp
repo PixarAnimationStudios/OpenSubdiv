@@ -47,58 +47,34 @@ D3D11DrawConfig::~D3D11DrawConfig()
 static const char *commonShaderSource =
 #include "hlslPatchCommon.gen.h"
 ;
-static const char *ptexShaderSource =
-#include "hlslPtexCommon.gen.h"
-;
 static const char *bsplineShaderSource =
 #include "hlslPatchBSpline.gen.h"
 ;
 static const char *gregoryShaderSource =
 #include "hlslPatchGregory.gen.h"
 ;
-static const char *transitionShaderSource =
-#include "hlslPatchTransition.gen.h"
-;
 
 D3D11DrawRegistryBase::~D3D11DrawRegistryBase() {}
 
 D3D11DrawSourceConfig *
 D3D11DrawRegistryBase::_CreateDrawSourceConfig(
-    DrawContext::PatchDescriptor const & desc, ID3D11Device * pd3dDevice)
+    Far::PatchDescriptor const & desc, ID3D11Device * pd3dDevice)
 {
     D3D11DrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
 
-    if (IsPtexEnabled()) {
-        sconfig->commonShader.source += ptexShaderSource;
-    }
-
-    {
-        std::ostringstream ss;
-        ss << (int)desc.GetMaxValence();
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
-        ss.str("");
-        ss << (int)desc.GetNumElements();
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
-
     switch (desc.GetType()) {
     case Far::PatchDescriptor::REGULAR:
-    case Far::PatchDescriptor::BOUNDARY:
-    case Far::PatchDescriptor::CORNER:
         sconfig->commonShader.AddDefine("OSD_PATCH_BSPLINE");
         sconfig->commonShader.AddDefine("OSD_PATCH_ENABLE_SINGLE_CREASE");
-        sconfig->vertexShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->vertexShader.source = bsplineShaderSource;
         sconfig->vertexShader.target = "vs_5_0";
         sconfig->vertexShader.entry = "vs_main_patches";
-        sconfig->hullShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->hullShader.source = bsplineShaderSource;
         sconfig->hullShader.target = "hs_5_0";
         sconfig->hullShader.entry = "hs_main_patches";
-        sconfig->domainShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->domainShader.source = bsplineShaderSource;
         sconfig->domainShader.target = "ds_5_0";
         sconfig->domainShader.entry = "ds_main_patches";
         break;

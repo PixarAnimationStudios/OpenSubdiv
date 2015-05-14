@@ -35,7 +35,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for Cuda subvision.
 ///
 /// CudaVertexBuffer implements CudaVertexBufferInterface.
-/// An instance of this buffer class can be passed to CudaComputeController
+/// An instance of this buffer class can be passed to CudaEvaluator
 ///
 class CudaVertexBuffer {
 

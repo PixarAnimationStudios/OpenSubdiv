@@ -53,66 +53,59 @@ public:
     // patch weights
     static void GetPatchWeights(PatchParam::BitField bits,
         float s, float t, float point[], float deriv1[], float deriv2[]);
+
+    // adjust patch weights for boundary (and corner) edges
+    static void AdjustBoundaryWeights(PatchParam::BitField bits,
+        float sWeights[4], float tWeights[4]);
 };
 
 template <>
 inline void Spline<BASIS_BEZIER>::GetWeights(
-    float t, float point[4], float deriv[3]) {
+    float t, float point[4], float deriv[4]) {
 
-    // The weights for the four uniform cubic Bezier basis functions are:
-    // (1 - t)^3
-    // 3 * t * (1-t)
-    // 3 * t^2 * (1-t)
-    // t^3
-    float t2 = t*t,
-          w0 = 1.0f - t,
-          w2 = w0 * w0;
+    // The four uniform cubic Bezier basis functions (in terms of t and its
+    // complement tC) evaluated at t:
+    float t2 = t*t;
+    float tC = 1.0f - t;
+    float tC2 = tC * tC;
 
     assert(point);
-    point[0] = w0*w2;
-    point[1] = 3.0f * t * w2;
-    point[2] = 3.0f * t2 * w0;
-    point[3] = t * t2;
+    point[0] = tC2 * tC;
+    point[1] = tC2 * t * 3.0f;
+    point[2] = t2 * tC * 3.0f;
+    point[3] = t2 * t;
 
-    // The weights for the three uniform quadratic basis functions are:
-    // (1-t)^2
-    // 2 * t * (1-t)
-    // t^2
+    // Derivatives of the above four basis functions at t:
     if (deriv) {
-        deriv[0] = w2;
-        deriv[1] = 2.0f * t * w0;
-        deriv[2] = t2;
+       deriv[0] = -3.0f * tC2;
+       deriv[1] =  9.0f * t2 - 12.0f * t + 3.0f;
+       deriv[2] = -9.0f * t2 +  6.0f * t;
+       deriv[3] =  3.0f * t2;
     }
 }
 
 template <>
 inline void Spline<BASIS_BSPLINE>::GetWeights(
-    float t, float point[4], float deriv[3]) {
+    float t, float point[4], float deriv[4]) {
 
-    // The weights for the four uniform cubic B-Spline basis functions are:
-    // (1/6)(1 - t)^3
-    // (1/6)(3t^3 - 6t^2 + 4)
-    // (1/6)(-3t^3 + 3t^2 + 3t + 1)
-    // (1/6)t^3
-    float t2 = t*t,
-          t3 = 3.0f*t2*t,
-          w0 = 1.0f-t;
+    // The four uniform cubic B-Spline basis functions evaluated at t:
+    float const one6th = 1.0f / 6.0f;
+
+    float t2 = t * t;
+    float t3 = t * t2;
 
     assert(point);
-    point[0] = (w0*w0*w0) / 6.0f;
-    point[1] = (t3 - 6.0f*t2 + 4.0f) / 6.0f;
-    point[2] = (3.0f*t2 - t3 + 3.0f*t + 1.0f) / 6.0f;
-    point[3] = t3 / 18.0f;
+    point[0] = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
+    point[1] = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
+    point[2] = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
+    point[3] = one6th * (                                 t3);
 
-
-    // The weights for the three uniform quadratic basis functions are:
-    // (1/2)(1-t)^2
-    // (1/2)(1 + 2t - 2t^2)
-    // (1/2)t^2
+    // Derivatives of the above four basis functions at t:
     if (deriv) {
-        deriv[0] = 0.5f * w0 * w0;
-        deriv[1] = 0.5f + t - t2;
-        deriv[2] = 0.5f * t2;
+        deriv[0] = -0.5f*t2 +      t - 0.5f;
+        deriv[1] =  1.5f*t2 - 2.0f*t;
+        deriv[2] = -1.5f*t2 +      t + 0.5f;
+        deriv[3] =  0.5f*t2;
     }
 }
 
@@ -173,118 +166,98 @@ template <>
 inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam::BitField bits,
     float s, float t, float point[4], float deriv1[4], float deriv2[4]) {
 
-    static int const rots[4][4] =
-        { { 0, 1, 2, 3 },
-          { 3, 0, 1, 2 },
-          { 2, 3, 0, 1 },
-          { 1, 2, 3, 0 } };
-
-    assert(bits.GetRotation()<4);
-    int const * rot = rots[bits.GetRotation()];
-
     bits.Normalize(s,t);
 
     float os = 1.0f - s,
           ot = 1.0f - t;
 
     if (point) {
-        point[rot[0]] = os*ot;
-        point[rot[1]] = s*ot; 
-        point[rot[2]] = s*t;
-        point[rot[3]] = os*t;
+        point[0] = os*ot;
+        point[1] = s*ot;
+        point[2] = s*t;
+        point[3] = os*t;
     }
     
     if (deriv1 and deriv2) {
-        deriv1[rot[0]] = t-1.0f;
-        deriv1[rot[1]] = ot;   
-        deriv1[rot[2]] = t;   
-        deriv1[rot[3]] = -t;
+        deriv1[0] = t-1.0f;
+        deriv1[1] = ot;
+        deriv1[2] = t;
+        deriv1[3] = -t;
 
-        deriv2[rot[0]] = s-1.0f;   
-        deriv2[rot[1]] = -s;
-        deriv2[rot[2]] = s; 
-        deriv2[rot[3]] = os;
+        deriv2[0] = s-1.0f;
+        deriv2[1] = -s;
+        deriv2[2] = s;
+        deriv2[3] = os;
+    }
+}
+
+template <SplineBasis BASIS>
+void Spline<BASIS>::AdjustBoundaryWeights(PatchParam::BitField bits,
+    float sWeights[4], float tWeights[4]) {
+
+    int boundary = bits.GetBoundary();
+
+    if (boundary & 1) {
+        tWeights[2] -= tWeights[0];
+        tWeights[1] += 2*tWeights[0];
+        tWeights[0] = 0;
+    }
+    if (boundary & 2) {
+        sWeights[1] -= sWeights[3];
+        sWeights[2] += 2*sWeights[3];
+        sWeights[3] = 0;
+    }
+    if (boundary & 4) {
+        tWeights[1] -= tWeights[3];
+        tWeights[2] += 2*tWeights[3];
+        tWeights[3] = 0;
+    }
+    if (boundary & 8) {
+        sWeights[2] -= sWeights[0];
+        sWeights[1] += 2*sWeights[0];
+        sWeights[0] = 0;
     }
 }
 
 template <SplineBasis BASIS>
 void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
-    float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
+    float s, float t, float point[16], float derivS[16], float derivT[16]) {
 
-    static int const rots[4][16] =
-        { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
-          { 12, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 },
-          { 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 },
-          { 3, 7, 11, 15, 2, 6, 10, 14, 1, 5, 9, 13, 0, 4, 8, 12 } };
-
-    assert(bits.GetRotation()<4);
-    int const * rot = rots[bits.GetRotation()];
-
-    float sWeights[4], tWeights[4], d1Weights[3], d2Weights[3];
+    float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
 
     bits.Normalize(s,t);
 
-    Spline<BASIS>::GetWeights(s, point ? sWeights : 0, deriv1 ? d1Weights : 0);
-    Spline<BASIS>::GetWeights(t, point ? tWeights : 0, deriv2 ? d2Weights : 0);
+    Spline<BASIS>::GetWeights(s, point ? sWeights : 0, derivS ? dsWeights : 0);
+    Spline<BASIS>::GetWeights(t, point ? tWeights : 0, derivT ? dtWeights : 0);
+
+    int boundary = bits.GetBoundary();
 
     if (point) {
-        // Compute the tensor product weight corresponding to each control
-        // vertex
-        memset(point,  0, 16*sizeof(float));
+        // Compute the tensor product weight of the (s,t) basis function
+        // corresponding to each control vertex:
+
+        AdjustBoundaryWeights(bits, sWeights, tWeights);
+
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                point[rot[4*i+j]] += sWeights[j] * tWeights[i];
+                point[4*i+j] = sWeights[j] * tWeights[i];
             }
         }
     }
 
-    if (deriv1 and deriv2) {
-        // Compute the tangent stencil. This is done by taking the tensor
-        // product between the quadratic weights computed for s and the cubic
-        // weights computed for t. The stencil is constructed using
-        // differences between consecutive vertices in each row (i.e.
-        // in the s direction).
-        memset(deriv1, 0, 16*sizeof(float));
-        for (int i = 0, k = 0; i < 4; ++i) {
-            float prevWeight = 0.0f;
-            for (int j = 0; j < 3; ++j) {
-                float weight = d1Weights[j]*tWeights[i];
-                deriv1[rot[k++]] += prevWeight - weight;
-                prevWeight = weight;
-            }
-            deriv1[rot[k++]]+=prevWeight;
-        }
+    if (derivS and derivT) {
+        // Compute the tensor product weight of the differentiated (s,t) basis
+        // function corresponding to each control vertex (scaled accordingly):
 
-        memset(deriv2, 0, 16*sizeof(float));
-#define FASTER_TENSOR
-#ifdef FASTER_TENSOR
-        // XXXX manuelk this might be slightly more efficient ?
-        float dW[4];
-        dW[0] = - d2Weights[0];
-        dW[1] = d2Weights[0] - d2Weights[1];
-        dW[2] = d2Weights[1] - d2Weights[2];
-        dW[3] = d2Weights[2];
-        for (int i = 0, k = 0; i < 4; ++i) {
+        float dScale = (float)(1 << bits.GetDepth());
+
+        AdjustBoundaryWeights(bits, dsWeights, dtWeights);
+
+        for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                deriv2[rot[k++]] = sWeights[j] * dW[i];
+                derivS[4*i+j] = dsWeights[j] * tWeights[i] * dScale;
+                derivT[4*i+j] = sWeights[j] * dtWeights[i] * dScale;
             }
-        }
-#else
-        for (int j = 0; j < 4; ++j) {
-            float prevWeight = 0.0f;
-            for (int i = 0; i < 3; ++i) {
-                float weight = sWeights[j]*d2Weights[i];
-                deriv2[rot[4*i+j]]+=prevWeight - weight;
-                prevWeight = weight;
-            }
-            deriv2[rot[12+j]] += prevWeight;
-        }
-#endif
-        // Scale derivatives up based on level of subdivision
-        float scale = float(1 << bits.GetDepth());
-        for (int k=0; k<16; ++k) {
-            deriv1[k] *= scale;
-            deriv2[k] *= scale;
         }
     }
 }
@@ -305,6 +278,96 @@ void GetBSplineWeights(PatchParam::BitField bits,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
 
     Spline<BASIS_BSPLINE>::GetPatchWeights(bits, s, t, point, deriv1, deriv2);
+}
+
+void GetGregoryWeights(PatchParam::BitField bits,
+    float s, float t, float point[20], float deriv1[20], float deriv2[20]) {
+
+    //
+    //  P3         e3-      e2+         P2
+    //     15------17-------11--------10
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |       19       13        |
+    // e3+ 16-----18           14-----12 e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- 2------4            8------6 e1+
+    //     |        3        9        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------1--------7--------5
+    //  P0         e0+      e1-         P1
+    //
+
+    //  Indices of boundary and interior points and their corresponding Bezier points:
+    //
+    static int const boundaryGregory[12] = { 0, 1, 7, 5, 2, 6, 16, 12, 15, 17, 11, 10 };
+    static int const boundaryBezier[12]  = { 0, 1, 2, 3, 4, 7,  8, 11, 12, 13, 14, 15 };
+
+    static int const interiorGregory[8] = { 3, 4,  8, 9,  13, 14,  18, 19 };
+    static int const interiorBezier[8]  = { 5, 5,  6, 6,  10, 10,   9,  9 };
+
+    //  Rational multipliers of the Bezier basis functions (note we need a set of weights
+    //  for each derivative for proper differentiation -- TBD):
+    //
+    float sComp = 1.0f - s;
+    float tComp = 1.0f - t;
+
+    //  Use <= here to avoid compiler warnings -- the sums should always be non-negative:
+    float df0 = s     + t;     if (df0 <= 0.0f) df0 = 1.0f;
+    float df1 = sComp + t;     if (df1 <= 0.0f) df1 = 1.0f;
+    float df2 = sComp + tComp; if (df2 <= 0.0f) df2 = 1.0f;
+    float df3 = s     + tComp; if (df3 <= 0.0f) df3 = 1.0f;
+
+    float interiorPointBasis[8] = {     s/df0,     t/df0,
+                                        t/df1, sComp/df1,
+                                    sComp/df2, tComp/df2,
+                                    tComp/df3,     s/df3 };
+
+    //  Weights from a bicubic Bezier patch:
+    //
+    float bezierPoint[16], bezierDeriv1[16], bezierDeriv2[16];
+
+    GetBezierWeights(bits, s, t, bezierPoint, bezierDeriv1, bezierDeriv2);
+
+    //  Copy basis functions (weights) for boundary points and scale the interior basis
+    //  functions by their rational multipliers:
+    //
+    for (int i = 0; i < 12; ++i) {
+        point[boundaryGregory[i]]  = bezierPoint[boundaryBezier[i]];
+    }
+    for (int i = 0; i < 8; ++i) {
+        point[interiorGregory[i]]  = bezierPoint[interiorBezier[i]] * interiorPointBasis[i];
+    }
+
+    if (deriv1 and deriv2) {
+        //  Copy the differentiated basis functions for Bezier to the boundary points:
+        //
+        for (int i = 0; i < 12; ++i) {
+            deriv1[boundaryGregory[i]] = bezierDeriv1[boundaryBezier[i]];
+            deriv2[boundaryGregory[i]] = bezierDeriv2[boundaryBezier[i]];
+        }
+
+        //  XXX barry:  NOTE -- THIS IS NOT CORRECT (the correction is pending)...
+        //
+        //  The basis functions for the interior points are rational and require appropriate
+        //  differentiation wrt each parametric direction.  So we will need the Bezier basis
+        //  functions in each of s and t rather than for (s,t) combined.  The correction will
+        //  also need to support higher order derivatives and so will be combined with that
+        //  extension.
+        //
+        //  What follows preserves what has been done with Gregory derivatives to this point.
+        //
+        for (int i = 0; i < 8; ++i) {
+            deriv1[interiorGregory[i]] = bezierDeriv1[interiorBezier[i]] * interiorPointBasis[i];
+            deriv2[interiorGregory[i]] = bezierDeriv2[interiorBezier[i]] * interiorPointBasis[i];
+        }
+    }
 }
 
 } // end namespace Far

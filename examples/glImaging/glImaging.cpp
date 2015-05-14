@@ -46,55 +46,40 @@
 #include <limits>
 #include <GLFW/glfw3.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-    OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompComputeController.h>
-    OpenSubdiv::Osd::OmpComputeController *g_ompComputeController = NULL;
+    #include <osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbComputeController.h>
-    OpenSubdiv::Osd::TbbComputeController *g_tbbComputeController = NULL;
+    #include <osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osd/clEvaluator.h>
     #include <osd/clGLVertexBuffer.h>
-    #include <osd/clComputeContext.h>
-    #include <osd/clComputeController.h>
 
     #include "../common/clDeviceContext.h"
-
     CLDeviceContext g_clDeviceContext;
-    OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
+    #include <osd/cudaEvaluator.h>
     #include <osd/cudaGLVertexBuffer.h>
-    #include <osd/cudaComputeContext.h>
-    #include <osd/cudaComputeController.h>
-
     #include "../common/cudaDeviceContext.h"
-
     CudaDeviceContext g_cudaDeviceContext;
-    OpenSubdiv::Osd::CudaComputeController *g_cudaComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackComputeContext.h>
-    #include <osd/glslTransformFeedbackComputeController.h>
+    #include <osd/glXFBEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLTransformFeedbackComputeController *g_glslTransformFeedbackComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslComputeContext.h>
-    #include <osd/glslComputeController.h>
+    #include <osd/glComputeEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLComputeController *g_glslComputeController = NULL;
 #endif
 
 #include <osd/glDrawContext.h>
@@ -244,103 +229,82 @@ createOsdMesh(std::string const &kernel,
               Osd::MeshBitset bits)
 {
     if (kernel == "CPU") {
-        if (not g_cpuComputeController) {
-            g_cpuComputeController = new Osd::CpuComputeController();
-        }
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
-            Osd::CpuComputeController,
-            Osd::GLDrawContext>(
-                g_cpuComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits);
+                             Far::StencilTables,
+                             Osd::CpuEvaluator,
+                             Osd::GLDrawContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == "OPENMP") {
-        if (not g_ompComputeController) {
-            g_ompComputeController = new Osd::OmpComputeController();
-        }
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
-            Osd::OmpComputeController,
-            Osd::GLDrawContext>(
-                g_ompComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits);
+                             Far::StencilTables,
+                             Osd::OmpEvaluator,
+                             Osd::GLDrawContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == "TBB") {
-        if (not g_tbbComputeController) {
-            g_tbbComputeController = new Osd::TbbComputeController();
-        }
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
-            Osd::TbbComputeController,
-            Osd::GLDrawContext>(
-                g_tbbComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits);
+                             Far::StencilTables,
+                             Osd::TbbEvaluator,
+                             Osd::GLDrawContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == "CL") {
-        if (not g_clComputeController) {
-            g_clComputeController = new Osd::CLComputeController(
-                g_clDeviceContext.GetContext(),
-                g_clDeviceContext.GetCommandQueue());
-        }
         return new Osd::Mesh<Osd::CLGLVertexBuffer,
-            Osd::CLComputeController,
-            Osd::GLDrawContext,
-            CLDeviceContext>(
-                g_clComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits, &g_clDeviceContext);
+                             Osd::CLStencilTables,
+                             Osd::CLEvaluator,
+                             Osd::GLDrawContext,
+                             CLDeviceContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits,
+                                 NULL,
+                                 &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == "CUDA") {
-        if (not g_cudaComputeController) {
-            g_cudaComputeController = new Osd::CudaComputeController();
-        }
         return new Osd::Mesh<Osd::CudaGLVertexBuffer,
-            Osd::CudaComputeController,
-            Osd::GLDrawContext>(
-                g_cudaComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits);
+                             Osd::CudaStencilTables,
+                             Osd::CudaEvaluator,
+                             Osd::GLDrawContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == "XFB") {
-        if (not g_glslTransformFeedbackComputeController) {
-            g_glslTransformFeedbackComputeController = new Osd::GLSLTransformFeedbackComputeController();
-        }
         return new Osd::Mesh<Osd::GLVertexBuffer,
-            Osd::GLSLTransformFeedbackComputeController,
-            Osd::GLDrawContext>(
-                g_glslTransformFeedbackComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits);
+                             Osd::GLStencilTablesTBO,
+                             Osd::GLXFBEvaluator,
+                             Osd::GLDrawContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == "GLSL") {
-        if (not g_glslComputeController) {
-            g_glslComputeController = new Osd::GLSLComputeController();
-        }
         return new Osd::Mesh<Osd::GLVertexBuffer,
-            Osd::GLSLComputeController,
-            Osd::GLDrawContext>(
-                g_glslComputeController,
-                refiner,
-                numVertexElements,
-                numVaryingElements,
-                level, bits);
+                             Osd::GLStencilTablesSSBO,
+                             Osd::GLComputeEvaluator,
+                             Osd::GLDrawContext>(
+                                 refiner,
+                                 numVertexElements,
+                                 numVaryingElements,
+                                 level, bits);
 #endif
     }
 
@@ -461,7 +425,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
 
     for (int i=0; i<(int)patches.size(); ++i) {
         Osd::DrawContext::PatchArray const & patch = patches[i];
-        Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        Far::PatchDescriptor desc = patch.GetDescriptor();
         Far::PatchDescriptor::Type patchType = desc.GetType();
 
         GLenum primType;

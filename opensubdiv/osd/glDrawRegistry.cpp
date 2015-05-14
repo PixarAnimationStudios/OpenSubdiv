@@ -43,9 +43,6 @@ GLDrawConfig::~GLDrawConfig()
 static const char *commonShaderSource =
 #include "glslPatchCommon.gen.h"
 ;
-static const char *ptexShaderSource =
-#include "glslPtexCommon.gen.h"
-;
 static const char *bsplineShaderSource =
 #include "glslPatchBSpline.gen.h"
 ;
@@ -55,50 +52,29 @@ static const char *gregoryShaderSource =
 static const char *gregoryBasisShaderSource =
 #include "glslPatchGregoryBasis.gen.h"
 ;
-static const char *transitionShaderSource =
-#include "glslPatchTransition.gen.h"
-;
 #endif
 
 GLDrawRegistryBase::~GLDrawRegistryBase() {}
 
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
 GLDrawSourceConfig *
-GLDrawRegistryBase::_CreateDrawSourceConfig(
-    DrawContext::PatchDescriptor const & desc)
+GLDrawRegistryBase::_CreateDrawSourceConfig(Far::PatchDescriptor const & desc)
 {
     GLDrawSourceConfig * sconfig = _NewDrawSourceConfig();
 
     sconfig->commonShader.source = commonShaderSource;
 
-    if (IsPtexEnabled()) {
-        sconfig->commonShader.source += ptexShaderSource;
-    }
-
-    {
-        std::ostringstream ss;
-        ss << (int)desc.GetMaxValence();
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
-        ss.str("");
-        ss << (int)desc.GetNumElements();
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
-
     switch (desc.GetType()) {
     case Far::PatchDescriptor::REGULAR:
-    case Far::PatchDescriptor::BOUNDARY:
-    case Far::PatchDescriptor::CORNER:
         sconfig->commonShader.AddDefine("OSD_PATCH_BSPLINE");
         sconfig->commonShader.AddDefine("OSD_PATCH_ENABLE_SINGLE_CREASE");
         sconfig->vertexShader.source = bsplineShaderSource;
         sconfig->vertexShader.version = "#version 410\n";
         sconfig->vertexShader.AddDefine("OSD_PATCH_VERTEX_BSPLINE_SHADER");
-        sconfig->tessControlShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->tessControlShader.source = bsplineShaderSource;
         sconfig->tessControlShader.version = "#version 410\n";
         sconfig->tessControlShader.AddDefine("OSD_PATCH_TESS_CONTROL_BSPLINE_SHADER");
-        sconfig->tessEvalShader.source =
-            std::string(transitionShaderSource) + bsplineShaderSource;
+        sconfig->tessEvalShader.source = bsplineShaderSource;
         sconfig->tessEvalShader.version = "#version 410\n";
         sconfig->tessEvalShader.AddDefine("OSD_PATCH_TESS_EVAL_BSPLINE_SHADER");
         break;
@@ -148,8 +124,7 @@ GLDrawRegistryBase::_CreateDrawSourceConfig(
 }
 #else
 GLDrawSourceConfig *
-GLDrawRegistryBase::_CreateDrawSourceConfig(
-    DrawContext::PatchDescriptor const &)
+GLDrawRegistryBase::_CreateDrawSourceConfig(Far::PatchDescriptor const &)
 {
     return _NewDrawSourceConfig();
 }
@@ -202,7 +177,7 @@ _CompileShader(
 
 GLDrawConfig *
 GLDrawRegistryBase::_CreateDrawConfig(
-        DrawContext::PatchDescriptor const & /* desc */,
+        Far::PatchDescriptor const & /* desc */,
         GLDrawSourceConfig const * sconfig)
 {
     assert(sconfig);

@@ -46,7 +46,6 @@ GLFWmonitor* g_primary=0;
     #define snprintf _snprintf
 #endif
 
-#include <osd/vertex.h>
 #include <osd/cpuGLVertexBuffer.h>
 
 #include <far/gregoryBasis.h>
@@ -710,8 +709,6 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     static char buf[16];
 
     static int regular[4]  = {5, 6, 9, 10},
-               boundary[4] = {1, 2, 5, 6},
-               corner[4]   = {1, 2, 4, 5},
                gregory[4]  = {0, 1, 2, 3};
 
     for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
@@ -724,8 +721,6 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
             int * remap = 0;
             switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
                 case Descriptor::REGULAR:          remap = regular; break;
-                case Descriptor::BOUNDARY:         remap = boundary; break;
-                case Descriptor::CORNER:           remap = corner; break;
                 case Descriptor::GREGORY:
                 case Descriptor::GREGORY_BOUNDARY:
                 case Descriptor::GREGORY_BASIS:    remap = gregory; break;

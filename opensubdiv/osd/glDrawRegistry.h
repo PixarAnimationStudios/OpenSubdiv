@@ -28,8 +28,6 @@
 #include "../version.h"
 
 #include "../osd/drawRegistry.h"
-#include "../osd/vertex.h"
-
 #include "../osd/opengl.h"
 
 #include <map>
@@ -65,21 +63,13 @@ struct GLDrawSourceConfig : public DrawSourceConfig {
 class GLDrawRegistryBase {
 
 public:
-    typedef DrawContext::PatchDescriptor DescType;
+    typedef Far::PatchDescriptor DescType;
     typedef GLDrawConfig ConfigType;
     typedef GLDrawSourceConfig SourceConfigType;
 
-    GLDrawRegistryBase(bool enablePtex=false) : _enablePtex(enablePtex) { }
+    GLDrawRegistryBase() { }
 
     virtual ~GLDrawRegistryBase();
-
-    bool IsPtexEnabled() const {
-        return _enablePtex;
-    }
-    
-    void SetPtexEnabled(bool b) {
-        _enablePtex=b;
-    }
 
 protected:
     virtual ConfigType * _NewDrawConfig() {
@@ -92,16 +82,13 @@ protected:
     virtual SourceConfigType * _NewDrawSourceConfig() { 
         return new SourceConfigType(); 
     }
-    
-    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc);
 
-private:
-    bool _enablePtex;
+    virtual SourceConfigType * _CreateDrawSourceConfig(DescType const & desc);
 };
 
 //------------------------------------------------------------------------------
 
-template <class DESC_TYPE = DrawContext::PatchDescriptor,
+template <class DESC_TYPE = Far::PatchDescriptor,
           class CONFIG_TYPE = GLDrawConfig,
           class SOURCE_CONFIG_TYPE = GLDrawSourceConfig >
 

@@ -73,26 +73,32 @@ copy(float *dst, int dstIndex, const float *src,
 // XXXX manuelk this should be optimized further by using SIMD - considering
 //              OMP is somewhat obsolete - this is probably not worth it.
 void
-OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                      float const * vertexSrc,
-                      float * vertexDst,
-                      unsigned char const * sizes,
-                      int const * offsets,
-                      int const * indices,
-                      float const * weights,
-                      int start, int end) {
+OmpEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+    }
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
 
-    assert(start>=0 and start<end);
+    int numThreads = omp_get_max_threads();
+    int n = end - start;
 
-    int numThreads = omp_get_max_threads(),
-        nstencils = end-start;
-
-    float * result = (float*)alloca(vertexDesc.length*numThreads*sizeof(float));
+    float * result = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
 
 #pragma omp parallel for
-    for (int i=0; i<nstencils; ++i) {
+    for (int i = 0; i < n; ++i) {
 
-        int index = i + (start>0 ? start : 0); // Stencil index
+        int index = i + (start > 0 ? start : 0); // Stencil index
 
         // Get thread-local pointers
         int const           * threadIndices = indices + offsets[index];
@@ -100,16 +106,16 @@ OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
 
         int threadId = omp_get_thread_num();
 
-        float * threadResult = result + threadId*vertexDesc.length;
+        float * threadResult = result + threadId*srcDesc.length;
 
-        clear(threadResult, vertexDesc);
+        clear(threadResult, dstDesc);
 
         for (int j=0; j<(int)sizes[index]; ++j) {
-            addWithWeight(threadResult, vertexSrc,
-                threadIndices[j], threadWeights[j], vertexDesc);
+            addWithWeight(threadResult, src,
+                threadIndices[j], threadWeights[j], srcDesc);
         }
 
-        copy(vertexDst, i, threadResult, vertexDesc);
+        copy(dst, i, threadResult, dstDesc);
     }
 
 }

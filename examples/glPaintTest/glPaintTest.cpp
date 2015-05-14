@@ -42,16 +42,13 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/vertex.h>
 #include <osd/glDrawContext.h>
 #include <osd/glDrawRegistry.h>
 #include <far/error.h>
 #include <far/ptexIndices.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh;
@@ -239,16 +236,12 @@ createOsdMesh() {
     bool doAdaptive = true;
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshPtexData, true);
 
-    if (not g_cpuComputeController) {
-        g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-    }
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-        OpenSubdiv::Osd::CpuComputeController,
-        OpenSubdiv::Osd::GLDrawContext>(
-            g_cpuComputeController,
-            refiner, 3, 0, g_level, bits);
+                                       OpenSubdiv::Far::StencilTables,
+                                       OpenSubdiv::Osd::CpuEvaluator,
+                                       OpenSubdiv::Osd::GLDrawContext>(
+                                           refiner, 3, 0, g_level, bits);
 
     // compute model bounding
     float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
@@ -347,25 +340,54 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor,Effect> EffectDesc;
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
+
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return desc < e.desc || (desc == e.desc &&
+              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+              (effect < e.effect))));
+    }
+};
 
 class EffectDrawRegistry : public OpenSubdiv::Osd::GLDrawRegistry<EffectDesc> {
 
 protected:
     virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
+    _CreateDrawConfig(EffectDesc const & desc, SourceConfigType const * sconfig);
 
     virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
+    _CreateDrawSourceConfig(EffectDesc const & desc);
 };
 
 EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
+EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc) {
 
-    Effect effect = desc.second;
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
+    Effect effect = effectDesc.effect;
 
     SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first);
+        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc);
+
+    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
+    if (effectDesc.desc.GetType() == Descriptor::GREGORY or
+        effectDesc.desc.GetType() == Descriptor::GREGORY_BOUNDARY) {
+        std::ostringstream ss;
+        ss << effectDesc.maxValence;
+        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        ss.str("");
+
+        ss << effectDesc.numElements;
+        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
+    }
 
     sconfig->commonShader.AddDefine("USE_PTEX_COORD");
 
@@ -423,10 +445,10 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
 
 EffectDrawRegistry::ConfigType *
 EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
+        DescType const & effectDesc,
         SourceConfigType const * sconfig) {
 
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
+    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig);
     assert(config);
 
     GLuint uboIndex;
@@ -652,7 +674,7 @@ display() {
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
 
         GLenum primType = GL_PATCHES;
         glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
@@ -823,7 +845,7 @@ drawStroke(int x, int y) {
     for (int i=0; i<(int)patches.size(); ++i) {
 
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
 
         GLenum primType = GL_PATCHES;
         glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
@@ -1096,8 +1118,6 @@ uninitGL() {
 
     if (g_mesh)
         delete g_mesh;
-
-    delete g_cpuComputeController;
 }
 
 //------------------------------------------------------------------------------

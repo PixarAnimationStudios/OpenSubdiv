@@ -37,8 +37,9 @@
 #include "../far/stencilTables.h"
 #include "../far/stencilTablesFactory.h"
 
-#include "../osd/vertex.h"
 #include "../osd/vertexDescriptor.h"
+
+struct ID3D11DeviceContext;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -48,13 +49,12 @@ namespace Osd {
 enum MeshBits {
     MeshAdaptive             = 0,
     MeshInterleaveVarying    = 1,
-    MeshPtexData             = 2,
-    MeshFVarData             = 3,
-    MeshUseSingleCreasePatch = 4,
-    MeshEndCapBSplineBasis   = 5,  // exclusive
-    MeshEndCapGregoryBasis   = 6,  // exclusive
-    MeshEndCapLegacyGregory  = 7,  // exclusive
-    NUM_MESH_BITS            = 8,
+    MeshFVarData             = 2,
+    MeshUseSingleCreasePatch = 3,
+    MeshEndCapBSplineBasis   = 4,  // exclusive
+    MeshEndCapGregoryBasis   = 5,  // exclusive
+    MeshEndCapLegacyGregory  = 6,  // exclusive
+    NUM_MESH_BITS            = 7,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -80,13 +80,6 @@ public:
                                      int startVertex, int numVerts) = 0;
 
     virtual void Refine() = 0;
-
-    virtual void Refine(VertexBufferDescriptor const *vertexDesc,
-                        VertexBufferDescriptor const *varyingDesc) = 0;
-
-    virtual void Refine(VertexBufferDescriptor const *vertexDesc,
-                        VertexBufferDescriptor const *varyingDesc,
-                        bool interleaved) = 0;
 
     virtual void Synchronize() = 0;
 
@@ -120,25 +113,143 @@ protected:
 
 // ---------------------------------------------------------------------------
 
-template <class VERTEX_BUFFER,
-          class COMPUTE_CONTROLLER,
-          class DRAW_CONTEXT,
-          class DEVICE_CONTEXT = void>
+template <typename STENCIL_TABLES, typename DEVICE_CONTEXT>
+STENCIL_TABLES const *
+convertToCompatibleStencilTables(
+    Far::StencilTables const *table, DEVICE_CONTEXT *context) {
+    if (not table) return NULL;
+    return STENCIL_TABLES::Create(table, context);
+}
+
+template <>
+Far::StencilTables const *
+convertToCompatibleStencilTables<Far::StencilTables, void>(
+    Far::StencilTables const *table, void *  /*context*/) {
+    // no need for conversion
+    // XXX: We don't want to even copy.
+    if (not table) return NULL;
+    return new Far::StencilTables(*table);
+}
+
+template <>
+Far::StencilTables const *
+convertToCompatibleStencilTables<Far::StencilTables, ID3D11DeviceContext>(
+    Far::StencilTables const *table, ID3D11DeviceContext *  /*context*/) {
+    // no need for conversion
+    // XXX: We don't want to even copy.
+    if (not table) return NULL;
+    return new Far::StencilTables(*table);
+}
+
+// ---------------------------------------------------------------------------
+
+template <typename EVALUATOR>
+class EvaluatorCacheT {
+public:
+    ~EvaluatorCacheT() {
+        for(typename Evaluators::iterator it = _evaluators.begin();
+            it != _evaluators.end(); ++it) {
+            delete it->evaluator;
+        }
+    }
+
+    // XXX: FIXME, linear search
+    struct Entry {
+        Entry(VertexBufferDescriptor const &sd,
+              VertexBufferDescriptor const &dd,
+              EVALUATOR *e) : srcDesc(sd), dstDesc(dd), evaluator(e) {}
+        VertexBufferDescriptor srcDesc, dstDesc;
+        EVALUATOR *evaluator;
+    };
+    typedef std::vector<Entry> Evaluators;
+
+    template <typename DEVICE_CONTEXT>
+    EVALUATOR *GetEvaluator(VertexBufferDescriptor const &srcDesc,
+                            VertexBufferDescriptor const &dstDesc,
+                            DEVICE_CONTEXT *deviceContext) {
+
+        for(typename Evaluators::iterator it = _evaluators.begin();
+            it != _evaluators.end(); ++it) {
+            if (it->srcDesc.length == srcDesc.length and
+                it->srcDesc.stride == srcDesc.stride and
+                it->dstDesc.length == dstDesc.length and
+                it->dstDesc.stride == dstDesc.stride) {
+                return it->evaluator;
+            }
+        }
+        EVALUATOR *e = EVALUATOR::Create(srcDesc, dstDesc, deviceContext);
+        _evaluators.push_back(Entry(srcDesc, dstDesc, e));
+        return e;
+    }
+
+private:
+    Evaluators _evaluators;
+};
+
+
+// template helpers to see if the evaluator is instantiatable or not.
+template <typename EVALUATOR>
+struct instantiatable
+{
+    typedef char yes[1];
+    typedef char no[2];
+    template <typename C> static yes &chk(typename C::Instantiatable *t=0);
+    template <typename C> static no  &chk(...);
+    static bool const value = sizeof(chk<EVALUATOR>(0)) == sizeof(yes);
+};
+template <bool C, typename T=void>
+struct enable_if { typedef T type; };
+template <typename T>
+struct enable_if<false, T> { };
+
+// extract a kernel from cache if available
+template <typename EVALUATOR, typename DEVICE_CONTEXT>
+static EVALUATOR *GetEvaluator(
+    EvaluatorCacheT<EVALUATOR> *cache,
+    VertexBufferDescriptor const &srcDesc,
+    VertexBufferDescriptor const &dstDesc,
+    DEVICE_CONTEXT deviceContext,
+    typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
+    (void)t;
+    if (cache == NULL) return NULL;
+    return cache->GetEvaluator(srcDesc, dstDesc, deviceContext);
+}
+
+// fallback
+template <typename EVALUATOR, typename DEVICE_CONTEXT>
+static EVALUATOR *GetEvaluator(
+    EvaluatorCacheT<EVALUATOR> *,
+    VertexBufferDescriptor const &,
+    VertexBufferDescriptor const &,
+    DEVICE_CONTEXT,
+    typename enable_if<!instantiatable<EVALUATOR>::value, void>::type*t=0) {
+    (void)t;
+    return NULL;
+}
+
+// ---------------------------------------------------------------------------
+
+template <typename VERTEX_BUFFER,
+          typename STENCIL_TABLES,
+          typename EVALUATOR,
+          typename DRAW_CONTEXT,
+          typename DEVICE_CONTEXT = void>
 class Mesh : public MeshInterface<DRAW_CONTEXT> {
 public:
     typedef VERTEX_BUFFER VertexBuffer;
-    typedef COMPUTE_CONTROLLER ComputeController;
+    typedef EVALUATOR Evaluator;
+    typedef STENCIL_TABLES StencilTables;
     typedef DRAW_CONTEXT DrawContext;
     typedef DEVICE_CONTEXT DeviceContext;
-    typedef typename ComputeController::ComputeContext ComputeContext;
+    typedef EvaluatorCacheT<Evaluator> EvaluatorCache;
     typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
 
-    Mesh(ComputeController * computeController,
-         Far::TopologyRefiner * refiner,
+    Mesh(Far::TopologyRefiner * refiner,
          int numVertexElements,
          int numVaryingElements,
          int level,
          MeshBitset bits = MeshBitset(),
+         EvaluatorCache * evaluatorCache = NULL,
          DeviceContext * deviceContext = NULL) :
 
             _refiner(refiner),
@@ -146,8 +257,9 @@ public:
             _numVertices(0),
             _vertexBuffer(NULL),
             _varyingBuffer(NULL),
-            _computeContext(NULL),
-            _computeController(computeController),
+            _vertexStencilTables(NULL),
+            _varyingStencilTables(NULL),
+            _evaluatorCache(evaluatorCache),
             _drawContext(NULL),
             _deviceContext(deviceContext) {
 
@@ -158,18 +270,34 @@ public:
             bits.test(MeshAdaptive),
             bits.test(MeshUseSingleCreasePatch));
 
-        int numVertexElementsInterleaved = numVertexElements +
+        int vertexBufferStride = numVertexElements +
             (bits.test(MeshInterleaveVarying) ? numVaryingElements : 0);
-        int numVaryingElementsNonInterleaved =
+        int varyingBufferStride =
             (bits.test(MeshInterleaveVarying) ? 0 : numVaryingElements);
 
         initializeContext(numVertexElements,
                           numVaryingElements,
-                          numVertexElementsInterleaved, level, bits);
+                          level, bits);
 
         initializeVertexBuffers(_numVertices,
-                                numVertexElementsInterleaved,
-                                numVaryingElementsNonInterleaved);
+                                vertexBufferStride,
+                                varyingBufferStride);
+
+        // configure vertex buffer descriptor
+        _vertexDesc = VertexBufferDescriptor(0,
+                                             numVertexElements,
+                                             vertexBufferStride);
+        if (bits.test(MeshInterleaveVarying)) {
+            _varyingDesc = VertexBufferDescriptor(numVertexElements,
+                                                  numVaryingElements,
+                                                  vertexBufferStride);
+        } else {
+            _varyingDesc = VertexBufferDescriptor(0,
+                                                  numVaryingElements,
+                                                  varyingBufferStride);
+        }
+
+
 
         // will retire
         _drawContext->UpdateVertexTexture(_vertexBuffer, _deviceContext);
@@ -180,9 +308,10 @@ public:
         delete _patchTables;
         delete _vertexBuffer;
         delete _varyingBuffer;
-        delete _computeContext;
+        delete _vertexStencilTables;
+        delete _varyingStencilTables;
         delete _drawContext;
-        // devicecontext and computecontroller are not owned by this class.
+        // deviceContext and evaluatorCache are not owned by this class.
     }
 
     virtual void UpdateVertexBuffer(float const *vertexData,
@@ -198,29 +327,50 @@ public:
     }
 
     virtual void Refine() {
-        _computeController->Compute(_computeContext,
-                                    _vertexBuffer, _varyingBuffer);
-    }
 
-    virtual void Refine(VertexBufferDescriptor const *vertexDesc,
-                        VertexBufferDescriptor const *varyingDesc) {
-        _computeController->Compute(_computeContext,
-                                    _vertexBuffer, _varyingBuffer,
-                                    vertexDesc, varyingDesc);
-    }
+        int numControlVertices = _refiner->GetNumVertices(0);
 
-    virtual void Refine(VertexBufferDescriptor const *vertexDesc,
-                        VertexBufferDescriptor const *varyingDesc,
-                        bool interleaved) {
-        _computeController->Compute(_computeContext,
-                                    _vertexBuffer,
-                                    (interleaved ?
-                                     _vertexBuffer : _varyingBuffer),
-                                    vertexDesc, varyingDesc);
+        VertexBufferDescriptor srcDesc = _vertexDesc;
+        VertexBufferDescriptor dstDesc(srcDesc);
+        dstDesc.offset += numControlVertices * dstDesc.stride;
+
+        // note that the _evaluatorCache can be NULL and thus
+        // the evaluatorInstance can be NULL
+        //  (for uninstantiatable kernels CPU,TBB etc)
+        Evaluator const *instance = GetEvaluator<Evaluator>(
+            _evaluatorCache, srcDesc, dstDesc, _deviceContext);
+
+        Evaluator::EvalStencils(_vertexBuffer, srcDesc,
+                                _vertexBuffer, dstDesc,
+                                _vertexStencilTables,
+                                instance, _deviceContext);
+
+        if (_varyingDesc.length > 0) {
+            VertexBufferDescriptor srcDesc = _varyingDesc;
+            VertexBufferDescriptor dstDesc(srcDesc);
+            dstDesc.offset += numControlVertices * dstDesc.stride;
+
+            instance = GetEvaluator<Evaluator>(
+                _evaluatorCache, srcDesc, dstDesc, _deviceContext);
+
+            if (_varyingBuffer) {
+                // non-interleaved
+                Evaluator::EvalStencils(_varyingBuffer, srcDesc,
+                                        _varyingBuffer, dstDesc,
+                                        _varyingStencilTables,
+                                        instance, _deviceContext);
+            } else {
+                // interleaved
+                Evaluator::EvalStencils(_vertexBuffer, srcDesc,
+                                        _vertexBuffer, dstDesc,
+                                        _varyingStencilTables,
+                                        instance, _deviceContext);
+            }
+        }
     }
 
     virtual void Synchronize() {
-        _computeController->Synchronize();
+        Evaluator::Synchronize(_deviceContext);
     }
 
     virtual DrawContext * GetDrawContext() {
@@ -263,7 +413,7 @@ public:
 private:
     void initializeContext(int numVertexElements,
                            int numVaryingElements,
-                           int numElements, int level, MeshBitset bits) {
+                           int level, MeshBitset bits) {
         assert(_refiner);
 
         Far::StencilTablesFactory::Options options;
@@ -332,16 +482,21 @@ private:
             }
         }
 
-        _drawContext = DrawContext::Create(_patchTables, numElements,
-                                           _deviceContext);
-        _computeContext = ComputeContext::Create(vertexStencils,
-                                                 varyingStencils,
-                                                 _deviceContext);
+        _drawContext = DrawContext::Create(_patchTables, _deviceContext);
 
         // numvertices = coarse verts + refined verts + gregory basis verts
         _numVertices = vertexStencils->GetNumControlVertices()
             + vertexStencils->GetNumStencils();
 
+        // convert to device stenciltables if necessary.
+        _vertexStencilTables =
+            convertToCompatibleStencilTables<StencilTables>(
+            vertexStencils, _deviceContext);
+        _varyingStencilTables =
+            convertToCompatibleStencilTables<StencilTables>(
+            varyingStencils, _deviceContext);
+
+        // FIXME: we do extra copyings for Far::Stencils.
         delete vertexStencils;
         delete varyingStencils;
     }
@@ -366,14 +521,17 @@ private:
 
     int _numVertices;
 
-    VertexBuffer * _vertexBuffer,
-                 * _varyingBuffer;
+    VertexBuffer * _vertexBuffer;
+    VertexBuffer * _varyingBuffer;
 
-    ComputeContext    * _computeContext;
-    ComputeController * _computeController;
+    VertexBufferDescriptor _vertexDesc;
+    VertexBufferDescriptor _varyingDesc;
+
+    StencilTables const * _vertexStencilTables;
+    StencilTables const * _varyingStencilTables;
+    EvaluatorCache * _evaluatorCache;
 
     DrawContext *_drawContext;
-
     DeviceContext *_deviceContext;
 };
 

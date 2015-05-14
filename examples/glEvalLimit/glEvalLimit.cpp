@@ -42,20 +42,18 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-#include <osd/cpuEvalLimitContext.h>
-#include <osd/cpuEvalLimitController.h>
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuVertexBuffer.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/drawContext.h>
 #include <osd/mesh.h>
-#include <osd/vertex.h>
+
 #include <far/gregoryBasis.h>
 #include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/topologyRefiner.h>
 #include <far/stencilTablesFactory.h>
 #include <far/patchTablesFactory.h>
+#include <far/patchMap.h>
 
 #include <far/error.h>
 
@@ -139,7 +137,7 @@ int g_nparticles=0,
     g_nsamples=101,
     g_nsamplesFound=0;
 
-bool g_randomStart=true;
+bool g_randomStart=false;
 
 GLuint g_cageEdgeVAO = 0,
        g_cageEdgeVBO = 0,
@@ -199,13 +197,12 @@ Far::TopologyRefiner * g_topologyRefiner = 0;
 Osd::CpuVertexBuffer * g_vertexData = 0,
                    * g_varyingData = 0;
 
-Osd::CpuComputeContext * g_computeCtx = 0;
+Far::StencilTables const * g_vertexStencils = NULL;
+Far::StencilTables const * g_varyingStencils = NULL;
 
-Osd::CpuComputeController g_computeCtrl;
-
-Osd::CpuEvalLimitContext * g_evalCtx = 0;
-
-Osd::CpuEvalLimitController g_evalCtrl;
+Far::PatchTables const * g_patchTables = NULL;
+Far::PatchMap const * g_patchMap = NULL;
+Osd::PatchCoordArray g_patchCoords;
 
 Osd::VertexBufferDescriptor g_idesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ),
                           g_odesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6 ),
@@ -246,7 +243,25 @@ updateGeom() {
 
     g_vertexData->UpdateData( &g_positions[0], 0, nverts);
 
-    g_computeCtrl.Compute(g_computeCtx, g_vertexData, g_varyingData);
+    if (! g_topologyRefiner) return;
+
+    // note that for patch eval we need coarse+refined combined buffer.
+    int nCoarseVertices = g_topologyRefiner->GetNumVertices(0);
+    Osd::CpuEvaluator::EvalStencils(g_vertexData,
+                                    Osd::VertexBufferDescriptor(0, 3, 3),
+                                    g_vertexData,
+                                    Osd::VertexBufferDescriptor(
+                                        nCoarseVertices*3, 3, 3),
+                                    g_vertexStencils);
+
+    if (g_varyingData) {
+        Osd::CpuEvaluator::EvalStencils(g_varyingData,
+                                        Osd::VertexBufferDescriptor(0, 3, 3),
+                                        g_varyingData,
+                                        Osd::VertexBufferDescriptor(
+                                            nCoarseVertices*3, 3, 3),
+                                        g_varyingStencils);
+    }
 
     s.Stop();
     g_computeTime = float(s.GetElapsed() * 1000.0f);
@@ -256,66 +271,37 @@ updateGeom() {
 
     s.Start();
 
-    // The varying data ends-up interleaved in the same g_Q output buffer because
-    // g_Q has a stride of 6 and g_vdesc sets the offset to 3, while g_odesc sets
-    // the offset to 0
-    switch (g_drawMode) {
-        case kVARYING     : g_evalCtrl.BindVaryingBuffers( g_idesc, g_varyingData, g_vdesc, g_Q ); break;
-
-        case kFACEVARYING : //g_evalCtrl.BindFacevaryingBuffers( g_fvidesc, g_fvodesc, g_Q ); break;
-        case kRANDOM      :
-        case kUV          :
-        default : g_evalCtrl.Unbind(); break;
-    }
-
-    // Bind/Unbind of the vertex buffers to the context needs to happen
-    // outside of the parallel loop
-    g_evalCtrl.BindVertexBuffers( g_idesc, g_vertexData, g_odesc, g_Q, g_dQs, g_dQt );
-
-
     // Apply 'dynamics' update
     assert(g_particles);
     g_particles->Update(g_evalTime); // XXXX g_evalTime is not really elapsed time...
 
 
-    // Evaluate the positions of the samples on the limit surface
-    g_nsamplesFound=0;
-#define USE_OPENMP
-#if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
-    #pragma omp parallel for
-#endif
-    for (int i=0; i<g_nparticles; ++i) {
-
-        Osd::LimitLocation & coord = g_particles->GetPositions()[i];
-
-        int n = g_evalCtrl.EvalLimitSample( coord, g_evalCtx, i );
-
-        if (n) {
-            // point colors
-            switch (g_drawMode) {
-                case kUV : { float * color = g_Q->BindCpuBuffer() + i*g_Q->GetNumElements()  + 3;
-                             color[0] = coord.s;
-                             color[1] = 0.0f;
-                             color[2] = coord.t; } break;
-
-                case kRANDOM : // no update needed
-                case kVARYING :
-                case kFACEVARYING : break;
-
-                default : break;
-           }
-#if defined(OPENSUBDIV_HAS_OPENMP) and defined(USE_OPENMP)
-            #pragma omp atomic
-#endif
-            g_nsamplesFound += n;
-        } else {
-            // "hide" unfound samples (hole tags...) as a black dot at the origin
-            float * sample = g_Q->BindCpuBuffer() + i*g_Q->GetNumElements();
-            memset(sample, 0, g_Q->GetNumElements() * sizeof(float));
+    // resolve particle positions into patch handles
+    // XXX: this process should be handled by OsdKernel in parallel
+    g_patchCoords.clear();
+    for (int i = 0; i < g_particles->GetNumParticles(); ++i) {
+        STParticles::Position const &position = g_particles->GetPositions()[i];
+        Far::PatchTables::PatchHandle const *handle =
+            g_patchMap->FindPatch(position.ptexIndex, position.s, position.t);
+        if (handle) {
+            g_patchCoords.push_back(Osd::PatchCoord(
+                                        *handle, position.s, position.t));
         }
     }
 
-    g_evalCtrl.Unbind();
+    // Evaluate the positions of the samples on the limit surface
+    g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(g_vertexData, g_idesc,
+                                                     g_Q,          g_odesc,
+                                                     g_patchCoords,
+                                                     g_patchTables, NULL);
+
+    // varying
+    if (g_drawMode == kVARYING) {
+        Osd::CpuEvaluator::EvalPatches(g_varyingData, g_idesc,
+                                       g_Q,           g_vdesc,
+                                       g_patchCoords,
+                                       g_patchTables, NULL);
+    }
 
     g_Q->BindVBO();
 
@@ -336,7 +322,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     delete g_topologyRefiner;
-    OpenSubdiv::Far::TopologyRefiner * g_topologyRefiner =
+    g_topologyRefiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
@@ -351,7 +337,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     // location samples (ptex face index, (s,t) and updates them between frames.
     // Note: the number of limit locations can be entirely arbitrary
     delete g_particles;
-    g_particles = new STParticles(*g_topologyRefiner, g_nsamples, g_randomStart);
+    g_particles = new STParticles(*g_topologyRefiner, g_nsamples, !g_randomStart);
     g_nparticles = g_particles->GetNumParticles();
     g_particles->SetSpeed(speed);
 
@@ -410,18 +396,17 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         nverts = vertexStencils->GetNumControlVertices() +
             vertexStencils->GetNumStencils();
 
-        // Create an Osd Compute context, used to "pose" the vertices with
-        // the stencils tables
-        delete g_computeCtx;
-        g_computeCtx = Osd::CpuComputeContext::Create(vertexStencils,
-                                                      varyingStencils);
+        if (g_vertexStencils) delete g_vertexStencils;
+        g_vertexStencils = vertexStencils;
+        if (g_varyingStencils) delete g_varyingStencils;
+        g_varyingStencils = varyingStencils;
 
-        // Create a limit Eval context with the patch tables
-        delete g_evalCtx;
-        g_evalCtx = Osd::CpuEvalLimitContext::Create(*patchTables);
+        if (g_patchTables) delete g_patchTables;
+        g_patchTables = patchTables;
 
-        delete vertexStencils;
-        delete varyingStencils;
+        // Create a far patch map
+        if (g_patchMap) delete g_patchMap;
+        g_patchMap = new Far::PatchMap(*g_patchTables);
     }
 
     {   // Create vertex primvar buffer for the CVs
@@ -911,7 +896,7 @@ callbackFreeze(bool checked, int /* f */) {
 //------------------------------------------------------------------------------
 static void
 callbackCentered(bool checked, int /* f */) {
-    g_randomStart = !checked;
+    g_randomStart = checked;
     createOsdMesh(g_defaultShapes[g_currentShape], g_level);
 }
 
@@ -954,7 +939,7 @@ initHUD() {
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
     g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
 
-    g_hud.AddCheckBox("Random Start", false, 10, 120, callbackCentered, 0);
+    g_hud.AddCheckBox("Random Start", false, 10, 120, callbackCentered, g_randomStart);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackDisplayVaryingColors, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Random", kRANDOM, g_drawMode==kRANDOM);

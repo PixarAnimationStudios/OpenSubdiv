@@ -51,7 +51,7 @@ namespace Osd {
 /// D3D11VertexBuffer implements CLVertexBufferInterface and
 /// D3D11VertexBufferInterface.
 ///
-/// An instance of this buffer class can be passed to D3D11ComputeController.
+/// An instance of this buffer class can be passed to D3D11ComputeEvaluator.
 ///
 class CLD3D11VertexBuffer {
 public:

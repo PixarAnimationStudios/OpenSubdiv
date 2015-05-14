@@ -22,31 +22,46 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CPU_KERNEL_H
-#define OSD_CPU_KERNEL_H
+#ifndef OPENSUBDIV_OSD_CPU_KERNEL_H
+#define OPENSUBDIV_OSD_CPU_KERNEL_H
 
 #include "../version.h"
-
-#include "../osd/vertexDescriptor.h"
+#include <cstring>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-struct VertexDescriptor;
-
-
+struct VertexBufferDescriptor;
 
 void
-CpuComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                   float const * vertexSrc,
-                   float * vertexDst,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end);
+CpuEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end);
+
+void
+CpuEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                float * dstDu,
+                VertexBufferDescriptor const &dstDuDesc,
+                float * dstDv,
+                VertexBufferDescriptor const &dstDvDesc,
+                unsigned char const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end);
 
 //
 // SIMD ICC optimization of the stencil kernel
