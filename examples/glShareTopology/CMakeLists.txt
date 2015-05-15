@@ -57,6 +57,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 _add_glfw_executable(glShareTopology
     glShareTopology.cpp
+    sceneBase.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
