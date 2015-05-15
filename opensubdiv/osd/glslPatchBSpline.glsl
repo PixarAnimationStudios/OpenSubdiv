@@ -392,7 +392,7 @@ void main()
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = (OsdProjectionMatrix() * vec4(WorldPos, 1.0f));
+    gl_Position = OsdProjectionMatrix() * outpt.v.position;
 }
 
 #endif

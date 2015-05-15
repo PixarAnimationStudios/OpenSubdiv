@@ -421,11 +421,12 @@ fitFrame() {
 
 //------------------------------------------------------------------------------
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_) : value(0) {
+    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_, int singleCreasePatch_) : value(0) {
         displayStyle = displayStyle_;
         screenSpaceTess = screenSpaceTess_;
         fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
+        singleCreasePatch = singleCreasePatch_;
     }
 
     struct {
@@ -433,6 +434,7 @@ union Effect {
         unsigned int screenSpaceTess:1;
         unsigned int fractionalSpacing:1;
         unsigned int patchCull:1;
+        unsigned int singleCreasePatch:1;
     };
     int value;
 
@@ -452,9 +454,11 @@ struct EffectDesc {
     int numElements;
 
     bool operator < (const EffectDesc &e) const {
-        return desc < e.desc || (desc == e.desc &&
-              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
-              (effect < e.effect))));
+        return
+            (desc < e.desc || ((desc == e.desc &&
+            (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+            (numElements < e.numElements || ((numElements == e.numElements) &&
+            (effect < e.effect))))))));
     }
 };
 
@@ -464,7 +468,8 @@ GetEffect()
     return Effect(g_displayStyle,
                   g_screenSpaceTess,
                   g_fractionalSpacing,
-                  g_patchCull);
+                  g_patchCull,
+                  g_singleCreasePatch);
 }
 
 // ---------------------------------------------------------------------------
@@ -497,7 +502,7 @@ public:
         if (effectDesc.effect.patchCull) {
             ss << "#define OSD_ENABLE_PATCH_CULL\n";
         }
-        if (g_singleCreasePatch) {
+        if (effectDesc.effect.singleCreasePatch) {
             ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
         }
         // for legacy gregory
@@ -610,14 +615,18 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     // only legacy gregory needs maxValence and numElements
-    int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-    int numElements = 6;
-
+    // neither legacy gregory nor gregory basis need single crease
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
     if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
+        int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
+        int numElements = 6;
         effectDesc.maxValence = maxValence;
         effectDesc.numElements = numElements;
+        effectDesc.effect.singleCreasePatch = 0;
+    }
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY_BASIS) {
+        effectDesc.effect.singleCreasePatch = 0;
     }
 
     D3D11DrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
@@ -1141,7 +1150,7 @@ initHUD() {
     g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,         10, 150, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
 
     g_hud->AddCheckBox("Adaptive (`)", true, 10, 190, callbackAdaptive, 0, '`');
-    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 's');
+    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 'S');
 
     for (int i = 1; i < 11; ++i) {
         char level[16];

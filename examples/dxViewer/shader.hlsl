@@ -402,7 +402,11 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
     };
 
     int patchType = 0;
-#if defined OSD_PATCH_GREGORY
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (sharpness > 0) {
+        patchType = 1;
+    }
+#elif defined OSD_PATCH_GREGORY
     patchType = 4;
 #elif defined OSD_PATCH_GREGORY_BOUNDARY
     patchType = 5;
@@ -419,9 +423,6 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
     }
 
     int pattern = countbits(OsdGetPatchTransitionMask(patchParam));
-#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    if (sharpness > 0) pattern += 6;
-#endif
 
     return patchColors[6*patchType + pattern];
 }

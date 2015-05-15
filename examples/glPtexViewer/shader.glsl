@@ -467,7 +467,9 @@ GetOverrideColor(ivec3 patchParam)
 
     int patchType = 0;
 #if defined OSD_PATCH_SINGLE_CREASE
-    patchType = 1;
+    if (inpt.sharpness > 0) {
+        patchType = 1;
+    }
 #elif defined OSD_PATCH_GREGORY
     patchType = 4;
 #elif defined OSD_PATCH_GREGORY_BOUNDARY
@@ -475,6 +477,7 @@ GetOverrideColor(ivec3 patchParam)
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
+
     int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
@@ -482,9 +485,10 @@ GetOverrideColor(ivec3 patchParam)
     if (edgeCount == 2) {
         patchType = 3; // CORNER
     }
+
     int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
-    int offset = 6*patchType + pattern;
-    return patchColors[offset];
+
+    return patchColors[6*patchType + pattern];
 }
 
 #endif
