@@ -783,11 +783,12 @@ drawCageVertices() {
 //------------------------------------------------------------------------------
 
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_) : value(0) {
+    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_, int singleCreasePatch_) : value(0) {
         displayStyle = displayStyle_;
         screenSpaceTess = screenSpaceTess_;
         fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
+        singleCreasePatch = singleCreasePatch_;
     }
 
     struct {
@@ -795,6 +796,7 @@ union Effect {
         unsigned int screenSpaceTess:1;
         unsigned int fractionalSpacing:1;
         unsigned int patchCull:1;
+        unsigned int singleCreasePatch:1;
     };
     int value;
 
@@ -809,7 +811,8 @@ GetEffect()
     return Effect(g_displayStyle,
                   g_screenSpaceTess,
                   g_fractionalSpacing,
-                  g_patchCull);
+                  g_patchCull,
+                  g_singleCreasePatch);
 }
 
 // ---------------------------------------------------------------------------
@@ -825,9 +828,11 @@ struct EffectDesc {
     int numElements;
 
     bool operator < (const EffectDesc &e) const {
-        return desc < e.desc || (desc == e.desc &&
-              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
-              (effect < e.effect))));
+        return
+            (desc < e.desc || ((desc == e.desc &&
+            (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+            (numElements < e.numElements || ((numElements == e.numElements) &&
+            (effect < e.effect))))))));
     }
 };
 
@@ -868,7 +873,7 @@ public:
         if (effectDesc.effect.patchCull) {
             ss << "#define OSD_ENABLE_PATCH_CULL\n";
         }
-        if (g_singleCreasePatch) {
+        if (effectDesc.effect.singleCreasePatch) {
             ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
         }
         // for legacy gregory
@@ -1117,6 +1122,7 @@ bindProgram(Effect effect,
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     // only legacy gregory needs maxValence and numElements
+    // neither legacy gregory nor gregory basis need single crease
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
     if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
@@ -1124,6 +1130,10 @@ bindProgram(Effect effect,
         int numElements = (g_displayStyle == kInterleavedVaryingColor ? 7 : 3);
         effectDesc.maxValence = maxValence;
         effectDesc.numElements = numElements;
+        effectDesc.effect.singleCreasePatch = 0;
+    }
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY_BASIS) {
+        effectDesc.effect.singleCreasePatch = 0;
     }
 
     // lookup shader cache (compile the shader if needed)

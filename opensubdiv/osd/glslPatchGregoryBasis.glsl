@@ -262,10 +262,10 @@ void main()
     outpt.v.tangent = BiTangent;
     outpt.v.bitangent = Tangent;
 
-    //OSD_USER_VARYING_PER_EVAL_POINT(vec2(u,v), 0, 3, 1, 2);
-    OSD_USER_VARYING_PER_EVAL_POINT(vec2(u,v), 0, 15, 5, 10);
-
     vec2 UV = vec2(v, u);
+
+    OSD_USER_VARYING_PER_EVAL_POINT(UV, 0, 5, 15, 10);
+
     outpt.v.tessCoord = UV;
     outpt.v.patchCoord = OsdInterpolatePatchCoord(UV, inpt[0].v.patchCoord);
 
