@@ -302,69 +302,125 @@ void GetGregoryWeights(PatchParam::BitField bits,
     //  P0         e0+      e1-         P1
     //
 
-    //  Indices of boundary and interior points and their corresponding Bezier points:
+    //  Indices of boundary and interior points and their corresponding Bezier points
+    //  (this can be reduced with more direct indexing and unrolling of loops):
     //
     static int const boundaryGregory[12] = { 0, 1, 7, 5, 2, 6, 16, 12, 15, 17, 11, 10 };
-    static int const boundaryBezier[12]  = { 0, 1, 2, 3, 4, 7,  8, 11, 12, 13, 14, 15 };
+    static int const boundaryBezSCol[12] = { 0, 1, 2, 3, 0, 3,  0,  3,  0,  1,  2,  3 };
+    static int const boundaryBezTRow[12] = { 0, 0, 0, 0, 1, 1,  2,  2,  3,  3,  3,  3 };
 
     static int const interiorGregory[8] = { 3, 4,  8, 9,  13, 14,  18, 19 };
-    static int const interiorBezier[8]  = { 5, 5,  6, 6,  10, 10,   9,  9 };
+    static int const interiorBezSCol[8] = { 1, 1,  2, 2,   2,  2,   1,  1 };
+    static int const interiorBezTRow[8] = { 1, 1,  1, 1,   2,  2,   2,  2 };
 
-    //  Rational multipliers of the Bezier basis functions (note we need a set of weights
-    //  for each derivative for proper differentiation -- TBD):
     //
-    float sComp = 1.0f - s;
-    float tComp = 1.0f - t;
+    //  Bezier basis functions are denoted with B while the rational multipliers for the
+    //  interior points will be denoted G -- so we have B(s), B(t) and G(s,t):
+    //
+    //  Directional Bezier basis functions B at s and t:
+    float Bs[4], Bds[4];
+    float Bt[4], Bdt[4];
+
+    bits.Normalize(s,t);
+
+    Spline<BASIS_BEZIER>::GetWeights(s, Bs, deriv1 ? Bds : 0);
+    Spline<BASIS_BEZIER>::GetWeights(t, Bt, deriv2 ? Bdt : 0);
+
+    //  Rational multipliers G at s and t:
+    float sC = 1.0f - s;
+    float tC = 1.0f - t;
 
     //  Use <= here to avoid compiler warnings -- the sums should always be non-negative:
-    float df0 = s     + t;     if (df0 <= 0.0f) df0 = 1.0f;
-    float df1 = sComp + t;     if (df1 <= 0.0f) df1 = 1.0f;
-    float df2 = sComp + tComp; if (df2 <= 0.0f) df2 = 1.0f;
-    float df3 = s     + tComp; if (df3 <= 0.0f) df3 = 1.0f;
+    float df0 = s  + t;   df0 = (df0 <= 0.0f) ? 1.0f : (1.0f / df0);
+    float df1 = sC + t;   df1 = (df1 <= 0.0f) ? 1.0f : (1.0f / df1);
+    float df2 = sC + tC;  df2 = (df2 <= 0.0f) ? 1.0f : (1.0f / df2);
+    float df3 = s  + tC;  df3 = (df3 <= 0.0f) ? 1.0f : (1.0f / df3);
 
-    float interiorPointBasis[8] = {     s/df0,     t/df0,
-                                        t/df1, sComp/df1,
-                                    sComp/df2, tComp/df2,
-                                    tComp/df3,     s/df3 };
+    float G[8] = { s*df0, t*df0,  t*df1, sC*df1,  sC*df2, tC*df2,  tC*df3, s*df3 };
 
-    //  Weights from a bicubic Bezier patch:
-    //
-    float bezierPoint[16], bezierDeriv1[16], bezierDeriv2[16];
-
-    GetBezierWeights(bits, s, t, bezierPoint, bezierDeriv1, bezierDeriv2);
-
-    //  Copy basis functions (weights) for boundary points and scale the interior basis
-    //  functions by their rational multipliers:
-    //
+    //  Combined weights for boundary and interior points:
     for (int i = 0; i < 12; ++i) {
-        point[boundaryGregory[i]]  = bezierPoint[boundaryBezier[i]];
+        point[boundaryGregory[i]] = Bs[boundaryBezSCol[i]] * Bt[boundaryBezTRow[i]];
     }
     for (int i = 0; i < 8; ++i) {
-        point[interiorGregory[i]]  = bezierPoint[interiorBezier[i]] * interiorPointBasis[i];
+        point[interiorGregory[i]] = Bs[interiorBezSCol[i]] * Bt[interiorBezTRow[i]] * G[i];
     }
 
+    //
+    //  For derivatives, the basis functions for the interior points are rational and ideally
+    //  require appropriate differentiation, i.e. product rule for the combination of B and G
+    //  and the quotient rule for the rational G itself.  As initially proposed by Loop et al
+    //  though, the approximation using the 16 Bezier points arising from the G(s,t) has
+    //  proved adequate (and is what the GPU shaders use) so we continue to use that here.
+    //
+    //  An implementation of the true derivatives is provided for future reference -- it is
+    //  unclear if the approximations will hold up under surface analysis involving higher
+    //  order differentiation.
+    //
     if (deriv1 and deriv2) {
-        //  Copy the differentiated basis functions for Bezier to the boundary points:
-        //
+        //  Remember to include derivative scaling in all assignments below:
+        float dScale = (float)(1 << bits.GetDepth());
+
+        //  Combined weights for boundary points -- simple (scaled) tensor products:
         for (int i = 0; i < 12; ++i) {
-            deriv1[boundaryGregory[i]] = bezierDeriv1[boundaryBezier[i]];
-            deriv2[boundaryGregory[i]] = bezierDeriv2[boundaryBezier[i]];
+            int iDst = boundaryGregory[i];
+            int tRow = boundaryBezTRow[i];
+            int sCol = boundaryBezSCol[i];
+
+            deriv1[iDst] = Bds[sCol] * Bt[tRow] * dScale;
+            deriv2[iDst] = Bdt[tRow] * Bs[sCol] * dScale;
         }
 
-        //  XXX barry:  NOTE -- THIS IS NOT CORRECT (the correction is pending)...
+#define _USE_BEZIER_PSEUDO_DERIVATIVES
+#ifdef _USE_BEZIER_PSEUDO_DERIVATIVES
+        //  Approximation to the true Gregory derivatives by differentiating the Bezier patch
+        //  unique to the given (s,t), i.e. having F = (g^+ * f^+) + (g^- * f^-) as its four
+        //  interior points:
         //
-        //  The basis functions for the interior points are rational and require appropriate
-        //  differentiation wrt each parametric direction.  So we will need the Bezier basis
-        //  functions in each of s and t rather than for (s,t) combined.  The correction will
-        //  also need to support higher order derivatives and so will be combined with that
-        //  extension.
-        //
-        //  What follows preserves what has been done with Gregory derivatives to this point.
-        //
+        //  Combined weights for interior points -- (scaled) tensor products with G+ or G-:
         for (int i = 0; i < 8; ++i) {
-            deriv1[interiorGregory[i]] = bezierDeriv1[interiorBezier[i]] * interiorPointBasis[i];
-            deriv2[interiorGregory[i]] = bezierDeriv2[interiorBezier[i]] * interiorPointBasis[i];
+            int iDst = interiorGregory[i];
+            int tRow = interiorBezTRow[i];
+            int sCol = interiorBezSCol[i];
+
+            deriv1[iDst] = Bds[sCol] * Bt[tRow] * G[i] * dScale;
+            deriv2[iDst] = Bdt[tRow] * Bs[sCol] * G[i] * dScale;
         }
+#else
+        //  True Gregory derivatives using appropriate differentiation of composite functions:
+        //
+        //  Note that for G(s,t) = N(s,t) / D(s,t), all N' and D' are trivial constants (which
+        //  simplifies things for higher order derivatives).  And while each pair of functions
+        //  G (i.e. the G+ and G- corresponding to points f+ and f-) must sum to 1 to ensure
+        //  Bezier equivalence (when f+ = f-), the pairs of G' must similarly sum to 0.  So we
+        //  can potentially compute only one of the pair and negate the result for the other
+        //  (and with 4 or 8 computations involving these constants, this is all very SIMD
+        //  friendly...) but for now we treat all 8 independently for simplicity.
+        //
+        //float N[8] = {   s,     t,      t,     sC,      sC,     tC,      tC,     s };
+        float D[8] = {   df0,   df0,    df1,    df1,     df2,    df2,     df3,   df3 };
+
+        static float const Nds[8] = { 1.0f, 0.0f,  0.0f, -1.0f, -1.0f,  0.0f,  0.0f,  1.0f };
+        static float const Ndt[8] = { 0.0f, 1.0f,  1.0f,  0.0f,  0.0f, -1.0f, -1.0f,  0.0f };
+
+        static float const Dds[8] = { 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  1.0f };
+        static float const Ddt[8] = { 1.0f, 1.0f,  1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
+
+        //  Combined weights for interior points -- (scaled) combinations of B, B', G and G':
+        for (int i = 0; i < 8; ++i) {
+            int iDst = interiorGregory[i];
+            int tRow = interiorBezTRow[i];
+            int sCol = interiorBezSCol[i];
+
+            //  Quotient rule for G' (re-expressed in terms of G to simplify (and D = 1/D)):
+            float Gds = (Nds[i] - Dds[i] * G[i]) * D[i];
+            float Gdt = (Ndt[i] - Ddt[i] * G[i]) * D[i];
+
+            //  Product rule combining B and B' with G and G' (and scaled):
+            deriv1[iDst] = (Bds[sCol] * G[i] + Bs[sCol] * Gds) * Bt[tRow] * dScale;
+            deriv2[iDst] = (Bdt[tRow] * G[i] + Bt[tRow] * Gdt) * Bs[sCol] * dScale;
+        }
+#endif
     }
 }
 
