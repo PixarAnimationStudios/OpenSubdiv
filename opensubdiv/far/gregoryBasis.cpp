@@ -26,6 +26,7 @@
 #include "../far/error.h"
 #include "../far/stencilTablesFactory.h"
 #include "../far/topologyRefiner.h"
+#include "../vtr/stackBuffer.h"
 
 #include <cassert>
 #include <cmath>
@@ -140,17 +141,11 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         valences[4],
         zerothNeighbors[4];
 
-    Index * manifoldRing = (int *)alloca((maxvalence+2)*2 * sizeof(int));
+    Vtr::internal::StackBuffer<Index,40> manifoldRing((maxvalence+2)*2);
 
-// Because MSVC does not support VLAs, we have to run alloca() in a macro and
-// call in-place constructors - it's only been standardized for 15 years after
-// all...
-#define AllocaPointsArrays(variable, npoints) \
-    Point * variable = (Point *)alloca(npoints*sizeof(Point)); \
-    { for (int i=0; i<npoints; ++i) { new (&variable[i]) Point; } }
+    Vtr::internal::StackBuffer<Point,16> f(maxvalence);
+    Vtr::internal::StackBuffer<Point,64> r(maxvalence*4);
 
-    AllocaPointsArrays(f, maxvalence);
-    AllocaPointsArrays(r, maxvalence*4);
     Point e0[4], e1[4], org[4];
 
     for (int vid=0; vid<4; ++vid) {
