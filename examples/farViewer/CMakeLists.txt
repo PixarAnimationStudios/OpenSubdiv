@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-# *** vtrViewer ***
+# *** farViewer ***
 
 set(SHADER_FILES
     faceShader.glsl
@@ -55,8 +55,8 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_glfw_executable(vtrViewer
-    vtrViewer.cpp
+_add_glfw_executable(farViewer
+    farViewer.cpp
     gl_fontutils.cpp
     gl_mesh.cpp
     face_texture.cpp
@@ -69,8 +69,8 @@ _add_glfw_executable(vtrViewer
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
-target_link_libraries(vtrViewer
+target_link_libraries(farViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS vtrViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS farViewer DESTINATION "${CMAKE_BINDIR_BASE}")

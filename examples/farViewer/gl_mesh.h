@@ -33,7 +33,7 @@
 
 #include <algorithm>
 
-// Wrapper class for drawing Hbr & Vtr meshes & components
+// Wrapper class for drawing Hbr & Far meshes & components
 class GLMesh {
 
 public:
@@ -190,7 +190,7 @@ public:
     }
 
     // -----------------------------------------------------
-    // Vtr initialization
+    // Far initialization
     typedef OpenSubdiv::Far::TopologyRefiner TopologyRefiner;
 
     typedef OpenSubdiv::Far::PatchTables PatchTables;
