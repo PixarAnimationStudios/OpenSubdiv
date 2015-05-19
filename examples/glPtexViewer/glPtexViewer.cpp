@@ -97,7 +97,8 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../common/glHud.h"
+#include "../common/glUtils.h"
 #include "../common/hdr_reader.h"
 #include "../common/glPtexMipmapTexture.h"
 #include "../common/glShaderCache.h"
@@ -1662,7 +1663,7 @@ callbackCheckBox(bool checked, int button) {
 
     switch (button) {
     case HUD_CB_ADAPTIVE:
-        if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+        if (GLUtils::SupportsAdaptiveTessellation()) {
             g_adaptive = checked;
             rebuild = true;
         }
@@ -1976,7 +1977,7 @@ int main(int argc, char ** argv) {
     reshape();
 
     // activate feature adaptive tessellation if OSD supports it
-    g_adaptive = OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation();
+    g_adaptive = GLUtils::SupportsAdaptiveTessellation();
 
     int windowWidth = g_width, windowHeight = g_height;
 
@@ -2018,7 +2019,7 @@ int main(int argc, char ** argv) {
     g_hud.AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
     g_hud.AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation())
+    if (GLUtils::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
                           10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
 

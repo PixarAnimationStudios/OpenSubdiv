@@ -29,7 +29,7 @@
 #include <common/hbr_utils.h>
 #include <far/patchTables.h>
 
-#include "../common/gl_common.h"
+#include "../common/glUtils.h"
 
 #include <algorithm>
 

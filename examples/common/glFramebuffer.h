@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_FRAMEBUFFER_H
-#define GL_FRAMEBUFFER_H
+#ifndef OPENSUBDIV_EXAMPLES_GL_FRAMEBUFFER_H
+#define OPENSUBDIV_EXAMPLES_GL_FRAMEBUFFER_H
 
 #include <osd/opengl.h>
 
@@ -131,4 +131,4 @@ private:
           _contrast;
 };
 
-#endif // GL_FRAMEBUFFER_H
+#endif  // OPENSUBDIV_EXAMPLES_GL_FRAMEBUFFER_H

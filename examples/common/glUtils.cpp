@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,34 +22,49 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef D3D11_COMPILE_H
-#define D3D11_COMPILE_H
+#include "glUtils.h"
 
-#include <D3DCompiler.h>
+namespace GLUtils {
 
-static ID3DBlob *
-d3d11CompileShader(const char *src, const char *entry, const char *spec)
-{
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#if defined(DEBUG) || defined(_DEBUG)
-      dwShaderFlags |= D3DCOMPILE_DEBUG;
-#endif
-
-    ID3DBlob *pErrorBlob;
-    ID3DBlob *pBlob;
-    HRESULT hr = D3DCompile(src, strlen(src),
-                            NULL,NULL,NULL, entry, spec,
-                            dwShaderFlags, 0, &pBlob, &pErrorBlob);
-    if (FAILED(hr)) {
-        if (pErrorBlob) {
-            OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
-            pErrorBlob->Release();
-        }
-        return NULL;
+void
+CheckGLErrors(std::string const & where) {
+    GLuint err;
+    while ((err = glGetError()) != GL_NO_ERROR) {
+        std::cerr << "GL error: "
+                  << (where.empty() ? "" : where + " ")
+                  << err << "\n";
     }
-    if (pErrorBlob)
-        pErrorBlob->Release();
-    return pBlob;
 }
 
-#endif // D3D11_COMPILE_H
+GLuint
+CompileShader(GLenum shaderType, const char *source) {
+    GLuint shader = glCreateShader(shaderType);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+
+    GLint status;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+    if (status == GL_FALSE) {
+        GLchar emsg[40960];
+        glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
+        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg);
+        return 0;
+    }
+
+    return shader;
+}
+
+bool
+SupportsAdaptiveTessellation() {
+#ifdef OSD_USES_GLEW
+    return (glewIsSupported("GL_ARB_tessellation_shader") == GL_TRUE);
+#else
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+    return true;
+#else
+    return false;
+#endif
+#endif
+}
+
+}   // namesapce GLUtils

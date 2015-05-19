@@ -78,9 +78,12 @@ void GLFont::bindProgram() {
                     gsSrc = std::string(versionStr) + geoDefineStr + shaderSource,
                     fsSrc = std::string(versionStr) + fragDefineStr + shaderSource;
 
-        GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc.c_str()),
-               geometryShader = compileShader(GL_GEOMETRY_SHADER, gsSrc.c_str()),
-               fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
+        GLuint vertexShader =
+            GLUtils::CompileShader(GL_VERTEX_SHADER, vsSrc.c_str()),
+               geometryShader =
+            GLUtils::CompileShader(GL_GEOMETRY_SHADER, gsSrc.c_str()),
+               fragmentShader =
+            GLUtils::CompileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
 
         glAttachShader(_program, vertexShader);
         glAttachShader(_program, geometryShader);

@@ -22,36 +22,15 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "gl_common.h"
+#ifndef OPENSUBDIV_EXAMPLES_D3D11_COMPILE_H
+#define OPENSUBDIV_EXAMPLES_D3D11_COMPILE_H
 
-void
-checkGLErrors(std::string const & where) {
+#include <D3DCompiler.h>
 
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
+namespace D3D11Utils {
+
+ID3DBlob *CompileShader(const char *src, const char *entry, const char *spec);
+
 }
 
-GLuint
-compileShader(GLenum shaderType, const char *source) {
-
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-
-    GLint status;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLchar emsg[40960];
-        glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
-        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg);
-        return 0;
-    }
-
-    return shader;
-}
-
-
+#endif  // OPENSUBDIV_EXAMPLES_D3D11_COMPILE_H

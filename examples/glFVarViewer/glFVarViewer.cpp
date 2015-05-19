@@ -54,7 +54,8 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../common/glHud.h"
+#include "../common/glUtils.h"
 #include "../common/glShaderCache.h"
 
 #include <osd/glslPatchShaderSource.h>
@@ -1061,7 +1062,7 @@ callbackModel(int m) {
 static void
 callbackAdaptive(bool checked, int /* a */) {
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+    if (GLUtils::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
         rebuildOsdMesh();
     }
@@ -1114,7 +1115,7 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation())
+    if (GLUtils::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 250, callbackAdaptive, 0, '`');
 
     for (int i = 1; i < 11; ++i) {

@@ -22,46 +22,33 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef D3D11_HUD_H
-#define D3D11_HUD_H
+#include "d3d11Utils.h"
+#include <D3DCompiler.h>
 
-#include <D3D11.h>
-#include "hud.h"
+namespace D3D11Utils {
 
-class D3D11hud : public Hud
-{
-public:
-    D3D11hud(ID3D11DeviceContext *deviceContext);
-    ~D3D11hud();
+ID3DBlob *
+CompileShader(const char *src, const char *entry, const char *spec) {
+    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined(DEBUG) || defined(_DEBUG)
+      dwShaderFlags |= D3DCOMPILE_DEBUG;
+#endif
 
-    void Init(int width, int height) {
-        Init(width, height, width, height);
+    ID3DBlob *pErrorBlob;
+    ID3DBlob *pBlob;
+    HRESULT hr = D3DCompile(src, strlen(src),
+                            NULL,NULL,NULL, entry, spec,
+                            dwShaderFlags, 0, &pBlob, &pErrorBlob);
+    if (FAILED(hr)) {
+        if (pErrorBlob) {
+            OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
+            pErrorBlob->Release();
+        }
+        return NULL;
     }
+    if (pErrorBlob)
+        pErrorBlob->Release();
+    return pBlob;
+}
 
-    void Rebuild(int width, int height) {
-        Rebuild(width, height, width, height);
-    }
-
-    virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
-
-    virtual void Rebuild(int width, int height,
-                         int framebufferWidth, int framebufferHeight);
-
-    virtual bool Flush();
-
-private:
-    ID3D11DeviceContext *_deviceContext;
-    ID3D11Buffer *_vbo;
-    ID3D11Buffer *_staticVbo;
-    ID3D11Texture2D *_fontTexture;
-    ID3D11InputLayout *_inputLayout;
-    ID3D11ShaderResourceView *_shaderResourceView;
-    ID3D11SamplerState *_samplerState;
-    ID3D11VertexShader *_vertexShader;
-    ID3D11PixelShader *_pixelShader;
-    ID3D11RasterizerState *_rasterizerState;
-    ID3D11Buffer* _constantBuffer;
-    int _staticVboCount;
-};
-
-#endif // D3D11_HUD_H
+}   // D3D11Utils

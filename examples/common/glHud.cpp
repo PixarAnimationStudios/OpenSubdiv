@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "gl_hud.h"
-#include "gl_common.h"
+#include "glHud.h"
+#include "glUtils.h"
 
 #include "font_image.h"
 #include "simple_math.h"
@@ -135,8 +135,8 @@ GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
     glGenVertexArrays(1, &_vao);
     glGenVertexArrays(1, &_staticVao);
 
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, s_VS);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, s_FS);
+    GLuint vertexShader = GLUtils::CompileShader(GL_VERTEX_SHADER, s_VS);
+    GLuint fragmentShader = GLUtils::CompileShader(GL_FRAGMENT_SHADER, s_FS);
 
     _program = glCreateProgram();
     glAttachShader(_program, vertexShader);
@@ -191,7 +191,7 @@ GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    checkGLErrors("GLhud::Init");
+    GLUtils::CheckGLErrors("GLhud::Init");
 }
 
 void
