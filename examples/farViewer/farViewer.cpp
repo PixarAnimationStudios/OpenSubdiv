@@ -106,16 +106,16 @@ int   g_displayPatchColor    = 1,
       g_HbrDrawEdgeSharpness = false,           
       g_HbrDrawFaceIDs       = false,           
       g_HbrDrawPtexIDs       = false,           
-      g_VtrDrawMode          = kDRAW_NONE,      
-      g_VtrDrawVertIDs       = false,           
-      g_VtrDrawEdgeIDs       = false,           
-      g_VtrDrawFaceIDs       = false,           
-      g_VtrDrawPtexIDs       = false,           
-      g_VtrDrawEdgeSharpness = false,           
-      g_VtrDrawGregogyBasis  = false,           
-      g_VtrDrawFVarVerts     = false,           
-      g_VtrDrawFVarPatches   = false,           
-      g_VtrDrawFVarPatchTess = 5,               
+      g_FarDrawMode          = kDRAW_NONE,      
+      g_FarDrawVertIDs       = false,           
+      g_FarDrawEdgeIDs       = false,           
+      g_FarDrawFaceIDs       = false,           
+      g_FarDrawPtexIDs       = false,           
+      g_FarDrawEdgeSharpness = false,           
+      g_FarDrawGregogyBasis  = false,           
+      g_FarDrawFVarVerts     = false,           
+      g_FarDrawFVarPatches   = false,           
+      g_FarDrawFVarPatchTess = 5,               
       g_numPatches           = 0,               
       g_maxValence           = 0,               
       g_currentPatch         = 0,               
@@ -164,7 +164,7 @@ struct Transform {
 
 static GLMesh g_base_glmesh,
               g_hbr_glmesh,
-              g_vtr_glmesh;
+              g_far_glmesh;
 
 
 //------------------------------------------------------------------------------
@@ -281,7 +281,7 @@ createVertNumbers(std::vector<Hface const *> faces) {
 
 //------------------------------------------------------------------------------
 static void
-createHbrMesh(Shape * shape, int maxlevel) {
+createHbrGLMesh(Shape * shape, int maxlevel) {
 
     Stopwatch s;
     s.Start();
@@ -368,7 +368,7 @@ createHbrMesh(Shape * shape, int maxlevel) {
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr verts
+// generate display IDs for Far verts
 static void
 createVertNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
     std::vector<Vertex> const & vertexBuffer) {
@@ -400,7 +400,7 @@ createVertNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr edges
+// generate display IDs for Far edges
 static void
 createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
     std::vector<Vertex> const & vertexBuffer, bool ids=false, bool sharpness=false) {
@@ -443,7 +443,7 @@ createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr faces
+// generate display IDs for Far faces
 static void
 createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
     std::vector<Vertex> const & vertexBuffer) {
@@ -504,7 +504,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 }
 
 //------------------------------------------------------------------------------
-// generate display vert IDs for the selected Vtr patch
+// generate display vert IDs for the selected Far patch
 static void
 createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & vertexBuffer) {
@@ -542,7 +542,7 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 }
 
 //------------------------------------------------------------------------------
-// generate display vert IDs for the selected Vtr FVar patch
+// generate display vert IDs for the selected Far FVar patch
 static void
 createFVarPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & fvarBuffer) {
@@ -570,7 +570,7 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 }
 
 //------------------------------------------------------------------------------
-// generate display for Vtr FVar patches
+// generate display for Far FVar patches
 static GLMesh fvarVerts,
               fvarWire;
 
@@ -583,16 +583,16 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     static int channel = 0;
 
-    if (g_VtrDrawFVarVerts) {
+    if (g_FarDrawFVarVerts) {
         GLMesh::Options options;
         options.vertColorMode = GLMesh::VERTCOLOR_BY_LEVEL;
         fvarVerts.InitializeFVar(options, refiner, &patchTables, channel, 0, (float *)(&fvarBuffer[0]));
     }
 
-    if (g_VtrDrawFVarPatches) {
+    if (g_FarDrawFVarPatches) {
 
         // generate uniform tessellation for patches
-        int tessFactor = g_VtrDrawFVarPatchTess,
+        int tessFactor = g_FarDrawFVarPatchTess,
             npatches = patchTables.GetNumPatchesTotal(),
             nvertsperpatch = (tessFactor) * (tessFactor),
             nverts = npatches * nvertsperpatch;
@@ -624,7 +624,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr Gregory basis
+// generate display IDs for Far Gregory basis
 
 static GLMesh gregoryWire;
 
@@ -699,7 +699,7 @@ createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
 }
 
 //------------------------------------------------------------------------------
-// generate display IDs for Vtr faces
+// generate display IDs for Far faces
 static void
 createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     std::vector<Vertex> const & vertexBuffer) {
@@ -741,14 +741,14 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 
 //------------------------------------------------------------------------------
 static void
-createVtrMesh(Shape * shape, int maxlevel) {
+createFarGLMesh(Shape * shape, int maxlevel) {
 
     Stopwatch s;
     s.Start();
 
     using namespace OpenSubdiv;
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options    sdcoptions = GetSdcOptions(*shape);
 
@@ -775,7 +775,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
     //
     std::vector<Vertex> fvarBuffer;
     Far::PatchTables * patchTables = 0;
-    bool createFVarWire = g_VtrDrawFVarPatches or g_VtrDrawFVarVerts;
+    bool createFVarWire = g_FarDrawFVarPatches or g_FarDrawFVarVerts;
 
     if (g_Adaptive) {
         Far::PatchTablesFactory::Options options;
@@ -864,7 +864,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
         //
         // TopologyRefiner interpolation
         //
-        // populate buffer with Vtr interpolated vertex data
+        // populate buffer with Far interpolated vertex data
         refiner->Interpolate(verts, verts + ncoarseverts);
         //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
@@ -877,17 +877,17 @@ createVtrMesh(Shape * shape, int maxlevel) {
     // Misc display
     //
 
-    //printf("Vtr time: %f ms (topology)\n", float(s.GetElapsed())*1000.0f);
+    //printf("Far time: %f ms (topology)\n", float(s.GetElapsed())*1000.0f);
 
-    if (g_VtrDrawVertIDs) {
+    if (g_FarDrawVertIDs) {
         createVertNumbers(*refiner, vertexBuffer);
     }
 
-    if (g_VtrDrawFaceIDs) {
+    if (g_FarDrawFaceIDs) {
         createFaceNumbers(*refiner, vertexBuffer);
     }
 
-    if (g_VtrDrawPtexIDs and patchTables) {
+    if (g_FarDrawPtexIDs and patchTables) {
         createPtexNumbers(*patchTables, vertexBuffer);
     }
 
@@ -895,7 +895,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
         createPatchNumbers(*patchTables, vertexBuffer);
     }
 
-    if (g_Adaptive and g_VtrDrawGregogyBasis) {
+    if (g_Adaptive and g_FarDrawGregogyBasis) {
         createGregoryBasis(*patchTables, vertexBuffer);
     }
 
@@ -904,7 +904,7 @@ createVtrMesh(Shape * shape, int maxlevel) {
         createFVarPatchNumbers(*patchTables, fvarBuffer);
     }
 
-    createEdgeNumbers(*refiner, vertexBuffer, g_VtrDrawEdgeIDs!=0, g_VtrDrawEdgeSharpness!=0);
+    createEdgeNumbers(*refiner, vertexBuffer, g_FarDrawEdgeIDs!=0, g_FarDrawEdgeSharpness!=0);
 
     GLMesh::Options options;
     options.vertColorMode=g_Adaptive ? GLMesh::VERTCOLOR_BY_LEVEL : GLMesh::VERTCOLOR_BY_SHARPNESS;
@@ -912,17 +912,17 @@ createVtrMesh(Shape * shape, int maxlevel) {
     options.faceColorMode=g_Adaptive ? GLMesh::FACECOLOR_BY_PATCHTYPE :GLMesh::FACECOLOR_SOLID;
 
     if (g_Adaptive) {
-        g_vtr_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
-        g_vtr_glmesh.SetDiffuseColor(1.0f, 1.0f, 1.0f, 1.0f);
+        g_far_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
+        g_far_glmesh.SetDiffuseColor(1.0f, 1.0f, 1.0f, 1.0f);
     } else {
-        g_vtr_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
-        g_vtr_glmesh.SetDiffuseColor(0.75f, 0.9f, 1.0f, 1.0f);
+        g_far_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
+        g_far_glmesh.SetDiffuseColor(0.75f, 0.9f, 1.0f, 1.0f);
     }
 
 
     //setFaceColors(*refiner);
 
-    g_vtr_glmesh.InitializeDeviceBuffers();
+    g_far_glmesh.InitializeDeviceBuffers();
 
     delete refiner;
     delete patchTables;
@@ -939,9 +939,9 @@ createMeshes(ShapeDesc const & desc, int maxlevel) {
 
     Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
 
-    createHbrMesh(shape, maxlevel);
+    createHbrGLMesh(shape, maxlevel);
 
-    createVtrMesh(shape, maxlevel);
+    createFarGLMesh(shape, maxlevel);
     delete shape;
 }
 
@@ -1060,29 +1060,29 @@ display() {
         g_hbr_glmesh.Draw(comp, g_transformUB, g_lightingUB);
     }
 
-    // Vtr mesh
-    if (g_VtrDrawMode!=kDRAW_NONE) {
+    // Far mesh
+    if (g_FarDrawMode!=kDRAW_NONE) {
 
         GLMesh::Component comp=GLMesh::COMP_VERT;
-        switch (g_VtrDrawMode) {
+        switch (g_FarDrawMode) {
             case kDRAW_VERTICES  : comp=GLMesh::COMP_VERT; break;
             case kDRAW_WIREFRAME : comp=GLMesh::COMP_EDGE; break;
             case kDRAW_FACES     : comp=GLMesh::COMP_FACE; break;
             default:
                 assert(0);
         }
-        g_vtr_glmesh.Draw(comp, g_transformUB, g_lightingUB);
+        g_far_glmesh.Draw(comp, g_transformUB, g_lightingUB);
     }
 
-    if (g_Adaptive and g_VtrDrawGregogyBasis) {
+    if (g_Adaptive and g_FarDrawGregogyBasis) {
         gregoryWire.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
         gregoryWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
 
-    if (g_Adaptive and g_VtrDrawFVarVerts) {
+    if (g_Adaptive and g_FarDrawFVarVerts) {
         fvarVerts.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
     }
-    if (g_Adaptive and g_VtrDrawFVarPatches) {
+    if (g_Adaptive and g_FarDrawFVarPatches) {
         fvarWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
 
@@ -1116,7 +1116,7 @@ display() {
 
             if (g_Adaptive and g_currentPatch) {
                 
-                if (g_VtrDrawFVarPatches or g_VtrDrawFVarVerts) {
+                if (g_FarDrawFVarPatches or g_FarDrawFVarVerts) {
 
                     g_hud.DrawString(g_width/2-200, 225, format1,
                         g_currentPatch-1, g_numPatches-1,
@@ -1304,9 +1304,9 @@ callbackHbrDrawMode(int m) {
 }
 
 static void
-callbackVtrDrawMode(int m) {
+callbackFarDrawMode(int m) {
 
-    g_VtrDrawMode = m;
+    g_FarDrawMode = m;
 }
 
 static void
@@ -1318,15 +1318,15 @@ callbackDrawIDs(bool checked, int button) {
         case 2: g_HbrDrawPtexIDs = checked; break;
         case 3: g_HbrDrawEdgeSharpness = checked; break;
 
-        case 4: g_VtrDrawVertIDs = checked; break;
-        case 5: g_VtrDrawEdgeIDs = checked; break;
-        case 6: g_VtrDrawFaceIDs = checked; break;
-        case 7: g_VtrDrawPtexIDs = checked; break;
-        case 8: g_VtrDrawEdgeSharpness = checked; break;
-        case 9: g_VtrDrawGregogyBasis = checked; break;
+        case 4: g_FarDrawVertIDs = checked; break;
+        case 5: g_FarDrawEdgeIDs = checked; break;
+        case 6: g_FarDrawFaceIDs = checked; break;
+        case 7: g_FarDrawPtexIDs = checked; break;
+        case 8: g_FarDrawEdgeSharpness = checked; break;
+        case 9: g_FarDrawGregogyBasis = checked; break;
 
-        case 10: g_VtrDrawFVarVerts = checked; break;
-        case 11: g_VtrDrawFVarPatches = checked; break;
+        case 10: g_FarDrawFVarVerts = checked; break;
+        case 11: g_FarDrawFVarPatches = checked; break;
 
         default: break;
     }
@@ -1342,7 +1342,7 @@ callbackScale(float value, int) {
 static void
 callbackFVarTess(float value, int) {
 
-    g_VtrDrawFVarPatchTess = (int)value;
+    g_FarDrawFVarPatchTess = (int)value;
     rebuildOsdMeshes();
 }
 
@@ -1404,18 +1404,18 @@ initHUD() {
     g_hud.AddCheckBox("Ptex IDs",   g_HbrDrawPtexIDs!=0, 10, 135, callbackDrawIDs, 2);
     g_hud.AddCheckBox("Edge Sharp", g_HbrDrawEdgeSharpness!=0, 10, 155, callbackDrawIDs, 3);
 
-    pulldown = g_hud.AddPullDown("Vtr Draw Mode (v)", 10, 195, 250, callbackVtrDrawMode, 'v');
-    g_hud.AddPullDownButton(pulldown, "None",      0, g_VtrDrawMode==kDRAW_NONE);
-    g_hud.AddPullDownButton(pulldown, "Vertices",  1, g_VtrDrawMode==kDRAW_VERTICES);
-    g_hud.AddPullDownButton(pulldown, "Wireframe", 2, g_VtrDrawMode==kDRAW_WIREFRAME);
-    g_hud.AddPullDownButton(pulldown, "Faces",     3, g_VtrDrawMode==kDRAW_FACES);
+    pulldown = g_hud.AddPullDown("Far Draw Mode (f)", 10, 195, 250, callbackFarDrawMode, 'f');
+    g_hud.AddPullDownButton(pulldown, "None",      0, g_FarDrawMode==kDRAW_NONE);
+    g_hud.AddPullDownButton(pulldown, "Vertices",  1, g_FarDrawMode==kDRAW_VERTICES);
+    g_hud.AddPullDownButton(pulldown, "Wireframe", 2, g_FarDrawMode==kDRAW_WIREFRAME);
+    g_hud.AddPullDownButton(pulldown, "Faces",     3, g_FarDrawMode==kDRAW_FACES);
 
-    g_hud.AddCheckBox("Vert IDs",   g_VtrDrawVertIDs!=0, 10, 215, callbackDrawIDs, 4);
-    g_hud.AddCheckBox("Edge IDs",   g_VtrDrawEdgeIDs!=0, 10, 235, callbackDrawIDs, 5);
-    g_hud.AddCheckBox("Face IDs",   g_VtrDrawFaceIDs!=0, 10, 255, callbackDrawIDs, 6);
-    g_hud.AddCheckBox("Ptex IDs",   g_VtrDrawPtexIDs!=0, 10, 275, callbackDrawIDs, 7);
-    g_hud.AddCheckBox("Edge Sharp", g_VtrDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
-    g_hud.AddCheckBox("Gregory Basis", g_VtrDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
+    g_hud.AddCheckBox("Vert IDs",   g_FarDrawVertIDs!=0, 10, 215, callbackDrawIDs, 4);
+    g_hud.AddCheckBox("Edge IDs",   g_FarDrawEdgeIDs!=0, 10, 235, callbackDrawIDs, 5);
+    g_hud.AddCheckBox("Face IDs",   g_FarDrawFaceIDs!=0, 10, 255, callbackDrawIDs, 6);
+    g_hud.AddCheckBox("Ptex IDs",   g_FarDrawPtexIDs!=0, 10, 275, callbackDrawIDs, 7);
+    g_hud.AddCheckBox("Edge Sharp", g_FarDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
+    g_hud.AddCheckBox("Gregory Basis", g_FarDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
 
     g_hud.AddCheckBox("Use Stencils (s)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
     g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 370, callbackAdaptive, 0, '`');
@@ -1435,10 +1435,10 @@ initHUD() {
         g_hud.AddPullDownButton(shapes_pulldown, g_shapes[i].name.c_str(),i, (g_currentShape==i));
     }
 
-   g_hud.AddCheckBox("FVar Verts",  g_VtrDrawFVarVerts!=0, 300, 10, callbackDrawIDs, 10);
-   g_hud.AddCheckBox("FVar Patches",  g_VtrDrawFVarPatches!=0, 300, 30, callbackDrawIDs, 11);
+   g_hud.AddCheckBox("FVar Verts",  g_FarDrawFVarVerts!=0, 300, 10, callbackDrawIDs, 10);
+   g_hud.AddCheckBox("FVar Patches",  g_FarDrawFVarPatches!=0, 300, 30, callbackDrawIDs, 11);
 
-   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, (float)g_VtrDrawFVarPatchTess,
+   g_hud.AddSlider("FVar Tess", 1.0f, 10.0f, (float)g_FarDrawFVarPatchTess,
                     300, 50, 25, true, callbackFVarTess, 0);
 
     int fvar_pulldown = g_hud.AddPullDown("FVar Interpolation (i)", 300, 90, 250, callbackFVarInterpolation, 'i');
@@ -1543,7 +1543,7 @@ int main(int argc, char ** argv)
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv vtrViewer";
+    static const char windowTitle[] = "OpenSubdiv farViewer";
 
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
