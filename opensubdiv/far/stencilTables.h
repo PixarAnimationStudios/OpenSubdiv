@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_STENCILTABLES_H
-#define FAR_STENCILTABLES_H
+#pragma once
+#ifndef OPENSUBDIV3_FAR_STENCILTABLES_H
+#define OPENSUBDIV3_FAR_STENCILTABLES_H
 
 #include "../version.h"
 
@@ -422,4 +423,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif // FAR_STENCILTABLES_H
+#endif // OPENSUBDIV3_FAR_STENCILTABLES_H

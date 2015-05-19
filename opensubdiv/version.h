@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_VERSION_H
-#define OPENSUBDIV_VERSION_H
+#pragma once
+#ifndef OPENSUBDIV3_VERSION_H
+#define OPENSUBDIV3_VERSION_H
 
 #define OPENSUBDIV_VERSION v3_0_0_beta
 
@@ -36,4 +37,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* OPENSUBDIV_VERSION_H */
+#endif /* OPENSUBDIV3_VERSION_H */

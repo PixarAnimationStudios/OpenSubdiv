@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_TYPES_H
-#define VTR_TYPES_H
+#pragma once
+#ifndef OPENSUBDIV3_VTR_TYPES_H
+#define OPENSUBDIV3_VTR_TYPES_H
 
 #include "../version.h"
 
@@ -89,4 +90,4 @@ typedef ConstArray<LocalIndex>   ConstLocalIndexArray;
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_TYPES_H */
+#endif /* OPENSUBDIV3_VTR_TYPES_H */

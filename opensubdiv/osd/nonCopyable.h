@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_NON_COPYABLE_H
-#define OSD_NON_COPYABLE_H
+#pragma once
+#ifndef OPENSUBDIV3_OSD_NON_COPYABLE_H
+#define OPENSUBDIV3_OSD_NON_COPYABLE_H
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -49,4 +50,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_NON_COPYABLE_H
+#endif  // OPENSUBDIV3_OSD_NON_COPYABLE_H

@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_REFINEMENT_H
-#define VTR_REFINEMENT_H
+#pragma once
+#ifndef OPENSUBDIV3_VTR_REFINEMENT_H
+#define OPENSUBDIV3_VTR_REFINEMENT_H
 
 #include "../version.h"
 
@@ -445,4 +446,4 @@ Refinement::getEdgeChildEdges(Index parentEdge) {
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_REFINEMENT_H */
+#endif /* OPENSUBDIV3_VTR_REFINEMENT_H */

@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_DESCRIPTOR_H
-#define FAR_PATCH_DESCRIPTOR_H
+#pragma once
+#ifndef OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
+#define OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
 
 #include "../version.h"
 
@@ -205,4 +206,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_DESCRIPTOR_H */
+#endif /* OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H */

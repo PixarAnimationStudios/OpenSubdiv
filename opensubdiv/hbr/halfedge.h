@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRHALFEDGE_H
-#define HBRHALFEDGE_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRHALFEDGE_H
+#define OPENSUBDIV3_HBRHALFEDGE_H
 
 #include <assert.h>
 #include <stddef.h>
@@ -737,4 +738,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRHALFEDGE_H */
+#endif /* OPENSUBDIV3_HBRHALFEDGE_H */

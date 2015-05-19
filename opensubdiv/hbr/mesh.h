@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRMESH_H
-#define HBRMESH_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRMESH_H
+#define OPENSUBDIV3_HBRMESH_H
 
 #ifdef PRMAN
 #include "libtarget/TgMalloc.h" // only for alloca
@@ -1009,4 +1010,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRMESH_H */
+#endif /* OPENSUBDIV3_HBRMESH_H */
