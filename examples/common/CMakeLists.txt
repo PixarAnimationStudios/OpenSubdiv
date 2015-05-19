@@ -52,17 +52,16 @@ set(EXAMPLES_COMMON_HEADER_FILES
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-      # we will rename gl_xxx to glXxx
-        gl_common.cpp
-        gl_framebuffer.cpp
-        gl_hud.cpp
+        glFramebuffer.cpp
+        glHud.cpp
+        glUtils.cpp
         glShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        gl_common.h
-        gl_framebuffer.h
-        gl_hud.h
+        glFramebuffer.h
+        glHud.h
+        glUtils.h
         glShaderCache.h
     )
 
@@ -80,12 +79,14 @@ endif()
 if(DXSDK_FOUND)
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-        d3d11_hud.cpp
+        d3d11Hud.cpp
+        d3d11Utils.cpp
         d3d11ShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        d3d11_hud.h
+        d3d11Hud.h
+        d3d11Utils.h
         d3d11ShaderCache.h
     )
 

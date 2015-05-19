@@ -74,9 +74,6 @@ public:
             updateVertexTexture(vbo->BindVBO());
     }
 
-    /// true if the GL version detected supports shader tessellation
-    static bool SupportsAdaptiveTessellation();
-
     /// Returns the GL texture buffer containing the patch control vertices array
     GLuint GetPatchIndexBuffer() const {
         return _patchIndexBuffer;

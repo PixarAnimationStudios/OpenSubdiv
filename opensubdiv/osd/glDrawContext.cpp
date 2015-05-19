@@ -48,21 +48,6 @@ GLDrawContext::~GLDrawContext()
     glDeleteTextures(1, &_fvarDataTextureBuffer);
 }
 
-bool
-GLDrawContext::SupportsAdaptiveTessellation()
-{
-#ifdef OSD_USES_GLEW
-    // XXX: uncomment here to try tessellation on OSX
-    // if (GLEW_ARB_tessellation_shader)
-    //    return true;
-#endif
-    static const GLubyte *version = glGetString(GL_VERSION);
-    if (version and version[0] == '4')
-        return true;
-
-    return false;
-}
-
 template <typename T> static GLuint
 createTextureBuffer(T const &data, GLint format, int offset=0)
 {

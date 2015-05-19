@@ -744,7 +744,7 @@ createTextureBuffer(T const &data, GLint format, int offset=0) {
     glBindTexture(GL_TEXTURE_BUFFER, 0);
     glDeleteBuffers(1, &buffer);
 
-    checkGLErrors("createTextureBuffer");
+    GLUtils::CheckGLErrors("createTextureBuffer");
     return texture;
 }
 
@@ -791,7 +791,7 @@ GLMesh::InitializeDeviceBuffers() {
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, _eao[i].size()*sizeof(int), &_eao[i][0], GL_STATIC_DRAW);
         }
 
-        checkGLErrors("init");
+        GLUtils::CheckGLErrors("init");
     }
 
     if (not _faceColors.empty()) {
@@ -856,9 +856,12 @@ bindProgram( char const * shaderSource,
                     gsSrc = std::string(versionStr) + geoDefineStr + shaderSource,
                     fsSrc = std::string(versionStr) + fragDefineStr + shaderSource;
 
-        GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc.c_str()),
-               geometryShader = geometry ? compileShader(GL_GEOMETRY_SHADER, gsSrc.c_str()) : 0,
-               fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
+        GLuint vertexShader =
+            GLUtils::CompileShader(GL_VERTEX_SHADER, vsSrc.c_str()),
+               geometryShader = geometry ?
+            GLUtils::CompileShader(GL_GEOMETRY_SHADER, gsSrc.c_str()) : 0,
+               fragmentShader =
+            GLUtils::CompileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
 
         glAttachShader(*program, vertexShader);
         if (geometry) {

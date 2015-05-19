@@ -45,8 +45,8 @@ GLFWmonitor* g_primary=0;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_common.h"
-#include "../common/gl_hud.h"
+#include "../common/glUtils.h"
+#include "../common/glHud.h"
 
 #include <far/patchTablesFactory.h>
 #include <far/ptexIndices.h>
@@ -418,8 +418,10 @@ public:
 
             _program = glCreateProgram();
 
-            GLuint vertexShader = compileShader(GL_VERTEX_SHADER, _vtxSrc);
-            GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, _frgSrc);
+            GLuint vertexShader =
+                GLUtils::CompileShader(GL_VERTEX_SHADER, _vtxSrc);
+            GLuint fragmentShader =
+                GLUtils::CompileShader(GL_FRAGMENT_SHADER, _frgSrc);
 
             glAttachShader(_program, vertexShader);
             glAttachShader(_program, fragmentShader);

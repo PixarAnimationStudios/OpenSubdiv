@@ -22,57 +22,57 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_FONT_UTILS_H
-#define GL_FONT_UTILS_H
+#ifndef OPENSUBDIV_EXAMPLES_GL_HUD_H
+#define OPENSUBDIV_EXAMPLES_GL_HUD_H
 
-#include "../common/glUtils.h"
+#include "hud.h"
 
-#include <vector>
+#include <osd/opengl.h>
 
-class GLFont {
+#include "glFramebuffer.h"
+
+class GLhud : public Hud {
+
 public:
+    GLhud();
+    ~GLhud();
 
-    GLFont(GLuint fontTexture);
+    virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
 
-    ~GLFont();
+    virtual void Rebuild(int width, int height,
+                         int framebufferWidth, int framebufferHeight);
 
-    void Draw(GLuint transforUB);
+    virtual bool Flush();
 
-    void Clear();
-
-    void Print3D(float const pos[3], const char * str, int color=0);
-    
-    void SetFontScale(float scale);
-
-    struct Char {
-        float pos[3];
-        float ofs[2];
-        float alpha;
-        float color;
-    };
-    
-    std::vector<Char> & GetChars() {
-        _dirty=true;
-        return _chars;
+    void SetFrameBuffer(GLFrameBuffer * frameBuffer) {
+        if (not _frameBuffer) {
+            _frameBuffer = frameBuffer;
+            _frameBuffer->Init(GetWidth(), GetHeight());
+            _frameBuffer->BuildUI(this, 10, 600);
+        }
     }
-    
-    
+
+    GLFrameBuffer * GetFrameBuffer() {
+        return _frameBuffer;
+    }
+
+    GLuint GetFontTexture() const {
+        return _fontTexture;
+    }
+
 private:
 
-    void bindProgram();
 
-    std::vector<Char> _chars;
-    bool _dirty;
+    GLFrameBuffer * _frameBuffer;
 
-    GLuint _program,
-           _transformBinding,
-           _attrPosition,
-           _attrData,
-           _fontTexture,
-           _scale,
-           _VAO,
-           _EAO,
-           _VBO;
+    GLuint _fontTexture;
+    GLuint _vbo, _staticVbo;
+    GLuint _vao, _staticVao;
+    int _staticVboSize;
+
+    GLint _program;
+    GLint _mvpMatrix;
+    GLint _aPosition, _aColor, _aUV;
 };
 
-#endif // GL_FONT_UTILS_H
+#endif  // OPENSUBDIV_EXAMPLES_GL_HUD_H

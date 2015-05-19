@@ -22,9 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "gl_framebuffer.h"
-#include "gl_common.h"
-#include "gl_hud.h"
+#include "glFramebuffer.h"
+#include "glUtils.h"
+#include "glHud.h"
 
 #include <cstdlib>
 #include <cassert>
@@ -111,7 +111,7 @@ GLFrameBuffer::Init(int width, int height) {
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
-    checkGLErrors("FrameBuffer::Init");
+    GLUtils::CheckGLErrors("FrameBuffer::Init");
 }
 
 void
@@ -133,7 +133,7 @@ GLFrameBuffer::allocateTexture() {
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-    checkGLErrors("FrameBuffer::allocateTexture");
+    GLUtils::CheckGLErrors("FrameBuffer::allocateTexture");
     
     return texture;
 }
@@ -148,10 +148,10 @@ GLFrameBuffer::compileProgram(char const * src, char const * defines) {
                       fragDefineStr[] = "#define IMAGE_FRAGMENT_SHADER\n";
 
     std::string vertexSrc = std::string(versionStr) + vtxDefineStr + (defines ? defines : "") + src;
-    GLuint vs = compileShader(GL_VERTEX_SHADER, vertexSrc.c_str());
+    GLuint vs = GLUtils::CompileShader(GL_VERTEX_SHADER, vertexSrc.c_str());
 
     std::string fragmentSrc = std::string(versionStr) + fragDefineStr + (defines ? defines : "") + src;
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER, fragmentSrc.c_str());
+    GLuint fs = GLUtils::CompileShader(GL_FRAGMENT_SHADER, fragmentSrc.c_str());
 
     glAttachShader(program, vs);
     glAttachShader(program, fs);
@@ -383,7 +383,7 @@ SSAOGLFrameBuffer::Init(int width, int height) {
         SetGamma(1.0f);
     }
 
-    checkGLErrors("SSAOGLFrameBuffer::Init");
+    GLUtils::CheckGLErrors("SSAOGLFrameBuffer::Init");
 }
 
 void
