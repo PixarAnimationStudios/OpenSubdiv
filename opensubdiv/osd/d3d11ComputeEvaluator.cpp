@@ -121,10 +121,7 @@ D3D11StencilTables::D3D11StencilTables(Far::StencilTables const *stencilTables,
 
     _numStencils = stencilTables->GetNumStencils();
     if (_numStencils > 0) {
-        // convert unsigned char sizes buffer to ints
-        // (HLSL does not have uint8 type)
-        std::vector<int> const sizes(stencilTables->GetSizes().begin(),
-                                     stencilTables->GetSizes().end());
+        std::vector<int> const &sizes = stencilTables->GetSizes();
 
         _sizesBuffer   = createBuffer(sizes, device);
         _offsetsBuffer = createBuffer(stencilTables->GetOffsets(), device);

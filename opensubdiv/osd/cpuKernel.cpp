@@ -74,7 +74,7 @@ CpuEvalStencils(float const * src,
                 VertexBufferDescriptor const &srcDesc,
                 float * dst,
                 VertexBufferDescriptor const &dstDesc,
-                unsigned char const * sizes,
+                int const * sizes,
                 int const * offsets,
                 int const * indices,
                 float const * weights,
@@ -94,7 +94,7 @@ CpuEvalStencils(float const * src,
     if (srcDesc.length == 4 and dstDesc.length == 4 and
         srcDesc.stride == 4 and dstDesc.stride == 4) {
 
-        // SIMD fast path for aligned primvar data (8 floats)
+        // SIMD fast path for aligned primvar data (4 floats)
         ComputeStencilKernel<4>(src, dst,
             sizes, indices, weights, start,  end);
 
@@ -133,7 +133,7 @@ CpuEvalStencils(float const * src,
                 VertexBufferDescriptor const &dstDuDesc,
                 float * dstDv,
                 VertexBufferDescriptor const &dstDvDesc,
-                unsigned char const * sizes,
+                int const * sizes,
                 int const * offsets,
                 int const * indices,
                 float const * weights,

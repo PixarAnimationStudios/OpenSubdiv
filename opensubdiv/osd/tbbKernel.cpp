@@ -79,7 +79,7 @@ class TBBStencilKernel {
     float const * _vertexSrc;
     float * _vertexDst;
 
-    unsigned char const * _sizes;
+    int const * _sizes;
     int const * _offsets,
               * _indices;
     float const * _weights;
@@ -90,7 +90,7 @@ public:
                      VertexBufferDescriptor srcDesc,
                      float *dst,
                      VertexBufferDescriptor dstDesc,
-                     unsigned char const * sizes, int const * offsets,
+                     int const * sizes, int const * offsets,
                      int const * indices, float const * weights) :
          _srcDesc(srcDesc),
          _dstDesc(dstDesc),
@@ -133,7 +133,7 @@ public:
 #else
         {
 #endif
-            unsigned char const * sizes = _sizes;
+            int const * sizes = _sizes;
             int const * indices = _indices;
             float const * weights = _weights;
 
@@ -165,7 +165,7 @@ TbbEvalStencils(float const * src,
                 VertexBufferDescriptor const &srcDesc,
                 float * dst,
                 VertexBufferDescriptor const &dstDesc,
-                unsigned char const * sizes,
+                int const * sizes,
                 int const * offsets,
                 int const * indices,
                 float const * weights,

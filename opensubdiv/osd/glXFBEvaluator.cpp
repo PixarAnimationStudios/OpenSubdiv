@@ -87,7 +87,7 @@ GLStencilTablesTBO::GLStencilTablesTBO(
 
     _numStencils = stencilTables->GetNumStencils();
     if (_numStencils > 0) {
-        _sizes   = createGLTextureBuffer(stencilTables->GetSizes(), GL_R8UI);
+        _sizes   = createGLTextureBuffer(stencilTables->GetSizes(), GL_R32UI);
         _offsets = createGLTextureBuffer(
             stencilTables->GetOffsets(), GL_R32I);
         _indices = createGLTextureBuffer(

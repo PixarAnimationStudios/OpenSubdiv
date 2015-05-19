@@ -230,7 +230,7 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
     StencilTables * result = new StencilTables;
     result->resize(nstencils, nelems);
 
-    unsigned char * sizes = &result->_sizes[0];
+    int * sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
     float * weights = &result->_weights[0];
     for (int i=0; i<numTables; ++i) {
@@ -239,7 +239,7 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
 
         int st_nstencils = st->GetNumStencils(),
             st_nelems = (int)st->_indices.size();
-        memcpy(sizes, &st->_sizes[0], st_nstencils*sizeof(unsigned char));
+        memcpy(sizes, &st->_sizes[0], st_nstencils*sizeof(int));
         memcpy(indices, &st->_indices[0], st_nelems*sizeof(Index));
         memcpy(weights, &st->_weights[0], st_nelems*sizeof(float));
 
@@ -366,13 +366,13 @@ StencilTablesFactory::AppendEndCapStencilTables(
     result->resize(nBaseStencils + nEndCapStencils,
                    nBaseStencilsElements + nEndCapStencilsElements);
 
-    unsigned char * sizes = &result->_sizes[0];
+    int* sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
     float * weights = &result->_weights[0];
 
     // put base stencils first
     memcpy(sizes, &baseStencilTables->_sizes[0],
-           nBaseStencils*sizeof(unsigned char));
+           nBaseStencils*sizeof(int));
     memcpy(indices, &baseStencilTables->_indices[0],
            nBaseStencilsElements*sizeof(Index));
     memcpy(weights, &baseStencilTables->_weights[0],
