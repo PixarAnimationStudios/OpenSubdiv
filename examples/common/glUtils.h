@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_COMMON_H
-#define GL_COMMON_H
+#ifndef OPENSUBDIV_EXAMPLES_GL_UTILS_H
+#define OPENSUBDIV_EXAMPLES_GL_UTILS_H
 
 #include <osd/opengl.h>
 
@@ -31,8 +31,16 @@
 #include <string>
 #include <iostream>
 
-void checkGLErrors(std::string const & where = "");
+namespace GLUtils {
 
-GLuint compileShader(GLenum shaderType, const char *source);
+void CheckGLErrors(std::string const & where = "");
 
-#endif // GL_FRAMEBUFFER_H
+GLuint CompileShader(GLenum shaderType, const char *source);
+
+bool SupportsAdaptiveTessellation();
+
+};
+
+#endif  // OPENSUBDIV_EXAMPLES_GL_UTILS_H
+
+

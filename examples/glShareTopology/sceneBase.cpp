@@ -40,7 +40,7 @@ SceneBase::~SceneBase() {
     if (_indexBuffer) glDeleteBuffers(1, &_indexBuffer);
     if (_patchParamTexture) glDeleteTextures(1, &_patchParamTexture);
 
-    for (int i = 0; i < _patchTables.size(); ++i) {
+    for (int i = 0; i < (int)_patchTables.size(); ++i) {
         delete _patchTables[i];
     }
 }

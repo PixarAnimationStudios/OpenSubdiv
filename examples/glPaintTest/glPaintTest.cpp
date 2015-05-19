@@ -55,7 +55,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../common/glHud.h"
 #include "../common/glShaderCache.h"
 
 #include "init_shapes.h"

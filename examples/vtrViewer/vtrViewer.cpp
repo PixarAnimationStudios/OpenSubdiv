@@ -61,8 +61,8 @@ GLFWmonitor* g_primary=0;
 
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_common.h"
-#include "../common/gl_hud.h"
+#include "../common/glUtils.h"
+#include "../common/glHud.h"
 
 #include "init_shapes.h"
 #include "gl_mesh.h"
@@ -1610,7 +1610,7 @@ int main(int argc, char ** argv)
     initHUD();
     rebuildOsdMeshes();
 
-    checkGLErrors("before loop");
+    GLUtils::CheckGLErrors("before loop");
     while (g_running) {
         idle();
         display();
