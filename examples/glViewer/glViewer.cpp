@@ -88,7 +88,8 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../common/glHud.h"
+#include "../common/glUtils.h"
 #include "../common/objAnim.h"
 #include "../common/glShaderCache.h"
 
@@ -1511,7 +1512,7 @@ callbackModel(int m) {
 static void
 callbackCheckBox(bool checked, int button) {
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+    if (GLUtils::SupportsAdaptiveTessellation()) {
         switch(button) {
         case kHUD_CB_ADAPTIVE:
             g_adaptive = checked;
@@ -1620,7 +1621,7 @@ initHUD() {
         g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+    if (GLUtils::SupportsAdaptiveTessellation()) {
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0,
                           10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
         g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
@@ -1834,7 +1835,7 @@ int main(int argc, char ** argv) {
 #endif
 
     // activate feature adaptive tessellation if OSD supports it
-    g_adaptive = OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation();
+    g_adaptive = GLUtils::SupportsAdaptiveTessellation();
 
     initGL();
     linkDefaultProgram();

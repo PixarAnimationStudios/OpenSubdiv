@@ -87,7 +87,7 @@ GLFWmonitor* g_primary=0;
 
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../common/glHud.h"
 #include "../common/glShaderCache.h"
 
 #include <osd/glslPatchShaderSource.h>

@@ -61,7 +61,7 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/d3d11_hud.h"
+#include "../common/d3d11Hud.h"
 #include "../common/d3d11PtexMipmapTexture.h"
 #include "../common/d3d11ShaderCache.h"
 

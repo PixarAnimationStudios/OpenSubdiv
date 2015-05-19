@@ -26,8 +26,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <cassert>
-#include "d3d11_hud.h"
-#include "d3d11_compile.h"
+#include "d3d11Hud.h"
+#include "d3d11Utils.h"
 #include "font_image.h"
 #include "../common/simple_math.h"
 
@@ -137,8 +137,8 @@ D3D11hud::Init(int width, int height, int frameBufferWidth, int frameBufferHeigh
 
     ID3DBlob* pVSBlob;
     ID3DBlob* pPSBlob;
-    pVSBlob = d3d11CompileShader(s_VS, "vs_main", "vs_4_0");
-    pPSBlob = d3d11CompileShader(s_PS, "ps_main", "ps_4_0");
+    pVSBlob = D3D11Utils::CompileShader(s_VS, "vs_main", "vs_4_0");
+    pPSBlob = D3D11Utils::CompileShader(s_PS, "ps_main", "ps_4_0");
     assert(pVSBlob);
     assert(pPSBlob);
 

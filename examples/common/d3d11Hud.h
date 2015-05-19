@@ -22,20 +22,25 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef GL_HUD_H
-#define GL_HUD_H
+#ifndef OPENSUBDIV_EXAMPLES_D3D11_HUD_H
+#define OPENSUBDIV_EXAMPLES_D3D11_HUD_H
 
+#include <D3D11.h>
 #include "hud.h"
 
-#include <osd/opengl.h>
-
-#include "gl_framebuffer.h"
-
-class GLhud : public Hud {
-
+class D3D11hud : public Hud
+{
 public:
-    GLhud();
-    ~GLhud();
+    D3D11hud(ID3D11DeviceContext *deviceContext);
+    ~D3D11hud();
+
+    void Init(int width, int height) {
+        Init(width, height, width, height);
+    }
+
+    void Rebuild(int width, int height) {
+        Rebuild(width, height, width, height);
+    }
 
     virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
 
@@ -44,35 +49,19 @@ public:
 
     virtual bool Flush();
 
-    void SetFrameBuffer(GLFrameBuffer * frameBuffer) {
-        if (not _frameBuffer) {
-            _frameBuffer = frameBuffer;
-            _frameBuffer->Init(GetWidth(), GetHeight());
-            _frameBuffer->BuildUI(this, 10, 600);
-        }
-    }
-
-    GLFrameBuffer * GetFrameBuffer() {
-        return _frameBuffer;
-    }
-
-    GLuint GetFontTexture() const {
-        return _fontTexture;
-    }
-
 private:
-
-
-    GLFrameBuffer * _frameBuffer;
-
-    GLuint _fontTexture;
-    GLuint _vbo, _staticVbo;
-    GLuint _vao, _staticVao;
-    int _staticVboSize;
-
-    GLint _program;
-    GLint _mvpMatrix;
-    GLint _aPosition, _aColor, _aUV;
+    ID3D11DeviceContext *_deviceContext;
+    ID3D11Buffer *_vbo;
+    ID3D11Buffer *_staticVbo;
+    ID3D11Texture2D *_fontTexture;
+    ID3D11InputLayout *_inputLayout;
+    ID3D11ShaderResourceView *_shaderResourceView;
+    ID3D11SamplerState *_samplerState;
+    ID3D11VertexShader *_vertexShader;
+    ID3D11PixelShader *_pixelShader;
+    ID3D11RasterizerState *_rasterizerState;
+    ID3D11Buffer* _constantBuffer;
+    int _staticVboCount;
 };
 
-#endif // GL_HUD_H
+#endif  // OPENSUBDIV_EXAMPLES_D3D11_HUD_H
