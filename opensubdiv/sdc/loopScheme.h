@@ -280,22 +280,32 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
     posMask.SetFaceWeightsForFaceCenters(false);
 
     //  Specialize for the regular case:  1/12 per edge-vert, 1/2 for the vert itself:
-    Weight eWeight = 1.0f / 12.0f;
-    Weight vWeight = 0.5f;
+    if (valence == 6) {
+        Weight eWeight = 1.0f / 12.0f;
+        Weight vWeight = 0.5f;
 
-    if (valence != 6) {
+        posMask.VertexWeight(0) = vWeight;
+
+        posMask.EdgeWeight(0) = eWeight;
+        posMask.EdgeWeight(1) = eWeight;
+        posMask.EdgeWeight(2) = eWeight;
+        posMask.EdgeWeight(3) = eWeight;
+        posMask.EdgeWeight(4) = eWeight;
+        posMask.EdgeWeight(5) = eWeight;
+
+    } else {
         Weight invValence = 1.0f / valence;
 
         Weight beta = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
         beta = (0.625f - (beta * beta)) * invValence;;
 
-        eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
-        vWeight = (Weight)(1.0f - (eWeight * valence));
-    }
+        Weight eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
+        Weight vWeight = (Weight)(1.0f - (eWeight * valence));
 
-    posMask.VertexWeight(0) = vWeight;
-    for (int i = 0; i < valence; ++i) {
-        posMask.EdgeWeight(i) = eWeight;
+        posMask.VertexWeight(0) = vWeight;
+        for (int i = 0; i < valence; ++i) {
+            posMask.EdgeWeight(i) = eWeight;
+        }
     }
 }
 
