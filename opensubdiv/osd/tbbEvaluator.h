@@ -88,7 +88,7 @@ public:
                              VertexBufferDescriptor const &srcDesc,
                              float *dst,
                              VertexBufferDescriptor const &dstDesc,
-                             const unsigned char *sizes,
+                             const int *sizes,
                              const int *offsets,
                              const int *indices,
                              const float *weights,

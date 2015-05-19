@@ -389,7 +389,7 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
     stencilTables->_numControlVertices = 0;
     stencilTables->resize(nStencils, nElements);
 
-    unsigned char * sizes = &stencilTables->_sizes[0];
+    int * sizes = &stencilTables->_sizes[0];
     Index * indices = &stencilTables->_indices[0];
     float * weights = &stencilTables->_weights[0];
 
@@ -399,7 +399,7 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
         int size = src.GetSize();
         memcpy(indices, src.GetIndices(), size*sizeof(Index));
         memcpy(weights, src.GetWeights(), size*sizeof(float));
-        *sizes = (int)size;
+        *sizes = size;
 
         indices += size;
         weights += size;

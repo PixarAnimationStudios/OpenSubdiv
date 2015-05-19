@@ -56,7 +56,7 @@ public:
     ///
     /// @param weights  Table pointer to the vertex weights of the stencil
     ///
-    Stencil(unsigned char * size,
+    Stencil(int * size,
             Index * indices,
             float * weights)
         : _size(size),
@@ -77,7 +77,7 @@ public:
     }
 
     /// \brief Returns the size of the stencil as a pointer
-    unsigned char * GetSizePtr() const {
+    int * GetSizePtr() const {
         return _size;
     }
 
@@ -103,7 +103,7 @@ protected:
     friend class StencilTablesFactory;
     friend class LimitStencilTablesFactory;
 
-    unsigned char * _size;
+    int * _size;
     Index         * _indices;
     float         * _weights;
 };
@@ -138,7 +138,7 @@ public:
     Stencil GetStencil(Index i) const;
 
     /// \brief Returns the number of control vertices of each stencil in the table
-    std::vector<unsigned char> const & GetSizes() const {
+    std::vector<int> const & GetSizes() const {
         return _sizes;
     }
 
@@ -210,7 +210,7 @@ protected:
 
     int _numControlVertices;              // number of control vertices
 
-    std::vector<unsigned char> _sizes;    // number of coeffiecient for each stencil
+    std::vector<int> _sizes;    // number of coeffiecient for each stencil
     std::vector<Index>         _offsets,  // offset to the start of each stencil
                                _indices;  // indices of contributing coarse vertices
     std::vector<float>         _weights;  // stencil weight coefficients
@@ -235,7 +235,7 @@ public:
     ///
     /// @param dvWeights Table pointer to the 'v' derivative weights
     ///
-    LimitStencil( unsigned char * size,
+    LimitStencil( int* size,
                   Index * indices,
                   float * weights,
                   float * duWeights,
@@ -340,7 +340,7 @@ template <class T> void
 StencilTables::update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, Index start, Index end) const {
 
-    unsigned char const * sizes = &_sizes.at(0);
+    int const * sizes = &_sizes.at(0);
     Index const * indices = &_indices.at(0);
     float const * weights = &valueWeights.at(0);
 
@@ -396,7 +396,7 @@ StencilTables::GetStencil(Index i) const {
 
     Index ofs = _offsets[i];
 
-    return Stencil( const_cast<unsigned char *>(&_sizes[i]),
+    return Stencil( const_cast<int*>(&_sizes[i]),
                     const_cast<Index *>(&_indices[ofs]),
                     const_cast<float *>(&_weights[ofs]) );
 }
