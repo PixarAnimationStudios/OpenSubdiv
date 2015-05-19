@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef FAR_TOPOLOGY_REFINER_FACTORY_H
-#define FAR_TOPOLOGY_REFINER_FACTORY_H
+#pragma once
+#ifndef OPENSUBDIV3_FAR_TOPOLOGY_REFINER_FACTORY_H
+#define OPENSUBDIV3_FAR_TOPOLOGY_REFINER_FACTORY_H
 
 #include "../version.h"
 
@@ -430,4 +431,4 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::reportIn
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* FAR_TOPOLOGY_REFINER_FACTORY_H */
+#endif /* OPENSUBDIV3_FAR_TOPOLOGY_REFINER_FACTORY_H */

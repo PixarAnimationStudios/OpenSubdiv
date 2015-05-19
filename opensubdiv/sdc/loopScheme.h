@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_LOOP_SCHEME_H
-#define SDC_LOOP_SCHEME_H
+#pragma once
+#ifndef OPENSUBDIV3_SDC_LOOP_SCHEME_H
+#define OPENSUBDIV3_SDC_LOOP_SCHEME_H
 
 #include "../version.h"
 
@@ -567,4 +568,4 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_LOOP_SCHEME_H */
+#endif /* OPENSUBDIV3_SDC_LOOP_SCHEME_H */

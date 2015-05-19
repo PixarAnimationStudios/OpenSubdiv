@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRHIERARCHICALEDIT_H
-#define HBRHIERARCHICALEDIT_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRHIERARCHICALEDIT_H
+#define OPENSUBDIV3_HBRHIERARCHICALEDIT_H
 
 #include "../version.h"
 
@@ -168,4 +169,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRHIERARCHICALEDIT_H */
+#endif /* OPENSUBDIV3_HBRHIERARCHICALEDIT_H */

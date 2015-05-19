@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_MESH_H
-#define OSD_MESH_H
+#pragma once
+#ifndef OPENSUBDIV3_OSD_MESH_H
+#define OPENSUBDIV3_OSD_MESH_H
 
 #include "../version.h"
 
@@ -542,4 +543,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_MESH_H
+#endif  // OPENSUBDIV3_OSD_MESH_H

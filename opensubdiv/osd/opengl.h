@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_OPENGL_H
-#define OSD_OPENGL_H
+#pragma once
+#ifndef OPENSUBDIV3_OSD_OPENGL_H
+#define OPENSUBDIV3_OSD_OPENGL_H
 
 #if defined(__APPLE__)
     #include "TargetConditionals.h"
@@ -50,4 +51,4 @@
     #endif
 #endif
 
-#endif  // OSD_OPENGL_H
+#endif  // OPENSUBDIV3_OSD_OPENGL_H

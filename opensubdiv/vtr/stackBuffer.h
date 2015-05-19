@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_STACK_BUFFER_H
-#define VTR_STACK_BUFFER_H
+#pragma once
+#ifndef OPENSUBDIV3_VTR_STACK_BUFFER_H
+#define OPENSUBDIV3_VTR_STACK_BUFFER_H
 
 #include "../version.h"
 
@@ -210,4 +211,4 @@ StackBuffer<TYPE,SIZE>::SetSize(size_type size)
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_STACK_BUFFER_H */
+#endif /* OPENSUBDIV3_VTR_STACK_BUFFER_H */

@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_INTERFACES_H
-#define VTR_INTERFACES_H
+#pragma once
+#ifndef OPENSUBDIV3_VTR_INTERFACES_H
+#define OPENSUBDIV3_VTR_INTERFACES_H
 
 #include "../version.h"
 
@@ -196,4 +197,4 @@ private:
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_INTERFACES_H */
+#endif /* OPENSUBDIV3_VTR_INTERFACES_H */

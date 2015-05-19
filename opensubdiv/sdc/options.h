@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_OPTIONS_H
-#define SDC_OPTIONS_H
+#pragma once
+#ifndef OPENSUBDIV3_SDC_OPTIONS_H
+#define OPENSUBDIV3_SDC_OPTIONS_H
 
 #include "../version.h"
 
@@ -138,4 +139,4 @@ private:
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_OPTIONS_H */
+#endif /* OPENSUBDIV3_SDC_OPTIONS_H */

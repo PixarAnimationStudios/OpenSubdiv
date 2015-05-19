@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PROTOSTENCIL_H
-#define FAR_PROTOSTENCIL_H
+#pragma once
+#ifndef OPENSUBDIV3_FAR_PROTOSTENCIL_H
+#define OPENSUBDIV3_FAR_PROTOSTENCIL_H
 
 #include "../far/stencilTables.h"
 
@@ -503,4 +504,4 @@ typedef LimitAllocator<ProtoLimitStencil, BigLimitStencil> LimitStencilAllocator
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif // FAR_PROTOSTENCIL_H
+#endif // OPENSUBDIV3_FAR_PROTOSTENCIL_H

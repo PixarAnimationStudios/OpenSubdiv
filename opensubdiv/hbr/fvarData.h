@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRFVARDATA_H
-#define HBRFVARDATA_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRFVARDATA_H
+#define OPENSUBDIV3_HBRFVARDATA_H
 
 #include <cstring>
 #include <cmath>
@@ -197,4 +198,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRFVARDATA_H */
+#endif /* OPENSUBDIV3_HBRFVARDATA_H */

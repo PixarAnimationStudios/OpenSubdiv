@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRVERTEX_H
-#define HBRVERTEX_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRVERTEX_H
+#define OPENSUBDIV3_HBRVERTEX_H
 
 #include <assert.h>
 #include <iostream>
@@ -1554,5 +1555,5 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRVERTEX_H */
+#endif /* OPENSUBDIV3_HBRVERTEX_H */
 

@@ -21,8 +21,9 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_TYPES_H
-#define SDC_TYPES_H
+#pragma once
+#ifndef OPENSUBDIV3_SDC_TYPES_H
+#define OPENSUBDIV3_SDC_TYPES_H
 
 #include "../version.h"
 
@@ -73,4 +74,4 @@ struct SchemeTypeTraits {
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_TYPES_H */
+#endif /* OPENSUBDIV3_SDC_TYPES_H */

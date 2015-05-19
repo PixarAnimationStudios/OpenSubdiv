@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_INTERPOLATE_H
-#define FAR_INTERPOLATE_H
+#pragma once
+#ifndef OPENSUBDIV3_FAR_INTERPOLATE_H
+#define OPENSUBDIV3_FAR_INTERPOLATE_H
 
 #include "../version.h"
 
@@ -242,4 +243,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_INTERPOLATE_H */
+#endif /* OPENSUBDIV3_FAR_INTERPOLATE_H */

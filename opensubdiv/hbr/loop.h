@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRLOOP_H
-#define HBRLOOP_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRLOOP_H
+#define OPENSUBDIV3_HBRLOOP_H
 
 #include <cmath>
 #include <assert.h>
@@ -976,4 +977,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRLOOP_H */
+#endif /* OPENSUBDIV3_HBRLOOP_H */

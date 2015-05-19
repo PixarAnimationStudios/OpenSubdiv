@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRCORNEREDIT_H
-#define HBRCORNEREDIT_H
+#pragma once
+#ifndef OPENSUBDIV3_HBRCORNEREDIT_H
+#define OPENSUBDIV3_HBRCORNEREDIT_H
 
 #include "../version.h"
 
@@ -95,4 +96,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRCORNEREDIT_H */
+#endif /* OPENSUBDIV3_HBRCORNEREDIT_H */

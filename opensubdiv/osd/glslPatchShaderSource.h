@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_OSD_GLSL_PATCH_SHADER_SOURCE_H
-#define OPENSUBDIV_OSD_GLSL_PATCH_SHADER_SOURCE_H
+#pragma once
+#ifndef OPENSUBDIV3_OSD_GLSL_PATCH_SHADER_SOURCE_H
+#define OPENSUBDIV3_OSD_GLSL_PATCH_SHADER_SOURCE_H
 
 #include "../version.h"
 #include <string>
@@ -55,4 +56,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif  // OPENSUBDIV_OSD_GLSL_PATCH_SHADER_SOURCE
+#endif  // OPENSUBDIV3_OSD_GLSL_PATCH_SHADER_SOURCE
