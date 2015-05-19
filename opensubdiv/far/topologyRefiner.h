@@ -40,6 +40,7 @@
 #include "../vtr/maskInterfaces.h"
 #include "../far/types.h"
 #include "../far/error.h"
+#include "../far/topologyLevel.h"
 
 #include <vector>
 #include <cassert>
@@ -99,6 +100,9 @@ public:
 
     /// \brief Returns the total number of face vertices in all levels
     int GetNumFaceVerticesTotal() const { return _totalFaceVertices; }
+
+    /// \brief Returns a handle to access data specific to a particular level
+    TopologyLevel const & GetLevel(int level) const { return _farLevels[level]; }
 
     //@{
     ///  @name High-level refinement and related methods
@@ -298,126 +302,10 @@ public:
 
     //@}
 
-    //@{
-    /// @name Inspection of components per level
-    ///
-
-
-    /// \brief Returns the number of vertices at a given level of refinement
-    int GetNumVertices(int level) const {
-        return _levels[level]->getNumVertices();
-    }
-
-    /// \brief Returns the number of edges at a given level of refinement
-    int GetNumEdges(int level) const {
-        return _levels[level]->getNumEdges();
-    }
-
-    /// \brief Returns the number of face vertex indices at a given level of refinement
-    int GetNumFaces(int level) const {
-        return _levels[level]->getNumFaces();
-    }
-
-    /// \brief Returns the number of faces marked as holes at the given level
-    int GetNumHoles(int level) const;
-
-    /// \brief Returns the number of faces at a given level of refinement
-    int GetNumFaceVertices(int level) const {
-        return _levels[level]->getNumFaceVerticesTotal();
-    }
-
-    /// \brief Returns the sharpness of a given edge (at 'level' of refinement)
-    float GetEdgeSharpness(int level, Index edge) const {
-        return _levels[level]->getEdgeSharpness(edge);
-    }
-
-    /// \brief Returns the sharpness of a given vertex (at 'level' of refinement)
-    float GetVertexSharpness(int level, Index vert) const {
-        return _levels[level]->getVertexSharpness(vert);
-    }
-
-    /// \brief Returns the subdivision rule of a given vertex (at 'level' of refinement)
-    Sdc::Crease::Rule GetVertexRule(int level, Index vert) const {
-        return _levels[level]->getVertexRule(vert);
-    }
-
-    //@}
 
     //@{
-    /// @name Topological relations -- incident/adjacent components
+    /// @name Number and properties of face-varying channels:
     ///
-
-
-    /// \brief Returns the vertices of a 'face' at 'level'
-    ConstIndexArray GetFaceVertices(int level, Index face) const {
-        return _levels[level]->getFaceVertices(face);
-    }
-
-    /// \brief Returns the edges of a 'face' at 'level'
-    ConstIndexArray GetFaceEdges(int level, Index face) const {
-        return _levels[level]->getFaceEdges(face);
-    }
-
-    /// \brief Returns true if 'face' at 'level' is tagged as a hole
-    bool IsFaceHole(int level, Index face) const {
-        return _levels[level]->isFaceHole(face);
-    }
-
-    /// \brief Returns the vertices of an 'edge' at 'level' (2 of them)
-    ConstIndexArray GetEdgeVertices(int level, Index edge) const {
-        return _levels[level]->getEdgeVertices(edge);
-    }
-
-    /// \brief Returns the faces incident to 'edge' at 'level'
-    ConstIndexArray GetEdgeFaces(int level, Index edge) const {
-        return _levels[level]->getEdgeFaces(edge);
-    }
-
-    /// \brief Returns the faces incident to 'vertex' at 'level'
-    ConstIndexArray GetVertexFaces(int level, Index vert) const {
-        return _levels[level]->getVertexFaces(vert);
-    }
-
-    /// \brief Returns the edges incident to 'vertex' at 'level'
-    ConstIndexArray GetVertexEdges(int level, Index vert) const {
-        return _levels[level]->getVertexEdges(vert);
-    }
-
-    /// \brief Returns the local face indices of edge 'edge' at 'level'
-    ConstLocalIndexArray GetEdgeFaceLocalIndices(int level, Index edge) const {
-        return _levels[level]->getEdgeFaceLocalIndices(edge);
-    }
-
-    /// \brief Returns the local face indices of vertex 'vert' at 'level'
-    ConstLocalIndexArray GetVertexFaceLocalIndices(int level, Index vert) const {
-        return _levels[level]->getVertexFaceLocalIndices(vert);
-    }
-
-    /// \brief Returns the local edge indices of vertex 'vert' at 'level'
-    ConstLocalIndexArray GetVertexEdgeLocalIndices(int level, Index vert) const {
-        return _levels[level]->getVertexEdgeLocalIndices(vert);
-    }
-
-    /// \brief Returns true if the given face does not contain extraordinary vertices
-    bool FaceIsRegular(int level, Index face) const {
-        ConstIndexArray fVerts = _levels[level]->getFaceVertices(face);
-        Vtr::Level::VTag compFaceVertTag =
-            _levels[level]->getFaceCompositeVTag(fVerts);
-        return not compFaceVertTag._xordinary;
-    }
-
-    /// \brief Returns the edge with vertices 'v0' and 'v1' (or INDEX_INVALID if
-    ///  they are not connected)
-    Index FindEdge(int level, Index v0, Index v1) const {
-        return _levels[level]->findEdge(v0, v1);
-    }
-
-    //@}
-
-    //@{
-    /// @name Inspection of face-varying channels and their contents:
-    ///
-
 
     /// \brief Returns the number of face-varying channels in the tables
     int GetNumFVarChannels() const;
@@ -428,87 +316,74 @@ public:
     /// \brief Returns the total number of face-varying values in all levels
     int GetNumFVarValuesTotal(int channel = 0) const;
 
-    /// \brief Returns the number of face-varying values at a given level of refinement
-    int GetNumFVarValues(int level, int channel = 0) const;
-
-    /// \brief Returns the face-varying values of a 'face' at 'level'
-    ConstIndexArray GetFVarFaceValues(int level, Index face, int channel = 0) const;
-
-    //@}
-
-    //@{
-    /// @name Parent-to-child relationships,
-    /// Relationships between components in one level
-    /// and the next (entries may be invalid if sparse):
-    ///
-
-
-    /// \brief Returns the child faces of face 'f' at 'level'
-    ConstIndexArray GetFaceChildFaces(int level, Index f) const {
-        return _refinements[level]->getFaceChildFaces(f);
-    }
-
-    /// \brief Returns the child edges of face 'f' at 'level'
-    ConstIndexArray GetFaceChildEdges(int level, Index f) const {
-        return _refinements[level]->getFaceChildEdges(f);
-    }
-
-    /// \brief Returns the child edges of edge 'e' at 'level'
-    ConstIndexArray GetEdgeChildEdges(int level, Index e) const {
-        return _refinements[level]->getEdgeChildEdges(e);
-    }
-
-    /// \brief Returns the child vertex of face 'f' at 'level'
-    Index GetFaceChildVertex(  int level, Index f) const {
-        return _refinements[level]->getFaceChildVertex(f);
-    }
-
-    /// \brief Returns the child vertex of edge 'e' at 'level'
-    Index GetEdgeChildVertex(  int level, Index e) const {
-        return _refinements[level]->getEdgeChildVertex(e);
-    }
-
-    /// \brief Returns the child vertex of vertex 'v' at 'level'
-    Index GetVertexChildVertex(int level, Index v) const {
-        return _refinements[level]->getVertexChildVertex(v);
-    }
-
-    //@}
-
-    //@{
-    /// @name Child-to-parent or child-to-base relationships,
-    /// Relationships between components in one level and the
-    /// previous or base level (to be called with level > 0):
-    ///
-
-    /// \brief Returns the parent face of face 'f' at 'level'
-    Index GetFaceParentFace(int level, Index f) const {
-        return _refinements[level-1]->getChildFaceParentFace(f);
-    }
-
-    /// \brief Returns the base face of face 'f' at 'level'
-    Index GetFaceBaseFace(int level, Index f) const {
-        return _refinements[level-1]->getChildFaceBaseFace(f);
-    }
-
     //@}
 
 
-    //@{
-    /// @name Debugging aides
-    ///
+    //
+    //  Access to data per-level -- being made obsolete via this->GetLevel(level).Method():
+    //
+    //  Component inventory:
+    int GetNumVertices(int level) const     { return GetLevel(level).GetNumVertices(); }
+    int GetNumEdges(int level) const        { return GetLevel(level).GetNumEdges(); }
+    int GetNumFaces(int level) const        { return GetLevel(level).GetNumFaces(); }
+    int GetNumFaceVertices(int level) const { return GetLevel(level).GetNumFaceVertices(); }
 
-    /// \brief Returns true if the topology of 'level' is valid
-    bool ValidateTopology(int level) const {
-        return _levels[level]->validateTopology();
+    //  Component tags:
+    float GetEdgeSharpness(int level, Index e) const   { return GetLevel(level).GetEdgeSharpness(e); }
+    float GetVertexSharpness(int level, Index v) const { return GetLevel(level).GetVertexSharpness(v); }
+    bool IsFaceHole(int level, Index f) const          { return GetLevel(level).IsFaceHole(f); }
+
+    Sdc::Crease::Rule GetVertexRule(int level, Index v) const { return GetLevel(level).GetVertexRule(v); }
+
+    //  Face-varying values:
+    int             GetNumFVarValues(int level,           int channel = 0) const { return GetLevel(level).GetNumFVarValues(channel); }
+    ConstIndexArray GetFVarFaceValues(int level, Index f, int channel = 0) const { return GetLevel(level).GetFVarFaceValues(f, channel); }
+
+    //  Component neighbors:
+    ConstIndexArray GetFaceVertices(int level, Index f) const { return GetLevel(level).GetFaceVertices(f); }
+    ConstIndexArray GetFaceEdges(int level, Index f) const    { return GetLevel(level).GetFaceEdges(f); }
+    ConstIndexArray GetEdgeVertices(int level, Index e) const { return GetLevel(level).GetEdgeVertices(e); }
+    ConstIndexArray GetEdgeFaces(int level, Index e) const    { return GetLevel(level).GetEdgeFaces(e); }
+    ConstIndexArray GetVertexFaces(int level, Index v) const  { return GetLevel(level).GetVertexFaces(v); }
+    ConstIndexArray GetVertexEdges(int level, Index v) const  { return GetLevel(level).GetVertexEdges(v); }
+
+    ConstLocalIndexArray GetEdgeFaceLocalIndices(int level, Index e) const   { return GetLevel(level).GetEdgeFaceLocalIndices(e); }
+    ConstLocalIndexArray GetVertexFaceLocalIndices(int level, Index v) const { return GetLevel(level).GetVertexFaceLocalIndices(v); }
+    ConstLocalIndexArray GetVertexEdgeLocalIndices(int level, Index v) const { return GetLevel(level).GetVertexEdgeLocalIndices(v); }
+
+    Index FindEdge(int level, Index v0, Index v1) const { return GetLevel(level).FindEdge(v0, v1); }
+
+    //  Child components:
+    ConstIndexArray GetFaceChildFaces(int level, Index f) const { return GetLevel(level).GetFaceChildFaces(f); }
+    ConstIndexArray GetFaceChildEdges(int level, Index f) const { return GetLevel(level).GetFaceChildEdges(f); }
+    ConstIndexArray GetEdgeChildEdges(int level, Index e) const { return GetLevel(level).GetEdgeChildEdges(e); }
+
+    Index GetFaceChildVertex(  int level, Index f) const { return GetLevel(level).GetFaceChildVertex(f); }
+    Index GetEdgeChildVertex(  int level, Index e) const { return GetLevel(level).GetEdgeChildVertex(e); }
+    Index GetVertexChildVertex(int level, Index v) const { return GetLevel(level).GetVertexChildVertex(v); }
+
+    //  Parent components:
+    Index GetFaceParentFace(int level, Index f) const { return GetLevel(level).GetFaceParentFace(f); }
+    Index GetFaceBaseFace(int level, Index f) const   { return GetLevel(level).GetFaceBaseFace(f); }
+
+    //  Debugging aides:
+    bool ValidateTopology(int level) const                    { return GetLevel(level).ValidateTopology(); }
+    void PrintTopology(int level, bool children = true) const { GetLevel(level).PrintTopology(children); }
+
+
+    //  UNDER RE-CONSIDERATION...
+    //
+    //  Potentially too special-purpose to warrant public method (needs to iterate through all faces):
+    int GetNumHoles(int level) const;
+
+    //  Appears to be completely unused:
+    bool FaceIsRegular(int level, Index face) const {
+        ConstIndexArray fVerts = _levels[level]->getFaceVertices(face);
+        Vtr::Level::VTag compFaceVertTag =
+            _levels[level]->getFaceCompositeVTag(fVerts);
+        return not compFaceVertTag._xordinary;
     }
 
-    /// \brief Prints topology information to console
-    void PrintTopology(int level, bool children = true) const {
-        _levels[level]->print((children && ((int)_refinements.size() > level)) ? _refinements[level] : 0);
-    }
-
-    //@}
 
 protected:
 
@@ -607,6 +482,7 @@ private:
 
     void appendLevel(Vtr::Level & newLevel);
     void appendRefinement(Vtr::Refinement & newRefinement);
+    void assembleFarLevels();
 
 private:
 
@@ -628,8 +504,11 @@ private:
     int _totalFaceVertices;
     int _maxValence;
 
+    //  There is some redundancy here -- to be reduced later
     std::vector<Vtr::Level *>      _levels;
     std::vector<Vtr::Refinement *> _refinements;
+
+    std::vector<TopologyLevel> _farLevels;;
 };
 
 
@@ -642,16 +521,6 @@ inline Sdc::Options::FVarLinearInterpolation
 TopologyRefiner::GetFVarLinearInterpolation(int channel) const {
 
     return _levels[0]->getFVarOptions(channel).GetFVarLinearInterpolation();
-}
-inline int
-TopologyRefiner::GetNumFVarValues(int level, int channel) const {
-
-    return _levels[level]->getNumFVarValues(channel);
-}
-inline ConstIndexArray
-TopologyRefiner::GetFVarFaceValues(int level, Index face, int channel) const {
-
-    return _levels[level]->getFVarFaceValues(face, channel);
 }
 inline int
 TopologyRefiner::createBaseFVarChannel(int numValues) {
