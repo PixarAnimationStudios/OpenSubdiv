@@ -1488,14 +1488,14 @@ PatchTablesFactory::populateAdaptivePatches(
         tables->_vertexStencilTables =
             endCapGregoryBasis->CreateVertexStencilTables();
         tables->_varyingStencilTables =
-            endCapGregoryBasis->CreateVertexStencilTables();
+            endCapGregoryBasis->CreateVaryingStencilTables();
         delete endCapGregoryBasis;
         break;
     case Options::ENDCAP_BSPLINE_BASIS:
         tables->_vertexStencilTables =
             endCapBSpline->CreateVertexStencilTables();
         tables->_varyingStencilTables =
-            endCapBSpline->CreateVertexStencilTables();
+            endCapBSpline->CreateVaryingStencilTables();
         delete endCapBSpline;
         break;
     case Options::ENDCAP_LEGACY_GREGORY:
