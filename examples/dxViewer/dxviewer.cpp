@@ -25,7 +25,6 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/d3d11DrawContext.h>
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
@@ -57,7 +56,9 @@
 #include <osd/d3d11ComputeEvaluator.h>
 
 #include <osd/d3d11Mesh.h>
-OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
+#include <osd/d3d11LegacyGregoryPatchTable.h>
+OpenSubdiv::Osd::D3D11MeshInterface *g_mesh = NULL;
+OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
@@ -321,7 +322,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::CpuEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -333,7 +334,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::OmpEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -345,7 +346,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::TbbEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -358,7 +359,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
                                Osd::CLStencilTables,
                                Osd::CLEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                CLD3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -372,7 +373,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
                                Osd::CudaStencilTables,
                                Osd::CudaEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -384,7 +385,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
                                Osd::D3D11StencilTables,
                                Osd::D3D11ComputeEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -394,6 +395,15 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
                                    g_pd3dDeviceContext);
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
+    }
+
+    // legacy gregory
+    delete g_legacyGregoryPatchTable;
+    g_legacyGregoryPatchTable = NULL;
+    if (g_endCap == kEndCapLegacyGregory) {
+        g_legacyGregoryPatchTable =
+            Osd::D3D11LegacyGregoryPatchTable::Create(
+                g_mesh->GetFarPatchTables(), g_pd3dDeviceContext);
     }
 
     // compute model bounding
@@ -618,16 +628,16 @@ ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
 static void
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
     // only legacy gregory needs maxValence and numElements
     // neither legacy gregory nor gregory basis need single crease
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
     if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
+        int maxValence = g_mesh->GetMaxValence();
         int numElements = 6;
         effectDesc.maxValence = maxValence;
         effectDesc.numElements = numElements;
@@ -706,8 +716,9 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         Tessellation * pData = ( Tessellation* )MappedResource.pData;
 
         pData->TessLevel = static_cast<float>(1 << g_tessLevel);
-        pData->GregoryQuadOffsetBase = patch.GetQuadOffsetIndex();
-        pData->PrimitiveIdBase = patch.GetPatchIndex();
+        pData->GregoryQuadOffsetBase = g_legacyGregoryPatchTable ?
+            g_legacyGregoryPatchTable->GetQuadOffsetsBase(patch.GetDescriptor().GetType()) : 0;
+        pData->PrimitiveIdBase = patch.GetPrimitiveIdBase();
 
         g_pd3dDeviceContext->Unmap( g_pcbTessellation, 0 );
     }
@@ -761,22 +772,23 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     g_pd3dDeviceContext->PSSetConstantBuffers(2, 1, &g_pcbLighting);
     g_pd3dDeviceContext->PSSetConstantBuffers(3, 1, &g_pcbMaterial);
 
-    if (g_mesh->GetDrawContext()->vertexBufferSRV) {
-        g_pd3dDeviceContext->VSSetShaderResources(0, 1, &g_mesh->GetDrawContext()->vertexBufferSRV);
+    ID3D11ShaderResourceView *srv = g_mesh->GetPatchTable()->GetPatchParamSRV();
+    if (srv) {
+        g_pd3dDeviceContext->HSSetShaderResources(0, 1, &srv);  // t0
+        g_pd3dDeviceContext->DSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->PSSetShaderResources(0, 1, &srv);
     }
-    if (g_mesh->GetDrawContext()->vertexValenceBufferSRV) {
-        g_pd3dDeviceContext->VSSetShaderResources(1, 1, &g_mesh->GetDrawContext()->vertexValenceBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->quadOffsetBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(2, 1, &g_mesh->GetDrawContext()->quadOffsetBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->patchParamBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->DSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->PSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
+
+    if (g_legacyGregoryPatchTable) {
+        ID3D11ShaderResourceView *vertexSRV =
+            g_legacyGregoryPatchTable->GetVertexSRV();
+        ID3D11ShaderResourceView *vertexValenceSRV =
+            g_legacyGregoryPatchTable->GetVertexValenceSRV();
+        ID3D11ShaderResourceView *quadOffsetsSRV =
+            g_legacyGregoryPatchTable->GetQuadOffsetsSRV();
+        g_pd3dDeviceContext->VSSetShaderResources(2, 1, &vertexSRV);       // t2
+        g_pd3dDeviceContext->VSSetShaderResources(3, 1, &vertexValenceSRV);// t3
+        g_pd3dDeviceContext->HSSetShaderResources(4, 1, &quadOffsetsSRV);  // t4
     }
 }
 
@@ -796,32 +808,23 @@ display() {
     ID3D11Buffer *buffer = g_mesh->BindVertexBuffer();
     assert(buffer);
 
+    // vertex texture update for legacy gregory drawing
+    if (g_legacyGregoryPatchTable) {
+        g_legacyGregoryPatchTable->UpdateVertexBuffer(buffer,
+                                                      g_mesh->GetNumVertices(),
+                                                      6,
+                                                      g_pd3dDeviceContext);
+    }
+
     UINT hStrides = 6*sizeof(float);
     UINT hOffsets = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &buffer, &hStrides, &hOffsets);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches = g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::D3D11PatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
-    g_pd3dDeviceContext->IASetIndexBuffer(g_mesh->GetDrawContext()->patchIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-    // cv drawing
-#if 0
-
-    if (g_drawPatchCVs) {
-
-        bindProgram(kPoint, OpenSubdiv::Osd::DrawContext::PatchArray());
-
-        g_pd3dDeviceContext->IASetPrimitiveTopology(
-                                D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-
-        for (int i=0; i<(int)patches.size(); ++i) {
-            OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
-
-            g_pd3dDeviceContext->DrawIndexed(patch.GetNumIndices(),
-                                             patch.GetVertIndex(), 0);
-        }
-    }
-#endif
+    g_pd3dDeviceContext->IASetIndexBuffer(
+        g_mesh->GetPatchTable()->GetPatchIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
 
     // patch drawing
     int patchCount[12]; // [Type] (see far/patchTables.h)
@@ -829,7 +832,7 @@ display() {
     int numDrawCalls = 0;
 
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
@@ -868,13 +871,15 @@ display() {
                 break;
             }
             break;
-        };
+        }
 
         bindProgram(GetEffect(), patch);
 
         g_pd3dDeviceContext->IASetPrimitiveTopology(topology);
 
-        g_pd3dDeviceContext->DrawIndexed(patch.GetNumIndices(), patch.GetVertIndex(), 0);
+        g_pd3dDeviceContext->DrawIndexed(
+            patch.GetNumPatches() * desc.GetNumControlVertices(),
+            patch.GetIndexBase(), 0);
     }
 
     g_fpsTimer.Stop();
@@ -1254,7 +1259,8 @@ initD3D11(HWND hWnd) {
     D3D11_RASTERIZER_DESC rasterDesc;
     ZeroMemory(&rasterDesc, sizeof(rasterDesc));
     rasterDesc.AntialiasedLineEnable = false;
-    rasterDesc.CullMode = D3D11_CULL_NONE; // XXX
+    //rasterDesc.CullMode = D3D11_CULL_NONE; // XXX
+    rasterDesc.CullMode = D3D11_CULL_BACK; // XXX
     rasterDesc.DepthBias = 0;
     rasterDesc.DepthBiasClamp = 0.0f;
     rasterDesc.DepthClipEnable = true;

@@ -28,14 +28,15 @@
 #include "../version.h"
 
 #include "../osd/mesh.h"
-#include "../osd/d3d11DrawContext.h"
+#include "../osd/d3d11PatchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-typedef MeshInterface<D3D11DrawContext> D3D11MeshInterface;
+typedef MeshInterface<D3D11PatchTable> D3D11MeshInterface;
+
 
 } // end namespace Osd
 

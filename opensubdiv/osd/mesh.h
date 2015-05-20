@@ -60,11 +60,11 @@ typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
 // ---------------------------------------------------------------------------
 
-template <class DRAW_CONTEXT>
+template <class PATCH_TABLE>
 class MeshInterface {
 public:
-    typedef DRAW_CONTEXT DrawContext;
-    typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
+    typedef PATCH_TABLE PatchTable;
+    typedef typename PatchTable::VertexBufferBinding VertexBufferBinding;
 
 public:
     MeshInterface() { }
@@ -72,6 +72,8 @@ public:
     virtual ~MeshInterface() { }
 
     virtual int GetNumVertices() const = 0;
+
+    virtual int GetMaxValence() const = 0;
 
     virtual void UpdateVertexBuffer(float const *vertexData,
                                     int startVertex, int numVerts) = 0;
@@ -83,14 +85,13 @@ public:
 
     virtual void Synchronize() = 0;
 
-    virtual DrawContext * GetDrawContext() = 0;
+    virtual PatchTable * GetPatchTable() const = 0;
+
+    virtual Far::PatchTables const *GetFarPatchTables() const = 0;
 
     virtual VertexBufferBinding BindVertexBuffer() = 0;
 
     virtual VertexBufferBinding BindVaryingBuffer() = 0;
-
-    virtual void SetFVarDataChannel(int fvarWidth,
-                                    std::vector<float> const & fvarData) = 0;
 
 protected:
     static inline void refineMesh(Far::TopologyRefiner & refiner,
@@ -232,17 +233,17 @@ static EVALUATOR *GetEvaluator(
 template <typename VERTEX_BUFFER,
           typename STENCIL_TABLES,
           typename EVALUATOR,
-          typename DRAW_CONTEXT,
+          typename PATCH_TABLE,
           typename DEVICE_CONTEXT = void>
-class Mesh : public MeshInterface<DRAW_CONTEXT> {
+class Mesh : public MeshInterface<PATCH_TABLE> {
 public:
     typedef VERTEX_BUFFER VertexBuffer;
     typedef EVALUATOR Evaluator;
     typedef STENCIL_TABLES StencilTables;
-    typedef DRAW_CONTEXT DrawContext;
+    typedef PATCH_TABLE PatchTable;
     typedef DEVICE_CONTEXT DeviceContext;
     typedef EvaluatorCacheT<Evaluator> EvaluatorCache;
-    typedef typename DrawContext::VertexBufferBinding VertexBufferBinding;
+    typedef typename PatchTable::VertexBufferBinding VertexBufferBinding;
 
     Mesh(Far::TopologyRefiner * refiner,
          int numVertexElements,
@@ -253,19 +254,20 @@ public:
          DeviceContext * deviceContext = NULL) :
 
             _refiner(refiner),
-            _patchTables(NULL),
+            _farPatchTables(NULL),
             _numVertices(0),
+            _maxValence(0),
             _vertexBuffer(NULL),
             _varyingBuffer(NULL),
             _vertexStencilTables(NULL),
             _varyingStencilTables(NULL),
             _evaluatorCache(evaluatorCache),
-            _drawContext(NULL),
+            _patchTable(NULL),
             _deviceContext(deviceContext) {
 
         assert(_refiner);
 
-        MeshInterface<DRAW_CONTEXT>::refineMesh(
+        MeshInterface<PATCH_TABLE>::refineMesh(
             *_refiner, level,
             bits.test(MeshAdaptive),
             bits.test(MeshUseSingleCreasePatch));
@@ -296,21 +298,16 @@ public:
                                                   numVaryingElements,
                                                   varyingBufferStride);
         }
-
-
-
-        // will retire
-        _drawContext->UpdateVertexTexture(_vertexBuffer, _deviceContext);
     }
 
     virtual ~Mesh() {
         delete _refiner;
-        delete _patchTables;
+        delete _farPatchTables;
         delete _vertexBuffer;
         delete _varyingBuffer;
         delete _vertexStencilTables;
         delete _varyingStencilTables;
-        delete _drawContext;
+        delete _patchTable;
         // deviceContext and evaluatorCache are not owned by this class.
     }
 
@@ -373,22 +370,17 @@ public:
         Evaluator::Synchronize(_deviceContext);
     }
 
-    virtual DrawContext * GetDrawContext() {
-        return _drawContext;
+    virtual PatchTable * GetPatchTable() const {
+        return _patchTable;
     }
 
-    virtual void SetFVarDataChannel(int fvarWidth,
-                                    std::vector<float> const & fvarData) {
-        if (_patchTables and
-            _drawContext and
-            fvarWidth and
-            (not fvarData.empty())) {
-            _drawContext->SetFVarDataTexture(*_patchTables, fvarWidth, fvarData,
-                                             _deviceContext);
-        }
+    virtual Far::PatchTables const *GetFarPatchTables() const {
+        return _farPatchTables;
     }
 
     virtual int GetNumVertices() const { return _numVertices; }
+
+    virtual int GetMaxValence() const { return _maxValence; }
 
     virtual VertexBufferBinding BindVertexBuffer() {
         return _vertexBuffer->BindVBO(_deviceContext);
@@ -457,16 +449,16 @@ private:
                 Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
         }
 
-        _patchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+        _farPatchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
 
         // if there's endcap stencils, merge it into regular stencils.
-        if (_patchTables->GetEndCapVertexStencilTables()) {
+        if (_farPatchTables->GetEndCapVertexStencilTables()) {
             // append stencils
             if (Far::StencilTables const *vertexStencilsWithEndCap =
                 Far::StencilTablesFactory::AppendEndCapStencilTables(
                     *_refiner,
                     vertexStencils,
-                    _patchTables->GetEndCapVertexStencilTables())) {
+                    _farPatchTables->GetEndCapVertexStencilTables())) {
                 delete vertexStencils;
                 vertexStencils = vertexStencilsWithEndCap;
             }
@@ -475,14 +467,15 @@ private:
                     Far::StencilTablesFactory::AppendEndCapStencilTables(
                         *_refiner,
                         varyingStencils,
-                        _patchTables->GetEndCapVaryingStencilTables())) {
+                        _farPatchTables->GetEndCapVaryingStencilTables())) {
                     delete varyingStencils;
                     varyingStencils = varyingStencilsWithEndCap;
                 }
             }
         }
 
-        _drawContext = DrawContext::Create(_patchTables, _deviceContext);
+        _maxValence = _farPatchTables->GetMaxValence();
+        _patchTable = PatchTable::Create(_farPatchTables, _deviceContext);
 
         // numvertices = coarse verts + refined verts + gregory basis verts
         _numVertices = vertexStencils->GetNumControlVertices()
@@ -517,9 +510,10 @@ private:
     }
 
     Far::TopologyRefiner * _refiner;
-    Far::PatchTables * _patchTables;
+    Far::PatchTables * _farPatchTables;
 
     int _numVertices;
+    int _maxValence;
 
     VertexBuffer * _vertexBuffer;
     VertexBuffer * _varyingBuffer;
@@ -531,7 +525,7 @@ private:
     StencilTables const * _varyingStencilTables;
     EvaluatorCache * _evaluatorCache;
 
-    DrawContext *_drawContext;
+    PatchTable *_patchTable;
     DeviceContext *_deviceContext;
 };
 

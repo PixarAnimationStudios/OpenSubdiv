@@ -49,8 +49,6 @@ GLFWmonitor* g_primary = 0;
 #include <string>
 #include <utility>
 #include <algorithm>
-
-#include <osd/glDrawContext.h>
 #include <far/error.h>
 
 #include <osd/cpuEvaluator.h>
@@ -783,17 +781,8 @@ public:
         GLint loc;
         // patch textures
         glUseProgram(program);
-        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
-            glUniform1i(loc, 0); // GL_TEXTURE0
-        }
-        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
-            glUniform1i(loc, 1); // GL_TEXTURE1
-        }
-        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
-            glUniform1i(loc, 2); // GL_TEXTURE2
-        }
         if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
-            glUniform1i(loc, 3); // GL_TEXTURE3
+            glUniform1i(loc, 0); // GL_TEXTURE0
         }
 
         // environment textures
@@ -948,7 +937,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                            OpenSubdiv::Far::StencilTables,
                                            OpenSubdiv::Osd::CpuEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -958,7 +947,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                            OpenSubdiv::Far::StencilTables,
                                            OpenSubdiv::Osd::OmpEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -969,7 +958,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                            OpenSubdiv::Far::StencilTables,
                                            OpenSubdiv::Osd::TbbEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -981,7 +970,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
                                            OpenSubdiv::Osd::CLStencilTables,
                                            OpenSubdiv::Osd::CLEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext,
+                                           OpenSubdiv::Osd::GLPatchTable,
                                            CLDeviceContext>(
                                                 refiner,
                                                 numVertexElements,
@@ -995,7 +984,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
                                            OpenSubdiv::Osd::CudaStencilTables,
                                            OpenSubdiv::Osd::CudaEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1007,7 +996,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
                                            OpenSubdiv::Osd::GLStencilTablesTBO,
                                            OpenSubdiv::Osd::GLXFBEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                refiner,
                                                numVertexElements,
                                                numVaryingElements,
@@ -1020,7 +1009,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
                                            OpenSubdiv::Osd::GLStencilTablesSSBO,
                                            OpenSubdiv::Osd::GLComputeEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1051,7 +1040,7 @@ createOsdMesh(int level, int kernel) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (float*)12);
     }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
 
     // ------ Cage VAO
     glBindVertexArray(g_cageEdgeVAO);
@@ -1201,27 +1190,10 @@ updateConstantUniformBlock() {
 
 static void
 bindTextures() {
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
+    if (g_mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      g_mesh->GetDrawContext()->GetVertexTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_BUFFER,
-                      g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_BUFFER,
-                      g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
-    }
-#endif
-    if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_BUFFER,
-                      g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
+                      g_mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
 
     // other textures
@@ -1273,17 +1245,8 @@ bindTextures() {
 //------------------------------------------------------------------------------
 static GLenum
 bindProgram(Effect effect,
-            OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+            OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
-
-    // only legacy gregory needs maxValence and numElements
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
-        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-        effectDesc.maxValence = maxValence;
-        effectDesc.numElements = 3;
-    }
 
     GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
     if (!config) return 0;
@@ -1293,15 +1256,10 @@ bindProgram(Effect effect,
     glUseProgram(program);
 
     // bind standalone uniforms
-    GLint uniformGregoryQuadOffsetBase =
-        glGetUniformLocation(program, "GregoryQuadOffsetBase");
     GLint uniformPrimitiveIdBase =
         glGetUniformLocation(program, "PrimitiveIdBase");
-
-    if (uniformGregoryQuadOffsetBase >= 0)
-        glUniform1i(uniformGregoryQuadOffsetBase, patch.GetQuadOffsetIndex());
     if (uniformPrimitiveIdBase >= 0)
-        glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPrimitiveIdBase());
 
     GLenum primType;
     switch(effectDesc.desc.GetType()) {
@@ -1334,10 +1292,10 @@ drawModel() {
     glBindVertexArray(g_vao);
 
     // patch drawing
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
 
         Effect effect;
         effect.value = 0;
@@ -1357,8 +1315,9 @@ drawModel() {
         GLenum primType = bindProgram(effect, patch);
 
         glDrawElements(primType,
-                       patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+                       patch.GetNumPatches() * patch.GetDescriptor().GetNumControlVertices(),
+                       GL_UNSIGNED_INT,
+                       (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
 
     glBindVertexArray(0);

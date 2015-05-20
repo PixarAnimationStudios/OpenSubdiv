@@ -82,7 +82,6 @@
     #include <osd/glVertexBuffer.h>
 #endif
 
-#include <osd/glDrawContext.h>
 #include <osd/glMesh.h>
 
 #include <common/vtr_utils.h>
@@ -235,7 +234,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
                              Far::StencilTables,
                              Osd::CpuEvaluator,
-                             Osd::GLDrawContext>(
+                             Osd::GLPatchTable>(
                                  refiner,
                                  numVertexElements,
                                  numVaryingElements,
@@ -245,7 +244,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
                              Far::StencilTables,
                              Osd::OmpEvaluator,
-                             Osd::GLDrawContext>(
+                             Osd::GLPatchTable>(
                                  refiner,
                                  numVertexElements,
                                  numVaryingElements,
@@ -256,7 +255,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
                              Far::StencilTables,
                              Osd::TbbEvaluator,
-                             Osd::GLDrawContext>(
+                             Osd::GLPatchTable>(
                                  refiner,
                                  numVertexElements,
                                  numVaryingElements,
@@ -267,7 +266,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::CLGLVertexBuffer,
                              Osd::CLStencilTables,
                              Osd::CLEvaluator,
-                             Osd::GLDrawContext,
+                             Osd::GLPatchTable,
                              CLDeviceContext>(
                                  refiner,
                                  numVertexElements,
@@ -281,7 +280,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::CudaGLVertexBuffer,
                              Osd::CudaStencilTables,
                              Osd::CudaEvaluator,
-                             Osd::GLDrawContext>(
+                             Osd::GLPatchTable>(
                                  refiner,
                                  numVertexElements,
                                  numVaryingElements,
@@ -292,7 +291,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::GLVertexBuffer,
                              Osd::GLStencilTablesTBO,
                              Osd::GLXFBEvaluator,
-                             Osd::GLDrawContext>(
+                             Osd::GLPatchTable>(
                                  refiner,
                                  numVertexElements,
                                  numVaryingElements,
@@ -303,7 +302,7 @@ createOsdMesh(std::string const &kernel,
         return new Osd::Mesh<Osd::GLVertexBuffer,
                              Osd::GLStencilTablesSSBO,
                              Osd::GLComputeEvaluator,
-                             Osd::GLDrawContext>(
+                             Osd::GLPatchTable>(
                                  refiner,
                                  numVertexElements,
                                  numVaryingElements,
@@ -405,7 +404,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
     glBindVertexArray(vao);
 
     // bind vertex
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->GetPatchTable()->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
@@ -417,17 +416,17 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
                           (const void*)(sizeof(GLfloat)*3));
 
     // bind patchparam
-    if (mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
+    if (mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      mesh->GetDrawContext()->GetPatchParamTextureBuffer());
+                      mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
 
-    Osd::DrawContext::PatchArrayVector const & patches =
-        mesh->GetDrawContext()->GetPatchArrays();
+    Osd::GLPatchTable::PatchArrayVector const & patches =
+        mesh->GetPatchTable()->GetPatchArrays();
 
     for (int i=0; i<(int)patches.size(); ++i) {
-        Osd::DrawContext::PatchArray const & patch = patches[i];
+        Osd::GLPatchTable::PatchArray const & patch = patches[i];
         Far::PatchDescriptor desc = patch.GetDescriptor();
         Far::PatchDescriptor::Type patchType = desc.GetType();
 
@@ -457,13 +456,15 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
             glProgramUniform4f(program, diffuseColor,
                                color[0], color[1], color[2], color[3]);
             glProgramUniform1i(program, uniformPrimitiveIdBase,
-                               patch.GetPatchIndex());
+                               patch.GetPrimitiveIdBase());
         } else {
             glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
         }
 
-        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        glDrawElements(primType,
+                       patch.GetNumPatches() * desc.GetNumControlVertices(),
+                       GL_UNSIGNED_INT,
+                       (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
 
     glDisableVertexAttribArray(0);

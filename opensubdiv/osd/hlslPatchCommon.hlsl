@@ -127,9 +127,9 @@ int OsdPrimitiveIdBase();
 //
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    Buffer<uint3> OsdPatchParamBuffer : register( t3 );
+    Buffer<uint3> OsdPatchParamBuffer : register( t0 );
 #else
-    Buffer<uint2> OsdPatchParamBuffer : register( t3 );
+    Buffer<uint2> OsdPatchParamBuffer : register( t0 );
 #endif
 
 int OsdGetPatchIndex(int primitiveId)
