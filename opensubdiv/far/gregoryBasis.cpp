@@ -111,6 +111,16 @@ GregoryBasis::ProtoBasis::Copy(int * sizes, Index * indices, float * weights) co
     }
 }
 
+void
+GregoryBasis::ProtoBasis::Copy(GregoryBasis * dest) const {
+    int nelems = GetNumElements();
+
+    dest->_indices.resize(nelems);
+    dest->_weights.resize(nelems);
+
+    Copy(dest->_sizes, &dest->_indices[0], &dest->_weights[0]);
+}
+
 inline float csf(Index n, Index j) {
     if (j%2 == 0) {
         return cosf((2.0f * float(M_PI) * float(float(j-0)/2.0f))/(float(n)+3.0f));
