@@ -261,20 +261,32 @@ Scheme<SCHEME_CATMARK>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMas
     posMask.SetFaceWeightsForFaceCenters(false);
 
     //  Specialize for the regular case:
-    Weight fWeight = 1.0f / 36.0f;
-    Weight eWeight = 1.0f /  9.0f;
-    Weight vWeight = 4.0f /  9.0f;
+    if (valence == 4) {
+        Weight fWeight = 1.0f / 36.0f;
+        Weight eWeight = 1.0f /  9.0f;
+        Weight vWeight = 4.0f /  9.0f;
 
-    if (valence != 4) {
-        fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
-        eWeight = 4.0f * fWeight;
-        vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
-    }
+        posMask.VertexWeight(0) = vWeight;
 
-    posMask.VertexWeight(0) = vWeight;
-    for (int i = 0; i < valence; ++i) {
-        posMask.EdgeWeight(i) = eWeight;
-        posMask.FaceWeight(i) = fWeight;
+        posMask.EdgeWeight(0) = eWeight;
+        posMask.EdgeWeight(1) = eWeight;
+        posMask.EdgeWeight(2) = eWeight;
+        posMask.EdgeWeight(3) = eWeight;
+
+        posMask.FaceWeight(0) = fWeight;
+        posMask.FaceWeight(1) = fWeight;
+        posMask.FaceWeight(2) = fWeight;
+        posMask.FaceWeight(3) = fWeight;
+    } else {
+        Weight fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
+        Weight eWeight = 4.0f * fWeight;
+        Weight vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
+
+        posMask.VertexWeight(0) = vWeight;
+        for (int i = 0; i < valence; ++i) {
+            posMask.EdgeWeight(i) = eWeight;
+            posMask.FaceWeight(i) = fWeight;
+        }
     }
 }
 
@@ -494,12 +506,23 @@ Scheme<SCHEME_CATMARK>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
     tan2Mask.SetFaceWeightsForFaceCenters(false);
 
     tan2Mask.VertexWeight(0) = 0.0f;
+    if (valence == 4) {
+        tan2Mask.EdgeWeight(0) =  0.0f;
+        tan2Mask.EdgeWeight(1) =  4.0f;
+        tan2Mask.EdgeWeight(2) =  0.0f;
+        tan2Mask.EdgeWeight(3) = -4.0f;
 
-    tan2Mask.EdgeWeight(0) = tan1Mask.EdgeWeight(valence-1);
-    tan2Mask.FaceWeight(0) = tan1Mask.FaceWeight(valence-1);
-    for (int i = 1; i < valence; ++i) {
-        tan2Mask.EdgeWeight(i) = tan1Mask.EdgeWeight(i-1);
-        tan2Mask.FaceWeight(i) = tan1Mask.FaceWeight(i-1);
+        tan2Mask.FaceWeight(0) =  1.0f;
+        tan2Mask.FaceWeight(1) =  1.0f;
+        tan2Mask.FaceWeight(2) = -1.0f;
+        tan2Mask.FaceWeight(3) = -1.0f;
+    } else {
+        tan2Mask.EdgeWeight(0) = tan1Mask.EdgeWeight(valence-1);
+        tan2Mask.FaceWeight(0) = tan1Mask.FaceWeight(valence-1);
+        for (int i = 1; i < valence; ++i) {
+            tan2Mask.EdgeWeight(i) = tan1Mask.EdgeWeight(i-1);
+            tan2Mask.FaceWeight(i) = tan1Mask.FaceWeight(i-1);
+        }
     }
 }
 
