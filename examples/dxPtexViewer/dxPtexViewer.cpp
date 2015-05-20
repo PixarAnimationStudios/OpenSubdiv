@@ -35,6 +35,10 @@
     #include <osd/ompEvaluator.h>
 #endif
 
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbEvaluator.h>
+#endif
+
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clD3D11VertexBuffer.h>
     #include <osd/clEvaluator.h>
@@ -83,9 +87,10 @@ static const char *g_shaderSource =
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kCUDA = 2,
-                  kCL = 3,
-                  kDirectCompute = 4 };
+                  kTBB = 2,
+                  kCUDA = 3,
+                  kCL = 4,
+                  kDirectCompute = 5 };
 
 enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_OCCLUSION,
@@ -378,10 +383,12 @@ createPTexGeo(PtexTexture * r) {
 static const char *
 getKernelName(int kernel) {
 
-         if (kernel == kCPU)
+    if (kernel == kCPU)
         return "CPU";
     else if (kernel == kOPENMP)
         return "OpenMP";
+    else if (kernel == kTBB)
+        return "TBB";
     else if (kernel == kCUDA)
         return "Cuda";
     else if (kernel == kCL)
@@ -1314,15 +1321,18 @@ initHUD() {
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud->AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'K');
 #endif
+#ifdef OPENSUBDIV_HAS_TBB
+    g_hud->AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'K');
+#endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud->AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'K');
+    g_hud->AddRadioButton(0, "CUDA", false, 10, 70, callbackKernel, kCUDA, 'K');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
-        g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
+        g_hud->AddRadioButton(0, "OPENCL", false, 10, 90, callbackKernel, kCL, 'K');
     }
 #endif
-    g_hud->AddRadioButton(0, "DirectCompute", false, 10, 90, callbackKernel, kDirectCompute, 'K');
+    g_hud->AddRadioButton(0, "DirectCompute", false, 10, 110, callbackKernel, kDirectCompute, 'K');
 
     g_hud->AddCheckBox("Adaptive (`)", g_adaptive,
                        10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
