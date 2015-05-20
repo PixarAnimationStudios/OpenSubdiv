@@ -55,9 +55,6 @@ GLFWmonitor* g_primary=0;
 #include <far/stencilTablesFactory.h>
 
 #include <common/vtr_utils.h>
-#include <common/hbr_utils.h>
-
-#include "hbr_refine.h"
 
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
@@ -84,8 +81,7 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR };
 
-enum DrawMode { kDRAW_NONE = 0,
-                kDRAW_VERTICES,
+enum DrawMode { kDRAW_VERTICES,
                 kDRAW_WIREFRAME,
                 kDRAW_FACES };
 
@@ -101,12 +97,7 @@ int   g_fullscreen = 0,
 int   g_displayPatchColor    = 1,               
       g_drawCageEdges        = 1,               
       g_drawCageVertices     = 0,               
-      g_HbrDrawMode          = kDRAW_WIREFRAME, 
-      g_HbrDrawVertIDs       = false,           
-      g_HbrDrawEdgeSharpness = false,           
-      g_HbrDrawFaceIDs       = false,           
-      g_HbrDrawPtexIDs       = false,           
-      g_FarDrawMode          = kDRAW_NONE,      
+      g_FarDrawMode          = kDRAW_FACES,      
       g_FarDrawVertIDs       = false,           
       g_FarDrawEdgeIDs       = false,           
       g_FarDrawFaceIDs       = false,           
@@ -163,7 +154,6 @@ struct Transform {
 } g_transformData;
 
 static GLMesh g_base_glmesh,
-              g_hbr_glmesh,
               g_far_glmesh;
 
 
@@ -172,200 +162,44 @@ static GLMesh g_base_glmesh,
 typedef OpenSubdiv::Far::TopologyRefiner               FTopologyRefiner;
 typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FTopologyRefinerFactory;
 
-//------------------------------------------------------------------------------
-// generate display IDs for Hbr faces
-static void
-createFaceNumbers(std::vector<Hface const *> faces, bool doPtex=false) {
-
-    static char buf[16];
-
-    for (int i=0; i<(int)faces.size(); ++i) {
-
-        Hface const * f = faces[i];
-
-        Vertex center(0.0f, 0.0f, 0.0f);
-
-        int nv = f->GetNumVertices();
-        float weight = 1.0f / nv;
-
-        for (int j=0; j<nv; ++j) {
-            center.AddWithWeight(f->GetVertex(j)->GetData(), weight);
-        }
-
-        if (doPtex) {
-            snprintf(buf, 16, "%d", f->GetPtexIndex());
-        } else {
-            snprintf(buf, 16, "%d", f->GetID());
-        }
-        g_font->Print3D(center.GetPos(), buf, 2);
-    }
-}
 
 //------------------------------------------------------------------------------
-// generate display IDs for Hbr edges
-static void
-createEdgeNumbers(std::vector<Hface const *> faces) {
+// Vertex class implementation
+struct Vertex {
 
-    typedef std::map<Hhalfedge const *, int> EdgeMap;
-    EdgeMap edgeMap;
+    Vertex() { /* _pos[0]=_pos[1]=_pos[2]=0.0f; */ }
 
-    typedef std::vector<Hhalfedge const *>   EdgeVec;
-    EdgeVec edgeVec;
+    Vertex( int /*i*/ ) { }
 
-    { // map half-edges into unique edge id's
+    Vertex( float x, float y, float z ) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
 
-        for (int i=0; i<(int)faces.size(); ++i) {
-            Hface const * f = faces[i];
-            for (int j=0; j<f->GetNumVertices(); ++j) {
-                Hhalfedge const * e = f->GetEdge(j);
-                if (e->IsBoundary() or (e->GetRightFace()->GetID()>f->GetID())) {
-                    int id = (int)edgeMap.size();
-                    edgeMap[e] = id;
-                }
-            }
-        }
-        edgeVec.resize(edgeMap.size());
-        for (EdgeMap::const_iterator it=edgeMap.begin(); it!=edgeMap.end(); ++it) {
-            edgeVec[it->second] = it->first;
-        }
+    Vertex( const Vertex & src ) { _pos[0]=src._pos[0]; _pos[1]=src._pos[1]; _pos[2]=src._pos[2]; }
+
+   ~Vertex( ) { }
+
+    void AddWithWeight(Vertex const & src, float weight) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
     }
 
-    static char buf[16];
-    for (int i=0; i<(int)edgeVec.size(); ++i) {
-
-        Hhalfedge const * e = edgeVec[i];
-
-        float sharpness = e->GetSharpness();
-        if (sharpness>0.0f) {
-
-            Vertex center(0.0f, 0.0f, 0.0f);
-            center.AddWithWeight(e->GetOrgVertex()->GetData(), 0.5f);
-            center.AddWithWeight(e->GetDestVertex()->GetData(), 0.5f);
-
-            snprintf(buf, 16, "%g", sharpness);
-            g_font->Print3D(center.GetPos(), buf, std::min(8,(int)sharpness+4));
-        }
-    }
-}
-
-//------------------------------------------------------------------------------
-// generate display IDs for Hbr verts
-static void
-createVertNumbers(std::vector<Hface const *> faces) {
-
-    assert(not faces.empty());
-
-    static char buf[16];
-
-    std::vector<Hvertex const *> verts(faces.size()*4, 0);
-
-    for (int i=0; i<(int)faces.size(); ++i) {
-
-        Hface const * f = faces[i];
-
-        int nv = f->GetNumVertices();
-        for (int j=0; j<nv; ++j) {
-            Hvertex const * v = f->GetVertex(j);
-            verts[v->GetID()] = v;
-        }
+    void AddWithWeight(Vertex const & src, float weight, float /* ds */, float /* dt */) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
     }
 
-    for (int i=0; i<(int)verts.size(); ++i) {
+    void AddVaryingWithWeight(Vertex const & , float) { }
 
-        if (verts[i]) {
-            snprintf(buf, 16, "%d", verts[i]->GetID());
-            g_font->Print3D(verts[i]->GetData().GetPos(), buf, 1);
-        }
-    }
-}
+    void Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
 
-//------------------------------------------------------------------------------
-static void
-createHbrGLMesh(Shape * shape, int maxlevel) {
+    void SetPosition(float x, float y, float z) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
 
-    Stopwatch s;
-    s.Start();
+    float const * GetPos() const { return _pos; }
 
-    // create Hbr mesh using functions from hbr_utils
-    Hmesh * hmesh = createMesh<Vertex>(shape->scheme, /*fvarwidth*/ 0);
-
-    createVerticesWithPositions<Vertex>(shape, hmesh);
-
-    createTopology<Vertex>(shape, hmesh, shape->scheme);
-    s.Stop();
-
-    std::vector<Hface const *>   coarseFaces,  // list of Hbr coarse faces
-                                 refinedFaces; // list of Hbr faces refined at maxlevel
-
-    int nfaces = hmesh->GetNumFaces();
-
-    { // create control cage GL mesh
-        coarseFaces.resize(nfaces);
-        for (int i=0; i<nfaces; ++i) {
-            coarseFaces[i] = hmesh->GetFace(i);
-        }
-
-        GLMesh::Options coarseOptions;
-        coarseOptions.vertColorMode=GLMesh::VERTCOLOR_BY_SHARPNESS;
-        coarseOptions.edgeColorMode=GLMesh::EDGECOLOR_BY_SHARPNESS;
-        coarseOptions.faceColorMode=GLMesh::FACECOLOR_SOLID;
-
-        g_base_glmesh.Initialize(coarseOptions, coarseFaces);
-        g_base_glmesh.InitializeDeviceBuffers();
-    }
-
-    { // create maxlevel refined GL mesh
-        s.Start();
-
-        OpenSubdiv::Far::PatchTables const * patchTables = 0;
-
-        if (g_Adaptive) {
-            int maxvalence = RefineAdaptive(*hmesh, maxlevel, refinedFaces);
-
-            patchTables = CreatePatchTables(*hmesh, maxvalence);
-
-            patchTables->GetNumPatchesTotal();
-
-            delete patchTables;
-        } else {
-            RefineUniform(*hmesh, maxlevel, refinedFaces);
-        }
-
-        s.Stop();
-        //printf("Hbr time: %f ms\n", float(s.GetElapsed())*1000.0f);
-
-        if (g_HbrDrawVertIDs) {
-            createVertNumbers(refinedFaces);
-        }
-
-        // Hbr is a half-edge rep, so edges do not have unique IDs that
-        // can be displayed
-
-        if (g_HbrDrawEdgeSharpness) {
-            createEdgeNumbers(refinedFaces);
-        }
-
-        if (g_HbrDrawFaceIDs) {
-            createFaceNumbers(refinedFaces, /*ptex*/ false);
-        }
-
-        if (g_HbrDrawPtexIDs) {
-            createFaceNumbers(refinedFaces, /*ptex*/ true);
-        }
-
-        GLMesh::Options refinedOptions;
-        refinedOptions.vertColorMode=GLMesh::VERTCOLOR_BY_SHARPNESS;
-        refinedOptions.edgeColorMode=GLMesh::EDGECOLOR_BY_SHARPNESS;
-        refinedOptions.faceColorMode=GLMesh::FACECOLOR_SOLID;
-
-        g_hbr_glmesh.Initialize(refinedOptions, refinedFaces);
-        g_hbr_glmesh.SetDiffuseColor(1.0f,0.75f,0.9f, 1.0f);
-    }
-
-    g_hbr_glmesh.InitializeDeviceBuffers();
-
-    delete hmesh;
-}
+private:
+    float _pos[3];
+};
 
 //------------------------------------------------------------------------------
 // generate display IDs for Far verts
@@ -939,8 +773,6 @@ createMeshes(ShapeDesc const & desc, int maxlevel) {
 
     Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
 
-    createHbrGLMesh(shape, maxlevel);
-
     createFarGLMesh(shape, maxlevel);
     delete shape;
 }
@@ -1046,33 +878,16 @@ display() {
         g_base_glmesh.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
 
-    // Hbr mesh
-    if (g_HbrDrawMode!=kDRAW_NONE) {
-
-        GLMesh::Component comp=GLMesh::COMP_VERT;
-        switch (g_HbrDrawMode) {
-            case kDRAW_VERTICES  : comp=GLMesh::COMP_VERT; break;
-            case kDRAW_WIREFRAME : comp=GLMesh::COMP_EDGE; break;
-            case kDRAW_FACES     : comp=GLMesh::COMP_FACE; break;
-            default:
-                assert(0);
-        }
-        g_hbr_glmesh.Draw(comp, g_transformUB, g_lightingUB);
-    }
-
     // Far mesh
-    if (g_FarDrawMode!=kDRAW_NONE) {
-
-        GLMesh::Component comp=GLMesh::COMP_VERT;
-        switch (g_FarDrawMode) {
-            case kDRAW_VERTICES  : comp=GLMesh::COMP_VERT; break;
-            case kDRAW_WIREFRAME : comp=GLMesh::COMP_EDGE; break;
-            case kDRAW_FACES     : comp=GLMesh::COMP_FACE; break;
-            default:
-                assert(0);
-        }
-        g_far_glmesh.Draw(comp, g_transformUB, g_lightingUB);
+    GLMesh::Component comp=GLMesh::COMP_VERT;
+    switch (g_FarDrawMode) {
+        case kDRAW_VERTICES  : comp=GLMesh::COMP_VERT; break;
+        case kDRAW_WIREFRAME : comp=GLMesh::COMP_EDGE; break;
+        case kDRAW_FACES     : comp=GLMesh::COMP_FACE; break;
+        default:
+            assert(0);
     }
+    g_far_glmesh.Draw(comp, g_transformUB, g_lightingUB);
 
     if (g_Adaptive and g_FarDrawGregogyBasis) {
         gregoryWire.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
@@ -1297,11 +1112,6 @@ callbackCheckBox(bool checked, int button) {
     }
 }
 
-static void
-callbackHbrDrawMode(int m) {
-
-    g_HbrDrawMode = m;
-}
 
 static void
 callbackFarDrawMode(int m) {
@@ -1313,20 +1123,16 @@ static void
 callbackDrawIDs(bool checked, int button) {
 
     switch (button) {
-        case 0: g_HbrDrawVertIDs = checked; break;
-        case 1: g_HbrDrawFaceIDs = checked; break;
-        case 2: g_HbrDrawPtexIDs = checked; break;
-        case 3: g_HbrDrawEdgeSharpness = checked; break;
 
-        case 4: g_FarDrawVertIDs = checked; break;
-        case 5: g_FarDrawEdgeIDs = checked; break;
-        case 6: g_FarDrawFaceIDs = checked; break;
-        case 7: g_FarDrawPtexIDs = checked; break;
-        case 8: g_FarDrawEdgeSharpness = checked; break;
-        case 9: g_FarDrawGregogyBasis = checked; break;
+        case 0: g_FarDrawVertIDs = checked; break;
+        case 1: g_FarDrawEdgeIDs = checked; break;
+        case 2: g_FarDrawFaceIDs = checked; break;
+        case 3: g_FarDrawPtexIDs = checked; break;
+        case 4: g_FarDrawEdgeSharpness = checked; break;
+        case 5: g_FarDrawGregogyBasis = checked; break;
 
-        case 10: g_FarDrawFVarVerts = checked; break;
-        case 11: g_FarDrawFVarPatches = checked; break;
+        case 6: g_FarDrawFVarVerts = checked; break;
+        case 7: g_FarDrawFVarPatches = checked; break;
 
         default: break;
     }
@@ -1393,29 +1199,18 @@ initHUD() {
     g_hud.AddCheckBox("Cage Verts (r)", g_drawCageVertices != 0,
                       10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'r');
 
-    int pulldown = g_hud.AddPullDown("Hbr Draw Mode (h)", 10, 75, 250, callbackHbrDrawMode, 'h');
-    g_hud.AddPullDownButton(pulldown, "None",      0, g_HbrDrawMode==kDRAW_NONE);
-    g_hud.AddPullDownButton(pulldown, "Vertices",  1, g_HbrDrawMode==kDRAW_VERTICES);
-    g_hud.AddPullDownButton(pulldown, "Wireframe", 2, g_HbrDrawMode==kDRAW_WIREFRAME);
-    g_hud.AddPullDownButton(pulldown, "Faces",     3, g_HbrDrawMode==kDRAW_FACES);
 
-    g_hud.AddCheckBox("Vert IDs",   g_HbrDrawVertIDs!=0, 10, 95, callbackDrawIDs, 0);
-    g_hud.AddCheckBox("Face IDs",   g_HbrDrawFaceIDs!=0, 10, 115, callbackDrawIDs, 1);
-    g_hud.AddCheckBox("Ptex IDs",   g_HbrDrawPtexIDs!=0, 10, 135, callbackDrawIDs, 2);
-    g_hud.AddCheckBox("Edge Sharp", g_HbrDrawEdgeSharpness!=0, 10, 155, callbackDrawIDs, 3);
+    int pulldown = g_hud.AddPullDown("Far Draw Mode (f)", 10, 195, 250, callbackFarDrawMode, 'f');
+    g_hud.AddPullDownButton(pulldown, "Vertices",  0, g_FarDrawMode==kDRAW_VERTICES);
+    g_hud.AddPullDownButton(pulldown, "Wireframe", 1, g_FarDrawMode==kDRAW_WIREFRAME);
+    g_hud.AddPullDownButton(pulldown, "Faces",     2, g_FarDrawMode==kDRAW_FACES);
 
-    pulldown = g_hud.AddPullDown("Far Draw Mode (f)", 10, 195, 250, callbackFarDrawMode, 'f');
-    g_hud.AddPullDownButton(pulldown, "None",      0, g_FarDrawMode==kDRAW_NONE);
-    g_hud.AddPullDownButton(pulldown, "Vertices",  1, g_FarDrawMode==kDRAW_VERTICES);
-    g_hud.AddPullDownButton(pulldown, "Wireframe", 2, g_FarDrawMode==kDRAW_WIREFRAME);
-    g_hud.AddPullDownButton(pulldown, "Faces",     3, g_FarDrawMode==kDRAW_FACES);
-
-    g_hud.AddCheckBox("Vert IDs",   g_FarDrawVertIDs!=0, 10, 215, callbackDrawIDs, 4);
-    g_hud.AddCheckBox("Edge IDs",   g_FarDrawEdgeIDs!=0, 10, 235, callbackDrawIDs, 5);
-    g_hud.AddCheckBox("Face IDs",   g_FarDrawFaceIDs!=0, 10, 255, callbackDrawIDs, 6);
-    g_hud.AddCheckBox("Ptex IDs",   g_FarDrawPtexIDs!=0, 10, 275, callbackDrawIDs, 7);
-    g_hud.AddCheckBox("Edge Sharp", g_FarDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 8);
-    g_hud.AddCheckBox("Gregory Basis", g_FarDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 9);
+    g_hud.AddCheckBox("Vert IDs",   g_FarDrawVertIDs!=0, 10, 215, callbackDrawIDs, 0);
+    g_hud.AddCheckBox("Edge IDs",   g_FarDrawEdgeIDs!=0, 10, 235, callbackDrawIDs, 1);
+    g_hud.AddCheckBox("Face IDs",   g_FarDrawFaceIDs!=0, 10, 255, callbackDrawIDs, 2);
+    g_hud.AddCheckBox("Ptex IDs",   g_FarDrawPtexIDs!=0, 10, 275, callbackDrawIDs, 3);
+    g_hud.AddCheckBox("Edge Sharp", g_FarDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 4);
+    g_hud.AddCheckBox("Gregory Basis", g_FarDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 5);
 
     g_hud.AddCheckBox("Use Stencils (s)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
     g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 370, callbackAdaptive, 0, '`');
