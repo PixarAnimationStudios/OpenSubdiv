@@ -446,7 +446,8 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
             for (int i=0; i<tessFactor; ++i) {
                 for (int j=0; j<tessFactor; ++j, ++vert) {
                     handle.patchIndex = patch;
-                    patchTables.EvaluateFaceVarying(channel, handle, uvs[i], uvs[j], fvarBuffer, *vert);
+                    //  To be replaced with EvaluateBasis() for the appropriate channel:
+                    //patchTables.EvaluateFaceVarying(channel, handle, uvs[i], uvs[j], fvarBuffer, *vert);
                 }
             }
         }
