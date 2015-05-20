@@ -295,7 +295,7 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 
 [domain("quad")]
 [partitioning(HS_PARTITION)]
-[outputtopology("triangle_ccw")]
+[outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]
 [patchconstantfunc("HSConstFunc")]
 GregDomainVertex hs_main_patches(
@@ -537,9 +537,7 @@ void ds_main_patches(
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            float3 A = q[i + 4*j];
-
+            float3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
             CUCP[i] += A * C[j];
@@ -583,7 +581,7 @@ void ds_main_patches(
     BiTangent = mul(OsdModelViewMatrix(), float4(BiTangent, 0)).xyz;
     Tangent = mul(OsdModelViewMatrix(), float4(Tangent, 0)).xyz;
 
-    normal = normalize(cross(BiTangent, Tangent));
+    normal = normalize(cross(Tangent, BiTangent));
 
     output.Nu = Nu;
     output.Nv = Nv;
@@ -597,9 +595,7 @@ void ds_main_patches(
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            float3 A = q[i + 4*j];
-
+            float3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
         }
@@ -619,18 +615,18 @@ void ds_main_patches(
     BiTangent = mul(OsdModelViewMatrix(), float4(BiTangent, 0)).xyz;
     Tangent = mul(OsdModelViewMatrix(), float4(Tangent, 0)).xyz;
 
-    float3 normal = normalize(cross(BiTangent, Tangent));
+    float3 normal = normalize(cross(Tangent, BiTangent));
 
 #endif
 
     output.position = mul(OsdModelViewMatrix(), float4(WorldPos, 1.0f));
     output.normal = normal;
-    output.tangent = BiTangent;
-    output.bitangent = Tangent;
+    output.tangent = Tangent;
+    output.bitangent = BiTangent;
 
     output.edgeDistance = 0;
 
-    float2 UV = float2(v, u);
+    float2 UV = float2(u, v);
     output.patchCoord = OsdInterpolatePatchCoord(UV, patch[0].patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
