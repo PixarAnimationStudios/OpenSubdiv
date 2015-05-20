@@ -540,13 +540,9 @@ getNumEdges(int numCVs) {
 int const *
 getEdgeList(int numCVs) {
 
+/*
     static int edgeList4[] = { 0, 1, 1, 2, 2, 3, 3, 0 };
 
-
-    static int * edgeList9  = edgeList4,
-               * edgeList12 = edgeList4,
-               * edgeList16 = edgeList4;
-/*
     static int edgeList9[] = { 0, 1, 1, 4,
                                3, 2, 2, 5,
                                8, 7, 7, 6,
@@ -570,14 +566,13 @@ getEdgeList(int numCVs) {
                                 14,  3,  3,  2,  2,  9,
                                 13, 12, 12, 11, 11, 10  };
 */
-
+    static int edgeList4of16[] = { 5, 6, 6, 10, 10, 9, 9, 5 };
+    static int edgeList4of20[] = { 0, 5, 5, 10, 10, 15, 15, 0 };
 
     switch (numCVs) {
-        case  4: return edgeList4; break;
-        case  9: return edgeList9; break;
-        case 12: return edgeList12; break;
-        case 16: return edgeList16; break;
-        case 20: return edgeList4; break;
+        case  4: return edgeList4of20; break;
+        case 16: return edgeList4of16; break;
+        case 20: return edgeList4of20; break;
         default:
             assert(0);
     }
