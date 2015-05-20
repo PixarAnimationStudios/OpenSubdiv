@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#pragma once
 #ifndef OPENSUBDIV3_OSD_GL_DRAW_CONTEXT_H
 #define OPENSUBDIV3_OSD_GL_DRAW_CONTEXT_H
 

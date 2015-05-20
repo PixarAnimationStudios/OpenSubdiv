@@ -21,7 +21,6 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#pragma once
 #ifndef OPENSUBDIV3_VTR_TRI_REFINEMENT_H
 #define OPENSUBDIV3_VTR_TRI_REFINEMENT_H
 

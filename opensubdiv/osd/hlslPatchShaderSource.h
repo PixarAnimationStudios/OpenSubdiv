@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#pragma once
 #ifndef OPENSUBDIV3_OSD_HLSL_PATCH_SHADER_SOURCE_H
 #define OPENSUBDIV3_OSD_HLSL_PATCH_SHADER_SOURCE_H
 
