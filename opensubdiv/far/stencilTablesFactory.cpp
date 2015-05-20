@@ -495,6 +495,8 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
     // XXXX (manuelk) we can make uniform (bilinear) stencils faster with a
     //       dedicated code path that does not use PatchTables or the PatchMap
+    float wP[20], wDs[20], wDt[20];
+
     for (int i=0, currentStencil=0; i<(int)locationArrays.size(); ++i) {
 
         LocationArray const & array = locationArrays[i];
@@ -506,16 +508,22 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
             float s = array.s[j],
                   t = array.t[j];
 
-            PatchMap::Handle const * handle =
-                patchmap.FindPatch(array.ptexIdx, s, t);
+            PatchMap::Handle const * handle = patchmap.FindPatch(array.ptexIdx, s, t);
 
             if (handle) {
+
+                ConstIndexArray cvs = patchTables->GetPatchVertices(*handle);
+
+                patchTables->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+
+                StencilTables const & src = *cvstencils;
                 ProtoLimitStencil dst = alloc[currentStencil];
-                if (uniform) {
-                    patchtables->EvaluateBilinear(*handle, s, t, *cvstencils, dst);
-                } else {
-                    patchtables->Evaluate(*handle, s, t, *cvstencils, dst);
+
+                dst.Clear();
+                for (int k = 0; k < cvs.size(); ++k) {
+                    dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k]);
                 }
+
                 ++numLimitStencils;
             }
         }
