@@ -60,6 +60,7 @@ set(PUBLIC_HEADER_FILES
     ptexIndices.h
     stencilTables.h
     stencilTablesFactory.h
+    topologyLevel.h
     topologyRefiner.h
     topologyRefinerFactory.h
     types.h
