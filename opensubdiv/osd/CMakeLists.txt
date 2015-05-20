@@ -201,6 +201,7 @@ if( DXSDK_FOUND )
         hlslPatchCommon.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
+        hlslPatchGregoryBasis.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${DXSDK_LIBRARIES}

@@ -84,7 +84,7 @@ ComputeMatrixSimplified(float sharpness)
 
 HS_CONSTANT_FUNC_OUT
 HSConstFunc(
-    InputPatch<HullVertex, OSD_PATCH_INPUT_SIZE> patch,
+    InputPatch<HullVertex, 16> patch,
     OutputPatch<HullVertex, 16> bezierPatch,
     uint primitiveID : SV_PrimitiveID)
 {
@@ -99,7 +99,7 @@ HSConstFunc(
 
     OsdComputeBSplineBoundaryPoints(position, patchParam);
 
-    OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
+    OSD_PATCH_CULL(16);
 
     float4 tessLevelOuter = float4(0,0,0,0);
     float4 tessLevelInner = float4(0,0,0,0);
@@ -130,7 +130,7 @@ HSConstFunc(
 [outputcontrolpoints(16)]
 [patchconstantfunc("HSConstFunc")]
 HullVertex hs_main_patches(
-    in InputPatch<HullVertex, OSD_PATCH_INPUT_SIZE> patch,
+    in InputPatch<HullVertex, 16> patch,
     uint primitiveID : SV_PrimitiveID,
     in uint ID : SV_OutputControlPointID )
 {

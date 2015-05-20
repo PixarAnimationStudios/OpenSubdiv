@@ -725,8 +725,7 @@ createOsdMesh(int level, int kernel) {
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    // gregory basis hasn't supported yet in D3D11Mesh
-    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
+    bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = 6; //g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
@@ -1014,12 +1013,20 @@ drawModel() {
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
-        // if (patch.GetDescriptor().GetType() != OpenSubdiv::Far::PatchTables::REGULAR) continue;
 
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
-            switch (patch.GetDescriptor().GetNumControlVertices()) {
+        switch (patchType) {
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
+            topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+            break;
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
+            topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+            break;
+        default:
+            switch (desc.GetNumControlVertices()) {
             case 4:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
                 break;
@@ -1032,17 +1039,15 @@ drawModel() {
             case 16:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST;
                 break;
+            case 20:
+                topology = D3D11_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST;
+                break;
             default:
                 assert(false);
                 break;
             }
-        } else {
-            if (g_scheme == kLoop) {
-                topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            } else {
-                topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
-            }
-        }
+            break;
+        };
 
         Effect effect;
         effect.value = 0;
@@ -1457,7 +1462,8 @@ initD3D11(HWND hWnd) {
         hDriverType = driverTypes[driverTypeIndex];
 		unsigned int deviceFlags = 0;
 #ifndef NDEBUG		
-		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+                // XXX: this is problematic in some environments.
+//		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
         hr = D3D11CreateDeviceAndSwapChain(NULL,
 			hDriverType, NULL, deviceFlags, NULL, 0,

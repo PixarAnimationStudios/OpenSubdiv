@@ -30,8 +30,6 @@
 #undef OSD_FRACTIONAL_ODD_SPACING
 #undef OSD_FRACTIONAL_EVEN_SPACING
 
-#define OSD_PATCH_INPUT_SIZE 16
-
 #define M_PI 3.14159265359f
 
 struct InputVertex {
