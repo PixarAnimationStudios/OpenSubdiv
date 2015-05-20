@@ -58,6 +58,8 @@ TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options scheme
     //  but will probably have to settle for explicit new/delete...
     _levels.reserve(10);
     _levels.push_back(new Vtr::Level);
+    _farLevels.reserve(10);
+    assembleFarLevels();
 }
 
 TopologyRefiner::~TopologyRefiner() {
@@ -85,6 +87,8 @@ TopologyRefiner::Unrefine() {
         delete _refinements[i];
     }
     _refinements.clear();
+
+    assembleFarLevels();
 }
 
 
@@ -148,6 +152,31 @@ TopologyRefiner::appendRefinement(Vtr::Refinement & newRefinement) {
     }
 
     _refinements.push_back(&newRefinement);
+}
+
+void
+TopologyRefiner::assembleFarLevels() {
+
+    _farLevels.resize(_levels.size());
+
+    _farLevels[0]._refToParent = 0;
+    _farLevels[0]._level       = _levels[0];
+    _farLevels[0]._refToChild  = 0;
+
+    int nRefinements = (int)_refinements.size();
+    if (nRefinements) {
+        _farLevels[0]._refToChild = _refinements[0];
+
+        for (int i = 1; i < nRefinements; ++i) {
+            _farLevels[i]._refToParent = _refinements[i - 1];
+            _farLevels[i]._level       = _levels[i];
+            _farLevels[i]._refToChild  = _refinements[i];;
+        }
+
+        _farLevels[nRefinements]._refToParent = _refinements[nRefinements - 1];
+        _farLevels[nRefinements]._level       = _levels[nRefinements];
+        _farLevels[nRefinements]._refToChild  = 0;
+    }
 }
 
 
@@ -228,6 +257,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
         appendLevel(childLevel);
         appendRefinement(*refinement);
     }
+    assembleFarLevels();
 }
 
 
@@ -299,6 +329,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         appendLevel(childLevel);
         appendRefinement(*refinement);
     }
+    assembleFarLevels();
 }
 
 //
