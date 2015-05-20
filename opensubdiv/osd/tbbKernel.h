@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#pragma once
 #ifndef OPENSUBDIV3_OSD_TBB_KERNEL_H
 #define OPENSUBDIV3_OSD_TBB_KERNEL_H
 

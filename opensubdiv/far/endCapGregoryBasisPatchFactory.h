@@ -22,7 +22,6 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#pragma once
 #ifndef OPENSUBDIV3_FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
 
