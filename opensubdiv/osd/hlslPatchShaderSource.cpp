@@ -42,6 +42,9 @@ static const char *bsplineShaderSource =
 static const char *gregoryShaderSource =
 #include "hlslPatchGregory.gen.h"
 ;
+static const char *gregoryBasisShaderSource =
+#include "hlslPatchGregoryBasis.gen.h"
+;
 
 /*static*/
 std::string
@@ -61,8 +64,7 @@ HLSLPatchShaderSource::GetVertexShaderSource(Far::PatchDescriptor::Type type) {
         return std::string("#define OSD_PATCH_GREGORY_BOUNDRY\n")
              + std::string(gregoryShaderSource);
     case Far::PatchDescriptor::GREGORY_BASIS:
-        assert(false); // not implemented yet.
-        break;
+        return gregoryBasisShaderSource;
     default:
         break;  // returns empty (points, lines, quads, ...)
     }
@@ -81,8 +83,7 @@ HLSLPatchShaderSource::GetHullShaderSource(Far::PatchDescriptor::Type type) {
         return std::string("#define OSD_PATCH_GREGORY_BOUNDRY\n")
              + std::string(gregoryShaderSource);
     case Far::PatchDescriptor::GREGORY_BASIS:
-        assert(false); // not implemented yet.
-        break;
+        return gregoryBasisShaderSource;
     default:
         break;  // returns empty (points, lines, quads, ...)
     }
@@ -101,8 +102,7 @@ HLSLPatchShaderSource::GetDomainShaderSource(Far::PatchDescriptor::Type type) {
         return std::string("#define OSD_PATCH_GREGORY_BOUNDRY\n")
              + std::string(gregoryShaderSource);
     case Far::PatchDescriptor::GREGORY_BASIS:
-        assert(false); // not implemented yet.
-        break;
+        return gregoryBasisShaderSource;
     default:
         break;  // returns empty (points, lines, quads, ...)
     }

@@ -94,6 +94,11 @@ enum DisplayStyle { kWire = 0,
                     kWireShaded,
                     kPoint };
 
+enum EndCap      { kEndCapNone = 0,
+                   kEndCapBSplineBasis,
+                   kEndCapGregoryBasis,
+                   kEndCapLegacyGregory };
+
 enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
                    kHUD_CB_DISPLAY_CAGE_VERTS,
                    kHUD_CB_ANIMATE_VERTICES,
@@ -114,6 +119,7 @@ int   g_frame = 0,
 int   g_freeze = 0,
       g_displayStyle = kWireShaded,
       g_adaptive = 1,
+      g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
       g_drawCageEdges = 1,
       g_drawCageVertices = 0,
@@ -304,8 +310,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
-    // gregory basis hasn't supported yet in D3D11Mesh
-    bits.set(Osd::MeshEndCapLegacyGregory, true);
+    bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
+    bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
+    bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 6;
     int numVaryingElements = 0;
@@ -624,10 +631,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         int numElements = 6;
         effectDesc.maxValence = maxValence;
         effectDesc.numElements = numElements;
-        effectDesc.effect.singleCreasePatch = 0;
-    }
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY_BASIS) {
-        effectDesc.effect.singleCreasePatch = 0;
+        // note: singleCreasePatch needs to be left defined for the patchParam
+        // datatype consistency.
     }
 
     D3D11DrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
@@ -834,10 +839,14 @@ display() {
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
 
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
-
-            OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
-
+        switch (patchType) {
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
+            topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+            break;
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
+            topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+            break;
+        default:
             switch (desc.GetNumControlVertices()) {
             case 4:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
@@ -851,18 +860,15 @@ display() {
             case 16:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST;
                 break;
+            case 20:
+                topology = D3D11_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST;
+                break;
             default:
                 assert(false);
                 break;
             }
-        } else {
-
-            if (g_scheme == kLoop) {
-                topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            } else {
-                topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
-            }
-        }
+            break;
+        };
 
         bindProgram(GetEffect(), patch);
 
@@ -993,8 +999,19 @@ keyboard(char key) {
 
 //------------------------------------------------------------------------------
 static void
+rebuildOsdMesh() {
+    createOsdMesh( g_defaultShapes[ g_currentShape ], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+}
+
+static void
 callbackDisplayStyle(int b) {
     g_displayStyle = b;
+}
+
+static void
+callbackEndCap(int endCap) {
+    g_endCap = endCap;
+    rebuildOsdMesh();
 }
 
 static void
@@ -1019,13 +1036,13 @@ callbackKernel(int k) {
     }
 #endif
 
-    createOsdMesh(g_defaultShapes[g_currentShape], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme);
+    rebuildOsdMesh();
 }
 
 static void
 callbackLevel(int l) {
     g_level = l;
-    createOsdMesh(g_defaultShapes[g_currentShape], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme);
+    rebuildOsdMesh();
 }
 
 static void
@@ -1040,8 +1057,7 @@ callbackModel(int m) {
     }
 
     g_currentShape = m;
-
-    createOsdMesh(g_defaultShapes[g_currentShape], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme);
+    rebuildOsdMesh();
 }
 
 static void
@@ -1062,13 +1078,13 @@ callbackFreeze(bool checked, int f) {
 static void
 callbackAdaptive(bool checked, int a) {
     g_adaptive = checked;
-    createOsdMesh(g_defaultShapes[g_currentShape], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme);
+    rebuildOsdMesh();
 }
 
 static void
 callbackSingleCreasePatch(bool checked, int /* a */) {
     g_singleCreasePatch = checked;
-    createOsdMesh(g_defaultShapes[g_currentShape], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme);
+    rebuildOsdMesh();
 }
 
 static void
@@ -1153,10 +1169,25 @@ initHUD() {
     g_hud->AddCheckBox("Adaptive (`)", true, 10, 190, callbackAdaptive, 0, '`');
     g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 'S');
 
+    int endcap_pulldown = g_hud->AddPullDown(
+        "End cap (E)", 10, 230, 200, callbackEndCap, 'E');
+    g_hud->AddPullDownButton(endcap_pulldown,"None",
+                             kEndCapNone,
+                             g_endCap == kEndCapNone);
+    g_hud->AddPullDownButton(endcap_pulldown, "BSpline",
+                             kEndCapBSplineBasis,
+                             g_endCap == kEndCapBSplineBasis);
+    g_hud->AddPullDownButton(endcap_pulldown, "GregoryBasis",
+                             kEndCapGregoryBasis,
+                             g_endCap == kEndCapGregoryBasis);
+    g_hud->AddPullDownButton(endcap_pulldown, "LegacyGregory",
+                             kEndCapLegacyGregory,
+                             g_endCap == kEndCapLegacyGregory);
+
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud->AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud->AddRadioButton(3, level, i==2, 10, 230+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud->AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
