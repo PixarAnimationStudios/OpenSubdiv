@@ -844,7 +844,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
 
         // append endpatch stencils if needed
-        if (patchTables->GetEndCapVertexStencilTables()) {
+        if (patchTables and patchTables->GetEndCapVertexStencilTables()) {
             if (Far::StencilTables const * stencilTablesWithEndCap =
                 Far::StencilTablesFactory::AppendEndCapStencilTables(
                     *refiner, stencilTables,
@@ -911,11 +911,10 @@ createFarGLMesh(Shape * shape, int maxlevel) {
     options.edgeColorMode=g_Adaptive ? GLMesh::EDGECOLOR_BY_PATCHTYPE : GLMesh::EDGECOLOR_BY_SHARPNESS;
     options.faceColorMode=g_Adaptive ? GLMesh::FACECOLOR_BY_PATCHTYPE :GLMesh::FACECOLOR_SOLID;
 
+    g_far_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
     if (g_Adaptive) {
-        g_far_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
         g_far_glmesh.SetDiffuseColor(1.0f, 1.0f, 1.0f, 1.0f);
     } else {
-        g_far_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
         g_far_glmesh.SetDiffuseColor(0.75f, 0.9f, 1.0f, 1.0f);
     }
 
