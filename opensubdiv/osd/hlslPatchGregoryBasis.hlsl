@@ -78,7 +78,7 @@ HSConstFunc(
 
 [domain("quad")]
 [partitioning(HS_PARTITION)]
-[outputtopology("triangle_ccw")]
+[outputtopology("triangle_cw")]
 [outputcontrolpoints(20)]
 [patchconstantfunc("HSConstFunc")]
 HullVertex hs_main_patches(
@@ -159,9 +159,7 @@ void ds_main_patches(
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            float3 A = q[i + 4*j];
-
+            float3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
             CUCP[i] += A * C[j];
@@ -186,7 +184,7 @@ void ds_main_patches(
     dVV *= 6 * level;
     dUV *= 9 * level;
 
-    float3 n = cross(BiTangent, Tangent);
+    float3 n = cross(Tangent, BiTangent);
     float3 normal = normalize(n);
 
     float E = dot(Tangent, Tangent);
@@ -214,9 +212,7 @@ void ds_main_patches(
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            float3 A = q[i + 4*j];
-
+            float3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
         }
@@ -233,18 +229,18 @@ void ds_main_patches(
     BiTangent *= 3 * level;
     Tangent *= 3 * level;
 
-    float3 normal = normalize(cross(BiTangent, Tangent));
+    float3 normal = normalize(cross(Tangent, BiTangent));
 
 #endif
 
     output.position = float4(WorldPos, 1.0f);
     output.normal = normal;
-    output.tangent = BiTangent;
-    output.bitangent = Tangent;
+    output.tangent = Tangent;
+    output.bitangent = BiTangent;
 
     output.edgeDistance = 0;
 
-    float2 UV = float2(v, u);
+    float2 UV = float2(u, v);
     output.patchCoord = OsdInterpolatePatchCoord(UV, patch[0].patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;

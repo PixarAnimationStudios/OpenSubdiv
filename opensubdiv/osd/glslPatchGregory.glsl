@@ -430,7 +430,6 @@ void main()
 #ifdef OSD_PATCH_TESS_EVAL_GREGORY_SHADER
 
 layout(quads) in;
-layout(cw) in;
 
 #if defined OSD_FRACTIONAL_ODD_SPACING
     layout(fractional_odd_spacing) in;
@@ -523,9 +522,7 @@ void main()
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            vec3 A = q[i + 4*j];
-
+            vec3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
             CUCP[i] += A * C[j];
@@ -569,7 +566,7 @@ void main()
     BiTangent = (OsdModelViewMatrix() * vec4(BiTangent, 0)).xyz;
     Tangent = (OsdModelViewMatrix() * vec4(Tangent, 0)).xyz;
 
-    normal = normalize(cross(BiTangent, Tangent));
+    normal = normalize(cross(Tangent, BiTangent));
 
     outpt.v.Nu = Nu;
     outpt.v.Nv = Nv;
@@ -583,9 +580,7 @@ void main()
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            vec3 A = q[i + 4*j];
-
+            vec3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
         }
@@ -605,16 +600,16 @@ void main()
     BiTangent = (OsdModelViewMatrix() * vec4(BiTangent, 0)).xyz;
     Tangent = (OsdModelViewMatrix() * vec4(Tangent, 0)).xyz;
 
-    vec3 normal = normalize(cross(BiTangent, Tangent));
+    vec3 normal = normalize(cross(Tangent, BiTangent));
 
 #endif
 
     outpt.v.position = OsdModelViewMatrix() * vec4(WorldPos, 1.0f);
     outpt.v.normal = normal;
-    outpt.v.tangent = BiTangent;
-    outpt.v.bitangent = Tangent;
+    outpt.v.tangent = Tangent;
+    outpt.v.bitangent = BiTangent;
 
-    vec2 UV = vec2(v, u);
+    vec2 UV = vec2(u, v);
 
     OSD_USER_VARYING_PER_EVAL_POINT(UV, 0, 1, 3, 2);
 
