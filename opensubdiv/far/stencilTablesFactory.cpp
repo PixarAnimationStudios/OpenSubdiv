@@ -512,9 +512,9 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
             if (handle) {
 
-                ConstIndexArray cvs = patchTables->GetPatchVertices(*handle);
+                ConstIndexArray cvs = patchtables->GetPatchVertices(*handle);
 
-                patchTables->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+                patchtables->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
 
                 StencilTables const & src = *cvstencils;
                 ProtoLimitStencil dst = alloc[currentStencil];
