@@ -79,8 +79,8 @@ void main()
         vec4 tessLevelOuter = vec4(0);
         vec2 tessLevelInner = vec2(0);
 
-        OsdGetTessLevels(inpt[0].v.position.xyz, inpt[5].v.position.xyz,
-                         inpt[10].v.position.xyz, inpt[15].v.position.xyz,
+        OsdGetTessLevels(inpt[0].v.position.xyz, inpt[15].v.position.xyz,
+                         inpt[10].v.position.xyz, inpt[5].v.position.xyz,
                          patchParam, tessLevelOuter, tessLevelInner);
 
         gl_TessLevelOuter[0] = tessLevelOuter[0];

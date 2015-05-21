@@ -61,8 +61,8 @@ HSConstFunc(
     float4 tessOuterLo = float4(0,0,0,0);
     float4 tessOuterHi = float4(0,0,0,0);
 
-    OsdGetTessLevels(patch[0].position.xyz, patch[5].position.xyz,
-                     patch[10].position.xyz, patch[15].position.xyz,
+    OsdGetTessLevels(patch[0].position.xyz, patch[15].position.xyz,
+                     patch[10].position.xyz, patch[5].position.xyz,
                      patchParam, tessLevelOuter, tessLevelInner);
 
     output.tessLevelOuter[0] = tessLevelOuter[0];
