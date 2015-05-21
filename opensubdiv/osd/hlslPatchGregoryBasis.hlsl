@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -37,13 +37,33 @@
 void vs_main_patches( in InputVertex input,
                       out HullVertex output )
 {
-    output.position = mul(OsdModelViewMatrix(), input.position);
+    output.position = input.position;
+    output.patchCoord = int4(0,0,0,0);
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 }
 
 //----------------------------------------------------------
 // Patches.HullGregoryBasis
 //----------------------------------------------------------
+
+[domain("quad")]
+[partitioning(HS_PARTITION)]
+[outputtopology("triangle_cw")]
+[outputcontrolpoints(20)]
+[patchconstantfunc("HSConstFunc")]
+HullVertex hs_main_patches(
+    in InputPatch<HullVertex, 20> patch,
+    uint primitiveID : SV_PrimitiveID,
+    in uint ID : SV_OutputControlPointID )
+{
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
+    HullVertex output;
+
+    output.position = float4(patch[ID].position.xyz, 1.0);
+    output.patchCoord = OsdGetPatchCoord(patchParam);
+
+    return output;
+}
 
 HS_CONSTANT_FUNC_OUT
 HSConstFunc(
@@ -76,25 +96,6 @@ HSConstFunc(
     return output;
 }
 
-[domain("quad")]
-[partitioning(HS_PARTITION)]
-[outputtopology("triangle_cw")]
-[outputcontrolpoints(20)]
-[patchconstantfunc("HSConstFunc")]
-HullVertex hs_main_patches(
-    in InputPatch<HullVertex, 20> patch,
-    uint primitiveID : SV_PrimitiveID,
-    in uint ID : SV_OutputControlPointID )
-{
-    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-    HullVertex output;
-
-    output.position = float4(patch[ID].position.xyz, 1.0);
-    output.patchCoord = OsdGetPatchCoord(patchParam);
-
-    return output;
-}
-
 //----------------------------------------------------------
 // Patches.DomainGregory
 //----------------------------------------------------------
@@ -103,18 +104,16 @@ HullVertex hs_main_patches(
 void ds_main_patches(
     in HS_CONSTANT_FUNC_OUT input,
     in OutputPatch<HullVertex, 20> patch,
-    in float2 uv : SV_DomainLocation,
+    in float2 UV : SV_DomainLocation,
     out OutputVertex output )
 {
-    float u = uv.x,
-          v = uv.y;
-
     float3 p[20];
     for (int i = 0; i < 20; ++i) {
         p[i] = patch[i].position.xyz;
     }
     float3 q[16];
 
+    float u = UV.x, v=UV.y;
     float U = 1-u, V=1-v;
 
     float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
@@ -140,22 +139,20 @@ void ds_main_patches(
     q[14] = p[11];
     q[15] = p[10];
 
-    float3 WorldPos  = float3(0, 0, 0);
-    float3 Tangent   = float3(0, 0, 0);
-    float3 BiTangent = float3(0, 0, 0);
+    float3 position = float3(0, 0, 0);
+    float3 uTangent = float3(0, 0, 0);
+    float3 vTangent = float3(0, 0, 0);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-
     float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
            DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
            CUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
-
     float3 dUU = float3(0, 0, 0);
     float3 dVV = float3(0, 0, 0);
     float3 dUV = float3(0, 0, 0);
 
-    Univar4x4(u, B, D, C);
+    Univar4x4(UV.x, B, D, C);
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
@@ -166,49 +163,48 @@ void ds_main_patches(
         }
     }
 
-    Univar4x4(v, B, D, C);
+    Univar4x4(UV.y, B, D, C);
 
     for (int i=0; i<4; ++i) {
-        WorldPos  += B[i] * BUCP[i];
-        Tangent   += B[i] * DUCP[i];
-        BiTangent += D[i] * BUCP[i];
+        position += B[i] * BUCP[i];
+        uTangent += B[i] * DUCP[i];
+        vTangent += D[i] * BUCP[i];
         dUU += B[i] * CUCP[i];
         dVV += C[i] * BUCP[i];
         dUV += D[i] * DUCP[i];
     }
 
     int level = patch[0].patchCoord.z;
-    BiTangent *= 3 * level;
-    Tangent *= 3 * level;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
     dUU *= 6 * level;
     dVV *= 6 * level;
     dUV *= 9 * level;
 
-    float3 n = cross(Tangent, BiTangent);
+    float3 n = cross(uTangent, vTangent);
     float3 normal = normalize(n);
 
-    float E = dot(Tangent, Tangent);
-    float F = dot(Tangent, BiTangent);
-    float G = dot(BiTangent, BiTangent);
+    float E = dot(uTangent, uTangent);
+    float F = dot(uTangent, vTangent);
+    float G = dot(vTangent, vTangent);
     float e = dot(normal, dUU);
     float f = dot(normal, dUV);
     float g = dot(normal, dVV);
 
-    float3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
-    float3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+    float3 Nu = (f*F-e*G)/(E*G-F*F) * uTangent + (e*F-f*E)/(E*G-F*F) * vTangent;
+    float3 Nv = (g*F-f*G)/(E*G-F*F) * uTangent + (f*F-g*E)/(E*G-F*F) * vTangent;
 
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
     output.Nu = Nu;
     output.Nv = Nv;
-
 #else
     float B[4], D[4];
     float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
            DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
 
-    Univar4x4(uv.x, B, D);
+    Univar4x4(UV.x, B, D);
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
@@ -218,32 +214,29 @@ void ds_main_patches(
         }
     }
 
-    Univar4x4(uv.y, B, D);
+    Univar4x4(UV.y, B, D);
 
     for (uint i=0; i<4; ++i) {
-        WorldPos  += B[i] * BUCP[i];
-        Tangent   += B[i] * DUCP[i];
-        BiTangent += D[i] * BUCP[i];
+        position += B[i] * BUCP[i];
+        uTangent += B[i] * DUCP[i];
+        vTangent += D[i] * BUCP[i];
     }
     int level = patch[0].patchCoord.z;
-    BiTangent *= 3 * level;
-    Tangent *= 3 * level;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
 
-    float3 normal = normalize(cross(Tangent, BiTangent));
-
+    float3 normal = normalize(cross(uTangent, vTangent));
 #endif
 
-    output.position = float4(WorldPos, 1.0f);
-    output.normal = normal;
-    output.tangent = Tangent;
-    output.bitangent = BiTangent;
+    output.position = mul(OsdModelViewMatrix(), float4(position, 1.0f));
+    output.normal = mul(OsdModelViewMatrix(), float4(normal, 0.0f)).xyz;
+    output.tangent = mul(OsdModelViewMatrix(), float4(uTangent, 0.0f)).xyz;
+    output.bitangent = mul(OsdModelViewMatrix(), float4(vTangent, 0.0f)).xyz;
 
-    output.edgeDistance = 0;
-
-    float2 UV = float2(u, v);
     output.patchCoord = OsdInterpolatePatchCoord(UV, patch[0].patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 
     output.positionOut = mul(OsdProjectionMatrix(), output.position);
+    output.edgeDistance = 0;
 }
