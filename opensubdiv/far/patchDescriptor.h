@@ -46,8 +46,6 @@ namespace Far {
 ///
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
 ///   GREGORY, GREGORY_BOUNDARY, GREGORY_BASIS.
-///   These bicubic patches are also further distinguished by a transition
-///   pattern as well as a rotational orientation.
 ///
 /// Bitfield layout :
 ///

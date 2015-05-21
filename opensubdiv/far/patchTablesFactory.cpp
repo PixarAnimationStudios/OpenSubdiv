@@ -580,10 +580,6 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
             int const * permutation = 0;
 
             //  Gather the verts FVar values
-            //     XXXX Patch verts should be rotated to match boundary / corner
-            //     edges. Transition patterns should not be a concern, however
-            //     we need to match parametric space, so this may need to be
-            //     revisited...
             int orientationIndex = fvarPatchTag._boundaryIndex;
             if (fvarPatchType == PatchDescriptor::REGULAR) {
                 if (fvarPatchTag._boundaryCount == 0) {
@@ -598,7 +594,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
                         { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
                         { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
                     permutation = permuteBoundary[orientationIndex];
-                    vtxLevel.gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, orientationIndex);
+                    vtxLevel.gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, orientationIndex, *fvc);
                 } else if (fvarPatchTag._boundaryCount == 2) {
                     // Expand corner patch vertices and rotate to restore correct orientation.
                     static int const permuteCorner[4][16] = {
@@ -1046,7 +1042,7 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             }
 
             //
-            //  We have a quad that will be represented as a B-spline or Gregory patch.  Use
+            //  We have a quad that will be represented as a B-spline or end cap patch.  Use
             //  the "composite" tag again to quickly determine if any vertex is irregular, on
             //  a boundary, non-manifold, etc.
             //
@@ -1057,11 +1053,10 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             //  for the irregular/xordinary case when a corner vertex is a boundary but there
             //  are no boundary edges.
             //
-            //  As for transition detection, assign the transition properties (even if 0) as
-            //  their rotations override boundary rotations (when no transition)
+            //  As for transition detection, assign the transition properties (even if 0).
             //
             //  NOTE on patches around non-manifold vertices:
-            //      In most the use of regular boundary or corner patches is what we want,
+            //      In most cases the use of regular boundary or corner patches is what we want,
             //  but in some, i.e. when a non-manifold vertex is infinitely sharp, using
             //  such patches will create some discontinuities.  At this point non-manifold
             //  support is still evolving and is not strictly defined, so this is left to
