@@ -407,8 +407,8 @@ OsdComputeBSplineBoundaryPoints(inout float3 cpt[16], int3 patchParam)
 
 float OsdComputePostProjectionSphereExtent(float3 center, float diameter)
 {
-    float4 p = mul(OsdProjectionMatrix(), float4(center, 1.0));
-    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
+    float4 p = mul(OsdModelViewProjectionMatrix(), float4(center, 1.0));
+    return abs(diameter * OsdModelViewProjectionMatrix()[1][1] / p.w);
 }
 
 float OsdComputeTessLevel(float3 p0, float3 p1)
