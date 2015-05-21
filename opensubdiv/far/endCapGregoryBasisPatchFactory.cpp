@@ -37,19 +37,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-
-static inline bool
-checkMaxValence(Vtr::Level const & level) {
-    if (level.getMaxValence()>EndCapGregoryBasisPatchFactory::GetMaxValence()) {
-        // The proto-basis closed-form table limits valence to 'MAX_VALENCE'
-        Error(FAR_RUNTIME_ERROR,
-            "Vertex valence %d exceeds maximum %d supported",
-                level.getMaxValence(), EndCapGregoryBasisPatchFactory::GetMaxValence());
-        return false;
-    }
-    return true;
-}
-
 //
 // EndCapGregoryBasisPatchFactory for Vertex StencilTables
 //
@@ -62,12 +49,6 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     assert(not refiner.IsUniform());
 }
 
-int
-EndCapGregoryBasisPatchFactory::GetMaxValence() {
-
-    return GregoryBasis::MAX_VALENCE;
-}
-
 //
 // Stateless EndCapGregoryBasisPatchFactory
 //
@@ -77,10 +58,6 @@ EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
 
     // Gregory patches are end-caps: they only exist on max-level
     Vtr::Level const & level = refiner.getLevel(refiner.GetMaxLevel());
-
-    if (not checkMaxValence(level)) {
-        return 0;
-    }
 
     GregoryBasis::ProtoBasis basis(level, faceIndex, fvarChannel);
     GregoryBasis * result = new GregoryBasis;
@@ -96,10 +73,6 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
 
     // Gregory patches only exist on the hight
     Vtr::Level const & level = _refiner->getLevel(_refiner->GetMaxLevel());
-
-    if (not checkMaxValence(level)) {
-        return false;
-    }
 
     // Gather the CVs that influence the Gregory patch and their relative
     // weights in a basis

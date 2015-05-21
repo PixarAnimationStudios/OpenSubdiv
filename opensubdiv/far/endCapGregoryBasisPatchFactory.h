@@ -62,10 +62,6 @@ public:
     static GregoryBasis const * Create(TopologyRefiner const & refiner,
         Index faceIndex, int fvarChannel=-1);
 
-    /// \brief Returns the maximum valence of a vertex in the mesh that the
-    ///        Gregory patches can handle
-    static int GetMaxValence();
-
 public:
 
     ///
