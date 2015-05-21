@@ -275,8 +275,19 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
     float4 tessLevelOuter = float4(0,0,0,0);
     float4 tessLevelInner = float4(0,0,0,0);
 
-    OsdGetTessLevels(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz,
-                     patch[2].hullPosition.xyz, patch[3].hullPosition.xyz,
+    float3 p[4];
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    p[0] = mul(OsdModelViewMatrix() * float4(patch[0].position, 1)).xyz;
+    p[1] = mul(OsdModelViewMatrix() * float4(patch[1].position, 1)).xyz;
+    p[2] = mul(OsdModelViewMatrix() * float4(patch[2].position, 1)).xyz;
+    p[3] = mul(OsdModelViewMatrix() * float4(patch[3].position, 1)).xyz;
+#else
+    p[0] = patch[0].position.xyz;
+    p[1] = patch[1].position.xyz;
+    p[2] = patch[2].position.xyz;
+    p[3] = patch[3].position.xyz;
+#endif
+    OsdGetTessLevels(p[0], p[3], p[2], p[1],
                      patchParam, tessLevelOuter, tessLevelInner);
 
     output.tessLevelOuter[0] = tessLevelOuter[0];

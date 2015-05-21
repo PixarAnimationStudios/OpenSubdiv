@@ -401,16 +401,30 @@ void main()
 
     outpt[ID].v.patchCoord = OsdGetPatchCoord(patchParam);
 
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // Wait for all basis conversion to be finished
+    barrier();
+#endif
     if (ID == 0) {
         OSD_PATCH_CULL(4);
 
         vec4 tessLevelOuter = vec4(0);
         vec2 tessLevelInner = vec2(0);
 
-        OsdGetTessLevels(
-                    inpt[0].v.hullPosition.xyz, inpt[1].v.hullPosition.xyz,
-                    inpt[2].v.hullPosition.xyz, inpt[3].v.hullPosition.xyz,
-                    patchParam, tessLevelOuter, tessLevelInner);
+        vec3 p[4];
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+        p[0] = (OsdModelViewMatrix() * vec4(inpt[0].v.position, 1)).xyz;
+        p[1] = (OsdModelViewMatrix() * vec4(inpt[1].v.position, 1)).xyz;
+        p[2] = (OsdModelViewMatrix() * vec4(inpt[2].v.position, 1)).xyz;
+        p[3] = (OsdModelViewMatrix() * vec4(inpt[3].v.position, 1)).xyz;
+#else
+        p[0] = inpt[0].v.position.xyz;
+        p[1] = inpt[1].v.position.xyz;
+        p[2] = inpt[2].v.position.xyz;
+        p[3] = inpt[3].v.position.xyz;
+#endif
+        OsdGetTessLevels(p[0], p[3], p[2], p[1],
+                         patchParam, tessLevelOuter, tessLevelInner);
 
         gl_TessLevelOuter[0] = tessLevelOuter[0];
         gl_TessLevelOuter[1] = tessLevelOuter[1];
