@@ -130,11 +130,20 @@ CpuEvaluator::EvalPatches(const float *src,
     BufferAdapter<const float> srcT(src, srcDesc.length, srcDesc.stride);
     BufferAdapter<float>       dstT(dst, dstDesc.length, dstDesc.stride);
 
+    float wP[20], wDs[20], wDt[20];
+
     for (size_t i = 0; i < patchCoords.size(); ++i) {
         PatchCoord const &coords = patchCoords[i];
 
-        patchTable->Evaluate(coords.handle, coords.s, coords.t,
-                             srcT, dstT);
+        patchTable->EvaluateBasis(coords.handle, coords.s, coords.t, wP, wDs, wDt);
+
+        Far::ConstIndexArray cvs = patchTable->GetPatchVertices(coords.handle);
+
+        dstT.Clear();
+        for (int j = 0; j < cvs.size(); ++j) {
+            dstT.AddWithWeight(srcT[cvs[j]], wP[j], wDs[j], wDt[j]);
+        }
+
         ++count;
         ++dstT;
     }

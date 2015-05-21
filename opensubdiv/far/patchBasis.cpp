@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/interpolate.h"
+#include "../far/patchBasis.h"
 
 #include <cassert>
 #include <cstring>
@@ -31,6 +31,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
+namespace internal {
 
 enum SplineBasis {
     BASIS_BILINEAR,
@@ -424,6 +425,7 @@ void GetGregoryWeights(PatchParam::BitField bits,
     }
 }
 
+} // end namespace internal
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
