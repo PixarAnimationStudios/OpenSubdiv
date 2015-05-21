@@ -137,7 +137,7 @@ CpuEvaluator::EvalPatches(const float *src,
 
         patchTable->EvaluateBasis(coords.handle, coords.s, coords.t, wP, wDs, wDt);
 
-        ConstIndexArray cvs = patchTable->GetPatchVertices(coords.handle);
+        Far::ConstIndexArray cvs = patchTable->GetPatchVertices(coords.handle);
 
         dstT.Clear();
         for (int j = 0; j < cvs.size(); ++j) {
