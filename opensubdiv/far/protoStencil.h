@@ -409,8 +409,6 @@ public:
 
 protected:
 
-    friend class ProtoLimitStencil;
-
     void addWithWeight(float weight, int srcSize,
         Index const * srcIndices, float const * srcWeights) {
 
