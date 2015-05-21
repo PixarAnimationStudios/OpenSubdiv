@@ -25,7 +25,6 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/d3d11DrawContext.h>
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
@@ -467,10 +466,6 @@ public:
             ss << "#define OSD_ENABLE_PATCH_CULL\n";
         }
 
-        // for legacy gregory
-        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
-        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
-
        // add ptex functions
         ss << D3D11PtexMipmapTexture::GetShaderSource();
 
@@ -741,7 +736,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::CpuEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -753,7 +748,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::OmpEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -765,7 +760,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::TbbEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -778,7 +773,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
                                Osd::CLStencilTables,
                                Osd::CLEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                CLD3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -792,7 +787,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
                                Osd::CudaStencilTables,
                                Osd::CudaEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -804,7 +799,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
                                Osd::D3D11StencilTables,
                                Osd::D3D11ComputeEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -821,20 +816,9 @@ createOsdMesh(int level, int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
-
-    // only legacy gregory needs maxValence and numElements
-    int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-    int numElements = 6;
-
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
-        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        effectDesc.maxValence = maxValence;
-        effectDesc.numElements = numElements;
-    }
 
     D3D11DrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
 
@@ -885,7 +869,6 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         __declspec(align(16))
         struct Tessellation {
             float TessLevel;
-            int GregoryQuadOffsetBase;
             int PrimitiveIdBase;
         };
 
@@ -906,8 +889,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         Tessellation * pData = ( Tessellation* )MappedResource.pData;
 
         pData->TessLevel = static_cast<float>(1 << g_tessLevel);
-        pData->GregoryQuadOffsetBase = patch.GetQuadOffsetIndex();
-        pData->PrimitiveIdBase = patch.GetPatchIndex();
+        pData->PrimitiveIdBase = patch.GetPrimitiveIdBase();
 
         g_pd3dDeviceContext->Unmap( g_pcbTessellation, 0 );
     }
@@ -959,24 +941,12 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     g_pd3dDeviceContext->PSSetConstantBuffers(2, 1, &g_pcbLighting);
     g_pd3dDeviceContext->PSSetConstantBuffers(3, 1, &g_pcbConfig);
 
-    if (g_mesh->GetDrawContext()->vertexBufferSRV) {
-        g_pd3dDeviceContext->VSSetShaderResources(0, 1, &g_mesh->GetDrawContext()->vertexBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->vertexValenceBufferSRV) {
-        g_pd3dDeviceContext->VSSetShaderResources(1, 1, &g_mesh->GetDrawContext()->vertexValenceBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->quadOffsetBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(2, 1, &g_mesh->GetDrawContext()->quadOffsetBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->patchParamBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->DSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->GSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->PSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
+    ID3D11ShaderResourceView *srv = g_mesh->GetPatchTable()->GetPatchParamSRV();
+    if (srv) {
+        g_pd3dDeviceContext->HSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->DSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->GSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->PSSetShaderResources(0, 1, &srv);
     }
 
     g_pd3dDeviceContext->PSSetShaderResources(4, 1, g_osdPTexImage->GetTexelsSRV());
@@ -1011,15 +981,16 @@ drawModel() {
     UINT hOffsets = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &buffer, &hStrides, &hOffsets);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::D3D11PatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
-    g_pd3dDeviceContext->IASetIndexBuffer(g_mesh->GetDrawContext()->patchIndexBuffer,
-                                          DXGI_FORMAT_R32_UINT, 0);
+    g_pd3dDeviceContext->IASetIndexBuffer(
+        g_mesh->GetPatchTable()->GetPatchIndexBuffer(),
+        DXGI_FORMAT_R32_UINT, 0);
 
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch = patches[i];
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
@@ -1054,7 +1025,7 @@ drawModel() {
                 break;
             }
             break;
-        };
+        }
 
         Effect effect;
         effect.value = 0;
@@ -1076,8 +1047,10 @@ drawModel() {
 
         g_pd3dDeviceContext->IASetPrimitiveTopology(topology);
 
-        g_pd3dDeviceContext->DrawIndexed(patch.GetNumIndices(),
-                                         patch.GetVertIndex(), 0);
+        g_pd3dDeviceContext->DrawIndexed(
+            patch.GetNumPatches() * desc.GetNumControlVertices(),
+            patch.GetIndexBase(), 0);
+
     }
 }
 
@@ -1470,13 +1443,13 @@ initD3D11(HWND hWnd) {
     D3D_FEATURE_LEVEL hFeatureLevel = D3D_FEATURE_LEVEL_11_0;
     for(UINT driverTypeIndex=0; driverTypeIndex < numDriverTypes; driverTypeIndex++){
         hDriverType = driverTypes[driverTypeIndex];
-		unsigned int deviceFlags = 0;
+        unsigned int deviceFlags = 0;
 #ifndef NDEBUG		
                 // XXX: this is problematic in some environments.
 //		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
         hr = D3D11CreateDeviceAndSwapChain(NULL,
-			hDriverType, NULL, deviceFlags, NULL, 0,
+                                           hDriverType, NULL, deviceFlags, NULL, 0,
                                            D3D11_SDK_VERSION, &hDXGISwapChainDesc,
                                            &g_pSwapChain, &g_pd3dDevice,
                                            &hFeatureLevel, &g_pd3dDeviceContext);
@@ -1491,30 +1464,29 @@ initD3D11(HWND hWnd) {
     }
 
 #ifndef NDEBUG
-	// set break points on directx errors
-	ID3D11Debug *d3dDebug = nullptr;
-	hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
-	if (SUCCEEDED(hr)) {
+    // set break points on directx errors
+    ID3D11Debug *d3dDebug = nullptr;
+    hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
+    if (SUCCEEDED(hr)) {
+        ID3D11InfoQueue *d3dInfoQueue = nullptr;
+        hr = d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue);
+        if (SUCCEEDED(hr)) {
 
-		ID3D11InfoQueue *d3dInfoQueue = nullptr;
-		hr = d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue);
-		if (SUCCEEDED(hr)) {
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
 
-			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
-			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
-			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
-						
-			D3D11_MESSAGE_ID denied[] = { D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS };
-			D3D11_INFO_QUEUE_FILTER filter;
-			memset(&filter, 0, sizeof(filter));
-			filter.DenyList.NumIDs = _countof(denied);
-			filter.DenyList.pIDList = denied;
-			d3dInfoQueue->AddStorageFilterEntries(&filter);
+            D3D11_MESSAGE_ID denied[] = { D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS };
+            D3D11_INFO_QUEUE_FILTER filter;
+            memset(&filter, 0, sizeof(filter));
+            filter.DenyList.NumIDs = _countof(denied);
+            filter.DenyList.pIDList = denied;
+            d3dInfoQueue->AddStorageFilterEntries(&filter);
 
-			d3dInfoQueue->Release();
-		}
-		d3dDebug->Release();
-	}	
+            d3dInfoQueue->Release();
+        }
+        d3dDebug->Release();
+    }
 #endif
 
     // create rasterizer

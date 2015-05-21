@@ -64,8 +64,8 @@ float sinfn(uint n, uint j) {
 // Patches.TessVertexGregory
 //----------------------------------------------------------
 
-Buffer<float> VertexBuffer : register( t0 );
-Buffer<int> OsdValenceBuffer : register( t1 );
+Buffer<float> VertexBuffer : register( t2 );
+Buffer<int> OsdValenceBuffer : register( t3 );
 
 void vs_main_patches( in InputVertex input,
                       uint vID : SV_VertexID,
@@ -260,7 +260,7 @@ void vs_main_patches( in InputVertex input,
 // Patches.HullGregory
 //----------------------------------------------------------
 
-Buffer<int> OsdQuadOffsetBuffer : register( t2 );
+Buffer<int> OsdQuadOffsetBuffer : register( t4 );
 
 HS_CONSTANT_FUNC_OUT HSConstFunc(
     InputPatch<GregHullVertex, 4> patch,

@@ -45,7 +45,6 @@ GLFWmonitor* g_primary=0;
 #include <osd/cpuEvaluator.h>
 #include <osd/cpuVertexBuffer.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/drawContext.h>
 #include <osd/mesh.h>
 
 #include <far/gregoryBasis.h>

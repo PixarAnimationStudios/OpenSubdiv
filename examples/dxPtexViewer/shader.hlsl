@@ -34,7 +34,6 @@ cbuffer Transform : register( b0 ) {
 
 cbuffer Tessellation : register( b1 ) {
     float TessLevel;
-    int GregoryQuadOffsetBase;
     int PrimitiveIdBase;
 };
 
@@ -61,7 +60,7 @@ float OsdTessLevel()
 }
 int OsdGregoryQuadOffsetBase()
 {
-    return GregoryQuadOffsetBase;
+    return 0;
 }
 int OsdPrimitiveIdBase()
 {

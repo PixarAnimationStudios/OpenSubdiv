@@ -42,7 +42,6 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/glDrawContext.h>
 #include <far/error.h>
 #include <far/ptexIndices.h>
 
@@ -241,7 +240,7 @@ createOsdMesh() {
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                        OpenSubdiv::Far::StencilTables,
                                        OpenSubdiv::Osd::CpuEvaluator,
-                                       OpenSubdiv::Osd::GLDrawContext>(
+                                       OpenSubdiv::Osd::GLPatchTable>(
                                            refiner, 3, 0, g_level, bits);
 
     // compute model bounding
@@ -265,7 +264,7 @@ createOsdMesh() {
     // -------- VAO
     glBindVertexArray(g_vao);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
@@ -462,17 +461,8 @@ public:
         GLint loc;
         glUseProgram(program);
 
-        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
-            glUniform1i(loc, 0); // GL_TEXTURE0
-        }
-        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
-            glUniform1i(loc, 1); // GL_TEXTURE1
-        }
-        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
-            glUniform1i(loc, 2); // GL_TEXTURE2
-        }
         if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
-            glUniform1i(loc, 3); // GL_TEXTURE3
+            glUniform1i(loc, 0); // GL_TEXTURE0
         }
 
         if (effectDesc.effect.paint) {
@@ -586,25 +576,11 @@ static void bindTextures(Effect effect) {
 
         glActiveTexture(GL_TEXTURE0);
     } else {
-        if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
+        if (g_mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                          g_mesh->GetDrawContext()->GetVertexTextureBuffer());
-        }
-        if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                          g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
-        }
-        if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                          g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
-        }
-        if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE3);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                          g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
+            glBindTexture(
+                GL_TEXTURE_BUFFER,
+                g_mesh->GetPatchTable()->GetPatchParamTextureBuffer());
         }
 
         // color ptex
@@ -621,18 +597,9 @@ static void bindTextures(Effect effect) {
 }
 
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
-
-    // only legacy gregory needs maxValence and numElements
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
-        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-        effectDesc.maxValence = maxValence;
-        effectDesc.numElements = 3;
-    }
 
     // lookup shader cache (compile the shader if needed)
     GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
@@ -646,15 +613,10 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     if (uniformImageSize >= 0)
         glUniform1i(uniformImageSize, g_pageSize);
 
-    GLint uniformGregoryQuadOffsetBase =
-        glGetUniformLocation(program, "GregoryQuadOffsetBase");
-    if (uniformGregoryQuadOffsetBase >= 0)
-        glUniform1i(uniformGregoryQuadOffsetBase, patch.GetQuadOffsetIndex());
-
     GLint uniformPrimitiveIdBase =
         glGetUniformLocation(program, "PrimitiveIdBase");
     if (uniformPrimitiveIdBase >= 0)
-        glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPrimitiveIdBase());
 
 
     return program;
@@ -708,12 +670,12 @@ display() {
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
 
         GLenum primType = GL_PATCHES;
@@ -724,8 +686,9 @@ display() {
         glProgramUniform4f(program, diffuseColor, 1, 1, 1, 1);
 
         glDrawElements(primType,
-                       patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+                       patch.GetNumPatches() * desc.GetNumControlVertices(),
+                       GL_UNSIGNED_INT,
+                       (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
 
     glBindVertexArray(0);
@@ -844,13 +807,13 @@ drawStroke(int x, int y) {
     effect.paint = 1;
     bindTextures(effect);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
 
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
 
         GLenum primType = GL_PATCHES;
@@ -859,8 +822,9 @@ drawStroke(int x, int y) {
         bindProgram(effect, patch);
 
         glDrawElements(primType,
-                       patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+                       patch.GetNumPatches() * desc.GetNumControlVertices(),
+                       GL_UNSIGNED_INT,
+                       (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
 
     glBindVertexArray(0);

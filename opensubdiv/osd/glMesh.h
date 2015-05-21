@@ -28,14 +28,15 @@
 #include "../version.h"
 
 #include "../osd/mesh.h"
-#include "../osd/glDrawContext.h"
+#include "../osd/glPatchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-typedef MeshInterface<GLDrawContext> GLMeshInterface;
+typedef MeshInterface<GLPatchTable> GLMeshInterface;
+
 
 } // end namespace Osd
 

@@ -42,7 +42,6 @@
 GLFWwindow* g_window = 0;
 GLFWmonitor* g_primary = 0;
 
-#include <osd/glDrawContext.h>
 #include <far/error.h>
 
 #include <osd/cpuEvaluator.h>
@@ -154,6 +153,51 @@ struct Program {
     GLuint attrPosition;
     GLuint attrColor;
 } g_defaultProgram;
+
+struct FVarData
+{
+    FVarData() :
+        textureBuffer(0) {
+    }
+    ~FVarData() {
+        Release();
+    }
+    void Release() {
+        if (textureBuffer)
+            glDeleteTextures(1, &textureBuffer);
+        textureBuffer = 0;
+    }
+    void Create(OpenSubdiv::Far::PatchTables const *patchTables,
+                int fvarWidth, std::vector<float> const & fvarSrcData) {
+        Release();
+        OpenSubdiv::Far::ConstIndexArray indices =
+            patchTables->GetFVarPatchesValues(0);
+
+        // expand fvardata to per-patch array
+        std::vector<float> data;
+        data.reserve(indices.size() * fvarWidth);
+
+        for (int fvert = 0; fvert < (int)indices.size(); ++fvert) {
+            int index = indices[fvert] * fvarWidth;
+            for (int i = 0; i < fvarWidth; ++i) {
+                data.push_back(fvarSrcData[index++]);
+            }
+        }
+        GLuint buffer;
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
+                     &data[0], GL_STATIC_DRAW);
+
+        glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindTexture(GL_ARRAY_BUFFER, 0);
+
+        glDeleteBuffers(1, &buffer);
+    }
+    GLuint textureBuffer;
+} g_fvarData;
 
 //------------------------------------------------------------------------------
 static GLuint
@@ -362,7 +406,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                        OpenSubdiv::Far::StencilTables,
                                        OpenSubdiv::Osd::CpuEvaluator,
-                                       OpenSubdiv::Osd::GLDrawContext>(
+                                       OpenSubdiv::Osd::GLPatchTable>(
                                            refiner,
                                            numVertexElements,
                                            numVaryingElements,
@@ -372,7 +416,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
 
     InterpolateFVarData(*refiner, *shape, fvarData);
 
-    g_mesh->SetFVarDataChannel(shape->GetFVarWidth(), fvarData);
+    // set fvardata to texture buffer
+    g_fvarData.Create(g_mesh->GetFarPatchTables(),
+                      shape->GetFVarWidth(), fvarData);
 
     delete shape;
 
@@ -397,7 +443,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     // -------- VAO
     glBindVertexArray(g_vao);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
@@ -672,21 +718,13 @@ public:
         // assign texture locations
         GLint loc;
         glUseProgram(program);
-        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
+        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
             glUniform1i(loc, 0); // GL_TEXTURE0
         }
-        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
+        if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
             glUniform1i(loc, 1); // GL_TEXTURE1
         }
-        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
-            glUniform1i(loc, 2); // GL_TEXTURE2
-        }
-        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
-            glUniform1i(loc, 3); // GL_TEXTURE3
-        }
-        if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
-            glUniform1i(loc, 4); // GL_TEXTURE4
-        }
+
 
         return config;
     }
@@ -733,50 +771,23 @@ updateUniformBlocks() {
 
 static void
 bindTextures() {
-    if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
+    if (g_mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetVertexTextureBuffer());
+            g_mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
-    if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetFvarDataTextureBuffer());
-    }
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureBuffer);
 
     glActiveTexture(GL_TEXTURE0);
 }
 
 static GLenum
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
-        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        // only legacy gregory needs maxValence and numElements
-        int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-        int numElements = 3;
-
-        effectDesc.maxValence = maxValence;
-        effectDesc.numElements = numElements;
-    }
 
     // lookup shader cache (compile the shader if needed)
     GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
@@ -787,14 +798,10 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     glUseProgram(program);
 
     // bind standalone uniforms
-    GLint uniformGregoryQuadOffsetBase =
-        glGetUniformLocation(program, "GregoryQuadOffsetBase");
     GLint uniformPrimitiveIdBase =
         glGetUniformLocation(program, "PrimitiveIdBase");
-    if (uniformGregoryQuadOffsetBase >= 0)
-        glUniform1i(uniformGregoryQuadOffsetBase, patch.GetQuadOffsetIndex());
     if (uniformPrimitiveIdBase >=0)
-        glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPrimitiveIdBase());
 
     // return primtype
     GLenum primType;
@@ -858,8 +865,8 @@ display() {
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
     if (g_displayStyle == kWire)
         glDisable(GL_CULL_FACE);
@@ -869,12 +876,15 @@ display() {
 
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
 
         GLenum primType = bindProgram(GetEffect(), patch);
 
-        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        glDrawElements(
+            primType,
+            patch.GetNumPatches()*patch.GetDescriptor().GetNumControlVertices(),
+            GL_UNSIGNED_INT,
+            (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
     if (g_displayStyle == kWire)
         glEnable(GL_CULL_FACE);
@@ -896,12 +906,15 @@ display() {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
 
         GLenum primType = bindProgram(GetEffect(/*uvDraw=*/ true), patch);
 
-        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        glDrawElements(
+            primType,
+            patch.GetNumPatches()*patch.GetDescriptor().GetNumControlVertices(),
+            GL_UNSIGNED_INT,
+            (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
