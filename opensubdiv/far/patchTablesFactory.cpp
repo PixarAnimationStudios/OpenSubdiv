@@ -1494,7 +1494,10 @@ PatchTablesFactory::populateAdaptivePatches(
         delete endCapBSpline;
         break;
     case Options::ENDCAP_LEGACY_GREGORY:
-        endCapLegacyGregory->Finalize(tables);
+        endCapLegacyGregory->Finalize(
+            tables->GetMaxValence(),
+            &tables->_quadOffsetsTable,
+            &tables->_vertexValenceTable);
         delete endCapLegacyGregory;
         break;
     default:
