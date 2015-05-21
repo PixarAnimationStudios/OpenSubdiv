@@ -61,7 +61,10 @@ public:
                                    PatchTablesFactory::PatchFaceTag const * levelPatchTags,
                                    int levelVertOffset);
 
-    void Finalize(PatchTables *patchTables);
+    void Finalize(int maxValence, 
+                  PatchTables::QuadOffsetsTable *quadOffsetsTable,
+                  PatchTables::VertexValenceTable *vertexValenceTable);
+
 
 private:
     TopologyRefiner const &_refiner;

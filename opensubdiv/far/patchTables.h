@@ -343,7 +343,6 @@ public:
 protected:
 
     friend class PatchTablesFactory;
-    friend class EndCapLegacyGregoryPatchFactory;
 
     // Factory constructor
     PatchTables(int maxvalence);
