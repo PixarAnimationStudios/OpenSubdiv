@@ -182,7 +182,6 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     return 0;
 }
 
-// Constructor
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

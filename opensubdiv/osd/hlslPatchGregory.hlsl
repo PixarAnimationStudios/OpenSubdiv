@@ -337,7 +337,7 @@ GregDomainVertex hs_main_patches(
 
     // Control Vertices based on :
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
-    // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+    // Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia 2009)
     //
     //  P3         e3-      e2+         E2
     //     O--------O--------O--------O

@@ -53,7 +53,7 @@ public:
         _maxsize(maxSize), _interpolateVarying(interpolateVarying) { }
 
 	~Allocator() {
-		clearBigStencils();
+            clearBigStencils();
 	}
 
     // Returns the number of stencils in the allocator
