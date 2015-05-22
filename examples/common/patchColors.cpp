@@ -40,9 +40,3 @@ getAdaptivePatchColor(Descriptor const & desc) {
     return _colors[(int)(desc.GetType()-Descriptor::REGULAR)];
 }
 
-float const *
-getAdaptivePatchColor(OpenSubdiv::Osd::DrawContext::PatchDescriptor const & desc) {
-
-    return _colors[(int)(desc.GetType()-Descriptor::REGULAR)];
-}
-

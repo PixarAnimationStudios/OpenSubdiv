@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PROTOSTENCIL_H
-#define FAR_PROTOSTENCIL_H
+#ifndef OPENSUBDIV3_FAR_PROTOSTENCIL_H
+#define OPENSUBDIV3_FAR_PROTOSTENCIL_H
 
 #include "../far/stencilTables.h"
 
@@ -53,7 +53,7 @@ public:
         _maxsize(maxSize), _interpolateVarying(interpolateVarying) { }
 
 	~Allocator() {
-		clearBigStencils();
+            clearBigStencils();
 	}
 
     // Returns the number of stencils in the allocator
@@ -91,7 +91,7 @@ public:
     // in the stencil
     void PushBackVertex(Index protoStencil, Index vert, float weight) {
         assert(weight!=0.0f);
-        unsigned char & size = _sizes[protoStencil];
+        int & size = _sizes[protoStencil];
         Index idx = protoStencil*_maxsize;
         if (size < (_maxsize-1)) {
             idx += size;
@@ -134,7 +134,7 @@ public:
     }
 
     // Returns the size of a given proto-stencil
-    unsigned char GetSize(Index protoStencil) const {
+    int GetSize(Index protoStencil) const {
         assert(protoStencil<(int)_sizes.size());
         return _sizes[protoStencil];
     }
@@ -177,9 +177,9 @@ public:
     }
 
     // Copy the proto-stencil out of the pool
-    unsigned char CopyStencil(Index protoStencil,
+    int CopyStencil(Index protoStencil,
         Index * indices, float * weights) {
-        unsigned char size = GetSize(protoStencil);
+        int size = GetSize(protoStencil);
         memcpy(indices, this->GetIndices(protoStencil), size*sizeof(Index));
         memcpy(weights, this->GetWeights(protoStencil), size*sizeof(float));
         return size;
@@ -202,7 +202,7 @@ protected:
 
     bool _interpolateVarying;             // true for varying interpolation
 
-    std::vector<unsigned char> _sizes;    // 'fast' memory pool
+    std::vector<int> _sizes;    // 'fast' memory pool
     std::vector<int>           _indices;
     std::vector<float>         _weights;
 
@@ -233,7 +233,7 @@ public:
     void PushBackVertex(Index protoStencil,
         Index vert, float weight, float tan1Weight, float tan2Weight) {
         assert(weight!=0.0f or tan1Weight!=0.0f or tan2Weight!=0.0f);
-        unsigned char & size = this->_sizes[protoStencil];
+        int & size = this->_sizes[protoStencil];
         Index idx = protoStencil*this->_maxsize;
         if (size < (this->_maxsize-1)) {
             idx += size;
@@ -290,10 +290,9 @@ public:
         memset(GetTan2Weights(protoStencil), 0, this->_sizes[protoStencil]*sizeof(float));
     }
 
-    unsigned char CopyLimitStencil(Index protoStencil,
+    int CopyLimitStencil(Index protoStencil,
         Index * indices, float * weights, float * tan1Weights, float * tan2Weights) {
-        unsigned char size =
-            Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::CopyStencil(
+        int size = Allocator<PROTOSTENCIL, BIG_PROTOSTENCIL>::CopyStencil(
                 protoStencil, indices, weights);
         memcpy(tan1Weights, this->GetTan1Weights(protoStencil), size*sizeof(Index));
         memcpy(tan2Weights, this->GetTan2Weights(protoStencil), size*sizeof(float));
@@ -313,7 +312,7 @@ private:
 //
 struct BigStencil {
 
-    BigStencil(unsigned char size, Index const * indices,
+    BigStencil(int size, Index const * indices,
         float const * weights) {
         _indices.reserve(size+5); _indices.resize(size);
         memcpy(&_indices.at(0), indices, size*sizeof(int));
@@ -326,8 +325,7 @@ struct BigStencil {
 };
 struct BigLimitStencil : public BigStencil {
 
-    BigLimitStencil(unsigned char size,
-        Index const * indices, float const * weights,
+    BigLimitStencil(int size, Index const * indices, float const * weights,
             float const * tan1Weights,  float const * tan2Weights) :
                 BigStencil(size, indices, weights) {
 
@@ -369,7 +367,7 @@ public:
 
         if (src._alloc) {
             // Stencil contribution
-            unsigned char srcSize = src._alloc->GetSize(src._id);
+            int srcSize = src._alloc->GetSize(src._id);
             Index const * srcIndices = src._alloc->GetIndices(src._id);
             float const * srcWeights = src._alloc->GetWeights(src._id);
 
@@ -395,7 +393,7 @@ public:
             return;
         }
 
-        unsigned char srcSize = table.GetSizes()[idx];
+        int srcSize = table.GetSizes()[idx];
         Index offset = table.GetOffsets()[idx];
         Index const * srcIndices = &table.GetControlIndices()[offset];
         float const * srcWeights = &table.GetWeights()[offset];
@@ -411,12 +409,10 @@ public:
 
 protected:
 
-    friend class ProtoLimitStencil;
-
-    void addWithWeight(float weight, unsigned char srcSize,
+    void addWithWeight(float weight, int srcSize,
         Index const * srcIndices, float const * srcWeights) {
 
-        for (unsigned char i=0; i<srcSize; ++i) {
+        for (int i=0; i<srcSize; ++i) {
 
             assert(srcWeights[i]!=0.0f);
 
@@ -466,11 +462,11 @@ public:
             return;
         }
 
-        unsigned char srcSize = *src.GetSizePtr();
+        int srcSize = *src.GetSizePtr();
         Index const * srcIndices = src.GetVertexIndices();
         float const * srcWeights = src.GetWeights();
 
-        for (unsigned char i=0; i<srcSize; ++i) {
+        for (int i=0; i<srcSize; ++i) {
 
             float w = srcWeights[i];
             if (w==0.0f) {
@@ -505,4 +501,4 @@ typedef LimitAllocator<ProtoLimitStencil, BigLimitStencil> LimitStencilAllocator
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif // FAR_PROTOSTENCIL_H
+#endif // OPENSUBDIV3_FAR_PROTOSTENCIL_H

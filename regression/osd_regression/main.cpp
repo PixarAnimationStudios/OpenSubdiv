@@ -46,10 +46,9 @@ GLFWwindow* g_window=0;
 #include <stdio.h>
 #include <cassert>
 
-#include <osd/vertex.h>
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuVertexBuffer.h>
-#include <osd/cpuComputeController.h>
-#include <osd/cpuComputeContext.h>
+
 
 #include <osd/cpuGLVertexBuffer.h>
 
@@ -269,17 +268,10 @@ static int
 checkMeshCPU( FarTopologyRefiner *refiner,
               const std::vector<xyzVV>& coarseverts,
               xyzmesh * refmesh) {
-                  
-    static Osd::CpuComputeController *controller = 
-        new Osd::CpuComputeController();
-
 
     Far::StencilTables const *vertexStencils;
     Far::StencilTables const *varyingStencils;
     buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
-    Osd::CpuComputeContext *context = Osd::CpuComputeContext::Create(
-        vertexStencils, varyingStencils);
-
 
     assert(coarseverts.size() == (size_t)refiner->GetNumVerticesTotal());
     
@@ -288,12 +280,16 @@ checkMeshCPU( FarTopologyRefiner *refiner,
     
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
     
-    controller->Compute( context, vb );
+    Osd::CpuEvaluator::EvalStencils(
+        vb,
+        Osd::VertexBufferDescriptor(0, 3, 3),
+        vb,
+        Osd::VertexBufferDescriptor(refiner->GetNumVertices(0)*3, 3, 3),
+        vertexStencils);
 
     int result = checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
         vb->GetNumElements());
 
-    delete context;
     delete vertexStencils;
     delete varyingStencils;
     delete vb;
@@ -306,28 +302,26 @@ static int
 checkMeshCPUGL(FarTopologyRefiner *refiner,
                const std::vector<xyzVV>& coarseverts,
                xyzmesh * refmesh) {
-        
-    static Osd::CpuComputeController *controller = 
-        new Osd::CpuComputeController();
-    
+
     Far::StencilTables const *vertexStencils;
     Far::StencilTables const *varyingStencils;
     buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
-    Osd::CpuComputeContext *context = Osd::CpuComputeContext::Create(
-        vertexStencils, varyingStencils);
-
     
     Osd::CpuGLVertexBuffer *vb = Osd::CpuGLVertexBuffer::Create(3, 
         refiner->GetNumVerticesTotal());
     
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
 
-    controller->Compute( context, vb );
-    
+    Osd::CpuEvaluator::EvalStencils(
+        vb,
+        Osd::VertexBufferDescriptor(0, 3, 3),
+        vb,
+        Osd::VertexBufferDescriptor(refiner->GetNumVertices(0)*3, 3, 3),
+        vertexStencils);
+
     int result = checkVertexBuffer(*refiner, refmesh, 
         vb->BindCpuBuffer(), vb->GetNumElements());
 
-    delete context;
     delete vertexStencils;
     delete varyingStencils;
     delete vb;

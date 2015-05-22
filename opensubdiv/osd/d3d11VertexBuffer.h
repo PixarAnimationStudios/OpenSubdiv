@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_D3D11_VERTEX_BUFFER_H
-#define OSD_D3D11_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_D3D11_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_D3D11_VERTEX_BUFFER_H
 
 #include "../version.h"
 
@@ -41,7 +41,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for DirectX subvision and DirectX drawing.
 ///
 /// D3D11VertexBuffer implements D3D11VertexBufferInterface. An instance
-/// of this buffer class can be passed to D3D11ComputeController.
+/// of this buffer class can be passed to D3D11ComputeEvaluator.
 ///
 class D3D11VertexBuffer {
 public:
@@ -96,4 +96,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_D3D11_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_D3D11_VERTEX_BUFFER_H

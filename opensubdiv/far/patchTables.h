@@ -22,13 +22,14 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_TABLES_H
-#define FAR_PATCH_TABLES_H
+#ifndef OPENSUBDIV3_FAR_PATCH_TABLES_H
+#define OPENSUBDIV3_FAR_PATCH_TABLES_H
 
 #include "../version.h"
 
-#include "../far/interpolate.h"
 #include "../far/patchDescriptor.h"
+#include "../far/patchParam.h"
+#include "../far/stencilTables.h"
 
 #include "../sdc/options.h"
 
@@ -277,13 +278,11 @@ public:
 public:
 
     //@{
-    ///  @name Interpolation methods
-    //
-
-    /// \brief Interpolate the (s,t) parametric location of a *bilinear* patch
+    ///  @name Evaluation methods
     ///
-    /// \note This method can only be used on uniform PatchTables of quads (see
-    ///       IsFeatureAdaptive() method)
+
+    /// \brief Evaluate basis functions for position and first derivatives at a
+    /// given (s,t) parametric location of a patch.
     ///
     /// @param handle  A patch handle indentifying the sub-patch containing the
     ///                (s,t) location
@@ -292,58 +291,20 @@ public:
     ///
     /// @param t       Patch coordinate (in coarse face normalized space)
     ///
-    /// @param src     Source primvar buffer (control vertices data)
+    /// @param wP      Weights (evaluated basis functions) for the position
     ///
-    /// @param dst     Destination primvar buffer (limit surface data)
+    /// @param wDs     Weights (evaluated basis functions) for derivative wrt s
     ///
-    template <class T, class U> void EvaluateBilinear(PatchHandle const & handle,
-        float s, float t, T const & src, U & dst) const;
-
-
-    /// \brief Interpolate the (s,t) parametric location of a *bicubic* patch
+    /// @param wDt     Weights (evaluated basis functions) for derivative wrt t
     ///
-    /// \note This method can only be used on feature adaptive PatchTables (ie.
-    ///       IsFeatureAdaptive() is false)
-    ///
-    /// @param handle  A patch handle indentifying the sub-patch containing the
-    ///                (s,t) location
-    ///
-    /// @param s       Patch coordinate (in coarse face normalized space)
-    ///
-    /// @param t       Patch coordinate (in coarse face normalized space)
-    ///
-    /// @param src     Source primvar buffer (control vertices data)
-    ///
-    /// @param dst     Destination primvar buffer (limit surface data)
-    ///
-    template <class T, class U> void Evaluate(PatchHandle const & handle,
-        float s, float t, T const & src, U & dst) const;
-
-    /// \brief Interpolate the (s,t) parametric location of a *bicubic*
-    ///        face-varying patch
-    ///
-    /// @param channel The face-varying primvar channel
-    ///
-    /// @param handle  A patch handle indentifying the sub-patch containing the
-    ///                (s,t) location
-    ///
-    /// @param s       Patch coordinate (in coarse face normalized space)
-    ///
-    /// @param t       Patch coordinate (in coarse face normalized space)
-    ///
-    /// @param src     Source primvar buffer (control vertices data)
-    ///
-    /// @param dst     Destination primvar buffer (limit surface data)
-    ///
-    template <class T, class U> void EvaluateFaceVarying(int channel,
-        PatchHandle const & handle, float s, float t, T const & src, U & dst) const;
+    void EvaluateBasis(PatchHandle const & handle, float s, float t,
+        float wP[], float wDs[], float wDt[]) const;
 
     //@}
 
 protected:
 
     friend class PatchTablesFactory;
-    friend class EndCapLegacyGregoryPatchFactory;
 
     // Factory constructor
     PatchTables(int maxvalence);
@@ -442,123 +403,6 @@ private:
     std::vector<float>   _sharpnessValues;  // Sharpness values.
 };
 
-// XXXX manuelk evaluation should have the following interface :
-//    - EvaluateVertex<>()
-//    - EvaluateVarying<>()
-//    - EvaluateFaceVarying<>()
-// this refactor is pending the move of fvar channels as a private data
-// structure inside PatchTables, along with the addition of accessors that
-// use PatchHandle and work that hides the indexing of the patches inside
-// the tables
-
-// Interpolates primvar limit at the given parametric location on a patch
-template <class T, class U>
-inline void
-PatchTables::Evaluate(PatchHandle const & handle, float s, float t,
-    T const & src, U & dst) const {
-
-    assert(IsFeatureAdaptive());
-
-    PatchParam::BitField const & bits = _paramTable[handle.patchIndex].bitField;
-
-    PatchDescriptor::Type ptype =
-        GetPatchArrayDescriptor(handle.arrayIndex).GetType();
-
-    dst.Clear();
-
-    float Q[16], Qd1[16], Qd2[16];
-
-    if (ptype==PatchDescriptor::REGULAR) {
-
-        GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-
-        ConstIndexArray cvs = GetPatchVertices(handle);
-
-        InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-        // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-        // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-
-
-    } else if (ptype==PatchDescriptor::GREGORY_BASIS) {
-
-        ConstIndexArray cvs = GetPatchVertices(handle);
-
-        GetBezierWeights(bits, s, t, Q, Qd1, Qd2);
-        InterpolateGregoryPatch(cvs.begin(), s, t, Q, Qd1, Qd2, src, dst);
-
-    } else if (ptype==PatchDescriptor::QUADS) {
-
-        ConstIndexArray cvs = GetPatchVertices(handle);
-
-        GetBilinearWeights(bits, s, t, Q, Qd1, Qd2);
-        InterpolateBilinearPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-
-    } else {
-        assert(0);
-    }
-}
-
-// Interpolates the limit position of a parametric location on a face-varying
-// patch
-// XXXX manuelk this method is very similar to the vertex Evaluate<>() method
-//              -> we should eventually merge them
-template <class T, class U>
-inline void
-PatchTables::EvaluateFaceVarying(int channel, PatchHandle const & handle,
-    float s, float t, T const & src, U & dst) const {
-
-    ConstIndexArray cvs = GetFVarPatchValues(channel, handle);
-
-    PatchDescriptor::Type type = GetFVarPatchType(channel, handle);
-
-    PatchParam::BitField bits;
-    bits.Clear();
-
-    float Q[16], Qd1[16], Qd2[16];
-
-    switch (type) {
-        case PatchDescriptor::QUADS:
-            GetBilinearWeights(bits, s, t, Q, Qd1, Qd2);
-            InterpolateBilinearPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            break;
-        case PatchDescriptor::TRIANGLES:
-            assert("not implemented yet");
-        case PatchDescriptor::REGULAR:
-            GetBSplineWeights(bits, s, t, Q, Qd1, Qd2);
-            InterpolateRegularPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            // XXXdyu bits InterpolateBoundaryPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            // XXXdyu bits InterpolateCornerPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-            break;
-        default:
-            assert(0);
-
-        // XXXX manuelk - how do we handle end-patches ?
-        //              - is there a bicubic patch that we could use to reduce
-        //                isolation of bilinear boundaries with smooth a interior ?
-    }
-}
-
-// Interpolates primvar at the given parametric location on a bilinear patch
-template <class T, class U>
-inline void
-PatchTables::EvaluateBilinear(PatchHandle const & handle, float s, float t,
-    T const & src, U & dst) const {
-
-    ConstIndexArray cvs = GetPatchVertices(handle);
-    assert(cvs.size()==4);
-
-    PatchParam::BitField const & bits =
-        _paramTable[handle.patchIndex].bitField;
-
-    dst.Clear();
-
-    float Q[4], Qd1[4], Qd2[4];
-    GetBilinearWeights(bits, s, t, Q, Qd1, Qd2);
-
-    InterpolateBilinearPatch(cvs.begin(), Q, Qd1, Qd2, src, dst);
-}
-
-
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
@@ -566,4 +410,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_TABLES */
+#endif /* OPENSUBDIV3_FAR_PATCH_TABLES */

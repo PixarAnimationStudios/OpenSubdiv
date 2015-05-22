@@ -26,15 +26,15 @@
 
 uniform int batchStart = 0;
 uniform int batchEnd = 0;
+uniform int srcOffset = 0;
+uniform int dstOffset = 0;
 
-uniform int primvarOffset = 0;
-uniform int numCVs = 0;
-
-layout(binding=0) buffer vertex_buffer    { float         vertexBuffer[]; };
-layout(binding=1) buffer sterncilSizes    { unsigned char _sizes[];   };
-layout(binding=2) buffer sterncilOffsets  { int           _offsets[]; };
-layout(binding=3) buffer sterncilIndices  { int           _indices[]; };
-layout(binding=4) buffer sterncilWeights  { float         _weights[]; };
+layout(binding=0) buffer src_buffer      { float    srcVertexBuffer[]; };
+layout(binding=1) buffer dst_buffer      { float    dstVertexBuffer[]; };
+layout(binding=2) buffer stencilSizes    { int      _sizes[];   };
+layout(binding=3) buffer stencilOffsets  { int      _offsets[]; };
+layout(binding=4) buffer stencilIndices  { int      _indices[]; };
+layout(binding=5) buffer stencilWeights  { float    _weights[]; };
 
 layout(local_size_x=WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
@@ -52,17 +52,17 @@ void clear(out Vertex v) {
 
 Vertex readVertex(int index) {
     Vertex v;
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = srcOffset + index * SRC_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
-        v.vertexData[i] = vertexBuffer[vertexIndex + i];
+        v.vertexData[i] = srcVertexBuffer[vertexIndex + i];
     }
     return v;
 }
 
 void writeVertex(int index, Vertex v) {
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = dstOffset + index * DST_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
-        vertexBuffer[vertexIndex + i] = v.vertexData[i];
+        dstVertexBuffer[vertexIndex + i] = v.vertexData[i];
     }
 }
 
@@ -85,15 +85,13 @@ void main() {
     clear(dst);
 
     int offset = _offsets[current],
-        size = int(_sizes[current]);
+        size   = _sizes[current];
 
     for (int i=0; i<size; ++i) {
         addWithWeight(dst, readVertex( _indices[offset+i] ), _weights[offset+i]);
     }
 
-    // the vertex buffer contains our control vertices at the beginning: don't
-    // stomp on those !
-    writeVertex(numCVs+current, dst);
+    writeVertex(current, dst);
 }
 
 //------------------------------------------------------------------------------

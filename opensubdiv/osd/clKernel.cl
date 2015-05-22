@@ -36,7 +36,7 @@ static void addWithWeight(struct Vertex *dst,
                           __global float *srcOrigin,
                           int index, float weight) {
 
-    __global float *src = srcOrigin + index * STRIDE;
+    __global float *src = srcOrigin + index * SRC_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
         dst->v[i] += src[i] * weight;
     }
@@ -46,40 +46,42 @@ static void writeVertex(__global float *dstOrigin,
                         int index,
                         struct Vertex *src) {
 
-    __global float *dst = dstOrigin + index * STRIDE;
+    __global float *dst = dstOrigin + index * DST_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
         dst[i] = src->v[i];
     }
 }
 
 
-__kernel void computeStencils( __global float * vertexBuffer,
-                               __global unsigned char * sizes,
-                               __global int * offsets,
-                               __global int * indices,
-                               __global float * weights,
-                               int batchStart,
-                               int batchEnd,
-                               int primvarOffset,
-                               int numCVs ) {
+__kernel void computeStencils(__global float * src,
+                              int srcOffset,
+                              __global float * dst,
+                              int dstOffset,
+                              __global int * sizes,
+                              __global int * offsets,
+                              __global int * indices,
+                              __global float * weights,
+                              int batchStart,
+                              int batchEnd) {
 
     int current = get_global_id(0) + batchStart;
 
-	if (current>=batchEnd) {
-	    return;
-	}
-	
-    struct Vertex dst;
-    clear(&dst);
-
-    int size = (int)sizes[current],
-        offset = offsets[current];
-
-    vertexBuffer += primvarOffset;
-
-    for (int i=0; i<size; ++i) {
-        addWithWeight(&dst, vertexBuffer, indices[offset+i], weights[offset+i]);
+    if (current>=batchEnd) {
+        return;
     }
 
-    writeVertex(vertexBuffer, numCVs+current, &dst);
+    struct Vertex v;
+    clear(&v);
+
+    int size = sizes[current],
+        offset = offsets[current];
+
+    src += srcOffset;
+    dst += dstOffset;
+
+    for (int i=0; i<size; ++i) {
+        addWithWeight(&v, src, indices[offset+i], weights[offset+i]);
+    }
+
+    writeVertex(dst, current, &v);
 }

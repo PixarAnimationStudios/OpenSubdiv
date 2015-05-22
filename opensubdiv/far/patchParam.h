@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_PARAM_H
-#define FAR_PATCH_PARAM_H
+#ifndef OPENSUBDIV3_FAR_PATCH_PARAM_H
+#define OPENSUBDIV3_FAR_PATCH_PARAM_H
 
 #include "../version.h"
 
@@ -89,9 +89,6 @@ struct PatchParam {
 
         /// \brief Returns the boundary edge encoding for the patch.
         unsigned short GetBoundary() const { return (unsigned short)((field >> 4) & 0xf); }
-
-        /// \brief Deprecated XXXdyu-patch-drawing (patches rotated when gathered from refiner)
-        unsigned char GetRotation() const { return 0; }
 
         /// \brief True if the parent coarse face is a non-quad
         bool NonQuadRoot() const { return (field >> 3) & 0x1; }
@@ -193,4 +190,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_PARAM */
+#endif /* OPENSUBDIV3_FAR_PATCH_PARAM */

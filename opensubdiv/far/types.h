@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_TYPES_H
-#define FAR_TYPES_H
+#ifndef OPENSUBDIV3_FAR_TYPES_H
+#define OPENSUBDIV3_FAR_TYPES_H
 
 #include "../version.h"
 
@@ -52,4 +52,4 @@ typedef Vtr::ConstLocalIndexArray  ConstLocalIndexArray;
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* FAR_TYPES_H */
+#endif /* OPENSUBDIV3_FAR_TYPES_H */

@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CUDA_VERTEX_BUFFER_H
-#define OSD_CUDA_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_CUDA_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_CUDA_VERTEX_BUFFER_H
 
 #include "../version.h"
 
@@ -35,7 +35,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for Cuda subvision.
 ///
 /// CudaVertexBuffer implements CudaVertexBufferInterface.
-/// An instance of this buffer class can be passed to CudaComputeController
+/// An instance of this buffer class can be passed to CudaEvaluator
 ///
 class CudaVertexBuffer {
 
@@ -81,4 +81,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CUDA_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_CUDA_VERTEX_BUFFER_H

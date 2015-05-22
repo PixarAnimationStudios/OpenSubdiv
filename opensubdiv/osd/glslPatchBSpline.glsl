@@ -37,7 +37,7 @@ out block {
 
 void main()
 {
-    outpt.v.position = OsdModelViewMatrix() * position;
+    outpt.v.position = position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
     OSD_USER_VARYING_PER_VERTEX();
 }
@@ -82,36 +82,9 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt[];
 
-#define ID gl_InvocationID
+patch out vec4 tessOuterLo, tessOuterHi;
 
-void
-reflectBoundaryEdges(inout vec3 cpt[16], int patchParam)
-{
-    if (((patchParam >> 4) & 1) != 0) {
-        cpt[0] = 2*cpt[4] - cpt[8];
-        cpt[1] = 2*cpt[5] - cpt[9];
-        cpt[2] = 2*cpt[6] - cpt[10];
-        cpt[3] = 2*cpt[7] - cpt[11];
-    }
-    if (((patchParam >> 4) & 2) != 0) {
-        cpt[3] = 2*cpt[2] - cpt[1];
-        cpt[7] = 2*cpt[6] - cpt[5];
-        cpt[11] = 2*cpt[10] - cpt[9];
-        cpt[15] = 2*cpt[14] - cpt[13];
-    }
-    if (((patchParam >> 4) & 4) != 0) {
-        cpt[12] = 2*cpt[8] - cpt[4];
-        cpt[13] = 2*cpt[9] - cpt[5];
-        cpt[14] = 2*cpt[10] - cpt[6];
-        cpt[15] = 2*cpt[11] - cpt[7];
-    }
-    if (((patchParam >> 4) & 8) != 0) {
-        cpt[0] = 2*cpt[1] - cpt[2];
-        cpt[4] = 2*cpt[5] - cpt[6];
-        cpt[8] = 2*cpt[9] - cpt[10];
-        cpt[12] = 2*cpt[13] - cpt[14];
-    }
-}
+#define ID gl_InvocationID
 
 // compute single-crease patch matrix
 mat4
@@ -143,9 +116,9 @@ void main()
         position[i] = inpt[i].v.position.xyz;
     }
 
-    int patchParam = GetPatchParam();
+    ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID));
 
-    reflectBoundaryEdges(position, patchParam);
+    OsdComputeBSplineBoundaryPoints(position, patchParam);
 
     vec3 H[4];
     for (int l=0; l<4; ++l) {
@@ -156,7 +129,7 @@ void main()
     }
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness = GetSharpness();
+    float sharpness = OsdGetPatchSharpness(patchParam);
     if (sharpness > 0) {
         float Sf = floor(sharpness);
         float Sc = ceil(sharpness);
@@ -200,42 +173,36 @@ void main()
 
     OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
 
-    int patchLevel = GetPatchLevel();
-
-    // +0.5 to avoid interpolation error of integer value
-    outpt[ID].v.patchCoord = vec4(0, 0,
-                                  patchLevel+0.5,
-                                  GetPrimitiveID()+0.5);
-
-    OSD_COMPUTE_PTEX_COORD_TESSCONTROL_SHADER;
+    outpt[ID].v.patchCoord = OsdGetPatchCoord(patchParam);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
     // Wait for all basis conversion to be finished
     barrier();
 #endif
     if (ID == 0) {
-        OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
+        OSD_PATCH_CULL(16);
 
-        vec4 outerLevel = vec4(0);
-        vec2 innerLevel = vec2(0);
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
-        vec3 cpBezier[16];
         for (int i=0; i<16; ++i) {
-            cpBezier[i] = outpt[i].v.position.xyz;
+            position[i] = outpt[i].v.position.xyz;
         }
-        GetTransitionTessLevels(cpBezier, patchParam, outerLevel, innerLevel);
-#else
-        GetTransitionTessLevels(position, patchParam, outerLevel, innerLevel);
 #endif
 
-        gl_TessLevelOuter[0] = outerLevel[0];
-        gl_TessLevelOuter[1] = outerLevel[1];
-        gl_TessLevelOuter[2] = outerLevel[2];
-        gl_TessLevelOuter[3] = outerLevel[3];
+        vec4 tessLevelOuter = vec4(0);
+        vec2 tessLevelInner = vec2(0);
 
-        gl_TessLevelInner[0] = innerLevel[0];
-        gl_TessLevelInner[1] = innerLevel[1];
+        OsdGetTessLevels(position, patchParam,
+                         tessLevelOuter, tessLevelInner,
+                         tessOuterLo, tessOuterHi);
+
+        gl_TessLevelOuter[0] = tessLevelOuter[0];
+        gl_TessLevelOuter[1] = tessLevelOuter[1];
+        gl_TessLevelOuter[2] = tessLevelOuter[2];
+        gl_TessLevelOuter[3] = tessLevelOuter[3];
+
+        gl_TessLevelInner[0] = tessLevelInner[0];
+        gl_TessLevelInner[1] = tessLevelInner[1];
     }
 }
 
@@ -246,19 +213,13 @@ void main()
 //----------------------------------------------------------
 #ifdef OSD_PATCH_TESS_EVAL_BSPLINE_SHADER
 
-#ifdef OSD_TRANSITION_TRIANGLE_SUBPATCH
-    layout(triangles) in;
-#else
-    layout(quads) in;
-#endif
+layout(quads) in;
 
-/* XXXdyu-patch-drawing support for frational spacing
 #if defined OSD_FRACTIONAL_ODD_SPACING
     layout(fractional_odd_spacing) in;
 #elif defined OSD_FRACTIONAL_EVEN_SPACING
     layout(fractional_even_spacing) in;
 #endif
-*/
 
 in block {
     ControlVertex v;
@@ -278,9 +239,13 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt;
 
+patch in vec4 tessOuterLo, tessOuterHi;
+
 void main()
 {
-    vec2 UV = GetTransitionParameterization();
+    vec2 UV = OsdGetTessParameterization(gl_TessCoord.xy,
+                                         tessOuterLo,
+                                         tessOuterHi);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
@@ -350,9 +315,9 @@ void main()
 #endif
     // ----------------------------------------------------------------
 
-    vec3 WorldPos  = vec3(0);
-    vec3 Tangent   = vec3(0);
-    vec3 BiTangent = vec3(0);
+    vec3 position = vec3(0);
+    vec3 uTangent = vec3(0);
+    vec3 vTangent = vec3(0);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     // used for weingarten term
@@ -363,74 +328,68 @@ void main()
     vec3 dUV = vec3(0);
 
     for (int k=0; k<4; ++k) {
-        WorldPos  += B[k] * BUCP[k];
-        Tangent   += B[k] * DUCP[k];
-        BiTangent += D[k] * BUCP[k];
+        position += B[k] * BUCP[k];
+        uTangent += B[k] * DUCP[k];
+        vTangent += D[k] * BUCP[k];
 
         dUU += B[k] * CUCP[k];
         dVV += C[k] * BUCP[k];
         dUV += D[k] * DUCP[k];
     }
 
-    int level = int(inpt[0].v.ptexInfo.z);
-    Tangent *= 3 * level;
-    BiTangent *= 3 * level;
+    int level = inpt[0].v.patchCoord.z;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
     dUU *= 6 * level;
     dVV *= 6 * level;
     dUV *= 9 * level;
 
-    vec3 n = cross(Tangent, BiTangent);
+    vec3 n = cross(uTangent, vTangent);
     vec3 normal = normalize(n);
 
-    float E = dot(Tangent, Tangent);
-    float F = dot(Tangent, BiTangent);
-    float G = dot(BiTangent, BiTangent);
+    float E = dot(uTangent, uTangent);
+    float F = dot(uTangent, vTangent);
+    float G = dot(vTangent, vTangent);
     float e = dot(normal, dUU);
     float f = dot(normal, dUV);
     float g = dot(normal, dVV);
 
-    vec3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
-    vec3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+    vec3 Nu = (f*F-e*G)/(E*G-F*F) * uTangent + (e*F-f*E)/(E*G-F*F) * vTangent;
+    vec3 Nv = (g*F-f*G)/(E*G-F*F) * uTangent + (f*F-g*E)/(E*G-F*F) * vTangent;
 
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
-    outpt.v.tangent = Tangent;
-    outpt.v.bitangent = BiTangent;
     outpt.v.Nu = Nu;
     outpt.v.Nv = Nv;
 #else
     Univar4x4(UV.y, B, D);
 
     for (int k=0; k<4; ++k) {
-        WorldPos  += B[k] * BUCP[k];
-        Tangent   += B[k] * DUCP[k];
-        BiTangent += D[k] * BUCP[k];
+        position += B[k] * BUCP[k];
+        uTangent += B[k] * DUCP[k];
+        vTangent += D[k] * BUCP[k];
     }
-    int level = int(inpt[0].v.ptexInfo.z);
-    Tangent *= 3 * level;
-    BiTangent *= 3 * level;
+    int level = inpt[0].v.patchCoord.z;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
 
-    vec3 normal = normalize(cross(Tangent, BiTangent));
-
-    outpt.v.tangent = Tangent;
-    outpt.v.bitangent = BiTangent;
+    vec3 normal = normalize(cross(uTangent, vTangent));
 #endif
 
-    outpt.v.position = vec4(WorldPos, 1.0f);
-    outpt.v.normal = normal;
+    outpt.v.position = OsdModelViewMatrix() * vec4(position, 1.0f);
+    outpt.v.normal = (OsdModelViewMatrix() * vec4(normal, 0.0f)).xyz;
+    outpt.v.tangent = (OsdModelViewMatrix() * vec4(uTangent, 0.0f)).xyz;
+    outpt.v.bitangent = (OsdModelViewMatrix() * vec4(vTangent, 0.0f)).xyz;
 
     OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
-    outpt.v.patchCoord = inpt[0].v.patchCoord;
-
-    outpt.v.patchCoord.xy = vec2(UV.x, UV.y);
-
-    OSD_COMPUTE_PTEX_COORD_TESSEVAL_SHADER;
+    outpt.v.tessCoord = UV;
+    outpt.v.patchCoord = OsdInterpolatePatchCoord(UV, inpt[0].v.patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = (OsdProjectionMatrix() * vec4(WorldPos, 1.0f));
+    gl_Position = OsdProjectionMatrix() * outpt.v.position;
 }
 
 #endif

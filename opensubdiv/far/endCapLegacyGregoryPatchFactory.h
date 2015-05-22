@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
-#define FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
+#ifndef OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
+#define OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
 
 #include "../far/patchTablesFactory.h"
 
@@ -61,7 +61,10 @@ public:
                                    PatchTablesFactory::PatchFaceTag const * levelPatchTags,
                                    int levelVertOffset);
 
-    void Finalize(PatchTables *patchTables);
+    void Finalize(int maxValence, 
+                  PatchTables::QuadOffsetsTable *quadOffsetsTable,
+                  PatchTables::VertexValenceTable *vertexValenceTable);
+
 
 private:
     TopologyRefiner const &_refiner;
@@ -76,4 +79,4 @@ private:
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif  // FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
+#endif  // OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H

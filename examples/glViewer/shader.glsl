@@ -388,7 +388,7 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
 }
 
 vec4
-getAdaptivePatchColor(int patchParam)
+getAdaptivePatchColor(ivec3 patchParam)
 {
     const vec4 patchColors[7*6] = vec4[7*6](
         vec4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
@@ -442,7 +442,11 @@ getAdaptivePatchColor(int patchParam)
     );
 
     int patchType = 0;
-#if defined OSD_PATCH_GREGORY
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (inpt.sharpness > 0) {
+        patchType = 1;
+    }
+#elif defined OSD_PATCH_GREGORY
     patchType = 4;
 #elif defined OSD_PATCH_GREGORY_BOUNDARY
     patchType = 5;
@@ -450,7 +454,7 @@ getAdaptivePatchColor(int patchParam)
     patchType = 6;
 #endif
 
-    int edgeCount = bitCount((patchParam >> 4) & 0xf);
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
     }
@@ -458,10 +462,7 @@ getAdaptivePatchColor(int patchParam)
         patchType = 3; // CORNER
     }
 
-    int pattern = bitCount((patchParam >> 8) & 0xf);
-#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    if (inpt.sharpness > 0) pattern += 6;
-#endif
+    int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
 
     return patchColors[6*patchType + pattern];
 }
@@ -480,7 +481,7 @@ main()
                       int(floor(20*inpt.color.r)+floor(20*inpt.color.g))&1, 1);
 #else
     //vec4 color = diffuseColor;
-    vec4 color = getAdaptivePatchColor(GetPatchParam());
+    vec4 color = getAdaptivePatchColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID)));
 #endif
 
     vec4 Cf = lighting(color, inpt.v.position.xyz, N);

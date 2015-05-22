@@ -33,7 +33,7 @@
 // adaptive isolation of topological features. This process converts the
 // input polygonal control cage into a collection of bi-cubic patches.
 //
-// We can then evaluate the patches are random parametric locations and
+// We can then evaluate the patches at random parametric locations and
 // obtain analytical positions and tangents on the limit surface.
 //
 // The results are dumped into a MEL script that draws 'streak' particle
@@ -102,7 +102,8 @@ struct Vertex {
 };
 
 //------------------------------------------------------------------------------
-// Limit frame container implementation.
+// Limit frame container implementation -- this interface is not strictly
+// required but follows a similar pattern to Vertex.
 //
 struct LimitFrame {
 
@@ -174,6 +175,8 @@ int main(int, char **) {
 
     srand( static_cast<int>(2147483647) );
 
+    float pWeights[20], dsWeights[20], dtWeights[20];
+
     for (int face=0, count=0; face<nfaces; ++face) {
 
         for (int sample=0; sample<nsamples; ++sample, ++count) {
@@ -186,8 +189,17 @@ int main(int, char **) {
                 patchmap.FindPatch(face, s, t);
             assert(handle);
 
-            // Evaluate the limit frame
-            patchTables->Evaluate(*handle, s, t, &verts[0], samples[count]);
+            // Evaluate the patch weights, identify the CVs and compute the limit frame:
+            patchTables->EvaluateBasis(*handle, s, t, pWeights, dsWeights, dtWeights);
+
+            Far::ConstIndexArray cvs = patchTables->GetPatchVertices(*handle);
+
+            LimitFrame & dst = samples[count];
+            dst.Clear();
+            for (int cv=0; cv < cvs.size(); ++cv) {
+                dst.AddWithWeight(verts[cvs[cv]], pWeights[cv], dsWeights[cv], dtWeights[cv]);
+            }
+
         }
     }
 

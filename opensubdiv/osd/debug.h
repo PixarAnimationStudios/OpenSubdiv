@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_DEBUG_H
-#define OSD_DEBUG_H
+#ifndef OPENSUBDIV3_OSD_DEBUG_H
+#define OPENSUBDIV3_OSD_DEBUG_H
 
 #ifdef OSD_DEBUG_BUILD
 
@@ -58,4 +58,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif // OSD_DEBUG_H
+#endif // OPENSUBDIV3_OSD_DEBUG_H

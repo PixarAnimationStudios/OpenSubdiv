@@ -22,20 +22,21 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_GL_MESH_H
-#define OSD_GL_MESH_H
+#ifndef OPENSUBDIV3_OSD_GL_MESH_H
+#define OPENSUBDIV3_OSD_GL_MESH_H
 
 #include "../version.h"
 
 #include "../osd/mesh.h"
-#include "../osd/glDrawContext.h"
+#include "../osd/glPatchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-typedef MeshInterface<GLDrawContext> GLMeshInterface;
+typedef MeshInterface<GLPatchTable> GLMeshInterface;
+
 
 } // end namespace Osd
 
@@ -44,4 +45,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_GL_MESH_H
+#endif  // OPENSUBDIV3_OSD_GL_MESH_H

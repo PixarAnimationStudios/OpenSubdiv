@@ -74,31 +74,36 @@ copy(float *dst, int dstIndex, const float *src,
 
 class TBBStencilKernel {
 
-    VertexBufferDescriptor _vertexDesc;
+    VertexBufferDescriptor _srcDesc;
+    VertexBufferDescriptor _dstDesc;
     float const * _vertexSrc;
-
     float * _vertexDst;
 
-    unsigned char const * _sizes;
+    int const * _sizes;
     int const * _offsets,
               * _indices;
     float const * _weights;
 
 
 public:
-    TBBStencilKernel(VertexBufferDescriptor vertexDesc, float const * vertexSrc,
-        float * vertexDst, unsigned char const * sizes, int const * offsets,
-            int const * indices, float const * weights ) :
-         _vertexDesc(vertexDesc),
-         _vertexSrc(vertexSrc),
-         _vertexDst(vertexDst),
+    TBBStencilKernel(float const *src,
+                     VertexBufferDescriptor srcDesc,
+                     float *dst,
+                     VertexBufferDescriptor dstDesc,
+                     int const * sizes, int const * offsets,
+                     int const * indices, float const * weights) :
+         _srcDesc(srcDesc),
+         _dstDesc(dstDesc),
+         _vertexSrc(src),
+         _vertexDst(dst),
          _sizes(sizes),
          _offsets(offsets),
          _indices(indices),
          _weights(weights) { }
 
     TBBStencilKernel(TBBStencilKernel const & other) {
-        _vertexDesc = other._vertexDesc;
+        _srcDesc    = other._srcDesc;
+        _dstDesc    = other._dstDesc;
         _sizes      = other._sizes;
         _offsets    = other._offsets;
         _indices    = other._indices;
@@ -110,14 +115,14 @@ public:
     void operator() (tbb::blocked_range<int> const &r) const {
 #define USE_SIMD
 #ifdef USE_SIMD
-        if (_vertexDesc.length==4 and _vertexDesc.stride==4) {
+        if (_srcDesc.length==4 and _srcDesc.stride==4 and _dstDesc.stride==4) {
 
             // SIMD fast path for aligned primvar data (4 floats)
             int offset = _offsets[r.begin()];
             ComputeStencilKernel<4>(_vertexSrc, _vertexDst,
                 _sizes, _indices+offset, _weights+offset, r.begin(), r.end());
 
-        } else if (_vertexDesc.length==8 and _vertexDesc.stride==4) {
+        } else if (_srcDesc.length==8 and _srcDesc.stride==4 and _dstDesc.stride==4) {
 
             // SIMD fast path for aligned primvar data (8 floats)
             int offset = _offsets[r.begin()];
@@ -127,8 +132,8 @@ public:
         } else {
 #else
         {
-#endif                
-            unsigned char const * sizes = _sizes;
+#endif
+            int const * sizes = _sizes;
             int const * indices = _indices;
             float const * weights = _weights;
 
@@ -139,36 +144,43 @@ public:
             }
 
             // Slow path for non-aligned data
-            float * result = (float*)alloca(_vertexDesc.length * sizeof(float));
+            float * result = (float*)alloca(_srcDesc.length * sizeof(float));
 
             for (int i=r.begin(); i<r.end(); ++i, ++sizes) {
 
-                clear(result, _vertexDesc);
+                clear(result, _dstDesc);
 
                 for (int j=0; j<*sizes; ++j) {
-                    addWithWeight(result, _vertexSrc, *indices++, *weights++, _vertexDesc);
+                    addWithWeight(result, _vertexSrc, *indices++, *weights++, _srcDesc);
                 }
 
-                copy(_vertexDst, i, result, _vertexDesc);
+                copy(_vertexDst, i, result, _dstDesc);
             }
         }
     }
 };
 
 void
-TbbComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                      float const * vertexSrc,
-                      float * vertexDst,
-                      unsigned char const * sizes,
-                      int const * offsets,
-                      int const * indices,
-                      float const * weights,
-                      int start, int end) {
+TbbEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
 
-    assert(start>=0 and start<end);
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+    }
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
 
-    TBBStencilKernel kernel(vertexDesc, vertexSrc, vertexDst,
-        sizes, offsets, indices, weights);
+    TBBStencilKernel kernel(src, srcDesc, dst, dstDesc,
+                            sizes, offsets, indices, weights);
 
     tbb::blocked_range<int> range(start, end, grain_size);
 

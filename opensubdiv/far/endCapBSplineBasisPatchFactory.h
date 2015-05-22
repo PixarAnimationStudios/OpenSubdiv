@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
-#define FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
+#ifndef OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
+#define OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
 
 #include "../far/patchTablesFactory.h"
 #include "../far/gregoryBasis.h"
@@ -99,4 +99,4 @@ private:
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif  // FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
+#endif  // OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H

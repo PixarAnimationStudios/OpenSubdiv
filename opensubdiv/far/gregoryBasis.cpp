@@ -26,6 +26,7 @@
 #include "../far/error.h"
 #include "../far/stencilTablesFactory.h"
 #include "../far/topologyRefiner.h"
+#include "../vtr/stackBuffer.h"
 
 #include <cassert>
 #include <cmath>
@@ -110,6 +111,16 @@ GregoryBasis::ProtoBasis::Copy(int * sizes, Index * indices, float * weights) co
     }
 }
 
+void
+GregoryBasis::ProtoBasis::Copy(GregoryBasis * dest) const {
+    int nelems = GetNumElements();
+
+    dest->_indices.resize(nelems);
+    dest->_weights.resize(nelems);
+
+    Copy(dest->_sizes, &dest->_indices[0], &dest->_weights[0]);
+}
+
 inline float csf(Index n, Index j) {
     if (j%2 == 0) {
         return cosf((2.0f * float(M_PI) * float(float(j-0)/2.0f))/(float(n)+3.0f));
@@ -140,17 +151,11 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         valences[4],
         zerothNeighbors[4];
 
-    Index * manifoldRing = (int *)alloca((maxvalence+2)*2 * sizeof(int));
+    Vtr::internal::StackBuffer<Index,40> manifoldRing((maxvalence+2)*2);
 
-// Because MSVC does not support VLAs, we have to run alloca() in a macro and
-// call in-place constructors - it's only been standardized for 15 years after
-// all...
-#define AllocaPointsArrays(variable, npoints) \
-    Point * variable = (Point *)alloca(npoints*sizeof(Point)); \
-    { for (int i=0; i<npoints; ++i) { new (&variable[i]) Point; } }
+    Vtr::internal::StackBuffer<Point,16> f(maxvalence);
+    Vtr::internal::StackBuffer<Point,64> r(maxvalence*4);
 
-    AllocaPointsArrays(f, maxvalence);
-    AllocaPointsArrays(r, maxvalence*4);
     Point e0[4], e1[4], org[4];
 
     for (int vid=0; vid<4; ++vid) {
@@ -394,7 +399,7 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
     stencilTables->_numControlVertices = 0;
     stencilTables->resize(nStencils, nElements);
 
-    unsigned char * sizes = &stencilTables->_sizes[0];
+    int * sizes = &stencilTables->_sizes[0];
     Index * indices = &stencilTables->_indices[0];
     float * weights = &stencilTables->_weights[0];
 
@@ -404,7 +409,7 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
         int size = src.GetSize();
         memcpy(indices, src.GetIndices(), size*sizeof(Index));
         memcpy(weights, src.GetWeights(), size*sizeof(float));
-        *sizes = (int)size;
+        *sizes = size;
 
         indices += size;
         weights += size;

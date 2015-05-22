@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRFACE_H
-#define HBRFACE_H
+#ifndef OPENSUBDIV3_HBRFACE_H
+#define OPENSUBDIV3_HBRFACE_H
 
 #include <assert.h>
 #include <cstdio>
@@ -1026,4 +1026,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRFACE_H */
+#endif /* OPENSUBDIV3_HBRFACE_H */

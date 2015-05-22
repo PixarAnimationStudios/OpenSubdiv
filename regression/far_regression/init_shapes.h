@@ -64,6 +64,9 @@ static std::vector<ShapeDesc> g_shapes;
 #include "../shapes/catmark_gregory_test5.h"
 #include "../shapes/catmark_helmet.h"
 #include "../shapes/catmark_lefthanded.h"
+#include "../shapes/catmark_pole8.h"
+#include "../shapes/catmark_pole64.h"
+#include "../shapes/catmark_pole360.h"
 #include "../shapes/catmark_pyramid_creases0.h"
 #include "../shapes/catmark_pyramid_creases1.h"
 #include "../shapes/catmark_pyramid.h"
@@ -81,6 +84,9 @@ static std::vector<ShapeDesc> g_shapes;
 #include "../shapes/loop_cube_creases1.h"
 #include "../shapes/loop_cube.h"
 #include "../shapes/loop_icosahedron.h"
+#include "../shapes/loop_pole8.h"
+#include "../shapes/loop_pole64.h"
+#include "../shapes/loop_pole360.h"
 #include "../shapes/loop_saddle_edgecorner.h"
 #include "../shapes/loop_saddle_edgeonly.h"
 #include "../shapes/loop_triangle_edgecorner.h"
@@ -114,6 +120,9 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("catmark_gregory_test3",    catmark_gregory_test3,    kCatmark ) );
 //    g_shapes.push_back( ShapeDesc("catmark_gregory_test4",    catmark_gregory_test4,    kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_gregory_test5",    catmark_gregory_test5,    kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_pole8",            catmark_pole8,            kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_pole64",           catmark_pole64,           kCatmark ) );
+//    g_shapes.push_back( ShapeDesc("catmark_pole360",          catmark_pole360,          kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_pyramid_creases0", catmark_pyramid_creases0, kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_pyramid_creases1", catmark_pyramid_creases1, kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_pyramid",          catmark_pyramid,          kCatmark ) );
@@ -133,6 +142,9 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("loop_cube_creases1",       loop_cube_creases1,       kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_cube",                loop_cube,                kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_icosahedron",         loop_icosahedron,         kLoop ) );
+    g_shapes.push_back( ShapeDesc("loop_pole8",               loop_pole8,               kLoop ) );
+    g_shapes.push_back( ShapeDesc("loop_pole64",              loop_pole64,              kLoop ) );
+//    g_shapes.push_back( ShapeDesc("loop_pole360",             loop_pole360,             kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_saddle_edgecorner",   loop_saddle_edgecorner,   kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_saddle_edgeonly",     loop_saddle_edgeonly,     kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );

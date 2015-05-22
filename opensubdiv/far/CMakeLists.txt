@@ -30,7 +30,7 @@ set(SOURCE_FILES
     endCapGregoryBasisPatchFactory.cpp
     endCapLegacyGregoryPatchFactory.cpp
     gregoryBasis.cpp
-    interpolate.cpp
+    patchBasis.cpp
     patchDescriptor.cpp
     patchMap.cpp
     patchTables.cpp
@@ -51,7 +51,7 @@ set(PUBLIC_HEADER_FILES
     endCapGregoryBasisPatchFactory.h
     endCapLegacyGregoryPatchFactory.h
     gregoryBasis.h
-    interpolate.h
+    patchBasis.h
     patchDescriptor.h
     patchParam.h
     patchMap.h
@@ -60,6 +60,7 @@ set(PUBLIC_HEADER_FILES
     ptexIndices.h
     stencilTables.h
     stencilTablesFactory.h
+    topologyLevel.h
     topologyRefiner.h
     topologyRefinerFactory.h
     types.h

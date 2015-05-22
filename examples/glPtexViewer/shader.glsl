@@ -21,26 +21,42 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#line 25
+
+//--------------------------------------------------------------
+// Uniforms / Uniform Blocks
+//--------------------------------------------------------------
+
+#define NUM_LIGHTS 2
+
+struct LightSource {
+    vec4 position;
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+};
+
+layout(std140) uniform Constant {
+    mat4 ModelViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
+    LightSource lightSource[NUM_LIGHTS];
+    float TessLevel;
+    float displacementScale;
+    float mipmapBias;
+};
+
+uniform int GregoryQuadOffsetBase;
+uniform int PrimitiveIdBase;
 
 //--------------------------------------------------------------
 // Common
 //--------------------------------------------------------------
 
-uniform float displacementScale = 1.0;
-uniform float mipmapBias = 0;
-
-vec4 GeneratePatchCoord(vec2 localUV, int primitiveID)  // for non-adpative
+vec4 GeneratePatchCoord(vec2 uv, int primitiveID) // for non-adaptive
 {
-    ivec2 ptexIndex = texelFetch(OsdPatchParamBuffer, primitiveID).xy;
-    int faceID = ptexIndex.x;
-    int lv = 1 << ((ptexIndex.y & 0xf) - ((ptexIndex.y >> 4) & 1));
-    int u = (ptexIndex.y >> 17) & 0x3ff;
-    int v = (ptexIndex.y >> 7) & 0x3ff;
-    vec2 uv = localUV;
-    uv = (uv * vec2(1.0)/lv) + vec2(u, v)/lv;
-
-    return vec4(uv.x, uv.y, lv+0.5, faceID+0.5);
+    ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
+    return OsdInterpolatePatchCoord(uv, OsdGetPatchCoord(patchParam));
 }
 
 #if    defined(DISPLACEMENT_HW_BILINEAR)        \
@@ -83,24 +99,6 @@ vec4 displacement(vec4 position, vec3 normal, vec4 patchCoord)
     return position + vec4(disp * normal, 0) * displacementScale;
 }
 #endif
-
-//--------------------------------------------------------------
-// Uniforms / Uniform Blocks
-//--------------------------------------------------------------
-
-layout(std140) uniform Transform {
-    mat4 ModelViewMatrix;
-    mat4 ProjectionMatrix;
-    mat4 ModelViewProjectionMatrix;
-    mat4 ModelViewInverseMatrix;
-};
-
-layout(std140) uniform Tessellation {
-    float TessLevel;
-};
-
-uniform int GregoryQuadOffsetBase;
-uniform int PrimitiveIdBase;
 
 //--------------------------------------------------------------
 // Osd external functions
@@ -409,25 +407,12 @@ uniform sampler2DArray textureSpecular_Data;
 uniform isamplerBuffer textureSpecular_Packing;
 #endif
 
-#define NUM_LIGHTS 2
-
-struct LightSource {
-    vec4 position;
-    vec4 ambient;
-    vec4 diffuse;
-    vec4 specular;
-};
-
-layout(std140) uniform Lighting {
-    LightSource lightSource[NUM_LIGHTS];
-};
-
 #if defined COLOR_PATCHTYPE
 
 uniform vec4 overrideColor;
 
 vec4
-GetOverrideColor(int patchParam)
+GetOverrideColor(ivec3 patchParam)
 {
     const vec4 patchColors[7*6] = vec4[7*6](
         vec4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
@@ -482,7 +467,9 @@ GetOverrideColor(int patchParam)
 
     int patchType = 0;
 #if defined OSD_PATCH_SINGLE_CREASE
-    patchType = 1;
+    if (inpt.sharpness > 0) {
+        patchType = 1;
+    }
 #elif defined OSD_PATCH_GREGORY
     patchType = 4;
 #elif defined OSD_PATCH_GREGORY_BOUNDARY
@@ -490,16 +477,18 @@ GetOverrideColor(int patchParam)
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
-    int edgeCount = bitCount((patchParam >> 4) & 0xf);
+
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
     }
     if (edgeCount == 2) {
         patchType = 3; // CORNER
     }
-    int pattern = bitCount((patchParam >> 8) & 0xf);
-    int offset = 7*patchType + pattern;
-    return patchColors[offset];
+
+    int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
+
+    return patchColors[6*patchType + pattern];
 }
 
 #endif
@@ -675,7 +664,7 @@ main()
                                               textureImage_Data,
                                               textureImage_Packing);
 #elif defined COLOR_PATCHTYPE
-    vec4 texColor = edgeColor(lighting(GetOverrideColor(GetPatchParam()), inpt.v.position.xyz, normal, 1, 0));
+    vec4 texColor = edgeColor(lighting(GetOverrideColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID))), inpt.v.position.xyz, normal, 1, 0));
     outColor = texColor;
     return;
 #elif defined COLOR_PATCHCOORD

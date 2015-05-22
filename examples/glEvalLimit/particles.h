@@ -25,7 +25,6 @@
 #ifndef ST_PARTICLES_H
 #define ST_PARTICLES_H
 
-#include <osd/evalLimitContext.h>
 #include <far/topologyRefiner.h>
 
 #include <iostream>
@@ -54,8 +53,25 @@
 class STParticles {
 
 public:
+    /// \brief Coordinates set on a limit surface
+    ///
+    struct Position {
+        Position() { }
 
-    typedef OpenSubdiv::Osd::LimitLocation Position;
+        /// \brief Constructor
+        ///
+        /// @param f Ptex face id
+        ///
+        /// @param x parametric location on face
+        ///
+        /// @param y parametric location on face
+        ///
+        Position(int f, float x, float y) : ptexIndex(f), s(x), t(y) { }
+
+        int ptexIndex;      ///< ptex face index
+        float s, t;         ///< parametric location on face
+    };
+
     typedef OpenSubdiv::Far::TopologyRefiner Refiner;
 
     STParticles(Refiner const & refiner, int nparticles, bool centered=false);

@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CPU_VERTEX_BUFFER_H
-#define OSD_CPU_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_CPU_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_CPU_VERTEX_BUFFER_H
 
 #include "../version.h"
 
@@ -37,7 +37,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for cpu subvision.
 ///
 /// CpuVertexBuffer implements the VertexBufferInterface. An instance
-/// of this buffer class can be passed to CpuComputeController
+/// of this buffer class can be passed to CpuEvaluator
 ///
 class CpuVertexBuffer {
 public:
@@ -79,4 +79,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CPU_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_CPU_VERTEX_BUFFER_H

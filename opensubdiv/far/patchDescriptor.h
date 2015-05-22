@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_DESCRIPTOR_H
-#define FAR_PATCH_DESCRIPTOR_H
+#ifndef OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
+#define OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
 
 #include "../version.h"
 
@@ -45,9 +45,7 @@ namespace Far {
 ///   or TRIANGLES
 ///
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
-///   BOUNDARY, CORNER, GREGORY, GREGORY_BOUNDARY, GREGOYR_BASIS.
-///   These bicubic patches are also further distinguished by a transition
-///   pattern as well as a rotational orientation.
+///   GREGORY, GREGORY_BOUNDARY, GREGORY_BASIS.
 ///
 /// Bitfield layout :
 ///
@@ -71,8 +69,6 @@ public:
         LOOP,              ///< Loop patch
 
         REGULAR,           ///< feature-adaptive bicubic patches
-        BOUNDARY,
-        CORNER,
         GREGORY,
         GREGORY_BOUNDARY,
         GREGORY_BASIS
@@ -128,12 +124,6 @@ public:
     /// \brief Number of control vertices of Regular Patches in table.
     static short GetRegularPatchSize() { return 16; }
 
-    /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetBoundaryPatchSize() { return 16; }
-
-    /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetCornerPatchSize() { return 16; }
-
     /// \brief Number of control vertices of Gregory (and Gregory Boundary) Patches in table.
     static short GetGregoryPatchSize() { return 4; }
 
@@ -169,8 +159,6 @@ PatchDescriptor::GetNumControlVertices( Type type ) {
         case GREGORY           :
         case GREGORY_BOUNDARY  : return GetGregoryPatchSize();
         case GREGORY_BASIS     : return GetGregoryBasisPatchSize();
-        case BOUNDARY          : return GetBoundaryPatchSize();
-        case CORNER            : return GetCornerPatchSize();
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;
@@ -185,8 +173,6 @@ PatchDescriptor::GetNumFVarControlVertices( Type type ) {
         case REGULAR           : return GetRegularPatchSize();
         case QUADS             : return 4;
         case TRIANGLES         : return 3;
-        case BOUNDARY          : return GetBoundaryPatchSize();
-        case CORNER            : return GetCornerPatchSize();
         case LINES             : return 2;
         case POINTS            : return 1;
         case GREGORY_BASIS     : assert(0); return GetGregoryBasisPatchSize();
@@ -217,4 +203,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_DESCRIPTOR_H */
+#endif /* OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H */

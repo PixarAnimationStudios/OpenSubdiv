@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_MAP_H
-#define FAR_PATCH_MAP_H
+#ifndef OPENSUBDIV3_FAR_PATCH_MAP_H
+#define OPENSUBDIV3_FAR_PATCH_MAP_H
 
 #include "../version.h"
 
@@ -182,7 +182,6 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     return 0;
 }
 
-// Constructor
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
@@ -190,4 +189,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_PARAM */
+#endif /* OPENSUBDIV3_FAR_PATCH_PARAM */

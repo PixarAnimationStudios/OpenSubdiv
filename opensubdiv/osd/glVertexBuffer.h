@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_GL_VERTEX_BUFFER_H
-#define OSD_GL_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_GL_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_GL_VERTEX_BUFFER_H
 
 #include "../version.h"
 
@@ -39,8 +39,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for GLSL subvision and OpenGL drawing.
 ///
 /// GLVertexBuffer implements GLVertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdGLComputeController
-/// and OsdGLDrawController
+/// of this buffer class can be passed to OsdGLComputeEvaluator.
 ///
 class GLVertexBuffer {
 public:
@@ -86,4 +85,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_GL_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_GL_VERTEX_BUFFER_H
