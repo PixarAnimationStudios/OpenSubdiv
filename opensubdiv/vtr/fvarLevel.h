@@ -40,15 +40,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//  Forward declaration of friend classes:
-namespace Far {
-    class TopologyRefiner;
-    class PatchTableFactory;
-}
 namespace Vtr {
-    class Refinement;
-    class FVarRefinement;
-}
 
 //
 //  FVarLevel:
@@ -82,17 +74,8 @@ namespace Vtr {
 //      Everything is being declared public for now to facilitate access until its
 //  clearer how this functionality will be provided.
 //
-namespace Vtr {
-
 class FVarLevel {
-protected:
-    friend class Level;
-    friend class Refinement;
-    friend class FVarRefinement;
-    friend class Far::TopologyRefiner;
-    friend class Far::PatchTableFactory;
-
-protected:
+public:
     //
     //  Component tags -- trying to minimize the types needed here:
     //
@@ -171,7 +154,7 @@ protected:
     typedef ConstLocalIndexArray ConstSiblingArray;
     typedef LocalIndexArray SiblingArray;
 
-protected:
+public:
     FVarLevel(Level const& level);
     ~FVarLevel();
 
@@ -250,7 +233,8 @@ protected:
     void print() const;
     void buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& fvSiblings) const;
 
-protected:
+//  Members temporarily public pending re-assessment of friends:
+public:
     Level const & _level;
 
     //  Linear interpolation options vary between channels:
