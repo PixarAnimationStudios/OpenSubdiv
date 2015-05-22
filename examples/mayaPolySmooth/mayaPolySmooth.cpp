@@ -523,9 +523,10 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
-    int maxlevel = refiner.GetMaxLevel(),
+    int maxlevel = refiner.GetMaxLevel();
 
-    OpenSubdiv::Far::TopologyLevel const & refLastLevel = refiner.GetLevel(maxLevel);
+    OpenSubdiv::Far::TopologyLevel const & refLastLevel 
+                                                = refiner.GetLevel(maxlevel);
 
     int nfaces = refLastLevel.GetNumFaces();
         
