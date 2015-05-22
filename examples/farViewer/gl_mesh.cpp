@@ -265,15 +265,18 @@ GLMesh::initializeBuffers(Options options,
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
-    int maxlevel = refiner.GetMaxLevel(),
-        nverts = refiner.GetNumVertices(maxlevel),
-        nedges = refiner.GetNumEdges(maxlevel),
-        nfaces = refiner.GetNumFaces(maxlevel),
+    int maxlevel = refiner.GetMaxLevel();
+
+    OpenSubdiv::Far::TopologyLevel const & refLastLevel = refiner.GetLevel(maxlevel);
+
+    int nverts = refLastLevel.GetNumVertices(),
+        nedges = refLastLevel.GetNumEdges(),
+        nfaces = refLastLevel.GetNumFaces(),
         firstvert = 0;
 
 
     for (int i=0; i<maxlevel; ++i) {
-        firstvert += refiner.GetNumVertices(i);
+        firstvert += refiner.GetLevel(i).GetNumVertices();
     }
 
     float const * vertData =  &vertexData[firstvert*3];
@@ -287,31 +290,33 @@ GLMesh::initializeBuffers(Options options,
         // set colors
         if (options.vertColorMode==VERTCOLOR_BY_LEVEL) {
 
-            for (int level=0, ofs=3; level<=refiner.GetMaxLevel(); ++level) {
-                for (int vert=0; vert<refiner.GetNumVertices(level); ++vert, ofs+=6) {
+            for (int level=0, ofs=3; level<=maxlevel; ++level) {
+                for (int vert=0; vert<refiner.GetLevel(level).GetNumVertices(); ++vert, ofs+=6) {
                     setColorByLevel(level, &vbo[ofs]);
                 }
             }
         } else if (options.vertColorMode==VERTCOLOR_BY_SHARPNESS) {
 
-            for (int vert=0, ofs=3; vert<refiner.GetNumVertices(maxlevel); ++vert, ofs+=6) {
-               setColorBySharpness(refiner.GetVertexSharpness(maxlevel, vert), &vbo[ofs]);
+            for (int vert=0, ofs=3; vert<refLastLevel.GetNumVertices(); ++vert, ofs+=6) {
+               setColorBySharpness(refLastLevel.GetVertexSharpness(vert), &vbo[ofs]);
             }
         } else if (options.vertColorMode==VERTCOLOR_BY_PARENT_TYPE) {
 
             int ofs=3;
             if (maxlevel>0) {
-                for (int vert=0; vert<refiner.GetNumFaces(maxlevel-1); ++vert, ofs+=6) {
+                OpenSubdiv::Far::TopologyLevel const & refPrevLevel = refiner.GetLevel(maxlevel-1);
+
+                for (int vert=0; vert<refPrevLevel.GetNumFaces(); ++vert, ofs+=6) {
                     memcpy(&vbo[ofs], g_parentTypeColors[1], sizeof(float)*3);
                 }
-                for (int vert=0; vert<refiner.GetNumEdges(maxlevel-1); ++vert, ofs+=6) {
+                for (int vert=0; vert<refPrevLevel.GetNumEdges(); ++vert, ofs+=6) {
                     memcpy(&vbo[ofs], g_parentTypeColors[2], sizeof(float)*3);
                 }
-                for (int vert=0; vert<refiner.GetNumVertices(maxlevel-1); ++vert, ofs+=6) {
+                for (int vert=0; vert<refPrevLevel.GetNumVertices(); ++vert, ofs+=6) {
                     memcpy(&vbo[ofs], g_parentTypeColors[3], sizeof(float)*3);
                 }
             } else {
-                for (int vert=0; vert<refiner.GetNumVertices(maxlevel); ++vert, ofs+=6) {
+                for (int vert=0; vert<refLastLevel.GetNumVertices(); ++vert, ofs+=6) {
                     memcpy(&vbo[ofs], g_parentTypeColors[0], sizeof(float)*3);
                 }
             }
@@ -337,7 +342,7 @@ GLMesh::initializeBuffers(Options options,
             eao[edge*2  ] = edge*2;
             eao[edge*2+1] = edge*2+1;
 
-            IndexArray const verts = refiner.GetEdgeVertices(maxlevel, edge);
+            IndexArray const verts = refLastLevel.GetEdgeVertices(edge);
 
             float * v0 = &vbo[edge*2*6],
                   * v1 = v0+6;
@@ -353,7 +358,7 @@ GLMesh::initializeBuffers(Options options,
                 setColorByLevel(maxlevel, v1+3);
              } else  if (options.edgeColorMode==EDGECOLOR_BY_SHARPNESS) {
 
-                float sharpness = refiner.GetEdgeSharpness(maxlevel, edge);
+                float sharpness = refLastLevel.GetEdgeSharpness(edge);
                 setColorBySharpness(sharpness, v0+3);
                 setColorBySharpness(sharpness, v1+3);
             } else {
@@ -372,7 +377,7 @@ GLMesh::initializeBuffers(Options options,
 
         memcpy(&vbo[0], vertData, nverts*sizeof(float)*3);
 
-        int nfaceverts = refiner.GetNumFaceVertices(maxlevel);
+        int nfaceverts = refLastLevel.GetNumFaceVertices();
 
         std::vector<int> & eao = _eao[COMP_FACE];
         eao.resize(nfaceverts);
@@ -381,7 +386,7 @@ GLMesh::initializeBuffers(Options options,
 
         for (int face=0, ofs=0; face<nfaces; ++face) {
 
-            IndexArray fverts = refiner.GetFaceVertices(maxlevel, face);
+            IndexArray fverts = refLastLevel.GetFaceVertices(face);
             for (int vert=0; vert<fverts.size(); ++vert) {
                 eao[ofs++] = fverts[vert];
             }
@@ -421,7 +426,7 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
         if (options.vertColorMode==VERTCOLOR_BY_LEVEL) {
 
             for (int level=0, ofs=3; level<=refiner.GetMaxLevel(); ++level) {
-                for (int vert=0; vert<refiner.GetNumFVarValues(level); ++vert, ofs+=6) {
+                for (int vert=0; vert<refiner.GetLevel(level).GetNumFVarValues(channel); ++vert, ofs+=6) {
                     assert(ofs<(int)vbo.size());
                     setColorByLevel(level, &vbo[ofs]);
                 }
@@ -604,7 +609,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
         if (options.vertColorMode==VERTCOLOR_BY_LEVEL) {
 
             for (int level=0, ofs=3; level<=refiner.GetMaxLevel(); ++level) {
-                for (int vert=0; vert<refiner.GetNumVertices(level); ++vert, ofs+=6) {
+                for (int vert=0; vert<refiner.GetLevel(level).GetNumVertices(); ++vert, ofs+=6) {
                     assert(ofs<(int)vbo.size());
                     setColorByLevel(level, &vbo[ofs]);
                 }

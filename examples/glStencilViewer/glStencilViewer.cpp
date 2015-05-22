@@ -284,22 +284,24 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    int nedges = refiner->GetNumEdges(0),
-        nverts = refiner->GetNumVertices(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+
+    int nedges = refBaseLevel.GetNumEdges(),
+        nverts = refBaseLevel.GetNumVertices();
 
     g_coarseEdges.resize(nedges*2);
     g_coarseEdgeSharpness.resize(nedges);
     g_coarseVertexSharpness.resize(nverts);
 
     for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
         g_coarseEdges[i*2  ]=verts[0];
         g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refiner->GetEdgeSharpness(0, i);
+        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
     }
 
     for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refiner->GetVertexSharpness(0, i);
+        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
     }
 
     g_orgPositions=shape->verts;

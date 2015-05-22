@@ -280,13 +280,15 @@ calcNormals(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
+
     // calc normal vectors
     int nverts = (int)pos.size()/3;
 
-    int nfaces = refiner.GetNumFaces(0);
+    int nfaces = refBaseLevel.GetNumFaces();
     for (int face = 0; face < nfaces; ++face) {
 
-        IndexArray fverts = refiner.GetFaceVertices(0, face);
+        IndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
         assert(fverts.size()>=2);
 
@@ -366,22 +368,23 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    int nedges = refiner->GetNumEdges(0),
-        nverts = refiner->GetNumVertices(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+    int nedges = refBaseLevel.GetNumEdges(),
+        nverts = refBaseLevel.GetNumVertices();
 
     g_coarseEdges.resize(nedges*2);
     g_coarseEdgeSharpness.resize(nedges);
     g_coarseVertexSharpness.resize(nverts);
 
     for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
         g_coarseEdges[i*2  ]=verts[0];
         g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refiner->GetEdgeSharpness(0, i);
+        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
     }
 
     for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refiner->GetVertexSharpness(0, i);
+        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
     }
 
     g_orgPositions=shape->verts;

@@ -165,7 +165,7 @@ SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
             }
         }
     }
-    int numControlVertices = refiner->GetNumVertices(0);
+    int numControlVertices = refiner->GetLevel(0).GetNumVertices();
 
     _stencilTableSize = createMeshRefiner(vertexStencils, varyingStencils,
                                           numControlVertices);

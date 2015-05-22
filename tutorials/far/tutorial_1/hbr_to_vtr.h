@@ -339,7 +339,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
     OsdHbrConverter::EdgeMap & edges = const_cast<OsdHbrConverter &>(conv).GetEdges();
 
     { // Face relations:
-        int nfaces = refiner.GetNumFaces(/*level*/0);
+        int nfaces = refiner.GetLevel(0).GetNumFaces();
         for (int i=0; i < nfaces; ++i) {
 
             IndexArray dstFaceVerts = refiner.setBaseFaceVertices(i);
@@ -377,7 +377,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
     }
 
     { // Vert relations
-        for (int i=0; i<refiner.GetNumVertices(/*level*/0); ++i) {
+        for (int i=0; i<refiner.GetLevel(0).GetNumVertices(); ++i) {
 
             OsdHbrVertex const * v = hmesh.GetVertex(i);
 
@@ -451,7 +451,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTags(
     }
 
     // Initialize vertex sharpness
-    for (int i=0; i<refiner.GetNumVertices(/*level*/0); ++i) {
+    for (int i=0; i<refiner.GetLevel(0).GetNumVertices(); ++i) {
         refiner.setBaseVertexSharpness(i, hmesh.GetVertex(i)->GetSharpness());
     }
 

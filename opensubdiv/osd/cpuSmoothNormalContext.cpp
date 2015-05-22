@@ -36,14 +36,14 @@ CpuSmoothNormalContext::CpuSmoothNormalContext(
     Far::TopologyRefiner const & refiner, int level, bool resetMemory) :
         _numVertices(0), _resetMemory(resetMemory) {
 
-    int nfaces = refiner.GetNumFaces(level),
+    int nfaces = refiner.GetLevel(level).GetNumFaces(),
         nverts = nfaces * 4;
 
     _faceVerts.resize(nverts);
     Far::Index * dest = &_faceVerts[0];
 
     for (int face=0; face<nfaces; ++face, dest+=4) {
-        Far::ConstIndexArray fverts = refiner.GetFaceVertices(level, face);
+        Far::ConstIndexArray fverts = refiner.GetLevel(level).GetFaceVertices(face);
         memcpy(dest, fverts.begin(), 4 * sizeof(Far::Index));
     }
 }

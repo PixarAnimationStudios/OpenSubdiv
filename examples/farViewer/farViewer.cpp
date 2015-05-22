@@ -212,7 +212,7 @@ createVertNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     if (refiner.IsUniform()) {
         for (int i=0; i<maxlevel; ++i) {
-            firstvert += refiner.GetNumVertices(i);
+            firstvert += refiner.GetLevel(i).GetNumVertices();
         }
     }
 
@@ -225,7 +225,7 @@ createVertNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
     } else {
 
         for (int level=0, vert=0; level<=refiner.GetMaxLevel(); ++level) {
-            for (int i=0; i<refiner.GetNumVertices(level); ++i, ++vert) {
+            for (int i=0; i<refiner.GetLevel(level).GetNumVertices(); ++i, ++vert) {
                 snprintf(buf, 16, "%d", i);
                 g_font->Print3D(vertexBuffer[vert].GetPos(), buf, 1);
             }
@@ -245,16 +245,17 @@ createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
             firstvert = 0;
 
         for (int i=0; i<maxlevel; ++i) {
-            firstvert += refiner.GetNumVertices(i);
+            firstvert += refiner.GetLevel(i).GetNumVertices();
         }
 
+        OpenSubdiv::Far::TopologyLevel const & refLastLevel = refiner.GetLevel(maxlevel);
+
         static char buf[16];
-        for (int i=0; i<refiner.GetNumEdges(maxlevel); ++i) {
+        for (int i=0; i<refLastLevel.GetNumEdges(); ++i) {
 
             Vertex center(0.0f, 0.0f, 0.0f);
 
-            OpenSubdiv::Far::ConstIndexArray const verts =
-                refiner.GetEdgeVertices(maxlevel, i);
+            OpenSubdiv::Far::ConstIndexArray const verts = refLastLevel.GetEdgeVertices(i);
             assert(verts.size()==2);
 
             center.AddWithWeight(vertexBuffer[firstvert+verts[0]], 0.5f);
@@ -266,7 +267,7 @@ createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
             }
 
             if (sharpness) {
-                float sharpness = refiner.GetEdgeSharpness(maxlevel, i);
+                float sharpness = refLastLevel.GetEdgeSharpness(i);
                 if (sharpness>0.0f) {
                     snprintf(buf, 16, "%g", sharpness);
                     g_font->Print3D(center.GetPos(), buf, std::min(8,(int)sharpness+4));
@@ -289,15 +290,16 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
             firstvert = 0;
 
         for (int i=0; i<maxlevel; ++i) {
-            firstvert += refiner.GetNumVertices(i);
+            firstvert += refiner.GetLevel(i).GetNumVertices();
         }
 
-        for (int face=0; face<refiner.GetNumFaces(maxlevel); ++face) {
+        OpenSubdiv::Far::TopologyLevel const & refLastLevel = refiner.GetLevel(maxlevel);
+
+        for (int face=0; face<refLastLevel.GetNumFaces(); ++face) {
 
             Vertex center(0.0f, 0.0f, 0.0f);
 
-            OpenSubdiv::Far::ConstIndexArray const verts =
-                refiner.GetFaceVertices(maxlevel, face);
+            OpenSubdiv::Far::ConstIndexArray const verts = refLastLevel.GetFaceVertices(face);
 
             float weight = 1.0f / (float)verts.size();
 
@@ -310,19 +312,20 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
         }
     } else {
         int maxlevel = refiner.GetMaxLevel(),
-//            patch = refiner.GetNumFaces(0),
-            firstvert = refiner.GetNumVertices(0);
+//            patch = refiner.GetLevel(0).GetNumFaces(),
+            firstvert = refiner.GetLevel(0).GetNumVertices();
 
         for (int level=1; level<=maxlevel; ++level) {
 
-            int nfaces = refiner.GetNumFaces(level);
+            OpenSubdiv::Far::TopologyLevel const & refLevel = refiner.GetLevel(level);
+
+            int nfaces = refLevel.GetNumFaces();
 
             for (int face=0; face<nfaces; ++face /*, ++patch */) {
 
                 Vertex center(0.0f, 0.0f, 0.0f);
 
-                OpenSubdiv::Far::ConstIndexArray const verts =
-                    refiner.GetFaceVertices(level, face);
+                OpenSubdiv::Far::ConstIndexArray const verts = refLevel.GetFaceVertices(face);
 
                 float weight = 1.0f / (float)verts.size();
 
@@ -332,7 +335,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
                 snprintf(buf, 16, "%d", face);
                 g_font->Print3D(center.GetPos(), buf, 2);
             }
-            firstvert+=refiner.GetNumVertices(level);
+            firstvert+=refLevel.GetNumVertices();
         }
     }
 }
@@ -642,7 +645,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
             fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0);
             Vertex * values = &fvarBuffer[0];
 
-            int nCoarseValues = refiner->GetNumFVarValues(0);
+            int nCoarseValues = refiner->GetLevel(0).GetNumFVarValues(channel);
 
             for (int i=0; i<nCoarseValues; ++i) {
                 float const * ptr = &shape->uvs[i*2];

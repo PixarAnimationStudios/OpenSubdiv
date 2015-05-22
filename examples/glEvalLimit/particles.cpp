@@ -70,14 +70,15 @@ STParticles::STParticles(Refiner const & refiner, int nparticles, bool centered)
     {   // initialize topology adjacency
         _adjacency.resize(nptexfaces);
 
-        int nfaces = refiner.GetNumFaces(0),
+        OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
+
+        int nfaces = refBaseLevel.GetNumFaces(),
            adjfaces[4],
            adjedges[4];
 
         for (int face=0, ptexface=0; face<nfaces; ++face) {
 
-            OpenSubdiv::Far::ConstIndexArray fverts =
-                refiner.GetFaceVertices(0, face);
+            OpenSubdiv::Far::ConstIndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
             if (fverts.size()==4) {
                 ptexIndices.GetAdjacency(refiner, face, 0, adjfaces, adjedges);

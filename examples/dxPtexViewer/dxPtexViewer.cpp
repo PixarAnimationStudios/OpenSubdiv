@@ -236,12 +236,14 @@ calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
-    int nverts = refiner->GetNumVertices(0),
-        nfaces = refiner->GetNumFaces(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+
+    int nverts = refBaseLevel.GetNumVertices(),
+        nfaces = refBaseLevel.GetNumFaces();
 
     for (int face = 0; face < nfaces; ++face) {
 
-        IndexArray fverts = refiner->GetFaceVertices(0, face);
+        IndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
         float const * p0 = &pos[fverts[0]*3],
                     * p1 = &pos[fverts[1]*3],
@@ -704,12 +706,13 @@ createOsdMesh(int level, int kernel) {
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
 
     // create cage edge index
-    int nedges = refiner->GetNumEdges(0);
+    int nedges = refBaseLevel.GetNumEdges();
     std::vector<int> edgeIndices(nedges*2);
     for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
         edgeIndices[i*2  ]=verts[0];
         edgeIndices[i*2+1]=verts[1];
     }

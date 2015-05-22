@@ -87,7 +87,7 @@ int main(int, char **) {
 
         stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
 
-        nCoarseVerts = refiner->GetNumVertices(0);
+        nCoarseVerts = refiner->GetLevel(0).GetNumVertices();
         nRefinedVerts = stencilTables->GetNumStencils();
 
         // We are done with Far: cleanup tables

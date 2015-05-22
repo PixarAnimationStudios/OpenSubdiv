@@ -46,7 +46,7 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
         fvarWidth = 2;
 
     int numValuesTotal = refiner.GetNumFVarValuesTotal(channel),
-            numValues0 = refiner.GetNumFVarValues(0, channel);
+            numValues0 = refiner.GetLevel(0).GetNumFVarValues(channel);
 
     if (shape.uvs.empty() or numValuesTotal<=0) {
         return;
@@ -57,7 +57,7 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
         std::vector<FVarVertex> buffer(numValuesTotal);
 
         int maxlevel = refiner.GetMaxLevel(),
-            numValuesM = refiner.GetNumFVarValues(maxlevel, channel);
+            numValuesM = refiner.GetLevel(maxlevel).GetNumFVarValues(channel);
 
         memcpy(&buffer[0], &shape.uvs[0], shape.uvs.size()*sizeof(float));
 
