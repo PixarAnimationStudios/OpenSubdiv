@@ -60,6 +60,7 @@ GLFWmonitor* g_primary=0;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
+#include "../common/glUtils.h"
 
 #include "init_shapes.h"
 #include "particles.h"
@@ -70,10 +71,6 @@ GLFWmonitor* g_primary=0;
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
-
-#ifdef OPENSUBDIV_HAS_OPENMP
-    #include <omp.h>
-#endif
 
 using namespace OpenSubdiv;
 
@@ -91,9 +88,11 @@ std::vector<float> g_coarseEdgeSharpness;
 std::vector<float> g_coarseVertexSharpness;
 
 enum DrawMode { kRANDOM=0,
-                kUV=1,
-                kVARYING=2,
-                kFACEVARYING=3 };
+                kUV,
+                kVARYING,
+                kNORMAL,
+                kSHADE,
+                kFACEVARYING };
 
 int   g_running = 1,
       g_width = 1024,
@@ -147,6 +146,18 @@ GLuint g_cageEdgeVAO = 0,
 GLhud g_hud;
 
 //------------------------------------------------------------------------------
+struct Program {
+    GLuint program;
+    GLuint uniformModelViewMatrix;
+    GLuint uniformProjectionMatrix;
+    GLuint uniformDrawMode;
+    GLuint attrPosition;
+    GLuint attrColor;
+    GLuint attrTangentU;
+    GLuint attrTangentV;
+} g_defaultProgram;
+
+//------------------------------------------------------------------------------
 static void
 createRandomColors(int nverts, int stride, float * colors) {
 
@@ -193,26 +204,28 @@ createCoarseMesh(OpenSubdiv::Far::TopologyRefiner const & refiner) {
 //------------------------------------------------------------------------------
 Far::TopologyRefiner * g_topologyRefiner = 0;
 
-Osd::CpuVertexBuffer * g_vertexData = 0,
-                   * g_varyingData = 0;
-
 Far::StencilTables const * g_vertexStencils = NULL;
 Far::StencilTables const * g_varyingStencils = NULL;
 
 Far::PatchTables const * g_patchTables = NULL;
 Far::PatchMap const * g_patchMap = NULL;
-Osd::PatchCoordArray g_patchCoords;
+std::vector<Osd::PatchCoord> g_patchCoords;
 
-Osd::VertexBufferDescriptor g_idesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ),
-                          g_odesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6 ),
-                          g_vdesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6 ),
-                          g_fvidesc( /*offset*/ 0, /*legnth*/ 2, /*stride*/ 2 ),
-                          g_fvodesc( /*offset*/ 3, /*legnth*/ 2, /*stride*/ 6 );
+Osd::VertexBufferDescriptor g_idesc(/*offset*/ 0, /*legnth*/ 3, /*stride*/ 3),
+                            g_odesc(/*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
+                            g_vdesc(/*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
+                            g_duDesc(/*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
+                            g_dvDesc(/*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
+                            g_fvidesc(/*offset*/ 0, /*legnth*/ 2, /*stride*/ 2),
+                            g_fvodesc(/*offset*/ 3, /*legnth*/ 2, /*stride*/ 6);
 
+// input vertex data (coarse + refined)
+Osd::CpuVertexBuffer * g_vertexData = 0;
+Osd::CpuVertexBuffer * g_varyingData = 0;
 
-Osd::CpuGLVertexBuffer * g_Q=0,
-                     * g_dQs=0,
-                     * g_dQt=0;
+// output vertex data (limit locations)
+Osd::CpuGLVertexBuffer * g_outVertexData = NULL;
+Osd::CpuGLVertexBuffer * g_outDerivatives = NULL;
 
 STParticles * g_particles=0;
 
@@ -289,20 +302,44 @@ updateGeom() {
     }
 
     // Evaluate the positions of the samples on the limit surface
-    g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(g_vertexData, g_idesc,
-                                                     g_Q,          g_odesc,
-                                                     g_patchCoords,
-                                                     g_patchTables, NULL);
-
-    // varying
-    if (g_drawMode == kVARYING) {
-        Osd::CpuEvaluator::EvalPatches(g_varyingData, g_idesc,
-                                       g_Q,           g_vdesc,
-                                       g_patchCoords,
-                                       g_patchTables, NULL);
+    if (g_drawMode == kNORMAL || g_drawMode == kSHADE) {
+        // evaluate positions and derivatives
+        g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(
+            g_vertexData,      g_idesc,
+            g_outVertexData,   g_odesc,
+            g_outDerivatives,  g_duDesc,
+            g_outDerivatives,  g_dvDesc,
+            (int)g_patchCoords.size(),
+            &g_patchCoords[0],
+            g_patchTables, NULL);
+    } else {
+        // evaluate positions
+        g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(
+            g_vertexData,     g_idesc,
+            g_outVertexData,  g_odesc,
+            (int)g_patchCoords.size(),
+            &g_patchCoords[0],
+            g_patchTables, NULL);
     }
 
-    g_Q->BindVBO();
+    // color
+    if (g_drawMode == kUV) {
+        // store patchCoords as colors
+        float *p = g_outVertexData->BindCpuBuffer() + g_vdesc.offset;
+        for (int i = 0; i < (int)g_patchCoords.size(); ++i) {
+            p[0] = g_patchCoords[i].s;
+            p[1] = g_patchCoords[i].t;
+            p[2] = 0;
+            p += g_vdesc.stride;
+        }
+    } else if (g_drawMode == kVARYING) {
+        // XXX: is this really varying?
+        Osd::CpuEvaluator::EvalPatches(g_varyingData,   g_idesc,
+                                       g_outVertexData, g_vdesc,
+                                       (int)g_patchCoords.size(),
+                                       &g_patchCoords[0],
+                                       g_patchTables, NULL);
+    }
 
     s.Stop();
 
@@ -422,44 +459,21 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         }
 
         // Create output buffers for the limit samples (position & tangents)
-        delete g_Q;
-        g_Q = Osd::CpuGLVertexBuffer::Create(6, g_nparticles);
-        memset( g_Q->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
+        delete g_outVertexData;
+        g_outVertexData = Osd::CpuGLVertexBuffer::Create(6, g_nparticles);
+        memset(g_outVertexData->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
         if (g_drawMode==kRANDOM) {
-            createRandomColors(g_nparticles, 6, g_Q->BindCpuBuffer()+3);
+            createRandomColors(g_nparticles, 6, g_outVertexData->BindCpuBuffer()+3);
         }
 
-        delete g_dQs;
-        g_dQs = Osd::CpuGLVertexBuffer::Create(3,g_nparticles);
-        memset( g_dQs->BindCpuBuffer(), 0, g_nparticles*3*sizeof(float));
-
-        delete g_dQt;
-        g_dQt = Osd::CpuGLVertexBuffer::Create(3,g_nparticles);
-        memset( g_dQt->BindCpuBuffer(), 0, g_nparticles*3*sizeof(float));
+        delete g_outDerivatives;
+        g_outDerivatives = Osd::CpuGLVertexBuffer::Create(6, g_nparticles);
+        memset(g_outDerivatives->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
     }
 
     updateGeom();
 
-    // Bind g_Q as a GL_POINTS VBO
-    glBindVertexArray(g_samplesVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_Q->BindVBO());
-
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
-
-    glBindVertexArray(0);
 }
-
-//------------------------------------------------------------------------------
-struct Program {
-    GLuint program;
-    GLuint uniformModelViewProjectionMatrix;
-    GLuint attrPosition;
-    GLuint attrColor;
-} g_defaultProgram;
 
 //------------------------------------------------------------------------------
 static void
@@ -471,16 +485,6 @@ checkGLErrors(std::string const & where = "") {
                   << (where.empty() ? "" : where + " ")
                   << err << "\n";
     }
-}
-
-//------------------------------------------------------------------------------
-static GLuint
-compileShader(GLenum shaderType, const char *source) {
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-    checkGLErrors("compileShader");
-    return shader;
 }
 
 //------------------------------------------------------------------------------
@@ -497,31 +501,47 @@ linkDefaultProgram() {
         GLSL_VERSION_DEFINE
         "in vec3 position;\n"
         "in vec3 color;\n"
+        "in vec3 tangentU;\n"
+        "in vec3 tangentV;\n"
         "out vec4 fragColor;\n"
-        "uniform mat4 ModelViewProjectionMatrix;\n"
+        "out vec3 normal;\n"
+        "uniform mat4 ModelViewMatrix;\n"
+        "uniform mat4 ProjectionMatrix;\n"
         "void main() {\n"
         "  fragColor = vec4(color, 1);\n"
-        "  gl_Position = ModelViewProjectionMatrix * "
+        // XXX: fix the normal transform
+        "  normal = (ModelViewMatrix * vec4(normalize(cross(tangentU, tangentV)), 0)).xyz;\n"
+        "  gl_Position = ProjectionMatrix * ModelViewMatrix * "
         "                  vec4(position, 1);\n"
         "}\n";
 
     static const char *fsSrc =
         GLSL_VERSION_DEFINE
         "in vec4 fragColor;\n"
+        "in vec3 normal;\n"
+        "uniform int DrawMode;\n"
         "out vec4 color;\n"
         "void main() {\n"
-        "  color = fragColor;\n"
+        "  if (DrawMode == 3) {\n"
+        "    color = vec4(normal*0.5+vec3(0.5), 1);\n"
+        "  } else if (DrawMode == 4) {\n"
+        "    color = vec4(vec3(1)*dot(normal, vec3(0,0,1)), 1);\n"
+        "  } else {\n"
+        "    color = fragColor;\n"
+        "  }\n"
         "}\n";
 
     GLuint program = glCreateProgram();
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc);
+    GLuint vertexShader = GLUtils::CompileShader(GL_VERTEX_SHADER, vsSrc);
+    GLuint fragmentShader = GLUtils::CompileShader(GL_FRAGMENT_SHADER, fsSrc);
 
     glAttachShader(program, vertexShader);
     glAttachShader(program, fragmentShader);
 
     glBindAttribLocation(program, 0, "position");
     glBindAttribLocation(program, 1, "color");
+    glBindAttribLocation(program, 2, "tangentU");
+    glBindAttribLocation(program, 3, "tangentV");
     glBindFragDataLocation(program, 0, "color");
 
     glLinkProgram(program);
@@ -539,10 +559,16 @@ linkDefaultProgram() {
     }
 
     g_defaultProgram.program = program;
-    g_defaultProgram.uniformModelViewProjectionMatrix =
-        glGetUniformLocation(program, "ModelViewProjectionMatrix");
+    g_defaultProgram.uniformModelViewMatrix =
+        glGetUniformLocation(program, "ModelViewMatrix");
+    g_defaultProgram.uniformProjectionMatrix =
+        glGetUniformLocation(program, "ProjectionMatrix");
+    g_defaultProgram.uniformDrawMode =
+        glGetUniformLocation(program, "DrawMode");
     g_defaultProgram.attrPosition = glGetAttribLocation(program, "position");
     g_defaultProgram.attrColor = glGetAttribLocation(program, "color");
+    g_defaultProgram.attrTangentU = glGetAttribLocation(program, "tangentU");
+    g_defaultProgram.attrTangentV = glGetAttribLocation(program, "tangentV");
 
     return true;
 }
@@ -562,8 +588,11 @@ static void
 drawCageEdges() {
 
     glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
+    glUniformMatrix4fv(g_defaultProgram.uniformModelViewMatrix,
+                       1, GL_FALSE, g_transformData.ModelViewMatrix);
+    glUniformMatrix4fv(g_defaultProgram.uniformProjectionMatrix,
+                       1, GL_FALSE, g_transformData.ProjectionMatrix);
+    glUniform1i(g_defaultProgram.uniformDrawMode, 0);
 
     std::vector<float> vbo;
     vbo.reserve(g_coarseEdges.size() * 6);
@@ -588,6 +617,8 @@ drawCageEdges() {
 
     glEnableVertexAttribArray(g_defaultProgram.attrPosition);
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
+    glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
+    glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
     glVertexAttribPointer(g_defaultProgram.attrPosition,
                           3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(g_defaultProgram.attrColor,
@@ -604,8 +635,11 @@ static void
 drawCageVertices() {
 
     glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
+    glUniformMatrix4fv(g_defaultProgram.uniformModelViewMatrix,
+                       1, GL_FALSE, g_transformData.ModelViewMatrix);
+    glUniformMatrix4fv(g_defaultProgram.uniformProjectionMatrix,
+                       1, GL_FALSE, g_transformData.ProjectionMatrix);
+    glUniform1i(g_defaultProgram.uniformDrawMode, 0);
 
     int numPoints = (int)g_positions.size()/3;
     std::vector<float> vbo;
@@ -642,6 +676,8 @@ drawCageVertices() {
 
     glEnableVertexAttribArray(g_defaultProgram.attrPosition);
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
+    glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
+    glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
     glVertexAttribPointer(g_defaultProgram.attrPosition,
                           3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(g_defaultProgram.attrColor,
@@ -658,18 +694,42 @@ drawCageVertices() {
 //------------------------------------------------------------------------------
 static void
 drawSamples() {
-
     glUseProgram(g_defaultProgram.program);
 
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
+    glUniformMatrix4fv(g_defaultProgram.uniformModelViewMatrix,
+                       1, GL_FALSE, g_transformData.ModelViewMatrix);
+    glUniformMatrix4fv(g_defaultProgram.uniformProjectionMatrix,
+                       1, GL_FALSE, g_transformData.ProjectionMatrix);
+    glUniform1i(g_defaultProgram.uniformDrawMode, g_drawMode);
 
     glBindVertexArray(g_samplesVAO);
+
+    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
+    glEnableVertexAttribArray(g_defaultProgram.attrColor);
+    glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
+    glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_outVertexData->BindVBO());
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_outDerivatives->BindVBO());
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+
+    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
+    glEnableVertexAttribArray(g_defaultProgram.attrColor);
+    glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
+    glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
 
     glPointSize(2.0f);
     glDrawArrays(GL_POINTS, 0, g_nparticles);
     glPointSize(1.0f);
+
+    glDisableVertexAttribArray(g_defaultProgram.attrPosition);
+    glDisableVertexAttribArray(g_defaultProgram.attrColor);
+    glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
+    glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
 
     glBindVertexArray(0);
 
@@ -728,7 +788,8 @@ display() {
         g_fpsTimer.Start();
 
         g_hud.DrawString(10, -150, "Particle Speed ([) (]): %.1f", g_particles->GetSpeed());
-        g_hud.DrawString(10, -120, "# Samples  : (%d/%d)", g_nsamplesFound, g_Q->GetNumVertices());
+        g_hud.DrawString(10, -120, "# Samples  : (%d/%d)",
+                         g_nsamplesFound, g_outVertexData->GetNumVertices());
         g_hud.DrawString(10, -100, "Compute    : %.3f ms", g_computeTime);
         g_hud.DrawString(10, -80,  "Eval       : %.3f ms", g_evalTime * 1000.f);
         g_hud.DrawString(10, -60,  "GPU Draw   : %.3f ms", drawGpuTime);
@@ -944,6 +1005,8 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Random", kRANDOM, g_drawMode==kRANDOM);
     g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV, g_drawMode==kUV);
     g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING, g_drawMode==kVARYING);
+    g_hud.AddPullDownButton(shading_pulldown, "Normal", kNORMAL, g_drawMode==kNORMAL);
+    g_hud.AddPullDownButton(shading_pulldown, "Shade", kSHADE, g_drawMode==kSHADE);
     g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING, g_drawMode==kFACEVARYING);
 
     for (int i = 1; i < 11; ++i) {

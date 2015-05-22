@@ -59,10 +59,10 @@ CpuEvaluator::EvalStencils(const float *src,
                            VertexBufferDescriptor const &srcDesc,
                            float *dst,
                            VertexBufferDescriptor const &dstDesc,
-                           float *dstDu,
-                           VertexBufferDescriptor const &dstDuDesc,
-                           float *dstDv,
-                           VertexBufferDescriptor const &dstDvDesc,
+                           float *dstDs,
+                           VertexBufferDescriptor const &dstDsDesc,
+                           float *dstDt,
+                           VertexBufferDescriptor const &dstDtDesc,
                            const int * sizes,
                            const int * offsets,
                            const int * indices,
@@ -72,13 +72,13 @@ CpuEvaluator::EvalStencils(const float *src,
                            int start, int end) {
     if (end <= start) return true;
     if (srcDesc.length != dstDesc.length) return false;
-    if (srcDesc.length != dstDuDesc.length) return false;
-    if (srcDesc.length != dstDvDesc.length) return false;
+    if (srcDesc.length != dstDsDesc.length) return false;
+    if (srcDesc.length != dstDtDesc.length) return false;
 
     CpuEvalStencils(src, srcDesc,
                     dst, dstDesc,
-                    dstDu, dstDuDesc,
-                    dstDv, dstDvDesc,
+                    dstDs, dstDsDesc,
+                    dstDt, dstDtDesc,
                     sizes, offsets, indices,
                     weights, duWeights, dvWeights,
                     start, end);
@@ -93,19 +93,21 @@ struct BufferAdapter {
     void Clear() {
         for (int i = 0; i < _length; ++i) _p[i] = 0;
     }
-    void AddWithWeight(T const *src, float w, float wu, float wv) {
-        (void)wu;
-        (void)wv;
-        // TODO: derivatives.
-        for (int i = 0; i < _length; ++i) {
-            _p[i] += src[i] * w;
+    void AddWithWeight(T const *src, float w) {
+        if (_p) {
+            // TODO: derivatives.
+            for (int i = 0; i < _length; ++i) {
+                _p[i] += src[i] * w;
+            }
         }
     }
     const T *operator[] (int index) const {
         return _p + _stride * index;
     }
     BufferAdapter<T> & operator ++() {
-        _p += _stride;
+        if (_p) {
+            _p += _stride;
+        }
         return *this;
     }
 
@@ -115,24 +117,23 @@ struct BufferAdapter {
 };
 
 /* static */
-int
+bool
 CpuEvaluator::EvalPatches(const float *src,
                           VertexBufferDescriptor const &srcDesc,
                           float *dst,
                           VertexBufferDescriptor const &dstDesc,
-                          PatchCoordArray const &patchCoords,
+                          int numPatchCoords,
+                          PatchCoord const *patchCoords,
                           Far::PatchTables const *patchTable) {
     src += srcDesc.offset;
-    dst += dstDesc.offset;
-    int count = 0;
+    if (dst) dst += dstDesc.offset;
 
-    // XXX: this implementaion is temporary.
     BufferAdapter<const float> srcT(src, srcDesc.length, srcDesc.stride);
     BufferAdapter<float>       dstT(dst, dstDesc.length, dstDesc.stride);
 
     float wP[20], wDs[20], wDt[20];
 
-    for (size_t i = 0; i < patchCoords.size(); ++i) {
+    for (int i = 0; i < numPatchCoords; ++i) {
         PatchCoord const &coords = patchCoords[i];
 
         patchTable->EvaluateBasis(coords.handle, coords.s, coords.t, wP, wDs, wDt);
@@ -141,13 +142,58 @@ CpuEvaluator::EvalPatches(const float *src,
 
         dstT.Clear();
         for (int j = 0; j < cvs.size(); ++j) {
-            dstT.AddWithWeight(srcT[cvs[j]], wP[j], wDs[j], wDt[j]);
+            dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
         }
-
-        ++count;
         ++dstT;
     }
-    return count;
+    return true;
+}
+
+/* static */
+bool
+CpuEvaluator::EvalPatches(const float *src,
+                          VertexBufferDescriptor const &srcDesc,
+                          float *dst,
+                          VertexBufferDescriptor const &dstDesc,
+                          float *dstDs,
+                          VertexBufferDescriptor const &dstDsDesc,
+                          float *dstDt,
+                          VertexBufferDescriptor const &dstDtDesc,
+                          int numPatchCoords,
+                          PatchCoord const *patchCoords,
+                          Far::PatchTables const *patchTable) {
+    src += srcDesc.offset;
+    if (dst) dst += dstDesc.offset;
+    if (dstDs) dstDs += dstDsDesc.offset;
+    if (dstDt) dstDt += dstDtDesc.offset;
+
+    BufferAdapter<const float> srcT(src, srcDesc.length, srcDesc.stride);
+    BufferAdapter<float> dstT(dst, dstDesc.length, dstDesc.stride);
+    BufferAdapter<float> dstDsT(dstDs, dstDsDesc.length, dstDsDesc.stride);
+    BufferAdapter<float> dstDtT(dstDt, dstDtDesc.length, dstDtDesc.stride);
+
+    float wP[20], wDs[20], wDt[20];
+
+    for (int i = 0; i < numPatchCoords; ++i) {
+        PatchCoord const &coords = patchCoords[i];
+
+        patchTable->EvaluateBasis(coords.handle, coords.s, coords.t, wP, wDs, wDt);
+
+        Far::ConstIndexArray cvs = patchTable->GetPatchVertices(coords.handle);
+
+        dstT.Clear();
+        dstDsT.Clear();
+        dstDtT.Clear();
+        for (int j = 0; j < cvs.size(); ++j) {
+            dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
+            dstDsT.AddWithWeight(srcT[cvs[j]], wDs[j]);
+            dstDtT.AddWithWeight(srcT[cvs[j]], wDt[j]);
+        }
+        ++dstT;
+        ++dstDsT;
+        ++dstDtT;
+    }
+    return true;
 }
 
 
