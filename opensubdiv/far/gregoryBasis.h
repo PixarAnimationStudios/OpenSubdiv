@@ -70,16 +70,6 @@ public:
         }
     }
 
-    static const int MAX_VALENCE = (30*2);
-    static const int MAX_ELEMS = (16 + MAX_VALENCE);
-
-    // limit valence of 30 because we use a pre-computed closed-form 'ef' table
-    // XXXtakahito: revisit here to determine appropriate size
-    //              or remove fixed size limit and use Sdc mask
-    static int getNumMaxElements(int maxValence) {
-        return (16 + maxValence);
-    }
-
     //
     // Basis point
     //
@@ -88,13 +78,19 @@ public:
     //
     class Point {
     public:
+        static const int RESERVED_ENTRY_SIZE = 64;
 
-        Point() : _size(0) { }
+        Point() : _size(0) {
+            _indices.reserve(RESERVED_ENTRY_SIZE);
+            _weights.reserve(RESERVED_ENTRY_SIZE);
+        }
 
         Point(Index idx, float weight = 1.0f) {
+            _indices.reserve(RESERVED_ENTRY_SIZE);
+            _weights.reserve(RESERVED_ENTRY_SIZE);
             _size = 1;
-            _indices[0] = idx;
-            _weights[0] = weight;
+            _indices.push_back(idx);
+            _weights.push_back(weight);
         }
 
         Point(Point const & other) {
@@ -106,17 +102,17 @@ public:
         }
 
         Index const * GetIndices() const {
-            return _indices;
+            return &_indices[0];
         }
 
         float const * GetWeights() const {
-            return _weights;
+            return &_weights[0];
         }
 
         Point & operator = (Point const & other) {
             _size = other._size;
-            memcpy(_indices, other._indices, other._size*sizeof(Index));
-            memcpy(_weights, other._weights, other._size*sizeof(float));
+            _indices = other._indices;
+            _weights = other._weights;
             return *this;
         }
 
@@ -170,8 +166,8 @@ public:
         }
 
         void Copy(int ** size, Index ** indices, float ** weights) const {
-            memcpy(*indices, _indices, _size*sizeof(Index));
-            memcpy(*weights, _weights, _size*sizeof(float));
+            memcpy(*indices, &_indices[0], _size*sizeof(Index));
+            memcpy(*weights, &_weights[0], _size*sizeof(float));
             **size = _size;
             *indices += _size;
             *weights += _size;
@@ -186,18 +182,15 @@ public:
                     return i;
                 }
             }
-            _indices[_size]=idx;
-            _weights[_size]=0.0f;
+            _indices.push_back(idx);
+            _weights.push_back(0.0f);
             ++_size;
             return _size-1;
         }
 
         int _size;
-        // XXXX this would really be better with VLA where we only allocate
-        // space based on the max vertex valence in the mesh, not the absolute
-        // maximum supported by the closed-form tangents table.
-        Index _indices[MAX_ELEMS];
-        float _weights[MAX_ELEMS];
+        std::vector<Index> _indices;
+        std::vector<float> _weights;
     };
 
     //
