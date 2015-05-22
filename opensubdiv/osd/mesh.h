@@ -325,7 +325,7 @@ public:
 
     virtual void Refine() {
 
-        int numControlVertices = _refiner->GetNumVertices(0);
+        int numControlVertices = _refiner->GetLevel(0).GetNumVertices();
 
         VertexBufferDescriptor srcDesc = _vertexDesc;
         VertexBufferDescriptor dstDesc(srcDesc);
