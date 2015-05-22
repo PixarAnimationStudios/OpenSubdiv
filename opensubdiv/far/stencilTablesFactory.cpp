@@ -497,13 +497,13 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     //       dedicated code path that does not use PatchTables or the PatchMap
     float wP[20], wDs[20], wDt[20];
 
-    for (int i=0, currentStencil=0; i<(int)locationArrays.size(); ++i) {
+    for (int i=0; i<(int)locationArrays.size(); ++i) {
 
         LocationArray const & array = locationArrays[i];
 
         assert(array.ptexIdx>=0);
 
-        for (int j=0; j<array.numLocations; ++j, ++currentStencil) {
+        for (int j=0; j<array.numLocations; ++j) {
 
             float s = array.s[j],
                   t = array.t[j];
@@ -512,12 +512,12 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
             if (handle) {
 
-                ConstIndexArray cvs = patchTables->GetPatchVertices(*handle);
+                ConstIndexArray cvs = patchtables->GetPatchVertices(*handle);
 
-                patchTables->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+                patchtables->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
 
                 StencilTables const & src = *cvstencils;
-                ProtoLimitStencil dst = alloc[currentStencil];
+                ProtoLimitStencil dst = alloc[numLimitStencils];
 
                 dst.Clear();
                 for (int k = 0; k < cvs.size(); ++k) {
@@ -553,7 +553,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
             &result->_weights.at(0), &result->_duWeights.at(0),
                 &result->_dvWeights.at(0));
 
-        for (int i=0; i<alloc.GetNumStencils(); ++i) {
+        for (int i = 0; i < numLimitStencils; ++i) {
             *dst._size = alloc.CopyLimitStencil(i, dst._indices, dst._weights,
                 dst._duWeights, dst._dvWeights);
             dst.Next();
