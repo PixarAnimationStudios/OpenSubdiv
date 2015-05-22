@@ -50,8 +50,8 @@ GLFWmonitor* g_primary=0;
 #include <far/gregoryBasis.h>
 #include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/topologyRefiner.h>
-#include <far/stencilTablesFactory.h>
-#include <far/patchTablesFactory.h>
+#include <far/stencilTableFactory.h>
+#include <far/patchTableFactory.h>
 #include <far/patchMap.h>
 
 #include <far/error.h>
@@ -206,10 +206,10 @@ createCoarseMesh(OpenSubdiv::Far::TopologyRefiner const & refiner) {
 //------------------------------------------------------------------------------
 Far::TopologyRefiner * g_topologyRefiner = 0;
 
-Far::StencilTables const * g_vertexStencils = NULL;
-Far::StencilTables const * g_varyingStencils = NULL;
+Far::StencilTable const * g_vertexStencils = NULL;
+Far::StencilTable const * g_varyingStencils = NULL;
 
-Far::PatchTables const * g_patchTables = NULL;
+Far::PatchTable const * g_patchTable = NULL;
 Far::PatchMap const * g_patchMap = NULL;
 std::vector<Osd::PatchCoord> g_patchCoords;
 
@@ -295,7 +295,7 @@ updateGeom() {
     g_patchCoords.clear();
     for (int i = 0; i < g_particles->GetNumParticles(); ++i) {
         STParticles::Position const &position = g_particles->GetPositions()[i];
-        Far::PatchTables::PatchHandle const *handle =
+        Far::PatchTable::PatchHandle const *handle =
             g_patchMap->FindPatch(position.ptexIndex, position.s, position.t);
         if (handle) {
             g_patchCoords.push_back(Osd::PatchCoord(
@@ -313,7 +313,7 @@ updateGeom() {
             g_outDerivatives,  g_dvDesc,
             (int)g_patchCoords.size(),
             &g_patchCoords[0],
-            g_patchTables, NULL);
+            g_patchTable, NULL);
     } else {
         // evaluate positions
         g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(
@@ -321,7 +321,7 @@ updateGeom() {
             g_outVertexData,  g_odesc,
             (int)g_patchCoords.size(),
             &g_patchCoords[0],
-            g_patchTables, NULL);
+            g_patchTable, NULL);
     }
 
     // color
@@ -340,7 +340,7 @@ updateGeom() {
                                        g_outVertexData, g_vdesc,
                                        (int)g_patchCoords.size(),
                                        &g_patchCoords[0],
-                                       g_patchTables, NULL);
+                                       g_patchTable, NULL);
     }
 
     s.Stop();
@@ -388,46 +388,46 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         Far::TopologyRefiner::AdaptiveOptions options(level);
         g_topologyRefiner->RefineAdaptive(options);
 
-        // Generate stencil tables to update the bi-cubic patches control
+        // Generate stencil table to update the bi-cubic patches control
         // vertices after they have been re-posed (both for vertex & varying
         // interpolation)
-        Far::StencilTablesFactory::Options soptions;
+        Far::StencilTableFactory::Options soptions;
         soptions.generateOffsets=true;
         soptions.generateIntermediateLevels=true;
 
-        Far::StencilTables const * vertexStencils =
-            Far::StencilTablesFactory::Create(*g_topologyRefiner, soptions);
+        Far::StencilTable const * vertexStencils =
+            Far::StencilTableFactory::Create(*g_topologyRefiner, soptions);
 
-        soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
-        Far::StencilTables const * varyingStencils =
-            Far::StencilTablesFactory::Create(*g_topologyRefiner, soptions);
+        soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_VARYING;
+        Far::StencilTable const * varyingStencils =
+            Far::StencilTableFactory::Create(*g_topologyRefiner, soptions);
 
-        // Generate bi-cubic patch tables for the limit surface
-        Far::PatchTablesFactory::Options poptions;
+        // Generate bi-cubic patch table for the limit surface
+        Far::PatchTableFactory::Options poptions;
         poptions.SetEndCapType(
-            Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
+            Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
 
-        Far::PatchTables const * patchTables =
-            Far::PatchTablesFactory::Create(*g_topologyRefiner, poptions);
+        Far::PatchTable const * patchTable =
+            Far::PatchTableFactory::Create(*g_topologyRefiner, poptions);
 
         // append endcap stencils
-        if (Far::StencilTables const *endCapVertexStencilTables =
-            patchTables->GetEndCapVertexStencilTables()) {
-            Far::StencilTables const *tables =
-                Far::StencilTablesFactory::AppendEndCapStencilTables(
+        if (Far::StencilTable const *endCapVertexStencilTable =
+            patchTable->GetEndCapVertexStencilTable()) {
+            Far::StencilTable const *table =
+                Far::StencilTableFactory::AppendEndCapStencilTable(
                     *g_topologyRefiner,
-                    vertexStencils, endCapVertexStencilTables);
+                    vertexStencils, endCapVertexStencilTable);
             delete vertexStencils;
-            vertexStencils = tables;
+            vertexStencils = table;
         }
-        if (Far::StencilTables const *endCapVaryingStencilTables =
-            patchTables->GetEndCapVaryingStencilTables()) {
-            Far::StencilTables const *tables =
-                Far::StencilTablesFactory::AppendEndCapStencilTables(
+        if (Far::StencilTable const *endCapVaryingStencilTable =
+            patchTable->GetEndCapVaryingStencilTable()) {
+            Far::StencilTable const *table =
+                Far::StencilTableFactory::AppendEndCapStencilTable(
                     *g_topologyRefiner,
-                    varyingStencils, endCapVaryingStencilTables);
+                    varyingStencils, endCapVaryingStencilTable);
             delete varyingStencils;
-            varyingStencils = tables;
+            varyingStencils = table;
         }
 
         // total number of vertices = coarse verts + refined verts + gregory basis verts
@@ -439,12 +439,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         if (g_varyingStencils) delete g_varyingStencils;
         g_varyingStencils = varyingStencils;
 
-        if (g_patchTables) delete g_patchTables;
-        g_patchTables = patchTables;
+        if (g_patchTable) delete g_patchTable;
+        g_patchTable = patchTable;
 
         // Create a far patch map
         if (g_patchMap) delete g_patchMap;
-        g_patchMap = new Far::PatchMap(*g_patchTables);
+        g_patchMap = new Far::PatchMap(*g_patchTable);
     }
 
     {   // Create vertex primvar buffer for the CVs

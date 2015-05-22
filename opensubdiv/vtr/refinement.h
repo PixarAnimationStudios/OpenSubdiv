@@ -41,7 +41,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
     class TopologyRefiner;
-    class PatchTablesFactory;
+    class PatchTableFactory;
 }
 
 namespace Vtr {
@@ -164,7 +164,7 @@ protected:
     friend class SparseSelector;
 
     friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactory;
+    friend class Far::PatchTableFactory;
 
 
     IndexArray getFaceChildFaces(Index parentFace);

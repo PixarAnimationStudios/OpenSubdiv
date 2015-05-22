@@ -737,7 +737,7 @@ createOsdMesh(int level, int kernel) {
 
     if (g_kernel == kCPU) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::CpuEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -749,7 +749,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::OmpEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -761,7 +761,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::TbbEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -774,7 +774,7 @@ createOsdMesh(int level, int kernel) {
     } else if(kernel == kCL) {
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
-                               Osd::CLStencilTables,
+                               Osd::CLStencilTable,
                                Osd::CLEvaluator,
                                Osd::D3D11PatchTable,
                                CLD3D11DeviceContext>(
@@ -788,7 +788,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
-                               Osd::CudaStencilTables,
+                               Osd::CudaStencilTable,
                                Osd::CudaEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -800,7 +800,7 @@ createOsdMesh(int level, int kernel) {
     } else if (g_kernel == kDirectCompute) {
         static Osd::EvaluatorCacheT<Osd::D3D11ComputeEvaluator> d3d11ComputeEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
-                               Osd::D3D11StencilTables,
+                               Osd::D3D11StencilTable,
                                Osd::D3D11ComputeEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(

@@ -24,8 +24,8 @@
 
 #include <limits>
 #include <common/vtr_utils.h>
-#include <far/patchTablesFactory.h>
-#include <far/stencilTablesFactory.h>
+#include <far/patchTableFactory.h>
+#include <far/stencilTableFactory.h>
 #include "sceneBase.h"
 
 using namespace OpenSubdiv;
@@ -47,7 +47,7 @@ SceneBase::~SceneBase() {
 
 void
 SceneBase::AddTopology(Shape const *shape, int level, bool varying) {
-    Far::PatchTables const * patchTable = NULL;
+    Far::PatchTable const * patchTable = NULL;
     int numVerts = createStencilTable(shape, level, varying, &patchTable);
 
     // centering rest position
@@ -92,7 +92,7 @@ SceneBase::AddTopology(Shape const *shape, int level, bool varying) {
 
 int
 SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
-                              OpenSubdiv::Far::PatchTables const **patchTablesOut) {
+                              OpenSubdiv::Far::PatchTable const **patchTableOut) {
 
     Far::TopologyRefiner * refiner = 0;
     {
@@ -115,51 +115,51 @@ SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
         refiner->RefineUniform(options);
     }
 
-    Far::StencilTables const * vertexStencils=0, * varyingStencils=0;
+    Far::StencilTable const * vertexStencils=0, * varyingStencils=0;
     {
-        Far::StencilTablesFactory::Options options;
+        Far::StencilTableFactory::Options options;
         options.generateOffsets = true;
         options.generateIntermediateLevels = _options.adaptive;
 
-        vertexStencils = Far::StencilTablesFactory::Create(*refiner, options);
+        vertexStencils = Far::StencilTableFactory::Create(*refiner, options);
 
         if (varying) {
-            varyingStencils = Far::StencilTablesFactory::Create(*refiner, options);
+            varyingStencils = Far::StencilTableFactory::Create(*refiner, options);
         }
 
         assert(vertexStencils);
     }
 
-    Far::PatchTables const * patchTables = NULL;
+    Far::PatchTable const * patchTable = NULL;
     {
-        Far::PatchTablesFactory::Options poptions(level);
+        Far::PatchTableFactory::Options poptions(level);
         if (_options.endCap == kEndCapBSplineBasis) {
             poptions.SetEndCapType(
-                Far::PatchTablesFactory::Options::ENDCAP_BSPLINE_BASIS);
+                Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
         } else {
             poptions.SetEndCapType(
-                Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
+                Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
         }
-        patchTables = Far::PatchTablesFactory::Create(*refiner, poptions);
+        patchTable = Far::PatchTableFactory::Create(*refiner, poptions);
     }
-    *patchTablesOut = patchTables;
+    *patchTableOut = patchTable;
 
     // append gregory vertices into stencils
     {
-        if (Far::StencilTables const *vertexStencilsWithEndCap =
-            Far::StencilTablesFactory::AppendEndCapStencilTables(
+        if (Far::StencilTable const *vertexStencilsWithEndCap =
+            Far::StencilTableFactory::AppendEndCapStencilTable(
                 *refiner,
                 vertexStencils,
-                patchTables->GetEndCapVertexStencilTables())) {
+                patchTable->GetEndCapVertexStencilTable())) {
             delete vertexStencils;
             vertexStencils = vertexStencilsWithEndCap;
         }
         if (varyingStencils) {
-            if (Far::StencilTables const *varyingStencilsWithEndCap =
-                Far::StencilTablesFactory::AppendEndCapStencilTables(
+            if (Far::StencilTable const *varyingStencilsWithEndCap =
+                Far::StencilTableFactory::AppendEndCapStencilTable(
                     *refiner,
                     varyingStencils,
-                    patchTables->GetEndCapVaryingStencilTables())) {
+                    patchTable->GetEndCapVaryingStencilTable())) {
                 delete varyingStencils;
                 varyingStencils = varyingStencilsWithEndCap;
             }
@@ -169,7 +169,7 @@ SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
 
     _stencilTableSize = createMeshRefiner(vertexStencils, varyingStencils,
                                           numControlVertices);
-    // note: refiner takes ownerships of vertexStencils/ varyingStencils, patchTables
+    // note: refiner takes ownerships of vertexStencils/ varyingStencils, patchTable
 
     delete refiner;
     return numControlVertices + vertexStencils->GetNumStencils();
@@ -214,9 +214,9 @@ SceneBase::CreateIndexBuffer() {
 
     int numTopologies = (int)_topologies.size();
     for (int i = 0; i < numTopologies; ++i) {
-        Far::PatchTables const *patchTables = _patchTables[i];
+        Far::PatchTable const *patchTable = _patchTables[i];
 
-        int nPatchArrays = patchTables->GetNumPatchArrays();
+        int nPatchArrays = patchTable->GetNumPatchArrays();
 
         _topologies[i].patchArrays.clear();
 
@@ -224,21 +224,21 @@ SceneBase::CreateIndexBuffer() {
         for (int j = 0; j < nPatchArrays; ++j) {
 
             SceneBase::PatchArray patchArray;
-            patchArray.desc = patchTables->GetPatchArrayDescriptor(j);
-            patchArray.numPatches = patchTables->GetNumPatches(j);
+            patchArray.desc = patchTable->GetPatchArrayDescriptor(j);
+            patchArray.numPatches = patchTable->GetNumPatches(j);
             patchArray.indexOffset = (int)buffer.size();
             patchArray.primitiveIDOffset = (int)ppBuffer.size()/3;
 
             _topologies[i].patchArrays.push_back(patchArray);
 
             // indices
-            Far::ConstIndexArray indices = patchTables->GetPatchArrayVertices(j);
+            Far::ConstIndexArray indices = patchTable->GetPatchArrayVertices(j);
             for (int k = 0; k < indices.size(); ++k) {
                 buffer.push_back(indices[k]);
             }
 
             // patchParams
-            Far::ConstPatchParamArray patchParams = patchTables->GetPatchParams(j);
+            Far::ConstPatchParamArray patchParams = patchTable->GetPatchParams(j);
             // XXX: needs sharpness interface for patcharray or put sharpness into patchParam.
             for (int k = 0; k < patchParams.size(); ++k) {
                 float sharpness = 0.0;
@@ -248,26 +248,26 @@ SceneBase::CreateIndexBuffer() {
             }
         }
 #if 0
-        // XXX: we'll remove below APIs from Far::PatchTables.
+        // XXX: we'll remove below APIs from Far::PatchTable.
         //      use GetPatchParams(patchArray) instead as above.
 
         // patch param (all in one)
-        Far::PatchParamTable const &patchParamTables =
-            patchTables->GetPatchParamTable();
+        Far::PatchParamTable const &patchParamTable =
+            patchTable->GetPatchParamTable();
         std::vector<int> const &sharpnessIndexTable =
-            patchTables->GetSharpnessIndexTable();
+            patchTable->GetSharpnessIndexTable();
         std::vector<float> const &sharpnessValues =
-            patchTables->GetSharpnessValues();
+            patchTable->GetSharpnessValues();
 
-        int npatches = (int)patchParamTables.size();
+        int npatches = (int)patchParamTable.size();
         for (int i = 0; i < npatches; ++i) {
             float sharpness = 0.0;
             if (i < (int)sharpnessIndexTable.size()) {
                 sharpness = sharpnessIndexTable[i] >= 0 ?
                     sharpnessValues[sharpnessIndexTable[i]] : 0.0f;
             }
-            ppBuffer.push_back(patchParamTables[i].faceIndex);
-            ppBuffer.push_back(patchParamTables[i].bitField.field);
+            ppBuffer.push_back(patchParamTable[i].faceIndex);
+            ppBuffer.push_back(patchParamTable[i].bitField.field);
             ppBuffer.push_back(*((unsigned int *)&sharpness));
         }
 #endif

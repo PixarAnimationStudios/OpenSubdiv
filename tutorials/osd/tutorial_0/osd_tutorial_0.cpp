@@ -31,7 +31,7 @@
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
-#include <opensubdiv/far/stencilTablesFactory.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 #include <opensubdiv/osd/cpuEvaluator.h>
 #include <opensubdiv/osd/cpuVertexBuffer.h>
 
@@ -75,22 +75,22 @@ int main(int, char **) {
     //
     // Setup phase
     //
-    Far::StencilTables const * stencilTables = NULL;
+    Far::StencilTable const * stencilTable = NULL;
     { // Setup Context
         Far::TopologyRefiner const * refiner = createTopologyRefiner(maxlevel);
 
-        // Setup a factory to create FarStencilTables (for more details see
+        // Setup a factory to create FarStencilTable (for more details see
         // Far tutorials)
-        Far::StencilTablesFactory::Options options;
+        Far::StencilTableFactory::Options options;
         options.generateOffsets=true;
         options.generateIntermediateLevels=false;
 
-        stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
+        stencilTable = Far::StencilTableFactory::Create(*refiner, options);
 
         nCoarseVerts = refiner->GetLevel(0).GetNumVertices();
-        nRefinedVerts = stencilTables->GetNumStencils();
+        nRefinedVerts = stencilTable->GetNumStencils();
 
-        // We are done with Far: cleanup tables
+        // We are done with Far: cleanup table
         delete refiner;
     }
 
@@ -113,7 +113,7 @@ int main(int, char **) {
         // Launch the computation
         Osd::CpuEvaluator::EvalStencils(vbuffer, srcDesc,
                                         vbuffer, dstDesc,
-                                        stencilTables);
+                                        stencilTable);
     }
 
     { // Visualization with Maya : print a MEL script that generates particles
@@ -128,7 +128,7 @@ int main(int, char **) {
         printf("-c 1;\n");
     }
 
-    delete stencilTables;
+    delete stencilTable;
     delete vbuffer;
 }
 

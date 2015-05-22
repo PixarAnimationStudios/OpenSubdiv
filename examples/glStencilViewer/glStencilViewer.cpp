@@ -48,9 +48,9 @@ GLFWmonitor* g_primary=0;
 #include "../common/glUtils.h"
 #include "../common/glHud.h"
 
-#include <far/patchTablesFactory.h>
+#include <far/patchTableFactory.h>
 #include <far/ptexIndices.h>
-#include <far/stencilTablesFactory.h>
+#include <far/stencilTableFactory.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuVertexBuffer.h>
@@ -136,7 +136,7 @@ GLhud g_hud;
 int g_currentShape = 0;
 
 //------------------------------------------------------------------------------
-Far::LimitStencilTables const * g_controlStencils;
+Far::LimitStencilTable const * g_controlStencils;
 
 // Control vertex positions (P(xyz))
 Osd::CpuVertexBuffer * g_controlValues=0;
@@ -271,7 +271,7 @@ static void
 createMesh(ShapeDesc const & shapeDesc, int level) {
 
     typedef Far::ConstIndexArray IndexArray;
-    typedef Far::LimitStencilTablesFactory::LocationArray LocationArray;
+    typedef Far::LimitStencilTableFactory::LocationArray LocationArray;
 
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
@@ -340,7 +340,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     }
 
     delete g_controlStencils;
-    g_controlStencils = Far::LimitStencilTablesFactory::Create(*refiner, locs);
+    g_controlStencils = Far::LimitStencilTableFactory::Create(*refiner, locs);
 
     delete [] u;
     delete [] v;

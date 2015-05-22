@@ -167,11 +167,11 @@ struct FVarData
             glDeleteTextures(1, &textureBuffer);
         textureBuffer = 0;
     }
-    void Create(OpenSubdiv::Far::PatchTables const *patchTables,
+    void Create(OpenSubdiv::Far::PatchTable const *patchTable,
                 int fvarWidth, std::vector<float> const & fvarSrcData) {
         Release();
         OpenSubdiv::Far::ConstIndexArray indices =
-            patchTables->GetFVarPatchesValues(0);
+            patchTable->GetFVarPatchesValues(0);
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -407,7 +407,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
 
     delete g_mesh;
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                       OpenSubdiv::Far::StencilTables,
+                                       OpenSubdiv::Far::StencilTable,
                                        OpenSubdiv::Osd::CpuEvaluator,
                                        OpenSubdiv::Osd::GLPatchTable>(
                                            refiner,
@@ -420,7 +420,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     InterpolateFVarData(*refiner, *shape, fvarData);
 
     // set fvardata to texture buffer
-    g_fvarData.Create(g_mesh->GetFarPatchTables(),
+    g_fvarData.Create(g_mesh->GetFarPatchTable(),
                       shape->GetFVarWidth(), fvarData);
 
     delete shape;

@@ -22,12 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_FAR_PATCH_TABLES_FACTORY_H
-#define OPENSUBDIV3_FAR_PATCH_TABLES_FACTORY_H
+#ifndef OPENSUBDIV3_FAR_PATCH_TABLE_FACTORY_H
+#define OPENSUBDIV3_FAR_PATCH_TABLE_FACTORY_H
 
 #include "../version.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -40,12 +40,12 @@ namespace Far {
 class PtexIndices;
 class TopologyRefiner;
 
-class PatchTablesFactory {
+class PatchTableFactory {
 public:
     //  PatchFaceTag
     //  A simple struct containing all information gathered about a face that is relevant
     //  to constructing a patch for it (some of these enums should probably be defined more
-    //  as part of PatchTables)
+    //  as part of PatchTable)
     //
     //  Like the HbrFace<T>::AdaptiveFlags, this struct aggregates all of the face tags
     //  supporting feature adaptive refinement.  For now it is not used elsewhere and can
@@ -125,16 +125,16 @@ public:
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory
     };
 
-    /// \brief Factory constructor for PatchTables
+    /// \brief Factory constructor for PatchTable
     ///
     /// @param refiner              TopologyRefiner from which to generate patches
     ///
-    /// @param options              Options controlling the creation of the tables
+    /// @param options              Options controlling the creation of the table
     ///
-    /// @return                     A new instance of PatchTables
+    /// @return                     A new instance of PatchTable
     ///
-    static PatchTables * Create(TopologyRefiner const & refiner,
-                                Options options=Options());
+    static PatchTable * Create(TopologyRefiner const & refiner,
+                               Options options=Options());
 
 private:
     //
@@ -145,11 +145,11 @@ private:
     //
     //  Methods for allocating and managing the patch table data arrays:
     //
-    static PatchTables * createUniform(TopologyRefiner const & refiner,
-                                       Options options);
+    static PatchTable * createUniform(TopologyRefiner const & refiner,
+                                      Options options);
 
-    static PatchTables * createAdaptive(TopologyRefiner const & refiner,
-                                        Options options);
+    static PatchTable * createAdaptive(TopologyRefiner const & refiner,
+                                       Options options);
 
     //
     //  High-level methods for identifying and populating patches associated with faces:
@@ -160,10 +160,10 @@ private:
     static void populateAdaptivePatches(AdaptiveContext & state,
                                         PtexIndices const &ptexIndices);
 
-    static void allocateVertexTables(PatchTables * tables, int nlevels, bool hasSharpness);
+    static void allocateVertexTables(PatchTable * table, int nlevels, bool hasSharpness);
 
     static void allocateFVarChannels(TopologyRefiner const & refiner,
-         Options options, int npatches, PatchTables * tables);
+         Options options, int npatches, PatchTable * table);
 
     static PatchParam * computePatchParam(TopologyRefiner const & refiner,
         PtexIndices const & ptexIndices,
@@ -184,4 +184,4 @@ using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
 
-#endif /* OPENSUBDIV3_FAR_PATCH_TABLES_FACTORY_H */
+#endif /* OPENSUBDIV3_FAR_PATCH_TABLE_FACTORY_H */

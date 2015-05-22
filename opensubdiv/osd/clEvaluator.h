@@ -34,29 +34,29 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class StencilTables;
+    class StencilTable;
 }
 
 namespace Osd {
 
-/// \brief OpenCL stencil tables
+/// \brief OpenCL stencil table
 ///
-/// This class is an OpenCL buffer representation of Far::StencilTables.
+/// This class is an OpenCL buffer representation of Far::StencilTable.
 ///
 /// CLCompute consumes this table to apply stencils
 ///
 ///
-class CLStencilTables {
+class CLStencilTable {
 public:
     template <typename DEVICE_CONTEXT>
-    static CLStencilTables *Create(Far::StencilTables const *stencilTables,
-                                   DEVICE_CONTEXT context) {
-        return new CLStencilTables(stencilTables, context->GetContext());
+    static CLStencilTable *Create(Far::StencilTable const *stencilTable,
+                                  DEVICE_CONTEXT context) {
+        return new CLStencilTable(stencilTable, context->GetContext());
     }
 
-    CLStencilTables(Far::StencilTables const *stencilTables,
-                    cl_context clContext);
-    ~CLStencilTables();
+    CLStencilTable(Far::StencilTable const *stencilTable,
+                   cl_context clContext);
+    ~CLStencilTable();
 
     // interfaces needed for CLComputeKernel
     cl_mem GetSizesBuffer()     const { return _sizes; }
@@ -123,7 +123,7 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTables  stencil table to be applied. The table must have
+    /// @param stencilTable   stencil table to be applied. The table must have
     ///                       OpenCL memory interfaces.
     ///
     /// @param instance       cached compiled instance. Clients are supposed to

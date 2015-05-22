@@ -40,7 +40,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far{
-    class PatchTables;
+    class PatchTable;
 };
 
 namespace Osd {
@@ -80,12 +80,12 @@ public:
     ~D3D11PatchTable();
 
     template<typename DEVICE_CONTEXT>
-    static D3D11PatchTable *Create(Far::PatchTables const *farPatchTables,
+    static D3D11PatchTable *Create(Far::PatchTable const *farPatchTable,
                                    DEVICE_CONTEXT context) {
-        return Create(farPatchTables, context->GetDeviceContext());
+        return Create(farPatchTable, context->GetDeviceContext());
     }
 
-    static D3D11PatchTable *Create(Far::PatchTables const *farPatchTables,
+    static D3D11PatchTable *Create(Far::PatchTable const *farPatchTable,
                                    ID3D11DeviceContext *deviceContext);
 
     PatchArrayVector const &GetPatchArrays() const {
@@ -103,8 +103,8 @@ public:
     }
 
 protected:
-    // allocate buffers from patchTables
-    bool allocate(Far::PatchTables const *farPatchTables,
+    // allocate buffers from patchTable
+    bool allocate(Far::PatchTable const *farPatchTable,
                   ID3D11DeviceContext *deviceContext);
 
     PatchArrayVector _patchArrays;

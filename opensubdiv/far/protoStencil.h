@@ -25,7 +25,7 @@
 #ifndef OPENSUBDIV3_FAR_PROTOSTENCIL_H
 #define OPENSUBDIV3_FAR_PROTOSTENCIL_H
 
-#include "../far/stencilTables.h"
+#include "../far/stencilTable.h"
 
 #include <cstring>
 #include <map>
@@ -385,7 +385,7 @@ public:
     }
 
     // Factorize from a finished stencil table
-    void AddWithWeight(StencilTables const & table, Index idx, float weight) {
+    void AddWithWeight(StencilTable const & table, Index idx, float weight) {
 
         assert(idx<table.GetNumStencils());
 

@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_FAR_STENCILTABLES_H
-#define OPENSUBDIV3_FAR_STENCILTABLES_H
+#ifndef OPENSUBDIV3_FAR_STENCILTABLE_H
+#define OPENSUBDIV3_FAR_STENCILTABLE_H
 
 #include "../version.h"
 
@@ -39,7 +39,7 @@ namespace Far {
 
 /// \brief Vertex stencil descriptor
 ///
-/// Allows access and manipulation of a single stencil in a StencilTables.
+/// Allows access and manipulation of a single stencil in a StencilTable.
 ///
 class Stencil {
 
@@ -100,8 +100,8 @@ public:
     }
 
 protected:
-    friend class StencilTablesFactory;
-    friend class LimitStencilTablesFactory;
+    friend class StencilTableFactory;
+    friend class LimitStencilTableFactory;
 
     int * _size;
     Index         * _indices;
@@ -120,7 +120,7 @@ protected:
 /// recomputed simply by applying the blending weights to the series of coarse
 /// control vertices.
 ///
-class StencilTables {
+class StencilTable {
 
 public:
 
@@ -134,7 +134,7 @@ public:
         return _numControlVertices;
     }
 
-    /// \brief Returns a Stencil at index i in the tables
+    /// \brief Returns a Stencil at index i in the table
     Stencil GetStencil(Index i) const;
 
     /// \brief Returns the number of control vertices of each stencil in the table
@@ -157,7 +157,7 @@ public:
         return _weights;
     }
 
-    /// \brief Returns the stencil at index i in the tables
+    /// \brief Returns the stencil at index i in the table
     Stencil operator[] (Index index) const;
 
     /// \brief Updates point values based on the control values
@@ -202,9 +202,9 @@ protected:
     void resize(int nstencils, int nelems);
 
 protected:
-    StencilTables() : _numControlVertices(0) {}
+    StencilTable() : _numControlVertices(0) {}
 
-    friend class StencilTablesFactory;
+    friend class StencilTableFactory;
     // XXX: temporarily, GregoryBasis class will go away.
     friend class GregoryBasis;
 
@@ -267,8 +267,8 @@ public:
 
 private:
 
-    friend class StencilTablesFactory;
-    friend class LimitStencilTablesFactory;
+    friend class StencilTableFactory;
+    friend class LimitStencilTableFactory;
 
     float * _duWeights,  // pointer to stencil u derivative limit weights
           * _dvWeights;  // pointer to stencil v derivative limit weights
@@ -277,7 +277,7 @@ private:
 /// \brief Table of limit subdivision stencils.
 ///
 ///
-class LimitStencilTables : public StencilTables {
+class LimitStencilTable : public StencilTable {
 
 public:
 
@@ -318,13 +318,13 @@ public:
 
     /// \brief Clears the stencils from the table
     void Clear() {
-        StencilTables::Clear();
+        StencilTable::Clear();
         _duWeights.clear();
         _dvWeights.clear();
     }
 
 private:
-    friend class LimitStencilTablesFactory;
+    friend class LimitStencilTableFactory;
 
     // Resize the table arrays (factory helper)
     void resize(int nstencils, int nelems);
@@ -337,7 +337,7 @@ private:
 
 // Update values by appling cached stencil weights to new control values
 template <class T> void
-StencilTables::update(T const *controlValues, T *values,
+StencilTable::update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, Index start, Index end) const {
 
     int const * sizes = &_sizes.at(0);
@@ -370,7 +370,7 @@ StencilTables::update(T const *controlValues, T *values,
 }
 
 inline void
-StencilTables::generateOffsets() {
+StencilTable::generateOffsets() {
     Index offset=0;
     int noffsets = (int)_sizes.size();
     _offsets.resize(noffsets);
@@ -381,7 +381,7 @@ StencilTables::generateOffsets() {
 }
 
 inline void
-StencilTables::resize(int nstencils, int nelems) {
+StencilTable::resize(int nstencils, int nelems) {
 
     _sizes.resize(nstencils);
     _indices.resize(nelems);
@@ -390,7 +390,7 @@ StencilTables::resize(int nstencils, int nelems) {
 
 // Returns a Stencil at index i in the table
 inline Stencil
-StencilTables::GetStencil(Index i) const {
+StencilTable::GetStencil(Index i) const {
 
     assert((not _offsets.empty()) and i<(int)_offsets.size());
 
@@ -402,14 +402,14 @@ StencilTables::GetStencil(Index i) const {
 }
 
 inline Stencil
-StencilTables::operator[] (Index index) const {
+StencilTable::operator[] (Index index) const {
     return GetStencil(index);
 }
 
 inline void
-LimitStencilTables::resize(int nstencils, int nelems) {
+LimitStencilTable::resize(int nstencils, int nelems) {
 
-    StencilTables::resize(nstencils, nelems);
+    StencilTable::resize(nstencils, nelems);
     _duWeights.resize(nelems);
     _dvWeights.resize(nelems);
 }
@@ -422,4 +422,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif // OPENSUBDIV3_FAR_STENCILTABLES_H
+#endif // OPENSUBDIV3_FAR_STENCILTABLE_H

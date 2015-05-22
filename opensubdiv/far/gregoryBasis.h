@@ -241,7 +241,7 @@ public:
 
     typedef std::vector<GregoryBasis::Point> PointsVector;
 
-    static StencilTables *CreateStencilTables(PointsVector const &stencils);
+    static StencilTable *CreateStencilTable(PointsVector const &stencils);
 
 private:
 

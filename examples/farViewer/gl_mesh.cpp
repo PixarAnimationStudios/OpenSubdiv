@@ -243,10 +243,10 @@ GLMesh::Initialize(Options /* options */,
 //------------------------------------------------------------------------------
 void
 GLMesh::Initialize(Options options, TopologyRefiner const & refiner,
-    PatchTables const * patchTables, float const * vertexData) {
+    PatchTable const * patchTable, float const * vertexData) {
 
-    if (patchTables) {
-        initializeBuffers(options, refiner, *patchTables, vertexData);
+    if (patchTable) {
+        initializeBuffers(options, refiner, *patchTable, vertexData);
     } else {
         initializeBuffers(options, refiner, vertexData);
     }
@@ -413,7 +413,7 @@ setEdge(std::vector<float> & vbo, int edge, float const * vertData, int v0, int 
 //------------------------------------------------------------------------------
 void
 GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
-    PatchTables const * patchTables, int channel, int tessFactor, float const * fvarData) {
+    PatchTable const * patchTable, int channel, int tessFactor, float const * fvarData) {
 
     int nverts = refiner.GetNumFVarValuesTotal(channel);
 
@@ -442,7 +442,7 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
     if (tessFactor>0) {
         // edge color component ------------------------------
 
-        int npatches = patchTables->GetNumPatchesTotal(),
+        int npatches = patchTable->GetNumPatchesTotal(),
             nvertsperpatch = (tessFactor) * (tessFactor),
             nedgesperpatch = (tessFactor-1) * (tessFactor*2+tessFactor-1),
             //nverts = npatches * nvertsperpatch,
@@ -480,14 +480,14 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
             *ptr++ = tessFactor * (tessFactor-1) + i+1;
         }
 
-        OpenSubdiv::Far::PatchTables::PatchHandle handle;
+        OpenSubdiv::Far::PatchTable::PatchHandle handle;
         for (int patch=0, offset=0; patch<npatches; ++patch) {
 
             if (options.edgeColorMode==EDGECOLOR_BY_PATCHTYPE) {
 
                 handle.patchIndex = patch;
                 OpenSubdiv::Far::PatchDescriptor::Type type =
-                    patchTables->GetFVarPatchType(channel, handle);
+                    patchTable->GetFVarPatchType(channel, handle);
 
                 if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
                     color = getAdaptivePatchColor(
@@ -596,7 +596,7 @@ getRingSize(OpenSubdiv::Far::PatchDescriptor desc) {
 //------------------------------------------------------------------------------
 void
 GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
-    PatchTables const & patchTables, float const * vertexData) {
+    PatchTable const & patchTable, float const * vertexData) {
 
     int nverts = refiner.GetNumVerticesTotal();
 
@@ -628,11 +628,11 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
         int nedges = 0;
 
-        for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        for (int array=0; array<(int)patchTable.GetNumPatchArrays(); ++array) {
 
-            int ncvs = getRingSize(patchTables.GetPatchArrayDescriptor(array));
+            int ncvs = getRingSize(patchTable.GetPatchArrayDescriptor(array));
 
-            nedges += patchTables.GetNumPatches(array) * getNumEdges(ncvs);
+            nedges += patchTable.GetNumPatches(array) * getNumEdges(ncvs);
         }
         std::vector<float> & vbo = _vbo[COMP_EDGE];
         vbo.resize(nedges * 2 * 6);
@@ -646,10 +646,10 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
         float const * color=solidColor;
 
-        for (int array=0, edge=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        for (int array=0, edge=0; array<(int)patchTable.GetNumPatchArrays(); ++array) {
 
             OpenSubdiv::Far::PatchDescriptor desc =
-                patchTables.GetPatchArrayDescriptor(array);
+                patchTable.GetPatchArrayDescriptor(array);
 
             if (options.edgeColorMode==EDGECOLOR_BY_PATCHTYPE) {
                 color = getAdaptivePatchColor(desc);
@@ -657,10 +657,10 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
             int ncvs = getRingSize(desc);
 
-            for (int patch=0; patch<patchTables.GetNumPatches(array); ++patch) {
+            for (int patch=0; patch<patchTable.GetNumPatches(array); ++patch) {
 
                 OpenSubdiv::Far::ConstIndexArray const cvs =
-                    patchTables.GetPatchVertices(array, patch);
+                    patchTable.GetPatchVertices(array, patch);
 
                 int const * edgeList=getEdgeList(ncvs);
 
@@ -679,7 +679,7 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
 
     { // face color component ------------------------------
 
-        int nfaces = patchTables.GetNumPatchesTotal();
+        int nfaces = patchTable.GetNumPatchesTotal();
 
         std::vector<float> & vbo = _vbo[COMP_FACE];
         vbo.resize(nverts*3);
@@ -691,17 +691,17 @@ GLMesh::initializeBuffers(Options options, TopologyRefiner const & refiner,
         _faceColors.resize(nfaces*4, 1.0f);
 
         // default to solid color
-        for (int array=0, face=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+        for (int array=0, face=0; array<(int)patchTable.GetNumPatchArrays(); ++array) {
 
             OpenSubdiv::Far::PatchDescriptor desc =
-               patchTables.GetPatchArrayDescriptor(array);
+               patchTable.GetPatchArrayDescriptor(array);
 
             //int ncvs = getRingSize(desc);
 
-            for (int patch=0; patch<patchTables.GetNumPatches(array); ++patch, ++face) {
+            for (int patch=0; patch<patchTable.GetNumPatches(array); ++patch, ++face) {
 
                 OpenSubdiv::Far::ConstIndexArray const cvs =
-                    patchTables.GetPatchVertices(array, patch);
+                    patchTable.GetPatchVertices(array, patch);
 
                 if (desc.GetType()==Descriptor::REGULAR) {
                     eao[face*4  ] = cvs[ 5];

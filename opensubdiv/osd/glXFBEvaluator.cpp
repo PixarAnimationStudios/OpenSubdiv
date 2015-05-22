@@ -30,7 +30,7 @@
 #include <cstdio>
 
 #include "../far/error.h"
-#include "../far/stencilTables.h"
+#include "../far/stencilTable.h"
 
 #if _MSC_VER
     #define snprintf _snprintf
@@ -82,23 +82,23 @@ createGLTextureBuffer(std::vector<T> const & src, GLenum type) {
     return devicePtr;
 }
 
-GLStencilTablesTBO::GLStencilTablesTBO(
-    Far::StencilTables const *stencilTables) {
+GLStencilTableTBO::GLStencilTableTBO(
+    Far::StencilTable const *stencilTable) {
 
-    _numStencils = stencilTables->GetNumStencils();
+    _numStencils = stencilTable->GetNumStencils();
     if (_numStencils > 0) {
-        _sizes   = createGLTextureBuffer(stencilTables->GetSizes(), GL_R32UI);
+        _sizes   = createGLTextureBuffer(stencilTable->GetSizes(), GL_R32UI);
         _offsets = createGLTextureBuffer(
-            stencilTables->GetOffsets(), GL_R32I);
+            stencilTable->GetOffsets(), GL_R32I);
         _indices = createGLTextureBuffer(
-            stencilTables->GetControlIndices(), GL_R32I);
-        _weights = createGLTextureBuffer(stencilTables->GetWeights(), GL_R32F);
+            stencilTable->GetControlIndices(), GL_R32I);
+        _weights = createGLTextureBuffer(stencilTable->GetWeights(), GL_R32F);
     } else {
         _sizes = _offsets = _indices = _weights = 0;
     }
 }
 
-GLStencilTablesTBO::~GLStencilTablesTBO() {
+GLStencilTableTBO::~GLStencilTableTBO() {
     if (_sizes) glDeleteTextures(1, &_sizes);
     if (_offsets) glDeleteTextures(1, &_offsets);
     if (_weights) glDeleteTextures(1, &_weights);
@@ -277,7 +277,7 @@ GLXFBEvaluator::EvalStencils(GLuint srcBuffer,
 
     bindTexture(_uniformSrcBufferTexture, _srcBufferTexture, 0);
 
-    // bind stencil tables textures.
+    // bind stencil table textures.
     bindTexture(_uniformSizesTexture,   sizesTexture, 1);
     bindTexture(_uniformOffsetsTexture, offsetsTexture, 2);
     bindTexture(_uniformIndicesTexture, indicesTexture, 3);

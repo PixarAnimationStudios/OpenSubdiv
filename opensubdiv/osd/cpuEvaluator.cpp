@@ -124,7 +124,7 @@ CpuEvaluator::EvalPatches(const float *src,
                           VertexBufferDescriptor const &dstDesc,
                           int numPatchCoords,
                           PatchCoord const *patchCoords,
-                          Far::PatchTables const *patchTable) {
+                          Far::PatchTable const *patchTable) {
     src += srcDesc.offset;
     if (dst) dst += dstDesc.offset;
 
@@ -161,7 +161,7 @@ CpuEvaluator::EvalPatches(const float *src,
                           VertexBufferDescriptor const &dstDtDesc,
                           int numPatchCoords,
                           PatchCoord const *patchCoords,
-                          Far::PatchTables const *patchTable) {
+                          Far::PatchTable const *patchTable) {
     src += srcDesc.offset;
     if (dst) dst += dstDesc.offset;
     if (dstDs) dstDs += dstDsDesc.offset;

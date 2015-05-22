@@ -373,7 +373,7 @@ protected:
     //  Lower level protected methods intended strictly for internal use:
     //
     friend class TopologyRefinerFactoryBase;
-    friend class PatchTablesFactory;
+    friend class PatchTableFactory;
     friend class EndCapGregoryBasisPatchFactory;
     friend class EndCapLegacyGregoryPatchFactory;
     friend class PtexIndices;

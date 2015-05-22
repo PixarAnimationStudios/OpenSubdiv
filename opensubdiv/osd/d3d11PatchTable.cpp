@@ -25,7 +25,7 @@
 #include "../osd/d3d11PatchTable.h"
 
 #include <D3D11.h>
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -43,17 +43,17 @@ D3D11PatchTable::~D3D11PatchTable() {
 }
 
 D3D11PatchTable *
-D3D11PatchTable::Create(Far::PatchTables const *farPatchTables,
+D3D11PatchTable::Create(Far::PatchTable const *farPatchTable,
                         ID3D11DeviceContext *pd3d11DeviceContext) {
     D3D11PatchTable *instance = new D3D11PatchTable();
-    if (instance->allocate(farPatchTables, pd3d11DeviceContext))
+    if (instance->allocate(farPatchTable, pd3d11DeviceContext))
         return instance;
     delete instance;
     return 0;
 }
 
 bool
-D3D11PatchTable::allocate(Far::PatchTables const *farPatchTables,
+D3D11PatchTable::allocate(Far::PatchTable const *farPatchTable,
                           ID3D11DeviceContext *pd3d11DeviceContext) {
     ID3D11Device *pd3d11Device = NULL;
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
@@ -63,18 +63,18 @@ D3D11PatchTable::allocate(Far::PatchTables const *farPatchTables,
     std::vector<unsigned int> ppBuffer;
 
     // needs reserve?
-    int nPatchArrays = farPatchTables->GetNumPatchArrays();
+    int nPatchArrays = farPatchTable->GetNumPatchArrays();
 
     // for each patchArray
     for (int j = 0; j < nPatchArrays; ++j) {
-        PatchArray patchArray(farPatchTables->GetPatchArrayDescriptor(j),
-                              farPatchTables->GetNumPatches(j),
+        PatchArray patchArray(farPatchTable->GetPatchArrayDescriptor(j),
+                              farPatchTable->GetNumPatches(j),
                               (int)buffer.size(),
                               (int)ppBuffer.size()/3);
         _patchArrays.push_back(patchArray);
 
         // indices
-        Far::ConstIndexArray indices = farPatchTables->GetPatchArrayVertices(j);
+        Far::ConstIndexArray indices = farPatchTable->GetPatchArrayVertices(j);
         for (int k = 0; k < indices.size(); ++k) {
             buffer.push_back(indices[k]);
         }
@@ -84,7 +84,7 @@ D3D11PatchTable::allocate(Far::PatchTables const *farPatchTables,
         // XXX: we need sharpness interface for patcharray or put sharpness
         //      into patchParam.
         Far::ConstPatchParamArray patchParams =
-            farPatchTables->GetPatchParams(j);
+            farPatchTable->GetPatchParams(j);
         for (int k = 0; k < patchParams.size(); ++k) {
             float sharpness = 0.0;
             ppBuffer.push_back(patchParams[k].faceIndex);
@@ -93,21 +93,21 @@ D3D11PatchTable::allocate(Far::PatchTables const *farPatchTables,
         }
 #else
         // XXX: workaround. GetPatchParamTable() will be deprecated though.
-        Far::PatchParamTable const & patchParamTables =
-            farPatchTables->GetPatchParamTable();
+        Far::PatchParamTable const & patchParamTable =
+            farPatchTable->GetPatchParamTable();
         std::vector<Far::Index> const &sharpnessIndexTable =
-            farPatchTables->GetSharpnessIndexTable();
-        int numPatches = farPatchTables->GetNumPatches(j);
+            farPatchTable->GetSharpnessIndexTable();
+        int numPatches = farPatchTable->GetNumPatches(j);
         for (int k = 0; k < numPatches; ++k) {
             float sharpness = 0.0;
             int patchIndex = (int)ppBuffer.size()/3;
             if (patchIndex < (int)sharpnessIndexTable.size()) {
                 int sharpnessIndex = sharpnessIndexTable[patchIndex];
                 if (sharpnessIndex >= 0)
-                    sharpness = farPatchTables->GetSharpnessValues()[sharpnessIndex];
+                    sharpness = farPatchTable->GetSharpnessValues()[sharpnessIndex];
             }
-            ppBuffer.push_back(patchParamTables[patchIndex].faceIndex);
-            ppBuffer.push_back(patchParamTables[patchIndex].bitField.field);
+            ppBuffer.push_back(patchParamTable[patchIndex].faceIndex);
+            ppBuffer.push_back(patchParamTable[patchIndex].bitField.field);
             ppBuffer.push_back(*((unsigned int *)&sharpness));
         }
 #endif

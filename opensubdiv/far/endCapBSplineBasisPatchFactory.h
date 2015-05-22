@@ -25,7 +25,7 @@
 #ifndef OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
 
-#include "../far/patchTablesFactory.h"
+#include "../far/patchTableFactory.h"
 #include "../far/gregoryBasis.h"
 #include "../far/protoStencil.h"
 #include "../vtr/level.h"
@@ -39,7 +39,7 @@ class TopologyRefiner;
 
 /// \brief A BSpline endcap factory
 ///
-/// note: This is an internal use class in PatchTablesFactory, and
+/// note: This is an internal use class in PatchTableFactory, and
 ///       will be replaced with SdcSchemeWorker for mask coefficients
 ///       and Vtr::Level for topology traversal.
 ///
@@ -70,19 +70,19 @@ public:
     ConstIndexArray GetPatchPoints(
         Vtr::Level const * level, Index faceIndex);
 
-    /// \brief Create a StencilTables for end patch points, relative to the max
+    /// \brief Create a StencilTable for end patch points, relative to the max
     ///        subdivision level.
     ///
-    StencilTables* CreateVertexStencilTables() const {
-        return GregoryBasis::CreateStencilTables(_vertexStencils);
+    StencilTable* CreateVertexStencilTable() const {
+        return GregoryBasis::CreateStencilTable(_vertexStencils);
     }
 
-    /// \brief Create a StencilTables for end patch varying primvar.
+    /// \brief Create a StencilTable for end patch varying primvar.
     ///        This table is used as a convenient way to get varying primvars
     ///        populated on end patch points along with positions.
     ///
-    StencilTables* CreateVaryingStencilTables() const {
-        return GregoryBasis::CreateStencilTables(_varyingStencils);
+    StencilTable* CreateVaryingStencilTable() const {
+        return GregoryBasis::CreateStencilTable(_varyingStencils);
     }
 
 private:

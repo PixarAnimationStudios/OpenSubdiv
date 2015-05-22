@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 
 #include <vector>
 
@@ -39,13 +39,13 @@ namespace Far {
 class TopologyRefiner;
 
 class Stencil;
-class StencilTables;
+class StencilTable;
 class LimitStencil;
-class LimitStencilTables;
+class LimitStencilTable;
 
-/// \brief A specialized factory for StencilTables
+/// \brief A specialized factory for StencilTable
 ///
-class StencilTablesFactory {
+class StencilTableFactory {
 
 public:
 
@@ -73,7 +73,7 @@ public:
                      maxLevel                    : 4; ///< generate stencils up to 'maxLevel'
     };
 
-    /// \brief Instantiates StencilTables from TopologyRefiner that have been
+    /// \brief Instantiates StencilTable from TopologyRefiner that have been
     ///        refined uniformly or adaptively.
     ///
     /// \note The factory only creates stencils for vertices that have already
@@ -82,45 +82,45 @@ public:
     ///
     /// @param refiner  The TopologyRefiner containing the topology
     ///
-    /// @param options  Options controlling the creation of the tables
+    /// @param options  Options controlling the creation of the table
     ///
-    static StencilTables const * Create(TopologyRefiner const & refiner,
+    static StencilTable const * Create(TopologyRefiner const & refiner,
         Options options = Options());
 
 
-    /// \brief Instantiates StencilTables by concatenating an array of existing
-    ///        stencil tables.
+    /// \brief Instantiates StencilTable by concatenating an array of existing
+    ///        stencil table.
     ///
-    /// \note This factory checks that the stencil tables point to the same set
+    /// \note This factory checks that the stencil table point to the same set
     ///       of supporting control vertices - no re-indexing is done.
     ///       GetNumControlVertices() *must* return the same value for all input
     ///       tables.
     ///
     /// @param numTables Number of input StencilTables
     ///
-    /// @param tables    Array of input StencilTables
+    /// @param table     Array of input StencilTables
     ///
-    static StencilTables const * Create(int numTables, StencilTables const ** tables);
+    static StencilTable const * Create(int numTables, StencilTable const ** tables);
 
 
     /// \brief Utility function for stencil splicing for endcap stencils.
     ///
     /// @param refiner              The TopologyRefiner containing the topology
     ///
-    /// @param baseStencilTables    Input StencilTables for refined vertices
+    /// @param baseStencilTable     Input StencilTable for refined vertices
     ///
-    /// @param endCapStencilTables  EndCap basis conversion stencils. This stenciltable
+    /// @param endCapStencilTable   EndCap basis conversion stencils. This stenciltable
     ///                             has to be relative to the max level of subdivision.
     ///
     /// @param factorize            If factorize sets to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
-    ///                             tables so that the endcap points can be computed
+    ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
     ///
-    static StencilTables const * AppendEndCapStencilTables(
+    static StencilTable const * AppendEndCapStencilTable(
         TopologyRefiner const &refiner,
-        StencilTables const *baseStencilTables,
-        StencilTables const *endCapStencilTables,
+        StencilTable const *baseStencilTable,
+        StencilTable const *endCapStencilTable,
         bool factorize = true);
 
 private:
@@ -129,9 +129,9 @@ private:
     static void generateControlVertStencils(int numControlVerts, Stencil & dst);
 };
 
-/// \brief A specialized factory for LimitStencilTables
+/// \brief A specialized factory for LimitStencilTable
 ///
-/// The LimitStencilTablesFactory creates tables of limit stencils. Limit
+/// The LimitStencilTableFactory creates a table of limit stencils. Limit
 /// stencils can interpolate any arbitrary location on the limit surface.
 /// The stencils will be bilinear if the surface is refined uniformly, and
 /// bicubic if feature adaptive isolation is used instead.
@@ -140,7 +140,7 @@ private:
 /// normalized (s,t) patch coordinates. The factory exposes the LocationArray
 /// struct as a container for these location descriptors.
 ///
-class LimitStencilTablesFactory {
+class LimitStencilTableFactory {
 
 public:
 
@@ -158,7 +158,7 @@ public:
 
     typedef std::vector<LocationArray> LocationArrayVec;
 
-    /// \brief Instantiates LimitStencilTables from a TopologyRefiner that has
+    /// \brief Instantiates LimitStencilTable from a TopologyRefiner that has
     ///        been refined either uniformly or adaptively.
     ///
     /// @param refiner          The TopologyRefiner containing the topology
@@ -166,18 +166,18 @@ public:
     /// @param locationArrays   An array of surface location descriptors
     ///                         (see LocationArray)
     ///
-    /// @param cvStencils       A set of StencilTables generated from the
+    /// @param cvStencils       A set of StencilTable generated from the
     ///                         TopologyRefiner (optional: prevents redundant
-    ///                         instanciation of the tables if available)
+    ///                         instanciation of the table if available)
     ///
-    /// @param patchTables      A set of PatchTables generated from the
+    /// @param patchTable       A set of PatchTable generated from the
     ///                         TopologyRefiner (optional: prevents redundant
-    ///                         instanciation of the tables if available)
+    ///                         instanciation of the table if available)
     ///
-    static LimitStencilTables const * Create(TopologyRefiner const & refiner,
+    static LimitStencilTable const * Create(TopologyRefiner const & refiner,
         LocationArrayVec const & locationArrays,
-            StencilTables const * cvStencils=0,
-                PatchTables const * patchTables=0);
+            StencilTable const * cvStencils=0,
+                PatchTable const * patchTable=0);
 };
 
 

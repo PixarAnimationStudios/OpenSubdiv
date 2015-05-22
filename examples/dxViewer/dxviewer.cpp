@@ -322,7 +322,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     if (g_kernel == kCPU) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::CpuEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -334,7 +334,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::OmpEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -346,7 +346,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::TbbEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -359,7 +359,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     } else if(kernel == kCL) {
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
-                               Osd::CLStencilTables,
+                               Osd::CLStencilTable,
                                Osd::CLEvaluator,
                                Osd::D3D11PatchTable,
                                CLD3D11DeviceContext>(
@@ -373,7 +373,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
-                               Osd::CudaStencilTables,
+                               Osd::CudaStencilTable,
                                Osd::CudaEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -385,7 +385,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     } else if (g_kernel == kDirectCompute) {
         static Osd::EvaluatorCacheT<Osd::D3D11ComputeEvaluator> d3d11ComputeEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
-                               Osd::D3D11StencilTables,
+                               Osd::D3D11StencilTable,
                                Osd::D3D11ComputeEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -405,7 +405,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     if (g_endCap == kEndCapLegacyGregory) {
         g_legacyGregoryPatchTable =
             Osd::D3D11LegacyGregoryPatchTable::Create(
-                g_mesh->GetFarPatchTables(), g_pd3dDeviceContext);
+                g_mesh->GetFarPatchTable(), g_pd3dDeviceContext);
     }
 
     // compute model bounding
@@ -829,7 +829,7 @@ display() {
         g_mesh->GetPatchTable()->GetPatchIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
 
     // patch drawing
-    int patchCount[12]; // [Type] (see far/patchTables.h)
+    int patchCount[12]; // [Type] (see far/patchTable.h)
     int numTotalPatches = 0;
     int numDrawCalls = 0;
 

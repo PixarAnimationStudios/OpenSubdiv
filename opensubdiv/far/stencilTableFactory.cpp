@@ -22,10 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/stencilTablesFactory.h"
+#include "../far/stencilTableFactory.h"
 #include "../far/endCapGregoryBasisPatchFactory.h"
-#include "../far/patchTables.h"
-#include "../far/patchTablesFactory.h"
+#include "../far/patchTable.h"
+#include "../far/patchTableFactory.h"
 #include "../far/patchMap.h"
 #include "../far/protoStencil.h"
 #include "../far/topologyRefiner.h"
@@ -41,7 +41,7 @@ namespace Far {
 //------------------------------------------------------------------------------
 
 void
-StencilTablesFactory::generateControlVertStencils(
+StencilTableFactory::generateControlVertStencils(
     int numControlVerts, Stencil & dst) {
 
     // Control vertices contribute a single index with a weight of 1.0
@@ -54,13 +54,13 @@ StencilTablesFactory::generateControlVertStencils(
 }
 
 //
-// StencilTables factory
+// StencilTable factory
 //
-StencilTables const *
-StencilTablesFactory::Create(TopologyRefiner const & refiner,
+StencilTable const *
+StencilTableFactory::Create(TopologyRefiner const & refiner,
     Options options) {
 
-    StencilTables * result = new StencilTables;
+    StencilTable * result = new StencilTable;
 
     // always initialize numControlVertices (useful for torus case)
     result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
@@ -137,7 +137,7 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
         }
     }
 
-    // Copy stencils from the pool allocator into the tables
+    // Copy stencils from the pool allocator into the table
     {
         // Add total number of stencils, weights & indices
         int nelems = 0, nstencils=0;
@@ -192,8 +192,8 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
 
 //------------------------------------------------------------------------------
 
-StencilTables const *
-StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
+StencilTable const *
+StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
 
     // XXXtakahito:
     // This function returns NULL for empty inputs or erroneous condition.
@@ -211,7 +211,7 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
 
     for (int i=0; i<numTables; ++i) {
 
-        StencilTables const * st = tables[i];
+        StencilTable const * st = tables[i];
         // allow the tables could have a null entry.
         if (!st) continue;
 
@@ -227,14 +227,14 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
         return NULL;
     }
 
-    StencilTables * result = new StencilTables;
+    StencilTable * result = new StencilTable;
     result->resize(nstencils, nelems);
 
     int * sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
     float * weights = &result->_weights[0];
     for (int i=0; i<numTables; ++i) {
-        StencilTables const * st = tables[i];
+        StencilTable const * st = tables[i];
         if (!st) continue;
 
         int st_nstencils = st->GetNumStencils(),
@@ -258,28 +258,28 @@ StencilTablesFactory::Create(int numTables, StencilTables const ** tables) {
 
 //------------------------------------------------------------------------------
 
-StencilTables const *
-StencilTablesFactory::AppendEndCapStencilTables(
+StencilTable const *
+StencilTableFactory::AppendEndCapStencilTable(
     TopologyRefiner const &refiner,
-    StencilTables const *baseStencilTables,
-    StencilTables const *endCapStencilTables,
+    StencilTable const *baseStencilTable,
+    StencilTable const *endCapStencilTable,
     bool factorize) {
 
     // factorize and append.
-    if (baseStencilTables == NULL or
-        endCapStencilTables == NULL) return NULL;
+    if (baseStencilTable == NULL or
+        endCapStencilTable == NULL) return NULL;
 
     // endcap stencils have indices that are relative to the level
     // (maxlevel) of subdivision. These indices need to be offset to match
-    // the indices from the multi-level adaptive stencil tables.
-    // In addition: stencil tables can be built with singular stencils
+    // the indices from the multi-level adaptive stencil table.
+    // In addition: stencil table can be built with singular stencils
     // (single weight of 1.0f) as place-holders for coarse mesh vertices,
     // which also needs to be accounted for.
 
     int stencilsIndexOffset = 0;
     int controlVertsIndexOffset = 0;
-    int nBaseStencils = baseStencilTables->GetNumStencils();
-    int nBaseStencilsElements = (int)baseStencilTables->_indices.size();
+    int nBaseStencils = baseStencilTable->GetNumStencils();
+    int nBaseStencilsElements = (int)baseStencilTable->_indices.size();
     {
         int maxlevel = refiner.GetMaxLevel();
         int nverts = refiner.GetNumVerticesTotal();
@@ -292,7 +292,7 @@ StencilTablesFactory::AppendEndCapStencilTables(
             //  +---------------+----------------------------+-----------------+
             //  | control verts | refined verts   : (max lv) |  endcap points  |
             //  +---------------+----------------------------+-----------------+
-            //  |          base stencil tables               | endcap stencils |
+            //  |          base stencil table                | endcap stencils |
             //  +--------------------------------------------+-----------------+
             //                                    :    ^           /
             //                                    :     \_________/
@@ -312,7 +312,7 @@ StencilTablesFactory::AppendEndCapStencilTables(
             //  +---------------+----------------------------+-----------------+
             //  | control verts | refined verts   : (max lv) |  endcap points  |
             //  +---------------+----------------------------+-----------------+
-            //                  |     base stencil tables    | endcap stencils |
+            //                  |     base stencil table     | endcap stencils |
             //                  +----------------------------+-----------------+
             //                                    :    ^           /
             //                                    :     \_________/
@@ -332,7 +332,7 @@ StencilTablesFactory::AppendEndCapStencilTables(
     }
 
     // copy all endcap stencils to proto stencils, and factorize if needed.
-    int nEndCapStencils = endCapStencilTables->GetNumStencils();
+    int nEndCapStencils = endCapStencilTable->GetNumStencils();
     int nEndCapStencilsElements = 0;
 
     // we exclude zero weight stencils. the resulting number of
@@ -340,7 +340,7 @@ StencilTablesFactory::AppendEndCapStencilTables(
     StencilAllocator allocator(16);
     allocator.Resize(nEndCapStencils);
     for (int i = 0 ; i < nEndCapStencils; ++i) {
-        Stencil src = endCapStencilTables->GetStencil(i);
+        Stencil src = endCapStencilTable->GetStencil(i);
         allocator[i].Clear();
         for (int j = 0; j < src.GetSize(); ++j) {
             Index index = src.GetVertexIndices()[j];
@@ -348,7 +348,7 @@ StencilTablesFactory::AppendEndCapStencilTables(
             if (weight == 0.0) continue;
 
             if (factorize) {
-                allocator[i].AddWithWeight(*baseStencilTables,
+                allocator[i].AddWithWeight(*baseStencilTable,
                                            index + stencilsIndexOffset,
                                            weight);
             } else {
@@ -360,8 +360,8 @@ StencilTablesFactory::AppendEndCapStencilTables(
         nEndCapStencilsElements += allocator.GetSize(i);
     }
 
-    // create new stencil tables
-    StencilTables * result = new StencilTables;
+    // create new stencil table
+    StencilTable * result = new StencilTable;
     result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
     result->resize(nBaseStencils + nEndCapStencils,
                    nBaseStencilsElements + nEndCapStencilsElements);
@@ -371,11 +371,11 @@ StencilTablesFactory::AppendEndCapStencilTables(
     float * weights = &result->_weights[0];
 
     // put base stencils first
-    memcpy(sizes, &baseStencilTables->_sizes[0],
+    memcpy(sizes, &baseStencilTable->_sizes[0],
            nBaseStencils*sizeof(int));
-    memcpy(indices, &baseStencilTables->_indices[0],
+    memcpy(indices, &baseStencilTable->_indices[0],
            nBaseStencilsElements*sizeof(Index));
-    memcpy(weights, &baseStencilTables->_weights[0],
+    memcpy(weights, &baseStencilTable->_weights[0],
            nBaseStencilsElements*sizeof(float));
 
     sizes += nBaseStencils;
@@ -399,10 +399,10 @@ StencilTablesFactory::AppendEndCapStencilTables(
 }
 
 //------------------------------------------------------------------------------
-LimitStencilTables const *
-LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
-    LocationArrayVec const & locationArrays, StencilTables const * cvStencils,
-        PatchTables const * patchTables) {
+LimitStencilTable const *
+LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
+    LocationArrayVec const & locationArrays, StencilTable const * cvStencilsIn,
+        PatchTable const * patchTableIn) {
 
     // Compute the total number of stencils to generate
     int numStencils=0, numLimitStencils=0;
@@ -418,22 +418,22 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
     int maxlevel = refiner.GetMaxLevel(), maxsize=17;
 
-    StencilTables const * cvstencils = cvStencils;
+    StencilTable const * cvstencils = cvStencilsIn;
     if (not cvstencils) {
         // Generate stencils for the control vertices - this is necessary to
         // properly factorize patches with control vertices at level 0 (natural
         // regular patches, such as in a torus)
         // note: the control vertices of the mesh are added as single-index
         //       stencils of weight 1.0f
-        StencilTablesFactory::Options options;
+        StencilTableFactory::Options options;
         options.generateIntermediateLevels = uniform ? false :true;
         options.generateControlVerts = true;
         options.generateOffsets = true;
 
         // XXXX (manuelk) We could potentially save some mem-copies by not
-        // instanciating the stencil tables and work directly off the pool
+        // instanciating the stencil table and work directly off the pool
         // allocators.
-        cvstencils = StencilTablesFactory::Create(refiner, options);
+        cvstencils = StencilTableFactory::Create(refiner, options);
     } else {
         // Sanity checks
         if (cvstencils->GetNumStencils() != (uniform ?
@@ -444,46 +444,46 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     }
 
     // If a stencil table was given, use it, otherwise, create a new one
-    PatchTables const * patchtables = patchTables;
+    PatchTable const * patchtable = patchTableIn;
 
-    if (not patchTables) {
-        // XXXX (manuelk) If no patch-tables was passed, we should be able to
+    if (not patchtable) {
+        // XXXX (manuelk) If no patch-table was passed, we should be able to
         // infer the patches fairly easily from the refiner. Once more tags
         // have been added to the refiner, maybe we can remove the need for the
-        // patch tables.
+        // patch table.
 
-        PatchTablesFactory::Options options;
+        PatchTableFactory::Options options;
         options.SetEndCapType(
-            Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
+            Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
 
-        patchtables = PatchTablesFactory::Create(refiner, options);
+        patchtable = PatchTableFactory::Create(refiner, options);
 
-        if (not cvStencils) {
+        if (not cvStencilsIn) {
             // if cvstencils is just created above, append endcap stencils
-            if (StencilTables const *endCapStencilTables =
-                patchtables->GetEndCapVertexStencilTables()) {
-                StencilTables const *tables =
-                    StencilTablesFactory::AppendEndCapStencilTables(
-                        refiner, cvstencils, endCapStencilTables);
+            if (StencilTable const *endCapStencilTable =
+                patchtable->GetEndCapVertexStencilTable()) {
+                StencilTable const *table =
+                    StencilTableFactory::AppendEndCapStencilTable(
+                        refiner, cvstencils, endCapStencilTable);
                 delete cvstencils;
-                cvstencils = tables;
+                cvstencils = table;
             }
         }
     } else {
         // Sanity checks
-        if (patchTables->IsFeatureAdaptive()==uniform) {
-            if (not cvStencils) {
-                assert(cvstencils and cvstencils!=cvStencils);
+        if (patchtable->IsFeatureAdaptive()==uniform) {
+            if (not cvStencilsIn) {
+                assert(cvstencils and cvstencils!=cvStencilsIn);
                 delete cvstencils;
             }
             return 0;
         }
     }
 
-    assert(patchtables and cvstencils);
+    assert(patchtable and cvstencils);
 
     // Create a patch-map to locate sub-patches faster
-    PatchMap patchmap( *patchtables );
+    PatchMap patchmap( *patchtable );
 
     //
     // Generate limit stencils for locations
@@ -494,7 +494,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     alloc.Resize(numStencils);
 
     // XXXX (manuelk) we can make uniform (bilinear) stencils faster with a
-    //       dedicated code path that does not use PatchTables or the PatchMap
+    //       dedicated code path that does not use PatchTable or the PatchMap
     float wP[20], wDs[20], wDt[20];
 
     for (int i=0; i<(int)locationArrays.size(); ++i) {
@@ -512,11 +512,11 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
 
             if (handle) {
 
-                ConstIndexArray cvs = patchtables->GetPatchVertices(*handle);
+                ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
 
-                patchtables->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+                patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
 
-                StencilTables const & src = *cvstencils;
+                StencilTable const & src = *cvstencils;
                 ProtoLimitStencil dst = alloc[numLimitStencils];
 
                 dst.Clear();
@@ -529,18 +529,18 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
         }
     }
 
-    if (not cvStencils) {
+    if (not cvStencilsIn) {
         delete cvstencils;
     }
 
-    if (not patchTables) {
-        delete patchtables;
+    if (not patchTableIn) {
+        delete patchtable;
     }
 
     //
-    // Copy the proto-stencils into the limit stencil tables
+    // Copy the proto-stencils into the limit stencil table
     //
-    LimitStencilTables * result = new LimitStencilTables;
+    LimitStencilTable * result = new LimitStencilTable;
 
     int nelems = alloc.GetNumVerticesTotal();
     if (nelems>0) {

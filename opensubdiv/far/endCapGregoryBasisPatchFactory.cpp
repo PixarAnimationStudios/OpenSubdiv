@@ -25,7 +25,7 @@
 #include "../far/gregoryBasis.h"
 #include "../far/endCapGregoryBasisPatchFactory.h"
 #include "../far/error.h"
-#include "../far/stencilTablesFactory.h"
+#include "../far/stencilTableFactory.h"
 #include "../far/topologyRefiner.h"
 
 #include <cassert>
@@ -38,7 +38,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 //
-// EndCapGregoryBasisPatchFactory for Vertex StencilTables
+// EndCapGregoryBasisPatchFactory for Vertex StencilTable
 //
 EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     TopologyRefiner const & refiner, bool shareBoundaryVertices) :
@@ -112,7 +112,7 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
 ConstIndexArray
 EndCapGregoryBasisPatchFactory::GetPatchPoints(
     Vtr::Level const * level, Index faceIndex,
-    PatchTablesFactory::PatchFaceTag const * levelPatchTags)
+    PatchTableFactory::PatchFaceTag const * levelPatchTags)
 {
     // allocate indices (awkward)
     // assert(Vtr::INDEX_INVALID==0xFFFFFFFF);

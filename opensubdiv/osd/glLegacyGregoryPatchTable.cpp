@@ -45,17 +45,17 @@ GLLegacyGregoryPatchTable::~GLLegacyGregoryPatchTable() {
 }
 
 GLLegacyGregoryPatchTable *
-GLLegacyGregoryPatchTable::Create(Far::PatchTables const *farPatchTables) {
+GLLegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable) {
 
     GLLegacyGregoryPatchTable *result = new GLLegacyGregoryPatchTable();
     glGenTextures(1, &result->_vertexTextureBuffer);
     glGenTextures(1, &result->_vertexValenceTextureBuffer);
     glGenTextures(1, &result->_quadOffsetsTextureBuffer);
 
-    Far::PatchTables::VertexValenceTable const &
-        valenceTable = farPatchTables->GetVertexValenceTable();
-    Far::PatchTables::QuadOffsetsTable const &
-        quadOffsetsTable = farPatchTables->GetQuadOffsetsTable();
+    Far::PatchTable::VertexValenceTable const &
+        valenceTable = farPatchTable->GetVertexValenceTable();
+    Far::PatchTable::QuadOffsetsTable const &
+        quadOffsetsTable = farPatchTable->GetQuadOffsetsTable();
 
     GLuint buffers[2];
     glGenBuffers(2, buffers);
@@ -82,11 +82,11 @@ GLLegacyGregoryPatchTable::Create(Far::PatchTables const *farPatchTables) {
     result->_quadOffsetsBase[0] = 0;
     result->_quadOffsetsBase[1] = 0;
     // scan patchtable to find quadOffsetsBase.
-    for (int i = 0; i < farPatchTables->GetNumPatchArrays(); ++i) {
+    for (int i = 0; i < farPatchTable->GetNumPatchArrays(); ++i) {
         // GREGORY_BOUNDARY's quadoffsets come after GREGORY's.
-        if (farPatchTables->GetPatchArrayDescriptor(i) ==
+        if (farPatchTable->GetPatchArrayDescriptor(i) ==
             Far::PatchDescriptor::GREGORY) {
-            result->_quadOffsetsBase[1] = farPatchTables->GetNumPatches(i) * 4;
+            result->_quadOffsetsBase[1] = farPatchTable->GetNumPatches(i) * 4;
             break;
         }
     }

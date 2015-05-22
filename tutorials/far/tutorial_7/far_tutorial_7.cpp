@@ -26,12 +26,12 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// This tutorial shows how to create and manipulate tables of cascading stencils.
+// This tutorial shows how to create and manipulate table of cascading stencils.
 //
 // We initalize a Far::TopologyRefiner initalized with a cube and apply uniform
-// refinement. We then use a Far::StencilTablesFactory to generate stencil
-// tables. We set the factory Options to not factorize intermediate levels,
-// thus giving tables of "cascading" stencils.
+// refinement. We then use a Far::StencilTableFactory to generate a stencil
+// table. We set the factory Options to not factorize intermediate levels,
+// thus giving a table of "cascading" stencils.
 //
 // We then apply the stencils to the vertex position primvar data, and insert
 // a hierarchical edit at level 1. This edit is smoothed by the application
@@ -42,8 +42,8 @@
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
-#include <opensubdiv/far/stencilTables.h>
-#include <opensubdiv/far/stencilTablesFactory.h>
+#include <opensubdiv/far/stencilTable.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 
 #include <cstdio>
 #include <cstring>
@@ -131,17 +131,17 @@ int main(int, char **) {
     int maxlevel = 4;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
-    // Use the FarStencilTables factory to create cascading stencil tables
+    // Use the FarStencilTable factory to create cascading stencil table
     // note: we want stencils for the each refinement level
     //       "cascade" mode is achieved by setting "factorizeIntermediateLevels"
     //       to false
-    Far::StencilTablesFactory::Options options;
+    Far::StencilTableFactory::Options options;
     options.generateIntermediateLevels=true;
     options.factorizeIntermediateLevels=false;
     options.generateOffsets=true;
 
-    Far::StencilTables const * stencilTables =
-        Far::StencilTablesFactory::Create(*refiner, options);
+    Far::StencilTable const * stencilTable =
+        Far::StencilTableFactory::Create(*refiner, options);
 
     std::vector<Vertex> vertexBuffer(refiner->GetNumVerticesTotal()-g_nverts);
 
@@ -160,7 +160,7 @@ int main(int, char **) {
         start = end;
         end += nverts;
 
-        stencilTables->UpdateValues(srcVerts, destVerts, start, end);
+        stencilTable->UpdateValues(srcVerts, destVerts, start, end);
         
         // apply 2 hierarchical edits on level 1 vertices
         if (level==1) {
@@ -210,7 +210,7 @@ int main(int, char **) {
     }
 
     delete refiner;
-    delete stencilTables;
+    delete stencilTable;
 }
 
 //------------------------------------------------------------------------------

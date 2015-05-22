@@ -50,9 +50,9 @@ GLFWmonitor* g_primary=0;
 
 #include <far/gregoryBasis.h>
 #include <far/endCapGregoryBasisPatchFactory.h>
-#include <far/patchTablesFactory.h>
-#include <far/stencilTables.h>
-#include <far/stencilTablesFactory.h>
+#include <far/patchTableFactory.h>
+#include <far/stencilTable.h>
+#include <far/stencilTableFactory.h>
 
 #include <common/vtr_utils.h>
 
@@ -343,7 +343,7 @@ createFaceNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
 //------------------------------------------------------------------------------
 // generate display vert IDs for the selected Far patch
 static void
-createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
+createPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
     std::vector<Vertex> const & vertexBuffer) {
 
     if (not g_currentPatch)
@@ -353,8 +353,8 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
         patchArray = -1;
 
     // Find PatchArray containing our patch
-    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
-        int npatches = patchTables.GetNumPatches(array);
+    for (int array=0; array<(int)patchTable.GetNumPatchArrays(); ++array) {
+        int npatches = patchTable.GetNumPatches(array);
         if (patchID >= npatches) {
             patchID -= npatches;
         } else {
@@ -366,10 +366,10 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
         return;
     }
 
-    g_currentPatchDesc = patchTables.GetPatchArrayDescriptor(patchArray);
+    g_currentPatchDesc = patchTable.GetPatchArrayDescriptor(patchArray);
 
     OpenSubdiv::Far::ConstIndexArray const cvs =
-        patchTables.GetPatchVertices(patchArray, patchID);
+        patchTable.GetPatchVertices(patchArray, patchID);
 
     static char buf[16];
     for (int i=0; i<cvs.size(); ++i) {
@@ -381,7 +381,7 @@ createPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
 //------------------------------------------------------------------------------
 // generate display vert IDs for the selected Far FVar patch
 static void
-createFVarPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
+createFVarPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
     std::vector<Vertex> const & fvarBuffer) {
 
     static int channel = 0;
@@ -389,20 +389,20 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     int patch = g_currentPatch-1;
     static char buf[16];
 
-    if (patch>=0 and patch<patchTables.GetNumPatchesTotal()) {
+    if (patch>=0 and patch<patchTable.GetNumPatchesTotal()) {
 
-        OpenSubdiv::Far::PatchTables::PatchHandle handle;
+        OpenSubdiv::Far::PatchTable::PatchHandle handle;
         handle.patchIndex = patch;
 
         OpenSubdiv::Far::ConstIndexArray const cvs =
-            patchTables.GetFVarPatchValues(channel, handle);
+            patchTable.GetFVarPatchValues(channel, handle);
 
         for (int i=0; i<cvs.size(); ++i) {
             snprintf(buf, 16, "%d", i);
             g_font->Print3D(fvarBuffer[cvs[i]].GetPos(), buf, 2);
         }
 
-        g_currentFVarPatchType = patchTables.GetFVarPatchType(channel, handle);
+        g_currentFVarPatchType = patchTable.GetFVarPatchType(channel, handle);
     }
 }
 
@@ -413,7 +413,7 @@ static GLMesh fvarVerts,
 
 static void
 createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
-    OpenSubdiv::Far::PatchTables const & patchTables,
+    OpenSubdiv::Far::PatchTable const & patchTable,
         std::vector<Vertex> const & fvarBuffer) {
 
     assert(not fvarBuffer.empty());
@@ -423,14 +423,14 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
     if (g_FarDrawFVarVerts) {
         GLMesh::Options options;
         options.vertColorMode = GLMesh::VERTCOLOR_BY_LEVEL;
-        fvarVerts.InitializeFVar(options, refiner, &patchTables, channel, 0, (float *)(&fvarBuffer[0]));
+        fvarVerts.InitializeFVar(options, refiner, &patchTable, channel, 0, (float *)(&fvarBuffer[0]));
     }
 
     if (g_FarDrawFVarPatches) {
 
         // generate uniform tessellation for patches
         int tessFactor = g_FarDrawFVarPatchTess,
-            npatches = patchTables.GetNumPatchesTotal(),
+            npatches = patchTable.GetNumPatchesTotal(),
             nvertsperpatch = (tessFactor) * (tessFactor),
             nverts = npatches * nvertsperpatch;
 
@@ -442,7 +442,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
         std::vector<Vertex> verts(nverts);
         memset(&verts[0], 0, verts.size()*sizeof(Vertex));
 
-        OpenSubdiv::Far::PatchTables::PatchHandle handle;
+        OpenSubdiv::Far::PatchTable::PatchHandle handle;
 
         Vertex * vert = &verts[0];
         for (int patch=0; patch<npatches; ++patch) {
@@ -450,14 +450,14 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
                 for (int j=0; j<tessFactor; ++j, ++vert) {
                     handle.patchIndex = patch;
                     //  To be replaced with EvaluateBasis() for the appropriate channel:
-                    //patchTables.EvaluateFaceVarying(channel, handle, uvs[i], uvs[j], fvarBuffer, *vert);
+                    //patchTable.EvaluateFaceVarying(channel, handle, uvs[i], uvs[j], fvarBuffer, *vert);
                 }
             }
         }
 
         GLMesh::Options options;
         options.edgeColorMode = GLMesh::EDGECOLOR_BY_PATCHTYPE;
-        fvarWire.InitializeFVar(options, refiner, &patchTables, channel, tessFactor, (float *)(&verts[0]));
+        fvarWire.InitializeFVar(options, refiner, &patchTable, channel, tessFactor, (float *)(&verts[0]));
     }
 }
 
@@ -467,17 +467,17 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
 static GLMesh gregoryWire;
 
 static void
-createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
+createGregoryBasis(OpenSubdiv::Far::PatchTable const & patchTable,
         std::vector<Vertex> const & vertexBuffer) {
 
     typedef OpenSubdiv::Far::PatchDescriptor PatchDescriptor;
 
     int npatches = 0;
     int patchArray = 0;
-    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
-        if (patchTables.GetPatchArrayDescriptor(array).GetType()==
+    for (int array=0; array<(int)patchTable.GetNumPatchArrays(); ++array) {
+        if (patchTable.GetPatchArrayDescriptor(array).GetType()==
             PatchDescriptor::GREGORY_BASIS) {
-            npatches = patchTables.GetNumPatches(array);
+            npatches = patchTable.GetNumPatches(array);
             patchArray = array;
             break;
         }
@@ -499,7 +499,7 @@ createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
             * indices = &edgeindices[patch * 40];
 
         OpenSubdiv::Far::ConstIndexArray const cvs =
-            patchTables.GetPatchVertices(patchArray, patch);
+            patchTable.GetPatchVertices(patchArray, patch);
 
         for (int i=0; i<20; ++i) {
             vpe[i] = 2;
@@ -539,7 +539,7 @@ createGregoryBasis(OpenSubdiv::Far::PatchTables const & patchTables,
 //------------------------------------------------------------------------------
 // generate display IDs for Far faces
 static void
-createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
+createPtexNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
     std::vector<Vertex> const & vertexBuffer) {
 
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
@@ -549,15 +549,15 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
     static int regular[4]  = {5, 6, 9, 10},
                gregory[4]  = {0, 1, 2, 3};
 
-    for (int array=0; array<(int)patchTables.GetNumPatchArrays(); ++array) {
+    for (int array=0; array<(int)patchTable.GetNumPatchArrays(); ++array) {
 
-        for (int patch=0; patch<(int)patchTables.GetNumPatches(array); ++patch) {
+        for (int patch=0; patch<(int)patchTable.GetNumPatches(array); ++patch) {
 
             OpenSubdiv::Far::ConstIndexArray const cvs =
-                patchTables.GetPatchVertices(array, patch);
+                patchTable.GetPatchVertices(array, patch);
 
             int * remap = 0;
-            switch (patchTables.GetPatchArrayDescriptor(array).GetType()) {
+            switch (patchTable.GetPatchArrayDescriptor(array).GetType()) {
                 case Descriptor::REGULAR:          remap = regular; break;
                 case Descriptor::GREGORY:
                 case Descriptor::GREGORY_BOUNDARY:
@@ -571,7 +571,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTables const & patchTables,
                 center.AddWithWeight(vertexBuffer[cvs[remap[k]]], 0.25f);
             }
 
-            snprintf(buf, 16, "%d", patchTables.GetPatchParam(array, patch).faceIndex);
+            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).faceIndex);
             g_font->Print3D(center.GetPos(), buf, 1);
         }
     }
@@ -609,35 +609,35 @@ createFarGLMesh(Shape * shape, int maxlevel) {
     int numTotalVerts = refiner->GetNumVerticesTotal();
 
     //
-    // Patch tables
+    // Patch table
     //
     std::vector<Vertex> fvarBuffer;
-    Far::PatchTables * patchTables = 0;
+    Far::PatchTable * patchTable = 0;
     bool createFVarWire = g_FarDrawFVarPatches or g_FarDrawFVarVerts;
 
     if (g_Adaptive) {
-        Far::PatchTablesFactory::Options options;
+        Far::PatchTableFactory::Options options;
         options.generateFVarTables = createFVarWire;
         options.shareEndCapPatchPoints = false;
 
-        patchTables =
-            Far::PatchTablesFactory::Create(*refiner, options);
+        patchTable =
+            Far::PatchTableFactory::Create(*refiner, options);
 
         // increase vertex buffer for the additional endcap verts
-        if (patchTables->GetEndCapVertexStencilTables()) {
-            numTotalVerts += patchTables->GetEndCapVertexStencilTables()->GetNumStencils();
+        if (patchTable->GetEndCapVertexStencilTable()) {
+            numTotalVerts += patchTable->GetEndCapVertexStencilTable()->GetNumStencils();
         }
 
-        g_numPatches = patchTables->GetNumPatchesTotal();
-        g_maxValence = patchTables->GetMaxValence();
+        g_numPatches = patchTable->GetNumPatchesTotal();
+        g_maxValence = patchTable->GetMaxValence();
 
         if (createFVarWire) {
 
             // interpolate fvar values
 
-            //Far::FVarPatchTables const * fvarTables =
-            //    patchTables->GetFVarPatchTables();
-            //assert(fvarTables);
+            //Far::FVarPatchTable const * fvarTable =
+            //    patchTable->GetFVarPatchTable();
+            //assert(fvarTable);
 
             int channel = 0;
 
@@ -675,29 +675,29 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         //
         // Stencil interpolation
         //
-        Far::StencilTables const * stencilTables = 0;
-        Far::StencilTablesFactory::Options options;
+        Far::StencilTable const * stencilTable = 0;
+        Far::StencilTableFactory::Options options;
         options.generateOffsets=true;
         options.generateIntermediateLevels=true;
-        stencilTables = Far::StencilTablesFactory::Create(*refiner, options);
+        stencilTable = Far::StencilTableFactory::Create(*refiner, options);
 
         // append endpatch stencils if needed
-        if (patchTables and patchTables->GetEndCapVertexStencilTables()) {
-            if (Far::StencilTables const * stencilTablesWithEndCap =
-                Far::StencilTablesFactory::AppendEndCapStencilTables(
-                    *refiner, stencilTables,
-                    patchTables->GetEndCapVertexStencilTables())) {
-                delete stencilTables;
-                stencilTables = stencilTablesWithEndCap;
+        if (patchTable and patchTable->GetEndCapVertexStencilTable()) {
+            if (Far::StencilTable const * stencilTableWithEndCap =
+                Far::StencilTableFactory::AppendEndCapStencilTable(
+                    *refiner, stencilTable,
+                    patchTable->GetEndCapVertexStencilTable())) {
+                delete stencilTable;
+                stencilTable = stencilTableWithEndCap;
             }
         }
 
         //
         // apply stencils
         //
-        stencilTables->UpdateValues(verts, verts + ncoarseverts);
+        stencilTable->UpdateValues(verts, verts + ncoarseverts);
 
-        delete stencilTables;
+        delete stencilTable;
     } else {
         //
         // TopologyRefiner interpolation
@@ -725,21 +725,21 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         createFaceNumbers(*refiner, vertexBuffer);
     }
 
-    if (g_FarDrawPtexIDs and patchTables) {
-        createPtexNumbers(*patchTables, vertexBuffer);
+    if (g_FarDrawPtexIDs and patchTable) {
+        createPtexNumbers(*patchTable, vertexBuffer);
     }
 
     if (g_Adaptive) {
-        createPatchNumbers(*patchTables, vertexBuffer);
+        createPatchNumbers(*patchTable, vertexBuffer);
     }
 
     if (g_Adaptive and g_FarDrawGregogyBasis) {
-        createGregoryBasis(*patchTables, vertexBuffer);
+        createGregoryBasis(*patchTable, vertexBuffer);
     }
 
     if (g_Adaptive and createFVarWire) {
-        createFVarPatches(*refiner, *patchTables, fvarBuffer);
-        createFVarPatchNumbers(*patchTables, fvarBuffer);
+        createFVarPatches(*refiner, *patchTable, fvarBuffer);
+        createFVarPatchNumbers(*patchTable, fvarBuffer);
     }
 
     createEdgeNumbers(*refiner, vertexBuffer, g_FarDrawEdgeIDs!=0, g_FarDrawEdgeSharpness!=0);
@@ -749,7 +749,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
     options.edgeColorMode=g_Adaptive ? GLMesh::EDGECOLOR_BY_PATCHTYPE : GLMesh::EDGECOLOR_BY_SHARPNESS;
     options.faceColorMode=g_Adaptive ? GLMesh::FACECOLOR_BY_PATCHTYPE :GLMesh::FACECOLOR_SOLID;
 
-    g_far_glmesh.Initialize(options, *refiner, patchTables, (float *)&verts[0]);
+    g_far_glmesh.Initialize(options, *refiner, patchTable, (float *)&verts[0]);
     if (g_Adaptive) {
         g_far_glmesh.SetDiffuseColor(1.0f, 1.0f, 1.0f, 1.0f);
     } else {
@@ -762,7 +762,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
     g_far_glmesh.InitializeDeviceBuffers();
 
     delete refiner;
-    delete patchTables;
+    delete patchTable;
 }
 
 //------------------------------------------------------------------------------

@@ -939,7 +939,7 @@ createOsdMesh(int level, int kernel) {
 
     if (kernel == kCPU) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Far::StencilTable,
                                            OpenSubdiv::Osd::CpuEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -949,7 +949,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Far::StencilTable,
                                            OpenSubdiv::Osd::OmpEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -960,7 +960,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Far::StencilTable,
                                            OpenSubdiv::Osd::TbbEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -972,7 +972,7 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kCL) {
         static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
-                                           OpenSubdiv::Osd::CLStencilTables,
+                                           OpenSubdiv::Osd::CLStencilTable,
                                            OpenSubdiv::Osd::CLEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable,
                                            CLDeviceContext>(
@@ -986,7 +986,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (kernel == kCUDA) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
-                                           OpenSubdiv::Osd::CudaStencilTables,
+                                           OpenSubdiv::Osd::CudaStencilTable,
                                            OpenSubdiv::Osd::CudaEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -998,7 +998,7 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kGLSL) {
         static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::GLXFBEvaluator> glXFBEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                           OpenSubdiv::Osd::GLStencilTablesTBO,
+                                           OpenSubdiv::Osd::GLStencilTableTBO,
                                            OpenSubdiv::Osd::GLXFBEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                refiner,
@@ -1011,7 +1011,7 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kGLSLCompute) {
         static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::GLComputeEvaluator> glComputeEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                           OpenSubdiv::Osd::GLStencilTablesSSBO,
+                                           OpenSubdiv::Osd::GLStencilTableSSBO,
                                            OpenSubdiv::Osd::GLComputeEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,

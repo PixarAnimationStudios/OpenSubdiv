@@ -33,9 +33,9 @@
 #include <vector>
 
 #include "../far/topologyRefiner.h"
-#include "../far/patchTablesFactory.h"
-#include "../far/stencilTables.h"
-#include "../far/stencilTablesFactory.h"
+#include "../far/patchTableFactory.h"
+#include "../far/stencilTable.h"
+#include "../far/stencilTableFactory.h"
 
 #include "../osd/vertexDescriptor.h"
 
@@ -87,7 +87,7 @@ public:
 
     virtual PatchTable * GetPatchTable() const = 0;
 
-    virtual Far::PatchTables const *GetFarPatchTables() const = 0;
+    virtual Far::PatchTable const *GetFarPatchTable() const = 0;
 
     virtual VertexBufferBinding BindVertexBuffer() = 0;
 
@@ -114,32 +114,32 @@ protected:
 
 // ---------------------------------------------------------------------------
 
-template <typename STENCIL_TABLES, typename DEVICE_CONTEXT>
-STENCIL_TABLES const *
-convertToCompatibleStencilTables(
-    Far::StencilTables const *table, DEVICE_CONTEXT *context) {
+template <typename STENCIL_TABLE, typename DEVICE_CONTEXT>
+STENCIL_TABLE const *
+convertToCompatibleStencilTable(
+    Far::StencilTable const *table, DEVICE_CONTEXT *context) {
     if (not table) return NULL;
-    return STENCIL_TABLES::Create(table, context);
+    return STENCIL_TABLE::Create(table, context);
 }
 
 template <>
-Far::StencilTables const *
-convertToCompatibleStencilTables<Far::StencilTables, void>(
-    Far::StencilTables const *table, void *  /*context*/) {
+Far::StencilTable const *
+convertToCompatibleStencilTable<Far::StencilTable, void>(
+    Far::StencilTable const *table, void *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
     if (not table) return NULL;
-    return new Far::StencilTables(*table);
+    return new Far::StencilTable(*table);
 }
 
 template <>
-Far::StencilTables const *
-convertToCompatibleStencilTables<Far::StencilTables, ID3D11DeviceContext>(
-    Far::StencilTables const *table, ID3D11DeviceContext *  /*context*/) {
+Far::StencilTable const *
+convertToCompatibleStencilTable<Far::StencilTable, ID3D11DeviceContext>(
+    Far::StencilTable const *table, ID3D11DeviceContext *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
     if (not table) return NULL;
-    return new Far::StencilTables(*table);
+    return new Far::StencilTable(*table);
 }
 
 // ---------------------------------------------------------------------------
@@ -231,7 +231,7 @@ static EVALUATOR *GetEvaluator(
 // ---------------------------------------------------------------------------
 
 template <typename VERTEX_BUFFER,
-          typename STENCIL_TABLES,
+          typename STENCIL_TABLE,
           typename EVALUATOR,
           typename PATCH_TABLE,
           typename DEVICE_CONTEXT = void>
@@ -239,7 +239,7 @@ class Mesh : public MeshInterface<PATCH_TABLE> {
 public:
     typedef VERTEX_BUFFER VertexBuffer;
     typedef EVALUATOR Evaluator;
-    typedef STENCIL_TABLES StencilTables;
+    typedef STENCIL_TABLE StencilTable;
     typedef PATCH_TABLE PatchTable;
     typedef DEVICE_CONTEXT DeviceContext;
     typedef EvaluatorCacheT<Evaluator> EvaluatorCache;
@@ -254,13 +254,13 @@ public:
          DeviceContext * deviceContext = NULL) :
 
             _refiner(refiner),
-            _farPatchTables(NULL),
+            _farPatchTable(NULL),
             _numVertices(0),
             _maxValence(0),
             _vertexBuffer(NULL),
             _varyingBuffer(NULL),
-            _vertexStencilTables(NULL),
-            _varyingStencilTables(NULL),
+            _vertexStencilTable(NULL),
+            _varyingStencilTable(NULL),
             _evaluatorCache(evaluatorCache),
             _patchTable(NULL),
             _deviceContext(deviceContext) {
@@ -302,11 +302,11 @@ public:
 
     virtual ~Mesh() {
         delete _refiner;
-        delete _farPatchTables;
+        delete _farPatchTable;
         delete _vertexBuffer;
         delete _varyingBuffer;
-        delete _vertexStencilTables;
-        delete _varyingStencilTables;
+        delete _vertexStencilTable;
+        delete _varyingStencilTable;
         delete _patchTable;
         // deviceContext and evaluatorCache are not owned by this class.
     }
@@ -339,7 +339,7 @@ public:
 
         Evaluator::EvalStencils(_vertexBuffer, srcDesc,
                                 _vertexBuffer, dstDesc,
-                                _vertexStencilTables,
+                                _vertexStencilTable,
                                 instance, _deviceContext);
 
         if (_varyingDesc.length > 0) {
@@ -354,13 +354,13 @@ public:
                 // non-interleaved
                 Evaluator::EvalStencils(_varyingBuffer, srcDesc,
                                         _varyingBuffer, dstDesc,
-                                        _varyingStencilTables,
+                                        _varyingStencilTable,
                                         instance, _deviceContext);
             } else {
                 // interleaved
                 Evaluator::EvalStencils(_vertexBuffer, srcDesc,
                                         _vertexBuffer, dstDesc,
-                                        _varyingStencilTables,
+                                        _varyingStencilTable,
                                         instance, _deviceContext);
             }
         }
@@ -374,8 +374,8 @@ public:
         return _patchTable;
     }
 
-    virtual Far::PatchTables const *GetFarPatchTables() const {
-        return _farPatchTables;
+    virtual Far::PatchTable const *GetFarPatchTable() const {
+        return _farPatchTable;
     }
 
     virtual int GetNumVertices() const { return _numVertices; }
@@ -408,85 +408,85 @@ private:
                            int level, MeshBitset bits) {
         assert(_refiner);
 
-        Far::StencilTablesFactory::Options options;
+        Far::StencilTableFactory::Options options;
         options.generateOffsets = true;
         options.generateIntermediateLevels =
             _refiner->IsUniform() ? false : true;
 
-        Far::StencilTables const * vertexStencils = NULL;
-        Far::StencilTables const * varyingStencils = NULL;
+        Far::StencilTable const * vertexStencils = NULL;
+        Far::StencilTable const * varyingStencils = NULL;
 
         if (numVertexElements>0) {
 
-            vertexStencils = Far::StencilTablesFactory::Create(*_refiner,
-                                                               options);
+            vertexStencils = Far::StencilTableFactory::Create(*_refiner,
+                                                              options);
         }
 
         if (numVaryingElements>0) {
 
             options.interpolationMode =
-                Far::StencilTablesFactory::INTERPOLATE_VARYING;
+                Far::StencilTableFactory::INTERPOLATE_VARYING;
 
-            varyingStencils = Far::StencilTablesFactory::Create(*_refiner,
-                                                                options);
+            varyingStencils = Far::StencilTableFactory::Create(*_refiner,
+                                                               options);
         }
 
-        Far::PatchTablesFactory::Options poptions(level);
+        Far::PatchTableFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         if (bits.test(MeshEndCapBSplineBasis)) {
             poptions.SetEndCapType(
-                Far::PatchTablesFactory::Options::ENDCAP_BSPLINE_BASIS);
+                Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
         } else if (bits.test(MeshEndCapGregoryBasis)) {
             poptions.SetEndCapType(
-                Far::PatchTablesFactory::Options::ENDCAP_GREGORY_BASIS);
+                Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
             // points on gregory basis endcap boundary can be shared among
             // adjacent patches to save some stencils.
             poptions.shareEndCapPatchPoints = true;
         } else if (bits.test(MeshEndCapLegacyGregory)) {
             poptions.SetEndCapType(
-                Far::PatchTablesFactory::Options::ENDCAP_LEGACY_GREGORY);
+                Far::PatchTableFactory::Options::ENDCAP_LEGACY_GREGORY);
         }
 
-        _farPatchTables = Far::PatchTablesFactory::Create(*_refiner, poptions);
+        _farPatchTable = Far::PatchTableFactory::Create(*_refiner, poptions);
 
         // if there's endcap stencils, merge it into regular stencils.
-        if (_farPatchTables->GetEndCapVertexStencilTables()) {
+        if (_farPatchTable->GetEndCapVertexStencilTable()) {
             // append stencils
-            if (Far::StencilTables const *vertexStencilsWithEndCap =
-                Far::StencilTablesFactory::AppendEndCapStencilTables(
+            if (Far::StencilTable const *vertexStencilsWithEndCap =
+                Far::StencilTableFactory::AppendEndCapStencilTable(
                     *_refiner,
                     vertexStencils,
-                    _farPatchTables->GetEndCapVertexStencilTables())) {
+                    _farPatchTable->GetEndCapVertexStencilTable())) {
                 delete vertexStencils;
                 vertexStencils = vertexStencilsWithEndCap;
             }
             if (varyingStencils) {
-                if (Far::StencilTables const *varyingStencilsWithEndCap =
-                    Far::StencilTablesFactory::AppendEndCapStencilTables(
+                if (Far::StencilTable const *varyingStencilsWithEndCap =
+                    Far::StencilTableFactory::AppendEndCapStencilTable(
                         *_refiner,
                         varyingStencils,
-                        _farPatchTables->GetEndCapVaryingStencilTables())) {
+                        _farPatchTable->GetEndCapVaryingStencilTable())) {
                     delete varyingStencils;
                     varyingStencils = varyingStencilsWithEndCap;
                 }
             }
         }
 
-        _maxValence = _farPatchTables->GetMaxValence();
-        _patchTable = PatchTable::Create(_farPatchTables, _deviceContext);
+        _maxValence = _farPatchTable->GetMaxValence();
+        _patchTable = PatchTable::Create(_farPatchTable, _deviceContext);
 
         // numvertices = coarse verts + refined verts + gregory basis verts
         _numVertices = vertexStencils->GetNumControlVertices()
             + vertexStencils->GetNumStencils();
 
-        // convert to device stenciltables if necessary.
-        _vertexStencilTables =
-            convertToCompatibleStencilTables<StencilTables>(
+        // convert to device stenciltable if necessary.
+        _vertexStencilTable =
+            convertToCompatibleStencilTable<StencilTable>(
             vertexStencils, _deviceContext);
-        _varyingStencilTables =
-            convertToCompatibleStencilTables<StencilTables>(
+        _varyingStencilTable =
+            convertToCompatibleStencilTable<StencilTable>(
             varyingStencils, _deviceContext);
 
         // FIXME: we do extra copyings for Far::Stencils.
@@ -510,7 +510,7 @@ private:
     }
 
     Far::TopologyRefiner * _refiner;
-    Far::PatchTables * _farPatchTables;
+    Far::PatchTable * _farPatchTable;
 
     int _numVertices;
     int _maxValence;
@@ -521,8 +521,8 @@ private:
     VertexBufferDescriptor _vertexDesc;
     VertexBufferDescriptor _varyingDesc;
 
-    StencilTables const * _vertexStencilTables;
-    StencilTables const * _varyingStencilTables;
+    StencilTable const * _vertexStencilTable;
+    StencilTable const * _varyingStencilTable;
     EvaluatorCache * _evaluatorCache;
 
     PatchTable *_patchTable;
