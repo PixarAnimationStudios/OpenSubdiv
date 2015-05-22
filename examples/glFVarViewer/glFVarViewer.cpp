@@ -368,7 +368,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    OpenSubdiv::Far::TopologyLeve const & refBaseLevel = refiner->GetLevel(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
     int nedges = refBaseLevel.GetNumEdges(),
         nverts = refBaseLevel.GetNumVertices();
 
