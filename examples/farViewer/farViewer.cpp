@@ -645,7 +645,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
             fvarBuffer.resize(refiner->GetNumFVarValuesTotal(channel), 0);
             Vertex * values = &fvarBuffer[0];
 
-            int nCoarseValues = refiner->GetNumFVarValues(0);
+            int nCoarseValues = refiner->GetLevel(0).GetNumFVarValues(channel);
 
             for (int i=0; i<nCoarseValues; ++i) {
                 float const * ptr = &shape->uvs[i*2];
