@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 #include "../osd/nonCopyable.h"
 #include "../osd/opengl.h"
 
@@ -41,7 +41,7 @@ class GLLegacyGregoryPatchTable
 public:
     ~GLLegacyGregoryPatchTable();
 
-    static GLLegacyGregoryPatchTable *Create(Far::PatchTables const *patchTable);
+    static GLLegacyGregoryPatchTable *Create(Far::PatchTable const *patchTable);
 
     void UpdateVertexBuffer(GLuint vbo);
 

@@ -52,7 +52,7 @@ GLFWwindow* g_window=0;
 
 #include <osd/cpuGLVertexBuffer.h>
 
-#include <far/stencilTablesFactory.h>
+#include <far/stencilTableFactory.h>
 
 #include "../../regression/common/cmp_utils.h"
 #include "../../regression/common/hbr_utils.h"
@@ -246,19 +246,19 @@ checkVertexBuffer(
 
 //------------------------------------------------------------------------------
 static void
-buildStencilTables(
+buildStencilTable(
     const FarTopologyRefiner &refiner,
-    Far::StencilTables const **vertexStencils,
-    Far::StencilTables const **varyingStencils)
+    Far::StencilTable const **vertexStencils,
+    Far::StencilTable const **varyingStencils)
 {
-    Far::StencilTablesFactory::Options soptions;
+    Far::StencilTableFactory::Options soptions;
     soptions.generateOffsets = true;
     soptions.generateIntermediateLevels = true;
 
-    *vertexStencils = Far::StencilTablesFactory::Create(refiner, soptions);
+    *vertexStencils = Far::StencilTableFactory::Create(refiner, soptions);
 
-    soptions.interpolationMode = Far::StencilTablesFactory::INTERPOLATE_VARYING;
-    *varyingStencils = Far::StencilTablesFactory::Create(refiner, soptions);
+    soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_VARYING;
+    *varyingStencils = Far::StencilTableFactory::Create(refiner, soptions);
 }
 
 
@@ -269,9 +269,9 @@ checkMeshCPU( FarTopologyRefiner *refiner,
               const std::vector<xyzVV>& coarseverts,
               xyzmesh * refmesh) {
 
-    Far::StencilTables const *vertexStencils;
-    Far::StencilTables const *varyingStencils;
-    buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
+    Far::StencilTable const *vertexStencils;
+    Far::StencilTable const *varyingStencils;
+    buildStencilTable(*refiner, &vertexStencils, &varyingStencils);
 
     assert(coarseverts.size() == (size_t)refiner->GetNumVerticesTotal());
     
@@ -303,9 +303,9 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
                const std::vector<xyzVV>& coarseverts,
                xyzmesh * refmesh) {
 
-    Far::StencilTables const *vertexStencils;
-    Far::StencilTables const *varyingStencils;
-    buildStencilTables(*refiner, &vertexStencils, &varyingStencils);
+    Far::StencilTable const *vertexStencils;
+    Far::StencilTable const *varyingStencils;
+    buildStencilTable(*refiner, &vertexStencils, &varyingStencils);
     
     Osd::CpuGLVertexBuffer *vb = Osd::CpuGLVertexBuffer::Create(3, 
         refiner->GetNumVerticesTotal());

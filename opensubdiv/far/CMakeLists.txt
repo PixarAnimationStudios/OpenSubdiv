@@ -33,10 +33,10 @@ set(SOURCE_FILES
     patchBasis.cpp
     patchDescriptor.cpp
     patchMap.cpp
-    patchTables.cpp
-    patchTablesFactory.cpp
+    patchTable.cpp
+    patchTableFactory.cpp
     ptexIndices.cpp
-    stencilTablesFactory.cpp
+    stencilTableFactory.cpp
     topologyRefiner.cpp
     topologyRefinerFactory.cpp
 )
@@ -55,11 +55,11 @@ set(PUBLIC_HEADER_FILES
     patchDescriptor.h
     patchParam.h
     patchMap.h
-    patchTables.h
-    patchTablesFactory.h
+    patchTable.h
+    patchTableFactory.h
     ptexIndices.h
-    stencilTables.h
-    stencilTablesFactory.h
+    stencilTable.h
+    stencilTableFactory.h
     topologyLevel.h
     topologyRefiner.h
     topologyRefinerFactory.h

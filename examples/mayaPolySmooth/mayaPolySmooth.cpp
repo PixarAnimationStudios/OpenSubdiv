@@ -61,7 +61,7 @@
 
 // OpenSubdiv includes
 #include <far/topologyRefinerFactory.h>
-#include <far/stencilTablesFactory.h>
+#include <far/stencilTableFactory.h>
 
 #include <osd/mesh.h>
 #include <osd/cpuVertexBuffer.h>

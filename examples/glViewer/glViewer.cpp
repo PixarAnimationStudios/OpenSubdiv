@@ -250,11 +250,11 @@ struct FVarData
             glDeleteTextures(1, &textureBuffer);
         textureBuffer = 0;
     }
-    void Create(OpenSubdiv::Far::PatchTables const *patchTables,
+    void Create(OpenSubdiv::Far::PatchTable const *patchTable,
                 int fvarWidth, std::vector<float> const & fvarSrcData) {
         Release();
         OpenSubdiv::Far::ConstIndexArray indices =
-            patchTables->GetFVarPatchesValues(0);
+            patchTable->GetFVarPatchesValues(0);
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -582,7 +582,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     if (kernel == kCPU) {
         g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::CpuEvaluator,
                                Osd::GLPatchTable>(
                                    refiner,
@@ -592,7 +592,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::OmpEvaluator,
                                Osd::GLPatchTable>(
                                    refiner,
@@ -603,7 +603,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
         g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::TbbEvaluator,
                                Osd::GLPatchTable>(
                                    refiner,
@@ -616,7 +616,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         // CLKernel
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::CLGLVertexBuffer,
-                               Osd::CLStencilTables,
+                               Osd::CLStencilTable,
                                Osd::CLEvaluator,
                                Osd::GLPatchTable,
                                CLDeviceContext>(
@@ -630,7 +630,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
         g_mesh = new Osd::Mesh<Osd::CudaGLVertexBuffer,
-                               Osd::CudaStencilTables,
+                               Osd::CudaStencilTable,
                                Osd::CudaEvaluator,
                                Osd::GLPatchTable>(
                                    refiner,
@@ -642,7 +642,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     } else if(kernel == kGLSL) {
         static Osd::EvaluatorCacheT<Osd::GLXFBEvaluator> glXFBEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::GLVertexBuffer,
-                               Osd::GLStencilTablesTBO,
+                               Osd::GLStencilTableTBO,
                                Osd::GLXFBEvaluator,
                                Osd::GLPatchTable>(
                                    refiner,
@@ -655,7 +655,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     } else if(kernel == kGLSLCompute) {
         static Osd::EvaluatorCacheT<Osd::GLComputeEvaluator> glComputeEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::GLVertexBuffer,
-                               Osd::GLStencilTablesSSBO,
+                               Osd::GLStencilTableSSBO,
                                Osd::GLComputeEvaluator,
                                Osd::GLPatchTable>(
                                    refiner,
@@ -677,7 +677,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         InterpolateFVarData(*refiner, *shape, fvarData);
 
         // set fvardata to texture buffer
-        g_fvarData.Create(g_mesh->GetFarPatchTables(),
+        g_fvarData.Create(g_mesh->GetFarPatchTable(),
                           shape->GetFVarWidth(), fvarData);
     }
 
@@ -686,7 +686,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     g_legacyGregoryPatchTable = NULL;
     if (g_endCap == kEndCapLegacyGregory) {
         g_legacyGregoryPatchTable =
-            Osd::GLLegacyGregoryPatchTable::Create(g_mesh->GetFarPatchTables());
+            Osd::GLLegacyGregoryPatchTable::Create(g_mesh->GetFarPatchTable());
     }
 
     if (not doAnim) {
@@ -1303,7 +1303,7 @@ display() {
         g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
-    int patchCount[13]; // [Type] (see far/patchTables.h)
+    int patchCount[13]; // [Type] (see far/patchTable.h)
     int numTotalPatches = 0;
     int numDrawCalls = 0;
     memset(patchCount, 0, sizeof(patchCount));

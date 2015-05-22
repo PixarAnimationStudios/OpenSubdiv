@@ -36,7 +36,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far{
-    class PatchTables;
+    class PatchTable;
 };
 
 namespace Osd {
@@ -75,7 +75,7 @@ public:
     GLPatchTable();
     ~GLPatchTable();
 
-    static GLPatchTable *Create(Far::PatchTables const *farPatchTables,
+    static GLPatchTable *Create(Far::PatchTable const *farPatchTable,
                                 void *deviceContext = NULL);
 
     PatchArrayVector const &GetPatchArrays() const {
@@ -93,8 +93,8 @@ public:
     }
 
 protected:
-    // allocate buffers from patchTables
-    bool allocate(Far::PatchTables const *farPatchTables);
+    // allocate buffers from patchTable
+    bool allocate(Far::PatchTable const *farPatchTable);
 
     PatchArrayVector _patchArrays;
     GLuint _indexBuffer;

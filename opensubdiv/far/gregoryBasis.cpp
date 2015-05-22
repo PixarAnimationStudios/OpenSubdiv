@@ -24,7 +24,7 @@
 
 #include "../far/gregoryBasis.h"
 #include "../far/error.h"
-#include "../far/stencilTablesFactory.h"
+#include "../far/stencilTableFactory.h"
 #include "../far/topologyRefiner.h"
 #include "../vtr/stackBuffer.h"
 
@@ -392,8 +392,8 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 }
 
 /*static*/
-StencilTables *
-GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
+StencilTable *
+GregoryBasis::CreateStencilTable(PointsVector const &stencils) {
 
     int nStencils = (int)stencils.size();
     if (nStencils == 0) return NULL;
@@ -404,15 +404,15 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
     }
 
     // allocate destination
-    StencilTables *stencilTables = new StencilTables();
+    StencilTable *stencilTable = new StencilTable();
 
-    // XXX: do we need numControlVertices in stencilTables?
-    stencilTables->_numControlVertices = 0;
-    stencilTables->resize(nStencils, nElements);
+    // XXX: do we need numControlVertices in stencilTable?
+    stencilTable->_numControlVertices = 0;
+    stencilTable->resize(nStencils, nElements);
 
-    int * sizes = &stencilTables->_sizes[0];
-    Index * indices = &stencilTables->_indices[0];
-    float * weights = &stencilTables->_weights[0];
+    int * sizes = &stencilTable->_sizes[0];
+    Index * indices = &stencilTable->_indices[0];
+    float * weights = &stencilTable->_weights[0];
 
     for (int i = 0; i < nStencils; ++i) {
         GregoryBasis::Point const &src = stencils[i];
@@ -426,9 +426,9 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
         weights += size;
         ++sizes;
     }
-    stencilTables->generateOffsets();
+    stencilTable->generateOffsets();
 
-    return stencilTables;
+    return stencilTable;
 }
 
 } // end namespace Far

@@ -25,19 +25,19 @@
 #ifndef OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
 
-#include "../far/patchTablesFactory.h"
+#include "../far/patchTableFactory.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class PatchTables;
+class PatchTable;
 class TopologyRefiner;
 
 namespace Far {
 
 /// \brief    This factory generates legacy (OpenSubdiv 2.x) gregory patches.
 ///
-/// note: This is an internal use class in PatchTablesFactory.
+/// note: This is an internal use class in PatchTableFactory.
 ///       will be deprecated at some point.
 ///
 class EndCapLegacyGregoryPatchFactory {
@@ -58,12 +58,12 @@ public:
     /// @param levelVertOffset  relative offset of patch vertex indices
     ///
     ConstIndexArray GetPatchPoints(Vtr::Level const * level, Index faceIndex,
-                                   PatchTablesFactory::PatchFaceTag const * levelPatchTags,
+                                   PatchTableFactory::PatchFaceTag const * levelPatchTags,
                                    int levelVertOffset);
 
     void Finalize(int maxValence, 
-                  PatchTables::QuadOffsetsTable *quadOffsetsTable,
-                  PatchTables::VertexValenceTable *vertexValenceTable);
+                  PatchTable::QuadOffsetsTable *quadOffsetsTable,
+                  PatchTable::VertexValenceTable *vertexValenceTable);
 
 
 private:

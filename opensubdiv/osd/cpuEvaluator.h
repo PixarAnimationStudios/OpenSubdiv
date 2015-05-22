@@ -30,7 +30,7 @@
 #include <cstddef>
 #include <vector>
 #include "../osd/vertexDescriptor.h"
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -49,10 +49,10 @@ struct PatchCoord {
     ///
     /// @param t parametric location on the patch
     ///
-    PatchCoord(Far::PatchTables::PatchHandle handle, float s, float t) :
+    PatchCoord(Far::PatchTable::PatchHandle handle, float s, float t) :
         handle(handle), s(s), t(t) { }
 
-    Far::PatchTables::PatchHandle handle; ///< patch handle
+    Far::PatchTable::PatchHandle handle; ///< patch handle
     float s, t;              ///< parametric location on patch
 };
 
@@ -302,7 +302,7 @@ public:
                             VertexBufferDescriptor const &dstDesc,
                             int numPatchCoords,
                             PatchCoord const *patchCoords,
-                            Far::PatchTables const *patchTable,
+                            Far::PatchTable const *patchTable,
                             CpuEvaluator const *instance,
                             void * deviceContext = NULL) {
         (void)instance;   // unused
@@ -366,7 +366,7 @@ public:
                             VertexBufferDescriptor const &dstDtDesc,
                             int numPatchCoords,
                             PatchCoord const *patchCoords,
-                            Far::PatchTables const *patchTable,
+                            Far::PatchTable const *patchTable,
                             CpuEvaluator const *instance,
                             void * deviceContext = NULL) {
         (void)instance;   // unused
@@ -416,7 +416,7 @@ public:
                             VertexBufferDescriptor const &dstDesc,
                             int numPatchCoords,
                             PatchCoord const *patchCoords,
-                            Far::PatchTables const *patchTable);
+                            Far::PatchTable const *patchTable);
 
     /// \brief Static limit eval function. It takes an array of PatchCoord
     ///        and evaluate limit values on given PatchTable.
@@ -463,7 +463,7 @@ public:
                             VertexBufferDescriptor const &dstDtDesc,
                             int numPatchCoords,
                             PatchCoord const *patchCoords,
-                            Far::PatchTables const *patchTable);
+                            Far::PatchTable const *patchTable);
 
     /// \brief synchronize all asynchronous computation invoked on this device.
     static void Synchronize(void * /*deviceContext = NULL*/) {

@@ -27,7 +27,7 @@
 #include <cuda_runtime.h>
 #include <vector>
 
-#include "../far/stencilTables.h"
+#include "../far/stencilTable.h"
 
 extern "C" {
     void CudaEvalStencils(const float *src,
@@ -69,19 +69,19 @@ createCudaBuffer(std::vector<T> const & src) {
 
 // ----------------------------------------------------------------------------
 
-CudaStencilTables::CudaStencilTables(Far::StencilTables const *stencilTables) {
-    _numStencils = stencilTables->GetNumStencils();
+CudaStencilTable::CudaStencilTable(Far::StencilTable const *stencilTable) {
+    _numStencils = stencilTable->GetNumStencils();
     if (_numStencils > 0) {
-        _sizes   = createCudaBuffer(stencilTables->GetSizes());
-        _offsets = createCudaBuffer(stencilTables->GetOffsets());
-        _indices = createCudaBuffer(stencilTables->GetControlIndices());
-        _weights = createCudaBuffer(stencilTables->GetWeights());
+        _sizes   = createCudaBuffer(stencilTable->GetSizes());
+        _offsets = createCudaBuffer(stencilTable->GetOffsets());
+        _indices = createCudaBuffer(stencilTable->GetControlIndices());
+        _weights = createCudaBuffer(stencilTable->GetWeights());
     } else {
         _sizes = _offsets = _indices = _weights = NULL;
     }
 }
 
-CudaStencilTables::~CudaStencilTables() {
+CudaStencilTable::~CudaStencilTable() {
     if (_sizes)   cudaFree(_sizes);
     if (_offsets) cudaFree(_offsets);
     if (_indices) cudaFree(_indices);

@@ -34,28 +34,28 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class StencilTables;
+    class StencilTable;
 }
 
 namespace Osd {
 
-/// \brief GL TextureBuffer stencil tables
+/// \brief GL TextureBuffer stencil table
 ///
-/// This class is a GL Texture Buffer representation of Far::StencilTables.
+/// This class is a GL Texture Buffer representation of Far::StencilTable.
 ///
 /// GLSLTransformFeedback consumes this table to apply stencils
 ///
 ///
-class GLStencilTablesTBO {
+class GLStencilTableTBO {
 public:
-    static GLStencilTablesTBO *Create(
-        Far::StencilTables const *stencilTables, void *deviceContext = NULL) {
+    static GLStencilTableTBO *Create(
+        Far::StencilTable const *stencilTable, void *deviceContext = NULL) {
         (void)deviceContext;  // unused
-        return new GLStencilTablesTBO(stencilTables);
+        return new GLStencilTableTBO(stencilTable);
     }
 
-    explicit GLStencilTablesTBO(Far::StencilTables const *stencilTables);
-    ~GLStencilTablesTBO();
+    explicit GLStencilTableTBO(Far::StencilTable const *stencilTable);
+    ~GLStencilTableTBO();
 
     // interfaces needed for GLSLTransformFeedbackKernel
     GLuint GetSizesTexture() const { return _sizes; }

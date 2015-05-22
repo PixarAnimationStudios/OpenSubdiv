@@ -30,8 +30,8 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 // Constructor
-PatchMap::PatchMap( PatchTables const & patchTables ) {
-    initialize( patchTables );
+PatchMap::PatchMap( PatchTable const & patchTable ) {
+    initialize( patchTable );
 }
 
 // sets all the children to point to the patch of index patchIdx
@@ -63,11 +63,11 @@ PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
 }
 
 void
-PatchMap::initialize( PatchTables const & patchTables ) {
+PatchMap::initialize( PatchTable const & patchTable ) {
 
     int nfaces = 0,
-        narrays = (int)patchTables.GetNumPatchArrays(),
-        npatches = (int)patchTables.GetNumPatchesTotal();
+        narrays = (int)patchTable.GetNumPatchArrays(),
+        npatches = (int)patchTable.GetNumPatchesTotal();
 
     if (not narrays or not npatches)
         return;
@@ -77,11 +77,11 @@ PatchMap::initialize( PatchTables const & patchTables ) {
 
     for (int parray=0, current=0; parray<narrays; ++parray) {
 
-        ConstPatchParamArray params = patchTables.GetPatchParams(parray);
+        ConstPatchParamArray params = patchTable.GetPatchParams(parray);
 
-        int ringsize = patchTables.GetPatchArrayDescriptor(parray).GetNumControlVertices();
+        int ringsize = patchTable.GetPatchArrayDescriptor(parray).GetNumControlVertices();
 
-        for (Index j=0; j < patchTables.GetNumPatches(parray); ++j) {
+        for (Index j=0; j < patchTable.GetNumPatches(parray); ++j) {
 
             Handle & h = _handles[current];
 
@@ -107,9 +107,9 @@ PatchMap::initialize( PatchTables const & patchTables ) {
     // populate the quadtree from the FarPatchArrays sub-patches
     for (Index parray=0, handleIndex=0; parray<narrays; ++parray) {
 
-        ConstPatchParamArray params = patchTables.GetPatchParams(parray);
+        ConstPatchParamArray params = patchTable.GetPatchParams(parray);
 
-        for (int i=0; i < patchTables.GetNumPatches(parray); ++i, ++handleIndex) {
+        for (int i=0; i < patchTable.GetNumPatches(parray); ++i, ++handleIndex) {
 
             PatchParam::BitField bits = params[i].bitField;
 

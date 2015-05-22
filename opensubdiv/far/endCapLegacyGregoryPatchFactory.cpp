@@ -24,7 +24,7 @@
 
 #include "../far/error.h"
 #include "../far/endCapLegacyGregoryPatchFactory.h"
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
 
@@ -41,10 +41,10 @@ EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(
 ConstIndexArray
 EndCapLegacyGregoryPatchFactory::GetPatchPoints(
     Vtr::Level const * level, Index faceIndex,
-    PatchTablesFactory::PatchFaceTag const * levelPatchTags,
+    PatchTableFactory::PatchFaceTag const * levelPatchTags,
     int levelVertOffset) {
 
-    PatchTablesFactory::PatchFaceTag patchTag = levelPatchTags[faceIndex];
+    PatchTableFactory::PatchFaceTag patchTag = levelPatchTags[faceIndex];
 
     // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
     Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
@@ -102,8 +102,8 @@ static void getQuadOffsets(
 void
 EndCapLegacyGregoryPatchFactory::Finalize(
     int maxValence, 
-    PatchTables::QuadOffsetsTable *quadOffsetsTable,
-    PatchTables::VertexValenceTable *vertexValenceTable)
+    PatchTable::QuadOffsetsTable *quadOffsetsTable,
+    PatchTable::VertexValenceTable *vertexValenceTable)
 {
     // populate quad offsets
 
@@ -116,18 +116,18 @@ EndCapLegacyGregoryPatchFactory::Finalize(
 
     quadOffsetsTable->resize(numTotalGregoryPatches*4);
 
-	if (numTotalGregoryPatches > 0) {
-		PatchTables::QuadOffsetsTable::value_type *p = 
+    if (numTotalGregoryPatches > 0) {
+        PatchTable::QuadOffsetsTable::value_type *p = 
             &((*quadOffsetsTable)[0]);
-		for (size_t i = 0; i < numGregoryPatches; ++i) {
-			getQuadOffsets(level, _gregoryFaceIndices[i], p);
-			p += 4;
-		}
-		for (size_t i = 0; i < numGregoryBoundaryPatches; ++i) {
-			getQuadOffsets(level, _gregoryBoundaryFaceIndices[i], p);
-			p += 4;
-		}
-	}
+        for (size_t i = 0; i < numGregoryPatches; ++i) {
+            getQuadOffsets(level, _gregoryFaceIndices[i], p);
+            p += 4;
+        }
+        for (size_t i = 0; i < numGregoryBoundaryPatches; ++i) {
+            getQuadOffsets(level, _gregoryBoundaryFaceIndices[i], p);
+            p += 4;
+        }
+    }
 
     // populate vertex valences
     //
@@ -144,7 +144,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     //
     const int SizePerVertex = 2*maxValence + 1;
 
-    PatchTables::VertexValenceTable & vTable = (*vertexValenceTable);
+    PatchTable::VertexValenceTable & vTable = (*vertexValenceTable);
     vTable.resize(_refiner.GetNumVerticesTotal() * SizePerVertex);
 
     int vOffset = 0;

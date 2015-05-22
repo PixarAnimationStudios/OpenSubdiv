@@ -45,7 +45,7 @@ namespace Far {
     template <class MESH> class TopologyRefinerFactory;
     class TopologyRefinerFactoryBase;
     class TopologyRefiner;
-    class PatchTablesFactory;
+    class PatchTableFactory;
 }
 
 namespace Vtr {
@@ -336,7 +336,7 @@ protected:
     template <class MESH> friend class Far::TopologyRefinerFactory;
     friend class Far::TopologyRefinerFactoryBase;
     friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactory;
+    friend class Far::PatchTableFactory;
 
     //  Sizing methods used to construct a level to populate:
     void resizeFaces(       int numFaces);
