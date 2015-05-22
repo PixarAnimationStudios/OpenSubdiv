@@ -269,9 +269,9 @@ GLMesh::initializeBuffers(Options options,
 
     OpenSubdiv::Far::TopologyLevel const & refLastLevel = refiner.GetLevel(maxlevel);
 
-    int nverts = refLastLevel.GetNumVertices(maxlevel),
-        nedges = refLastLevel.GetNumEdges(maxlevel),
-        nfaces = refLastLevel.GetNumFaces(maxlevel),
+    int nverts = refLastLevel.GetNumVertices(),
+        nedges = refLastLevel.GetNumEdges(),
+        nfaces = refLastLevel.GetNumFaces(),
         firstvert = 0;
 
 
