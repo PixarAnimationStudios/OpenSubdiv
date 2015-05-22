@@ -150,7 +150,7 @@ int main(int, char **) {
     int start = 0, end = 0; // stencils batches for each level of subdivision
     for (int level=0; level<maxlevel; ++level) {
 
-        int nverts = refiner->GetNumVertices(level+1);
+        int nverts = refiner->GetLevel(level+1).GetNumVertices();
 
         Vertex const * srcVerts = reinterpret_cast<Vertex *>(g_verts);
         if (level>0) {
@@ -180,9 +180,11 @@ int main(int, char **) {
         // Print vertex positions
         for (int level=1, firstvert=0; level<=maxlevel; ++level) {
 
+            Far::TopologyLevel conat & refLevel = refiner->GetLevel(level);
+
             printf("g level_%d\n", level);
 
-            int nverts = refiner->GetNumVertices(level);
+            int nverts = refLevel.GetNumVertices();
             for (int vert=0; vert<nverts; ++vert) {
                 float const * pos = verts[vert].GetPosition();
                 printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
@@ -190,9 +192,9 @@ int main(int, char **) {
             verts += nverts;
  
             // Print faces
-            for (int face=0; face<refiner->GetNumFaces(level); ++face) {
+            for (int face=0; face<refLevel.GetNumFaces(); ++face) {
 
-                Far::ConstIndexArray fverts = refiner->GetFaceVertices(level, face);
+                Far::ConstIndexArray fverts = refLevel.GetFaceVertices(face);
 
                 // all refined Catmark faces should be quads
                 assert(fverts.size()==4);

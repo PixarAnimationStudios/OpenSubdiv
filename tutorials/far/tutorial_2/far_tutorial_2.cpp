@@ -166,11 +166,11 @@ int main(int, char **) {
       // particles at the location of the refined vertices (don't forget to
       // turn shading on in the viewport to see the colors)
 
-        int nverts = refiner->GetNumVertices(maxlevel);
+        int nverts = refiner->GetLevel(maxlevel).GetNumVertices();
 
         // Position the 'verts' pointer to the first vertex of our 'maxlevel' level
         for (int level=0; level<maxlevel; ++level) {
-            verts += refiner->GetNumVertices(level);
+            verts += refiner->GetLevel(level).GetNumVertices();
         }
 
         // Output particle positions

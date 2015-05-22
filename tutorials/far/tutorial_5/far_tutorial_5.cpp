@@ -121,7 +121,7 @@ int main(int, char **) {
     int maxlevel = 4;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
-    int nverts = refiner->GetNumVertices(maxlevel);
+    int nverts = refiner->GetLevel(maxlevel).GetNumVertices();
 
     // Use the Far::StencilTables factory to create discrete stencil tables
     Far::StencilTablesFactory::Options options;
