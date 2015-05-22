@@ -112,6 +112,9 @@ OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     OutputVertex v;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -119,6 +122,9 @@ void main()
 {
     outpt.v.position = ModelViewMatrix * position;
     outpt.v.patchCoord = vec4(0);
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    outpt.sharpness = 0;
+#endif
     OSD_USER_VARYING_PER_VERTEX();
 }
 
