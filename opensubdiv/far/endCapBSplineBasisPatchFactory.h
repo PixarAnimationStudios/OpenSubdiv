@@ -27,7 +27,6 @@
 
 #include "../far/patchTableFactory.h"
 #include "../far/gregoryBasis.h"
-#include "../far/protoStencil.h"
 #include "../vtr/level.h"
 
 namespace OpenSubdiv {

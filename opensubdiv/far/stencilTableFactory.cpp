@@ -23,15 +23,16 @@
 //
 
 #include "../far/stencilTableFactory.h"
+#include "../far/stencilBuilder.h"
 #include "../far/endCapGregoryBasisPatchFactory.h"
 #include "../far/patchTable.h"
 #include "../far/patchTableFactory.h"
 #include "../far/patchMap.h"
-#include "../far/protoStencil.h"
 #include "../far/topologyRefiner.h"
 
 #include <cassert>
 #include <algorithm>
+#include <iostream>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -60,133 +61,52 @@ StencilTable const *
 StencilTableFactory::Create(TopologyRefiner const & refiner,
     Options options) {
 
-    StencilTable * result = new StencilTable;
-
-    // always initialize numControlVertices (useful for torus case)
-    result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
-
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
     if (maxlevel==0 and (not options.generateControlVerts)) {
+        StencilTable * result = new StencilTable;
+        result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
         return result;
     }
 
-    // 'maxsize' reflects the size of the default supporting basis factorized
-    // in the stencils, with a little bit of head-room. Each subdivision scheme
-    // has a set valence for 'regular' vertices, which drives the size of the
-    // supporting basis of control-vertices. The goal is to reduce the number
-    // of incidences where the pool allocator has to switch to dynamically
-    // allocated heap memory when encountering extraordinary vertices that
-    // require a larger supporting basis.
-    //
-    // The maxsize settings we use follow the assumption that the vast
-    // majority of the vertices in a mesh are regular, and that the valence
-    // of the extraordinary vertices is only higher by 1 edge.
-    int maxsize = 0;
-    bool interpolateVarying = false;
-    switch (options.interpolationMode) {
-        case INTERPOLATE_VERTEX: {
-                Sdc::SchemeType type = refiner.GetSchemeType();
-                switch (type) {
-                    case Sdc::SCHEME_BILINEAR : maxsize = 5; break;
-                    case Sdc::SCHEME_CATMARK  : maxsize = 17; break;
-                    case Sdc::SCHEME_LOOP     : maxsize = 10; break;
-                    default:
-                        assert(0);
-                }
-            } break;
-        case INTERPOLATE_VARYING: maxsize = 5; interpolateVarying=true; break;
-        default:
-            assert(0);
-    }
-
-    std::vector<StencilAllocator> allocators(
-        options.generateIntermediateLevels ? maxlevel+1 : 2,
-            StencilAllocator(maxsize, interpolateVarying));
-
-    StencilAllocator * srcAlloc = &allocators[0],
-                     * dstAlloc = &allocators[1];
+    bool interpolateVarying = options.interpolationMode==INTERPOLATE_VARYING;
+    Internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+                                interpolateVarying,
+                                /*genControlVerts*/ true,
+                                /*compactWeights*/  true);
 
     //
     // Interpolate stencils for each refinement level using
     // TopologyRefiner::InterpolateLevel<>()
     //
-    for (int level=1;level<=maxlevel; ++level) {
-
-        dstAlloc->Resize(refiner.GetLevel(level).GetNumVertices());
-
-        if (options.interpolationMode==INTERPOLATE_VERTEX) {
-            refiner.Interpolate(level, *srcAlloc, *dstAlloc);
+    Internal::StencilBuilder::Index srcIndex(&builder, 0);
+    Internal::StencilBuilder::Index dstIndex(&builder,
+                                        refiner.GetLevel(0).GetNumVertices());
+    for (int level=1; level<=maxlevel; ++level) {
+        if (not interpolateVarying) {
+            refiner.Interpolate(level, srcIndex, dstIndex);
         } else {
-            refiner.InterpolateVarying(level, *srcAlloc, *dstAlloc);
+            refiner.InterpolateVarying(level, srcIndex, dstIndex);
         }
 
-        if (options.generateIntermediateLevels) {
-            if (level<maxlevel) {
-                if (options.factorizeIntermediateLevels) {
-                    srcAlloc = &allocators[level];
-                } else {
-                    // if the stencils are dependent on the previous level of
-                    // subdivision, pass an empty allocator to treat all parent
-                    // vertices as control vertices
-                    assert(allocators[0].GetNumStencils()==0);
-                }
-                dstAlloc = &allocators[level+1];
-            }
-        } else {
-            std::swap(srcAlloc, dstAlloc);
-        }
+        srcIndex = dstIndex;
+        dstIndex = dstIndex[refiner.GetLevel(level).GetNumVertices()];
     }
 
-    // Copy stencils from the pool allocator into the table
-    {
-        // Add total number of stencils, weights & indices
-        int nelems = 0, nstencils=0;
-        if (options.generateIntermediateLevels) {
-            for (int level=0; level<=maxlevel; ++level) {
-                nstencils += allocators[level].GetNumStencils();
-                nelems += allocators[level].GetNumVerticesTotal();
-            }
-        } else {
-            nstencils = (int)srcAlloc->GetNumStencils();
-            nelems = srcAlloc->GetNumVerticesTotal();
-        }
 
-        // Allocate
-        result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
-
-        if (options.generateControlVerts) {
-            nstencils += result->_numControlVertices;
-            nelems += result->_numControlVertices;
-        }
-        result->resize(nstencils, nelems);
-
-        // Copy stencils
-        Stencil dst(&result->_sizes.at(0),
-            &result->_indices.at(0), &result->_weights.at(0));
-
-        if (options.generateControlVerts) {
-            generateControlVertStencils(result->_numControlVertices, dst);
-        }
-
-        if (options.generateIntermediateLevels) {
-            for (int level=1; level<=maxlevel; ++level) {
-                for (int i=0; i<allocators[level].GetNumStencils(); ++i) {
-                    *dst._size = allocators[level].CopyStencil(i, dst._indices, dst._weights);
-                    dst.Next();
-                }
-            }
-        } else {
-            for (int i=0; i<srcAlloc->GetNumStencils(); ++i) {
-                *dst._size = srcAlloc->CopyStencil(i, dst._indices, dst._weights);
-                dst.Next();
-            }
-        }
-
-        if (options.generateOffsets) {
-            result->generateOffsets();
-        }
-    }
-
+    size_t firstOffset = refiner.GetLevel(0).GetNumVertices();
+    if (not options.generateIntermediateLevels)
+        firstOffset = srcIndex.GetOffset();
+ 
+    // Copy stencils from the pool allocator into the tables
+    // always initialize numControlVertices (useful for torus case)
+    StencilTable * result = 
+                        new StencilTable(refiner.GetLevel(0).GetNumVertices(),
+                                          builder.GetStencilOffsets(),
+                                          builder.GetStencilSizes(),
+                                          builder.GetStencilSources(),
+                                          builder.GetStencilWeights(),
+                                          options.generateControlVerts,
+                                          firstOffset);
     return result;
 }
 
@@ -261,8 +181,8 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
 StencilTable const *
 StencilTableFactory::AppendEndCapStencilTable(
     TopologyRefiner const &refiner,
-    StencilTable const *baseStencilTable,
-    StencilTable const *endCapStencilTable,
+    StencilTable const * baseStencilTable,
+    StencilTable const * endCapStencilTable,
     bool factorize) {
 
     // factorize and append.
@@ -330,34 +250,37 @@ StencilTableFactory::AppendEndCapStencilTable(
             return NULL;
         }
     }
-
+    
     // copy all endcap stencils to proto stencils, and factorize if needed.
     int nEndCapStencils = endCapStencilTable->GetNumStencils();
     int nEndCapStencilsElements = 0;
 
-    // we exclude zero weight stencils. the resulting number of
-    // stencils of endcap may be different from input.
-    StencilAllocator allocator(16);
-    allocator.Resize(nEndCapStencils);
+    Internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+                                /*isVarying*/       false,
+                                /*genControlVerts*/ false,
+                                /*compactWeights*/  factorize);
+    Internal::StencilBuilder::Index origin(&builder, 0);
+    Internal::StencilBuilder::Index dst = origin;
+    Internal::StencilBuilder::Index srcIdx = origin;
+
     for (int i = 0 ; i < nEndCapStencils; ++i) {
         Stencil src = endCapStencilTable->GetStencil(i);
-        allocator[i].Clear();
+        dst = origin[i];
         for (int j = 0; j < src.GetSize(); ++j) {
             Index index = src.GetVertexIndices()[j];
             float weight = src.GetWeights()[j];
             if (weight == 0.0) continue;
 
             if (factorize) {
-                allocator[i].AddWithWeight(*baseStencilTable,
-                                           index + stencilsIndexOffset,
-                                           weight);
+                dst.AddWithWeight(
+                    baseStencilTable->GetStencil(index+stencilsIndexOffset), 
+                    weight);
             } else {
-                allocator.PushBackVertex(i,
-                                         index + controlVertsIndexOffset,
-                                         weight);
+                srcIdx = origin[index + controlVertsIndexOffset];
+                dst.AddWithWeight(srcIdx, weight);
             }
         }
-        nEndCapStencilsElements += allocator.GetSize(i);
+        nEndCapStencilsElements += builder.GetNumVertsInStencil(i);
     }
 
     // create new stencil table
@@ -384,10 +307,11 @@ StencilTableFactory::AppendEndCapStencilTable(
 
     // endcap stencils second
     for (int i = 0 ; i < nEndCapStencils; ++i) {
-        int size = allocator.GetSize(i);
+        int size = builder.GetNumVertsInStencil(i);
+        int idx = builder.GetStencilOffsets()[i];
         for (int j = 0; j < size; ++j) {
-            *indices++ = allocator.GetIndices(i)[j];
-            *weights++ = allocator.GetWeights(i)[j];
+            *indices++ = builder.GetStencilSources()[idx+j];
+            *weights++ = builder.GetStencilWeights()[idx+j];
         }
         *sizes++ = size;
     }
@@ -416,7 +340,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
 
     bool uniform = refiner.IsUniform();
 
-    int maxlevel = refiner.GetMaxLevel(), maxsize=17;
+    int maxlevel = refiner.GetMaxLevel();
 
     StencilTable const * cvstencils = cvStencilsIn;
     if (not cvstencils) {
@@ -430,9 +354,9 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         options.generateControlVerts = true;
         options.generateOffsets = true;
 
-        // XXXX (manuelk) We could potentially save some mem-copies by not
-        // instanciating the stencil table and work directly off the pool
-        // allocators.
+        // PERFORMANCE: We could potentially save some mem-copies by not
+        // instanciating the stencil tables and work directly off the source
+        // data.
         cvstencils = StencilTableFactory::Create(refiner, options);
     } else {
         // Sanity checks
@@ -489,35 +413,32 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     // Generate limit stencils for locations
     //
 
-    // Create a pool allocator to accumulate ProtoLimitStencils
-    LimitStencilAllocator alloc(maxsize);
-    alloc.Resize(numStencils);
+    Internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+                                /*isVarying*/       false,
+                                /*genControlVerts*/ false,
+                                /*compactWeights*/  true);
+    Internal::StencilBuilder::Index origin(&builder, 0);
+    Internal::StencilBuilder::Index dst = origin;
 
-    // XXXX (manuelk) we can make uniform (bilinear) stencils faster with a
-    //       dedicated code path that does not use PatchTable or the PatchMap
     float wP[20], wDs[20], wDt[20];
 
-    for (int i=0; i<(int)locationArrays.size(); ++i) {
-
+    for (size_t i=0; i<locationArrays.size(); ++i) {
         LocationArray const & array = locationArrays[i];
-
         assert(array.ptexIdx>=0);
 
         for (int j=0; j<array.numLocations; ++j) {
-
             float s = array.s[j],
                   t = array.t[j];
 
-            PatchMap::Handle const * handle = patchmap.FindPatch(array.ptexIdx, s, t);
-
+            PatchMap::Handle const * handle = 
+                                        patchmap.FindPatch(array.ptexIdx, s, t);
             if (handle) {
-
                 ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
 
                 patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
 
                 StencilTable const & src = *cvstencils;
-                ProtoLimitStencil dst = alloc[numLimitStencils];
+                dst = origin[numLimitStencils];
 
                 dst.Clear();
                 for (int k = 0; k < cvs.size(); ++k) {
@@ -540,30 +461,18 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     //
     // Copy the proto-stencils into the limit stencil table
     //
-    LimitStencilTable * result = new LimitStencilTable;
+    size_t firstOffset = refiner.GetLevel(0).GetNumVertices();
 
-    int nelems = alloc.GetNumVerticesTotal();
-    if (nelems>0) {
-
-        // Allocate
-        result->resize(numLimitStencils, nelems);
-
-        // Copy stencils
-        LimitStencil dst(&result->_sizes.at(0), &result->_indices.at(0),
-            &result->_weights.at(0), &result->_duWeights.at(0),
-                &result->_dvWeights.at(0));
-
-        for (int i = 0; i < numLimitStencils; ++i) {
-            *dst._size = alloc.CopyLimitStencil(i, dst._indices, dst._weights,
-                dst._duWeights, dst._dvWeights);
-            dst.Next();
-        }
-
-        // XXXX manuelk should offset creation be optional ?
-        result->generateOffsets();
-    }
-    result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
-
+    LimitStencilTable * result = new LimitStencilTable(
+                                          refiner.GetLevel(0).GetNumVertices(),
+                                          builder.GetStencilOffsets(),
+                                          builder.GetStencilSizes(),
+                                          builder.GetStencilSources(),
+                                          builder.GetStencilWeights(),
+                                          builder.GetStencilDuWeights(),
+                                          builder.GetStencilDvWeights(),
+                                          /*ctrlVerts*/false,
+                                          firstOffset);
     return result;
 }
 
