@@ -229,7 +229,7 @@ int main(int, char **) {
 
     { // Output OBJ of the highest level refined -----------
 
-        Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel).
+        Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
 
         // Print vertex positions
         for (int level=0, firstVert=0; level<=maxlevel; ++level) {

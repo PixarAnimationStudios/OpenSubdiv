@@ -180,7 +180,7 @@ int main(int, char **) {
         // Print vertex positions
         for (int level=1, firstvert=0; level<=maxlevel; ++level) {
 
-            Far::TopologyLevel conat & refLevel = refiner->GetLevel(level);
+            Far::TopologyLevel const & refLevel = refiner->GetLevel(level);
 
             printf("g level_%d\n", level);
 
