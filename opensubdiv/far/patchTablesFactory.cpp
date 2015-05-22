@@ -665,7 +665,7 @@ PatchTablesFactory::computePatchParam(
         v = 0,
         ofs = 1;
 
-    bool nonquad = (refiner.GetFaceVertices(depth, faceIndex).size() != 4);
+    bool nonquad = (refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() != 4);
 
     for (int i = depth; i > 0; --i) {
         Vtr::Refinement const& refinement  = refiner.getRefinement(i-1);
@@ -785,9 +785,13 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
     // generate patch arrays
     for (int level=firstlevel, poffset=0, voffset=0; level<=maxlevel; ++level) {
 
-        int npatches = refiner.GetNumFaces(level);
+        TopologyLevel const & refLevel = refiner.GetLevel(level);
+
+        int npatches = refLevel.GetNumFaces();
         if (refiner.HasHoles()) {
-            npatches -= refiner.GetNumHoles(level);
+            for (int i = npatches - 1; i >= 0; --i) {
+                npatches -= refLevel.IsFaceHole(i);
+            }
         }
         assert(npatches>=0);
 
@@ -819,7 +823,7 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
     Index         ** fptr = 0;
 
     Index levelVertOffset = options.generateAllLevels ?
-        0 : refiner.GetNumVertices(0);
+        0 : refiner.GetLevel(0).GetNumVertices();
 
     Index * levelFVarVertOffsets = 0;
     if (generateFVarPatches) {
@@ -835,15 +839,17 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
 
     for (int level=1; level<=maxlevel; ++level) {
 
-        int nfaces = refiner.GetNumFaces(level);
+        TopologyLevel const & refLevel = refiner.GetLevel(level);
+
+        int nfaces = refLevel.GetNumFaces();
         if (level>=firstlevel) {
             for (int face=0; face<nfaces; ++face) {
 
-                if (refiner.HasHoles() and refiner.IsFaceHole(level, face)) {
+                if (refiner.HasHoles() and refLevel.IsFaceHole(face)) {
                     continue;
                 }
 
-                ConstIndexArray fverts = refiner.GetFaceVertices(level, face);
+                ConstIndexArray fverts = refLevel.GetFaceVertices(face);
                 for (int vert=0; vert<fverts.size(); ++vert) {
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
@@ -852,7 +858,7 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
 
                 if (generateFVarPatches) {
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                        ConstIndexArray fvalues = refiner.GetFVarFaceValues(level, face, *fvc);
+                        ConstIndexArray fvalues = refLevel.GetFVarFaceValues(face, *fvc);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
                             assert((levelVertOffset + fvalues[vert]) < (int)tables->getFVarPatchesValues(fvc.pos()).size());
                             fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
@@ -884,9 +890,9 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
         }
 
         if (options.generateAllLevels) {
-            levelVertOffset += refiner.GetNumVertices(level);
+            levelVertOffset += refiner.GetLevel(level).GetNumVertices();
             for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                levelFVarVertOffsets[fvc.pos()] += refiner.GetNumFVarValues(level, fvc.pos());
+                levelFVarVertOffsets[fvc.pos()] += refiner.GetLevel(level).GetNumFVarValues(fvc.pos());
             }
         }
     }

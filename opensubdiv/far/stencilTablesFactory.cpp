@@ -63,7 +63,7 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
     StencilTables * result = new StencilTables;
 
     // always initialize numControlVertices (useful for torus case)
-    result->_numControlVertices = refiner.GetNumVertices(0);
+    result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
 
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
     if (maxlevel==0 and (not options.generateControlVerts)) {
@@ -112,7 +112,7 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
     //
     for (int level=1;level<=maxlevel; ++level) {
 
-        dstAlloc->Resize(refiner.GetNumVertices(level));
+        dstAlloc->Resize(refiner.GetLevel(level).GetNumVertices());
 
         if (options.interpolationMode==INTERPOLATE_VERTEX) {
             refiner.Interpolate(level, *srcAlloc, *dstAlloc);
@@ -152,7 +152,7 @@ StencilTablesFactory::Create(TopologyRefiner const & refiner,
         }
 
         // Allocate
-        result->_numControlVertices = refiner.GetNumVertices(0);
+        result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
 
         if (options.generateControlVerts) {
             nstencils += result->_numControlVertices;
@@ -300,10 +300,10 @@ StencilTablesFactory::AppendEndCapStencilTables(
             //                          stencilsIndexOffset
             //
             //
-            stencilsIndexOffset = nverts - refiner.GetNumVertices(maxlevel);
+            stencilsIndexOffset = nverts - refiner.GetLevel(maxlevel).GetNumVertices();
             controlVertsIndexOffset = stencilsIndexOffset;
 
-        } else if (nBaseStencils == (nverts -refiner.GetNumVertices(0))) {
+        } else if (nBaseStencils == (nverts -refiner.GetLevel(0).GetNumVertices())) {
 
             // the table does not contain stencils for the control vertices
             //
@@ -321,8 +321,8 @@ StencilTablesFactory::AppendEndCapStencilTables(
             //  <-------------------------------->
             //                          controlVertsIndexOffset
             //
-            stencilsIndexOffset = nBaseStencils - refiner.GetNumVertices(maxlevel);
-            controlVertsIndexOffset = nverts - refiner.GetNumVertices(maxlevel);
+            stencilsIndexOffset = nBaseStencils - refiner.GetLevel(maxlevel).GetNumVertices();
+            controlVertsIndexOffset = nverts - refiner.GetLevel(maxlevel).GetNumVertices();
 
         } else {
             // these are not the stencils you are looking for.
@@ -362,7 +362,7 @@ StencilTablesFactory::AppendEndCapStencilTables(
 
     // create new stencil tables
     StencilTables * result = new StencilTables;
-    result->_numControlVertices = refiner.GetNumVertices(0);
+    result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
     result->resize(nBaseStencils + nEndCapStencils,
                    nBaseStencilsElements + nEndCapStencilsElements);
 
@@ -437,7 +437,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
     } else {
         // Sanity checks
         if (cvstencils->GetNumStencils() != (uniform ?
-            refiner.GetNumVertices(maxlevel) :
+            refiner.GetLevel(maxlevel).GetNumVertices() :
                 refiner.GetNumVerticesTotal())) {
                 return 0;
         }
@@ -562,7 +562,7 @@ LimitStencilTablesFactory::Create(TopologyRefiner const & refiner,
         // XXXX manuelk should offset creation be optional ?
         result->generateOffsets();
     }
-    result->_numControlVertices = refiner.GetNumVertices(0);
+    result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
 
     return result;
 }

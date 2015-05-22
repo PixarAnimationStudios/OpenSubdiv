@@ -192,18 +192,6 @@ TopologyRefiner::GetNumFVarValuesTotal(int channel) const {
     return sum;
 }
 
-int
-TopologyRefiner::GetNumHoles(int level) const {
-    int sum = 0;
-    Vtr::Level const & lvl = getLevel(level);
-    for (Index face = 0; face < lvl.getNumFaces(); ++face) {
-        if (lvl.isFaceHole(face)) {
-            ++sum;
-        }
-    }
-    return sum;
-}
-
 
 //
 //  Main refinement method -- allocating and initializing levels and refinements:

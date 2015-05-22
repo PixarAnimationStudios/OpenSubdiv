@@ -343,7 +343,7 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //
     //      void TopologyRefiner::setBaseVertexNonManifold(Index vertex, bool b);
     //
-    //  Also consider using TopologyRefiner::ValidateTopology() when debugging to ensure
+    //  Also consider using TopologyLevel::ValidateTopology() when debugging to ensure
     //  that topolology has been completely and correctly specified.
     //
     return false;
