@@ -57,7 +57,7 @@ __kernel void computeStencils(__global float * src,
                               int srcOffset,
                               __global float * dst,
                               int dstOffset,
-                              __global unsigned char * sizes,
+                              __global int * sizes,
                               __global int * offsets,
                               __global int * indices,
                               __global float * weights,
@@ -73,7 +73,7 @@ __kernel void computeStencils(__global float * src,
     struct Vertex v;
     clear(&v);
 
-    int size = (int)sizes[current],
+    int size = sizes[current],
         offset = offsets[current];
 
     src += srcOffset;

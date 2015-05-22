@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_OSD_D3D11_COMPUTE_EVALUATOR_H
-#define OPENSUBDIV_OSD_D3D11_COMPUTE_EVALUATOR_H
+#ifndef OPENSUBDIV3_OSD_D3D11_COMPUTE_EVALUATOR_H
+#define OPENSUBDIV3_OSD_D3D11_COMPUTE_EVALUATOR_H
 
 #include "../version.h"
 
@@ -224,4 +224,4 @@ using namespace OPENSUBDIV_VERSION;
 }  // end namespace OpenSubdiv
 
 
-#endif  // OPENSUBDIV_OSD_D3D11_COMPUTE_EVALUATOR_H
+#endif  // OPENSUBDIV3_OSD_D3D11_COMPUTE_EVALUATOR_H

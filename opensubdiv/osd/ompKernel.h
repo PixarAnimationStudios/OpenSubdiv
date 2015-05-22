@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_OSD_OMP_KERNEL_H
-#define OPENSUBDIV_OSD_OMP_KERNEL_H
+#ifndef OPENSUBDIV3_OSD_OMP_KERNEL_H
+#define OPENSUBDIV3_OSD_OMP_KERNEL_H
 
 #include "../version.h"
 
@@ -39,7 +39,7 @@ OmpEvalStencils(float const * src,
                 VertexBufferDescriptor const &srcDesc,
                 float * dst,
                 VertexBufferDescriptor const &dstDesc,
-                unsigned char const * sizes,
+                int const * sizes,
                 int const * offsets,
                 int const * indices,
                 float const * weights,
@@ -52,4 +52,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OPENSUBDIV_OSD_OMP_KERNEL_H
+#endif  // OPENSUBDIV3_OSD_OMP_KERNEL_H

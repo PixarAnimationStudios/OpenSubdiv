@@ -28,7 +28,7 @@
     vec3 color;
 
 #undef OSD_USER_VARYING_ATTRIBUTE_DECLARE
-#define OSD_USER_VARYING_ATTRIBUTE_DECLARE \
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE              \
     layout(location = 1) in vec3 color;
 
 #undef OSD_USER_VARYING_PER_VERTEX
@@ -47,10 +47,10 @@
 #else
 #define OSD_USER_VARYING_DECLARE
 #define OSD_USER_VARYING_ATTRIBUTE_DECLARE
-#define OSD_USER_VARYING_PER_VERTEX()
 #define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN)
 #define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d)
 #endif
+
 
 //--------------------------------------------------------------
 // Uniforms / Uniform Blocks
@@ -67,16 +67,12 @@ layout(std140) uniform Tessellation {
 };
 
 uniform int GregoryQuadOffsetBase;
-uniform int PrimitiveIdBase;
 uniform int BaseVertex;
+uniform int PrimitiveIdBase;
 
 //--------------------------------------------------------------
 // Osd external functions
 //--------------------------------------------------------------
-
-#ifdef GL_ARB_shader_draw_parameters
-#extension GL_ARB_shader_draw_parameters : enable
-#endif
 
 mat4 OsdModelViewMatrix()
 {
@@ -100,6 +96,7 @@ int OsdGregoryQuadOffsetBase()
 }
 int OsdPrimitiveIdBase()
 {
+//    return inpt[0].primitiveIDOffset;
     return PrimitiveIdBase;
 }
 int OsdBaseVertex()
@@ -180,6 +177,7 @@ void emit(int index, vec3 normal)
 #ifdef VARYING_COLOR
     outpt.color = inpt[index].color;
 #endif
+    outpt.v.patchCoord = inpt[index].v.patchCoord;
 
     gl_Position = ProjectionMatrix * inpt[index].v.position;
     EmitVertex();
@@ -349,7 +347,8 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
         min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
             min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
-    vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
+    float v = 0.8;
+    vec4 Cedge = vec4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
     float p = exp2(-2 * d * d);
 
 #if defined(GEOMETRY_OUT_WIRE)
@@ -361,6 +360,85 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
     return Cfill;
 }
 
+vec4
+getAdaptivePatchColor(ivec3 patchParam)
+{
+    const vec4 patchColors[7*6] = vec4[7*6](
+        vec4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
+        vec4(0.0f,  1.0f,  1.0f,  1.0f),   // regular pattern 0
+        vec4(0.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 1
+        vec4(0.0f,  0.5f,  0.5f,  1.0f),   // regular pattern 2
+        vec4(0.5f,  0.0f,  1.0f,  1.0f),   // regular pattern 3
+        vec4(1.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 4
+
+        vec4(1.0f,  0.5f,  0.5f,  1.0f),   // single crease
+        vec4(1.0f,  0.70f,  0.6f,  1.0f),  // single crease pattern 0
+        vec4(1.0f,  0.65f,  0.6f,  1.0f),  // single crease pattern 1
+        vec4(1.0f,  0.60f,  0.6f,  1.0f),  // single crease pattern 2
+        vec4(1.0f,  0.55f,  0.6f,  1.0f),  // single crease pattern 3
+        vec4(1.0f,  0.50f,  0.6f,  1.0f),  // single crease pattern 4
+
+        vec4(0.8f,  0.0f,  0.0f,  1.0f),   // boundary
+        vec4(0.0f,  0.0f,  0.75f, 1.0f),   // boundary pattern 0
+        vec4(0.0f,  0.2f,  0.75f, 1.0f),   // boundary pattern 1
+        vec4(0.0f,  0.4f,  0.75f, 1.0f),   // boundary pattern 2
+        vec4(0.0f,  0.6f,  0.75f, 1.0f),   // boundary pattern 3
+        vec4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
+
+        vec4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
+        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+        vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
+
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+        vec4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
+
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
+        vec4(1.0f,  0.7f,  0.3f,  1.0f)    // gregory basis
+    );
+
+    int patchType = 0;
+#if defined OSD_PATCH_GREGORY
+    patchType = 4;
+#elif defined OSD_PATCH_GREGORY_BOUNDARY
+    patchType = 5;
+#elif defined OSD_PATCH_GREGORY_BASIS
+    patchType = 6;
+#endif
+
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
+    int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (inpt.sharpness > 0) pattern += 6;
+#endif
+
+    return patchColors[6*patchType + pattern];
+}
+
 #if defined(PRIM_QUAD) || defined(PRIM_TRI)
 void
 main()
@@ -370,7 +448,7 @@ main()
 #if defined(VARYING_COLOR)
     vec4 color = vec4(inpt.color, 1);
 #else
-    vec4 color = diffuseColor;
+    vec4 color = getAdaptivePatchColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID)));
 #endif
 
     vec4 Cf = lighting(color, inpt.v.position.xyz, N);

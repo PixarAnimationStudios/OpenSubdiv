@@ -28,7 +28,6 @@ set(SHADER_FILES
      shader.glsl
      shader_gl3.glsl
      skyshader.glsl
-     imageshader.glsl
 )
 
 list(APPEND PLATFORM_LIBRARIES

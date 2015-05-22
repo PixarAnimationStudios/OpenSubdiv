@@ -30,8 +30,6 @@
 #undef OSD_FRACTIONAL_ODD_SPACING
 #undef OSD_FRACTIONAL_EVEN_SPACING
 
-#define OSD_PATCH_INPUT_SIZE 16
-
 #define M_PI 3.14159265359f
 
 struct InputVertex {
@@ -129,9 +127,9 @@ int OsdPrimitiveIdBase();
 //
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    Buffer<uint3> OsdPatchParamBuffer : register( t3 );
+    Buffer<uint3> OsdPatchParamBuffer : register( t0 );
 #else
-    Buffer<uint2> OsdPatchParamBuffer : register( t3 );
+    Buffer<uint2> OsdPatchParamBuffer : register( t0 );
 #endif
 
 int OsdGetPatchIndex(int primitiveId)
@@ -409,8 +407,8 @@ OsdComputeBSplineBoundaryPoints(inout float3 cpt[16], int3 patchParam)
 
 float OsdComputePostProjectionSphereExtent(float3 center, float diameter)
 {
-    float4 p = mul(OsdProjectionMatrix(), float4(center, 1.0));
-    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
+    float4 p = mul(OsdModelViewProjectionMatrix(), float4(center, 1.0));
+    return abs(diameter * OsdModelViewProjectionMatrix()[1][1] / p.w);
 }
 
 float OsdComputeTessLevel(float3 p0, float3 p1)

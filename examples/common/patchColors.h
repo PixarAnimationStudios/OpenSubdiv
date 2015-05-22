@@ -22,10 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef COMMON_PATCH_COLORS_H
-#define COMMON_PATCH_COLORS_H
-
-#include <osd/drawContext.h>
+#ifndef OPENSUBDIV_EXAMPLES_COMMON_PATCH_COLORS_H
+#define OPENSUBDIV_EXAMPLES_COMMON_PATCH_COLORS_H
 
 #include <far/patchTables.h>
 
@@ -33,4 +31,4 @@
 float const * getAdaptivePatchColor(OpenSubdiv::Far::PatchDescriptor const & desc);
 
 
-#endif /* COMMON_PATCH_COLORS_H */
+#endif /* OPENSUBDIV_EXAMPLES_COMMON_PATCH_COLORS_H */

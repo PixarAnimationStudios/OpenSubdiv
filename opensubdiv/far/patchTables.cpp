@@ -23,6 +23,7 @@
 //
 
 #include "../far/patchTables.h"
+#include "../far/patchBasis.h"
 
 #include <cstring>
 #include <cstdio>
@@ -504,6 +505,27 @@ PatchTables::print() const {
         printf("  patchArray %d:\n", i);
         PatchArray const & pa = getPatchArray(i);
         pa.print();
+    }
+}
+
+//
+//  Evaluate basis functions for position and first derivatives at (s,t):
+//
+void
+PatchTables::EvaluateBasis(PatchHandle const & handle, float s, float t,
+    float wP[], float wDs[], float wDt[]) const {
+
+    PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
+    PatchParam::BitField const & patchBits = _paramTable[handle.patchIndex].bitField;
+
+    if (patchType == PatchDescriptor::REGULAR) {
+        internal::GetBSplineWeights(patchBits, s, t, wP, wDs, wDt);
+    } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
+        internal::GetGregoryWeights(patchBits, s, t, wP, wDs, wDt);
+    } else if (patchType == PatchDescriptor::QUADS) {
+        internal::GetBilinearWeights(patchBits, s, t, wP, wDs, wDt);
+    } else {
+        assert(0);
     }
 }
 

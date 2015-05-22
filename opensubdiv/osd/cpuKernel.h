@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_OSD_CPU_KERNEL_H
-#define OPENSUBDIV_OSD_CPU_KERNEL_H
+#ifndef OPENSUBDIV3_OSD_CPU_KERNEL_H
+#define OPENSUBDIV3_OSD_CPU_KERNEL_H
 
 #include "../version.h"
 #include <cstring>
@@ -40,7 +40,7 @@ CpuEvalStencils(float const * src,
                 VertexBufferDescriptor const &srcDesc,
                 float * dst,
                 VertexBufferDescriptor const &dstDesc,
-                unsigned char const * sizes,
+                int const * sizes,
                 int const * offsets,
                 int const * indices,
                 float const * weights,
@@ -55,7 +55,7 @@ CpuEvalStencils(float const * src,
                 VertexBufferDescriptor const &dstDuDesc,
                 float * dstDv,
                 VertexBufferDescriptor const &dstDvDesc,
-                unsigned char const * sizes,
+                int const * sizes,
                 int const * offsets,
                 int const * indices,
                 float const * weights,
@@ -77,7 +77,7 @@ CpuEvalStencils(float const * src,
 template <int numElems> void
 ComputeStencilKernel(float const * vertexSrc,
                      float * vertexDst,
-                     unsigned char const * sizes,
+                     int const * sizes,
                      int const * indices,
                      float const * weights,
                      int start,
@@ -134,4 +134,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CPU_KERNEL_H
+#endif  // OPENSUBDIV3_OSD_CPU_KERNEL_H

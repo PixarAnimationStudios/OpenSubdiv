@@ -59,22 +59,40 @@ float sinfn(uint n, uint j) {
     return sin((2.0f * M_PI * j)/float(n));    
 }
 
-
 //----------------------------------------------------------
 // Patches.TessVertexGregory
 //----------------------------------------------------------
 
-Buffer<float> VertexBuffer : register( t0 );
-Buffer<int> OsdValenceBuffer : register( t1 );
+Buffer<float> OsdVertexBuffer : register( t2 );
+Buffer<int> OsdValenceBuffer : register( t3 );
+
+float3 OsdReadVertex(uint vertexIndex)
+{
+    int index = int(OSD_NUM_ELEMENTS * (vertexIndex /*+ OsdBaseVertex()*/));
+    return float3(OsdVertexBuffer[index],
+                  OsdVertexBuffer[index+1],
+                  OsdVertexBuffer[index+2]);
+}
+
+int OsdReadVertexValence(int vertexID)
+{
+    int index = int(vertexID * (2 * OSD_MAX_VALENCE + 1));
+    return OsdValenceBuffer[index];
+}
+
+int OsdReadVertexIndex(int vertexID, uint valenceVertex)
+{
+    int index = int(vertexID * (2 * OSD_MAX_VALENCE + 1) + 1 + valenceVertex);
+    return OsdValenceBuffer[index];
+}
 
 void vs_main_patches( in InputVertex input,
                       uint vID : SV_VertexID,
                       out GregHullVertex output )
 {
-    output.hullPosition = mul(OsdModelViewMatrix(), input.position).xyz;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(input.position);
 
-    int ivalence = OsdValenceBuffer[int(vID * (2 * OSD_MAX_VALENCE + 1))];
+    int ivalence = OsdReadVertexValence(vID);
     output.valence = ivalence;
     uint valence = uint(abs(ivalence));
 
@@ -94,11 +112,11 @@ void vs_main_patches( in InputVertex input,
         uint im=(i+valence-1)%valence;
         uint ip=(i+1)%valence;
 
-        uint idx_neighbor = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 0 + 1)]);
+        uint idx_neighbor = uint(OsdReadVertexIndex(vID, 2*i));
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY
         bool isBoundaryNeighbor = false;
-        int valenceNeighbor = OsdValenceBuffer[int(idx_neighbor * (2*OSD_MAX_VALENCE+1))];
+        int valenceNeighbor = OsdReadVertexValence(int(idx_neighbor));
 
         if (valenceNeighbor < 0) {
             isBoundaryNeighbor = true;
@@ -106,7 +124,7 @@ void vs_main_patches( in InputVertex input,
                 boundaryEdgeNeighbors[currNeighbor] = int(idx_neighbor);
             }
             currNeighbor++;
-            if (currNeighbor == 1)    {
+            if (currNeighbor == 1) {
                 ibefore = i;
                 zerothNeighbor = i;
             } else {
@@ -120,38 +138,19 @@ void vs_main_patches( in InputVertex input,
         }
 #endif
 
-        float3 neighbor =
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
+        float3 neighbor = OsdReadVertex(idx_neighbor);
 
-        uint idx_diagonal = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*i + 1 + 1)]);
+        uint idx_diagonal = uint(OsdReadVertexIndex(vID, 2*i + 1));
+        float3 diagonal = OsdReadVertex(idx_diagonal);
 
-        float3 diagonal =
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+        uint idx_neighbor_p = uint(OsdReadVertexIndex(vID, 2*ip));
+        float3 neighbor_p = OsdReadVertex(idx_neighbor_p);
 
-        uint idx_neighbor_p = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*ip + 0 + 1)]);
+        uint idx_neighbor_m = uint(OsdReadVertexIndex(vID, 2*im));
+        float3 neighbor_m = OsdReadVertex(idx_neighbor_m);
 
-        float3 neighbor_p =
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_p+2)]);
-
-        uint idx_neighbor_m = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 0 + 1)]);
-
-        float3 neighbor_m =
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor_m+2)]);
-
-        uint idx_diagonal_m = uint(OsdValenceBuffer[int(vID * (2*OSD_MAX_VALENCE+1) + 2*im + 1 + 1)]);
-
-        float3 diagonal_m =
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal_m+2)]);
+        uint idx_diagonal_m = uint(OsdReadVertexIndex(vID, 2*im + 1));
+        float3 diagonal_m = OsdReadVertex(idx_diagonal_m);
 
         f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
 
@@ -183,26 +182,15 @@ void vs_main_patches( in InputVertex input,
 
     if (ivalence < 0) {
         if (valence > 2) {
-            output.position = (
-                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
-                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
-                4.0f * pos)/6.0f;
+            output.position = (OsdReadVertex(boundaryEdgeNeighbors[0]) +
+                               OsdReadVertex(boundaryEdgeNeighbors[1]) +
+                               4.0f * pos)/6.0f;
         } else {
             output.position = pos;
         }
 
-        output.e0 = (
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) -
-            float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                   VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)])
-            )/6.0;
+        output.e0 = (OsdReadVertex(boundaryEdgeNeighbors[0]) -
+                     OsdReadVertex(boundaryEdgeNeighbors[1]))/6.0;
 
         float k = float(float(valence) - 1.0f);    //k is the number of faces
         float c = cos(M_PI/k);
@@ -211,21 +199,13 @@ void vs_main_patches( in InputVertex input,
         float alpha_0k = -((1.0f+2.0f*c)*sqrt(1.0f+c))/((3.0f*k+c)*sqrt(1.0f-c));
         float beta_0 = s/(3.0f*k + c);
 
-
-        int idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*zerothNeighbor + 1 + 1)];
+        int idx_diagonal = OsdReadVertexIndex(vID, 2*zerothNeighbor + 1);
         idx_diagonal = abs(idx_diagonal);
-        float3 diagonal =
-                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+        float3 diagonal = OsdReadVertex(idx_diagonal);
 
         output.e1 = gamma * pos +
-            alpha_0k * float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0])],
-                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+1)],
-                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[0]+2)]) +
-            alpha_0k * float3(VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1])],
-                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+1)],
-                              VertexBuffer[int(OSD_NUM_ELEMENTS*boundaryEdgeNeighbors[1]+2)]) +
+            alpha_0k * OsdReadVertex(boundaryEdgeNeighbors[0]) +
+            alpha_0k * OsdReadVertex(boundaryEdgeNeighbors[1]) +
             beta_0 * diagonal;
 
         for (uint x=1; x<valence - 1; ++x) {
@@ -233,20 +213,12 @@ void vs_main_patches( in InputVertex input,
             float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
             float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
 
-            int idx_neighbor = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 0 + 1)];
+            int idx_neighbor = OsdReadVertexIndex(vID, 2*curri);
             idx_neighbor = abs(idx_neighbor);
+            float3 neighbor = OsdReadVertex(idx_neighbor);
 
-            float3 neighbor =
-                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+1)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_neighbor+2)]);
-
-            idx_diagonal = OsdValenceBuffer[int((vID) * (2*OSD_MAX_VALENCE+1) + 2*curri + 1 + 1)];
-
-            diagonal =
-                float3(VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+1)],
-                       VertexBuffer[int(OSD_NUM_ELEMENTS*idx_diagonal+2)]);
+            idx_diagonal = OsdReadVertexIndex(vID, 2*curri + 1);
+            diagonal = OsdReadVertex(idx_diagonal);
 
             output.e1 += alpha * neighbor + beta * diagonal;
         }
@@ -260,42 +232,17 @@ void vs_main_patches( in InputVertex input,
 // Patches.HullGregory
 //----------------------------------------------------------
 
-Buffer<int> OsdQuadOffsetBuffer : register( t2 );
+Buffer<int> OsdQuadOffsetBuffer : register( t4 );
 
-HS_CONSTANT_FUNC_OUT HSConstFunc(
-    InputPatch<GregHullVertex, 4> patch,
-    uint primitiveID : SV_PrimitiveID)
+int OsdReadQuadOffset(int primitiveID, uint offsetVertex)
 {
-    HS_CONSTANT_FUNC_OUT output;
-
-    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-
-    OSD_PATCH_CULL(4);
-
-    float4 tessLevelOuter = float4(0,0,0,0);
-    float4 tessLevelInner = float4(0,0,0,0);
-
-    OsdGetTessLevels(patch[0].hullPosition.xyz, patch[1].hullPosition.xyz,
-                     patch[2].hullPosition.xyz, patch[3].hullPosition.xyz,
-                     patchParam, tessLevelOuter, tessLevelInner);
-
-    output.tessLevelOuter[0] = tessLevelOuter[0];
-    output.tessLevelOuter[1] = tessLevelOuter[1];
-    output.tessLevelOuter[2] = tessLevelOuter[2];
-    output.tessLevelOuter[3] = tessLevelOuter[3];
-
-    output.tessLevelInner[0] = tessLevelInner[0];
-    output.tessLevelInner[1] = tessLevelInner[1];
-
-    output.tessOuterLo = float4(0,0,0,0);
-    output.tessOuterHi = float4(0,0,0,0);
-
-    return output;
+    int index = int(4*primitiveID+OsdGregoryQuadOffsetBase() + offsetVertex);
+    return OsdQuadOffsetBuffer[index];
 }
 
 [domain("quad")]
 [partitioning(HS_PARTITION)]
-[outputtopology("triangle_ccw")]
+[outputtopology("triangle_cw")]
 [outputcontrolpoints(4)]
 [patchconstantfunc("HSConstFunc")]
 GregDomainVertex hs_main_patches(
@@ -308,17 +255,16 @@ GregDomainVertex hs_main_patches(
     uint im = (i+3)%4;
     uint valence = abs(patch[i].valence);
     uint n = valence;
-    int base = OsdGregoryQuadOffsetBase();
 
     GregDomainVertex output;
     output.position = patch[ID].position;
 
-    uint start = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0x00ffu;
-    uint prev = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + i)]) & 0xff00u;
+    uint start = uint(OsdReadQuadOffset(primitiveID, i)) & 0x00ffu;
+    uint prev = uint(OsdReadQuadOffset(primitiveID, i)) & 0xff00u;
     prev = uint(prev/256);
 
-    uint start_m = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + im)]) & 0x00ffu;
-    uint prev_p = uint(OsdQuadOffsetBuffer[int(4*primitiveID+base + ip)]) & 0xff00u;
+    uint start_m = uint(OsdReadQuadOffset(primitiveID, im)) & 0x00ffu;
+    uint prev_p = uint(OsdReadQuadOffset(primitiveID, ip)) & 0xff00u;
     prev_p = uint(prev_p/256);
 
     uint np = abs(patch[ip].valence);
@@ -326,7 +272,7 @@ GregDomainVertex hs_main_patches(
 
     // Control Vertices based on :
     // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
-    // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+    // Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia 2009)
     //
     //  P3         e3-      e2+         E2
     //     O--------O--------O--------O
@@ -451,6 +397,37 @@ GregDomainVertex hs_main_patches(
     return output;
 }
 
+HS_CONSTANT_FUNC_OUT HSConstFunc(
+    InputPatch<GregHullVertex, 4> patch,
+    uint primitiveID : SV_PrimitiveID)
+{
+    HS_CONSTANT_FUNC_OUT output;
+
+    int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
+
+    OSD_PATCH_CULL(4);
+
+    float4 tessLevelOuter = float4(0,0,0,0);
+    float4 tessLevelInner = float4(0,0,0,0);
+
+    OsdGetTessLevels(patch[0].position.xyz, patch[3].position.xyz,
+                     patch[2].position.xyz, patch[1].position.xyz,
+                     patchParam, tessLevelOuter, tessLevelInner);
+
+    output.tessLevelOuter[0] = tessLevelOuter[0];
+    output.tessLevelOuter[1] = tessLevelOuter[1];
+    output.tessLevelOuter[2] = tessLevelOuter[2];
+    output.tessLevelOuter[3] = tessLevelOuter[3];
+
+    output.tessLevelInner[0] = tessLevelInner[0];
+    output.tessLevelInner[1] = tessLevelInner[1];
+
+    output.tessOuterLo = float4(0,0,0,0);
+    output.tessOuterHi = float4(0,0,0,0);
+
+    return output;
+}
+
 //----------------------------------------------------------
 // Patches.DomainGregory
 //----------------------------------------------------------
@@ -459,12 +436,9 @@ GregDomainVertex hs_main_patches(
 void ds_main_patches(
     in HS_CONSTANT_FUNC_OUT input,
     in OutputPatch<GregDomainVertex, 4> patch,
-    in float2 uv : SV_DomainLocation,
+    in float2 UV : SV_DomainLocation,
     out OutputVertex output )
 {
-    float u = uv.x,
-          v = uv.y;
-
     float3 p[20];
 
     p[0] = patch[0].position;
@@ -493,6 +467,7 @@ void ds_main_patches(
 
     float3 q[16];
 
+    float u = UV.x, v=UV.y;
     float U = 1-u, V=1-v;
 
     float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
@@ -518,123 +493,104 @@ void ds_main_patches(
     q[14] = p[11];
     q[15] = p[10];
 
-    float3 WorldPos  = float3(0, 0, 0);
-    float3 Tangent   = float3(0, 0, 0);
-    float3 BiTangent = float3(0, 0, 0);
+    float3 position = float3(0, 0, 0);
+    float3 uTangent = float3(0, 0, 0);
+    float3 vTangent = float3(0, 0, 0);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     float B[4], D[4], C[4];
-
     float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
            DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
            CUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
-
     float3 dUU = float3(0, 0, 0);
     float3 dVV = float3(0, 0, 0);
     float3 dUV = float3(0, 0, 0);
 
-    Univar4x4(u, B, D, C);
+    Univar4x4(UV.x, B, D, C);
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            float3 A = q[i + 4*j];
-
+            float3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
             CUCP[i] += A * C[j];
         }
     }
 
-    Univar4x4(v, B, D, C);
+    Univar4x4(UV.y, B, D, C);
 
     for (int i=0; i<4; ++i) {
-        WorldPos  += B[i] * BUCP[i];
-        Tangent   += B[i] * DUCP[i];
-        BiTangent += D[i] * BUCP[i];
+        position += B[i] * BUCP[i];
+        uTangent += B[i] * DUCP[i];
+        vTangent += D[i] * BUCP[i];
         dUU += B[i] * CUCP[i];
         dVV += C[i] * BUCP[i];
         dUV += D[i] * DUCP[i];
     }
 
     int level = patch[0].patchCoord.z;
-    BiTangent *= 3 * level;
-    Tangent *= 3 * level;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
     dUU *= 6 * level;
     dVV *= 6 * level;
     dUV *= 9 * level;
 
-    float3 n = cross(Tangent, BiTangent);
+    float3 n = cross(uTangent, vTangent);
     float3 normal = normalize(n);
 
-    float E = dot(Tangent, Tangent);
-    float F = dot(Tangent, BiTangent);
-    float G = dot(BiTangent, BiTangent);
+    float E = dot(uTangent, uTangent);
+    float F = dot(uTangent, vTangent);
+    float G = dot(vTangent, vTangent);
     float e = dot(normal, dUU);
     float f = dot(normal, dUV);
     float g = dot(normal, dVV);
 
-    float3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
-    float3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+    float3 Nu = (f*F-e*G)/(E*G-F*F) * uTangent + (e*F-f*E)/(E*G-F*F) * vTangent;
+    float3 Nv = (g*F-f*G)/(E*G-F*F) * uTangent + (f*F-g*E)/(E*G-F*F) * vTangent;
 
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
-    BiTangent = mul(OsdModelViewMatrix(), float4(BiTangent, 0)).xyz;
-    Tangent = mul(OsdModelViewMatrix(), float4(Tangent, 0)).xyz;
-
-    normal = normalize(cross(BiTangent, Tangent));
-
     output.Nu = Nu;
     output.Nv = Nv;
-
 #else
     float B[4], D[4];
     float3 BUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)},
            DUCP[4] = {float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)};
 
-    Univar4x4(uv.x, B, D);
+    Univar4x4(UV.x, B, D);
 
     for (int i=0; i<4; ++i) {
         for (uint j=0; j<4; ++j) {
-            // reverse face front
-            float3 A = q[i + 4*j];
-
+            float3 A = q[4*i + j];
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
         }
     }
 
-    Univar4x4(uv.y, B, D);
+    Univar4x4(UV.y, B, D);
 
     for (uint i=0; i<4; ++i) {
-        WorldPos  += B[i] * BUCP[i];
-        Tangent   += B[i] * DUCP[i];
-        BiTangent += D[i] * BUCP[i];
+        position += B[i] * BUCP[i];
+        uTangent += B[i] * DUCP[i];
+        vTangent += D[i] * BUCP[i];
     }
     int level = patch[0].patchCoord.z;
-    BiTangent *= 3 * level;
-    Tangent *= 3 * level;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
 
-    BiTangent = mul(OsdModelViewMatrix(), float4(BiTangent, 0)).xyz;
-    Tangent = mul(OsdModelViewMatrix(), float4(Tangent, 0)).xyz;
-
-    float3 normal = normalize(cross(BiTangent, Tangent));
-
+    float3 normal = normalize(cross(uTangent, vTangent));
 #endif
 
-    output.position = mul(OsdModelViewMatrix(), float4(WorldPos, 1.0f));
-    output.normal = normal;
-    output.tangent = BiTangent;
-    output.bitangent = Tangent;
+    output.position = mul(OsdModelViewMatrix(), float4(position, 1.0f));
+    output.normal = mul(OsdModelViewMatrix(), float4(normal, 0.0f)).xyz;
+    output.tangent = mul(OsdModelViewMatrix(), float4(uTangent, 0.0f)).xyz;
+    output.bitangent = mul(OsdModelViewMatrix(), float4(vTangent, 0.0f)).xyz;
 
-    output.edgeDistance = 0;
-
-    float2 UV = float2(v, u);
     output.patchCoord = OsdInterpolatePatchCoord(UV, patch[0].patchCoord);
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    output.positionOut = mul(OsdProjectionMatrix(),
-                             float4(output.position.xyz, 1.0f));
+    output.positionOut = mul(OsdProjectionMatrix(), output.position);
+    output.edgeDistance = 0;
 }

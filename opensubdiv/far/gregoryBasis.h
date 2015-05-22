@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_GREGORY_BASIS_H
-#define FAR_GREGORY_BASIS_H
+#ifndef OPENSUBDIV3_FAR_GREGORY_BASIS_H
+#define OPENSUBDIV3_FAR_GREGORY_BASIS_H
 
 #include "../far/protoStencil.h"
 #include "../vtr/level.h"
@@ -194,8 +194,8 @@ public:
 
         int _size;
         // XXXX this would really be better with VLA where we only allocate
-        // space based on the max vertex valence in the mesh, not the
-        // absolute maximum supported by the closed-form tangents table.
+        // space based on the max vertex valence in the mesh, not the absolute
+        // maximum supported by the closed-form tangents table.
         Index _indices[MAX_ELEMS];
         float _weights[MAX_ELEMS];
     };
@@ -203,8 +203,8 @@ public:
     //
     // ProtoBasis
     //
-    // Given a Vtr::Level and a face index, gathers all the influences of the 1-ring
-    // that supports the 20 CVs of a Gregory patch basis.
+    // Given a Vtr::Level and a face index, gathers all the influences of the
+    // 1-ring that supports the 20 CVs of a Gregory patch basis.
     //
     struct ProtoBasis {
 
@@ -213,10 +213,12 @@ public:
         int GetNumElements() const;
 
         void Copy(int * sizes, Index * indices, float * weights) const;
+        void Copy(GregoryBasis* dest) const;
 
         // Control Vertices based on :
-        // "Approximating Subdivision Surfaces with Gregory Patches for Hardware Tessellation"
-        // Loop, Schaefer, Ni, Castafio (ACM ToG Siggraph Asia 2009)
+        // "Approximating Subdivision Surfaces with Gregory Patches for Hardware
+        // Tessellation" Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia
+        // 2009)
         //
         //  P3         e3-      e2+         P2
         //     O--------O--------O--------O
@@ -250,10 +252,7 @@ public:
 
 private:
 
-    friend class EndCapGregoryBasisPatchFactory;
-
-    int _sizes[20],
-        _offsets[20];
+    int _sizes[20];
 
     std::vector<Index> _indices;
     std::vector<float> _weights;
@@ -264,4 +263,4 @@ private:
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif /* FAR_GREGORY_BASIS_H */
+#endif /* OPENSUBDIV3_FAR_GREGORY_BASIS_H */

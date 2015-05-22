@@ -83,23 +83,10 @@ EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
     }
 
     GregoryBasis::ProtoBasis basis(level, faceIndex, fvarChannel);
-
-    int nelems= basis.GetNumElements();
-
     GregoryBasis * result = new GregoryBasis;
-
-    result->_indices.resize(nelems);
-    result->_weights.resize(nelems);
-
-    basis.Copy(result->_sizes, &result->_indices[0], &result->_weights[0]);
+    basis.Copy(result);
 
     // note: this function doesn't create varying stencils.
-
-    for (int i=0, offset=0; i<20; ++i) {
-        result->_offsets[i] = offset;
-        offset += result->_sizes[i];
-    }
-
     return result;
 }
 

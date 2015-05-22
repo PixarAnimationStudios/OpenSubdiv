@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_D3D11_VERTEX_BUFFER_H
-#define OSD_D3D11_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_D3D11_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_D3D11_VERTEX_BUFFER_H
 
 #include "../version.h"
 
@@ -96,4 +96,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_D3D11_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_D3D11_VERTEX_BUFFER_H

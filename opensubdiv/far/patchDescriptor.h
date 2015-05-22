@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_DESCRIPTOR_H
-#define FAR_PATCH_DESCRIPTOR_H
+#ifndef OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
+#define OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
 
 #include "../version.h"
 
@@ -46,8 +46,6 @@ namespace Far {
 ///
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
 ///   GREGORY, GREGORY_BOUNDARY, GREGORY_BASIS.
-///   These bicubic patches are also further distinguished by a transition
-///   pattern as well as a rotational orientation.
 ///
 /// Bitfield layout :
 ///
@@ -205,4 +203,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_DESCRIPTOR_H */
+#endif /* OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H */

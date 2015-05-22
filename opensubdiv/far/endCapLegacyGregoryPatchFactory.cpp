@@ -100,7 +100,10 @@ static void getQuadOffsets(
 }
 
 void
-EndCapLegacyGregoryPatchFactory::Finalize(PatchTables *patchTables)
+EndCapLegacyGregoryPatchFactory::Finalize(
+    int maxValence, 
+    PatchTables::QuadOffsetsTable *quadOffsetsTable,
+    PatchTables::VertexValenceTable *vertexValenceTable)
 {
     // populate quad offsets
 
@@ -111,11 +114,11 @@ EndCapLegacyGregoryPatchFactory::Finalize(PatchTables *patchTables)
 
     Vtr::Level const &level = _refiner.getLevel(_refiner.GetMaxLevel());
 
-    patchTables->_quadOffsetsTable.resize(numTotalGregoryPatches*4);
+    quadOffsetsTable->resize(numTotalGregoryPatches*4);
 
 	if (numTotalGregoryPatches > 0) {
 		PatchTables::QuadOffsetsTable::value_type *p = 
-            &patchTables->_quadOffsetsTable[0];
+            &((*quadOffsetsTable)[0]);
 		for (size_t i = 0; i < numGregoryPatches; ++i) {
 			getQuadOffsets(level, _gregoryFaceIndices[i], p);
 			p += 4;
@@ -128,17 +131,20 @@ EndCapLegacyGregoryPatchFactory::Finalize(PatchTables *patchTables)
 
     // populate vertex valences
     //
-    //  Now deal with the "vertex valence" table for Gregory patches -- this table contains the one-ring
-    //  of vertices around each vertex.  Currently it is extremely wasteful for the following reasons:
+    //  Now deal with the "vertex valence" table for Gregory patches -- this 
+    //  table contains the one-ring of vertices around each vertex.  Currently
+    //  it is extremely wasteful for the following reasons:
     //      - it allocates 2*maxvalence+1 for ALL vertices
     //      - it initializes the one-ring for ALL vertices
-    //  We use the full size expected (not sure what else relies on that) but we avoiding initializing
-    //  the vast majority of vertices that are not associated with gregory patches -- by having previously
-    //  marked those that are associated above and skipping all others.
+    //  We use the full size expected (not sure what else relies on that) but 
+    //  we avoiding initializing
+    //  the vast majority of vertices that are not associated with gregory 
+    //  patches -- by having previously marked those that are associated above
+    //  and skipping all others.
     //
-    const int SizePerVertex = 2*patchTables->_maxValence + 1;
+    const int SizePerVertex = 2*maxValence + 1;
 
-    std::vector<Index> & vTable = patchTables->_vertexValenceTable;
+    PatchTables::VertexValenceTable & vTable = (*vertexValenceTable);
     vTable.resize(_refiner.GetNumVerticesTotal() * SizePerVertex);
 
     int vOffset = 0;

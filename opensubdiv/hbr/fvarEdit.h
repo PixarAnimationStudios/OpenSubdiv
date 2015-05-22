@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRFVAREDIT_H
-#define HBRFVAREDIT_H
+#ifndef OPENSUBDIV3_HBRFVAREDIT_H
+#define OPENSUBDIV3_HBRFVAREDIT_H
 
 #include "../hbr/hierarchicalEdit.h"
 #include "../hbr/vertexEdit.h"
@@ -118,4 +118,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRFVAREDIT_H */
+#endif /* OPENSUBDIV3_HBRFVAREDIT_H */

@@ -75,8 +75,6 @@
 #undef OSD_FRACTIONAL_ODD_SPACING
 #undef OSD_FRACTIONAL_EVEN_SPACING
 
-#define OSD_PATCH_INPUT_SIZE 16
-
 #define M_PI 3.14159265359f
 
 #if __VERSION__ < 420
@@ -532,8 +530,8 @@ OsdComputeBSplineBoundaryPoints(inout vec3 cpt[16], ivec3 patchParam)
 
 float OsdComputePostProjectionSphereExtent(vec3 center, float diameter)
 {
-    vec4 p = OsdProjectionMatrix() * vec4(center, 1.0);
-    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
+    vec4 p = OsdModelViewProjectionMatrix() * vec4(center, 1.0);
+    return abs(diameter * OsdModelViewProjectionMatrix()[1][1] / p.w);
 }
 
 float OsdComputeTessLevel(vec3 p0, vec3 p1)

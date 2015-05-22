@@ -37,7 +37,7 @@ out block {
 
 void main()
 {
-    outpt.v.position = OsdModelViewMatrix() * position;
+    outpt.v.position = position;
     OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(position);
     OSD_USER_VARYING_PER_VERTEX();
 }
@@ -180,7 +180,7 @@ void main()
     barrier();
 #endif
     if (ID == 0) {
-        OSD_PATCH_CULL(OSD_PATCH_INPUT_SIZE);
+        OSD_PATCH_CULL(16);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
@@ -315,9 +315,9 @@ void main()
 #endif
     // ----------------------------------------------------------------
 
-    vec3 WorldPos  = vec3(0);
-    vec3 Tangent   = vec3(0);
-    vec3 BiTangent = vec3(0);
+    vec3 position = vec3(0);
+    vec3 uTangent = vec3(0);
+    vec3 vTangent = vec3(0);
 
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
     // used for weingarten term
@@ -328,9 +328,9 @@ void main()
     vec3 dUV = vec3(0);
 
     for (int k=0; k<4; ++k) {
-        WorldPos  += B[k] * BUCP[k];
-        Tangent   += B[k] * DUCP[k];
-        BiTangent += D[k] * BUCP[k];
+        position += B[k] * BUCP[k];
+        uTangent += B[k] * DUCP[k];
+        vTangent += D[k] * BUCP[k];
 
         dUU += B[k] * CUCP[k];
         dVV += C[k] * BUCP[k];
@@ -338,52 +338,49 @@ void main()
     }
 
     int level = inpt[0].v.patchCoord.z;
-    Tangent *= 3 * level;
-    BiTangent *= 3 * level;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
     dUU *= 6 * level;
     dVV *= 6 * level;
     dUV *= 9 * level;
 
-    vec3 n = cross(Tangent, BiTangent);
+    vec3 n = cross(uTangent, vTangent);
     vec3 normal = normalize(n);
 
-    float E = dot(Tangent, Tangent);
-    float F = dot(Tangent, BiTangent);
-    float G = dot(BiTangent, BiTangent);
+    float E = dot(uTangent, uTangent);
+    float F = dot(uTangent, vTangent);
+    float G = dot(vTangent, vTangent);
     float e = dot(normal, dUU);
     float f = dot(normal, dUV);
     float g = dot(normal, dVV);
 
-    vec3 Nu = (f*F-e*G)/(E*G-F*F) * Tangent + (e*F-f*E)/(E*G-F*F) * BiTangent;
-    vec3 Nv = (g*F-f*G)/(E*G-F*F) * Tangent + (f*F-g*E)/(E*G-F*F) * BiTangent;
+    vec3 Nu = (f*F-e*G)/(E*G-F*F) * uTangent + (e*F-f*E)/(E*G-F*F) * vTangent;
+    vec3 Nv = (g*F-f*G)/(E*G-F*F) * uTangent + (f*F-g*E)/(E*G-F*F) * vTangent;
 
     Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
     Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
 
-    outpt.v.tangent = Tangent;
-    outpt.v.bitangent = BiTangent;
     outpt.v.Nu = Nu;
     outpt.v.Nv = Nv;
 #else
     Univar4x4(UV.y, B, D);
 
     for (int k=0; k<4; ++k) {
-        WorldPos  += B[k] * BUCP[k];
-        Tangent   += B[k] * DUCP[k];
-        BiTangent += D[k] * BUCP[k];
+        position += B[k] * BUCP[k];
+        uTangent += B[k] * DUCP[k];
+        vTangent += D[k] * BUCP[k];
     }
     int level = inpt[0].v.patchCoord.z;
-    Tangent *= 3 * level;
-    BiTangent *= 3 * level;
+    uTangent *= 3 * level;
+    vTangent *= 3 * level;
 
-    vec3 normal = normalize(cross(Tangent, BiTangent));
-
-    outpt.v.tangent = Tangent;
-    outpt.v.bitangent = BiTangent;
+    vec3 normal = normalize(cross(uTangent, vTangent));
 #endif
 
-    outpt.v.position = vec4(WorldPos, 1.0f);
-    outpt.v.normal = normal;
+    outpt.v.position = OsdModelViewMatrix() * vec4(position, 1.0f);
+    outpt.v.normal = (OsdModelViewMatrix() * vec4(normal, 0.0f)).xyz;
+    outpt.v.tangent = (OsdModelViewMatrix() * vec4(uTangent, 0.0f)).xyz;
+    outpt.v.bitangent = (OsdModelViewMatrix() * vec4(vTangent, 0.0f)).xyz;
 
     OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
@@ -392,7 +389,7 @@ void main()
 
     OSD_DISPLACEMENT_CALLBACK;
 
-    gl_Position = (OsdProjectionMatrix() * vec4(WorldPos, 1.0f));
+    gl_Position = OsdProjectionMatrix() * outpt.v.position;
 }
 
 #endif

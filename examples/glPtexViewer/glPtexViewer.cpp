@@ -49,9 +49,6 @@ GLFWmonitor* g_primary = 0;
 #include <string>
 #include <utility>
 #include <algorithm>
-
-#include <osd/glDrawContext.h>
-#include <osd/glDrawRegistry.h>
 #include <far/error.h>
 
 #include <osd/cpuEvaluator.h>
@@ -98,12 +95,13 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
-#include "../common/patchColors.h"
+#include "../common/glHud.h"
+#include "../common/glUtils.h"
 #include "../common/hdr_reader.h"
-#include "../common/stb_image_write.h"
 #include "../common/glPtexMipmapTexture.h"
+#include "../common/glShaderCache.h"
 
+#include <osd/glslPatchShaderSource.h>
 static const char *g_defaultShaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     #include "shader.gen.h"
@@ -113,9 +111,6 @@ static const char *g_defaultShaderSource =
 ;
 static const char *g_skyShaderSource =
 #include "skyshader.gen.h"
-;
-static const char *g_imageShaderSource =
-#include "imageshader.gen.h"
 ;
 static std::string g_shaderSource;
 static const char *g_shaderFilename = NULL;
@@ -209,19 +204,8 @@ bool  g_adaptive = false,
       g_bloom = false,
       g_freeze = false;
 
-GLuint g_transformUB = 0,
-       g_transformBinding = 0,
-       g_tessellationUB = 0,
-       g_tessellationBinding = 0,
-       g_lightingUB = 0,
-       g_lightingBinding = 0;
-
-struct Transform {
-    float ModelViewMatrix[16];
-    float ProjectionMatrix[16];
-    float ModelViewProjectionMatrix[16];
-    float ModelViewInverseMatrix[16];
-} transformData;
+GLuint g_constantUB = 0,
+       g_constantBinding = 0;
 
 // ptex switch
 bool  g_occlusion = false,
@@ -277,37 +261,39 @@ struct Sky {
     GLuint vertexBuffer;
     GLuint elementBuffer;
     GLuint mvpMatrix;
-    GLuint program;
+    GLDrawConfig *drawConfig;
 
     Sky() : numIndices(0), vertexBuffer(0), elementBuffer(0), mvpMatrix(0),
-            program(0) {}
-} g_sky;
-
-//------------------------------------------------------------------------------
-
-struct ImageShader {
-    GLuint blurProgram;
-    GLuint hipassProgram;
-    GLuint compositeProgram;
-
-    GLuint frameBuffer;
-    GLuint frameBufferTexture;
-    GLuint frameBufferDepthTexture;
-
-    GLuint smallFrameBuffer[2];
-    GLuint smallFrameBufferTexture[2];
-
-    GLuint smallWidth, smallHeight;
-
-    GLuint vao;
-    GLuint vbo;
-
-    ImageShader() : blurProgram(0), hipassProgram(0), compositeProgram(0),
-                    frameBuffer(0), frameBufferTexture(0), frameBufferDepthTexture(0) {
-        smallFrameBuffer[0] = smallFrameBuffer[1] = 0;
-        smallFrameBufferTexture[0] = smallFrameBufferTexture[1] = 0;
+            drawConfig(NULL) {}
+    ~Sky() {
+        delete drawConfig;
     }
-} g_imageShader;
+
+    bool BuildProgram(const char *source) {
+        if (drawConfig) delete drawConfig;
+
+        drawConfig = new GLDrawConfig("#version 410\n");
+
+        drawConfig->CompileAndAttachShader(GL_VERTEX_SHADER,
+                                           "#define SKY_VERTEX_SHADER\n" +
+                                           std::string(source));
+        drawConfig->CompileAndAttachShader(GL_FRAGMENT_SHADER,
+                                           "#define SKY_FRAGMENT_SHADER\n" +
+                                           std::string(source));
+        if (drawConfig->Link() == false) {
+            delete drawConfig;
+            drawConfig = NULL;
+            return false;
+        }
+        return true;
+    }
+
+    int GetProgram() const {
+        if (drawConfig) return drawConfig->GetProgram();
+        return 0;
+    }
+
+} g_sky;
 
 //------------------------------------------------------------------------------
 
@@ -514,34 +500,6 @@ reshape(GLFWwindow *, int width, int height) {
 
     g_hud.Rebuild(windowWidth, windowHeight, width, height);
 
-    // resize framebuffers
-    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
-                 GL_RGBA, GL_UNSIGNED_BYTE, 0);
-
-    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, height, 0,
-                 GL_DEPTH_COMPONENT, GL_FLOAT, 0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.frameBuffer);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, g_imageShader.frameBufferTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                           GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture, 0);
-
-    const int d = 4;
-    g_imageShader.smallWidth = width/d;
-    g_imageShader.smallHeight = height/d;
-    for (int i = 0; i < 2; ++i) {
-        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width/d, height/d, 0,
-                     GL_RGBA, GL_UNSIGNED_BYTE, 0);
-
-        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[i]);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i], 0);
-    }
-
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
         assert(false);
@@ -574,71 +532,6 @@ const char *getKernelName(int kernel) {
     else if (kernel == kCL)
         return "OpenCL";
     return "Unknown";
-}
-
-//------------------------------------------------------------------------------
-static GLuint compileShader(GLenum shaderType,
-                            OpenSubdiv::Osd::DrawShaderSource const & common,
-                            OpenSubdiv::Osd::DrawShaderSource const & source) {
-
-    const char *sources[4];
-    std::stringstream definitions;
-    for (int i = 0; i < (int)common.defines.size(); ++i) {
-        definitions << "#define "
-                    << common.defines[i].first << " "
-                    << common.defines[i].second << "\n";
-    }
-    for (int i = 0; i < (int)source.defines.size(); ++i) {
-        definitions << "#define "
-                    << source.defines[i].first << " "
-                    << source.defines[i].second << "\n";
-    }
-    std::string defString = definitions.str();
-
-    sources[0] = source.version.c_str();
-    sources[1] = defString.c_str();
-    sources[2] = common.source.c_str();
-    sources[3] = source.source.c_str();
-
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 4, sources, NULL);
-    glCompileShader(shader);
-
-    GLint status;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLchar emsg[40960];
-        glGetShaderInfoLog(shader, sizeof(emsg), 0, emsg);
-        fprintf(stderr, "Error compiling GLSL shader: %s\n", emsg);
-        fprintf(stderr, "Defines: %s\n", defString.c_str());
-        return 0;
-    }
-
-    return shader;
-}
-
-//------------------------------------------------------------------------------
-
-int bindPTexture(GLint program, GLPtexMipmapTexture *osdPTex,
-                 GLuint data, GLuint packing, int samplerUnit) {
-
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glProgramUniform1i(program, data, samplerUnit + 0);
-    glProgramUniform1i(program, packing, samplerUnit + 1);
-#else
-    glUniform1i(data, samplerUnit + 0);
-    glUniform1i(packing, samplerUnit + 1);
-#endif
-
-    glActiveTexture(GL_TEXTURE0 + samplerUnit + 0);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, osdPTex->GetTexelsTexture());
-
-    glActiveTexture(GL_TEXTURE0 + samplerUnit + 1);
-    glBindTexture(GL_TEXTURE_BUFFER, osdPTex->GetLayoutTextureBuffer());
-
-    glActiveTexture(GL_TEXTURE0);
-
-    return samplerUnit + 2;
 }
 
 //------------------------------------------------------------------------------
@@ -681,263 +574,258 @@ struct EffectDesc {
     }
 };
 
-class EffectDrawRegistry : public OpenSubdiv::Osd::GLDrawRegistry<EffectDesc> {
-
-protected:
-
-    virtual ConfigType *
-    _CreateDrawConfig(EffectDesc const & desc, SourceConfigType const * sconfig);
-
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(EffectDesc const & desc);
-};
-
 //------------------------------------------------------------------------------
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const & effectDesc) {
+class ShaderCache : public GLShaderCache<EffectDesc> {
+public:
+    virtual GLDrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
 
-    Effect effect = effectDesc.effect;
+        using namespace OpenSubdiv;
 
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc);
-
-    // add ptex functions
-    sconfig->commonShader.source += GLPtexMipmapTexture::GetShaderSource();
-
-    if (effect.patchCull)
-        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    if (effect.screenSpaceTess)
-        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
-    if (effect.fractionalSpacing)
-        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
-
+        // compile shader program
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
+        const char *glslVersion = "#version 400\n";
 #else
-    const char *glslVersion = "#version 330\n";
+        const char *glslVersion = "#version 330\n";
 #endif
+        GLDrawConfig *config = new GLDrawConfig(glslVersion);
 
-    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
-        std::ostringstream ss;
-        ss << effectDesc.maxValence;
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
-        ss.str("");
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
 
-        ss << effectDesc.numElements;
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
+        // common defines
+        std::stringstream ss;
 
-    int nverts = 4;
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS) {
-        sconfig->vertexShader.source = g_shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
-        if (effect.displacement) {
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else if (type == Far::PatchDescriptor::LINES) {
+            ss << "#define PRIM_LINE\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
         }
-    } else if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::LINES) {
-        nverts = 2;
-        sconfig->vertexShader.source = g_shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
-    } else {
-        nverts = 3;
-        sconfig->vertexShader.source = g_shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = g_shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = g_shaderSource + sconfig->tessEvalShader.source;
-        sconfig->tessEvalShader.version = glslVersion;
-        if (effect.displacement and (not effect.normal))
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
-    }
-    assert(sconfig);
 
-    sconfig->geometryShader.source = g_shaderSource;
-    sconfig->geometryShader.version = glslVersion;
-    sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
+        // OSD tessellation controls
+        if (effectDesc.effect.screenSpaceTess) {
+            ss << "#define OSD_ENABLE_SCREENSPACE_TESSELLATION\n";
+        }
+        if (effectDesc.effect.fractionalSpacing) {
+            ss << "#define OSD_FRACTIONAL_ODD_SPACING\n";
+        }
+        if (effectDesc.effect.patchCull) {
+            ss << "#define OSD_ENABLE_PATCH_CULL\n";
+        }
 
-    sconfig->fragmentShader.source = g_shaderSource;
-    sconfig->fragmentShader.version = glslVersion;
-    sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
+        // for legacy gregory
+        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
+        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
 
-    switch (effect.color) {
+        // add ptex functions
+        ss << GLPtexMipmapTexture::GetShaderSource();
+
+        // -------------------------------------------------------------
+        // display styles
+        // -------------------------------------------------------------
+
+        // mipmap
+        if (effectDesc.effect.seamless) {
+            ss << "#define SEAMLESS_MIPMAP\n";
+        }
+
+        //  wire
+        if (effectDesc.effect.wire == 0) {
+            ss << "#define GEOMETRY_OUT_WIRE\n";
+        } else if (effectDesc.effect.wire == 1) {
+            ss << "#define GEOMETRY_OUT_FILL\n";
+        } else if (effectDesc.effect.wire == 2) {
+            ss << "#define GEOMETRY_OUT_LINE\n";
+        }
+
+        //  color
+        switch(effectDesc.effect.color) {
         case COLOR_NONE:
             break;
         case COLOR_PTEX_NEAREST:
-            sconfig->fragmentShader.AddDefine("COLOR_PTEX_NEAREST");
+            ss << "#define COLOR_PTEX_NEAREST\n";
             break;
         case COLOR_PTEX_HW_BILINEAR:
-            sconfig->fragmentShader.AddDefine("COLOR_PTEX_HW_BILINEAR");
+            ss << "#define COLOR_PTEX_HW_BILINEAR\n";
             break;
         case COLOR_PTEX_BILINEAR:
-            sconfig->fragmentShader.AddDefine("COLOR_PTEX_BILINEAR");
+            ss << "#define COLOR_PTEX_BILINEAR\n";
             break;
         case COLOR_PTEX_BIQUADRATIC:
-            sconfig->fragmentShader.AddDefine("COLOR_PTEX_BIQUADRATIC");
+            ss << "#define COLOR_PTEX_BIQUADRATIC\n";
             break;
         case COLOR_PATCHTYPE:
-            sconfig->fragmentShader.AddDefine("COLOR_PATCHTYPE");
+            ss << "#define COLOR_PATCHTYPE\n";
             break;
         case COLOR_PATCHCOORD:
-            sconfig->fragmentShader.AddDefine("COLOR_PATCHCOORD");
+            ss << "#define COLOR_PATCHCOORD\n";
             break;
         case COLOR_NORMAL:
-            sconfig->fragmentShader.AddDefine("COLOR_NORMAL");
+            ss << "#define COLOR_NORMAL\n";
             break;
-    }
+        }
 
-    switch (effect.displacement) {
+        // displacement
+        switch (effectDesc.effect.displacement) {
         case DISPLACEMENT_NONE:
             break;
         case DISPLACEMENT_HW_BILINEAR:
-            sconfig->commonShader.AddDefine("DISPLACEMENT_HW_BILINEAR");
+            ss << "#define DISPLACEMENT_HW_BILINEAR\n";
             break;
         case DISPLACEMENT_BILINEAR:
-            sconfig->commonShader.AddDefine("DISPLACEMENT_BILINEAR");
+            ss << "#define DISPLACEMENT_BILINEAR\n";
             break;
         case DISPLACEMENT_BIQUADRATIC:
-            sconfig->commonShader.AddDefine("DISPLACEMENT_BIQUADRATIC");
+            ss << "#define DISPLACEMENT_BIQUADRATIC\n";
             break;
-    }
+        }
 
-    switch (effect.normal) {
+        // normal
+        switch (effectDesc.effect.normal) {
         case NORMAL_FACET:
-            sconfig->commonShader.AddDefine("NORMAL_FACET");
+            ss << "#define NORMAL_FACET\n";
             break;
         case NORMAL_HW_SCREENSPACE:
-            sconfig->commonShader.AddDefine("NORMAL_HW_SCREENSPACE");
+            ss << "#define NORMAL_HW_SCREENSPACE\n";
             break;
         case NORMAL_SCREENSPACE:
-            sconfig->commonShader.AddDefine("NORMAL_SCREENSPACE");
+            ss << "#define NORMAL_SCREENSPACE\n";
             break;
         case NORMAL_BIQUADRATIC:
-            sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC");
+            ss << "#define NORMAL_BIQUADRATIC\n";
             break;
         case NORMAL_BIQUADRATIC_WG:
-            sconfig->commonShader.AddDefine("OSD_COMPUTE_NORMAL_DERIVATIVES");
-            sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC_WG");
+            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
+            ss << "#define NORMAL_BIQUADRATIC_WG\n";
             break;
+        }
+
+        // occlusion
+        if (effectDesc.effect.occlusion)
+            ss << "#define USE_PTEX_OCCLUSION\n";
+
+        // specular
+        if (effectDesc.effect.specular)
+            ss << "#define USE_PTEX_SPECULAR\n";
+
+        // IBL
+        if (effectDesc.effect.ibl)
+            ss << "#define USE_IBL\n";
+
+
+        // need for patch color-coding : we need these defines in the fragment shader
+        if (type == Far::PatchDescriptor::GREGORY) {
+            ss << "#define OSD_PATCH_GREGORY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+            ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
+            ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        }
+
+        // include osd PatchCommon
+        ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
+        ss.str("");
+
+        // vertex shader
+        ss << common
+            // enable local vertex shader
+           << (effectDesc.desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n")
+           << g_shaderSource
+           << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
+        config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
+        ss.str("");
+
+        if (effectDesc.desc.IsAdaptive()) {
+            // tess control shader
+            ss << common
+               << g_shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
+            ss.str("");
+
+            // tess eval shader
+            ss << common
+               << g_shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
+            ss.str("");
+        }
+
+        // geometry shader
+        ss << common
+           << "#define GEOMETRY_SHADER\n" // enable local geometry shader
+           << g_shaderSource;
+        config->CompileAndAttachShader(GL_GEOMETRY_SHADER, ss.str());
+        ss.str("");
+
+        // fragment shader
+        ss << common
+           << "#define FRAGMENT_SHADER\n" // enable local fragment shader
+           << g_shaderSource;
+        config->CompileAndAttachShader(GL_FRAGMENT_SHADER, ss.str());
+        ss.str("");
+
+        if (!config->Link()) {
+            delete config;
+            return NULL;
+        }
+
+        // assign uniform locations
+        GLuint program = config->GetProgram();
+        GLuint uboIndex = glGetUniformBlockIndex(program, "Constant");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_constantBinding);
+
+        // assign texture locations
+        GLint loc;
+        // patch textures
+        glUseProgram(program);
+        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
+            glUniform1i(loc, 0); // GL_TEXTURE0
+        }
+
+        // environment textures
+        if ((loc = glGetUniformLocation(program, "diffuseEnvironmentMap")) != -1) {
+            glUniform1i(loc, 5);
+        }
+        if ((loc = glGetUniformLocation(program, "specularEnvironmentMap")) != -1) {
+            glUniform1i(loc, 6);
+        }
+
+        // ptex textures
+        if ((loc = glGetUniformLocation(program, "textureImage_Data")) != -1) {
+            glUniform1i(loc, 7);
+        }
+        if ((loc = glGetUniformLocation(program, "textureImage_Packing")) != -1) {
+            glUniform1i(loc, 8);
+        }
+        if ((loc = glGetUniformLocation(program, "textureDisplace_Data")) != -1) {
+            glUniform1i(loc, 9);
+        }
+        if ((loc = glGetUniformLocation(program, "textureDisplace_Packing")) != -1) {
+            glUniform1i(loc, 10);
+        }
+        if ((loc = glGetUniformLocation(program, "textureOcclusion_Data")) != -1) {
+            glUniform1i(loc, 11);
+        }
+        if ((loc = glGetUniformLocation(program, "textureOcclusion_Packing")) != -1) {
+            glUniform1i(loc, 12);
+        }
+        if ((loc = glGetUniformLocation(program, "textureSpecular_Data")) != -1) {
+            glUniform1i(loc, 13);
+        }
+        if ((loc = glGetUniformLocation(program, "textureSpecular_Packing")) != -1) {
+            glUniform1i(loc, 14);
+        }
+
+        glUseProgram(0);
+
+        return config;
     }
+};
 
-    if (effect.occlusion)
-        sconfig->fragmentShader.AddDefine("USE_PTEX_OCCLUSION");
-    if (effect.specular)
-        sconfig->fragmentShader.AddDefine("USE_PTEX_SPECULAR");
-    if (effect.ibl)
-        sconfig->fragmentShader.AddDefine("USE_IBL");
-
-    if (nverts == 4) {
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-    } else if (nverts == 3) {
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-    } else {
-        sconfig->geometryShader.AddDefine("PRIM_LINE");
-        sconfig->fragmentShader.AddDefine("PRIM_LINE");
-    }
-
-    if (effect.seamless) {
-        sconfig->commonShader.AddDefine("SEAMLESS_MIPMAP");
-    }
-
-    if (effect.wire == 0) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_WIRE");
-    } else if (effect.wire == 1) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_FILL");
-    } else if (effect.wire == 2) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->fragmentShader.AddDefine("GEOMETRY_OUT_LINE");
-    }
-
-    return sconfig;
-}
-
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & effectDesc,
-        SourceConfigType const * sconfig) {
-
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig);
-    assert(config);
-
-    // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
-    g_transformBinding = 0;
-    GLint transformIndex = glGetUniformBlockIndex(config->program, "Transform");
-    if (transformIndex != -1)
-        glUniformBlockBinding(config->program, transformIndex, g_transformBinding);
-
-    g_tessellationBinding = 1;
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    GLint tessellationIndex = glGetUniformBlockIndex(config->program, "Tessellation");
-    if (tessellationIndex != -1)
-        glUniformBlockBinding(config->program, tessellationIndex, g_tessellationBinding);
-#endif
-
-    g_lightingBinding = 2;
-    GLint lightingIndex = glGetUniformBlockIndex(config->program, "Lighting");
-    if (lightingIndex != -1)
-        glUniformBlockBinding(config->program, lightingIndex, g_lightingBinding);
-
-    GLint loc;
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0);  // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1);  // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2);  // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3);  // GL_TEXTURE3
-    }
-#else
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0);  // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1);  // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2);  // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3);  // GL_TEXTURE3
-    }
-#endif
-
-    return config;
-}
-
-EffectDrawRegistry effectRegistry;
-
-EffectDrawRegistry::ConfigType *
-getInstance(Effect effect,
-    OpenSubdiv::Far::PatchDescriptor const & patchDesc) {
-
-    EffectDesc desc(patchDesc, effect);
-
-    // only legacy gregory needs maxValence and numElements
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patchDesc.GetType() == Descriptor::GREGORY or
-        patchDesc.GetType() == Descriptor::GREGORY_BOUNDARY) {
-        desc.maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-        desc.numElements = 3;
-    }
-
-    EffectDrawRegistry::ConfigType * config =
-        effectRegistry.GetDrawConfig(desc);
-    assert(config);
-
-    return config;
-}
+ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
 GLPtexMipmapTexture *
@@ -1049,7 +937,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                            OpenSubdiv::Far::StencilTables,
                                            OpenSubdiv::Osd::CpuEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1059,7 +947,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                            OpenSubdiv::Far::StencilTables,
                                            OpenSubdiv::Osd::OmpEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1070,7 +958,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
                                            OpenSubdiv::Far::StencilTables,
                                            OpenSubdiv::Osd::TbbEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1082,7 +970,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
                                            OpenSubdiv::Osd::CLStencilTables,
                                            OpenSubdiv::Osd::CLEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext,
+                                           OpenSubdiv::Osd::GLPatchTable,
                                            CLDeviceContext>(
                                                 refiner,
                                                 numVertexElements,
@@ -1096,7 +984,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
                                            OpenSubdiv::Osd::CudaStencilTables,
                                            OpenSubdiv::Osd::CudaEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1108,7 +996,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
                                            OpenSubdiv::Osd::GLStencilTablesTBO,
                                            OpenSubdiv::Osd::GLXFBEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                refiner,
                                                numVertexElements,
                                                numVaryingElements,
@@ -1121,7 +1009,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
                                            OpenSubdiv::Osd::GLStencilTablesSSBO,
                                            OpenSubdiv::Osd::GLComputeEvaluator,
-                                           OpenSubdiv::Osd::GLDrawContext>(
+                                           OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
                                                 numVertexElements,
                                                 numVaryingElements,
@@ -1152,7 +1040,7 @@ createOsdMesh(int level, int kernel) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (float*)12);
     }
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
 
     // ------ Cage VAO
     glBindVertexArray(g_cageEdgeVAO);
@@ -1217,412 +1105,203 @@ createSky() {
 
     g_sky.numIndices = (int)indices.size();
 
-    g_sky.program = glCreateProgram();
+    g_sky.BuildProgram(g_skyShaderSource);
 
-    OpenSubdiv::Osd::DrawShaderSource common, vertexShader, fragmentShader;
-    vertexShader.source = g_skyShaderSource;
-    vertexShader.version = "#version 410\n";
-    vertexShader.AddDefine("SKY_VERTEX_SHADER");
-    fragmentShader.source = g_skyShaderSource;
-    fragmentShader.version = "#version 410\n";
-    fragmentShader.AddDefine("SKY_FRAGMENT_SHADER");
-    GLuint vs = compileShader(GL_VERTEX_SHADER,
-                              common, vertexShader);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER,
-                              common, fragmentShader);
-
-    glAttachShader(g_sky.program, vs);
-    glAttachShader(g_sky.program, fs);
-    glLinkProgram(g_sky.program);
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    GLint environmentMap = glGetUniformLocation(g_sky.program, "environmentMap");
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
+    GLint environmentMap = glGetUniformLocation(g_sky.GetProgram(), "environmentMap");
+    glUseProgram(g_sky.GetProgram());
     if (g_specularEnvironmentMap)
-        glProgramUniform1i(g_sky.program, environmentMap, 6);
+        glUniform1i(environmentMap, 6);
     else
-        glProgramUniform1i(g_sky.program, environmentMap, 5);
-#else
-    glUseProgram(g_sky.program);
-    if (g_specularEnvironmentMap)
-      glUniform1i(environmentMap, 6);
-    else
-      glUniform1i(environmentMap, 5);
-#endif
-
-    g_sky.mvpMatrix = glGetUniformLocation(g_sky.program, "ModelViewProjectionMatrix");
-}
-
-GLuint
-compileImageShader(const char *define) {
-
-    GLuint program = glCreateProgram();
-
-    OpenSubdiv::Osd::DrawShaderSource common, vertexShader, fragmentShader;
-    vertexShader.source = g_imageShaderSource;
-    vertexShader.version = "#version 410\n";
-    vertexShader.AddDefine("IMAGE_VERTEX_SHADER");
-    fragmentShader.source = g_imageShaderSource;
-    fragmentShader.version = "#version 410\n";
-    fragmentShader.AddDefine("IMAGE_FRAGMENT_SHADER");
-    fragmentShader.AddDefine(define);
-
-    GLuint vs = compileShader(GL_VERTEX_SHADER,
-                              common, vertexShader);
-    GLuint fs = compileShader(GL_FRAGMENT_SHADER,
-                              common, fragmentShader);
-
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    GLint colorMap = glGetUniformLocation(program, "colorMap");
-    if (colorMap != -1)
-        glProgramUniform1i(program, colorMap, 0);  // GL_TEXTURE0
-    GLint depthMap = glGetUniformLocation(program, "depthMap");
-    if (depthMap != -1)
-        glProgramUniform1i(program, depthMap, 1);  // GL_TEXTURE1
-#else
-    glUseProgram(program);
-    GLint colorMap = glGetUniformLocation(program, "colorMap");
-    if (colorMap != -1)
-        glUniform1i(colorMap, 0);  // GL_TEXTURE0
-    GLint depthMap = glGetUniformLocation(program, "depthMap");
-    if (depthMap != -1)
-        glUniform1i(depthMap, 1);  // GL_TEXTURE1
-#endif
-
-    return program;
-}
-
-//------------------------------------------------------------------------------
-
-void
-createImageShader() {
-
-    g_imageShader.blurProgram = compileImageShader("BLUR");
-    g_imageShader.hipassProgram = compileImageShader("HIPASS");
-    g_imageShader.compositeProgram = compileImageShader("COMPOSITE");
-
-    glGenVertexArrays(1, &g_imageShader.vao);
-    glBindVertexArray(g_imageShader.vao);
-    glGenBuffers(1, &g_imageShader.vbo);
-    float pos[] = { -1, -1, 1, -1, -1,  1, 1,  1 };
-    glGenBuffers(1, &g_imageShader.vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, g_imageShader.vbo);
-    glBufferData(GL_ARRAY_BUFFER,
-                 sizeof(pos), pos, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, g_imageShader.vbo);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-
-    glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
-//------------------------------------------------------------------------------
-
-void
-applyImageShader() {
-
-    int w = g_imageShader.smallWidth, h = g_imageShader.smallHeight;
-    const float hoffsets[10] = {
-        -2.0f / w, 0,
-        -1.0f / w, 0,
-        0, 0,
-        +1.0f / w, 0,
-        +2.0f / w, 0,
-    };
-    const float voffsets[10] = {
-        0, -2.0f / h,
-        0, -1.0f / h,
-        0, 0,
-        0, +1.0f / h,
-        0, +2.0f / h,
-    };
-    const float weights[5] = {
-        1.0f / 16.0f,
-        4.0f / 16.0f,
-        6.0f / 16.0f,
-        4.0f / 16.0f,
-        1.0f / 16.0f,
-    };
-
-    checkGLErrors("image shader begin");
-    glBindVertexArray(g_imageShader.vao);
-
-    GLint uniformAlpha = glGetUniformLocation(g_imageShader.compositeProgram, "alpha");
-
-    if (g_bloom) {
-        // XXX: fix me
-        GLint uniformOffsets = glGetUniformLocation(g_imageShader.blurProgram, "Offsets");
-        GLint uniformWeights = glGetUniformLocation(g_imageShader.blurProgram, "Weights");
-
-        // down sample
-        glUseProgram(g_imageShader.hipassProgram);
-        glViewport(0, 0, g_imageShader.smallWidth, g_imageShader.smallHeight);
-        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[0]);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-        // horizontal blur pass
-        glUseProgram(g_imageShader.blurProgram);
-        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[1]);
-        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[0]);
-        glUniform2fv(uniformOffsets, 5, hoffsets);
-        glUniform1fv(uniformWeights, 5, weights);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-        // vertical blur pass
-        glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.smallFrameBuffer[0]);
-        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[1]);
-        glUniform2fv(uniformOffsets, 5, voffsets);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    }
-
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, g_width, g_height);
-
-    // blit full-res
-    glUseProgram(g_imageShader.compositeProgram);
-    glUniform1f(uniformAlpha, 1);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    if (g_bloom) {
-        glUseProgram(g_imageShader.compositeProgram);
-        glUniform1f(uniformAlpha, 0.5);
-        glBlendFunc(GL_ONE, GL_ONE);
-        glEnable(GL_BLEND);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[0]);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glDisable(GL_BLEND);
-    }
-
-    glBindVertexArray(0);
+        glUniform1i(environmentMap, 5);
     glUseProgram(0);
 
-    checkGLErrors("image shader");
+    g_sky.mvpMatrix = glGetUniformLocation(g_sky.GetProgram(), "ModelViewProjectionMatrix");
 }
 
 //------------------------------------------------------------------------------
 
 static void
-updateUniformBlocks() {
-
-    if (g_transformUB == 0) {
-        glGenBuffers(1, &g_transformUB);
-        glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
-        glBufferData(GL_UNIFORM_BUFFER,
-                sizeof(transformData), NULL, GL_STATIC_DRAW);
-    };
-    glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
-    glBufferSubData(GL_UNIFORM_BUFFER,
-                0, sizeof(transformData), &transformData);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    glBindBufferBase(GL_UNIFORM_BUFFER, g_transformBinding, g_transformUB);
-
-    // Update and bind tessellation state
-    struct Tessellation {
-        float TessLevel;
-    } tessellationData;
-
-    tessellationData.TessLevel = static_cast<float>(1 << g_tessLevel);
-
-    if (g_tessellationUB == 0) {
-        glGenBuffers(1, &g_tessellationUB);
-        glBindBuffer(GL_UNIFORM_BUFFER, g_tessellationUB);
-        glBufferData(GL_UNIFORM_BUFFER,
-                sizeof(tessellationData), NULL, GL_STATIC_DRAW);
-    };
-    glBindBuffer(GL_UNIFORM_BUFFER, g_tessellationUB);
-    glBufferSubData(GL_UNIFORM_BUFFER,
-                0, sizeof(tessellationData), &tessellationData);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    glBindBufferBase(GL_UNIFORM_BUFFER, g_tessellationBinding, g_tessellationUB);
-
-    // Update and bind lighting state
-    struct Lighting {
+updateConstantUniformBlock() {
+    struct Constant {
+        float ModelViewMatrix[16];
+        float ProjectionMatrix[16];
+        float ModelViewProjectionMatrix[16];
+        float ModelViewInverseMatrix[16];
         struct Light {
             float position[4];
             float ambient[4];
             float diffuse[4];
             float specular[4];
         } lightSource[2];
-    } lightingData = {
-       {{  { 0.6f, 1.0f, 0.6f, 0.0f },
-           { 0.1f, 0.1f, 0.1f, 1.0f },
-           { 1.7f, 1.3f, 1.1f, 1.0f },
-           { 1.0f, 1.0f, 1.0f, 1.0f } },
+        float TessLevel;
+        float displacementScale;
+        float mipmapBias;
+    } constantData;
 
-         { { -0.8f, 0.6f, -0.7f, 0.0f },
-           {  0.0f, 0.0f,  0.0f, 1.0f },
-           {  0.8f, 0.8f,  1.5f, 1.0f },
-           {  0.4f, 0.4f,  0.4f, 1.0f } }}
-    };
-    if (g_lightingUB == 0) {
-        glGenBuffers(1, &g_lightingUB);
-        glBindBuffer(GL_UNIFORM_BUFFER, g_lightingUB);
+    // transforms
+    double aspect = g_width/(double)g_height;
+    identity(constantData.ModelViewMatrix);
+    translate(constantData.ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
+    rotate(constantData.ModelViewMatrix, g_rotate[1], 1, 0, 0);
+    rotate(constantData.ModelViewMatrix, g_rotate[0], 0, 1, 0);
+    if (g_yup)
+        rotate(constantData.ModelViewMatrix, -90, 1, 0, 0);
+    translate(constantData.ModelViewMatrix, -g_center[0], -g_center[1], -g_center[2]);
+    perspective(constantData.ProjectionMatrix, 45.0f, (float)aspect, g_size*0.001f,
+                g_size+g_dolly);
+    multMatrix(constantData.ModelViewProjectionMatrix,
+               constantData.ModelViewMatrix,
+               constantData.ProjectionMatrix);
+    inverseMatrix(constantData.ModelViewInverseMatrix,
+                  constantData.ModelViewMatrix);
+
+    // lighs
+    Constant::Light light0 = {  { 0.6f, 1.0f, 0.6f, 0.0f },
+                                { 0.1f, 0.1f, 0.1f, 1.0f },
+                                { 1.7f, 1.3f, 1.1f, 1.0f },
+                                { 1.0f, 1.0f, 1.0f, 1.0f } };
+    Constant::Light light1 = {  { -0.8f, 0.6f, -0.7f, 0.0f },
+                                {  0.0f, 0.0f,  0.0f, 1.0f },
+                                {  0.8f, 0.8f,  1.5f, 1.0f },
+                                {  0.4f, 0.4f,  0.4f, 1.0f } };
+    constantData.lightSource[0] = light0;
+    constantData.lightSource[1] = light1;
+
+    // other
+    constantData.TessLevel = static_cast<float>(1 << g_tessLevel);
+    constantData.displacementScale = g_displacementScale;
+    constantData.mipmapBias = g_mipmapBias;
+
+    // update GPU buffer
+    if (g_constantUB == 0) {
+        glGenBuffers(1, &g_constantUB);
+        glBindBuffer(GL_UNIFORM_BUFFER, g_constantUB);
         glBufferData(GL_UNIFORM_BUFFER,
-                sizeof(lightingData), NULL, GL_STATIC_DRAW);
+                     sizeof(constantData), NULL, GL_STATIC_DRAW);
     };
-    glBindBuffer(GL_UNIFORM_BUFFER, g_lightingUB);
+    glBindBuffer(GL_UNIFORM_BUFFER, g_constantUB);
     glBufferSubData(GL_UNIFORM_BUFFER,
-                0, sizeof(lightingData), &lightingData);
+                0, sizeof(constantData), &constantData);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    glBindBufferBase(GL_UNIFORM_BUFFER, g_lightingBinding, g_lightingUB);
+    glBindBufferBase(GL_UNIFORM_BUFFER, g_constantBinding, g_constantUB);
+
 }
 
-//------------------------------------------------------------------------------
-static GLuint
-bindProgram(Effect effect, OpenSubdiv::Far::PatchDescriptor const &desc) {
-
-    EffectDrawRegistry::ConfigType *
-        config = getInstance(effect, desc);
-
-    GLuint program = config->program;
-
-    glUseProgram(program);
-
-    //-----------------
-    int sampler = 7;
-
-    // color ptex
-    GLint texData = glGetUniformLocation(program, "textureImage_Data");
-    GLint texPacking = glGetUniformLocation(program, "textureImage_Packing");
-    sampler = bindPTexture(program, g_osdPTexImage, texData, texPacking, sampler);
-
-    // displacement ptex
-    if (g_displacement != DISPLACEMENT_NONE || g_normal) {
-        texData = glGetUniformLocation(program, "textureDisplace_Data");
-        texPacking = glGetUniformLocation(program, "textureDisplace_Packing");
-        sampler = bindPTexture(program, g_osdPTexDisplacement, texData, texPacking, sampler);
-    }
-
-    // occlusion ptex
-    if (g_occlusion) {
-        texData = glGetUniformLocation(program, "textureOcclusion_Data");
-        texPacking = glGetUniformLocation(program, "textureOcclusion_Packing");
-        sampler = bindPTexture(program, g_osdPTexOcclusion, texData, texPacking, sampler);
-    }
-
-    // specular ptex
-    if (g_specular) {
-        texData = glGetUniformLocation(program, "textureSpecular_Data");
-        texPacking = glGetUniformLocation(program, "textureSpecular_Packing");
-        sampler = bindPTexture(program, g_osdPTexSpecular, texData, texPacking, sampler);
+static void
+bindTextures() {
+    if (g_mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_BUFFER,
+                      g_mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
 
     // other textures
     if (g_ibl) {
         if (g_diffuseEnvironmentMap) {
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-            glProgramUniform1i(program, glGetUniformLocation(program, "diffuseEnvironmentMap"), 5);
-#else
-            glUniform1i(glGetUniformLocation(program, "diffuseEnvironmentMap"), 5);
-#endif
             glActiveTexture(GL_TEXTURE5);
             glBindTexture(GL_TEXTURE_2D, g_diffuseEnvironmentMap);
         }
         if (g_specularEnvironmentMap) {
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-            glProgramUniform1i(program, glGetUniformLocation(program, "specularEnvironmentMap"), 6);
-#else
-            glUniform1i(glGetUniformLocation(program, "specularEnvironmentMap"), 6);
-#endif
             glActiveTexture(GL_TEXTURE6);
             glBindTexture(GL_TEXTURE_2D, g_specularEnvironmentMap);
         }
         glActiveTexture(GL_TEXTURE0);
     }
 
-    return program;
+    // color ptex
+    glActiveTexture(GL_TEXTURE7);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, g_osdPTexImage->GetTexelsTexture());
+    glActiveTexture(GL_TEXTURE8);
+    glBindTexture(GL_TEXTURE_BUFFER, g_osdPTexImage->GetLayoutTextureBuffer());
+
+    // displacement ptex
+    if (g_displacement != DISPLACEMENT_NONE || g_normal) {
+        glActiveTexture(GL_TEXTURE9);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, g_osdPTexDisplacement->GetTexelsTexture());
+        glActiveTexture(GL_TEXTURE10);
+        glBindTexture(GL_TEXTURE_BUFFER, g_osdPTexDisplacement->GetLayoutTextureBuffer());
+    }
+
+    // occlusion ptex
+    if (g_occlusion) {
+        glActiveTexture(GL_TEXTURE11);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, g_osdPTexOcclusion->GetTexelsTexture());
+        glActiveTexture(GL_TEXTURE12);
+        glBindTexture(GL_TEXTURE_BUFFER, g_osdPTexOcclusion->GetLayoutTextureBuffer());
+    }
+
+    // specular ptex
+    if (g_specular) {
+        glActiveTexture(GL_TEXTURE13);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, g_osdPTexSpecular->GetTexelsTexture());
+        glActiveTexture(GL_TEXTURE14);
+        glBindTexture(GL_TEXTURE_BUFFER, g_osdPTexSpecular->GetLayoutTextureBuffer());
+    }
+
+    glActiveTexture(GL_TEXTURE0);
+}
+
+//------------------------------------------------------------------------------
+static GLenum
+bindProgram(Effect effect,
+            OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
+
+    GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
+    if (!config) return 0;
+
+    GLuint program = config->GetProgram();
+
+    glUseProgram(program);
+
+    // bind standalone uniforms
+    GLint uniformPrimitiveIdBase =
+        glGetUniformLocation(program, "PrimitiveIdBase");
+    if (uniformPrimitiveIdBase >= 0)
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPrimitiveIdBase());
+
+    GLenum primType;
+    switch(effectDesc.desc.GetType()) {
+    case OpenSubdiv::Far::PatchDescriptor::QUADS:
+        primType = GL_LINES_ADJACENCY;
+        break;
+    case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
+        primType = GL_TRIANGLES;
+        break;
+    default:
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        primType = GL_PATCHES;
+        glPatchParameteri(GL_PATCH_VERTICES, effectDesc.desc.GetNumControlVertices());
+#else
+        primType = GL_POINTS;
+#endif
+    }
+
+    return primType;
 }
 
 //------------------------------------------------------------------------------
 void
 drawModel() {
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    GLuint bVertex = g_mesh->BindVertexBuffer();
-#else
     g_mesh->BindVertexBuffer();
-#endif
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    // bind patch related textures and PtexTexture
+    bindTextures();
+
     glBindVertexArray(g_vao);
 
     // patch drawing
+    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
-
-        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
-
-        GLenum primType;
-        switch (patchType) {
-        case OpenSubdiv::Far::PatchDescriptor::QUADS:
-            primType = GL_LINES_ADJACENCY;
-            break;
-        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
-            primType = GL_TRIANGLES;
-            break;
-        default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
-        }
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                g_mesh->GetDrawContext()->GetVertexTextureBuffer());
-            glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, bVertex);
-        }
-        if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
-        }
-        if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
-        }
-#endif
-        if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
-            glActiveTexture(GL_TEXTURE3);
-            glBindTexture(GL_TEXTURE_BUFFER,
-                g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
-        }
-        glActiveTexture(GL_TEXTURE0);
+        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
 
         Effect effect;
         effect.value = 0;
 
         effect.color = g_color;
         effect.displacement = g_displacement;
-
         effect.occlusion = g_occlusion;
         effect.normal = g_normal;
         effect.specular = g_specular;
@@ -1633,60 +1312,14 @@ drawModel() {
         effect.wire = g_wire;
         effect.seamless = g_seamless;
 
-        GLuint program = bindProgram(effect, patch.GetDescriptor());
-
-        GLint nonAdaptiveLevel = glGetUniformLocation(program, "nonAdaptiveLevel");
-        if (nonAdaptiveLevel != -1) {
-#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-            glProgramUniform1i(program, nonAdaptiveLevel, g_level);
-#else
-            glUniform1i(nonAdaptiveLevel, g_level);
-#endif
-        }
-
-        GLint displacementScale = glGetUniformLocation(program, "displacementScale");
-        if (displacementScale != -1)
-            glUniform1f(displacementScale, g_displacementScale);
-
-        GLint mipmapBias = glGetUniformLocation(program, "mipmapBias");
-        if (mipmapBias != -1)
-            glUniform1f(mipmapBias, g_mipmapBias);
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint overrideColor = glGetUniformLocation(program, "overrideColor");
-
-        float const * color = getAdaptivePatchColor(desc);
-        glProgramUniform4f(program, overrideColor, color[0], color[1], color[2], color[3]);
-#endif
-
-        if (g_wire == DISPLAY_WIRE) {
-            glDisable(GL_CULL_FACE);
-        }
-
-        GLuint uniformGregoryQuadOffsetBase =
-            glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-            glGetUniformLocation(program, "PrimitiveIdBase");
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        glUniform1i(uniformGregoryQuadOffsetBase,
-                    patch.GetQuadOffsetIndex());
-        glUniform1i(uniformPrimitiveIdBase,
-                    patch.GetPatchIndex());
-#endif
+        GLenum primType = bindProgram(effect, patch);
 
         glDrawElements(primType,
-                       patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
-        if (g_wire == DISPLAY_WIRE) {
-            glEnable(GL_CULL_FACE);
-        }
+                       patch.GetNumPatches() * patch.GetDescriptor().GetNumControlVertices(),
+                       GL_UNSIGNED_INT,
+                       (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
+
     glBindVertexArray(0);
 }
 
@@ -1694,7 +1327,7 @@ drawModel() {
 
 void
 drawSky() {
-    glUseProgram(g_sky.program);
+    glUseProgram(g_sky.GetProgram());
 
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
@@ -1745,12 +1378,14 @@ drawCageEdges() {
     Effect effect;
     effect.value = 0;
 
-    typedef OpenSubdiv::Far::PatchDescriptor FDesc;
+    EffectDesc effectDesc(
+        OpenSubdiv::Far::PatchDescriptor(
+            OpenSubdiv::Far::PatchDescriptor::LINES), effect);
 
-    FDesc desc(FDesc::LINES);
-    EffectDrawRegistry::ConfigType *config = getInstance(effect, desc);
-    glUseProgram(config->program);
+    GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
+    if (!config) return;
 
+    glUseProgram(config->GetProgram());
     glDrawElements(GL_LINES, g_numCageEdges, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
@@ -1764,7 +1399,7 @@ drawCageEdges() {
 void
 display() {
 
-    glBindFramebuffer(GL_FRAMEBUFFER, g_imageShader.frameBuffer);
+    g_hud.GetFrameBuffer()->Bind();
 
     Stopwatch s;
     s.Start();
@@ -1777,32 +1412,19 @@ display() {
         drawSky();
     }
 
+    // update transform and light
+    updateConstantUniformBlock();
+
+    glEnable(GL_DEPTH_TEST);
+    if (g_wire == DISPLAY_WIRE) {
+        glDisable(GL_CULL_FACE);
+    }
+
     // primitive counting
     glBeginQuery(GL_PRIMITIVES_GENERATED, g_queries[0]);
 #if defined(GL_VERSION_3_3)
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
 #endif
-
-    double aspect = g_width/(double)g_height;
-    identity(transformData.ModelViewMatrix);
-    translate(transformData.ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
-    rotate(transformData.ModelViewMatrix, g_rotate[1], 1, 0, 0);
-    rotate(transformData.ModelViewMatrix, g_rotate[0], 0, 1, 0);
-    if (g_yup)
-        rotate(transformData.ModelViewMatrix, -90, 1, 0, 0);
-    translate(transformData.ModelViewMatrix, -g_center[0], -g_center[1], -g_center[2]);
-    perspective(transformData.ProjectionMatrix, 45.0f, (float)aspect, g_size*0.001f,
-                g_size+g_dolly);
-
-    multMatrix(transformData.ModelViewProjectionMatrix,
-               transformData.ModelViewMatrix,
-               transformData.ProjectionMatrix);
-    inverseMatrix(transformData.ModelViewInverseMatrix,
-                  transformData.ModelViewMatrix);
-
-    updateUniformBlocks();
-
-    glEnable(GL_DEPTH_TEST);
 
     drawModel();
 
@@ -1814,11 +1436,12 @@ display() {
     if (g_drawCageEdges)
         drawCageEdges();
 
+    if (g_wire == DISPLAY_WIRE) {
+        glEnable(GL_CULL_FACE);
+    }
     glDisable(GL_DEPTH_TEST);
 
     glUseProgram(0);
-
-    applyImageShader();
 
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
@@ -1836,6 +1459,8 @@ display() {
     if (not g_freeze)
         g_animTime += elapsed;
     g_fpsTimer.Start();
+
+    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         double fps = 1.0/elapsed;
@@ -1875,51 +1500,6 @@ display() {
     glFinish();
 
     checkGLErrors("draw end");
-}
-
-//------------------------------------------------------------------------------
-void
-screenshot(int multiplier=4) {
-
-    int oldwidth = g_width,
-        oldheight = g_height,
-        width = multiplier * g_width,
-        height = multiplier * g_height;
-
-    reshape(g_window, width, height);
-    display();
-
-    std::vector<unsigned char> data(width*height*4 /*RGBA*/);
-
-    glPixelStorei(GL_PACK_ROW_LENGTH, 0);
-    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
-    glPixelStorei(GL_PACK_SKIP_ROWS, 0);
-
-    GLint restoreBinding, restoreActiveTexture;
-    glGetIntegerv( GL_TEXTURE_BINDING_2D, &restoreBinding );
-    glGetIntegerv( GL_ACTIVE_TEXTURE, & restoreActiveTexture);
-
-    glActiveTexture( GL_TEXTURE0 );
-
-    glBindTexture( GL_TEXTURE_2D, g_imageShader.frameBufferTexture );
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
-
-    glActiveTexture( restoreActiveTexture );
-    glBindTexture( GL_TEXTURE_2D, restoreBinding );
-
-    reshape(g_window, oldwidth, oldheight);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    static int counter=0;
-    char fname[64];
-    snprintf(fname, 64, "screenshot.%d.png", counter++);
-
-    // flip vertical
-    stbi_write_png(fname, width, height, 4, &data[width*4*(height-1)], -width*4);
-
-    fprintf(stdout, "Saved %s\n", fname);
 }
 
 //------------------------------------------------------------------------------
@@ -1981,23 +1561,8 @@ void uninitGL() {
     if (g_specularEnvironmentMap)
         glDeleteTextures(1, &g_specularEnvironmentMap);
 
-    if (g_sky.program) glDeleteProgram(g_sky.program);
     if (g_sky.vertexBuffer) glDeleteBuffers(1, &g_sky.vertexBuffer);
     if (g_sky.elementBuffer) glDeleteBuffers(1, &g_sky.elementBuffer);
-
-    glDeleteFramebuffers(1, &g_imageShader.frameBuffer);
-    glDeleteTextures(1, &g_imageShader.frameBufferTexture);
-    glDeleteTextures(1, &g_imageShader.frameBufferDepthTexture);
-
-    glDeleteFramebuffers(2, g_imageShader.smallFrameBuffer);
-    glDeleteTextures(2, g_imageShader.smallFrameBufferTexture);
-
-    glDeleteProgram(g_imageShader.blurProgram);
-    glDeleteProgram(g_imageShader.hipassProgram);
-    glDeleteProgram(g_imageShader.compositeProgram);
-
-    glDeleteVertexArrays(1, &g_imageShader.vao);
-    glDeleteBuffers(1, &g_imageShader.vbo);
 }
 
 //------------------------------------------------------------------------------
@@ -2057,7 +1622,7 @@ callbackCheckBox(bool checked, int button) {
 
     switch (button) {
     case HUD_CB_ADAPTIVE:
-        if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+        if (GLUtils::SupportsAdaptiveTessellation()) {
             g_adaptive = checked;
             rebuild = true;
         }
@@ -2128,7 +1693,7 @@ reloadShaderFile() {
 
     g_shaderSource = ss.str();
 
-    effectRegistry.Reset();
+    g_shaderCache.Reset();
 }
 
 //------------------------------------------------------------------------------
@@ -2154,7 +1719,7 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
-        case 'X': screenshot(); break;
+        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
     }
 }
 
@@ -2182,33 +1747,6 @@ initGL() {
     glGenVertexArrays(1, &g_vao);
     glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_skyVAO);
-
-    glGenFramebuffers(1, &g_imageShader.frameBuffer);
-    glGenTextures(1, &g_imageShader.frameBufferTexture);
-    glGenTextures(1, &g_imageShader.frameBufferDepthTexture);
-
-    glGenFramebuffers(2, g_imageShader.smallFrameBuffer);
-    glGenTextures(2, g_imageShader.smallFrameBufferTexture);
-
-    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferTexture);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glBindTexture(GL_TEXTURE_2D, g_imageShader.frameBufferDepthTexture);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    for (int i = 0; i < 2; ++i) {
-        glBindTexture(GL_TEXTURE_2D, g_imageShader.smallFrameBufferTexture[i]);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    }
 
     glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -2398,7 +1936,7 @@ int main(int argc, char ** argv) {
     reshape();
 
     // activate feature adaptive tessellation if OSD supports it
-    g_adaptive = OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation();
+    g_adaptive = GLUtils::SupportsAdaptiveTessellation();
 
     int windowWidth = g_width, windowHeight = g_height;
 
@@ -2406,6 +1944,8 @@ int main(int argc, char ** argv) {
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
     g_hud.Init(windowWidth, windowHeight, g_width, g_height);
+
+    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     if (occlusionFilename != NULL) {
         g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
@@ -2438,7 +1978,7 @@ int main(int argc, char ** argv) {
     g_hud.AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
     g_hud.AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation())
+    if (GLUtils::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive,
                           10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
 
@@ -2541,6 +2081,8 @@ int main(int argc, char ** argv) {
     g_hud.AddCheckBox("Seamless Mipmap", g_seamless,
                       -200, 530, callbackCheckBox, HUD_CB_SEAMLESS_MIPMAP, 'j');
 
+    g_hud.Rebuild(windowWidth, windowHeight, g_width, g_height);
+
     // create mesh from ptex metadata
     createOsdMesh(g_level, g_kernel);
 
@@ -2626,7 +2168,6 @@ int main(int argc, char ** argv) {
     if (diffuseEnvironmentMap || specularEnvironmentMap) {
         createSky();
     }
-    createImageShader();
 
     fitFrame();
 

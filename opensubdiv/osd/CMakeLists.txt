@@ -30,8 +30,6 @@ set(CPU_SOURCE_FILES
     cpuEvaluator.cpp
     cpuKernel.cpp
     cpuVertexBuffer.cpp
-    drawContext.cpp
-    drawRegistry.cpp
 )
 
 set(GPU_SOURCE_FILES )
@@ -49,8 +47,6 @@ set(PUBLIC_HEADER_FILES
     mesh.h
     nonCopyable.h
     opengl.h
-    drawContext.h
-    drawRegistry.h
     vertexDescriptor.h
 )
 
@@ -108,18 +104,20 @@ list(APPEND DOXY_HEADER_FILES ${TBB_PUBLIC_HEADERS})
 # GL code & dependencies
 set(GL_PUBLIC_HEADERS
     cpuGLVertexBuffer.h
-    glDrawContext.h
-    glDrawRegistry.h
+    glLegacyGregoryPatchTable.h
+    glPatchTable.h
     glVertexBuffer.h
     glMesh.h
+    glslPatchShaderSource.h
 )
 
 if( OPENGL_FOUND OR OPENGLES_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cpuGLVertexBuffer.cpp
-        glDrawContext.cpp
-        glDrawRegistry.cpp
+        glLegacyGregoryPatchTable.cpp
+        glPatchTable.cpp
         glVertexBuffer.cpp
+        glslPatchShaderSource.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${GL_PUBLIC_HEADERS})
     if ( OPENGL_FOUND )
@@ -184,18 +182,20 @@ list(APPEND DOXY_HEADER_FILES ${GL_4_3_PUBLIC_HEADERS})
 set(DXSDK_PUBLIC_HEADERS
     cpuD3D11VertexBuffer.h
     d3d11ComputeEvaluator.h
-    d3d11DrawContext.h
-    d3d11DrawRegistry.h
+    d3d11LegacyGregoryPatchTable.h
+    d3d11PatchTable.h
     d3d11VertexBuffer.h
     d3d11Mesh.h
+    hlslPatchShaderSource.h
 )
 if( DXSDK_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cpuD3D11VertexBuffer.cpp
         d3d11ComputeEvaluator.cpp
-        d3d11DrawContext.cpp
-        d3d11DrawRegistry.cpp
+        d3d11LegacyGregoryPatchTable.cpp
+        d3d11PatchTable.cpp
         d3d11VertexBuffer.cpp
+        hlslPatchShaderSource.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${DXSDK_PUBLIC_HEADERS})
     list(APPEND KERNEL_FILES
@@ -203,6 +203,7 @@ if( DXSDK_FOUND )
         hlslPatchCommon.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
+        hlslPatchGregoryBasis.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${DXSDK_LIBRARIES}

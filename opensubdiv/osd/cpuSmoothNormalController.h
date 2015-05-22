@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CPU_SMOOTHNORMAL_CONTROLLER_H
-#define OSD_CPU_SMOOTHNORMAL_CONTROLLER_H
+#ifndef OPENSUBDIV3_OSD_CPU_SMOOTHNORMAL_CONTROLLER_H
+#define OPENSUBDIV3_OSD_CPU_SMOOTHNORMAL_CONTROLLER_H
 
 #include "../version.h"
 
@@ -75,4 +75,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CPU_SMOOTHNORMAL_CONTROLLER_H
+#endif  // OPENSUBDIV3_OSD_CPU_SMOOTHNORMAL_CONTROLLER_H

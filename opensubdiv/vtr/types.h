@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_TYPES_H
-#define VTR_TYPES_H
+#ifndef OPENSUBDIV3_VTR_TYPES_H
+#define OPENSUBDIV3_VTR_TYPES_H
 
 #include "../version.h"
 
@@ -63,10 +63,10 @@ inline bool IndexIsValid(Index index) { return (index != INDEX_INVALID); }
 //  could potentially be combined with an Index -- but we need something larger for
 //  the N-sided face.
 //
-typedef unsigned char  LocalIndex;
+typedef unsigned short  LocalIndex;
 
 //  Declared as "int" since its intended for more general use
-static const int VALENCE_LIMIT = 255;  // std::numeric_limits<LocalIndex>::max()
+static const int VALENCE_LIMIT = ((1 << 16) - 1);  // std::numeric_limits<LocalIndex>::max()
 
 //
 //  Collections if integer types in variable or fixed sized arrays.  Note that the use
@@ -89,4 +89,4 @@ typedef ConstArray<LocalIndex>   ConstLocalIndexArray;
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_TYPES_H */
+#endif /* OPENSUBDIV3_VTR_TYPES_H */

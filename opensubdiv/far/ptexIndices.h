@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef FAR_PTEX_INDICES_H
-#define FAR_PTEX_INDICES_H
+#ifndef OPENSUBDIV3_FAR_PTEX_INDICES_H
+#define OPENSUBDIV3_FAR_PTEX_INDICES_H
 
 #include "../version.h"
 
@@ -103,4 +103,4 @@ private:
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PTEX_INDICES_H */
+#endif /* OPENSUBDIV3_FAR_PTEX_INDICES_H */

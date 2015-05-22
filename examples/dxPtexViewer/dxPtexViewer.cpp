@@ -25,8 +25,6 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <osd/d3d11DrawContext.h>
-#include <osd/d3d11DrawRegistry.h>
 #include <far/error.h>
 
 #include <osd/cpuD3D11VertexBuffer.h>
@@ -34,6 +32,10 @@
 
 #ifdef OPENSUBDIV_HAS_OPENMP
     #include <osd/ompEvaluator.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -62,9 +64,11 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include <common/vtr_utils.h>
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/d3d11_hud.h"
+#include "../common/d3d11Hud.h"
 #include "../common/d3d11PtexMipmapTexture.h"
+#include "../common/d3d11ShaderCache.h"
 
+#include <osd/hlslPatchShaderSource.h>
 static const char *g_shaderSource =
 #include "shader.gen.h"
 ;
@@ -82,9 +86,10 @@ static const char *g_shaderSource =
 
 enum KernelType { kCPU = 0,
                   kOPENMP = 1,
-                  kCUDA = 2,
-                  kCL = 3,
-                  kDirectCompute = 4 };
+                  kTBB = 2,
+                  kCUDA = 3,
+                  kCL = 4,
+                  kDirectCompute = 5 };
 
 enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_OCCLUSION,
@@ -377,10 +382,12 @@ createPTexGeo(PtexTexture * r) {
 static const char *
 getKernelName(int kernel) {
 
-         if (kernel == kCPU)
+    if (kernel == kCPU)
         return "CPU";
     else if (kernel == kOPENMP)
         return "OpenMP";
+    else if (kernel == kTBB)
+        return "TBB";
     else if (kernel == kCUDA)
         return "Cuda";
     else if (kernel == kCL)
@@ -430,187 +437,208 @@ struct EffectDesc {
     }
 };
 
-class EffectDrawRegistry : public OpenSubdiv::Osd::D3D11DrawRegistry<EffectDesc> {
+class ShaderCache : public D3D11ShaderCache<EffectDesc> {
+public:
+    virtual D3D11DrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
+        using namespace OpenSubdiv;
 
-protected:
-    virtual ConfigType *
-    _CreateDrawConfig(EffectDesc const & desc,
-                      SourceConfigType const * sconfig,
-                      ID3D11Device * pd3dDevice,
-                      ID3D11InputLayout ** ppInputLayout,
-                      D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-                      int numInputElements);
+        D3D11DrawConfig *config = new D3D11DrawConfig();
 
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(EffectDesc const & desc, ID3D11Device * pd3dDevice);
-};
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
 
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(EffectDesc const &effectDesc, ID3D11Device *pd3dDevice)
-{
-    Effect effect = effectDesc.effect;
+        // common defines
+        std::stringstream ss;
 
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(effectDesc.desc, pd3dDevice);
-    assert(sconfig);
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
+        }
 
-    // legacy gregory patch requires OSD_MAX_VALENCE and OSD_NUM_ELEMENTS defined
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY or
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::GREGORY_BOUNDARY) {
-        std::ostringstream ss;
-        ss << effectDesc.maxValence;
-        sconfig->commonShader.AddDefine("OSD_MAX_VALENCE", ss.str());
+        // OSD tessellation controls
+        if (effectDesc.effect.screenSpaceTess) {
+            ss << "#define OSD_ENABLE_SCREENSPACE_TESSELLATION\n";
+        }
+        if (effectDesc.effect.fractionalSpacing) {
+            ss << "#define OSD_FRACTIONAL_ODD_SPACING\n";
+        }
+        if (effectDesc.effect.patchCull) {
+            ss << "#define OSD_ENABLE_PATCH_CULL\n";
+        }
+
+       // add ptex functions
+        ss << D3D11PtexMipmapTexture::GetShaderSource();
+
+        // -------------------------------------------------------------
+        // display styles
+        // -------------------------------------------------------------
+
+        // mipmap
+        if (effectDesc.effect.seamless) {
+            ss << "#define SEAMLESS_MIPMAP\n";
+        }
+
+        //  wire
+        if (effectDesc.effect.wire == 0) {
+            ss << "#define GEOMETRY_OUT_WIRE\n";
+        } else if (effectDesc.effect.wire == 1) {
+            ss << "#define GEOMETRY_OUT_FILL\n";
+        } else if (effectDesc.effect.wire == 2) {
+            ss << "#define GEOMETRY_OUT_LINE\n";
+        }
+
+        //  color
+        switch(effectDesc.effect.color) {
+        case COLOR_NONE:
+            break;
+        case COLOR_PTEX_NEAREST:
+            ss << "#define COLOR_PTEX_NEAREST\n";
+            break;
+        case COLOR_PTEX_HW_BILINEAR:
+            ss << "#define COLOR_PTEX_HW_BILINEAR\n";
+            break;
+        case COLOR_PTEX_BILINEAR:
+            ss << "#define COLOR_PTEX_BILINEAR\n";
+            break;
+        case COLOR_PTEX_BIQUADRATIC:
+            ss << "#define COLOR_PTEX_BIQUADRATIC\n";
+            break;
+        case COLOR_PATCHTYPE:
+            ss << "#define COLOR_PATCHTYPE\n";
+            break;
+        case COLOR_PATCHCOORD:
+            ss << "#define COLOR_PATCHCOORD\n";
+            break;
+        case COLOR_NORMAL:
+            ss << "#define COLOR_NORMAL\n";
+            break;
+        }
+
+        // displacement
+        switch (effectDesc.effect.displacement) {
+        case DISPLACEMENT_NONE:
+            break;
+        case DISPLACEMENT_HW_BILINEAR:
+            ss << "#define DISPLACEMENT_HW_BILINEAR\n";
+            break;
+        case DISPLACEMENT_BILINEAR:
+            ss << "#define DISPLACEMENT_BILINEAR\n";
+            break;
+        case DISPLACEMENT_BIQUADRATIC:
+            ss << "#define DISPLACEMENT_BIQUADRATIC\n";
+            break;
+        }
+
+        // normal
+        switch (effectDesc.effect.normal) {
+        case NORMAL_FACET:
+            ss << "#define NORMAL_FACET\n";
+            break;
+        case NORMAL_HW_SCREENSPACE:
+            ss << "#define NORMAL_HW_SCREENSPACE\n";
+            break;
+        case NORMAL_SCREENSPACE:
+            ss << "#define NORMAL_SCREENSPACE\n";
+            break;
+        case NORMAL_BIQUADRATIC:
+            ss << "#define NORMAL_BIQUADRATIC\n";
+            break;
+        case NORMAL_BIQUADRATIC_WG:
+            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
+            ss << "#define NORMAL_BIQUADRATIC_WG\n";
+            break;
+        }
+
+        // occlusion
+        if (effectDesc.effect.occlusion)
+            ss << "#define USE_PTEX_OCCLUSION\n";
+
+        // specular
+        if (effectDesc.effect.specular)
+            ss << "#define USE_PTEX_SPECULAR\n";
+
+        // IBL
+        if (effectDesc.effect.ibl)
+            ss << "#define USE_IBL\n";
+
+        // need for patch color-coding : we need these defines in the fragment shader
+        if (type == Far::PatchDescriptor::GREGORY) {
+            ss << "#define OSD_PATCH_GREGORY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+            ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
+            ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        }
+
+        // include osd PatchCommon
+        ss << Osd::HLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
         ss.str("");
 
-        ss << effectDesc.numElements;
-        sconfig->commonShader.AddDefine("OSD_NUM_ELEMENTS", ss.str());
-    }
+        // input layout
+        const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4*3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        };
 
-    // add ptex functions
-    sconfig->commonShader.source += D3D11PtexMipmapTexture::GetShaderSource();
-
-    if (effect.patchCull)
-        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    if (effect.screenSpaceTess)
-        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
-    if (effect.fractionalSpacing)
-        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
-
-    bool quad = true;
-    if (effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::QUADS ||
-        effectDesc.desc.GetType() == OpenSubdiv::Far::PatchDescriptor::TRIANGLES) {
-        sconfig->vertexShader.source = g_shaderSource;
-        sconfig->vertexShader.target = "vs_5_0";
-        sconfig->vertexShader.entry = "vs_main";
-        if (effect.displacement) {
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
+        // vertex shader
+        ss << common
+           << g_shaderSource
+           << Osd::HLSLPatchShaderSource::GetVertexShaderSource(type);
+        if (effectDesc.desc.IsAdaptive()) {
+            config->CompileVertexShader("vs_5_0", "vs_main_patches", ss.str(),
+                                        &g_pInputLayout,
+                                        hInElementDesc,
+                                        ARRAYSIZE(hInElementDesc),
+                                        g_pd3dDevice);
+        } else {
+            config->CompileVertexShader("vs_5_0", "vs_main",
+                                        ss.str(),
+                                        &g_pInputLayout,
+                                        hInElementDesc,
+                                        ARRAYSIZE(hInElementDesc),
+                                        g_pd3dDevice);
         }
-    } else {
-        quad = false;
-        sconfig->vertexShader.source = g_shaderSource + sconfig->vertexShader.source;
-        sconfig->domainShader.source = g_shaderSource + sconfig->domainShader.source;
-        sconfig->hullShader.source = g_shaderSource + sconfig->hullShader.source;
-        if (effect.displacement and (not effect.normal))
-            sconfig->geometryShader.AddDefine("FLAT_NORMALS");
-    }
+        ss.str("");
 
-    sconfig->geometryShader.source = g_shaderSource;
-    sconfig->geometryShader.target = "gs_5_0";
-    sconfig->geometryShader.entry = "gs_main";
 
-    sconfig->pixelShader.source = g_shaderSource;
-    sconfig->pixelShader.target = "ps_5_0";
-    sconfig->pixelShader.entry = "ps_main";
+        if (effectDesc.desc.IsAdaptive()) {
+            // hull shader
+            ss << common
+               << g_shaderSource
+               << Osd::HLSLPatchShaderSource::GetHullShaderSource(type);
+            config->CompileHullShader("hs_5_0", "hs_main_patches", ss.str(),
+                                      g_pd3dDevice);
+            ss.str("");
 
-    switch (effect.color) {
-    case COLOR_NONE:
-        break;
-    case COLOR_PTEX_NEAREST:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_NEAREST");
-        break;
-    case COLOR_PTEX_HW_BILINEAR:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_HW_BILINEAR");
-        break;
-    case COLOR_PTEX_BILINEAR:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_BILINEAR");
-        break;
-    case COLOR_PTEX_BIQUADRATIC:
-        sconfig->pixelShader.AddDefine("COLOR_PTEX_BIQUADRATIC");
-        break;
-    case COLOR_PATCHTYPE:
-        sconfig->pixelShader.AddDefine("COLOR_PATCHTYPE");
-        break;
-    case COLOR_PATCHCOORD:
-        sconfig->pixelShader.AddDefine("COLOR_PATCHCOORD");
-        break;
-    case COLOR_NORMAL:
-        sconfig->pixelShader.AddDefine("COLOR_NORMAL");
-        break;
-    }
+            // domain shader
+            ss << common
+               << g_shaderSource
+               << Osd::HLSLPatchShaderSource::GetDomainShaderSource(type);
+            config->CompileDomainShader("ds_5_0", "ds_main_patches", ss.str(),
+                                        g_pd3dDevice);
+            ss.str("");
+        }
 
-    switch (effect.displacement) {
-    case DISPLACEMENT_NONE:
-        break;
-    case DISPLACEMENT_HW_BILINEAR:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_HW_BILINEAR");
-        break;
-    case DISPLACEMENT_BILINEAR:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_BILINEAR");
-        break;
-    case DISPLACEMENT_BIQUADRATIC:
-        sconfig->commonShader.AddDefine("DISPLACEMENT_BIQUADRATIC");
-        break;
-    }
+        // geometry shader
+        ss << common
+           << g_shaderSource;
+        config->CompileGeometryShader("gs_5_0", "gs_main", ss.str(),
+                                      g_pd3dDevice);
+        ss.str("");
 
-    switch (effect.normal) {
-    case NORMAL_FACET:
-        sconfig->commonShader.AddDefine("NORMAL_FACET");
-        break;
-    case NORMAL_HW_SCREENSPACE:
-        sconfig->commonShader.AddDefine("NORMAL_HW_SCREENSPACE");
-        break;
-    case NORMAL_SCREENSPACE:
-        sconfig->commonShader.AddDefine("NORMAL_SCREENSPACE");
-        break;
-    case NORMAL_BIQUADRATIC:
-        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC");
-        break;
-    case NORMAL_BIQUADRATIC_WG:
-        sconfig->commonShader.AddDefine("OSD_COMPUTE_NORMAL_DERIVATIVES");
-        sconfig->commonShader.AddDefine("NORMAL_BIQUADRATIC_WG");
-        break;
-    }
+        // pixel shader
+        ss << common
+           << g_shaderSource;
+        config->CompilePixelShader("ps_5_0", "ps_main", ss.str(),
+                                   g_pd3dDevice);
+        ss.str("");
 
-    if (effect.occlusion)
-        sconfig->pixelShader.AddDefine("USE_PTEX_OCCLUSION");
-    if (effect.specular)
-        sconfig->pixelShader.AddDefine("USE_PTEX_SPECULAR");
-    if (effect.ibl)
-        sconfig->pixelShader.AddDefine("USE_IBL");
+        return config;
+    };
+};
 
-    if (quad) {
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->pixelShader.AddDefine("PRIM_QUAD");
-    } else {
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->pixelShader.AddDefine("PRIM_TRI");
-    }
-
-    if (effect.seamless) {
-        sconfig->commonShader.AddDefine("SEAMLESS_MIPMAP");
-    }
-
-    if (effect.wire == 0) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_WIRE");
-        sconfig->pixelShader.AddDefine("GEOMETRY_OUT_WIRE");
-    } else if (effect.wire == 1) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->pixelShader.AddDefine("GEOMETRY_OUT_FILL");
-    } else if (effect.wire == 2) {
-        sconfig->geometryShader.AddDefine("GEOMETRY_OUT_LINE");
-        sconfig->pixelShader.AddDefine("GEOMETRY_OUT_LINE");
-    }
-
-    return sconfig;
-}
-
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        EffectDesc const & effectDesc,
-        SourceConfigType const * sconfig,
-        ID3D11Device * pd3dDevice,
-        ID3D11InputLayout ** ppInputLayout,
-        D3D11_INPUT_ELEMENT_DESC const * pInputElementDescs,
-        int numInputElements) {
-
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(effectDesc.desc, sconfig,
-        pd3dDevice, ppInputLayout, pInputElementDescs, numInputElements);
-    assert(config);
-
-    return config;
-}
-
-EffectDrawRegistry effectRegistry;
+ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
 D3D11PtexMipmapTexture *
@@ -699,8 +727,7 @@ createOsdMesh(int level, int kernel) {
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    // gregory basis hasn't supported yet in D3D11Mesh
-    bits.set(OpenSubdiv::Osd::MeshEndCapLegacyGregory, true);
+    bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = 6; //g_adaptive ? 3 : 6;
     int numVaryingElements = 0;
@@ -709,7 +736,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::CpuEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -721,7 +748,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::OmpEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -733,7 +760,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
                                Far::StencilTables,
                                Osd::TbbEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -746,7 +773,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
                                Osd::CLStencilTables,
                                Osd::CLEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                CLD3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -760,7 +787,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
                                Osd::CudaStencilTables,
                                Osd::CudaEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -772,7 +799,7 @@ createOsdMesh(int level, int kernel) {
         g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
                                Osd::D3D11StencilTables,
                                Osd::D3D11ComputeEvaluator,
-                               Osd::D3D11DrawContext,
+                               Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
                                    refiner,
                                    numVertexElements,
@@ -789,31 +816,11 @@ createOsdMesh(int level, int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
-    // only legacy gregory needs maxValence and numElements
-    int maxValence = g_mesh->GetDrawContext()->GetMaxValence();
-    int numElements = 6;
-
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
-        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
-        effectDesc.maxValence = maxValence;
-        effectDesc.numElements = numElements;
-    }
-
-    // input layout
-    const D3D11_INPUT_ELEMENT_DESC hInElementDesc[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4*3, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
-
-    EffectDrawRegistry::ConfigType *
-        config = effectRegistry.GetDrawConfig(
-                effectDesc, g_pd3dDevice,
-                &g_pInputLayout, hInElementDesc, ARRAYSIZE(hInElementDesc));
+    D3D11DrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
 
     assert(g_pInputLayout);
 
@@ -862,7 +869,6 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         __declspec(align(16))
         struct Tessellation {
             float TessLevel;
-            int GregoryQuadOffsetBase;
             int PrimitiveIdBase;
         };
 
@@ -883,8 +889,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
         Tessellation * pData = ( Tessellation* )MappedResource.pData;
 
         pData->TessLevel = static_cast<float>(1 << g_tessLevel);
-        pData->GregoryQuadOffsetBase = patch.GetQuadOffsetIndex();
-        pData->PrimitiveIdBase = patch.GetPatchIndex();
+        pData->PrimitiveIdBase = patch.GetPrimitiveIdBase();
 
         g_pd3dDeviceContext->Unmap( g_pcbTessellation, 0 );
     }
@@ -921,37 +926,27 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
 
     g_pd3dDeviceContext->IASetInputLayout(g_pInputLayout);
 
-    g_pd3dDeviceContext->VSSetShader(config->vertexShader, NULL, 0);
+    g_pd3dDeviceContext->VSSetShader(config->GetVertexShader(), NULL, 0);
     g_pd3dDeviceContext->VSSetConstantBuffers(0, 1, &g_pcbPerFrame);
-    g_pd3dDeviceContext->HSSetShader(config->hullShader, NULL, 0);
+    g_pd3dDeviceContext->HSSetShader(config->GetHullShader(), NULL, 0);
     g_pd3dDeviceContext->HSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->HSSetConstantBuffers(1, 1, &g_pcbTessellation);
-    g_pd3dDeviceContext->DSSetShader(config->domainShader, NULL, 0);
+    g_pd3dDeviceContext->DSSetShader(config->GetDomainShader(), NULL, 0);
     g_pd3dDeviceContext->DSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->DSSetConstantBuffers(3, 1, &g_pcbConfig);
-    g_pd3dDeviceContext->GSSetShader(config->geometryShader, NULL, 0);
+    g_pd3dDeviceContext->GSSetShader(config->GetGeometryShader(), NULL, 0);
     g_pd3dDeviceContext->GSSetConstantBuffers(0, 1, &g_pcbPerFrame);
-    g_pd3dDeviceContext->PSSetShader(config->pixelShader, NULL, 0);
+    g_pd3dDeviceContext->PSSetShader(config->GetPixelShader(), NULL, 0);
     g_pd3dDeviceContext->PSSetConstantBuffers(0, 1, &g_pcbPerFrame);
     g_pd3dDeviceContext->PSSetConstantBuffers(2, 1, &g_pcbLighting);
     g_pd3dDeviceContext->PSSetConstantBuffers(3, 1, &g_pcbConfig);
 
-    if (g_mesh->GetDrawContext()->vertexBufferSRV) {
-        g_pd3dDeviceContext->VSSetShaderResources(0, 1, &g_mesh->GetDrawContext()->vertexBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->vertexValenceBufferSRV) {
-        g_pd3dDeviceContext->VSSetShaderResources(1, 1, &g_mesh->GetDrawContext()->vertexValenceBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->quadOffsetBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(2, 1, &g_mesh->GetDrawContext()->quadOffsetBufferSRV);
-    }
-    if (g_mesh->GetDrawContext()->patchParamBufferSRV) {
-        g_pd3dDeviceContext->HSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->DSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
-        g_pd3dDeviceContext->GSSetShaderResources(
-            3, 1, &g_mesh->GetDrawContext()->patchParamBufferSRV);
+    ID3D11ShaderResourceView *srv = g_mesh->GetPatchTable()->GetPatchParamSRV();
+    if (srv) {
+        g_pd3dDeviceContext->HSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->DSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->GSSetShaderResources(0, 1, &srv);
+        g_pd3dDeviceContext->PSSetShaderResources(0, 1, &srv);
     }
 
     g_pd3dDeviceContext->PSSetShaderResources(4, 1, g_osdPTexImage->GetTexelsSRV());
@@ -986,21 +981,30 @@ drawModel() {
     UINT hOffsets = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &buffer, &hStrides, &hOffsets);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::D3D11PatchTable::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
-    g_pd3dDeviceContext->IASetIndexBuffer(g_mesh->GetDrawContext()->patchIndexBuffer,
-                                          DXGI_FORMAT_R32_UINT, 0);
+    g_pd3dDeviceContext->IASetIndexBuffer(
+        g_mesh->GetPatchTable()->GetPatchIndexBuffer(),
+        DXGI_FORMAT_R32_UINT, 0);
 
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch = patches[i];
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 
         D3D11_PRIMITIVE_TOPOLOGY topology;
-        // if (patch.GetDescriptor().GetType() != OpenSubdiv::Far::PatchTables::REGULAR) continue;
 
-        if (g_mesh->GetDrawContext()->IsAdaptive()) {
-            switch (patch.GetDescriptor().GetNumControlVertices()) {
+        switch (patchType) {
+        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
+            topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+            break;
+        case OpenSubdiv::Far::PatchDescriptor::QUADS:
+            topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
+            break;
+        default:
+            switch (desc.GetNumControlVertices()) {
             case 4:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
                 break;
@@ -1013,16 +1017,14 @@ drawModel() {
             case 16:
                 topology = D3D11_PRIMITIVE_TOPOLOGY_16_CONTROL_POINT_PATCHLIST;
                 break;
+            case 20:
+                topology = D3D11_PRIMITIVE_TOPOLOGY_20_CONTROL_POINT_PATCHLIST;
+                break;
             default:
                 assert(false);
                 break;
             }
-        } else {
-            if (g_scheme == kLoop) {
-                topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-            } else {
-                topology = D3D11_PRIMITIVE_TOPOLOGY_LINELIST_ADJ;
-            }
+            break;
         }
 
         Effect effect;
@@ -1045,8 +1047,10 @@ drawModel() {
 
         g_pd3dDeviceContext->IASetPrimitiveTopology(topology);
 
-        g_pd3dDeviceContext->DrawIndexed(patch.GetNumIndices(),
-                                         patch.GetVertIndex(), 0);
+        g_pd3dDeviceContext->DrawIndexed(
+            patch.GetNumPatches() * desc.GetNumControlVertices(),
+            patch.GetIndexBase(), 0);
+
     }
 }
 
@@ -1290,15 +1294,18 @@ initHUD() {
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud->AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'K');
 #endif
+#ifdef OPENSUBDIV_HAS_TBB
+    g_hud->AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'K');
+#endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud->AddRadioButton(0, "CUDA",   false, 10, 50, callbackKernel, kCUDA, 'K');
+    g_hud->AddRadioButton(0, "CUDA", false, 10, 70, callbackKernel, kCUDA, 'K');
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
-        g_hud->AddRadioButton(0, "OPENCL", false, 10, 70, callbackKernel, kCL, 'K');
+        g_hud->AddRadioButton(0, "OPENCL", false, 10, 90, callbackKernel, kCL, 'K');
     }
 #endif
-    g_hud->AddRadioButton(0, "DirectCompute", false, 10, 90, callbackKernel, kDirectCompute, 'K');
+    g_hud->AddRadioButton(0, "DirectCompute", false, 10, 110, callbackKernel, kDirectCompute, 'K');
 
     g_hud->AddCheckBox("Adaptive (`)", g_adaptive,
                        10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
@@ -1436,12 +1443,13 @@ initD3D11(HWND hWnd) {
     D3D_FEATURE_LEVEL hFeatureLevel = D3D_FEATURE_LEVEL_11_0;
     for(UINT driverTypeIndex=0; driverTypeIndex < numDriverTypes; driverTypeIndex++){
         hDriverType = driverTypes[driverTypeIndex];
-		unsigned int deviceFlags = 0;
+        unsigned int deviceFlags = 0;
 #ifndef NDEBUG		
-		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+                // XXX: this is problematic in some environments.
+//		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
         hr = D3D11CreateDeviceAndSwapChain(NULL,
-			hDriverType, NULL, deviceFlags, NULL, 0,
+                                           hDriverType, NULL, deviceFlags, NULL, 0,
                                            D3D11_SDK_VERSION, &hDXGISwapChainDesc,
                                            &g_pSwapChain, &g_pd3dDevice,
                                            &hFeatureLevel, &g_pd3dDeviceContext);
@@ -1456,37 +1464,36 @@ initD3D11(HWND hWnd) {
     }
 
 #ifndef NDEBUG
-	// set break points on directx errors
-	ID3D11Debug *d3dDebug = nullptr;
-	hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
-	if (SUCCEEDED(hr)) {
+    // set break points on directx errors
+    ID3D11Debug *d3dDebug = nullptr;
+    hr = g_pd3dDevice->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
+    if (SUCCEEDED(hr)) {
+        ID3D11InfoQueue *d3dInfoQueue = nullptr;
+        hr = d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue);
+        if (SUCCEEDED(hr)) {
 
-		ID3D11InfoQueue *d3dInfoQueue = nullptr;
-		hr = d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue);
-		if (SUCCEEDED(hr)) {
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
 
-			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
-			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
-			d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_WARNING, true);
-						
-			D3D11_MESSAGE_ID denied[] = { D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS };
-			D3D11_INFO_QUEUE_FILTER filter;
-			memset(&filter, 0, sizeof(filter));
-			filter.DenyList.NumIDs = _countof(denied);
-			filter.DenyList.pIDList = denied;
-			d3dInfoQueue->AddStorageFilterEntries(&filter);
+            D3D11_MESSAGE_ID denied[] = { D3D11_MESSAGE_ID_SETPRIVATEDATA_CHANGINGPARAMS };
+            D3D11_INFO_QUEUE_FILTER filter;
+            memset(&filter, 0, sizeof(filter));
+            filter.DenyList.NumIDs = _countof(denied);
+            filter.DenyList.pIDList = denied;
+            d3dInfoQueue->AddStorageFilterEntries(&filter);
 
-			d3dInfoQueue->Release();
-		}
-		d3dDebug->Release();
-	}	
+            d3dInfoQueue->Release();
+        }
+        d3dDebug->Release();
+    }
 #endif
 
     // create rasterizer
     D3D11_RASTERIZER_DESC rasterDesc;
     ZeroMemory(&rasterDesc, sizeof(rasterDesc));
     rasterDesc.AntialiasedLineEnable = false;
-    rasterDesc.CullMode = D3D11_CULL_NONE; // XXX
+    rasterDesc.CullMode = D3D11_CULL_BACK;
     rasterDesc.DepthBias = 0;
     rasterDesc.DepthBiasClamp = 0.0f;
     rasterDesc.DepthClipEnable = true;
