@@ -37,12 +37,13 @@ set(SOURCE_FILES
     patchTableFactory.cpp
     ptexIndices.cpp
     stencilTableFactory.cpp
+    stencilBuilder.cpp
     topologyRefiner.cpp
     topologyRefinerFactory.cpp
 )
 
 set(PRIVATE_HEADER_FILES
-    protoStencil.h
+    stencilBuilder.h
 )
 
 set(PUBLIC_HEADER_FILES

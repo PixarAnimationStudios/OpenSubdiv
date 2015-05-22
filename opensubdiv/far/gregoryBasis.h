@@ -25,8 +25,9 @@
 #ifndef OPENSUBDIV3_FAR_GREGORY_BASIS_H
 #define OPENSUBDIV3_FAR_GREGORY_BASIS_H
 
-#include "../far/protoStencil.h"
 #include "../vtr/level.h"
+#include "../far/types.h"
+#include "../far/stencilTable.h"
 #include <cstring>
 
 namespace OpenSubdiv {
@@ -59,7 +60,7 @@ public:
     template <class T, class U>
     void Evaluate(T const & controlValues, U values[20]) const {
 
-        Index const * indices = &_indices.at(0);
+        Vtr::Index const * indices = &_indices.at(0);
         float const * weights = &_weights.at(0);
 
         for (int i=0; i<20; ++i) {
@@ -85,7 +86,7 @@ public:
             _weights.reserve(RESERVED_ENTRY_SIZE);
         }
 
-        Point(Index idx, float weight = 1.0f) {
+        Point(Vtr::Index idx, float weight = 1.0f) {
             _indices.reserve(RESERVED_ENTRY_SIZE);
             _weights.reserve(RESERVED_ENTRY_SIZE);
             _size = 1;
@@ -101,7 +102,7 @@ public:
             return _size;
         }
 
-        Index const * GetIndices() const {
+        Vtr::Index const * GetIndices() const {
             return &_indices[0];
         }
 
@@ -118,7 +119,7 @@ public:
 
         Point & operator += (Point const & other) {
             for (int i=0; i<other._size; ++i) {
-                Index idx = findIndex(other._indices[i]);
+                Vtr::Index idx = findIndex(other._indices[i]);
                 _weights[idx] += other._weights[i];
             }
             return *this;
@@ -126,7 +127,7 @@ public:
 
         Point & operator -= (Point const & other) {
             for (int i=0; i<other._size; ++i) {
-                Index idx = findIndex(other._indices[i]);
+                Vtr::Index idx = findIndex(other._indices[i]);
                 _weights[idx] -= other._weights[i];
             }
             return *this;
@@ -159,14 +160,14 @@ public:
             Point p(*this); return p-=other;
         }
 
-        void OffsetIndices(Index offset) {
+        void OffsetIndices(Vtr::Index offset) {
             for (int i=0; i<_size; ++i) {
                 _indices[i] += offset;
             }
         }
 
-        void Copy(int ** size, Index ** indices, float ** weights) const {
-            memcpy(*indices, &_indices[0], _size*sizeof(Index));
+        void Copy(int ** size, Vtr::Index ** indices, float ** weights) const {
+            memcpy(*indices, &_indices[0], _size*sizeof(Vtr::Index));
             memcpy(*weights, &_weights[0], _size*sizeof(float));
             **size = _size;
             *indices += _size;
@@ -176,7 +177,7 @@ public:
 
     private:
 
-        int findIndex(Index idx) {
+        int findIndex(Vtr::Index idx) {
             for (int i=0; i<_size; ++i) {
                 if (_indices[i]==idx) {
                     return i;
@@ -189,7 +190,7 @@ public:
         }
 
         int _size;
-        std::vector<Index> _indices;
+        std::vector<Vtr::Index> _indices;
         std::vector<float> _weights;
     };
 
@@ -201,11 +202,11 @@ public:
     //
     struct ProtoBasis {
 
-        ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel=-1);
+        ProtoBasis(Vtr::Level const & level, Vtr::Index faceIndex, int fvarChannel=-1);
 
         int GetNumElements() const;
 
-        void Copy(int * sizes, Index * indices, float * weights) const;
+        void Copy(int * sizes, Vtr::Index * indices, float * weights) const;
         void Copy(GregoryBasis* dest) const;
 
         // Control Vertices based on :
@@ -247,7 +248,7 @@ private:
 
     int _sizes[20];
 
-    std::vector<Index> _indices;
+    std::vector<Vtr::Index> _indices;
     std::vector<float> _weights;
 };
 
