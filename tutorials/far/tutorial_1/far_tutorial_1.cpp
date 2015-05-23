@@ -43,6 +43,7 @@
 
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
 
 //------------------------------------------------------------------------------
 
@@ -448,8 +449,7 @@ int main(int, char **) {
 
 
     // Interpolate vertex primvar data
-    refiner->Interpolate(verts, verts + nCoarseVerts);
-
+    Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + nCoarseVerts);
 
 
     { // Output OBJ of the highest level refined -----------

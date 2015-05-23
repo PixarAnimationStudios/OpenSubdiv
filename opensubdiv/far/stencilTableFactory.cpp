@@ -29,6 +29,7 @@
 #include "../far/patchTableFactory.h"
 #include "../far/patchMap.h"
 #include "../far/topologyRefiner.h"
+#include "../far/primvarRefiner.h"
 
 #include <cassert>
 #include <algorithm>
@@ -76,16 +77,18 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
 
     //
     // Interpolate stencils for each refinement level using
-    // TopologyRefiner::InterpolateLevel<>()
+    // PrimvarRefiner::InterpolateLevel<>()
     //
+    PrimvarRefiner primvarRefiner(refiner);
+
     Internal::StencilBuilder::Index srcIndex(&builder, 0);
     Internal::StencilBuilder::Index dstIndex(&builder,
                                         refiner.GetLevel(0).GetNumVertices());
     for (int level=1; level<=maxlevel; ++level) {
         if (not interpolateVarying) {
-            refiner.Interpolate(level, srcIndex, dstIndex);
+            primvarRefiner.Interpolate(level, srcIndex, dstIndex);
         } else {
-            refiner.InterpolateVarying(level, srcIndex, dstIndex);
+            primvarRefiner.InterpolateVarying(level, srcIndex, dstIndex);
         }
 
         srcIndex = dstIndex;

@@ -53,6 +53,7 @@ GLFWmonitor* g_primary=0;
 #include <far/patchTableFactory.h>
 #include <far/stencilTable.h>
 #include <far/stencilTableFactory.h>
+#include <far/primvarRefiner.h>
 
 #include <common/vtr_utils.h>
 
@@ -651,7 +652,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
                 float const * ptr = &shape->uvs[i*2];
                 values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
             }
-            refiner->InterpolateFaceVarying(values, values + nCoarseValues);
+            Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(values, values + nCoarseValues);
         }
     }
 
@@ -703,7 +704,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         // TopologyRefiner interpolation
         //
         // populate buffer with Far interpolated vertex data
-        refiner->Interpolate(verts, verts + ncoarseverts);
+        Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + ncoarseverts);
         //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
 
