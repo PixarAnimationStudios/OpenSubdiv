@@ -40,12 +40,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//
-//  Forward declaration of friend classes:
-//
-namespace Far {
-    class TopologyRefiner;
-}
+namespace Vtr {
 
 //
 //  FVarRefinement:
@@ -60,14 +55,8 @@ namespace Far {
 //  the refinement between Levels serves most purposes and all that is required
 //  in addition is a mapping from values in the child FVarLevel to the parent.
 //
-namespace Vtr {
-
 class FVarRefinement {
-protected:
-    friend class Refinement;
-    friend class Far::TopologyRefiner;
-
-protected:
+public:
     FVarRefinement(Refinement const& refinement, FVarLevel& parent, FVarLevel& child);
     ~FVarRefinement();
 
@@ -96,7 +85,8 @@ protected:
     void propagateValueCreases();
     void reclassifySemisharpValues();
 
-protected:
+//  Members temporarily public pending re-assessment of friends:
+public:
     //
     //  Identify the Refinement, its Levels and assigned FVarLevels for more
     //  immediate access -- child FVarLevel is non-const as it is to be assigned:
