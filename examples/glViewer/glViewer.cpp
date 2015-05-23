@@ -332,7 +332,7 @@ checkGLErrors(std::string const & where = "")
 static bool
 linkDefaultProgram() {
 
-	const std::string glsl_version = GLUtils::get_shader_version_include();
+	const std::string glsl_version = GLUtils::GetShaderVersionInclude();
 
 
     static const std::string vsSrc =
@@ -930,7 +930,7 @@ public:
         // compile shader program
 
 
-        GLDrawConfig *config = new GLDrawConfig(GLUtils::get_shader_version_include().c_str());
+        GLDrawConfig *config = new GLDrawConfig(GLUtils::GetShaderVersionInclude().c_str());
 
         Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
 

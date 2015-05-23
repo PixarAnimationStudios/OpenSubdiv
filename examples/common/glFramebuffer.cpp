@@ -143,7 +143,7 @@ GLFrameBuffer::compileProgram(char const * src, char const * defines) {
 
     GLuint program = glCreateProgram();
 
-	const std::string &versionStr = GLUtils::get_shader_version_include();
+	const std::string &versionStr = GLUtils::GetShaderVersionInclude();
     static char const vtxDefineStr[] = "#define IMAGE_VERTEX_SHADER\n",
                       fragDefineStr[] = "#define IMAGE_FRAGMENT_SHADER\n";
 
@@ -172,7 +172,7 @@ GLFrameBuffer::compileProgram(char const * src, char const * defines) {
     }
 
 
-	if (GLUtils::GL_ARB_separate_shader_objects_or_GL_VERSION_4_1()){
+	if (GLUtils::GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1()){
 		GLint colorMap = glGetUniformLocation(program, "colorMap");
 		if (colorMap != -1)
 			glProgramUniform1i(program, colorMap, 0);  // GL_TEXTURE0

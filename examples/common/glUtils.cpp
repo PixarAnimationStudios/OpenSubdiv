@@ -71,7 +71,7 @@ SupportsAdaptiveTessellation() {
 
 ///Helper function that parses the open gl version string, retrieving the major 
 ///and minor version from it.
-void get_major_minor_version(int *major, int *minor){
+void GetMajorMinorVersion(int *major, int *minor){
 	static bool initialized = false;
 	int _major = -1, _minor = -1;
 	if (!initialized || _major == -1 || _minor == -1){
@@ -98,13 +98,13 @@ void get_major_minor_version(int *major, int *minor){
 /** Gets the shader version based on the current opengl version and returns 
  * it in a string form */
 
-const std::string &get_shader_version(){
+const std::string &GetShaderVersion(){
 	static bool initialized = false;
 	static std::string shader_version;
 	if (!initialized){
 
 		int major, minor;
-		get_major_minor_version(&major, &minor);
+		GetMajorMinorVersion(&major, &minor);
 		int version_number = major * 10 + minor;
 		switch (version_number){
 		case 20:
@@ -136,37 +136,17 @@ const std::string &get_shader_version(){
 /* Generates the version defintion needed by the glsl shaders based on the 
  * opengl string
 */
-const std::string &get_shader_version_include(){
+const std::string &GetShaderVersionInclude(){
 	static bool initialized = false;
 	static std::string include;
 	if (!initialized){
-		include = "#version " + get_shader_version() + "\n";
+		include = "#version " + GetShaderVersion() + "\n";
 		initialized = true;
 	}
 	return include;
 }
 
-bool uses_tesselation_shaders(){
-
-#if defined(OSD_USES_GLEW)
-	bool initialized = false, uses = false;
-	if (!initialized){
-		uses = glewGetExtension("GL_ARB_tessellation_shader") ||
-			(GLEW_VERSION_4_0
-			&& glewGetExtension("GL_ARB_tessellation_shader"));
-		initialized = true;
-	}
-	return uses;
-#else
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-	return true;
-#else
-	return false;
-#endif
-#endif
-}
-
-bool GL_ARB_separate_shader_objects_or_GL_VERSION_4_1(){
+bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1(){
 #if defined(OSD_USES_GLEW)
 	bool initialized = false, uses = false;
 	if (!initialized){
