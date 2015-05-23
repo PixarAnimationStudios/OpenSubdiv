@@ -949,7 +949,7 @@ template <class T, class U>
 inline void
 PrimvarRefiner::Limit(T const & src, U & dst) const {
 
-    if (getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
+    if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
             "Cannot compute limit points -- last level of refinement does not include full topology.");
         return;
