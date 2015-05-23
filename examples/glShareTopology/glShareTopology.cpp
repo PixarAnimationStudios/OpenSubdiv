@@ -43,7 +43,7 @@ GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
 #include <far/error.h>
-#include <far/stencilTables.h>
+#include <far/stencilTable.h>
 #include <far/ptexIndices.h>
 
 #include <osd/mesh.h>
@@ -891,31 +891,31 @@ rebuildTopology() {
     if (g_kernel == kCPU) {
         g_scene = new Scene<Osd::CpuEvaluator,
                             Osd::CpuGLVertexBuffer,
-                            Far::StencilTables>(g_options);
+                            Far::StencilTable>(g_options);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
         g_scene = new Scene<Osd::OmpEvaluator,
                             Osd::CpuGLVertexBuffer,
-                            Far::StencilTables>(g_options);
+                            Far::StencilTable>(g_options);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (g_kernel == kTBB) {
         g_scene = new Scene<Osd::TbbEvaluator,
                             Osd::CpuGLVertexBuffer,
-                            Far::StencilTables>(g_options);
+                            Far::StencilTable>(g_options);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_scene = new Scene<Osd::CudaEvaluator,
                             Osd::CudaGLVertexBuffer,
-                            Osd::CudaStencilTables>(g_options);
+                            Osd::CudaStencilTable>(g_options);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
         g_scene = new Scene<Osd::CLEvaluator,
                             Osd::CLGLVertexBuffer,
-                            Osd::CLStencilTables,
+                            Osd::CLStencilTable,
                             CLDeviceContext>(g_options, &clEvaluatorCache,
                                              &g_clDeviceContext);
 #endif
@@ -924,14 +924,14 @@ rebuildTopology() {
         static Osd::EvaluatorCacheT<Osd::GLXFBEvaluator> glXFBEvaluatorCache;
         g_scene = new Scene<Osd::GLXFBEvaluator,
                             Osd::GLVertexBuffer,
-                            Osd::GLStencilTablesTBO>(g_options, &glXFBEvaluatorCache);
+                            Osd::GLStencilTableTBO>(g_options, &glXFBEvaluatorCache);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if (g_kernel == kGLSLCompute) {
         static Osd::EvaluatorCacheT<Osd::GLComputeEvaluator> glComputeEvaluatorCache;
         g_scene = new Scene<Osd::GLComputeEvaluator,
                             Osd::GLVertexBuffer,
-                            Osd::GLStencilTablesSSBO>(g_options, &glComputeEvaluatorCache);
+                            Osd::GLStencilTableSSBO>(g_options, &glComputeEvaluatorCache);
 #endif
     }
 

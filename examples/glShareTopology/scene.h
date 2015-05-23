@@ -91,8 +91,8 @@ public:
     }
 
     virtual size_t createMeshRefiner(
-        OpenSubdiv::Far::StencilTables const * vertexStencils,
-        OpenSubdiv::Far::StencilTables const * varyingStencils,
+        OpenSubdiv::Far::StencilTable const * vertexStencils,
+        OpenSubdiv::Far::StencilTable const * varyingStencils,
         int numControlVertices) {
 
         MeshRefinerType *meshRefiner =

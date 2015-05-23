@@ -232,7 +232,7 @@ createOsdMesh(std::string const &kernel,
 {
     if (kernel == "CPU") {
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
-                             Far::StencilTables,
+                             Far::StencilTable,
                              Osd::CpuEvaluator,
                              Osd::GLPatchTable>(
                                  refiner,
@@ -242,7 +242,7 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == "OPENMP") {
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
-                             Far::StencilTables,
+                             Far::StencilTable,
                              Osd::OmpEvaluator,
                              Osd::GLPatchTable>(
                                  refiner,
@@ -253,7 +253,7 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == "TBB") {
         return new Osd::Mesh<Osd::CpuGLVertexBuffer,
-                             Far::StencilTables,
+                             Far::StencilTable,
                              Osd::TbbEvaluator,
                              Osd::GLPatchTable>(
                                  refiner,
@@ -264,7 +264,7 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == "CL") {
         return new Osd::Mesh<Osd::CLGLVertexBuffer,
-                             Osd::CLStencilTables,
+                             Osd::CLStencilTable,
                              Osd::CLEvaluator,
                              Osd::GLPatchTable,
                              CLDeviceContext>(
@@ -278,7 +278,7 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == "CUDA") {
         return new Osd::Mesh<Osd::CudaGLVertexBuffer,
-                             Osd::CudaStencilTables,
+                             Osd::CudaStencilTable,
                              Osd::CudaEvaluator,
                              Osd::GLPatchTable>(
                                  refiner,
@@ -289,7 +289,7 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == "XFB") {
         return new Osd::Mesh<Osd::GLVertexBuffer,
-                             Osd::GLStencilTablesTBO,
+                             Osd::GLStencilTableTBO,
                              Osd::GLXFBEvaluator,
                              Osd::GLPatchTable>(
                                  refiner,
@@ -300,7 +300,7 @@ createOsdMesh(std::string const &kernel,
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == "GLSL") {
         return new Osd::Mesh<Osd::GLVertexBuffer,
-                             Osd::GLStencilTablesSSBO,
+                             Osd::GLStencilTableSSBO,
                              Osd::GLComputeEvaluator,
                              Osd::GLPatchTable>(
                                  refiner,

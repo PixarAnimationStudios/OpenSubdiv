@@ -217,8 +217,8 @@ public:
     /// \brief Apply vertex and varying interpolation weights to a primvar
     ///        buffer
     ///
-    /// The destination buffer must allocate an array of data for all the
-    /// refined vertices (at least GetNumVerticesTotal()-GetNumVertices(0))
+    /// The destination buffer must allocate an array of data for all the refined
+    /// vertices (at least GetNumVerticesTotal()-GetLevel(0).GetNumVertices())
     ///
     /// @param src  Source primvar buffer (\ref templating control vertex data)
     ///
@@ -231,7 +231,7 @@ public:
     /// level of refinement.
     ///
     /// The destination buffer must allocate an array of data for all the
-    /// refined vertices (at least GetNumVertices(level))
+    /// refined vertices (at least GetLevel(level).GetNumVertices())
     ///
     /// @param level  The refinement level
     ///
@@ -247,8 +247,8 @@ public:
     /// This method can be a useful alternative if the varying primvar data
     /// does not need to be re-computed over time.
     ///
-    /// The destination buffer must allocate an array of data for all the
-    /// refined vertices (at least GetNumVerticesTotal()-GetNumVertices(0))
+    /// The destination buffer must allocate an array of data for all the refined
+    /// vertices (at least GetNumVerticesTotal()-GetLevel(0).GetNumVertices())
     ///
     /// @param src  Source primvar buffer (\ref templating control vertex data)
     ///
@@ -263,7 +263,7 @@ public:
     /// does not need to be re-computed over time.
     ///
     /// The destination buffer must allocate an array of data for all the
-    /// refined vertices (at least GetNumVertices(level))
+    /// refined vertices (at least GetLevel(level).GetNumVertices())
     ///
     /// @param level  The refinement level
     ///
@@ -288,7 +288,7 @@ public:
     /// The source buffer must refer to an array of previously interpolated
     /// vertex data for the last refinement level.  The destination buffer
     /// must allocate an array for all vertices at the last refinement level
-    /// (at least GetNumVertices(GetMaxLevel()))
+    /// (at least GetLevel(GetMaxLevel()).GetNumVertices())
     ///
     /// @param src  Source primvar buffer (refined vertex data) for last level
     ///
@@ -316,73 +316,6 @@ public:
     int GetNumFVarValuesTotal(int channel = 0) const;
 
     //@}
-
-
-    //
-    //  Access to data per-level -- being made obsolete via this->GetLevel(level).Method():
-    //
-    //  Component inventory:
-    int GetNumVertices(int level) const     { return GetLevel(level).GetNumVertices(); }
-    int GetNumEdges(int level) const        { return GetLevel(level).GetNumEdges(); }
-    int GetNumFaces(int level) const        { return GetLevel(level).GetNumFaces(); }
-    int GetNumFaceVertices(int level) const { return GetLevel(level).GetNumFaceVertices(); }
-
-    //  Component tags:
-    float GetEdgeSharpness(int level, Index e) const   { return GetLevel(level).GetEdgeSharpness(e); }
-    float GetVertexSharpness(int level, Index v) const { return GetLevel(level).GetVertexSharpness(v); }
-    bool IsFaceHole(int level, Index f) const          { return GetLevel(level).IsFaceHole(f); }
-
-    Sdc::Crease::Rule GetVertexRule(int level, Index v) const { return GetLevel(level).GetVertexRule(v); }
-
-    //  Face-varying values:
-    int             GetNumFVarValues(int level,           int channel = 0) const { return GetLevel(level).GetNumFVarValues(channel); }
-    ConstIndexArray GetFVarFaceValues(int level, Index f, int channel = 0) const { return GetLevel(level).GetFVarFaceValues(f, channel); }
-
-    //  Component neighbors:
-    ConstIndexArray GetFaceVertices(int level, Index f) const { return GetLevel(level).GetFaceVertices(f); }
-    ConstIndexArray GetFaceEdges(int level, Index f) const    { return GetLevel(level).GetFaceEdges(f); }
-    ConstIndexArray GetEdgeVertices(int level, Index e) const { return GetLevel(level).GetEdgeVertices(e); }
-    ConstIndexArray GetEdgeFaces(int level, Index e) const    { return GetLevel(level).GetEdgeFaces(e); }
-    ConstIndexArray GetVertexFaces(int level, Index v) const  { return GetLevel(level).GetVertexFaces(v); }
-    ConstIndexArray GetVertexEdges(int level, Index v) const  { return GetLevel(level).GetVertexEdges(v); }
-
-    ConstLocalIndexArray GetEdgeFaceLocalIndices(int level, Index e) const   { return GetLevel(level).GetEdgeFaceLocalIndices(e); }
-    ConstLocalIndexArray GetVertexFaceLocalIndices(int level, Index v) const { return GetLevel(level).GetVertexFaceLocalIndices(v); }
-    ConstLocalIndexArray GetVertexEdgeLocalIndices(int level, Index v) const { return GetLevel(level).GetVertexEdgeLocalIndices(v); }
-
-    Index FindEdge(int level, Index v0, Index v1) const { return GetLevel(level).FindEdge(v0, v1); }
-
-    //  Child components:
-    ConstIndexArray GetFaceChildFaces(int level, Index f) const { return GetLevel(level).GetFaceChildFaces(f); }
-    ConstIndexArray GetFaceChildEdges(int level, Index f) const { return GetLevel(level).GetFaceChildEdges(f); }
-    ConstIndexArray GetEdgeChildEdges(int level, Index e) const { return GetLevel(level).GetEdgeChildEdges(e); }
-
-    Index GetFaceChildVertex(  int level, Index f) const { return GetLevel(level).GetFaceChildVertex(f); }
-    Index GetEdgeChildVertex(  int level, Index e) const { return GetLevel(level).GetEdgeChildVertex(e); }
-    Index GetVertexChildVertex(int level, Index v) const { return GetLevel(level).GetVertexChildVertex(v); }
-
-    //  Parent components:
-    Index GetFaceParentFace(int level, Index f) const { return GetLevel(level).GetFaceParentFace(f); }
-    Index GetFaceBaseFace(int level, Index f) const   { return GetLevel(level).GetFaceBaseFace(f); }
-
-    //  Debugging aides:
-    bool ValidateTopology(int level) const                    { return GetLevel(level).ValidateTopology(); }
-    void PrintTopology(int level, bool children = true) const { GetLevel(level).PrintTopology(children); }
-
-
-    //  UNDER RE-CONSIDERATION...
-    //
-    //  Potentially too special-purpose to warrant public method (needs to iterate through all faces):
-    int GetNumHoles(int level) const;
-
-    //  Appears to be completely unused:
-    bool FaceIsRegular(int level, Index face) const {
-        ConstIndexArray fVerts = _levels[level]->getFaceVertices(face);
-        Vtr::Level::VTag compFaceVertTag =
-            _levels[level]->getFaceCompositeVTag(fVerts);
-        return not compFaceVertTag._xordinary;
-    }
-
 
 protected:
 
@@ -440,7 +373,7 @@ protected:
     //  Lower level protected methods intended strictly for internal use:
     //
     friend class TopologyRefinerFactoryBase;
-    friend class PatchTablesFactory;
+    friend class PatchTableFactory;
     friend class EndCapGregoryBasisPatchFactory;
     friend class EndCapLegacyGregoryPatchFactory;
     friend class PtexIndices;
@@ -549,7 +482,7 @@ TopologyRefiner::Interpolate(T const * src, U * dst) const {
         Interpolate(level, src, dst);
 
         src = dst;
-        dst += GetNumVertices(level);
+        dst += GetLevel(level).GetNumVertices();
     }
 }
 
@@ -777,7 +710,7 @@ TopologyRefiner::InterpolateVarying(T const * src, U * dst) const {
         InterpolateVarying(level, src, dst);
 
         src = dst;
-        dst += GetNumVertices(level);
+        dst += GetLevel(level).GetNumVertices();
     }
 }
 

@@ -70,10 +70,11 @@ GetReorderedHbrVertexData(
             {   // Populate base level
                 // note : topological ordering is identical between Hbr and Vtr
                 // for the base level
+                OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
 
-                int nfaces = refiner.GetNumFaces(0),
-                    nedges = refiner.GetNumEdges(0),
-                    nverts = refiner.GetNumVertices(0);
+                int nfaces = refBaseLevel.GetNumFaces(),
+                    nedges = refBaseLevel.GetNumEdges(),
+                    nverts = refBaseLevel.GetNumVertices();
 
                 maps[0].faces.resize(nfaces, 0);
                 maps[0].edges.resize(nedges, 0);
@@ -85,7 +86,7 @@ GetReorderedHbrVertexData(
 
                 for (int edge = 0; edge <nedges; ++edge) {
 
-                    ConstIndexArray vtrVerts = refiner.GetEdgeVertices(0, edge);
+                    ConstIndexArray vtrVerts = refBaseLevel.GetEdgeVertices(edge);
 
                     Hvertex const * v0 = hmesh.GetVertex(vtrVerts[0]),
                                   * v1 = hmesh.GetVertex(vtrVerts[1]);
@@ -110,16 +111,19 @@ GetReorderedHbrVertexData(
                 LevelMap & previous = maps[level-1],
                          & current = maps[level];
 
-                current.faces.resize(refiner.GetNumFaces(level), 0);
-                current.edges.resize(refiner.GetNumEdges(level), 0);
-                current.verts.resize(refiner.GetNumVertices(level), 0);
+                OpenSubdiv::Far::TopologyLevel const & refLevel     = refiner.GetLevel(level);
+                OpenSubdiv::Far::TopologyLevel const & refPrevLevel = refiner.GetLevel(level-1);
 
-                for (int face=0; face < refiner.GetNumFaces(level-1); ++face) {
+                current.faces.resize(refLevel.GetNumFaces(), 0);
+                current.edges.resize(refLevel.GetNumEdges(), 0);
+                current.verts.resize(refLevel.GetNumVertices(), 0);
+
+                for (int face=0; face < refPrevLevel.GetNumFaces(); ++face) {
 
                     // populate child faces
                     Hface * f = previous.faces[face];
 
-                    ConstIndexArray childFaces = refiner.GetFaceChildFaces(level-1, face);
+                    ConstIndexArray childFaces = refPrevLevel.GetFaceChildFaces(face);
                     for (int i=0; i<childFaces.size(); ++i) {
                         current.faces[childFaces[i]] = f->GetChild(i);
                     }
@@ -127,33 +131,33 @@ GetReorderedHbrVertexData(
                     // populate child face-verts -- when present (none for Loop subdivision)
                     if (!schemeIsLoop) {
                         Hvertex * v = f->Subdivide();
-                        Index childVert = refiner.GetFaceChildVertex(level-1, face);
+                        Index childVert = refPrevLevel.GetFaceChildVertex(face);
                         assert(v->GetParentFace());
                         current.verts[childVert] = v;
                     }
                 }
 
-                for (int edge=0; edge < refiner.GetNumEdges(level-1); ++edge) {
+                for (int edge=0; edge < refPrevLevel.GetNumEdges(); ++edge) {
                     // populate child edge-verts
-                    Index childVert = refiner.GetEdgeChildVertex(level-1,edge);
+                    Index childVert = refPrevLevel.GetEdgeChildVertex(edge);
                     Hhalfedge * e = previous.edges[edge];
                     Hvertex * v = e->Subdivide();
                     assert(v->GetParentEdge());
                     current.verts[childVert] = v;
                 }
 
-                for (int vert = 0; vert < refiner.GetNumVertices(level-1); ++vert) {
+                for (int vert = 0; vert < refPrevLevel.GetNumVertices(); ++vert) {
                     // populate child vert-verts
-                    Index childVert = refiner.GetVertexChildVertex(level-1, vert);
+                    Index childVert = refPrevLevel.GetVertexChildVertex(vert);
                     Hvertex * v = previous.verts[vert]->Subdivide();
                     current.verts[childVert] = v;
                     assert(v->GetParentVertex());
                 }
 
                 // populate child edges
-                for (int edge=0; edge < refiner.GetNumEdges(level); ++edge) {
+                for (int edge=0; edge < refLevel.GetNumEdges(); ++edge) {
 
-                    ConstIndexArray vtrVerts = refiner.GetEdgeVertices(level, edge);
+                    ConstIndexArray vtrVerts = refLevel.GetEdgeVertices(edge);
 
                     Hvertex const * v0 = current.verts[vtrVerts[0]],
                                   * v1 = current.verts[vtrVerts[1]];
@@ -166,7 +170,7 @@ GetReorderedHbrVertexData(
                     assert(e);
                     current.edges[edge] = e;
                 }
-                ecount += refiner.GetNumEdges(level-1);
+                ecount += refPrevLevel.GetNumEdges();
             }
         }
     };

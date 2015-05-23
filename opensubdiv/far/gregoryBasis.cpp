@@ -24,7 +24,7 @@
 
 #include "../far/gregoryBasis.h"
 #include "../far/error.h"
-#include "../far/stencilTablesFactory.h"
+#include "../far/stencilTableFactory.h"
 #include "../far/topologyRefiner.h"
 #include "../vtr/stackBuffer.h"
 
@@ -129,10 +129,10 @@ inline float csf(Index n, Index j) {
     }
 }
 
-GregoryBasis::ProtoBasis::ProtoBasis(
-    Vtr::Level const & level, Index faceIndex, int fvarChannel) {
-
-    static float ef[MAX_VALENCE-3] = {
+inline float computeCoefficient(int valence) {
+    // precomputed coefficient table up to valence 29
+    static float efTable[] = {
+        0, 0, 0,
         0.812816f, 0.500000f, 0.363644f, 0.287514f,
         0.238688f, 0.204544f, 0.179229f, 0.159657f,
         0.144042f, 0.131276f, 0.120632f, 0.111614f,
@@ -141,6 +141,16 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         0.0669851f, 0.0641504f, 0.0615475f, 0.0591488f,
         0.0569311f, 0.0548745f, 0.0529621f
     };
+    assert(valence > 0);
+    if (valence < 30) return efTable[valence];
+
+    float t = 2.0f * float(M_PI) / float(valence);
+    return 1.0f / (valence * (cosf(t) + 5.0f +
+                              sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
+}
+
+GregoryBasis::ProtoBasis::ProtoBasis(
+    Vtr::Level const & level, Index faceIndex, int fvarChannel) {
 
     Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
         level.getFaceVertices(faceIndex) :
@@ -248,8 +258,9 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             e1[vid] += e * csf(ivalence-3, 2*i+1);
         }
 
-        e0[vid] *= ef[ivalence-3];
-        e1[vid] *= ef[ivalence-3];
+        float ef = computeCoefficient(ivalence);
+        e0[vid] *= ef;
+        e1[vid] *= ef;
 
         if (valence<0) {
 
@@ -381,8 +392,8 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 }
 
 /*static*/
-StencilTables *
-GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
+StencilTable *
+GregoryBasis::CreateStencilTable(PointsVector const &stencils) {
 
     int nStencils = (int)stencils.size();
     if (nStencils == 0) return NULL;
@@ -393,15 +404,15 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
     }
 
     // allocate destination
-    StencilTables *stencilTables = new StencilTables();
+    StencilTable *stencilTable = new StencilTable();
 
-    // XXX: do we need numControlVertices in stencilTables?
-    stencilTables->_numControlVertices = 0;
-    stencilTables->resize(nStencils, nElements);
+    // XXX: do we need numControlVertices in stencilTable?
+    stencilTable->_numControlVertices = 0;
+    stencilTable->resize(nStencils, nElements);
 
-    int * sizes = &stencilTables->_sizes[0];
-    Index * indices = &stencilTables->_indices[0];
-    float * weights = &stencilTables->_weights[0];
+    int * sizes = &stencilTable->_sizes[0];
+    Index * indices = &stencilTable->_indices[0];
+    float * weights = &stencilTable->_weights[0];
 
     for (int i = 0; i < nStencils; ++i) {
         GregoryBasis::Point const &src = stencils[i];
@@ -415,9 +426,9 @@ GregoryBasis::CreateStencilTables(PointsVector const &stencils) {
         weights += size;
         ++sizes;
     }
-    stencilTables->generateOffsets();
+    stencilTable->generateOffsets();
 
-    return stencilTables;
+    return stencilTable;
 }
 
 } // end namespace Far

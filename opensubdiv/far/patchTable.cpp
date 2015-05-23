@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 #include "../far/patchBasis.h"
 
 #include <cstring>
@@ -33,15 +33,15 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-PatchTables::PatchTables(int maxvalence) :
+PatchTable::PatchTable(int maxvalence) :
     _maxValence(maxvalence),
-    _vertexStencilTables(NULL),
-    _varyingStencilTables(NULL) {
+    _vertexStencilTable(NULL),
+    _varyingStencilTable(NULL) {
 }
 
 // Copy constructor
 // XXXX manuelk we need to eliminate this constructor (C++11 smart pointers)
-PatchTables::PatchTables(PatchTables const & src) :
+PatchTable::PatchTable(PatchTable const & src) :
     _maxValence(src._maxValence),
     _numPtexFaces(src._numPtexFaces),
     _patchArrays(src._patchArrays),
@@ -49,29 +49,29 @@ PatchTables::PatchTables(PatchTables const & src) :
     _paramTable(src._paramTable),
     _quadOffsetsTable(src._quadOffsetsTable),
     _vertexValenceTable(src._vertexValenceTable),
-    _vertexStencilTables(NULL),
-    _varyingStencilTables(NULL),
+    _vertexStencilTable(NULL),
+    _varyingStencilTable(NULL),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
 
-    if (src._vertexStencilTables) {
-        _vertexStencilTables = new StencilTables(*src._vertexStencilTables);
+    if (src._vertexStencilTable) {
+        _vertexStencilTable = new StencilTable(*src._vertexStencilTable);
     }
-    if (src._varyingStencilTables) {
-        _varyingStencilTables = new StencilTables(*src._varyingStencilTables);
+    if (src._varyingStencilTable) {
+        _varyingStencilTable = new StencilTable(*src._varyingStencilTable);
     }
 }
 
-PatchTables::~PatchTables() {
-    delete _vertexStencilTables;
-    delete _varyingStencilTables;
+PatchTable::~PatchTable() {
+    delete _vertexStencilTable;
+    delete _varyingStencilTable;
 }
 
 //
 // PatchArrays
 //
-struct PatchTables::PatchArray {
+struct PatchTable::PatchArray {
 
     PatchArray(PatchDescriptor d, int np, Index v, Index p, Index qo) :
             desc(d), numPatches(np), vertIndex(v),
@@ -91,24 +91,24 @@ struct PatchTables::PatchArray {
 
 // debug helper
 void
-PatchTables::PatchArray::print() const {
+PatchTable::PatchArray::print() const {
     desc.print();
     printf("    numPatches=%d vertIndex=%d patchIndex=%d "
         "quadOffsetIndex=%d\n", numPatches, vertIndex, patchIndex,
             quadOffsetIndex);
 }
-inline PatchTables::PatchArray &
-PatchTables::getPatchArray(Index arrayIndex) {
+inline PatchTable::PatchArray &
+PatchTable::getPatchArray(Index arrayIndex) {
     assert(arrayIndex<(Index)GetNumPatchArrays());
     return _patchArrays[arrayIndex];
 }
-inline PatchTables::PatchArray const &
-PatchTables::getPatchArray(Index arrayIndex) const {
+inline PatchTable::PatchArray const &
+PatchTable::getPatchArray(Index arrayIndex) const {
     assert(arrayIndex<(Index)GetNumPatchArrays());
     return _patchArrays[arrayIndex];
 }
 void
-PatchTables::reservePatchArrays(int numPatchArrays) {
+PatchTable::reservePatchArrays(int numPatchArrays) {
     _patchArrays.reserve(numPatchArrays);
 }
 
@@ -117,16 +117,16 @@ PatchTables::reservePatchArrays(int numPatchArrays) {
 //
 // Stores a record for each patch in the primitive :
 //
-//  - Each patch in the PatchTables has a corresponding patch in each
+//  - Each patch in the PatchTable has a corresponding patch in each
 //    face-varying patch channel. Patch vertex indices are sorted in the same
-//    patch-type order as PatchTables::PTables. Face-varying data for a patch
+//    patch-type order as PatchTable::PTables. Face-varying data for a patch
 //    can therefore be quickly accessed by using the patch primitive ID as
 //    index into patchValueOffsets to locate the face-varying control vertex
 //    indices.
 //
 //  - Face-varying channels can have a different interpolation modes
 //
-//  - Unlike "vertex" PatchTables, there are no "transition" patterns required
+//  - Unlike "vertex" PatchTable, there are no "transition" patterns required
 //    for face-varying patches.
 //
 //  - No transition patterns means vertex indices of face-varying patches can
@@ -139,7 +139,7 @@ PatchTables::reservePatchArrays(int numPatchArrays) {
 //    similar to single-crease to resolve this condition without requiring
 //    isolation if possible
 //
-struct PatchTables::FVarPatchChannel {
+struct PatchTable::FVarPatchChannel {
 
     // Channel interpolation mode
     Sdc::Options::FVarLinearInterpolation interpolation;
@@ -157,22 +157,22 @@ struct PatchTables::FVarPatchChannel {
     std::vector<Index> patchValues; // point values for each patch
 };
 
-inline PatchTables::FVarPatchChannel &
-PatchTables::getFVarPatchChannel(int channel) {
+inline PatchTable::FVarPatchChannel &
+PatchTable::getFVarPatchChannel(int channel) {
     assert(channel<(int)_fvarChannels.size());
     return _fvarChannels[channel];
 }
-inline PatchTables::FVarPatchChannel const &
-PatchTables::getFVarPatchChannel(int channel) const {
+inline PatchTable::FVarPatchChannel const &
+PatchTable::getFVarPatchChannel(int channel) const {
     assert(channel<(int)_fvarChannels.size());
     return _fvarChannels[channel];
 }
 void
-PatchTables::allocateFVarPatchChannels(int numChannels) {
+PatchTable::allocateFVarPatchChannels(int numChannels) {
     _fvarChannels.resize(numChannels);
 }
 void
-PatchTables::allocateChannelValues(int channel,
+PatchTable::allocateChannelValues(int channel,
     int numPatches, int numVerticesTotal) {
 
     FVarPatchChannel & c = getFVarPatchChannel(channel);
@@ -192,22 +192,22 @@ PatchTables::allocateChannelValues(int channel,
     }
 }
 void
-PatchTables::setFVarPatchChannelLinearInterpolation(int channel,
+PatchTable::setFVarPatchChannelLinearInterpolation(int channel,
         Sdc::Options::FVarLinearInterpolation interpolation) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.interpolation = interpolation;
 }
 void
-PatchTables::setFVarPatchChannelPatchesType(int channel, PatchDescriptor::Type type) {
+PatchTable::setFVarPatchChannelPatchesType(int channel, PatchDescriptor::Type type) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.patchesType = type;
 }
 void
-PatchTables::setBicubicFVarPatchChannelValues(int channel, int patchSize,
+PatchTable::setBicubicFVarPatchChannelValues(int channel, int patchSize,
     std::vector<Index> const & values) {
 
     // This method populates the sparse array of values held in the patch
-    // tables from a non-sparse array of value indices generated during
+    // table from a non-sparse array of value indices generated during
     // the second traversal of an adaptive TopologyRefiner.
     // It is assumed that the patch types have been stored in the channel's
     // 'patchTypes' vector during the first traversal.
@@ -245,7 +245,7 @@ PatchTables::setBicubicFVarPatchChannelValues(int channel, int patchSize,
 }
 
 //
-// PatchTables
+// PatchTable
 //
 
 inline int
@@ -254,7 +254,7 @@ getPatchSize(PatchDescriptor desc) {
 }
 
 void
-PatchTables::pushPatchArray(PatchDescriptor desc, int npatches,
+PatchTable::pushPatchArray(PatchDescriptor desc, int npatches,
     Index * vidx, Index * pidx, Index * qoidx) {
 
     if (npatches>0) {
@@ -271,52 +271,52 @@ PatchTables::pushPatchArray(PatchDescriptor desc, int npatches,
 }
 
 int
-PatchTables::getPatchIndex(int arrayIndex, int patchIndex) const {
+PatchTable::getPatchIndex(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     assert(patchIndex<pa.numPatches);
     return pa.patchIndex + patchIndex;
 }
 Index *
-PatchTables::getSharpnessIndices(int arrayIndex) {
+PatchTable::getSharpnessIndices(int arrayIndex) {
     return &_sharpnessIndices[getPatchArray(arrayIndex).patchIndex];
 }
 
 float *
-PatchTables::getSharpnessValues(int arrayIndex) {
+PatchTable::getSharpnessValues(int arrayIndex) {
     return &_sharpnessValues[getPatchArray(arrayIndex).patchIndex];
 }
 
 PatchDescriptor
-PatchTables::GetPatchDescriptor(PatchHandle const & handle) const {
+PatchTable::GetPatchDescriptor(PatchHandle const & handle) const {
     return getPatchArray(handle.arrayIndex).desc;
 }
 
 PatchDescriptor
-PatchTables::GetPatchArrayDescriptor(int arrayIndex) const {
+PatchTable::GetPatchArrayDescriptor(int arrayIndex) const {
     return getPatchArray(arrayIndex).desc;
 }
 
 int
-PatchTables::GetNumPatchArrays() const {
+PatchTable::GetNumPatchArrays() const {
     return (int)_patchArrays.size();
 }
 int
-PatchTables::GetNumPatches(int arrayIndex) const {
+PatchTable::GetNumPatches(int arrayIndex) const {
     return getPatchArray(arrayIndex).numPatches;
 }
 int
-PatchTables::GetNumPatchesTotal() const {
+PatchTable::GetNumPatchesTotal() const {
     // there is one PatchParam record for each patch in the mesh
     return (int)_paramTable.size();
 }
 int
-PatchTables::GetNumControlVertices(int arrayIndex) const {
+PatchTable::GetNumControlVertices(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     return pa.numPatches * getPatchSize(pa.desc);
 }
 
 Index
-PatchTables::findPatchArray(PatchDescriptor desc) {
+PatchTable::findPatchArray(PatchDescriptor desc) {
     for (int i=0; i<(int)_patchArrays.size(); ++i) {
         if (_patchArrays[i].desc==desc)
             return i;
@@ -324,14 +324,14 @@ PatchTables::findPatchArray(PatchDescriptor desc) {
     return Vtr::INDEX_INVALID;
 }
 IndexArray
-PatchTables::getPatchArrayVertices(int arrayIndex) {
+PatchTable::getPatchArrayVertices(int arrayIndex) {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert(pa.vertIndex<(Index)_patchVerts.size());
     return IndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
 }
 ConstIndexArray
-PatchTables::GetPatchArrayVertices(int arrayIndex) const {
+PatchTable::GetPatchArrayVertices(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert(pa.vertIndex<(Index)_patchVerts.size());
@@ -339,13 +339,13 @@ PatchTables::GetPatchArrayVertices(int arrayIndex) const {
 }
 
 ConstIndexArray
-PatchTables::GetPatchVertices(PatchHandle const & handle) const {
+PatchTable::GetPatchVertices(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
     Index vert = pa.vertIndex + handle.vertIndex;
     return ConstIndexArray(&_patchVerts[vert], getPatchSize(pa.desc));
 }
 ConstIndexArray
-PatchTables::GetPatchVertices(int arrayIndex, int patchIndex) const {
+PatchTable::GetPatchVertices(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert((pa.vertIndex + patchIndex*size)<(Index)_patchVerts.size());
@@ -353,29 +353,29 @@ PatchTables::GetPatchVertices(int arrayIndex, int patchIndex) const {
 }
 
 PatchParam
-PatchTables::GetPatchParam(PatchHandle const & handle) const {
+PatchTable::GetPatchParam(PatchHandle const & handle) const {
     assert(handle.patchIndex < (Index)_paramTable.size());
     return _paramTable[handle.patchIndex];
 }
 PatchParam
-PatchTables::GetPatchParam(int arrayIndex, int patchIndex) const {
+PatchTable::GetPatchParam(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     assert((pa.patchIndex + patchIndex) < (int)_paramTable.size());
     return _paramTable[pa.patchIndex + patchIndex];
 }
 PatchParamArray
-PatchTables::getPatchParams(int arrayIndex) {
+PatchTable::getPatchParams(int arrayIndex) {
     PatchArray const & pa = getPatchArray(arrayIndex);
     return PatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
 }
 ConstPatchParamArray const
-PatchTables::GetPatchParams(int arrayIndex) const {
+PatchTable::GetPatchParams(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     return ConstPatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
 }
 
 float
-PatchTables::GetSingleCreasePatchSharpnessValue(PatchHandle const & handle) const {
+PatchTable::GetSingleCreasePatchSharpnessValue(PatchHandle const & handle) const {
     assert((handle.patchIndex) < (int)_sharpnessIndices.size());
     Index index = _sharpnessIndices[handle.patchIndex];
     if (index == Vtr::INDEX_INVALID) {
@@ -385,7 +385,7 @@ PatchTables::GetSingleCreasePatchSharpnessValue(PatchHandle const & handle) cons
     return _sharpnessValues[index];
 }
 float
-PatchTables::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) const {
+PatchTable::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     assert((pa.patchIndex + patchIndex) < (int)_sharpnessIndices.size());
     Index index = _sharpnessIndices[pa.patchIndex + patchIndex];
@@ -396,13 +396,13 @@ PatchTables::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) 
     return _sharpnessValues[index];
 }
 
-PatchTables::ConstQuadOffsetsArray
-PatchTables::GetPatchQuadOffsets(PatchHandle const & handle) const {
+PatchTable::ConstQuadOffsetsArray
+PatchTable::GetPatchQuadOffsets(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
     return Vtr::ConstArray<unsigned int>(&_quadOffsetsTable[pa.quadOffsetIndex + handle.vertIndex], 4);
 }
 bool
-PatchTables::IsFeatureAdaptive() const {
+PatchTable::IsFeatureAdaptive() const {
 
     // XXX:
     // revisit this function, since we'll add uniform cubic patches later.
@@ -418,22 +418,22 @@ PatchTables::IsFeatureAdaptive() const {
 }
 
 int
-PatchTables::GetNumFVarChannels() const {
+PatchTable::GetNumFVarChannels() const {
     return (int)_fvarChannels.size();
 }
 Sdc::Options::FVarLinearInterpolation
-PatchTables::GetFVarChannelLinearInterpolation(int channel) const {
+PatchTable::GetFVarChannelLinearInterpolation(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.interpolation;
 }
 Vtr::Array<PatchDescriptor::Type>
-PatchTables::getFVarPatchTypes(int channel) {
+PatchTable::getFVarPatchTypes(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return Vtr::Array<PatchDescriptor::Type>(&c.patchTypes[0],
         (int)c.patchTypes.size());
 }
 Vtr::ConstArray<PatchDescriptor::Type>
-PatchTables::GetFVarPatchTypes(int channel) const {
+PatchTable::GetFVarPatchTypes(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     if (c.patchesType!=PatchDescriptor::NON_PATCH) {
         return Vtr::ConstArray<PatchDescriptor::Type>(&c.patchesType, 1);
@@ -443,17 +443,17 @@ PatchTables::GetFVarPatchTypes(int channel) const {
     }
 }
 ConstIndexArray
-PatchTables::GetFVarPatchesValues(int channel) const {
+PatchTable::GetFVarPatchesValues(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstIndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
 IndexArray
-PatchTables::getFVarPatchesValues(int channel) {
+PatchTable::getFVarPatchesValues(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return IndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
 PatchDescriptor::Type
-PatchTables::getFVarPatchType(int channel, int patch) const {
+PatchTable::getFVarPatchType(int channel, int patch) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     PatchDescriptor::Type type;
     if (c.patchesType!=PatchDescriptor::NON_PATCH) {
@@ -466,15 +466,15 @@ PatchTables::getFVarPatchType(int channel, int patch) const {
     return type;
 }
 PatchDescriptor::Type
-PatchTables::GetFVarPatchType(int channel, PatchHandle const & handle) const {
+PatchTable::GetFVarPatchType(int channel, PatchHandle const & handle) const {
     return getFVarPatchType(channel, handle.patchIndex);
 }
 PatchDescriptor::Type
-PatchTables::GetFVarPatchType(int channel, int arrayIndex, int patchIndex) const {
+PatchTable::GetFVarPatchType(int channel, int arrayIndex, int patchIndex) const {
     return getFVarPatchType(channel, getPatchIndex(arrayIndex, patchIndex));
 }
 ConstIndexArray
-PatchTables::getFVarPatchValues(int channel, int patch) const {
+PatchTable::getFVarPatchValues(int channel, int patch) const {
 
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
 
@@ -489,17 +489,17 @@ PatchTables::getFVarPatchValues(int channel, int patch) const {
    }
 }
 ConstIndexArray
-PatchTables::GetFVarPatchValues(int channel, PatchHandle const & handle) const {
+PatchTable::GetFVarPatchValues(int channel, PatchHandle const & handle) const {
     return getFVarPatchValues(channel, handle.patchIndex);
 }
 ConstIndexArray
-PatchTables::GetFVarPatchValues(int channel, int arrayIndex, int patchIndex) const {
+PatchTable::GetFVarPatchValues(int channel, int arrayIndex, int patchIndex) const {
     return getFVarPatchValues(channel, getPatchIndex(arrayIndex, patchIndex));
 }
 
 void
-PatchTables::print() const {
-    printf("patchTables (0x%p)\n", this);
+PatchTable::print() const {
+    printf("patchTable (0x%p)\n", this);
     printf("  numPatches = %d\n", GetNumPatchesTotal());
     for (int i=0; i<GetNumPatchArrays(); ++i) {
         printf("  patchArray %d:\n", i);
@@ -512,7 +512,7 @@ PatchTables::print() const {
 //  Evaluate basis functions for position and first derivatives at (s,t):
 //
 void
-PatchTables::EvaluateBasis(PatchHandle const & handle, float s, float t,
+PatchTable::EvaluateBasis(PatchHandle const & handle, float s, float t,
     float wP[], float wDs[], float wDt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();

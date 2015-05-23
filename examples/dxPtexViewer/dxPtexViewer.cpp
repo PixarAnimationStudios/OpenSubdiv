@@ -236,12 +236,14 @@ calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
     // calc normal vectors
-    int nverts = refiner->GetNumVertices(0),
-        nfaces = refiner->GetNumFaces(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+
+    int nverts = refBaseLevel.GetNumVertices(),
+        nfaces = refBaseLevel.GetNumFaces();
 
     for (int face = 0; face < nfaces; ++face) {
 
-        IndexArray fverts = refiner->GetFaceVertices(0, face);
+        IndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
         float const * p0 = &pos[fverts[0]*3],
                     * p1 = &pos[fverts[1]*3],
@@ -704,12 +706,13 @@ createOsdMesh(int level, int kernel) {
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
 
     // create cage edge index
-    int nedges = refiner->GetNumEdges(0);
+    int nedges = refBaseLevel.GetNumEdges();
     std::vector<int> edgeIndices(nedges*2);
     for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
         edgeIndices[i*2  ]=verts[0];
         edgeIndices[i*2+1]=verts[1];
     }
@@ -734,7 +737,7 @@ createOsdMesh(int level, int kernel) {
 
     if (g_kernel == kCPU) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::CpuEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -746,7 +749,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::OmpEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -758,7 +761,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
         g_mesh = new Osd::Mesh<Osd::CpuD3D11VertexBuffer,
-                               Far::StencilTables,
+                               Far::StencilTable,
                                Osd::TbbEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -771,7 +774,7 @@ createOsdMesh(int level, int kernel) {
     } else if(kernel == kCL) {
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
-                               Osd::CLStencilTables,
+                               Osd::CLStencilTable,
                                Osd::CLEvaluator,
                                Osd::D3D11PatchTable,
                                CLD3D11DeviceContext>(
@@ -785,7 +788,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
         g_mesh = new Osd::Mesh<Osd::CudaD3D11VertexBuffer,
-                               Osd::CudaStencilTables,
+                               Osd::CudaStencilTable,
                                Osd::CudaEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(
@@ -797,7 +800,7 @@ createOsdMesh(int level, int kernel) {
     } else if (g_kernel == kDirectCompute) {
         static Osd::EvaluatorCacheT<Osd::D3D11ComputeEvaluator> d3d11ComputeEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::D3D11VertexBuffer,
-                               Osd::D3D11StencilTables,
+                               Osd::D3D11StencilTable,
                                Osd::D3D11ComputeEvaluator,
                                Osd::D3D11PatchTable,
                                ID3D11DeviceContext>(

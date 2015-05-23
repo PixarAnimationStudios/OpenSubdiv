@@ -27,7 +27,7 @@
 
 #include <common/vtr_utils.h>
 #include <common/hbr_utils.h>
-#include <far/patchTables.h>
+#include <far/patchTable.h>
 
 #include "../common/glUtils.h"
 
@@ -193,13 +193,13 @@ public:
     // Far initialization
     typedef OpenSubdiv::Far::TopologyRefiner TopologyRefiner;
 
-    typedef OpenSubdiv::Far::PatchTables PatchTables;
+    typedef OpenSubdiv::Far::PatchTable PatchTable;
 
     void Initialize(Options options, TopologyRefiner const & refiner,
-        PatchTables const * patchTables, float const * vertexData);
+        PatchTable const * patchTable, float const * vertexData);
 
     void InitializeFVar(Options options, TopologyRefiner const & refiner,
-        PatchTables const * patchTables, int channel, int tessFactor, float const * fvarData);
+        PatchTable const * patchTable, int channel, int tessFactor, float const * fvarData);
 
     void InitializeDeviceBuffers();
 
@@ -229,7 +229,7 @@ private:
         float const * vertexData);
 
     void initializeBuffers(Options options, TopologyRefiner const & refiner,
-        PatchTables const & patchTables, float const * vertexData);
+        PatchTable const & patchTable, float const * vertexData);
 
     void clearBuffers();
 

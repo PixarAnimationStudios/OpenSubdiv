@@ -119,7 +119,7 @@ a series of regression tests that compare the methods to each other.
    * **Beta Issues**
 
       Face-varying smooth data interpolation is currently only supported in 
-      **Osd** through refinement and limit points but not in the PatchTables.
+      **Osd** through refinement and limit points but not in the PatchTable.
 
 ----
 

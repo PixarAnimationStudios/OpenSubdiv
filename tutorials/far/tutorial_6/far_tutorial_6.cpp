@@ -41,7 +41,7 @@
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
-#include <opensubdiv/far/patchTablesFactory.h>
+#include <opensubdiv/far/patchTableFactory.h>
 #include <opensubdiv/far/endCapGregoryBasisPatchFactory.h>
 #include <opensubdiv/far/patchMap.h>
 #include <opensubdiv/far/ptexIndices.h>
@@ -155,14 +155,14 @@ int main(int, char **) {
     refiner->Interpolate(&verts[0], &verts[g_nverts]);
 
 
-    // Generate a set of Far::PatchTables that we will use to evaluate the
+    // Generate a set of Far::PatchTable that we will use to evaluate the
     // surface limit
     Far::EndCapGregoryBasisPatchFactory endcapFactory(*refiner);
-    Far::PatchTables const * patchTables =
-        Far::PatchTablesFactory::Create(*refiner, Far::PatchTablesFactory::Options());
+    Far::PatchTable const * patchTable =
+        Far::PatchTableFactory::Create(*refiner, Far::PatchTableFactory::Options());
 
     // Create a Far::PatchMap to help locating patches in the table
-    Far::PatchMap patchmap(*patchTables);
+    Far::PatchMap patchmap(*patchTable);
 
     // Create a Far::PtexIndices to help find indices of ptex faces.
     Far::PtexIndices ptexIndices(*refiner);
@@ -185,14 +185,14 @@ int main(int, char **) {
                   t = (float)rand()/(float)RAND_MAX;
 
             // Locate the patch corresponding to the face ptex idx and (s,t)
-            Far::PatchTables::PatchHandle const * handle =
+            Far::PatchTable::PatchHandle const * handle =
                 patchmap.FindPatch(face, s, t);
             assert(handle);
 
             // Evaluate the patch weights, identify the CVs and compute the limit frame:
-            patchTables->EvaluateBasis(*handle, s, t, pWeights, dsWeights, dtWeights);
+            patchTable->EvaluateBasis(*handle, s, t, pWeights, dsWeights, dtWeights);
 
-            Far::ConstIndexArray cvs = patchTables->GetPatchVertices(*handle);
+            Far::ConstIndexArray cvs = patchTable->GetPatchVertices(*handle);
 
             LimitFrame & dst = samples[count];
             dst.Clear();

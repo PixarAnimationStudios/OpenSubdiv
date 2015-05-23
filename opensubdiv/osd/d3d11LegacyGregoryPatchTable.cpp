@@ -46,7 +46,7 @@ D3D11LegacyGregoryPatchTable::~D3D11LegacyGregoryPatchTable() {
 }
 
 D3D11LegacyGregoryPatchTable *
-D3D11LegacyGregoryPatchTable::Create(Far::PatchTables const *farPatchTables,
+D3D11LegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable,
                                      ID3D11DeviceContext *pd3d11DeviceContext) {
     ID3D11Device *pd3d11Device = NULL;
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
@@ -54,10 +54,10 @@ D3D11LegacyGregoryPatchTable::Create(Far::PatchTables const *farPatchTables,
 
     D3D11LegacyGregoryPatchTable *result = new D3D11LegacyGregoryPatchTable();
 
-    Far::PatchTables::VertexValenceTable const &
-        valenceTable = farPatchTables->GetVertexValenceTable();
-    Far::PatchTables::QuadOffsetsTable const &
-        quadOffsetsTable = farPatchTables->GetQuadOffsetsTable();
+    Far::PatchTable::VertexValenceTable const &
+        valenceTable = farPatchTable->GetVertexValenceTable();
+    Far::PatchTable::QuadOffsetsTable const &
+        quadOffsetsTable = farPatchTable->GetQuadOffsetsTable();
 
     if (not valenceTable.empty()) {
         D3D11_BUFFER_DESC bd;
@@ -126,11 +126,11 @@ D3D11LegacyGregoryPatchTable::Create(Far::PatchTables const *farPatchTables,
     result->_quadOffsetsBase[1] = 0;
 
     // scan patchtable to find quadOffsetsBase.
-    for (int i = 0; i < farPatchTables->GetNumPatchArrays(); ++i) {
+    for (int i = 0; i < farPatchTable->GetNumPatchArrays(); ++i) {
         // GREGORY_BOUNDARY's quadoffsets come after GREGORY's.
-        if (farPatchTables->GetPatchArrayDescriptor(i) ==
+        if (farPatchTable->GetPatchArrayDescriptor(i) ==
             Far::PatchDescriptor::GREGORY) {
-            result->_quadOffsetsBase[1] = farPatchTables->GetNumPatches(i) * 4;
+            result->_quadOffsetsBase[1] = farPatchTable->GetNumPatches(i) * 4;
             break;
         }
     }

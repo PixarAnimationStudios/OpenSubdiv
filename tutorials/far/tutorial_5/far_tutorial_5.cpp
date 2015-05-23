@@ -27,13 +27,13 @@
 // Tutorial description:
 //
 // This tutorial shows how to create and manipulate both 'vertex' and 'varying'
-// Far::StencilTables to interpolate 2 primvar data buffers: vertex positions and
+// Far::StencilTable to interpolate 2 primvar data buffers: vertex positions and
 // vertex colors.
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
-#include <opensubdiv/far/stencilTables.h>
-#include <opensubdiv/far/stencilTablesFactory.h>
+#include <opensubdiv/far/stencilTable.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 
 #include <cstdio>
 #include <cstring>
@@ -121,10 +121,10 @@ int main(int, char **) {
     int maxlevel = 4;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
-    int nverts = refiner->GetNumVertices(maxlevel);
+    int nverts = refiner->GetLevel(maxlevel).GetNumVertices();
 
-    // Use the Far::StencilTables factory to create discrete stencil tables
-    Far::StencilTablesFactory::Options options;
+    // Use the Far::StencilTable factory to create discrete stencil table
+    Far::StencilTableFactory::Options options;
     options.generateIntermediateLevels=false; // only the highest refinement level.
     options.generateOffsets=true;
 
@@ -133,10 +133,10 @@ int main(int, char **) {
     //
 
         // Create stencils table for 'vertex' interpolation
-        options.interpolationMode=Far::StencilTablesFactory::INTERPOLATE_VERTEX;
+        options.interpolationMode=Far::StencilTableFactory::INTERPOLATE_VERTEX;
 
-        Far::StencilTables const * vertexStencils =
-            Far::StencilTablesFactory::Create(*refiner, options);
+        Far::StencilTable const * vertexStencils =
+            Far::StencilTableFactory::Create(*refiner, options);
         assert(nverts==vertexStencils->GetNumStencils());
 
         // Allocate vertex primvar buffer (1 stencil for each vertex)
@@ -150,10 +150,10 @@ int main(int, char **) {
     //
 
         // Create stencils table for 'varying' interpolation
-        options.interpolationMode=Far::StencilTablesFactory::INTERPOLATE_VARYING;
+        options.interpolationMode=Far::StencilTableFactory::INTERPOLATE_VARYING;
 
-        Far::StencilTables const * varyingStencils =
-            Far::StencilTablesFactory::Create(*refiner, options);
+        Far::StencilTable const * varyingStencils =
+            Far::StencilTableFactory::Create(*refiner, options);
         assert(nverts==varyingStencils->GetNumStencils());
 
         // Allocate varying primvar buffer (1 stencil for each vertex)

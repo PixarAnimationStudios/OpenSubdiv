@@ -25,8 +25,9 @@
 #ifndef OPENSUBDIV3_FAR_GREGORY_BASIS_H
 #define OPENSUBDIV3_FAR_GREGORY_BASIS_H
 
-#include "../far/protoStencil.h"
 #include "../vtr/level.h"
+#include "../far/types.h"
+#include "../far/stencilTable.h"
 #include <cstring>
 
 namespace OpenSubdiv {
@@ -59,7 +60,7 @@ public:
     template <class T, class U>
     void Evaluate(T const & controlValues, U values[20]) const {
 
-        Index const * indices = &_indices.at(0);
+        Vtr::Index const * indices = &_indices.at(0);
         float const * weights = &_weights.at(0);
 
         for (int i=0; i<20; ++i) {
@@ -70,16 +71,6 @@ public:
         }
     }
 
-    static const int MAX_VALENCE = (30*2);
-    static const int MAX_ELEMS = (16 + MAX_VALENCE);
-
-    // limit valence of 30 because we use a pre-computed closed-form 'ef' table
-    // XXXtakahito: revisit here to determine appropriate size
-    //              or remove fixed size limit and use Sdc mask
-    static int getNumMaxElements(int maxValence) {
-        return (16 + maxValence);
-    }
-
     //
     // Basis point
     //
@@ -88,13 +79,19 @@ public:
     //
     class Point {
     public:
+        static const int RESERVED_ENTRY_SIZE = 64;
 
-        Point() : _size(0) { }
+        Point() : _size(0) {
+            _indices.reserve(RESERVED_ENTRY_SIZE);
+            _weights.reserve(RESERVED_ENTRY_SIZE);
+        }
 
-        Point(Index idx, float weight = 1.0f) {
+        Point(Vtr::Index idx, float weight = 1.0f) {
+            _indices.reserve(RESERVED_ENTRY_SIZE);
+            _weights.reserve(RESERVED_ENTRY_SIZE);
             _size = 1;
-            _indices[0] = idx;
-            _weights[0] = weight;
+            _indices.push_back(idx);
+            _weights.push_back(weight);
         }
 
         Point(Point const & other) {
@@ -105,24 +102,24 @@ public:
             return _size;
         }
 
-        Index const * GetIndices() const {
-            return _indices;
+        Vtr::Index const * GetIndices() const {
+            return &_indices[0];
         }
 
         float const * GetWeights() const {
-            return _weights;
+            return &_weights[0];
         }
 
         Point & operator = (Point const & other) {
             _size = other._size;
-            memcpy(_indices, other._indices, other._size*sizeof(Index));
-            memcpy(_weights, other._weights, other._size*sizeof(float));
+            _indices = other._indices;
+            _weights = other._weights;
             return *this;
         }
 
         Point & operator += (Point const & other) {
             for (int i=0; i<other._size; ++i) {
-                Index idx = findIndex(other._indices[i]);
+                Vtr::Index idx = findIndex(other._indices[i]);
                 _weights[idx] += other._weights[i];
             }
             return *this;
@@ -130,7 +127,7 @@ public:
 
         Point & operator -= (Point const & other) {
             for (int i=0; i<other._size; ++i) {
-                Index idx = findIndex(other._indices[i]);
+                Vtr::Index idx = findIndex(other._indices[i]);
                 _weights[idx] -= other._weights[i];
             }
             return *this;
@@ -163,15 +160,15 @@ public:
             Point p(*this); return p-=other;
         }
 
-        void OffsetIndices(Index offset) {
+        void OffsetIndices(Vtr::Index offset) {
             for (int i=0; i<_size; ++i) {
                 _indices[i] += offset;
             }
         }
 
-        void Copy(int ** size, Index ** indices, float ** weights) const {
-            memcpy(*indices, _indices, _size*sizeof(Index));
-            memcpy(*weights, _weights, _size*sizeof(float));
+        void Copy(int ** size, Vtr::Index ** indices, float ** weights) const {
+            memcpy(*indices, &_indices[0], _size*sizeof(Vtr::Index));
+            memcpy(*weights, &_weights[0], _size*sizeof(float));
             **size = _size;
             *indices += _size;
             *weights += _size;
@@ -180,24 +177,21 @@ public:
 
     private:
 
-        int findIndex(Index idx) {
+        int findIndex(Vtr::Index idx) {
             for (int i=0; i<_size; ++i) {
                 if (_indices[i]==idx) {
                     return i;
                 }
             }
-            _indices[_size]=idx;
-            _weights[_size]=0.0f;
+            _indices.push_back(idx);
+            _weights.push_back(0.0f);
             ++_size;
             return _size-1;
         }
 
         int _size;
-        // XXXX this would really be better with VLA where we only allocate
-        // space based on the max vertex valence in the mesh, not the absolute
-        // maximum supported by the closed-form tangents table.
-        Index _indices[MAX_ELEMS];
-        float _weights[MAX_ELEMS];
+        std::vector<Vtr::Index> _indices;
+        std::vector<float> _weights;
     };
 
     //
@@ -208,11 +202,11 @@ public:
     //
     struct ProtoBasis {
 
-        ProtoBasis(Vtr::Level const & level, Index faceIndex, int fvarChannel=-1);
+        ProtoBasis(Vtr::Level const & level, Vtr::Index faceIndex, int fvarChannel=-1);
 
         int GetNumElements() const;
 
-        void Copy(int * sizes, Index * indices, float * weights) const;
+        void Copy(int * sizes, Vtr::Index * indices, float * weights) const;
         void Copy(GregoryBasis* dest) const;
 
         // Control Vertices based on :
@@ -248,13 +242,13 @@ public:
 
     typedef std::vector<GregoryBasis::Point> PointsVector;
 
-    static StencilTables *CreateStencilTables(PointsVector const &stencils);
+    static StencilTable *CreateStencilTable(PointsVector const &stencils);
 
 private:
 
     int _sizes[20];
 
-    std::vector<Index> _indices;
+    std::vector<Vtr::Index> _indices;
     std::vector<float> _weights;
 };
 
