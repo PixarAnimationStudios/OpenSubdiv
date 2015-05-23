@@ -62,6 +62,7 @@
 // OpenSubdiv includes
 #include <far/topologyRefinerFactory.h>
 #include <far/stencilTableFactory.h>
+#include <far/primvarRefiner.h>
 
 #include <osd/mesh.h>
 #include <osd/cpuVertexBuffer.h>
@@ -658,7 +659,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             std::vector<Vertex> refinedVerts(
                 refiner->GetNumVerticesTotal() - refiner->GetLevel(0).GetNumVertices());
             
-            refiner->Interpolate(controlVerts, &refinedVerts.at(0));
+            OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(controlVerts, &refinedVerts.at(0));
 
             // == Convert subdivided OpenSubdiv mesh to MFnMesh Data outputMesh =============
 
