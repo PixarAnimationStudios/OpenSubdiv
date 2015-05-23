@@ -34,27 +34,27 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class StencilTables;
+    class StencilTable;
 }
 
 namespace Osd {
 
-/// \brief GL stencil tables (Shader Storage buffer)
+/// \brief GL stencil table (Shader Storage buffer)
 ///
-/// This class is a GLSL SSBO representation of Far::StencilTables.
+/// This class is a GLSL SSBO representation of Far::StencilTable.
 ///
 /// GLSLComputeKernel consumes this table to apply stencils
 ///
-class GLStencilTablesSSBO {
+class GLStencilTableSSBO {
 public:
-    static GLStencilTablesSSBO *Create(Far::StencilTables const *stencilTables,
+    static GLStencilTableSSBO *Create(Far::StencilTable const *stencilTable,
                                        void *deviceContext = NULL) {
         (void)deviceContext;  // unused
-        return new GLStencilTablesSSBO(stencilTables);
+        return new GLStencilTableSSBO(stencilTable);
     }
 
-    explicit GLStencilTablesSSBO(Far::StencilTables const *stencilTables);
-    ~GLStencilTablesSSBO();
+    explicit GLStencilTableSSBO(Far::StencilTable const *stencilTable);
+    ~GLStencilTableSSBO();
 
     // interfaces needed for GLSLComputeKernel
     GLuint GetSizesBuffer() const { return _sizes; }
@@ -190,7 +190,7 @@ public:
 private:
     GLuint _program;
 
-    GLuint _uniformSizes,        // stencil tables
+    GLuint _uniformSizes,        // stencil table
            _uniformOffsets,
            _uniformIndices,
            _uniformWeights,

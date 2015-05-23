@@ -25,7 +25,7 @@
 #include "../far/gregoryBasis.h"
 #include "../far/endCapBSplineBasisPatchFactory.h"
 #include "../far/error.h"
-#include "../far/stencilTablesFactory.h"
+#include "../far/stencilTableFactory.h"
 #include "../far/topologyRefiner.h"
 
 #include <cassert>

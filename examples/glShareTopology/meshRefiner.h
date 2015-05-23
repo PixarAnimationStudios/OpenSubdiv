@@ -29,17 +29,17 @@
 
 template <class EVALUATOR,
           class VERTEX_BUFFER,
-          class STENCIL_TABLES,
+          class STENCIL_TABLE,
           class DEVICE_CONTEXT=void>
 class MeshRefiner {
 public:
     typedef EVALUATOR Evaluator;
-    typedef STENCIL_TABLES StencilTables;
+    typedef STENCIL_TABLE StencilTable;
     typedef DEVICE_CONTEXT DeviceContext;
     typedef OpenSubdiv::Osd::EvaluatorCacheT<Evaluator> EvaluatorCache;
 
-    MeshRefiner(OpenSubdiv::Far::StencilTables const * vertexStencils, //XXX: takes ownership
-                OpenSubdiv::Far::StencilTables const * varyingStencils,
+    MeshRefiner(OpenSubdiv::Far::StencilTable const * vertexStencils, //XXX: takes ownership
+                OpenSubdiv::Far::StencilTable const * varyingStencils,
                 int numControlVertices,
                 EvaluatorCache * evaluatorCache = NULL,
                 DeviceContext * deviceContext = NULL)
@@ -49,9 +49,9 @@ public:
         _numControlVertices = numControlVertices;
         _numVertices = numControlVertices + vertexStencils->GetNumStencils();
 
-        _vertexStencils = OpenSubdiv::Osd::convertToCompatibleStencilTables<StencilTables>(
+        _vertexStencils = OpenSubdiv::Osd::convertToCompatibleStencilTable<StencilTable>(
             vertexStencils, deviceContext);
-        _varyingStencils = OpenSubdiv::Osd::convertToCompatibleStencilTables<StencilTables>(
+        _varyingStencils = OpenSubdiv::Osd::convertToCompatibleStencilTable<StencilTable>(
             varyingStencils, deviceContext);
     }
 
@@ -137,8 +137,8 @@ private:
     int _numVertices;
     int _numControlVertices;
 
-    StencilTables const *_vertexStencils;
-    StencilTables const *_varyingStencils;
+    StencilTable const *_vertexStencils;
+    StencilTable const *_varyingStencils;
     EvaluatorCache * _evaluatorCache;
     DeviceContext *_deviceContext;
 };

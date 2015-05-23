@@ -41,35 +41,35 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class StencilTables;
+    class StencilTable;
 }
 
 namespace Osd {
 
-/// \brief D3D11 stencil tables
+/// \brief D3D11 stencil table
 ///
 /// This class is a D3D11 Shader Resource View representation of
-/// Far::StencilTables.
+/// Far::StencilTable.
 ///
 /// D3D11ComputeEvaluator consumes this table to apply stencils
 ///
-class D3D11StencilTables {
+class D3D11StencilTable {
 public:
     template <typename DEVICE_CONTEXT>
-    static D3D11StencilTables *Create(Far::StencilTables const *stencilTables,
+    static D3D11StencilTable *Create(Far::StencilTable const *stencilTable,
                                       DEVICE_CONTEXT context) {
-        return new D3D11StencilTables(stencilTables, context->GetDeviceContext());
+        return new D3D11StencilTable(stencilTable, context->GetDeviceContext());
     }
 
-    static D3D11StencilTables *Create(Far::StencilTables const *stencilTables,
+    static D3D11StencilTable *Create(Far::StencilTable const *stencilTable,
                                       ID3D11DeviceContext *deviceContext) {
-        return new D3D11StencilTables(stencilTables, deviceContext);
+        return new D3D11StencilTable(stencilTable, deviceContext);
     }
 
-    D3D11StencilTables(Far::StencilTables const *stencilTables,
+    D3D11StencilTable(Far::StencilTable const *stencilTable,
                        ID3D11DeviceContext *deviceContext);
 
-    ~D3D11StencilTables();
+    ~D3D11StencilTable();
 
     // interfaces needed for D3D11ComputeEvaluator
     ID3D11ShaderResourceView *GetSizesSRV() const { return _sizes; }
@@ -122,7 +122,7 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTables  stencil table to be applied. The table must have
+    /// @param stencilTable   stencil table to be applied. The table must have
     ///                       SSBO interfaces.
     ///
     /// @param instance       cached compiled instance. Clients are supposed to

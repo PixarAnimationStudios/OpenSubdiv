@@ -149,23 +149,25 @@ int main(int, char **) {
 
     { // Output OBJ of the highest level refined -----------
 
+        Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
+
         // Print vertex positions
         for (int level=0, firstVert=0; level<=maxlevel; ++level) {
 
             if (level==maxlevel) {
-                for (int vert=0; vert<refiner->GetNumVertices(maxlevel); ++vert) {
+                for (int vert=0; vert<refLastLevel.GetNumVertices(); ++vert) {
                     float const * pos = verts[firstVert+vert].GetPosition();
                     printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
                 }
             } else {
-                firstVert += refiner->GetNumVertices(level);
+                firstVert += refiner->GetLevel(level).GetNumVertices();
             }
         }
 
         // Print faces
-        for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
+        for (int face=0; face<refLastLevel.GetNumFaces(); ++face) {
 
-            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face);
+            Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4);

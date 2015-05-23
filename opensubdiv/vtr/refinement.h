@@ -39,14 +39,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Far {
-    class TopologyRefiner;
-    class PatchTablesFactory;
-}
-
 namespace Vtr {
 
-class SparseSelector;
 class FVarRefinement;
 
 //
@@ -60,7 +54,7 @@ class FVarRefinement;
 //  of topological splits that the supported subdivisions schemes collectively require, i.e. those
 //  list in Sdc::SplitType.  Note the virtual requirements expected of the subclasses in the list
 //  of protected methods -- they differ mainly in the topology that is created in the child Level
-//  and not the propagation of tags through refinement, subdivision of sharpness values of the
+//  and not the propagation of tags through refinement, subdivision of sharpness values or the
 //  treatment of face-varying data.  The primary subclasses are QuadRefinement and TriRefinement.
 //
 //  At a high level, all that is necessary in terms of interface is to construct, initialize
@@ -156,22 +150,15 @@ public:
     Index getChildFaceBaseFace(Index f) const { return _childFaceBaseFaceIndex[f]; }
 
 //
-//  Non-public methods:
+//  Modifiers intended for internal/protected use:
 //
-protected:
-
-    friend class FVarRefinement;
-    friend class SparseSelector;
-
-    friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactory;
-
+public:
 
     IndexArray getFaceChildFaces(Index parentFace);
     IndexArray getFaceChildEdges(Index parentFace);
     IndexArray getEdgeChildEdges(Index parentEdge);
 
-protected:
+public:
     //
     //  Tags have now been added per-component in Level, but there is additional need to tag
     //  components within Refinement -- we can't tag the parent level components for any
@@ -204,10 +191,8 @@ protected:
         unsigned char _indexInParent : 2;  // index of child wrt parent:  0-3, or iterative if N > 4
     };
 
-//
-//  Remaining methods should remain protected -- for use by subclasses...
-//
-protected:
+//  Remaining methods should really be protected -- for use by subclasses...
+public:
     //
     //  Methods involved in constructing the parent-to-child mapping -- when the
     //  refinement is sparse, additional methods are needed to identify the selection:
@@ -309,12 +294,12 @@ protected:
     //
     void subdivideFVarChannels();
 
-protected:
+//  Members temporarily public pending re-assessment of friends:
+public:
     //
     //  Data members -- the logical grouping of some of these (and methods that make use
     //  of them) may lead to grouping them into a few utility classes or structs...
     //
-    friend class Level;  //  Access for some debugging information
 
     //  Defined on construction:
     Level const * _parent;

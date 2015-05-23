@@ -30,7 +30,7 @@
 
 #include "../osd/opencl.h"
 #include "../far/error.h"
-#include "../far/stencilTables.h"
+#include "../far/stencilTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -61,22 +61,22 @@ createCLBuffer(std::vector<T> const & src, cl_context clContext) {
 
 // ----------------------------------------------------------------------------
 
-CLStencilTables::CLStencilTables(Far::StencilTables const *stencilTables,
-                                 cl_context clContext) {
-    _numStencils = stencilTables->GetNumStencils();
+CLStencilTable::CLStencilTable(Far::StencilTable const *stencilTable,
+                               cl_context clContext) {
+    _numStencils = stencilTable->GetNumStencils();
 
     if (_numStencils > 0) {
-        _sizes   = createCLBuffer(stencilTables->GetSizes(), clContext);
-        _offsets = createCLBuffer(stencilTables->GetOffsets(), clContext);
-        _indices = createCLBuffer(stencilTables->GetControlIndices(),
+        _sizes   = createCLBuffer(stencilTable->GetSizes(), clContext);
+        _offsets = createCLBuffer(stencilTable->GetOffsets(), clContext);
+        _indices = createCLBuffer(stencilTable->GetControlIndices(),
                                   clContext);
-        _weights = createCLBuffer(stencilTables->GetWeights(), clContext);
+        _weights = createCLBuffer(stencilTable->GetWeights(), clContext);
     } else {
         _sizes = _offsets = _indices = _weights = NULL;
     }
 }
 
-CLStencilTables::~CLStencilTables() {
+CLStencilTable::~CLStencilTable() {
     if (_sizes)   clReleaseMemObject(_sizes);
     if (_offsets) clReleaseMemObject(_offsets);
     if (_indices) clReleaseMemObject(_indices);

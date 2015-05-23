@@ -26,13 +26,13 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// This tutorial shows how to create and manipulate FarStencilTables. We use the
+// This tutorial shows how to create and manipulate FarStencilTable. We use the
 // factorized stencils to interpolate vertex primvar data buffers.
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
-#include <opensubdiv/far/stencilTables.h>
-#include <opensubdiv/far/stencilTablesFactory.h>
+#include <opensubdiv/far/stencilTable.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 
 #include <cstdio>
 #include <cstring>
@@ -118,17 +118,17 @@ int main(int, char **) {
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 
-    // Use the FarStencilTables factory to create discrete stencil tables
+    // Use the FarStencilTable factory to create discrete stencil table
     // note: we only want stencils for the highest refinement level.
-    Far::StencilTablesFactory::Options options;
+    Far::StencilTableFactory::Options options;
     options.generateIntermediateLevels=false;
     options.generateOffsets=true;
     
-    Far::StencilTables const * stencilTables =
-        Far::StencilTablesFactory::Create(*refiner, options);
+    Far::StencilTable const * stencilTable =
+        Far::StencilTableFactory::Create(*refiner, options);
 
     // Allocate vertex primvar buffer (1 stencil for each vertex)
-    int nstencils = stencilTables->GetNumStencils();
+    int nstencils = stencilTable->GetNumStencils();
     std::vector<Vertex> vertexBuffer(nstencils);
 
 
@@ -141,7 +141,7 @@ int main(int, char **) {
 
         // Apply stencils on the control vertex data to update the primvar data
         // of the refined vertices.
-        stencilTables->UpdateValues(controlValues, &vertexBuffer[0]);
+        stencilTable->UpdateValues(controlValues, &vertexBuffer[0]);
     }
 
     { // Visualization with Maya : print a MEL script that generates particles
@@ -156,7 +156,7 @@ int main(int, char **) {
     }
 
     delete refiner;
-    delete stencilTables;
+    delete stencilTable;
 }
 
 //------------------------------------------------------------------------------

@@ -30,7 +30,7 @@
 #include <vector>
 
 #include "../far/error.h"
-#include "../far/stencilTables.h"
+#include "../far/stencilTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -65,20 +65,20 @@ createSSBO(std::vector<T> const & src) {
     return devicePtr;
 }
 
-GLStencilTablesSSBO::GLStencilTablesSSBO(
-    Far::StencilTables const *stencilTables) {
-    _numStencils = stencilTables->GetNumStencils();
+GLStencilTableSSBO::GLStencilTableSSBO(
+    Far::StencilTable const *stencilTable) {
+    _numStencils = stencilTable->GetNumStencils();
     if (_numStencils > 0) {
-        _sizes   = createSSBO(stencilTables->GetSizes());
-        _offsets = createSSBO(stencilTables->GetOffsets());
-        _indices = createSSBO(stencilTables->GetControlIndices());
-        _weights = createSSBO(stencilTables->GetWeights());
+        _sizes   = createSSBO(stencilTable->GetSizes());
+        _offsets = createSSBO(stencilTable->GetOffsets());
+        _indices = createSSBO(stencilTable->GetControlIndices());
+        _weights = createSSBO(stencilTable->GetWeights());
     } else {
         _sizes = _offsets = _indices = _weights = 0;
     }
 }
 
-GLStencilTablesSSBO::~GLStencilTablesSSBO() {
+GLStencilTableSSBO::~GLStencilTableSSBO() {
     if (_sizes)   glDeleteBuffers(1, &_sizes);
     if (_offsets) glDeleteBuffers(1, &_offsets);
     if (_weights) glDeleteBuffers(1, &_weights);

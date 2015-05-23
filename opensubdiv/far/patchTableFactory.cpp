@@ -21,7 +21,7 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#include "../far/patchTablesFactory.h"
+#include "../far/patchTableFactory.h"
 #include "../far/error.h"
 #include "../far/ptexIndices.h"
 #include "../far/topologyRefiner.h"
@@ -91,12 +91,12 @@ typedef PatchTypes<Far::Index **>     PatchFVarPointers;
 namespace Far {
 
 void
-PatchTablesFactory::PatchFaceTag::clear() {
+PatchTableFactory::PatchFaceTag::clear() {
     std::memset(this, 0, sizeof(*this));
 }
 
 void
-PatchTablesFactory::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask) {
+PatchTableFactory::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask) {
     //
     //  The number of rotations to apply for boundary or corner patches varies on both
     //  where the boundary/corner occurs and whether boundary or corner -- so using a
@@ -134,7 +134,7 @@ PatchTablesFactory::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int bound
 }
 
 void
-PatchTablesFactory::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask) {
+PatchTableFactory::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask) {
     //
     //  This is strictly needed for the irregular case when a vertex is a boundary in
     //  the presence of no boundary edges -- an extra-ordinary face with only one corner
@@ -179,7 +179,7 @@ offsetAndPermuteIndices(Far::Index const indices[], int count,
     // The patch vertices for boundary and corner patches
     // are assigned index values even though indices will
     // be undefined along boundary and corner edges.
-    // When the resulting patch tables are going to be used
+    // When the resulting patch table is going to be used
     // as indices for drawing, it is convenient for invalid
     // indices to be replaced with known good values, such
     // as the first un-permuted index, which is the index
@@ -217,7 +217,7 @@ class FVarChannelCursor {
 public:
 
     FVarChannelCursor(TopologyRefiner const & refiner,
-                      PatchTablesFactory::Options options) {
+                      PatchTableFactory::Options options) {
         if (options.generateFVarTables) {
             // If client-code does not select specific channels, default to all
             // the channels in the refiner.
@@ -278,13 +278,13 @@ private:
 // Adaptive Context
 //
 // Helper class aggregating transient contextual data structures during the
-// creation of feature adaptive patch tables. The structure simplifies
+// creation of feature adaptive patch table. The structure simplifies
 // the function prototypes of high-level private methods in the factory.
 // This helps keeping the factory class stateless.
 //
 // Note : struct members are not re-entrant nor are they intended to be !
 //
-struct PatchTablesFactory::AdaptiveContext {
+struct PatchTableFactory::AdaptiveContext {
 
 public:
     AdaptiveContext(TopologyRefiner const & refiner, Options options);
@@ -293,8 +293,8 @@ public:
 
     Options const options;
 
-    // The patch tables being created
-    PatchTables * tables;
+    // The patch table being created
+    PatchTable * table;
 
 public:
 
@@ -341,16 +341,16 @@ public:
 };
 
 // Constructor
-PatchTablesFactory::AdaptiveContext::AdaptiveContext(
+PatchTableFactory::AdaptiveContext::AdaptiveContext(
     TopologyRefiner const & ref, Options opts) :
-    refiner(ref), options(opts), tables(0),
+    refiner(ref), options(opts), table(0),
     fvarChannelCursor(ref, opts) {
 
     fvarPatchValues.resize(fvarChannelCursor.size());
 }
 
 void
-PatchTablesFactory::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
+PatchTableFactory::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
 
     FVarChannelCursor & fvc = fvarChannelCursor;
     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
@@ -367,31 +367,31 @@ PatchTablesFactory::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
 }
 
 bool
-PatchTablesFactory::AdaptiveContext::RequiresFVarPatches() const {
+PatchTableFactory::AdaptiveContext::RequiresFVarPatches() const {
     return not fvarPatchValues.empty();
 }
 
 //
-//  Reserves tables based on the contents of the PatchArrayVector in the PatchTables:
+//  Reserves tables based on the contents of the PatchArrayVector in the PatchTable:
 //
 void
-PatchTablesFactory::allocateVertexTables(PatchTables * tables, int /* nlevels */, bool hasSharpness) {
+PatchTableFactory::allocateVertexTables(PatchTable * table, int /* nlevels */, bool hasSharpness) {
 
     int ncvs = 0, npatches = 0;
-    for (int i=0; i<tables->GetNumPatchArrays(); ++i) {
-        npatches += tables->GetNumPatches(i);
-        ncvs += tables->GetNumControlVertices(i);
+    for (int i=0; i<table->GetNumPatchArrays(); ++i) {
+        npatches += table->GetNumPatches(i);
+        ncvs += table->GetNumControlVertices(i);
     }
 
     if (ncvs==0 or npatches==0)
         return;
 
-    tables->_patchVerts.resize( ncvs );
+    table->_patchVerts.resize( ncvs );
 
-    tables->_paramTable.resize( npatches );
+    table->_paramTable.resize( npatches );
 
     if (hasSharpness) {
-        tables->_sharpnessIndices.resize( npatches, Vtr::INDEX_INVALID );
+        table->_sharpnessIndices.resize( npatches, Vtr::INDEX_INVALID );
     }
 }
 
@@ -399,11 +399,11 @@ PatchTablesFactory::allocateVertexTables(PatchTables * tables, int /* nlevels */
 //  Allocate face-varying tables
 //
 void
-PatchTablesFactory::allocateFVarChannels(TopologyRefiner const & refiner,
-    Options options, int npatches, PatchTables * tables) {
+PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
+    Options options, int npatches, PatchTable * table) {
 
     assert(options.generateFVarTables and
-        refiner.GetNumFVarChannels()>0 and npatches>0 and tables);
+        refiner.GetNumFVarChannels()>0 and npatches>0 and table);
 
     // Create a channel cursor to iterate over client-selected channels or
     // default to the channels found in the TopologyRefiner
@@ -412,7 +412,7 @@ PatchTablesFactory::allocateFVarChannels(TopologyRefiner const & refiner,
         return;
     }
 
-    tables->allocateFVarPatchChannels(fvc.size());
+    table->allocateFVarPatchChannels(fvc.size());
 
     // Iterate with the cursor to initialize each channel
     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
@@ -420,7 +420,7 @@ PatchTablesFactory::allocateFVarChannels(TopologyRefiner const & refiner,
         Sdc::Options::FVarLinearInterpolation interpolation =
             refiner.GetFVarLinearInterpolation(*fvc);
 
-        tables->setFVarPatchChannelLinearInterpolation(fvc.pos(), interpolation);
+        table->setFVarPatchChannelLinearInterpolation(fvc.pos(), interpolation);
 
         int nverts = 0;
         if (interpolation==Sdc::Options::FVAR_LINEAR_ALL) {
@@ -428,20 +428,20 @@ PatchTablesFactory::allocateFVarChannels(TopologyRefiner const & refiner,
             PatchDescriptor::Type type = options.triangulateQuads ?
                 PatchDescriptor::TRIANGLES : PatchDescriptor::QUADS;
 
-            tables->setFVarPatchChannelPatchesType(fvc.pos(), type);
+            table->setFVarPatchChannelPatchesType(fvc.pos(), type);
 
             nverts =
                 npatches * PatchDescriptor::GetNumFVarControlVertices(type);
 
         }
-        tables->allocateChannelValues(fvc.pos(), npatches, nverts);
+        table->allocateChannelValues(fvc.pos(), npatches, nverts);
     }
 }
 
 
 // gather face-varying patch points
 int
-PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
+PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
     Index faceIndex, Index levelFaceOffset, int rotation,
         Index const * levelFVarVertOffsets, Index fofss, Index ** fptrs) {
 
@@ -451,7 +451,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
 
     TopologyRefiner const & refiner = context.refiner;
 
-    PatchTables * tables = context.tables;
+    PatchTable * table = context.table;
 
     assert((levelFaceOffset + faceIndex)<(int)context.patchTags.size());
     PatchFaceTag & vertexPatchTag = context.patchTags[levelFaceOffset + faceIndex];
@@ -572,7 +572,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
             }
 
             Vtr::Array<PatchDescriptor::Type> patchTypes =
-                tables->getFVarPatchTypes(fvc.pos());
+                table->getFVarPatchTypes(fvc.pos());
             assert(not patchTypes.empty());
             patchTypes[fofss] = fvarPatchType;
 
@@ -652,7 +652,7 @@ PatchTablesFactory::gatherFVarData(AdaptiveContext & context, int level,
 //  a pointer to the next descriptor
 //
 PatchParam *
-PatchTablesFactory::computePatchParam(
+PatchTableFactory::computePatchParam(
     TopologyRefiner const & refiner, PtexIndices const &ptexIndices,
     int depth, Vtr::Index faceIndex, int boundaryMask, 
     int transitionMask, PatchParam *coord) {
@@ -665,7 +665,7 @@ PatchTablesFactory::computePatchParam(
         v = 0,
         ofs = 1;
 
-    bool nonquad = (refiner.GetFaceVertices(depth, faceIndex).size() != 4);
+    bool nonquad = (refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() != 4);
 
     for (int i = depth; i > 0; --i) {
         Vtr::Refinement const& refinement  = refiner.getRefinement(i-1);
@@ -733,8 +733,8 @@ assignSharpnessIndex(float sharpness, std::vector<float> & sharpnessValues) {
 //  cases.  In the past, more additional arguments were passed to the uniform version,
 //  but that may no longer be necessary (see notes in the uniform version below)...
 //
-PatchTables *
-PatchTablesFactory::Create(TopologyRefiner const & refiner, Options options) {
+PatchTable *
+PatchTableFactory::Create(TopologyRefiner const & refiner, Options options) {
 
     if (refiner.IsUniform()) {
         return createUniform(refiner, options);
@@ -743,8 +743,8 @@ PatchTablesFactory::Create(TopologyRefiner const & refiner, Options options) {
     }
 }
 
-PatchTables *
-PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options options) {
+PatchTable *
+PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options options) {
 
     assert(refiner.IsUniform());
 
@@ -772,22 +772,26 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
     assert(ptype!=PatchDescriptor::NON_PATCH);
 
     //
-    //  Create the instance of the tables and allocate and initialize its members.
+    //  Create the instance of the table and allocate and initialize its members.
     //
-    PatchTables * tables = new PatchTables(maxvalence);
+    PatchTable * table = new PatchTable(maxvalence);
 
-    tables->_numPtexFaces = ptexIndices.GetNumFaces();
+    table->_numPtexFaces = ptexIndices.GetNumFaces();
 
-    tables->reservePatchArrays(nlevels);
+    table->reservePatchArrays(nlevels);
 
     PatchDescriptor desc(ptype);
 
     // generate patch arrays
     for (int level=firstlevel, poffset=0, voffset=0; level<=maxlevel; ++level) {
 
-        int npatches = refiner.GetNumFaces(level);
+        TopologyLevel const & refLevel = refiner.GetLevel(level);
+
+        int npatches = refLevel.GetNumFaces();
         if (refiner.HasHoles()) {
-            npatches -= refiner.GetNumHoles(level);
+            for (int i = npatches - 1; i >= 0; --i) {
+                npatches -= refLevel.IsFaceHole(i);
+            }
         }
         assert(npatches>=0);
 
@@ -795,31 +799,31 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
             npatches *= 2;
 
         if (level>=firstlevel) {
-            tables->pushPatchArray(desc, npatches, &voffset, &poffset, 0);
+            table->pushPatchArray(desc, npatches, &voffset, &poffset, 0);
         }
     }
 
     // Allocate various tables
-    allocateVertexTables( tables, 0, /*hasSharpness=*/false );
+    allocateVertexTables( table, 0, /*hasSharpness=*/false );
 
     bool generateFVarPatches=false;
     FVarChannelCursor fvc(refiner, options);
     if (options.generateFVarTables and fvc.size()>0) {
-        int npatches = tables->GetNumPatchesTotal();
-        allocateFVarChannels(refiner, options, npatches, tables);
-        assert(fvc.size() == tables->GetNumFVarChannels());
+        int npatches = table->GetNumPatchesTotal();
+        allocateFVarChannels(refiner, options, npatches, table);
+        assert(fvc.size() == table->GetNumFVarChannels());
     }
 
     //
     //  Now populate the patches:
     //
 
-    Index          * iptr = &tables->_patchVerts[0];
-    PatchParam     * pptr = &tables->_paramTable[0];
+    Index          * iptr = &table->_patchVerts[0];
+    PatchParam     * pptr = &table->_paramTable[0];
     Index         ** fptr = 0;
 
     Index levelVertOffset = options.generateAllLevels ?
-        0 : refiner.GetNumVertices(0);
+        0 : refiner.GetLevel(0).GetNumVertices();
 
     Index * levelFVarVertOffsets = 0;
     if (generateFVarPatches) {
@@ -829,21 +833,23 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
 
         fptr = (Index **)alloca(fvc.size()*sizeof(Index *));
         for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-            fptr[fvc.pos()] = tables->getFVarPatchesValues(fvc.pos()).begin();
+            fptr[fvc.pos()] = table->getFVarPatchesValues(fvc.pos()).begin();
         }
     }
 
     for (int level=1; level<=maxlevel; ++level) {
 
-        int nfaces = refiner.GetNumFaces(level);
+        TopologyLevel const & refLevel = refiner.GetLevel(level);
+
+        int nfaces = refLevel.GetNumFaces();
         if (level>=firstlevel) {
             for (int face=0; face<nfaces; ++face) {
 
-                if (refiner.HasHoles() and refiner.IsFaceHole(level, face)) {
+                if (refiner.HasHoles() and refLevel.IsFaceHole(face)) {
                     continue;
                 }
 
-                ConstIndexArray fverts = refiner.GetFaceVertices(level, face);
+                ConstIndexArray fverts = refLevel.GetFaceVertices(face);
                 for (int vert=0; vert<fverts.size(); ++vert) {
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
@@ -852,9 +858,9 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
 
                 if (generateFVarPatches) {
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                        ConstIndexArray fvalues = refiner.GetFVarFaceValues(level, face, *fvc);
+                        ConstIndexArray fvalues = refLevel.GetFVarFaceValues(face, *fvc);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)tables->getFVarPatchesValues(fvc.pos()).size());
+                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarPatchesValues(fvc.pos()).size());
                             fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
                         }
                         fptr[fvc.pos()]+=fvalues.size();
@@ -884,17 +890,17 @@ PatchTablesFactory::createUniform(TopologyRefiner const & refiner, Options optio
         }
 
         if (options.generateAllLevels) {
-            levelVertOffset += refiner.GetNumVertices(level);
+            levelVertOffset += refiner.GetLevel(level).GetNumVertices();
             for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                levelFVarVertOffsets[fvc.pos()] += refiner.GetNumFVarValues(level, fvc.pos());
+                levelFVarVertOffsets[fvc.pos()] += refiner.GetLevel(level).GetNumFVarValues(fvc.pos());
             }
         }
     }
-    return tables;
+    return table;
 }
 
-PatchTables *
-PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options options) {
+PatchTable *
+PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options options) {
 
     assert(not refiner.IsUniform());
 
@@ -909,15 +915,15 @@ PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options opti
     identifyAdaptivePatches(context);
 
     //
-    //  Create the instance of the tables and allocate and initialize its members based on
+    //  Create the instance of the table and allocate and initialize its members based on
     //  the inventory of patches determined above:
     //
     int maxValence = refiner.GetMaxValence();
 
-    context.tables = new PatchTables(maxValence);
+    context.table = new PatchTable(maxValence);
 
     // Populate the patch array descriptors
-    context.tables->reservePatchArrays(context.patchInventory.getNumPatchArrays());
+    context.table->reservePatchArrays(context.patchInventory.getNumPatchArrays());
 
     // Sort through the inventory and push back non-empty patch arrays
     ConstPatchDescriptorArray const & descs =
@@ -926,21 +932,21 @@ PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options opti
     int voffset=0, poffset=0, qoffset=0;
     for (int i=0; i<descs.size(); ++i) {
         PatchDescriptor desc = descs[i];
-        context.tables->pushPatchArray(desc,
+        context.table->pushPatchArray(desc,
             context.patchInventory.getValue(desc), &voffset, &poffset, &qoffset );
     }
 
-    context.tables->_numPtexFaces = ptexIndices.GetNumFaces();
+    context.table->_numPtexFaces = ptexIndices.GetNumFaces();
 
     // Allocate various tables
     bool hasSharpness = context.options.useSingleCreasePatch;
-    allocateVertexTables(context.tables, 0, hasSharpness);
+    allocateVertexTables(context.table, 0, hasSharpness);
 
     if (context.RequiresFVarPatches()) {
 
-        int npatches = context.tables->GetNumPatchesTotal();
+        int npatches = context.table->GetNumPatchesTotal();
 
-        allocateFVarChannels(refiner, options, npatches, context.tables);
+        allocateFVarChannels(refiner, options, npatches, context.table);
 
         // Reserve temporary non-sparse storage for non-linear fvar channels.
         // FVar Values for these channels are copied into the final
@@ -954,7 +960,7 @@ PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options opti
     //
     populateAdaptivePatches(context, ptexIndices);
 
-    return context.tables;
+    return context.table;
 }
 
 //
@@ -963,7 +969,7 @@ PatchTablesFactory::createAdaptive(TopologyRefiner const & refiner, Options opti
 //  later with no additional analysis.
 //
 void
-PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
+PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -1225,12 +1231,12 @@ PatchTablesFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 //  idenified.
 //
 void
-PatchTablesFactory::populateAdaptivePatches(
+PatchTableFactory::populateAdaptivePatches(
     AdaptiveContext & context, PtexIndices const & ptexIndices) {
 
     TopologyRefiner const & refiner = context.refiner;
 
-    PatchTables * tables = context.tables;
+    PatchTable * table = context.table;
 
     //
     //  Setup convenience pointers at the beginning of each patch array for each
@@ -1249,33 +1255,33 @@ PatchTablesFactory::populateAdaptivePatches(
 
         PatchDescriptor desc = descs[i];
 
-        Index arrayIndex = tables->findPatchArray(desc);
+        Index arrayIndex = table->findPatchArray(desc);
 
         if (arrayIndex==Vtr::INDEX_INVALID) {
             continue;
         }
 
-        iptrs.getValue(desc) = tables->getPatchArrayVertices(arrayIndex).begin();
-        pptrs.getValue(desc) = tables->getPatchParams(arrayIndex).begin();
+        iptrs.getValue(desc) = table->getPatchArrayVertices(arrayIndex).begin();
+        pptrs.getValue(desc) = table->getPatchParams(arrayIndex).begin();
         if (context.options.useSingleCreasePatch) {
-            sptrs.getValue(desc) = tables->getSharpnessIndices(arrayIndex);
+            sptrs.getValue(desc) = table->getSharpnessIndices(arrayIndex);
         }
 
         if (context.RequiresFVarPatches()) {
 
             Index & offsets = fofss.getValue(desc);
-            offsets = tables->getPatchIndex(arrayIndex, 0);
+            offsets = table->getPatchIndex(arrayIndex, 0);
 
             // XXXX manuelk this stuff will go away as we use offsets from FVarPatchChannel
             FVarChannelCursor & fvc = context.fvarChannelCursor;
-            assert(fvc.size() == tables->GetNumFVarChannels());
+            assert(fvc.size() == table->GetNumFVarChannels());
 
             Index ** fptr = (Index **)alloca(fvc.size()*sizeof(Index *));
             for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
 
-                Index pidx = tables->getPatchIndex(arrayIndex, 0);
+                Index pidx = table->getPatchIndex(arrayIndex, 0);
                 int ofs = pidx * 4;
-                fptr[fvc.pos()] = &tables->getFVarPatchesValues(fvc.pos())[ofs];
+                fptr[fvc.pos()] = &table->getFVarPatchesValues(fvc.pos())[ofs];
             }
             fptrs.getValue(desc) = fptr;
         }
@@ -1371,7 +1377,7 @@ PatchTablesFactory::populateAdaptivePatches(
                     iptrs.R += 16;
                     pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, boundaryMask, transitionMask, pptrs.R);
                     // XXX: sharpness will be integrated into patch param soon.
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
 
                     fofss.R += gatherFVarData(context,
                         i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
@@ -1389,7 +1395,7 @@ PatchTablesFactory::populateAdaptivePatches(
 
                     iptrs.R += 16;
                     pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, /*boundary*/0, transitionMask, pptrs.R);
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, tables->_sharpnessValues);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, table->_sharpnessValues);
 
                     fofss.R += gatherFVarData(context,
                         i, faceIndex, levelFaceOffset, bIndex, levelFVarVertOffsets, fofss.R, fptrs.R);
@@ -1410,7 +1416,7 @@ PatchTablesFactory::populateAdaptivePatches(
                     iptrs.GP += cvs.size();
                     pptrs.GP = computePatchParam(
                         refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GP);
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
                     fofss.GP += gatherFVarData(context,
                                                i, faceIndex, levelFaceOffset,
                                                0, levelFVarVertOffsets, fofss.GP, fptrs.GP);
@@ -1425,7 +1431,7 @@ PatchTablesFactory::populateAdaptivePatches(
                     iptrs.R += cvs.size();
                     pptrs.R = computePatchParam(
                         refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.R);
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
                     fofss.R += gatherFVarData(context,
                                               i, faceIndex, levelFaceOffset,
                                               0, levelFVarVertOffsets, fofss.R, fptrs.R);
@@ -1441,7 +1447,7 @@ PatchTablesFactory::populateAdaptivePatches(
                         iptrs.G += cvs.size();
                         pptrs.G = computePatchParam(
                             refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.G);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
                         fofss.G += gatherFVarData(context,
                                                   i, faceIndex, levelFaceOffset,
                                                   0, levelFVarVertOffsets, fofss.G, fptrs.G);
@@ -1450,7 +1456,7 @@ PatchTablesFactory::populateAdaptivePatches(
                         iptrs.GB += cvs.size();
                         pptrs.GB = computePatchParam(
                             refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GB);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, tables->_sharpnessValues);
+                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
                         fofss.GB += gatherFVarData(context,
                                                    i, faceIndex, levelFaceOffset,
                                                    0, levelFVarVertOffsets, fofss.GB, fptrs.GB);
@@ -1480,24 +1486,24 @@ PatchTablesFactory::populateAdaptivePatches(
     // finalize end patches
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_GREGORY_BASIS:
-        tables->_vertexStencilTables =
-            endCapGregoryBasis->CreateVertexStencilTables();
-        tables->_varyingStencilTables =
-            endCapGregoryBasis->CreateVaryingStencilTables();
+        table->_vertexStencilTable =
+            endCapGregoryBasis->CreateVertexStencilTable();
+        table->_varyingStencilTable =
+            endCapGregoryBasis->CreateVaryingStencilTable();
         delete endCapGregoryBasis;
         break;
     case Options::ENDCAP_BSPLINE_BASIS:
-        tables->_vertexStencilTables =
-            endCapBSpline->CreateVertexStencilTables();
-        tables->_varyingStencilTables =
-            endCapBSpline->CreateVaryingStencilTables();
+        table->_vertexStencilTable =
+            endCapBSpline->CreateVertexStencilTable();
+        table->_varyingStencilTable =
+            endCapBSpline->CreateVaryingStencilTable();
         delete endCapBSpline;
         break;
     case Options::ENDCAP_LEGACY_GREGORY:
         endCapLegacyGregory->Finalize(
-            tables->GetMaxValence(),
-            &tables->_quadOffsetsTable,
-            &tables->_vertexValenceTable);
+            table->GetMaxValence(),
+            &table->_quadOffsetsTable,
+            &table->_vertexValenceTable);
         delete endCapLegacyGregory;
         break;
     default:
@@ -1511,8 +1517,8 @@ PatchTablesFactory::populateAdaptivePatches(
         FVarChannelCursor & fvc = context.fvarChannelCursor;
         for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
 
-            if (tables->GetFVarChannelLinearInterpolation(fvc.pos())!=Sdc::Options::FVAR_LINEAR_ALL) {
-                tables->setBicubicFVarPatchChannelValues(fvc.pos(),
+            if (table->GetFVarChannelLinearInterpolation(fvc.pos())!=Sdc::Options::FVAR_LINEAR_ALL) {
+                table->setBicubicFVarPatchChannelValues(fvc.pos(),
                     context.fvarPatchSize, context.fvarPatchValues[fvc.pos()]);
             }
         }

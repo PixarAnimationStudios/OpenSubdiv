@@ -26,7 +26,7 @@
 #define OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_SCENE_BASE_H
 
 #include <far/patchDescriptor.h>
-#include <far/patchTables.h>
+#include <far/patchTable.h>
 #include <osd/vertexDescriptor.h>
 #include <osd/opengl.h>
 
@@ -135,20 +135,20 @@ public:
 
 protected:
     int createStencilTable(Shape const *shape, int level, bool varying,
-                           OpenSubdiv::Far::PatchTables const **patchTableOut);
+                           OpenSubdiv::Far::PatchTable const **patchTableOut);
 
     void buildBatches();
 
     virtual size_t createMeshRefiner(
-        OpenSubdiv::Far::StencilTables const * vertexStencils,
-        OpenSubdiv::Far::StencilTables const * varyingStencils,
+        OpenSubdiv::Far::StencilTable const * vertexStencils,
+        OpenSubdiv::Far::StencilTable const * varyingStencils,
         int numControlVertices) = 0;
 
     Options _options;
 
     std::vector<Object> _objects;
     std::vector<Topology> _topologies;
-    std::vector<OpenSubdiv::Far::PatchTables const *> _patchTables;
+    std::vector<OpenSubdiv::Far::PatchTable const *> _patchTables;
     GLuint _indexBuffer;
     GLuint _patchParamTexture;
     BatchVector _batches;

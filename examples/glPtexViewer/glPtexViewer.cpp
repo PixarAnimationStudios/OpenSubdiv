@@ -322,13 +322,15 @@ calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+
     // calc normal vectors
-    int nverts = refiner->GetNumVertices(0),
-        nfaces = refiner->GetNumFaces(0);
+    int nverts = refBaseLevel.GetNumVertices(),
+        nfaces = refBaseLevel.GetNumFaces();
 
     for (int face = 0; face < nfaces; ++face) {
 
-        IndexArray fverts = refiner->GetFaceVertices(0, face);
+        IndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
         float const * p0 = &pos[fverts[0]*3],
                     * p1 = &pos[fverts[1]*3],
@@ -907,10 +909,12 @@ createOsdMesh(int level, int kernel) {
     // save coarse topology (used for coarse mesh drawing)
 
     // create cage edge index
-    int nedges = refiner->GetNumEdges(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+
+    int nedges = refBaseLevel.GetNumEdges();
     std::vector<int> edgeIndices(nedges*2);
     for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
+        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
         edgeIndices[i*2  ]=verts[0];
         edgeIndices[i*2+1]=verts[1];
     }
@@ -935,7 +939,7 @@ createOsdMesh(int level, int kernel) {
 
     if (kernel == kCPU) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Far::StencilTable,
                                            OpenSubdiv::Osd::CpuEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -945,7 +949,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Far::StencilTable,
                                            OpenSubdiv::Osd::OmpEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -956,7 +960,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                           OpenSubdiv::Far::StencilTables,
+                                           OpenSubdiv::Far::StencilTable,
                                            OpenSubdiv::Osd::TbbEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -968,7 +972,7 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kCL) {
         static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
-                                           OpenSubdiv::Osd::CLStencilTables,
+                                           OpenSubdiv::Osd::CLStencilTable,
                                            OpenSubdiv::Osd::CLEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable,
                                            CLDeviceContext>(
@@ -982,7 +986,7 @@ createOsdMesh(int level, int kernel) {
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (kernel == kCUDA) {
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
-                                           OpenSubdiv::Osd::CudaStencilTables,
+                                           OpenSubdiv::Osd::CudaStencilTable,
                                            OpenSubdiv::Osd::CudaEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,
@@ -994,7 +998,7 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kGLSL) {
         static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::GLXFBEvaluator> glXFBEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                           OpenSubdiv::Osd::GLStencilTablesTBO,
+                                           OpenSubdiv::Osd::GLStencilTableTBO,
                                            OpenSubdiv::Osd::GLXFBEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                refiner,
@@ -1007,7 +1011,7 @@ createOsdMesh(int level, int kernel) {
     } else if (kernel == kGLSLCompute) {
         static OpenSubdiv::Osd::EvaluatorCacheT<OpenSubdiv::Osd::GLComputeEvaluator> glComputeEvaluatorCache;
         g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                           OpenSubdiv::Osd::GLStencilTablesSSBO,
+                                           OpenSubdiv::Osd::GLStencilTableSSBO,
                                            OpenSubdiv::Osd::GLComputeEvaluator,
                                            OpenSubdiv::Osd::GLPatchTable>(
                                                 refiner,

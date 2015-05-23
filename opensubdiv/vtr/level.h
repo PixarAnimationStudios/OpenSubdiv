@@ -40,20 +40,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//  Forward declarations for friends:
-namespace Far {
-    template <class MESH> class TopologyRefinerFactory;
-    class TopologyRefinerFactoryBase;
-    class TopologyRefiner;
-    class PatchTablesFactory;
-}
-
 namespace Vtr {
 
 class Refinement;
-class QuadRefinement;
-class TriRefinement;
-class FVarRefinement;
 class FVarLevel;
 
 //
@@ -63,13 +52,12 @@ class FVarLevel;
 //  level can be used as the base level of another subdivision hierarchy and can
 //  be considered a complete mesh independent of its ancestors.  It currently
 //  does contain a "depth" member -- as some inferences can then be made about
-//  the topology (i.e. all quads or all tris if not level 0) but that is still
-//  under consideration (e.g. a "regular" flag would serve the same purpose, and
-//  level 0 may even be regular).
+//  the topology (i.e. all quads or all tris if not level 0).
 //
-//  This class is intended for private use within the library.  So really its
-//  interface should be fully protected and only those library classes that need
-//  it will be declared as friends, e.g. Refinement.
+//  This class is intended for private use within the library.  There are still
+//  opportunities to specialize levels -- e.g. those supporing N-sided faces vs
+//  those are are purely quads or tris -- so we prefer to insulate it from public
+//  access.
 //
 //  The represenation of topology here is to store six topological relationships
 //  in tables of integers.  Each is stored in its own array(s) so the result is
@@ -86,38 +74,6 @@ class FVarLevel;
 //  represenation, the intent is that it be amenable to refinement.  Classes in
 //  the Far layer essentially store 5 of these 6 in a permuted form -- we add
 //  the face-edges here to simplify refinement.
-//
-//  Notes/limitations/stuff to do -- much of this code still reflects the early days
-//  when it was being prototyped and so it does not conform to OSD standards in many
-//  ways:
-//      - superficial stylistic issues:
-//          . replacing "m" prefix with "_" on member variables
-//              - done
-//          . replace "access" and "modify" prefixes on Array methods with "get"
-//              - done
-//          - replace use of "...Count" with "GetNum..."
-//          - use of Vertex vs Vert in non-local (or any?) methods
-//      - review public/protected/friend accessibility
-//
-//  Most are more relevant to the refinement, which used to be part of this class:
-//      - short cuts that need revisiting:
-//          - support for face-vert counts > 4
-//          - support for edge-face counts > 2
-//          - some neighborhood searches avoidable with more "local indexing"
-//      - identify (informally) where scheme-specific code will be needed, so far:
-//          - topological splitting and associated marking
-//              - really the only variable here is whether to generate tris or
-//                quads from non-quads
-//          - interpolation
-//              - potentially not part of the pre-processing required for FarMesh
-//        and where it appears *not* to be needed:
-//          - subdivision of sharpness values
-//          - classification of vertex type/mask
-//      - apply classification of vertices (computing Rules or masks)
-//          - apply to base/course level on conversion
-//          - apply to child level after subdivision of sharpness
-//      - keep in mind desired similarity with FarMesh tables for ease of transfer
-//        (contradicts previous point to some degree)
 //
 
 class Level {
@@ -262,7 +218,7 @@ public:
 
 public:
 
-    //  Debugging aides -- unclear what will persist...
+    //  Debugging aides:
     enum TopologyError {
         TOPOLOGY_MISSING_EDGE_FACES=0,
         TOPOLOGY_MISSING_EDGE_VERTS,
@@ -295,8 +251,7 @@ public:
     void print(const Refinement* parentRefinement = 0) const;
 
 public:
-    //  High-level topology queries -- these are likely to be moved elsewhere, but here
-    //  is the best place for them for now...
+    //  High-level topology queries -- these may be moved elsewhere:
 
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
@@ -325,19 +280,7 @@ public:
     int gatherTriRegularCornerVertexPatchPoints(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
     int gatherTriRegularCornerEdgePatchPoints(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
 
-protected:
-
-    friend class Refinement;
-    friend class QuadRefinement;
-    friend class TriRefinement;
-    friend class FVarRefinement;
-    friend class FVarLevel;
-
-    template <class MESH> friend class Far::TopologyRefinerFactory;
-    friend class Far::TopologyRefinerFactoryBase;
-    friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactory;
-
+public:
     //  Sizing methods used to construct a level to populate:
     void resizeFaces(       int numFaces);
     void resizeFaceVertices(int numFaceVertsTotal);
@@ -418,13 +361,14 @@ protected:
     void resizeVertexEdges(Index vertIndex, int count);
     void trimVertexEdges(  Index vertIndex, int count);
 
-protected:
+public:
     //
-    //  Plans where to have a few specific friend classes properly construct the topology,
-    //  e.g. the Refinement class.  There is now clearly a need to have some class
-    //  construct full topology given only a simple face-vertex list.  That can be done
-    //  externally (either a Factory outside Vtr or another Vtr construction helper), but
-    //  until we decide where, the required implementation is defined here.
+    //  Initial plans were to have a few specific classes properly construct the
+    //  topology from scratch, e.g. the Refinement class and a Factory class for
+    //  the base level, by populating all topological relations.  The need to have
+    //  a class construct full topology given only a simple face-vertex list, made
+    //  it necessary to write code to define and orient all relations -- and most
+    //  of that seemed best placed here.
     //
     bool completeTopologyFromFaceVertices();
     Index findEdge(Index v0, Index v1, ConstIndexArray v0Edges) const;
@@ -437,7 +381,8 @@ protected:
 
     IndexArray shareFaceVertCountsAndOffsets() const;
 
-protected:
+//  Members temporarily public pending re-assessment of friends:
+public:
     //
     //  A Level is independent of subdivision scheme or options.  While it may have been
     //  affected by them in its construction, they are not associated with it -- a Level

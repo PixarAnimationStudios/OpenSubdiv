@@ -214,7 +214,7 @@ int main(int, char **) {
 
     // Allocate & interpolate the 'face-varying' primvar data
     int channel = 0,
-        nCoarseFVVerts = refiner->GetNumFVarValues(0, channel);
+        nCoarseFVVerts = refiner->GetLevel(0).GetNumFVarValues(channel);
 
     std::vector<FVarVertex> fvBuffer(refiner->GetNumFVarValuesTotal(channel));
     FVarVertex * fvVerts = &fvBuffer[0];
@@ -229,16 +229,18 @@ int main(int, char **) {
 
     { // Output OBJ of the highest level refined -----------
 
+        Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
+
         // Print vertex positions
         for (int level=0, firstVert=0; level<=maxlevel; ++level) {
 
             if (level==maxlevel) {
-                for (int vert=0; vert<refiner->GetNumVertices(level); ++vert) {
+                for (int vert=0; vert<refLastLevel.GetNumVertices(); ++vert) {
                     float const * pos = verts[firstVert+vert].GetPosition();
                     printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
                 }
             } else {
-                firstVert += refiner->GetNumVertices(level);
+                firstVert += refiner->GetLevel(level).GetNumVertices();
             }
         }
 
@@ -246,21 +248,21 @@ int main(int, char **) {
         for (int level=0, firstVert=0; level<=maxlevel; ++level) {
 
             if (level==maxlevel) {
-                for (int vert=0; vert<refiner->GetNumFVarValues(level, channel); ++vert) {
+                for (int vert=0; vert<refLastLevel.GetNumFVarValues(channel); ++vert) {
                     FVarVertex const & uv = fvVerts[firstVert+vert];
                     printf("vt %f %f\n", uv.u, uv.v);
                 }
             } else {
-                firstVert += refiner->GetNumFVarValues(level, channel);
+                firstVert += refiner->GetLevel(level).GetNumFVarValues(channel);
             }
         }
 
 
         // Print faces
-        for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
+        for (int face=0; face<refLastLevel.GetNumFaces(); ++face) {
 
-            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face),
-                                 fvverts = refiner->GetFVarFaceValues(maxlevel, face, channel);
+            Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face),
+                                 fvverts = refLastLevel.GetFVarFaceValues(face, channel);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4 and fvverts.size()==4);

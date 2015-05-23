@@ -35,7 +35,7 @@
 #include <D3Dcompiler.h>
 
 #include "../far/error.h"
-#include "../far/stencilTables.h"
+#include "../far/stencilTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -112,37 +112,37 @@ static ID3D11ShaderResourceView *createSRV(ID3D11Buffer *buffer,
     return srv;
 }
 
-D3D11StencilTables::D3D11StencilTables(Far::StencilTables const *stencilTables,
-                                       ID3D11DeviceContext *deviceContext)
+D3D11StencilTable::D3D11StencilTable(Far::StencilTable const *stencilTable,
+                                     ID3D11DeviceContext *deviceContext)
  {
     ID3D11Device *device = NULL;
     deviceContext->GetDevice(&device);
     assert(device);
 
-    _numStencils = stencilTables->GetNumStencils();
+    _numStencils = stencilTable->GetNumStencils();
     if (_numStencils > 0) {
-        std::vector<int> const &sizes = stencilTables->GetSizes();
+        std::vector<int> const &sizes = stencilTable->GetSizes();
 
         _sizesBuffer   = createBuffer(sizes, device);
-        _offsetsBuffer = createBuffer(stencilTables->GetOffsets(), device);
-        _indicesBuffer = createBuffer(stencilTables->GetControlIndices(), device);
-        _weightsBuffer = createBuffer(stencilTables->GetWeights(), device);
+        _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), device);
+        _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), device);
+        _weightsBuffer = createBuffer(stencilTable->GetWeights(), device);
 
         _sizes   = createSRV(_sizesBuffer,   DXGI_FORMAT_R32_SINT, device,
-                             stencilTables->GetSizes().size());
+                             stencilTable->GetSizes().size());
         _offsets = createSRV(_offsetsBuffer, DXGI_FORMAT_R32_SINT, device,
-                             stencilTables->GetOffsets().size());
+                             stencilTable->GetOffsets().size());
         _indices = createSRV(_indicesBuffer, DXGI_FORMAT_R32_SINT, device,
-                             stencilTables->GetControlIndices().size());
+                             stencilTable->GetControlIndices().size());
         _weights= createSRV(_weightsBuffer, DXGI_FORMAT_R32_FLOAT, device,
-                            stencilTables->GetWeights().size());
+                            stencilTable->GetWeights().size());
     } else {
         _sizes = _offsets = _indices = _weights = NULL;
         _sizesBuffer = _offsetsBuffer = _indicesBuffer = _weightsBuffer = NULL;
     }
 }
 
-D3D11StencilTables::~D3D11StencilTables() {
+D3D11StencilTable::~D3D11StencilTable() {
     SAFE_RELEASE(_sizes);
     SAFE_RELEASE(_sizesBuffer);
     SAFE_RELEASE(_offsets);
@@ -341,7 +341,7 @@ D3D11ComputeEvaluator::EvalStencils(ID3D11UnorderedAccessView *srcUAV,
     ID3D11ShaderResourceView *SRViews[] = {
         sizesSRV, offsetsSRV, indicesSRV, weightsSRV };
 
-    // bind source vertex and stencil tables
+    // bind source vertex and stencil table
     deviceContext->CSSetShaderResources(1, 4, SRViews); // t1-t4
 
     if (srcUAV == dstUAV) {
@@ -356,7 +356,7 @@ D3D11ComputeEvaluator::EvalStencils(ID3D11UnorderedAccessView *srcUAV,
         deviceContext->Dispatch((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
     }
 
-    // unbind stencil tables and vertexbuffers
+    // unbind stencil table and vertexbuffers
     SRViews[0] = SRViews[1] = SRViews[2] = SRViews[3] = NULL;
     deviceContext->CSSetShaderResources(1, 4, SRViews);
 

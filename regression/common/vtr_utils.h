@@ -155,14 +155,14 @@ InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
 
     // populate coarse mesh positions
     data.resize(refiner->GetNumVerticesTotal());
-    for (int i=0; i<refiner->GetNumVertices(0); i++) {
+    for (int i=0; i<refiner->GetLevel(0).GetNumVertices(); i++) {
         data[i].SetPosition(shape->verts[i*3+0],
                             shape->verts[i*3+1],
                             shape->verts[i*3+2]);
     }
 
     T * verts = &data[0];
-    refiner->Interpolate(verts, verts+refiner->GetNumVertices(0));
+    refiner->Interpolate(verts, verts+refiner->GetLevel(0).GetNumVertices());
 
     delete shape;
     return refiner;
@@ -204,7 +204,7 @@ TopologyRefinerFactory<Shape>::assignComponentTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
     { // Face relations:
-        int nfaces = refiner.GetNumFaces(0);
+        int nfaces = refiner.GetLevel(0).GetNumFaces();
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 
@@ -235,7 +235,7 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     // UV layyout (we only parse 1 channel)
     if (not shape.faceuvs.empty()) {
 
-        int nfaces = refiner.GetNumFaces(0),
+        int nfaces = refiner.GetLevel(0).GetNumFaces(),
            channel = refiner.createBaseFVarChannel( (int)shape.uvs.size()/2 );
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
@@ -273,7 +273,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size()-1; j += 2) {
 
-                OpenSubdiv::Vtr::Index edge = refiner.FindEdge(/*level*/0, t->intargs[j], t->intargs[j+1]);
+                OpenSubdiv::Vtr::Index edge = refiner.GetLevel(0).FindEdge(t->intargs[j], t->intargs[j+1]);
                 if (edge==OpenSubdiv::Vtr::INDEX_INVALID) {
                     printf("cannot find edge for crease tag (%d,%d)\n", t->intargs[j], t->intargs[j+1] );
                     return false;
@@ -287,7 +287,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size(); ++j) {
                 int vertex = t->intargs[j];
-                if (vertex<0 or vertex>=refiner.GetNumVertices(/*level*/0)) {
+                if (vertex<0 or vertex>=refiner.GetLevel(0).GetNumVertices()) {
                     printf("cannot find vertex for corner tag (%d)\n", vertex );
                     return false;
                 } else {

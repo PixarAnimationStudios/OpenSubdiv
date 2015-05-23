@@ -34,28 +34,28 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class StencilTables;
+    class StencilTable;
 }
 
 namespace Osd {
 
-/// \brief CUDA stencil tables
+/// \brief CUDA stencil table
 ///
-/// This class is a cuda buffer representation of Far::StencilTables.
+/// This class is a cuda buffer representation of Far::StencilTable.
 ///
 /// CudaComputeKernel consumes this table to apply stencils
 ///
 ///
-class CudaStencilTables {
+class CudaStencilTable {
 public:
-    static CudaStencilTables *Create(Far::StencilTables const *stencilTables,
-                                     void *deviceContext = NULL) {
+    static CudaStencilTable *Create(Far::StencilTable const *stencilTable,
+                                    void *deviceContext = NULL) {
         (void)deviceContext;  // unused
-        return new CudaStencilTables(stencilTables);
+        return new CudaStencilTable(stencilTable);
     }
 
-    explicit CudaStencilTables(Far::StencilTables const *stencilTables);
-    ~CudaStencilTables();
+    explicit CudaStencilTable(Far::StencilTable const *stencilTable);
+    ~CudaStencilTable();
 
     // interfaces needed for CudaCompute
     void *GetSizesBuffer() const { return _sizes; }
@@ -92,7 +92,7 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTables  stencil table to be applied. The table must have
+    /// @param stencilTable   stencil table to be applied. The table must have
     ///                       Cuda memory interfaces.
     ///
     /// @param instance       not used in the CudaEvaluator

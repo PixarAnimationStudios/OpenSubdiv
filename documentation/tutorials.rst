@@ -89,17 +89,17 @@ or in your local ``<repository root>/turorials``.
        | |far_tut_3|
        |
      - | **Tutorial 4**
-       | This tutorial shows how to create and manipulate FarStencilTables. We use the
+       | This tutorial shows how to create and manipulate FarStencilTable. We use the
          factorized stencils to interpolate vertex primvar data buffers. `[code] <far_tutorial_4.html>`__
        |
        | **Tutorial 5**
        | This tutorial shows how to create and manipulate both 'vertex' and 'varying'
-         FarStencilTables to interpolate 2 primvar data buffers: vertex positions and
+         FarStencilTable to interpolate 2 primvar data buffers: vertex positions and
          vertex colors. `[code] <far_tutorial_5.html>`__
        |
        | **Tutorial 6**
        | This tutorial shows how to interpolate surface limits at arbitrary
-         parametric locations using feature adaptive Far::PatchTables. `[code] <far_tutorial_6.html>`__
+         parametric locations using feature adaptive Far::PatchTable. `[code] <far_tutorial_6.html>`__
        | |far_tut_6|
        |
        | **Tutorial 7**

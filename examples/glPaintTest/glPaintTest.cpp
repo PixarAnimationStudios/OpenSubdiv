@@ -238,7 +238,7 @@ createOsdMesh() {
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
 
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                       OpenSubdiv::Far::StencilTables,
+                                       OpenSubdiv::Far::StencilTable,
                                        OpenSubdiv::Osd::CpuEvaluator,
                                        OpenSubdiv::Osd::GLPatchTable>(
                                            refiner, 3, 0, g_level, bits);

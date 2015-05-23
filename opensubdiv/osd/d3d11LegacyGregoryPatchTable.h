@@ -27,7 +27,7 @@
 
 #include "../version.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 #include "../osd/nonCopyable.h"
 
 struct ID3D11Buffer;
@@ -47,12 +47,12 @@ public:
 
     template<typename DEVICE_CONTEXT>
     static D3D11LegacyGregoryPatchTable *Create(
-        Far::PatchTables const *farPatchTables, DEVICE_CONTEXT context) {
-        return Create(farPatchTables, context->GetDeviceContext());
+        Far::PatchTable const *farPatchTable, DEVICE_CONTEXT context) {
+        return Create(farPatchTable, context->GetDeviceContext());
     }
 
     static D3D11LegacyGregoryPatchTable *Create(
-        Far::PatchTables const *farPatchTables,
+        Far::PatchTable const *farPatchTable,
         ID3D11DeviceContext *deviceContext);
 
     void UpdateVertexBuffer(ID3D11Buffer *vbo,

@@ -24,7 +24,7 @@
 
 #include "../osd/glPatchTable.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 #include "../osd/opengl.h"
 
 namespace OpenSubdiv {
@@ -42,16 +42,16 @@ GLPatchTable::~GLPatchTable() {
 }
 
 GLPatchTable *
-GLPatchTable::Create(Far::PatchTables const *farPatchTables,
+GLPatchTable::Create(Far::PatchTable const *farPatchTable,
                      void * /*deviceContext*/) {
     GLPatchTable *instance = new GLPatchTable();
-    if (instance->allocate(farPatchTables)) return instance;
+    if (instance->allocate(farPatchTable)) return instance;
     delete instance;
     return 0;
 }
 
 bool
-GLPatchTable::allocate(Far::PatchTables const *farPatchTables) {
+GLPatchTable::allocate(Far::PatchTable const *farPatchTable) {
     glGenBuffers(1, &_indexBuffer);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBuffer);
@@ -60,18 +60,18 @@ GLPatchTable::allocate(Far::PatchTables const *farPatchTables) {
 
     // needs reserve?
 
-    int nPatchArrays = farPatchTables->GetNumPatchArrays();
+    int nPatchArrays = farPatchTable->GetNumPatchArrays();
 
     // for each patchArray
     for (int j = 0; j < nPatchArrays; ++j) {
-        PatchArray patchArray(farPatchTables->GetPatchArrayDescriptor(j),
-                              farPatchTables->GetNumPatches(j),
+        PatchArray patchArray(farPatchTable->GetPatchArrayDescriptor(j),
+                              farPatchTable->GetNumPatches(j),
                               (int)buffer.size(),
                               (int)ppBuffer.size()/3);
         _patchArrays.push_back(patchArray);
 
         // indices
-        Far::ConstIndexArray indices = farPatchTables->GetPatchArrayVertices(j);
+        Far::ConstIndexArray indices = farPatchTable->GetPatchArrayVertices(j);
         for (int k = 0; k < indices.size(); ++k) {
             buffer.push_back(indices[k]);
         }
@@ -81,7 +81,7 @@ GLPatchTable::allocate(Far::PatchTables const *farPatchTables) {
         // XXX: we need sharpness interface for patcharray or put sharpness
         //      into patchParam.
         Far::ConstPatchParamArray patchParams =
-            farPatchTables->GetPatchParams(j);
+            farPatchTable->GetPatchParams(j);
         for (int k = 0; k < patchParams.size(); ++k) {
             float sharpness = 0.0;
             ppBuffer.push_back(patchParams[k].faceIndex);
@@ -90,21 +90,21 @@ GLPatchTable::allocate(Far::PatchTables const *farPatchTables) {
         }
 #else
         // XXX: workaround. GetPatchParamTable() will be deprecated though.
-        Far::PatchParamTable const & patchParamTables =
-            farPatchTables->GetPatchParamTable();
+        Far::PatchParamTable const & patchParamTable =
+            farPatchTable->GetPatchParamTable();
         std::vector<Far::Index> const &sharpnessIndexTable =
-            farPatchTables->GetSharpnessIndexTable();
-        int numPatches = farPatchTables->GetNumPatches(j);
+            farPatchTable->GetSharpnessIndexTable();
+        int numPatches = farPatchTable->GetNumPatches(j);
         for (int k = 0; k < numPatches; ++k) {
             float sharpness = 0.0;
             int patchIndex = (int)ppBuffer.size()/3;
             if (patchIndex < (int)sharpnessIndexTable.size()) {
                 int sharpnessIndex = sharpnessIndexTable[patchIndex];
                 if (sharpnessIndex >= 0)
-                    sharpness = farPatchTables->GetSharpnessValues()[sharpnessIndex];
+                    sharpness = farPatchTable->GetSharpnessValues()[sharpnessIndex];
             }
-            ppBuffer.push_back(patchParamTables[patchIndex].faceIndex);
-            ppBuffer.push_back(patchParamTables[patchIndex].bitField.field);
+            ppBuffer.push_back(patchParamTable[patchIndex].faceIndex);
+            ppBuffer.push_back(patchParamTable[patchIndex].bitField.field);
             ppBuffer.push_back(*((unsigned int *)&sharpness));
         }
 #endif

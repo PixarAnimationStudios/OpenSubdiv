@@ -317,13 +317,14 @@ bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
+    TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
 
     if ((desc.numCreases>0) and desc.creaseVertexIndexPairs and desc.creaseWeights) {
 
         int const * vertIndexPairs = desc.creaseVertexIndexPairs;
         for (int edge=0; edge<desc.numCreases; ++edge, vertIndexPairs+=2) {
 
-            Index idx = refiner.FindEdge(0, vertIndexPairs[0], vertIndexPairs[1]);
+            Index idx = refBaseLevel.FindEdge(vertIndexPairs[0], vertIndexPairs[1]);
 
             if (idx!=Vtr::INDEX_INVALID) {
                 refiner.setBaseEdgeSharpness(idx, desc.creaseWeights[edge]);
@@ -342,7 +343,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
             int idx = desc.cornerVertexIndices[vert];
 
-            if (idx >= 0 and idx < refiner.GetNumVertices(0)) {
+            if (idx >= 0 and idx < refBaseLevel.GetNumVertices()) {
                 refiner.setBaseVertexSharpness(idx, desc.cornerWeights[vert]);
             } else {
                 char msg[1024];
