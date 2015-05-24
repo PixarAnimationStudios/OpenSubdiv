@@ -36,6 +36,7 @@ set(SOURCE_FILES
     patchTable.cpp
     patchTableFactory.cpp
     ptexIndices.cpp
+    stencilTable.cpp
     stencilTableFactory.cpp
     stencilBuilder.cpp
     topologyRefiner.cpp
