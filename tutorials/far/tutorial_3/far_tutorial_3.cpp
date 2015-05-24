@@ -34,6 +34,7 @@
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
 
@@ -194,9 +195,9 @@ int main(int, char **) {
     // Uniformly refine the topolgy up to 'maxlevel'
     // note: fullTopologyInLastLevel must be true to work with face-varying data
     {
-        Far::TopologyRefiner::UniformOptions options(maxlevel);
-        options.fullTopologyInLastLevel = true;
-        refiner->RefineUniform(options);
+        Far::TopologyRefiner::UniformOptions refineOptions(maxlevel);
+        refineOptions.fullTopologyInLastLevel = true;
+        refiner->RefineUniform(refineOptions);
     }
 
     // Allocate & interpolate the 'vertex' primvar data (see tutorial 2 for
@@ -209,7 +210,7 @@ int main(int, char **) {
         verts[i].SetPosition(g_verts[i][0], g_verts[i][1], g_verts[i][2]);
     }
 
-    refiner->Interpolate(verts, verts + nCoarseVerts);
+    Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + nCoarseVerts);
 
 
     // Allocate & interpolate the 'face-varying' primvar data
@@ -224,7 +225,7 @@ int main(int, char **) {
         fvVerts[i].v = g_uvs[i][1];
     }
 
-    refiner->InterpolateFaceVarying(fvVerts, fvVerts + nCoarseFVVerts, channel);
+    Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(fvVerts, fvVerts + nCoarseFVVerts, channel);
 
 
     { // Output OBJ of the highest level refined -----------

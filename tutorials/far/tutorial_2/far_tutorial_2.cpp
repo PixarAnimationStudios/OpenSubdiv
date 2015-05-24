@@ -32,6 +32,7 @@
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
 
@@ -155,11 +156,11 @@ int main(int, char **) {
         verts[i].SetColor(g_colors[i][0], g_colors[i][1], g_colors[i][2]);
     }
 
+
     // Interpolate all primvar data - not that this will perform both 'vertex' and
     // 'varying' interpolation at once by calling each specialized method in our
     // Vertex class with the appropriate weights.
-    refiner->Interpolate(verts, verts + nCoarseVerts);
-
+    Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + nCoarseVerts);
 
 
     { // Visualization with Maya : print a MEL script that generates colored

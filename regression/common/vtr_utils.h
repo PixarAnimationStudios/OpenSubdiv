@@ -26,6 +26,7 @@
 #define VTR_UTILS_H
 
 #include <far/topologyRefinerFactory.h>
+#include <far/primvarRefiner.h>
 #include <far/types.h>
 
 #include "../../regression/common/shape_utils.h"
@@ -162,7 +163,9 @@ InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
     }
 
     T * verts = &data[0];
-    refiner->Interpolate(verts, verts+refiner->GetLevel(0).GetNumVertices());
+
+    OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(
+            verts, verts+refiner->GetLevel(0).GetNumVertices());
 
     delete shape;
     return refiner;

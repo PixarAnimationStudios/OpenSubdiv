@@ -61,7 +61,7 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
 
         memcpy(&buffer[0], &shape.uvs[0], shape.uvs.size()*sizeof(float));
 
-        refiner.InterpolateFaceVarying(
+        OpenSubdiv::Far::PrimvarRefiner(refiner).InterpolateFaceVarying(
             &buffer[0], &buffer[numValues0], channel);
 
         // we only keep the highest level of refinement !
@@ -78,6 +78,7 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
 
         memcpy(src, &shape.uvs[0], shape.uvs.size()*sizeof(float));
 
-        refiner.InterpolateFaceVarying(src, dst, channel);
+        OpenSubdiv::Far::PrimvarRefiner(refiner).InterpolateFaceVarying(
+            src, dst, channel);
     }
 }
