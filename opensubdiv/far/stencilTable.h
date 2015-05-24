@@ -39,82 +39,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-namespace {
-    void
-    copyStencilData(int numControlVerts,
-                    bool includeCoarseVerts,
-                    size_t firstOffset,
-                    std::vector<int> const*    offsets,
-                    std::vector<int> *        _offsets,
-                    std::vector<int> const*    sizes,
-                    std::vector<int> *        _sizes,
-                    std::vector<int> const*    sources,
-                    std::vector<int> *        _sources,
-                    std::vector<float> const*  weights,
-                    std::vector<float> *      _weights,
-                    std::vector<float> const*  duWeights=NULL,
-                    std::vector<float> *      _duWeights=NULL,
-                    std::vector<float> const*  dvWeights=NULL,
-                    std::vector<float> *      _dvWeights=NULL)
-    {
-        size_t off = includeCoarseVerts ? 0 : firstOffset;
-
-        _offsets->resize(offsets->size());
-        _sizes->resize(sizes->size());
-        _sources->resize(sources->size());
-        _weights->resize(weights->size());
-        if (_duWeights)
-            _duWeights->resize(duWeights->size());
-        if (_dvWeights)
-            _dvWeights->resize(dvWeights->size());
-
-        // The stencils are probably not in order, so we must copy/sort them.
-        // Note here that loop index 'i' represents stencil_i for vertex_i.
-        int curOffset = 0;
-
-        size_t stencilCount = 0,
-               weightCount = 0;
-        
-        for (size_t i = off; i < offsets->size(); i++) {
-            // Once we've copied out all the control verts, jump to the offset
-            // where the actual stencils begin.
-            if ((int)i == numControlVerts)
-                i = firstOffset;
-            
-            // Copy the stencil.
-            int sz = (*sizes)[i];
-            int off = (*offsets)[i];
-            (*_offsets)[stencilCount] = curOffset;
-            (*_sizes)[stencilCount] = sz;
-            std::memcpy(&(*_sources)[curOffset], 
-                        &(*sources)[off], sz*sizeof(int)); 
-            std::memcpy(&(*_weights)[curOffset], 
-                        &(*weights)[off], sz*sizeof(float)); 
-
-            if (_duWeights) {
-                std::memcpy(&(*_duWeights)[curOffset], 
-                            &(*duWeights)[off], sz*sizeof(float)); 
-            }
-            if (_dvWeights) {
-                std::memcpy(&(*_dvWeights)[curOffset], 
-                        &(*dvWeights)[off], sz*sizeof(float)); 
-            }
-
-            curOffset += sz;
-            stencilCount++;
-            weightCount += sz;
-        }
-
-        _offsets->resize(stencilCount);
-        _sizes->resize(stencilCount);
-        _sources->resize(weightCount);
-        if (_duWeights)
-            _duWeights->resize(weightCount);
-        if (_dvWeights)
-            _dvWeights->resize(weightCount);
-    }
-};
-
 /// \brief Vertex stencil descriptor
 ///
 /// Allows access and manipulation of a single stencil in a StencilTable.
@@ -205,17 +129,7 @@ class StencilTable {
                     std::vector<int> const& sources,
                     std::vector<float> const& weights,
                     bool includeCoarseVerts,
-                    size_t firstOffset)
-        : _numControlVertices(numControlVerts) 
-    {
-        copyStencilData(numControlVerts,
-                        includeCoarseVerts,
-                        firstOffset,
-                        &offsets, &_offsets, 
-                        &sizes, &_sizes,
-                        &sources, &_indices,
-                        &weights, &_weights);
-    }
+                    size_t firstOffset);
 
 public:
 
@@ -271,18 +185,11 @@ public:
     ///
     template <class T>
     void UpdateValues(T const *controlValues, T *values, Index start=-1, Index end=-1) const {
-
         update(controlValues, values, _weights, start, end);
     }
 
     /// \brief Clears the stencils from the table
-    void Clear() {
-        _numControlVertices=0;
-        _sizes.clear();
-        _offsets.clear();
-        _indices.clear();
-        _weights.clear();
-    }
+    void Clear();
 
 protected:
 
@@ -376,10 +283,6 @@ private:
 ///
 ///
 class LimitStencilTable : public StencilTable {
-
-public:
-
-    // TODO: share construction logic
     LimitStencilTable(int numControlVerts,
                     std::vector<int> const& offsets,
                     std::vector<int> const& sizes,
@@ -388,19 +291,9 @@ public:
                     std::vector<float> const& duWeights,
                     std::vector<float> const& dvWeights,
                     bool includeCoarseVerts,
-                    size_t firstOffset)
-        : StencilTable(numControlVerts)
-    {
-        copyStencilData(numControlVerts,
-                        includeCoarseVerts,
-                        firstOffset,
-                        &offsets, &_offsets, 
-                        &sizes, &_sizes,
-                        &sources, &_indices,
-                        &weights, &_weights,
-                        &duWeights, &_duWeights,
-                        &dvWeights, &_dvWeights);
-    }
+                    size_t firstOffset);
+
+public:
 
     /// \brief Returns the 'u' derivative stencil interpolation weights
     std::vector<float> const & GetDuWeights() const {
@@ -438,11 +331,7 @@ public:
     }
 
     /// \brief Clears the stencils from the table
-    void Clear() {
-        StencilTable::Clear();
-        _duWeights.clear();
-        _dvWeights.clear();
-    }
+    void Clear();
 
 private:
     friend class LimitStencilTableFactory;
@@ -503,7 +392,6 @@ StencilTable::generateOffsets() {
 
 inline void
 StencilTable::resize(int nstencils, int nelems) {
-
     _sizes.resize(nstencils);
     _indices.resize(nelems);
     _weights.resize(nelems);
@@ -512,7 +400,6 @@ StencilTable::resize(int nstencils, int nelems) {
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTable::GetStencil(Index i) const {
-
     assert((not _offsets.empty()) and i<(int)_offsets.size());
 
     Index ofs = _offsets[i];
@@ -529,7 +416,6 @@ StencilTable::operator[] (Index index) const {
 
 inline void
 LimitStencilTable::resize(int nstencils, int nelems) {
-
     StencilTable::resize(nstencils, nelems);
     _duWeights.resize(nelems);
     _dvWeights.resize(nelems);
