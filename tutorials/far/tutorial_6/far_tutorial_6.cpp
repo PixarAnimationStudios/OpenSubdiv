@@ -41,6 +41,7 @@
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
 #include <opensubdiv/far/patchTableFactory.h>
 #include <opensubdiv/far/endCapGregoryBasisPatchFactory.h>
 #include <opensubdiv/far/patchMap.h>
@@ -152,7 +153,7 @@ int main(int, char **) {
 
     // Interpolate vertex primvar data : they are the control vertices
     // of the limit patches (see far_tutorial_0 for details)
-    refiner->Interpolate(&verts[0], &verts[g_nverts]);
+    Far::PrimvarRefiner(*refiner).Interpolate(&verts[0], &verts[g_nverts]);
 
 
     // Generate a set of Far::PatchTable that we will use to evaluate the

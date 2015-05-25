@@ -59,6 +59,7 @@ set(PUBLIC_HEADER_FILES
     patchMap.h
     patchTable.h
     patchTableFactory.h
+    primvarRefiner.h
     ptexIndices.h
     stencilTable.h
     stencilTableFactory.h
