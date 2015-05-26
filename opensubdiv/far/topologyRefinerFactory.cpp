@@ -39,7 +39,7 @@ namespace Far {
 bool
 TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refiner) {
 
-    Vtr::Level& baseLevel = refiner.getLevel(0);
+    Vtr::internal::Level& baseLevel = refiner.getLevel(0);
 
     //
     //  At minimum we require face-vertices (the total count of which can be determined
@@ -103,7 +103,7 @@ bool
 TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation,
                                                                TopologyCallback callback, void const * callbackData) {
 
-    Vtr::Level& baseLevel = refiner.getLevel(0);
+    Vtr::internal::Level& baseLevel = refiner.getLevel(0);
 
     bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
     if (completeMissingTopology) {
@@ -150,7 +150,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     //  Since both involve traversing the edge and vertex lists and noting the presence of
     //  boundaries -- best to do both at once...
     //
-    Vtr::Level&  baseLevel = refiner.getLevel(0);
+    Vtr::internal::Level&  baseLevel = refiner.getLevel(0);
 
     assert((int)baseLevel._edgeTags.size() == baseLevel.getNumEdges());
     assert((int)baseLevel._vertTags.size() == baseLevel.getNumVertices());
@@ -167,7 +167,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     //  properties of their incident edges.
     //
     for (Vtr::Index eIndex = 0; eIndex < baseLevel.getNumEdges(); ++eIndex) {
-        Vtr::Level::ETag& eTag       = baseLevel._edgeTags[eIndex];
+        Vtr::internal::Level::ETag& eTag       = baseLevel._edgeTags[eIndex];
         float&          eSharpness = baseLevel._edgeSharpness[eIndex];
 
         eTag._boundary = (baseLevel._edgeFaceCountsAndOffsets[eIndex*2 + 0] < 2);
@@ -186,7 +186,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     int schemeRegularBoundaryValence = schemeRegularInteriorValence / 2;
 
     for (Vtr::Index vIndex = 0; vIndex < baseLevel.getNumVertices(); ++vIndex) {
-        Vtr::Level::VTag& vTag       = baseLevel._vertTags[vIndex];
+        Vtr::internal::Level::VTag& vTag       = baseLevel._vertTags[vIndex];
         float&          vSharpness = baseLevel._vertSharpness[vIndex];
 
         Vtr::ConstIndexArray vEdges = baseLevel.getVertexEdges(vIndex);
@@ -200,7 +200,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         int semiSharpEdgeCount   = 0;
         int nonManifoldEdgeCount = 0;
         for (int i = 0; i < vEdges.size(); ++i) {
-            Vtr::Level::ETag const& eTag = baseLevel._edgeTags[vEdges[i]];
+            Vtr::internal::Level::ETag const& eTag = baseLevel._edgeTags[vEdges[i]];
 
             boundaryEdgeCount    += eTag._boundary;
             infSharpEdgeCount    += eTag._infSharp;
@@ -233,7 +233,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         vTag._semiSharp      = Sdc::Crease::IsSemiSharp(vSharpness);
         vTag._semiSharpEdges = (semiSharpEdgeCount > 0);
 
-        vTag._rule = (Vtr::Level::VTag::VTagSize)creasing.DetermineVertexVertexRule(vSharpness, sharpEdgeCount);
+        vTag._rule = (Vtr::internal::Level::VTag::VTagSize)creasing.DetermineVertexVertexRule(vSharpness, sharpEdgeCount);
 
         //
         //  Assign topological tags -- note that the "xordinary" tag is not strictly
@@ -257,7 +257,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
 bool
 TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner) {
 
-    Vtr::Level& baseLevel = refiner.getLevel(0);
+    Vtr::internal::Level& baseLevel = refiner.getLevel(0);
 
     int regVertexValence   = Sdc::SchemeTypeTraits::GetRegularVertexValence(refiner.GetSchemeType());
     int regBoundaryValence = regVertexValence / 2;
@@ -332,7 +332,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
                 char msg[1024];
                 snprintf(msg, 1024, "Edge %d specified to be sharp does not exist (%d, %d)",
                     edge, vertIndexPairs[0], vertIndexPairs[1]);
-                reportInvalidTopology(Vtr::Level::TOPOLOGY_INVALID_CREASE_EDGE, msg, desc);
+                reportInvalidTopology(Vtr::internal::Level::TOPOLOGY_INVALID_CREASE_EDGE, msg, desc);
             }
         }
     }
@@ -348,7 +348,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
             } else {
                 char msg[1024];
                 snprintf(msg, 1024, "Vertex %d specified to be sharp does not exist", idx);
-                reportInvalidTopology(Vtr::Level::TOPOLOGY_INVALID_CREASE_VERT, msg, desc);
+                reportInvalidTopology(Vtr::internal::Level::TOPOLOGY_INVALID_CREASE_VERT, msg, desc);
             }
         }
     }

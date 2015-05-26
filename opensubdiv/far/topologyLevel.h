@@ -93,9 +93,9 @@ public:
 private:
     friend class TopologyRefiner;
 
-    Vtr::Level const *      _level;
-    Vtr::Refinement const * _refToParent;
-    Vtr::Refinement const * _refToChild;
+    Vtr::internal::Level const *      _level;
+    Vtr::internal::Refinement const * _refToParent;
+    Vtr::internal::Refinement const * _refToChild;
 
 public:
     //  Not intended for public use, but required by std::vector, etc...

@@ -99,7 +99,7 @@ protected:
     //  Protected methods invoked by the subclass template to verify and process each
     //  stage of construction implemented by the subclass:
     //
-    typedef Vtr::Level::ValidationCallback TopologyCallback;
+    typedef Vtr::internal::Level::ValidationCallback TopologyCallback;
 
     static bool prepareComponentTopologySizing(TopologyRefiner& refiner);
     static bool prepareComponentTopologyAssignment(TopologyRefiner& refiner, bool fullValidation,
@@ -181,7 +181,7 @@ protected:
     static bool assignFaceVaryingTopology(TopologyRefiner& refiner, MESH const& mesh);
 
     //  Optional miscellaneous specializations -- error reporting, etc.:
-    typedef Vtr::Level::TopologyError TopologyError;
+    typedef Vtr::internal::Level::TopologyError TopologyError;
 
     static void reportInvalidTopology(TopologyError errCode, char const * msg, MESH const& mesh);
 };

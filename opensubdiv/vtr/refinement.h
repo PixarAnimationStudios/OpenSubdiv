@@ -40,6 +40,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 class FVarRefinement;
 
@@ -424,6 +425,7 @@ Refinement::getEdgeChildEdges(Index parentEdge) {
     return IndexArray(&_edgeChildEdgeIndices[parentEdge*2], 2);
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

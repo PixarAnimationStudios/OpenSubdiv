@@ -32,11 +32,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//  Forward declarations (for internal implementation purposes):
-namespace Vtr { class Level; }
-
 namespace Far {
 
+//  Forward declarations (for internal implementation purposes):
 class PtexIndices;
 class TopologyRefiner;
 

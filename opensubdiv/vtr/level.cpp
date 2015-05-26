@@ -53,6 +53,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple (for now) constructor and destructor:
@@ -1964,6 +1965,7 @@ Level::completeFVarChannelTopology(int channel, int regBoundaryValence) {
     return _fvarChannels[channel]->completeTopologyFromFaceValues(regBoundaryValence);
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

@@ -44,7 +44,7 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
 
 ConstIndexArray
 EndCapBSplineBasisPatchFactory::GetPatchPoints(
-    Vtr::Level const * level, Index faceIndex) {
+    Vtr::internal::Level const * level, Index faceIndex) {
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with

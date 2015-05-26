@@ -45,6 +45,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple (for now) constructor and destructor:
@@ -1079,6 +1080,7 @@ FVarLevel::getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
     return compETag;
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

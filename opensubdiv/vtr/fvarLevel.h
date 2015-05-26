@@ -41,6 +41,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  FVarLevel:
@@ -363,6 +364,7 @@ FVarLevel::findVertexValueIndex(Index vertexIndex, Index valueIndex) const {
     return vvIndex;
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

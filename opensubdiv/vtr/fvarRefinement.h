@@ -41,6 +41,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  FVarRefinement:
@@ -107,6 +108,7 @@ public:
     std::vector<LocalIndex> _childValueParentSource;
 };
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

@@ -93,7 +93,7 @@ public:
     /// @param levelPatchTags   Array of patchTags for all faces in the level
     ///
     ConstIndexArray GetPatchPoints(
-        Vtr::Level const * level, Index faceIndex,
+        Vtr::internal::Level const * level, Index faceIndex,
         PatchTableFactory::PatchFaceTag const * levelPatchTags);
 
     /// \brief Create a StencilTable for end patch points, relative to the max

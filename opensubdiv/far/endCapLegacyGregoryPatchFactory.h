@@ -26,14 +26,16 @@
 #define OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
 
 #include "../far/patchTableFactory.h"
+#include "../vtr/level.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-class PatchTable;
-class TopologyRefiner;
 
 namespace Far {
+
+class PatchTable;
+class TopologyRefiner;
 
 /// \brief    This factory generates legacy (OpenSubdiv 2.x) gregory patches.
 ///
@@ -57,7 +59,7 @@ public:
     ///
     /// @param levelVertOffset  relative offset of patch vertex indices
     ///
-    ConstIndexArray GetPatchPoints(Vtr::Level const * level, Index faceIndex,
+    ConstIndexArray GetPatchPoints(Vtr::internal::Level const * level, Index faceIndex,
                                    PatchTableFactory::PatchFaceTag const * levelPatchTags,
                                    int levelVertOffset);
 

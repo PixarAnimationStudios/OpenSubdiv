@@ -57,7 +57,7 @@ namespace Far {
 // vertices.
 //
 static void
-getQuadOffsets(Vtr::Level const & level, Vtr::Index fIndex,
+getQuadOffsets(Vtr::internal::Level const & level, Vtr::Index fIndex,
     Vtr::Index offsets[], int fvarChannel=-1) {
 
     Far::ConstIndexArray fPoints = (fvarChannel<0) ?
@@ -150,7 +150,7 @@ inline float computeCoefficient(int valence) {
 }
 
 GregoryBasis::ProtoBasis::ProtoBasis(
-    Vtr::Level const & level, Index faceIndex, int fvarChannel) {
+    Vtr::internal::Level const & level, Index faceIndex, int fvarChannel) {
 
     Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
         level.getFaceVertices(faceIndex) :

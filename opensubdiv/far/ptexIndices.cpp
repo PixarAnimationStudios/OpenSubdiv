@@ -49,7 +49,7 @@ PtexIndices::initializePtexIndices(TopologyRefiner const &refiner) {
     int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(
             refiner.GetSchemeType());
 
-    Vtr::Level const & coarseLevel = refiner.getLevel(0);
+    Vtr::internal::Level const & coarseLevel = refiner.getLevel(0);
 
     int nfaces = coarseLevel.getNumFaces();
     _ptexIndices.resize(nfaces+1);
@@ -77,7 +77,7 @@ PtexIndices::GetFaceId(Index f) const {
 namespace {
     // Returns the face adjacent to 'face' along edge 'edge'
     inline Index
-    getAdjacentFace(Vtr::Level const & level, Index edge, Index face) {
+    getAdjacentFace(Vtr::internal::Level const & level, Index edge, Index face) {
         Far::ConstIndexArray adjFaces = level.getEdgeFaces(edge);
         if (adjFaces.size()!=2) {
             return -1;
@@ -100,7 +100,7 @@ PtexIndices::GetAdjacency(
         return;
     }
 
-    Vtr::Level const & level = refiner.getLevel(0);
+    Vtr::internal::Level const & level = refiner.getLevel(0);
 
     ConstIndexArray fedges = level.getFaceEdges(face);
 

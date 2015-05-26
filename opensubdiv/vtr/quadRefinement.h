@@ -33,6 +33,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  QuadRefinement:
@@ -92,6 +93,7 @@ private:
     //
 };
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION
