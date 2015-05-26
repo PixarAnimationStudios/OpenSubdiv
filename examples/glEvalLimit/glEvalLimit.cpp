@@ -689,6 +689,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
     updateGeom();
 
+    delete topologyRefiner;
 }
 
 //------------------------------------------------------------------------------
