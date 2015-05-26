@@ -26,6 +26,7 @@
 
 #include "../far/patchTable.h"
 #include "../osd/opengl.h"
+#include "../osd/cpuPatchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -33,11 +34,14 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 GLPatchTable::GLPatchTable() :
-    _indexBuffer(0), _patchParamTexture(0) {
+    _patchIndexBuffer(0), _patchParamBuffer(0),
+    _patchIndexTexture(0), _patchParamTexture(0) {
 }
 
 GLPatchTable::~GLPatchTable() {
-    if (_indexBuffer) glDeleteBuffers(1, &_indexBuffer);
+    if (_patchIndexBuffer) glDeleteBuffers(1, &_patchIndexBuffer);
+    if (_patchParamBuffer) glDeleteBuffers(1, &_patchParamBuffer);
+    if (_patchIndexTexture) glDeleteTextures(1, &_patchIndexTexture);
     if (_patchParamTexture) glDeleteTextures(1, &_patchParamTexture);
 }
 
@@ -52,83 +56,55 @@ GLPatchTable::Create(Far::PatchTable const *farPatchTable,
 
 bool
 GLPatchTable::allocate(Far::PatchTable const *farPatchTable) {
-    glGenBuffers(1, &_indexBuffer);
+    glGenBuffers(1, &_patchIndexBuffer);
+    glGenBuffers(1, &_patchParamBuffer);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _indexBuffer);
-    std::vector<int> buffer;
-    std::vector<unsigned int> ppBuffer;
+    CpuPatchTable patchTable(farPatchTable);
 
-    // needs reserve?
+    size_t numPatchArrays = patchTable.GetNumPatchArrays();
+    GLsizei indexSize = (GLsizei)patchTable.GetPatchIndexSize();
+    GLsizei patchParamSize = (GLsizei)patchTable.GetPatchParamSize();
 
-    int nPatchArrays = farPatchTable->GetNumPatchArrays();
+    // copy patch array
+    _patchArrays.insert(_patchArrays.end(),
+                        patchTable.GetPatchArrayBuffer(),
+                        patchTable.GetPatchArrayBuffer() + numPatchArrays);
 
-    // for each patchArray
-    for (int j = 0; j < nPatchArrays; ++j) {
-        PatchArray patchArray(farPatchTable->GetPatchArrayDescriptor(j),
-                              farPatchTable->GetNumPatches(j),
-                              (int)buffer.size(),
-                              (int)ppBuffer.size()/3);
-        _patchArrays.push_back(patchArray);
-
-        // indices
-        Far::ConstIndexArray indices = farPatchTable->GetPatchArrayVertices(j);
-        for (int k = 0; k < indices.size(); ++k) {
-            buffer.push_back(indices[k]);
-        }
-
-        // patchParams
-#if 0
-        // XXX: we need sharpness interface for patcharray or put sharpness
-        //      into patchParam.
-        Far::ConstPatchParamArray patchParams =
-            farPatchTable->GetPatchParams(j);
-        for (int k = 0; k < patchParams.size(); ++k) {
-            float sharpness = 0.0;
-            ppBuffer.push_back(patchParams[k].faceIndex);
-            ppBuffer.push_back(patchParams[k].bitField.field);
-            ppBuffer.push_back(*((unsigned int *)&sharpness));
-        }
-#else
-        // XXX: workaround. GetPatchParamTable() will be deprecated though.
-        Far::PatchParamTable const & patchParamTable =
-            farPatchTable->GetPatchParamTable();
-        std::vector<Far::Index> const &sharpnessIndexTable =
-            farPatchTable->GetSharpnessIndexTable();
-        int numPatches = farPatchTable->GetNumPatches(j);
-        for (int k = 0; k < numPatches; ++k) {
-            float sharpness = 0.0;
-            int patchIndex = (int)ppBuffer.size()/3;
-            if (patchIndex < (int)sharpnessIndexTable.size()) {
-                int sharpnessIndex = sharpnessIndexTable[patchIndex];
-                if (sharpnessIndex >= 0)
-                    sharpness = farPatchTable->GetSharpnessValues()[sharpnessIndex];
-            }
-            ppBuffer.push_back(patchParamTable[patchIndex].faceIndex);
-            ppBuffer.push_back(patchParamTable[patchIndex].bitField.field);
-            ppBuffer.push_back(*((unsigned int *)&sharpness));
-        }
-#endif
-    }
-
+    // copy index buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                 (int)buffer.size()*sizeof(int), &buffer[0], GL_STATIC_DRAW);
-
-    // patchParam is currently expected to be texture (it can be SSBO)
-    GLuint texBuffer = 0;
-    glGenBuffers(1, &texBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, texBuffer);
-    glBufferData(GL_ARRAY_BUFFER, ppBuffer.size()*sizeof(unsigned int),
-                 &ppBuffer[0], GL_STATIC_DRAW);
-
-    glGenTextures(1, &_patchParamTexture);
-    glBindTexture(GL_TEXTURE_BUFFER, _patchParamTexture);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32I, texBuffer);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
-
-    glDeleteBuffers(1, &texBuffer);
-
+                 indexSize * sizeof(GLint),
+                 patchTable.GetPatchIndexBuffer(),
+                 GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // copy patchparam buffer
+    glBindBuffer(GL_ARRAY_BUFFER, _patchParamBuffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 patchParamSize * sizeof(PatchParam),
+                 patchTable.GetPatchParamBuffer(),
+                 GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // make both buffer as texture buffers too.
+    glGenTextures(1, &_patchIndexTexture);
+    glGenTextures(1, &_patchParamTexture);
+
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 indexSize * sizeof(GLint),
+                 patchTable.GetPatchIndexBuffer(),
+                 GL_STATIC_DRAW);
+
+    glBindTexture(GL_TEXTURE_BUFFER, _patchIndexTexture);
+//    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, _patchIndexBuffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
+
+    glBindTexture(GL_TEXTURE_BUFFER, _patchParamTexture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32I, _patchParamBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
 
     return true;
 }

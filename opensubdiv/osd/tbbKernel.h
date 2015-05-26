@@ -32,6 +32,9 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
+struct PatchArray;
+struct PatchCoord;
+struct PatchParam;
 struct VertexBufferDescriptor;
 
 void
@@ -44,6 +47,38 @@ TbbEvalStencils(float const * src,
                 int const * indices,
                 float const * weights,
                 int start, int end);
+
+void
+TbbEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                float * dstDu,
+                VertexBufferDescriptor const &dstDuDesc,
+                float * dstDv,
+                VertexBufferDescriptor const &dstDvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end);
+
+void
+TbbEvalPatches(float const *src,
+               VertexBufferDescriptor const &srcDesc,
+               float *dst,
+               VertexBufferDescriptor const &dstDesc,
+               float *dstDu,
+               VertexBufferDescriptor const &dstDuDesc,
+               float *dstDv,
+               VertexBufferDescriptor const &dstDvDesc,
+               int numPatchCoords,
+               const PatchCoord *patchCoords,
+               const PatchArray *patchArrayBuffer,
+               const int *patchIndexBuffer,
+               const PatchParam *patchParamBuffer);
 
 }  // end namespace Osd
 

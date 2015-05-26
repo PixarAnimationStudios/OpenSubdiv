@@ -27,6 +27,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cstdio>
 
 #include "../osd/opencl.h"
 #include "../far/error.h"
@@ -87,11 +88,12 @@ CLStencilTable::~CLStencilTable() {
 
 CLEvaluator::CLEvaluator(cl_context context, cl_command_queue queue)
     : _clContext(context), _clCommandQueue(queue),
-      _program(NULL), _stencilsKernel(NULL) {
+      _program(NULL), _stencilKernel(NULL), _patchKernel(NULL) {
 }
 
 CLEvaluator::~CLEvaluator() {
-    if (_stencilsKernel) clReleaseKernel(_stencilsKernel);
+    if (_stencilKernel) clReleaseKernel(_stencilKernel);
+    if (_patchKernel) clReleaseKernel(_patchKernel);
     if (_program) clReleaseProgram(_program);
 }
 
@@ -145,7 +147,13 @@ CLEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
         return false;
     }
 
-    _stencilsKernel = clCreateKernel(_program, "computeStencils", &errNum);
+    _stencilKernel = clCreateKernel(_program, "computeStencils", &errNum);
+    if (errNum != CL_SUCCESS) {
+        Far::Error(Far::FAR_RUNTIME_ERROR, "buildKernel (%d)\n", errNum);
+        return false;
+    }
+
+    _patchKernel = clCreateKernel(_program, "computePatches", &errNum);
 
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR, "buildKernel (%d)\n", errNum);
@@ -169,30 +177,74 @@ CLEvaluator::EvalStencils(cl_mem src,
 
     size_t globalWorkSize = (size_t)(end - start);
 
-    clSetKernelArg(_stencilsKernel, 0, sizeof(cl_mem), &src);
-    clSetKernelArg(_stencilsKernel, 1, sizeof(int), &srcDesc.offset);
-    clSetKernelArg(_stencilsKernel, 2, sizeof(cl_mem), &dst);
-    clSetKernelArg(_stencilsKernel, 3, sizeof(int), &dstDesc.offset);
-    clSetKernelArg(_stencilsKernel, 4, sizeof(cl_mem), &sizes);
-    clSetKernelArg(_stencilsKernel, 5, sizeof(cl_mem), &offsets);
-    clSetKernelArg(_stencilsKernel, 6, sizeof(cl_mem), &indices);
-    clSetKernelArg(_stencilsKernel, 7, sizeof(cl_mem), &weights);
-    clSetKernelArg(_stencilsKernel, 8, sizeof(int), &start);
-    clSetKernelArg(_stencilsKernel, 9, sizeof(int), &end);
+    clSetKernelArg(_stencilKernel, 0, sizeof(cl_mem), &src);
+    clSetKernelArg(_stencilKernel, 1, sizeof(int), &srcDesc.offset);
+    clSetKernelArg(_stencilKernel, 2, sizeof(cl_mem), &dst);
+    clSetKernelArg(_stencilKernel, 3, sizeof(int), &dstDesc.offset);
+    clSetKernelArg(_stencilKernel, 4, sizeof(cl_mem), &sizes);
+    clSetKernelArg(_stencilKernel, 5, sizeof(cl_mem), &offsets);
+    clSetKernelArg(_stencilKernel, 6, sizeof(cl_mem), &indices);
+    clSetKernelArg(_stencilKernel, 7, sizeof(cl_mem), &weights);
+    clSetKernelArg(_stencilKernel, 8, sizeof(int), &start);
+    clSetKernelArg(_stencilKernel, 9, sizeof(int), &end);
 
     cl_int errNum = clEnqueueNDRangeKernel(
-        _clCommandQueue, _stencilsKernel, 1, NULL,
+        _clCommandQueue, _stencilKernel, 1, NULL,
         &globalWorkSize, NULL, 0, NULL, NULL);
 
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
-                   "ApplyStencilTableKernel (%d) ", errNum);
+                   "ApplyStencilKernel (%d) ", errNum);
         return false;
     }
 
     clFinish(_clCommandQueue);
     return true;
 }
+
+bool
+CLEvaluator::EvalPatches(cl_mem src, VertexBufferDescriptor const &srcDesc,
+                         cl_mem dst, VertexBufferDescriptor const &dstDesc,
+                         cl_mem du,  VertexBufferDescriptor const &duDesc,
+                         cl_mem dv,  VertexBufferDescriptor const &dvDesc,
+                         int numPatchCoords,
+                         cl_mem patchCoordsBuffer,
+                         cl_mem patchArrayBuffer,
+                         cl_mem patchIndexBuffer,
+                         cl_mem patchParamBuffer) const {
+
+    size_t globalWorkSize = (size_t)(numPatchCoords);
+
+    clSetKernelArg(_patchKernel,  0, sizeof(cl_mem), &src);
+    clSetKernelArg(_patchKernel,  1, sizeof(int),    &srcDesc.offset);
+    clSetKernelArg(_patchKernel,  2, sizeof(cl_mem), &dst);
+    clSetKernelArg(_patchKernel,  3, sizeof(int),    &dstDesc.offset);
+    clSetKernelArg(_patchKernel,  4, sizeof(cl_mem), &du);
+    clSetKernelArg(_patchKernel,  5, sizeof(int),    &duDesc.offset);
+    clSetKernelArg(_patchKernel,  6, sizeof(int),    &duDesc.stride);
+    clSetKernelArg(_patchKernel,  7, sizeof(cl_mem), &dv);
+    clSetKernelArg(_patchKernel,  8, sizeof(int),    &dvDesc.offset);
+    clSetKernelArg(_patchKernel,  9, sizeof(int),    &dvDesc.stride);
+    clSetKernelArg(_patchKernel, 10, sizeof(cl_mem), &patchCoordsBuffer);
+    clSetKernelArg(_patchKernel, 11, sizeof(cl_mem), &patchArrayBuffer);
+    clSetKernelArg(_patchKernel, 12, sizeof(cl_mem), &patchIndexBuffer);
+    clSetKernelArg(_patchKernel, 13, sizeof(cl_mem), &patchParamBuffer);
+
+    cl_int errNum = clEnqueueNDRangeKernel(
+        _clCommandQueue, _patchKernel, 1, NULL,
+        &globalWorkSize, NULL, 0, NULL, NULL);
+
+    if (errNum != CL_SUCCESS) {
+        Far::Error(Far::FAR_RUNTIME_ERROR,
+                   "ApplyPatchKernel (%d) ", errNum);
+        return false;
+    }
+
+    clFinish(_clCommandQueue);
+    return true;
+}
+
+
 
 /* static */
 void

@@ -30,6 +30,7 @@
 #include <vector>
 #include "../far/patchDescriptor.h"
 #include "../osd/nonCopyable.h"
+#include "../osd/types.h"
 
 struct ID3D11Buffer;
 struct ID3D11ShaderResourceView;
@@ -48,33 +49,6 @@ namespace Osd {
 class D3D11PatchTable : private NonCopyable<D3D11PatchTable> {
 public:
     typedef ID3D11Buffer * VertexBufferBinding;
-
-    // XXX: this struct will be further refactored.
-    class PatchArray {
-    public:
-        PatchArray(Far::PatchDescriptor desc, int numPatches,
-                   int indexBase, int primitiveIdBase) :
-            desc(desc), numPatches(numPatches), indexBase(indexBase),
-            primitiveIdBase(primitiveIdBase) {}
-        Far::PatchDescriptor const &GetDescriptor() const {
-            return desc;
-        }
-        int GetNumPatches() const {
-            return numPatches;
-        }
-        int GetIndexBase() const {
-            return indexBase;
-        }
-        int GetPrimitiveIdBase() const {
-            return primitiveIdBase;
-        }
-    private:
-        Far::PatchDescriptor desc;
-        int numPatches;
-        int indexBase;        // an offset within the index buffer
-        int primitiveIdBase;  // an offset within the patch param buffer
-    };
-    typedef std::vector<PatchArray> PatchArrayVector;
 
     D3D11PatchTable();
     ~D3D11PatchTable();

@@ -171,7 +171,12 @@ public:
 
         for(typename Evaluators::iterator it = _evaluators.begin();
             it != _evaluators.end(); ++it) {
-            if (it->srcDesc.length == srcDesc.length and
+            // Note: XFB kernel needs to be configured with the local offset
+            // of the dstDesc to skip preceding primvars.
+            int dstOffset1 = it->dstDesc.offset % it->dstDesc.stride;
+            int dstOffset2 = dstDesc.offset % dstDesc.stride;
+            if (dstOffset1 == dstOffset2 and
+                it->srcDesc.length == srcDesc.length and
                 it->srcDesc.stride == srcDesc.stride and
                 it->dstDesc.length == dstDesc.length and
                 it->dstDesc.stride == dstDesc.stride) {

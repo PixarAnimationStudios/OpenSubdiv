@@ -1181,7 +1181,7 @@ bindTextures() {
 
 static GLenum
 bindProgram(Effect effect,
-            OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
+            OpenSubdiv::Osd::PatchArray const & patch) {
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     // only legacy gregory needs maxValence and numElements
@@ -1299,7 +1299,7 @@ display() {
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
@@ -1316,7 +1316,7 @@ display() {
 
     // core draw-calls
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();

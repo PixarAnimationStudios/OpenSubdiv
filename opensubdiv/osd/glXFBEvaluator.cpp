@@ -108,37 +108,36 @@ GLStencilTableTBO::~GLStencilTableTBO() {
 // ---------------------------------------------------------------------------
 
 
-GLXFBEvaluator::GLXFBEvaluator() :
-    _program(0), _srcBufferTexture(0),
-    _uniformSrcBufferTexture(0), _uniformSizesTexture(0),
-    _uniformOffsetsTexture(0), _uniformIndicesTexture(0),
-    _uniformWeightsTexture(0), _uniformStart(0), _uniformEnd(0),
-    _uniformSrcOffset(0) {
+GLXFBEvaluator::GLXFBEvaluator() : _srcBufferTexture(0) {
+    memset (&_stencilKernel, 0, sizeof(_stencilKernel));
+    memset (&_patchKernel, 0, sizeof(_patchKernel));
 }
 
 GLXFBEvaluator::~GLXFBEvaluator() {
-    if (_program) {
-        glDeleteProgram(_program);
+    if (_stencilKernel.program) {
+        glDeleteProgram(_stencilKernel.program);
+    }
+    if (_patchKernel.program) {
+        glDeleteProgram(_patchKernel.program);
     }
     if (_srcBufferTexture) {
         glDeleteTextures(1, &_srcBufferTexture);
     }
 }
 
-bool
-GLXFBEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
-                        VertexBufferDescriptor const &dstDesc) {
-    if (_program) {
-        glDeleteProgram(_program);
-        _program = 0;
-    }
-    _program = glCreateProgram();
+static GLuint
+compileKernel(VertexBufferDescriptor const &srcDesc,
+              VertexBufferDescriptor const &dstDesc,
+              const char *kernelDefine) {
+
+    GLuint program = glCreateProgram();
 
     GLuint shader = glCreateShader(GL_VERTEX_SHADER);
 
     std::ostringstream defines;
     defines << "#define LENGTH " << srcDesc.length << "\n"
-            << "#define SRC_STRIDE " << srcDesc.stride << "\n";
+            << "#define SRC_STRIDE " << srcDesc.stride << "\n"
+            << kernelDefine << "\n";
     std::string defineStr = defines.str();
 
     const char *shaderSources[3] = {"#version 410\n", NULL, NULL};
@@ -147,7 +146,7 @@ GLXFBEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
     shaderSources[2] = shaderSource;
     glShaderSource(shader, 3, shaderSources, NULL);
     glCompileShader(shader);
-    glAttachShader(_program, shader);
+    glAttachShader(program, shader);
 
     std::vector<std::string> outputs;
     std::vector<const char *> pOutputs;
@@ -183,40 +182,83 @@ GLXFBEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
         }
     }
 
-    glTransformFeedbackVaryings(_program, (GLsizei)outputs.size(),
+    glTransformFeedbackVaryings(program, (GLsizei)outputs.size(),
                                 &pOutputs[0], GL_INTERLEAVED_ATTRIBS);
 
     GLint linked = 0;
-    glLinkProgram(_program);
-    glGetProgramiv(_program, GL_LINK_STATUS, &linked);
+    glLinkProgram(program);
+    glGetProgramiv(program, GL_LINK_STATUS, &linked);
 
     if (linked == GL_FALSE) {
         char buffer[1024];
         glGetShaderInfoLog(shader, 1024, NULL, buffer);
         Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
 
-        glGetProgramInfoLog(_program, 1024, NULL, buffer);
+        glGetProgramInfoLog(program, 1024, NULL, buffer);
         Far::Error(Far::FAR_RUNTIME_ERROR, buffer);
 
-        glDeleteProgram(_program);
-        _program = 0;
-        return false;
+        glDeleteProgram(program);
+        program = 0;
     }
 
     glDeleteShader(shader);
 
-    // set uniform locations for compute kernels
-    _uniformSrcBufferTexture  = glGetUniformLocation(_program, "vertexBuffer");
+    return program;
+}
 
-    _uniformSizesTexture   = glGetUniformLocation(_program, "sizes");
-    _uniformOffsetsTexture = glGetUniformLocation(_program, "offsets");
-    _uniformIndicesTexture = glGetUniformLocation(_program, "indices");
-    _uniformWeightsTexture = glGetUniformLocation(_program, "weights");
+bool
+GLXFBEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
+                        VertexBufferDescriptor const &dstDesc) {
 
-    _uniformStart   = glGetUniformLocation(_program, "batchStart");
-    _uniformEnd     = glGetUniformLocation(_program, "batchEnd");
+    // create stencil kernel
+    if (_stencilKernel.program) {
+        glDeleteProgram(_stencilKernel.program);
+    }
+    _stencilKernel.program = compileKernel(
+        srcDesc, dstDesc,
+        "#define OPENSUBDIV_GLSL_XFB_KERNEL_EVAL_STENCILS");
+    if (_stencilKernel.program == 0) return false;
 
-    _uniformSrcOffset = glGetUniformLocation(_program, "srcOffset");
+    // cache uniform locations
+    _stencilKernel.uniformSrcBufferTexture
+        = glGetUniformLocation(_stencilKernel.program, "vertexBuffer");
+    _stencilKernel.uniformSrcOffset
+        = glGetUniformLocation(_stencilKernel.program, "srcOffset");
+
+    _stencilKernel.uniformSizesTexture
+        = glGetUniformLocation(_stencilKernel.program, "sizes");
+    _stencilKernel.uniformOffsetsTexture
+        = glGetUniformLocation(_stencilKernel.program, "offsets");
+    _stencilKernel.uniformIndicesTexture
+        = glGetUniformLocation(_stencilKernel.program, "indices");
+    _stencilKernel.uniformWeightsTexture
+        = glGetUniformLocation(_stencilKernel.program, "weights");
+    _stencilKernel.uniformStart
+        = glGetUniformLocation(_stencilKernel.program, "batchStart");
+    _stencilKernel.uniformEnd
+        = glGetUniformLocation(_stencilKernel.program, "batchEnd");
+
+    // create patch kernel
+    if (_patchKernel.program) {
+        glDeleteProgram(_patchKernel.program);
+    }
+    _patchKernel.program = compileKernel(
+        srcDesc, dstDesc,
+        "#define OPENSUBDIV_GLSL_XFB_KERNEL_EVAL_PATCHES");
+    if (_patchKernel.program == 0) return false;
+
+    // cache uniform locations
+    _patchKernel.uniformSrcBufferTexture
+        = glGetUniformLocation(_patchKernel.program, "vertexBuffer");
+    _patchKernel.uniformSrcOffset
+        = glGetUniformLocation(_patchKernel.program, "srcOffset");
+
+    _patchKernel.uniformPatchArray
+        = glGetUniformLocation(_patchKernel.program, "patchArray");
+    _patchKernel.uniformPatchParamTexture
+        = glGetUniformLocation(_patchKernel.program, "patchParamBuffer");
+    _patchKernel.uniformPatchIndexTexture
+        = glGetUniformLocation(_patchKernel.program, "patchIndexBuffer");
 
     // create a texture for input buffer
     if (!_srcBufferTexture) {
@@ -255,7 +297,7 @@ GLXFBEvaluator::EvalStencils(GLuint srcBuffer,
                              GLuint weightsTexture,
                              int start,
                              int end) const {
-    if (!_program) return false;
+    if (!_stencilKernel.program) return false;
     int count = end - start;
     if (count <= 0) {
         return true;
@@ -268,25 +310,25 @@ GLXFBEvaluator::EvalStencils(GLuint srcBuffer,
     glBindVertexArray(vao);
 
     glEnable(GL_RASTERIZER_DISCARD);
-    glUseProgram(_program);
+    glUseProgram(_stencilKernel.program);
 
     // Set input VBO as a texture buffer.
     glBindTexture(GL_TEXTURE_BUFFER, _srcBufferTexture);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, srcBuffer);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
 
-    bindTexture(_uniformSrcBufferTexture, _srcBufferTexture, 0);
+    bindTexture(_stencilKernel.uniformSrcBufferTexture, _srcBufferTexture, 0);
 
     // bind stencil table textures.
-    bindTexture(_uniformSizesTexture,   sizesTexture, 1);
-    bindTexture(_uniformOffsetsTexture, offsetsTexture, 2);
-    bindTexture(_uniformIndicesTexture, indicesTexture, 3);
-    bindTexture(_uniformWeightsTexture, weightsTexture, 4);
+    bindTexture(_stencilKernel.uniformSizesTexture,   sizesTexture, 1);
+    bindTexture(_stencilKernel.uniformOffsetsTexture, offsetsTexture, 2);
+    bindTexture(_stencilKernel.uniformIndicesTexture, indicesTexture, 3);
+    bindTexture(_stencilKernel.uniformWeightsTexture, weightsTexture, 4);
 
     // set batch range
-    glUniform1i(_uniformStart,     start);
-    glUniform1i(_uniformEnd,       end);
-    glUniform1i(_uniformSrcOffset, srcDesc.offset);
+    glUniform1i(_stencilKernel.uniformStart,     start);
+    glUniform1i(_stencilKernel.uniformEnd,       end);
+    glUniform1i(_stencilKernel.uniformSrcOffset, srcDesc.offset);
 
     // The destination buffer is bound at vertex boundary.
     //
@@ -346,6 +388,94 @@ GLXFBEvaluator::EvalStencils(GLuint srcBuffer,
 
     return true;
 }
+
+bool
+GLXFBEvaluator::EvalPatches(
+    GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
+    GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
+    GLuint duBuffer, VertexBufferDescriptor const & /*duDesc*/,
+    GLuint dvBuffer, VertexBufferDescriptor const & /*dvDesc*/,
+    int numPatchCoords,
+    GLuint patchCoordsBuffer,
+    const PatchArrayVector &patchArrays,
+    GLuint patchIndexTexture,
+    GLuint patchParamTexture) const {
+    if (!_patchKernel.program) return false;
+
+    if (duBuffer != 0 || dvBuffer != 0) {
+        Far::Error(Far::FAR_RUNTIME_ERROR,
+                   "GLXFBEvaluator doesn't support derivative evaluation yet.\n");
+    }
+
+    // bind vertex array
+    // always create new one, to be safe with multiple contexts (slow though)
+    GLuint vao = 0;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    glEnable(GL_RASTERIZER_DISCARD);
+    glUseProgram(_patchKernel.program);
+
+    // Set input VBO as a texture buffer.
+    glBindTexture(GL_TEXTURE_BUFFER, _srcBufferTexture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, srcBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, 0);
+
+    bindTexture(_patchKernel.uniformSrcBufferTexture, _srcBufferTexture, 0);
+
+    // bind patch index and patch param textures.
+    bindTexture(_patchKernel.uniformPatchParamTexture, patchParamTexture, 1);
+    bindTexture(_patchKernel.uniformPatchIndexTexture, patchIndexTexture, 2);
+
+    // set other uniforms
+    glUniform4iv(_patchKernel.uniformPatchArray, (int)patchArrays.size(),
+                 (const GLint*)&patchArrays[0]);
+    glUniform1i(_patchKernel.uniformSrcOffset, srcDesc.offset);
+
+    // input patchcoords
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    int stride = sizeof(int) * 5; // patchcoord = int*5 struct
+    glBindBuffer(GL_ARRAY_BUFFER, patchCoordsBuffer);
+    glVertexAttribIPointer(0, 3, GL_UNSIGNED_INT, stride, (void*)0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(int)*3));
+
+    int dstBufferBindOffset =
+        dstDesc.offset - (dstDesc.offset % dstDesc.stride);
+
+    // bind destination buffer
+    glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
+                      0, dstBuffer,
+                      dstBufferBindOffset * sizeof(float),
+                      numPatchCoords * dstDesc.stride * sizeof(float));
+
+    glBeginTransformFeedback(GL_POINTS);
+    glDrawArrays(GL_POINTS, 0, numPatchCoords);
+    glEndTransformFeedback();
+
+    glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
+
+    // unbind textures
+    for (int i = 0; i < 3; ++i) {
+        glActiveTexture(GL_TEXTURE0 + i);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+    }
+
+    glDisable(GL_RASTERIZER_DISCARD);
+    glUseProgram(0);
+    glActiveTexture(GL_TEXTURE0);
+
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+
+    // revert vao
+    glBindVertexArray(0);
+    glDeleteVertexArrays(1, &vao);
+
+
+    return true;
+}
+
 
 }  // end namespace Osd
 

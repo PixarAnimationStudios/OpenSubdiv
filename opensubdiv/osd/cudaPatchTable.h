@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,56 +22,56 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_OSD_CPU_VERTEX_BUFFER_H
-#define OPENSUBDIV3_OSD_CPU_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_CUDA_PATCH_TABLE_H
+#define OPENSUBDIV3_OSD_CUDA_PATCH_TABLE_H
 
 #include "../version.h"
 
-#include <cstddef>
+#include "../osd/nonCopyable.h"
+#include "../osd/types.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Osd {
-
-/// \brief Concrete vertex buffer class for cpu subvision.
-///
-/// CpuVertexBuffer implements the VertexBufferInterface. An instance
-/// of this buffer class can be passed to CpuEvaluator
-///
-class CpuVertexBuffer {
-public:
-    /// Creator. Returns NULL if error.
-    static CpuVertexBuffer * Create(int numElements, int numVertices,
-                                    void *deviceContext = NULL);
-
-    /// Destructor.
-    ~CpuVertexBuffer();
-
-    /// This method is meant to be used in client code in order to provide
-    /// coarse vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices,
-                    void *deviceContext = NULL);
-
-    /// Returns how many elements defined in this vertex buffer.
-    int GetNumElements() const;
-
-    /// Returns how many vertices allocated in this vertex buffer.
-    int GetNumVertices() const;
-
-    /// Returns the address of CPU buffer
-    float * BindCpuBuffer();
-
-protected:
-    /// Constructor.
-    CpuVertexBuffer(int numElements, int numVertices);
-
-private:
-    int _numElements;
-    int _numVertices;
-    float *_cpuBuffer;
+namespace Far{
+    class PatchTable;
 };
 
+namespace Osd {
+
+/// \brief CUDA patch table
+///
+/// This class is a cuda buffer representation of Far::PatchTable.
+///
+/// CudaEvaluator consumes this table to evaluate on the patches.
+///
+///
+class CudaPatchTable : private NonCopyable<CudaPatchTable> {
+public:
+    /// Creator. Returns NULL if error
+    static CudaPatchTable *Create(Far::PatchTable const *patchTable,
+                                  void *deviceContext = NULL);
+    /// Destructor
+    ~CudaPatchTable();
+
+    /// Returns the cuda memory of the array of Osd::PatchArray buffer
+    void *GetPatchArrayBuffer() const { return _patchArrays; }
+
+    /// Returns the cuda memory of the patch control vertices
+    void *GetPatchIndexBuffer() const { return _indexBuffer; }
+
+    /// Returns the cuda memory of the array of Osd::PatchParam buffer
+    void *GetPatchParamBuffer() const { return _patchParamBuffer; }
+
+protected:
+    CudaPatchTable();
+
+    bool allocate(Far::PatchTable const *patchTable);
+
+    void *_patchArrays;
+    void *_indexBuffer;
+    void *_patchParamBuffer;
+};
 
 }  // end namespace Osd
 
@@ -80,4 +80,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OPENSUBDIV3_OSD_CPU_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_CUDA_PATCH_TABLE_H

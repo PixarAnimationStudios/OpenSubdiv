@@ -819,7 +819,7 @@ createOsdMesh(int level, int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-bindProgram(Effect effect, OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
@@ -984,7 +984,7 @@ drawModel() {
     UINT hOffsets = 0;
     g_pd3dDeviceContext->IASetVertexBuffers(0, 1, &buffer, &hStrides, &hOffsets);
 
-    OpenSubdiv::Osd::D3D11PatchTable::PatchArrayVector const & patches =
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
 
     g_pd3dDeviceContext->IASetIndexBuffer(
@@ -993,7 +993,7 @@ drawModel() {
 
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::D3D11PatchTable::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
 

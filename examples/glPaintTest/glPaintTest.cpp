@@ -597,7 +597,7 @@ static void bindTextures(Effect effect) {
 }
 
 static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
+bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
@@ -670,12 +670,12 @@ display() {
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
 
         GLenum primType = GL_PATCHES;
@@ -807,13 +807,13 @@ drawStroke(int x, int y) {
     effect.paint = 1;
     bindTextures(effect);
 
-    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
     for (int i=0; i<(int)patches.size(); ++i) {
 
-        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
         OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
 
         GLenum primType = GL_PATCHES;

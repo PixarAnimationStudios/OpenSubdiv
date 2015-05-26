@@ -238,6 +238,186 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
 
 // -----------------------------------------------------------------------------
 
+// Osd::PatchCoord osd/types.h
+struct PatchCoord {
+    int arrayIndex;
+    int patchIndex;
+    int vertIndex;
+    float s;
+    float t;
+};
+struct PatchArray {
+    int patchType;        // Far::PatchDescriptor::Type
+    int numPatches;
+    int indexBase;        // offset in the index buffer
+    int primitiveIdBase;  // offset in the patch param buffer
+};
+struct PatchParam {
+    int faceIndex;
+    unsigned int bitField;
+    float sharpness;
+};
+
+__device__ void
+getBSplineWeights(float t, float point[4], float deriv[4]) {
+    // The four uniform cubic B-Spline basis functions evaluated at t:
+    float const one6th = 1.0f / 6.0f;
+
+    float t2 = t * t;
+    float t3 = t * t2;
+
+    point[0] = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
+    point[1] = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
+    point[2] = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
+    point[3] = one6th * (                                 t3);
+
+    // Derivatives of the above four basis functions at t:
+    if (deriv) {
+        deriv[0] = -0.5f*t2 +      t - 0.5f;
+        deriv[1] =  1.5f*t2 - 2.0f*t;
+        deriv[2] = -1.5f*t2 +      t + 0.5f;
+        deriv[3] =  0.5f*t2;
+    }
+}
+
+__device__ void
+adjustBoundaryWeights(unsigned int bits, float sWeights[4], float tWeights[4]) {
+    int boundary = ((bits >> 4) & 0xf);  // far/patchParam.h
+
+    if (boundary & 1) {
+        tWeights[2] -= tWeights[0];
+        tWeights[1] += 2*tWeights[0];
+        tWeights[0] = 0;
+    }
+    if (boundary & 2) {
+        sWeights[1] -= sWeights[3];
+        sWeights[2] += 2*sWeights[3];
+        sWeights[3] = 0;
+    }
+    if (boundary & 4) {
+        tWeights[1] -= tWeights[3];
+        tWeights[2] += 2*tWeights[3];
+        tWeights[3] = 0;
+    }
+    if (boundary & 8) {
+        sWeights[2] -= sWeights[0];
+        sWeights[1] += 2*sWeights[0];
+        sWeights[0] = 0;
+    }
+}
+
+__device__
+int getDepth(unsigned int patchBits) {
+    return (patchBits & 0x7);
+}
+
+__device__
+float getParamFraction(unsigned int patchBits) {
+    bool nonQuadRoot = (patchBits >> 3) & 0x1;
+    int depth = getDepth(patchBits);
+    if (nonQuadRoot) {
+        return 1.0f / float( 1 << (depth-1) );
+    } else {
+        return 1.0f / float( 1 << depth );
+    }
+}
+
+__device__
+void normalizePatchCoord(unsigned int patchBits, float *u, float *v) {
+    float frac = getParamFraction(patchBits);
+
+    int iu = (patchBits >> 22) & 0x3ff;
+    int iv = (patchBits >> 12) & 0x3ff;
+
+    // top left corner
+    float pu = (float)iu*frac;
+    float pv = (float)iv*frac;
+
+    // normalize u,v coordinates
+    *u = (*u - pu) / frac;
+    *v = (*v - pv) / frac;
+}
+
+__global__ void
+computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
+               int length, int srcStride, int dstStride, int dstDuStride, int dstDvStride,
+               int numPatchCoords, const PatchCoord *patchCoords,
+               const PatchArray *patchArrayBuffer,
+               const int *patchIndexBuffer,
+               const PatchParam *patchParamBuffer) {
+
+    int first = threadIdx.x + blockIdx.x * blockDim.x;
+
+    // PERFORMANCE: not yet optimized
+
+    float wP[20], wDs[20], wDt[20];
+
+    for (int i = first; i < numPatchCoords; i += blockDim.x * gridDim.x) {
+
+        PatchCoord const &coord = patchCoords[i];
+        PatchArray const &array = patchArrayBuffer[coord.arrayIndex];
+
+        int patchType = 6; // array.patchType XXX: REGULAR only for now.
+        int numControlVertices = 16;
+        // note: patchIndex is absolute.
+        unsigned int patchBits = patchParamBuffer[coord.patchIndex].bitField;
+
+        // normalize
+        float s = coord.s;
+        float t = coord.t;
+        normalizePatchCoord(patchBits, &s, &t);
+        float dScale = (float)(1 << getDepth(patchBits));
+
+        if (patchType == 6) {
+            float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
+            getBSplineWeights(s, sWeights, dsWeights);
+            getBSplineWeights(t, tWeights, dtWeights);
+
+            // Compute the tensor product weight of the (s,t) basis function
+            // corresponding to each control vertex:
+            adjustBoundaryWeights(patchBits, sWeights, tWeights);
+            adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
+
+            for (int k = 0; k < 4; ++k) {
+                for (int l = 0; l < 4; ++l) {
+                    wP[4*k+l]  = sWeights[l]  * tWeights[k];
+                    wDs[4*k+l] = dsWeights[l] * tWeights[k]  * dScale;
+                    wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
+                }
+            }
+        } else {
+            // TODO: Gregory Basis.
+            continue;
+        }
+        const int *cvs = patchIndexBuffer + array.indexBase + coord.vertIndex;
+
+        float * dstVert = dst + i * dstStride;
+        clear(dstVert, length);
+        for (int j = 0; j < numControlVertices; ++j) {
+            const float * srcVert = src + cvs[j] * srcStride;
+            addWithWeight(dstVert, srcVert, wP[j], length);
+        }
+        if (dstDu) {
+            float *d = dstDu + i * dstDuStride;
+            clear(d, length);
+            for (int j = 0; j < numControlVertices; ++j) {
+                const float * srcVert = src + cvs[j] * srcStride;
+                addWithWeight(d, srcVert, wDs[j], length);
+            }
+        }
+        if (dstDv) {
+            float *d = dstDv + i * dstDvStride;
+            clear(d, length);
+            for (int j = 0; j < numControlVertices; ++j) {
+                const float * srcVert = src + cvs[j] * srcStride;
+                addWithWeight(d, srcVert, wDt[j], length);
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
 #include "../version.h"
 
 #define OPT_KERNEL(NUM_ELEMENTS, KERNEL, X, Y, ARG) \
@@ -257,20 +437,12 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
 
 extern "C" {
 
-void CudaEvalStencils(const float *src,
-                      float *dst,
-                      int length,
-                      int srcStride,
-                      int dstStride,
-                      const int * sizes,
-                      const int * offsets,
-                      const int * indices,
-                      const float * weights,
-                      int start,
-                      int end)
-{
-//    assert(cvs and dst and sizes and offsets and indices and weights and (end>=start));
-
+void CudaEvalStencils(
+    const float *src, float *dst,
+    int length, int srcStride, int dstStride,
+    const int * sizes, const int * offsets, const int * indices,
+    const float * weights,
+    int start, int end) {
     if (length == 0 or srcStride == 0 or dstStride == 0 or (end <= start)) {
         return;
     }
@@ -300,5 +472,37 @@ void CudaEvalStencils(const float *src,
 }
 
 // -----------------------------------------------------------------------------
+
+void CudaEvalPatches(
+    const float *src, float *dst,
+    int length, int srcStride, int dstStride,
+    int numPatchCoords, const PatchCoord *patchCoords,
+    const PatchArray *patchArrayBuffer,
+    const int *patchIndexBuffer,
+    const PatchParam *patchParamBuffer) {
+
+    // PERFORMANCE: not optimized at all
+
+    computePatches <<<512, 32>>>(
+        src, dst, NULL, NULL, length, srcStride, dstStride, 0, 0,
+        numPatchCoords, patchCoords,
+        patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
+}
+
+void CudaEvalPatchesWithDerivatives(
+    const float *src, float *dst, float *dstDu, float *dstDv,
+    int length, int srcStride, int dstStride, int dstDuStride, int dstDvStride,
+    int numPatchCoords, const PatchCoord *patchCoords,
+    const PatchArray *patchArrayBuffer,
+    const int *patchIndexBuffer,
+    const PatchParam *patchParamBuffer) {
+
+    // PERFORMANCE: not optimized at all
+
+    computePatches <<<512, 32>>>(
+        src, dst, dstDu, dstDv, length, srcStride, dstStride, dstDuStride, dstDvStride,
+        numPatchCoords, patchCoords,
+        patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
+}
 
 }  /* extern "C" */

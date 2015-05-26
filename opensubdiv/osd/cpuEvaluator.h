@@ -29,32 +29,13 @@
 
 #include <cstddef>
 #include <vector>
+#include "../osd/types.h"
 #include "../osd/vertexDescriptor.h"
-#include "../far/patchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
-
-/// \brief Coordinates set on a patch table
-///     XXX: this is a temporary structure, exists during Osd refactoring work.
-///
-struct PatchCoord {
-    /// \brief Constructor
-    ///
-    /// @param p patch handle
-    ///
-    /// @param s parametric location on the patch
-    ///
-    /// @param t parametric location on the patch
-    ///
-    PatchCoord(Far::PatchTable::PatchHandle handle, float s, float t) :
-        handle(handle), s(s), t(t) { }
-
-    Far::PatchTable::PatchHandle handle; ///< patch handle
-    float s, t;              ///< parametric location on patch
-};
 
 class CpuEvaluator {
 public:
@@ -80,7 +61,7 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param stencilTable   Far::StencilTable or equivalent
     ///
     /// @param instance       not used in the cpu kernel
     ///                       (declared as a typed pointer to prevent
@@ -89,20 +70,18 @@ public:
     /// @param deviceContext  not used in the cpu kernel
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
-    static bool EvalStencils(SRC_BUFFER *srcBuffer,
-                             VertexBufferDescriptor const &srcDesc,
-                             DST_BUFFER *dstBuffer,
-                             VertexBufferDescriptor const &dstDesc,
-                             STENCIL_TABLE const *stencilTable,
-                             const CpuEvaluator *instance = NULL,
-                             void * deviceContext = NULL) {
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable,
+        const CpuEvaluator *instance = NULL,
+        void * deviceContext = NULL) {
 
-        return EvalStencils(srcBuffer->BindCpuBuffer(),
-                            srcDesc,
-                            dstBuffer->BindCpuBuffer(),
-                            dstDesc,
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
+
+        return EvalStencils(srcBuffer->BindCpuBuffer(), srcDesc,
+                            dstBuffer->BindCpuBuffer(), dstDesc,
                             &stencilTable->GetSizes()[0],
                             &stencilTable->GetOffsets()[0],
                             &stencilTable->GetControlIndices()[0],
@@ -125,24 +104,27 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param sizes          pointer to the sizes buffer of the stencil table
+    ///                       to apply for the range [start, end)
     ///
-    /// @param instance       not used in the cpu kernel
-    ///                       (declared as a typed pointer to prevent
-    ///                        undesirable template resolution)
+    /// @param offsets        pointer to the offsets buffer of the stencil table
     ///
-    /// @param deviceContext  not used in the cpu kernel
+    /// @param indices        pointer to the indices buffer of the stencil table
     ///
-    static bool EvalStencils(const float *src,
-                             VertexBufferDescriptor const &srcDesc,
-                             float *dst,
-                             VertexBufferDescriptor const &dstDesc,
-                             const int * sizes,
-                             const int * offsets,
-                             const int * indices,
-                             const float * weights,
-                             int start,
-                             int end);
+    /// @param weights        pointer to the weights buffer of the stencil table
+    ///
+    /// @param start          start index of stencil table
+    ///
+    /// @param end            end index of stencil table
+    ///
+    static bool EvalStencils(
+        const float *src,  VertexBufferDescriptor const &srcDesc,
+        float *dst,        VertexBufferDescriptor const &dstDesc,
+        const int * sizes,
+        const int * offsets,
+        const int * indices,
+        const float * weights,
+        int start, int end);
 
     /// \brief Generic static eval stencils function with derivatives.
     ///        This function has a same signature as other device kernels
@@ -161,19 +143,19 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param dstDsBuffer    Output s-derivative buffer
+    /// @param duBuffer       Output U-derivative buffer
     ///                       must have BindCpuBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param dstDsDesc      vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the output buffer
     ///
-    /// @param dstDtBuffer    Output t-derivative buffer
+    /// @param dvBuffer       Output V-derivative buffer
     ///                       must have BindCpuBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param dstDtDesc      vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param stencilTable   Far::StencilTable or equivalent
     ///
     /// @param instance       not used in the cpu kernel
     ///                       (declared as a typed pointer to prevent
@@ -182,28 +164,22 @@ public:
     /// @param deviceContext  not used in the cpu kernel
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
-    static bool EvalStencils(SRC_BUFFER *srcBuffer,
-                             VertexBufferDescriptor const &srcDesc,
-                             DST_BUFFER *dstBuffer,
-                             VertexBufferDescriptor const &dstDesc,
-                             DST_BUFFER *dstDsBuffer,
-                             VertexBufferDescriptor const &dstDsDesc,
-                             DST_BUFFER *dstDtBuffer,
-                             VertexBufferDescriptor const &dstDtDesc,
-                             STENCIL_TABLE const *stencilTable,
-                             const CpuEvaluator *evaluator = NULL,
-                             void * deviceContext = NULL) {
-        (void)evaluator;   // unused
-        (void)deviceContext;   // unused
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        STENCIL_TABLE const *stencilTable,
+        const CpuEvaluator *instance = NULL,
+        void * deviceContext = NULL) {
 
-        return EvalStencils(srcBuffer->BindCpuBuffer(),
-                            srcDesc,
-                            dstBuffer->BindCpuBuffer(),
-                            dstDesc,
-                            dstDsBuffer->BindCpuBuffer(),
-                            dstDsDesc,
-                            dstDtBuffer->BindCpuBuffer(),
-                            dstDtDesc,
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
+
+        return EvalStencils(srcBuffer->BindCpuBuffer(), srcDesc,
+                            dstBuffer->BindCpuBuffer(), dstDesc,
+                            duBuffer->BindCpuBuffer(),  duDesc,
+                            dvBuffer->BindCpuBuffer(),  dvDesc,
                             &stencilTable->GetSizes()[0],
                             &stencilTable->GetOffsets()[0],
                             &stencilTable->GetControlIndices()[0],
@@ -228,40 +204,44 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param dstDs          Output s-derivatives pointer. An offset of
-    ///                       dstDsDesc will be applied internally.
+    /// @param du             Output U-derivatives pointer. An offset of
+    ///                       duDesc will be applied internally.
     ///
-    /// @param dstDsDesc      vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the output buffer
     ///
-    /// @param dstDt          Output t-derivatives pointer. An offset of
-    ///                       dstDtDesc will be applied internally.
+    /// @param dv             Output V-derivatives pointer. An offset of
+    ///                       dvDesc will be applied internally.
     ///
-    /// @param dstDtDesc      vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param sizes          pointer to the sizes buffer of the stencil table
     ///
-    /// @param instance       not used in the cpu kernel
-    ///                       (declared as a typed pointer to prevent
-    ///                        undesirable template resolution)
+    /// @param offsets        pointer to the offsets buffer of the stencil table
     ///
-    /// @param deviceContext  not used in the cpu kernel
+    /// @param indices        pointer to the indices buffer of the stencil table
     ///
-    static bool EvalStencils(const float *src,
-                             VertexBufferDescriptor const &srcDesc,
-                             float *dst,
-                             VertexBufferDescriptor const &dstDesc,
-                             float *dstDs,
-                             VertexBufferDescriptor const &dstDsDesc,
-                             float *dstDt,
-                             VertexBufferDescriptor const &dstDtDesc,
-                             const int * sizes,
-                             const int * offsets,
-                             const int * indices,
-                             const float * weights,
-                             const float * duWeights,
-                             const float * dvWeights,
-                             int start,
-                             int end);
+    /// @param weights        pointer to the weights buffer of the stencil table
+    ///
+    /// @param duWeights      pointer to the du-weights buffer of the stencil table
+    ///
+    /// @param dvWeights      pointer to the dv-weights buffer of the stencil table
+    ///
+    /// @param start          start index of stencil table
+    ///
+    /// @param end            end index of stencil table
+    ///
+    static bool EvalStencils(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        float *du,        VertexBufferDescriptor const &duDesc,
+        float *dv,        VertexBufferDescriptor const &dvDesc,
+        const int * sizes,
+        const int * offsets,
+        const int * indices,
+        const float * weights,
+        const float * duWeights,
+        const float * dvWeights,
+        int start, int end);
 
     /// ----------------------------------------------------------------------
     ///
@@ -289,32 +269,35 @@ public:
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable
+    /// @param patchTable       CpuPatchTable or equivalent
+    ///                         XXX: currently Far::PatchTable can't be used
+    ///                              due to interface mismatch
     ///
     /// @param instance         not used in the cpu evaluator
     ///
     /// @param deviceContext    not used in the cpu evaluator
     ///
-    template <typename SRC_BUFFER, typename DST_BUFFER>
-    static bool EvalPatches(SRC_BUFFER *srcBuffer,
-                            VertexBufferDescriptor const &srcDesc,
-                            DST_BUFFER *dstBuffer,
-                            VertexBufferDescriptor const &dstDesc,
-                            int numPatchCoords,
-                            PatchCoord const *patchCoords,
-                            Far::PatchTable const *patchTable,
-                            CpuEvaluator const *instance,
-                            void * deviceContext = NULL) {
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CpuEvaluator const *instance = NULL,
+        void * deviceContext = NULL) {
 
-        return EvalPatches(srcBuffer->BindCpuBuffer(),
-                           srcDesc,
-                           dstBuffer->BindCpuBuffer(),
-                           dstDesc,
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
+
+        return EvalPatches(srcBuffer->BindCpuBuffer(), srcDesc,
+                           dstBuffer->BindCpuBuffer(), dstDesc,
                            numPatchCoords,
-                           patchCoords,
-                           patchTable);
+                           (const PatchCoord*)patchCoords->BindCpuBuffer(),
+                           patchTable->GetPatchArrayBuffer(),
+                           patchTable->GetPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
     }
 
     /// \brief Generic limit eval function with derivatives. This function has
@@ -333,56 +316,59 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param dstDsBuffer      Output s-derivatives buffer
+    /// @param duBuffer         Output U-derivatives buffer
     ///                         must have BindCpuBuffer() method returning a
     ///                         float pointer for write
     ///
-    /// @param dstDsDesc        vertex buffer descriptor for the dstDsBuffer
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dstDtBuffer      Output t-derivatives buffer
+    /// @param dvBuffer         Output V-derivatives buffer
     ///                         must have BindCpuBuffer() method returning a
     ///                         float pointer for write
     ///
-    /// @param dstDtDesc        vertex buffer descriptor for the dstDtBuffer
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
     /// @param numPatchCoords   number of patchCoords.
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable
+    /// @param patchTable       CpuPatchTable or equivalent
+    ///                         XXX: currently Far::PatchTable can't be used
+    ///                              due to interface mismatch
     ///
     /// @param instance         not used in the cpu evaluator
     ///
     /// @param deviceContext    not used in the cpu evaluator
     ///
-    template <typename SRC_BUFFER, typename DST_BUFFER>
-    static bool EvalPatches(SRC_BUFFER *srcBuffer,
-                            VertexBufferDescriptor const &srcDesc,
-                            DST_BUFFER *dstBuffer,
-                            VertexBufferDescriptor const &dstDesc,
-                            DST_BUFFER *dstDsBuffer,
-                            VertexBufferDescriptor const &dstDsDesc,
-                            DST_BUFFER *dstDtBuffer,
-                            VertexBufferDescriptor const &dstDtDesc,
-                            int numPatchCoords,
-                            PatchCoord const *patchCoords,
-                            Far::PatchTable const *patchTable,
-                            CpuEvaluator const *instance,
-                            void * deviceContext = NULL) {
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CpuEvaluator const *instance = NULL,
+        void * deviceContext = NULL) {
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
 
-        return EvalPatches(srcBuffer->BindCpuBuffer(),
-                           srcDesc,
-                           dstBuffer->BindCpuBuffer(),
-                           dstDesc,
-                           dstDsBuffer->BindCpuBuffer(),
-                           dstDsDesc,
-                           dstDtBuffer->BindCpuBuffer(),
-                           dstDtDesc,
+        // XXX: PatchCoords is somewhat abusing vertex primvar buffer interop.
+        //      ideally all buffer classes should have templated by datatype
+        //      so that downcast isn't needed there.
+        //      (e.g. Osd::CpuBuffer<PatchCoord> )
+        //
+        return EvalPatches(srcBuffer->BindCpuBuffer(), srcDesc,
+                           dstBuffer->BindCpuBuffer(), dstDesc,
+                           duBuffer->BindCpuBuffer(),  duDesc,
+                           dvBuffer->BindCpuBuffer(),  dvDesc,
                            numPatchCoords,
-                           patchCoords,
-                           patchTable);
+                           (const PatchCoord*)patchCoords->BindCpuBuffer(),
+                           patchTable->GetPatchArrayBuffer(),
+                           patchTable->GetPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
     }
 
     /// \brief Static limit eval function. It takes an array of PatchCoord
@@ -403,20 +389,23 @@ public:
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable on which primvars are evaluated
-    ///                         for the patchCoords
+    /// @param patchArrays      an array of Osd::PatchArray struct
+    ///                         indexed by PatchCoord::arrayIndex
     ///
-    /// @param instance         not used in the cpu evaluator
+    /// @param patchIndexBuffer an array of patch indices
+    ///                         indexed by PatchCoord::vertIndex
     ///
-    /// @param deviceContext    not used in the cpu evaluator
+    /// @param patchParamBuffer an array of Osd::PatchParam struct
+    ///                         indexed by PatchCoord::patchIndex
     ///
-    static bool EvalPatches(const float *src,
-                            VertexBufferDescriptor const &srcDesc,
-                            float *dst,
-                            VertexBufferDescriptor const &dstDesc,
-                            int numPatchCoords,
-                            PatchCoord const *patchCoords,
-                            Far::PatchTable const *patchTable);
+    static bool EvalPatches(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        const PatchCoord *patchCoords,
+        const PatchArray *patchArrays,
+        const int *patchIndexBuffer,
+        const PatchParam *patchParamBuffer);
 
     /// \brief Static limit eval function. It takes an array of PatchCoord
     ///        and evaluate limit values on given PatchTable.
@@ -432,38 +421,45 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param dstDs            Output s-derivatives pointer. An offset of
-    ///                         dstDsDesc will be applied internally.
+    /// @param du               Output U-derivatives pointer. An offset of
+    ///                         duDesc will be applied internally.
     ///
-    /// @param dstDsDesc        vertex buffer descriptor for the dstDs buffer
+    /// @param duDesc           vertex buffer descriptor for the du buffer
     ///
-    /// @param dstDt            Output t-derivatives pointer. An offset of
-    ///                         dstDtDesc will be applied internally.
+    /// @param dv               Output V-derivatives pointer. An offset of
+    ///                         dvDesc will be applied internally.
     ///
-    /// @param dstDtDesc        vertex buffer descriptor for the dstDt buffer
+    /// @param dvDesc           vertex buffer descriptor for the dv buffer
     ///
     /// @param numPatchCoords   number of patchCoords.
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable on which primvars are evaluated
-    ///                         for the patchCoords
+    /// @param patchArrays      an array of Osd::PatchArray struct
+    ///                         indexed by PatchCoord::arrayIndex
     ///
-    /// @param instance         not used in the cpu evaluator
+    /// @param patchIndexBuffer an array of patch indices
+    ///                         indexed by PatchCoord::vertIndex
     ///
-    /// @param deviceContext    not used in the cpu evaluator
+    /// @param patchParamBuffer an array of Osd::PatchParam struct
+    ///                         indexed by PatchCoord::patchIndex
     ///
-    static bool EvalPatches(const float *src,
-                            VertexBufferDescriptor const &srcDesc,
-                            float *dst,
-                            VertexBufferDescriptor const &dstDesc,
-                            float *dstDs,
-                            VertexBufferDescriptor const &dstDsDesc,
-                            float *dstDt,
-                            VertexBufferDescriptor const &dstDtDesc,
-                            int numPatchCoords,
-                            PatchCoord const *patchCoords,
-                            Far::PatchTable const *patchTable);
+    static bool EvalPatches(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        float *du,        VertexBufferDescriptor const &duDesc,
+        float *dv,        VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PatchCoord const *patchCoords,
+        PatchArray const *patchArrays,
+        const int *patchIndexBuffer,
+        PatchParam const *patchParamBuffer);
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Other methods
+    ///
+    /// ----------------------------------------------------------------------
 
     /// \brief synchronize all asynchronous computation invoked on this device.
     static void Synchronize(void * /*deviceContext = NULL*/) {

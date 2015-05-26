@@ -22,13 +22,13 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_OSD_GL_PATCH_TABLE_H
-#define OPENSUBDIV3_OSD_GL_PATCH_TABLE_H
+#ifndef OPENSUBDIV3_OSD_CL_PATCH_TABLE_H
+#define OPENSUBDIV3_OSD_CL_PATCH_TABLE_H
 
 #include "../version.h"
 
+#include "../osd/opencl.h"
 #include "../osd/nonCopyable.h"
-#include "../osd/opengl.h"
 #include "../osd/types.h"
 
 namespace OpenSubdiv {
@@ -40,54 +40,46 @@ namespace Far{
 
 namespace Osd {
 
-class GLPatchTable : private NonCopyable<GLPatchTable> {
+/// \brief CL patch table
+///
+/// This class is a CL buffer representation of Far::PatchTable.
+///
+/// CLEvaluator consumes this table to evaluate on the patches.
+///
+///
+class CLPatchTable : private NonCopyable<CLPatchTable> {
 public:
-    typedef GLuint VertexBufferBinding;
+    /// Creator. Returns NULL if error
+    static CLPatchTable *Create(Far::PatchTable const *patchTable,
+                                cl_context clContext);
 
-    ~GLPatchTable();
-
-    static GLPatchTable *Create(Far::PatchTable const *farPatchTable,
-                                void *deviceContext = NULL);
-
-    PatchArrayVector const &GetPatchArrays() const {
-        return _patchArrays;
+    template <typename DEVICE_CONTEXT>
+    static CLPatchTable * Create(Far::PatchTable const *patchTable,
+                                 DEVICE_CONTEXT context) {
+        return Create(patchTable, context->GetContext());
     }
 
-    /// Returns the GL index buffer containing the patch control vertices
-    GLuint GetPatchIndexBuffer() const {
-        return _patchIndexBuffer;
-    }
+    /// Destructor
+    ~CLPatchTable();
 
-    /// Returns the GL index buffer containing the patch parameter
-    GLuint GetPatchParamBuffer() const {
-        return _patchParamBuffer;
-    }
+    /// Returns the CL memory of the array of Osd::PatchArray buffer
+    cl_mem GetPatchArrayBuffer() const { return _patchArrays; }
 
-    /// Returns the GL texture buffer containing the patch control vertices
-    GLuint GetPatchIndexTextureBuffer() const {
-        return _patchIndexTexture;
-    }
+    /// Returns the CL memory of the patch control vertices
+    cl_mem GetPatchIndexBuffer() const { return _indexBuffer; }
 
-    /// Returns the GL texture buffer containing the patch parameter
-    GLuint GetPatchParamTextureBuffer() const {
-        return _patchParamTexture;
-    }
+    /// Returns the CL memory of the array of Osd::PatchParam buffer
+    cl_mem GetPatchParamBuffer() const { return _patchParamBuffer; }
 
 protected:
-    GLPatchTable();
+    CLPatchTable();
 
-    // allocate buffers from patchTable
-    bool allocate(Far::PatchTable const *farPatchTable);
+    bool allocate(Far::PatchTable const *patchTable, cl_context clContext);
 
-    PatchArrayVector _patchArrays;
-
-    GLuint _patchIndexBuffer;
-    GLuint _patchParamBuffer;
-
-    GLuint _patchIndexTexture;
-    GLuint _patchParamTexture;
+    cl_mem _patchArrays;
+    cl_mem _indexBuffer;
+    cl_mem _patchParamBuffer;
 };
-
 
 }  // end namespace Osd
 
@@ -96,4 +88,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OPENSUBDIV3_OSD_GL_PATCH_TABLE_H
+#endif  // OPENSUBDIV3_OSD_CL_PATCH_TABLE_H

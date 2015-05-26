@@ -29,6 +29,7 @@
 set(CPU_SOURCE_FILES
     cpuEvaluator.cpp
     cpuKernel.cpp
+    cpuPatchTable.cpp
     cpuVertexBuffer.cpp
 )
 
@@ -43,10 +44,12 @@ set(PRIVATE_HEADER_FILES
 
 set(PUBLIC_HEADER_FILES
     cpuEvaluator.h
+    cpuPatchTable.h
     cpuVertexBuffer.h
     mesh.h
     nonCopyable.h
     opengl.h
+    types.h
     vertexDescriptor.h
 )
 
@@ -216,6 +219,7 @@ list(APPEND DOXY_HEADER_FILES ${DXSDK_PUBLIC_HEADERS})
 # OpenCL code & dependencies
 set(OPENCL_PUBLIC_HEADERS
     clEvaluator.h
+    clPatchTable.h
     clVertexBuffer.h
     opencl.h
 )
@@ -223,6 +227,7 @@ set(OPENCL_PUBLIC_HEADERS
 if ( OPENCL_FOUND )
     list(APPEND GPU_SOURCE_FILES
         clEvaluator.cpp
+        clPatchTable.cpp
         clVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${OPENCL_PUBLIC_HEADERS})
@@ -254,12 +259,14 @@ list(APPEND DOXY_HEADER_FILES ${OPENCL_PUBLIC_HEADERS})
 # CUDA code & dependencies
 set(CUDA_PUBLIC_HEADERS
     cudaEvaluator.h
+    cudaPatchTable.h
     cudaVertexBuffer.h
 )
 
 if( CUDA_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cudaEvaluator.cpp
+        cudaPatchTable.cpp
         cudaVertexBuffer.cpp
     )
     list(APPEND PUBLIC_HEADER_FILES ${CUDA_PUBLIC_HEADERS})

@@ -45,12 +45,24 @@ public:
     /// Creator. Returns NULL if error.
     static CLVertexBuffer * Create(int numElements, int numVertices, cl_context clContext);
 
+    template <typename DEVICE_CONTEXT>
+    static CLVertexBuffer * Create(int numElements, int numVertices,
+                                   DEVICE_CONTEXT context) {
+        return Create(numElements, numVertices, context->GetContext());
+    }
+
     /// Destructor.
     ~CLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
+
+    template<typename DEVICE_CONTEXT>
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    DEVICE_CONTEXT context) {
+        UpdateData(src, startVertex, numVertices, context->GetCommandQueue());
+    }
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;

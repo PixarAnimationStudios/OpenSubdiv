@@ -44,15 +44,54 @@ GLFWmonitor* g_primary=0;
 
 #include <osd/cpuEvaluator.h>
 #include <osd/cpuVertexBuffer.h>
+#include <osd/cpuPatchTable.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/mesh.h>
+
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbEvaluator.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+    #include <osd/ompEvaluator.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+    #include <osd/cudaEvaluator.h>
+    #include <osd/cudaVertexBuffer.h>
+    #include <osd/cudaGLVertexBuffer.h>
+    #include <osd/cudaPatchTable.h>
+    #include "../common/cudaDeviceContext.h"
+
+    CudaDeviceContext g_cudaDeviceContext;
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osd/clVertexBuffer.h>
+    #include <osd/clGLVertexBuffer.h>
+    #include <osd/clEvaluator.h>
+    #include <osd/clPatchTable.h>
+    #include "../common/clDeviceContext.h"
+    CLDeviceContext g_clDeviceContext;
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    #include <osd/glXFBEvaluator.h>
+    #include <osd/glVertexBuffer.h>
+    #include <osd/glPatchTable.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    #include <osd/glComputeEvaluator.h>
+    #include <osd/glVertexBuffer.h>
+    #include <osd/glPatchTable.h>
+#endif
 
 #include <far/gregoryBasis.h>
 #include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/topologyRefiner.h>
 #include <far/stencilTableFactory.h>
 #include <far/patchTableFactory.h>
-#include <far/patchMap.h>
 
 #include <far/error.h>
 
@@ -75,24 +114,36 @@ GLFWmonitor* g_primary=0;
 using namespace OpenSubdiv;
 
 //------------------------------------------------------------------------------
+enum KernelType { kCPU = 0,
+                  kOPENMP = 1,
+                  kTBB = 2,
+                  kCUDA = 3,
+                  kCL = 4,
+                  kGLXFB = 5,
+                  kGLCompute = 6 };
+
+enum EndCap      { kEndCapBSplineBasis,
+                   kEndCapGregoryBasis };
+
+enum DrawMode { kUV,
+                kVARYING,
+                kNORMAL,
+                kSHADE,
+                kFACEVARYING };
+
 std::vector<float> g_orgPositions,
                    g_positions,
                    g_varyingColors;
 
 int g_currentShape = 0,
     g_level = 3,
+    g_kernel = kCPU,
+    g_endCap = kEndCapBSplineBasis,
     g_numElements = 3;
 
 std::vector<int>   g_coarseEdges;
 std::vector<float> g_coarseEdgeSharpness;
 std::vector<float> g_coarseVertexSharpness;
-
-enum DrawMode { kRANDOM=0,
-                kUV,
-                kVARYING,
-                kNORMAL,
-                kSHADE,
-                kFACEVARYING };
 
 int   g_running = 1,
       g_width = 1024,
@@ -100,7 +151,7 @@ int   g_running = 1,
       g_fullscreen = 0,
       g_drawCageEdges = 1,
       g_drawCageVertices = 1,
-      g_drawMode = kVARYING,
+      g_drawMode = kUV,
       g_prev_x = 0,
       g_prev_y = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -131,11 +182,9 @@ float g_computeTime = 0;
 Stopwatch g_fpsTimer;
 
 //------------------------------------------------------------------------------
-int g_nparticles=0,
-    g_nsamples=101,
-    g_nsamplesFound=0;
+int g_nParticles = 65536;
 
-bool g_randomStart=false;
+bool g_randomStart = true;//false;
 
 GLuint g_cageEdgeVAO = 0,
        g_cageEdgeVBO = 0,
@@ -155,6 +204,7 @@ struct Program {
     GLuint attrColor;
     GLuint attrTangentU;
     GLuint attrTangentV;
+    GLuint attrPatchCoord;
 } g_defaultProgram;
 
 //------------------------------------------------------------------------------
@@ -204,37 +254,189 @@ createCoarseMesh(OpenSubdiv::Far::TopologyRefiner const & refiner) {
 }
 
 //------------------------------------------------------------------------------
-Far::TopologyRefiner * g_topologyRefiner = 0;
-
-Far::StencilTable const * g_vertexStencils = NULL;
-Far::StencilTable const * g_varyingStencils = NULL;
-
 Far::PatchTable const * g_patchTable = NULL;
-Far::PatchMap const * g_patchMap = NULL;
-std::vector<Osd::PatchCoord> g_patchCoords;
 
-Osd::VertexBufferDescriptor g_idesc(/*offset*/ 0, /*legnth*/ 3, /*stride*/ 3),
-                            g_odesc(/*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-                            g_vdesc(/*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-                            g_duDesc(/*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-                            g_dvDesc(/*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-                            g_fvidesc(/*offset*/ 0, /*legnth*/ 2, /*stride*/ 2),
-                            g_fvodesc(/*offset*/ 3, /*legnth*/ 2, /*stride*/ 6);
+// input and output vertex data
+class EvalOutputBase {
+public:
+    virtual ~EvalOutputBase() {}
+    virtual GLuint BindVertexData() const = 0;
+    virtual GLuint BindDerivatives() const = 0;
+    virtual GLuint BindPatchCoords() const = 0;
+    virtual void UpdateData(const float *src, int startVertex, int numVertices) = 0;
+    virtual void UpdateVaryingData(const float *src, int startVertex, int numVertices) = 0;
+    virtual void Refine() = 0;
+    virtual void EvalPatches() = 0;
+    virtual void EvalPatchesWithDerivatives() = 0;
+    virtual void EvalPatchesVarying() = 0;
+    virtual void UpdatePatchCoords(
+        std::vector<Osd::PatchCoord> const &patchCoords) = 0;
+};
 
-// input vertex data (coarse + refined)
-Osd::CpuVertexBuffer * g_vertexData = 0;
-Osd::CpuVertexBuffer * g_varyingData = 0;
+// note: Since we don't have a class for device-patchcoord container in osd,
+// we cheat to use vertexbuffer as a patch-coord (5int) container.
+//
+// Please don't follow the pattern in your actual application.
+//
+template<typename SRC_VERTEX_BUFFER, typename EVAL_VERTEX_BUFFER,
+         typename STENCIL_TABLE, typename PATCH_TABLE, typename EVALUATOR,
+         typename DEVICE_CONTEXT = void>
+class EvalOutput : public EvalOutputBase {
+public:
+    typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
 
-// output vertex data (limit locations)
-Osd::CpuGLVertexBuffer * g_outVertexData = NULL;
-Osd::CpuGLVertexBuffer * g_outDerivatives = NULL;
+    EvalOutput(Far::StencilTable const *vertexStencils,
+               Far::StencilTable const *varyingStencils,
+               int numCoarseVerts, int numTotalVerts, int numParticles,
+               Far::PatchTable const *patchTable,
+               EvaluatorCache *evaluatorCache = NULL,
+               DEVICE_CONTEXT *deviceContext = NULL)
+        : _srcDesc(       /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
+          _srcVaryingDesc(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
+          _vertexDesc(    /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
+          _varyingDesc(   /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
+          _duDesc(        /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
+          _dvDesc(        /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
+          _deviceContext(deviceContext) {
+        _srcData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
+        _srcVaryingData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
+        _vertexData = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
+        _derivatives = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
+        _patchTable = PATCH_TABLE::Create(patchTable, _deviceContext);
+        _patchCoords = NULL;
+        _numCoarseVerts = numCoarseVerts;
+        _vertexStencils =
+            Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(vertexStencils, _deviceContext);
+        _varyingStencils =
+            Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(varyingStencils, _deviceContext);
+        _evaluatorCache = evaluatorCache;
+    }
+    ~EvalOutput() {
+        delete _srcData;
+        delete _srcVaryingData;
+        delete _vertexData;
+        delete _derivatives;
+        delete _patchTable;
+        delete _patchCoords;
+    }
+    virtual GLuint BindVertexData() const {
+        return _vertexData->BindVBO();
+    }
+    virtual GLuint BindDerivatives() const {
+        return _derivatives->BindVBO();
+    }
+    virtual GLuint BindPatchCoords() const {
+        return _patchCoords->BindVBO();
+    }
+    virtual void UpdateData(const float *src, int startVertex, int numVertices) {
+        _srcData->UpdateData(src, startVertex, numVertices, _deviceContext);
+    }
+    virtual void UpdateVaryingData(const float *src, int startVertex, int numVertices) {
+        _srcVaryingData->UpdateData(src, startVertex, numVertices, _deviceContext);
+    }
+    virtual void Refine() {
+        Osd::VertexBufferDescriptor dstDesc = _srcDesc;
+        dstDesc.offset += _numCoarseVerts * _srcDesc.stride;
+
+        EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcDesc, dstDesc, _deviceContext);
+
+        EVALUATOR::EvalStencils(_srcData, _srcDesc,
+                                _srcData, dstDesc,
+                                _vertexStencils,
+                                evalInstance,
+                                _deviceContext);
+
+        dstDesc = _srcVaryingDesc;
+        dstDesc.offset += _numCoarseVerts * _srcVaryingDesc.stride;
+        evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcVaryingDesc, dstDesc, _deviceContext);
+
+        EVALUATOR::EvalStencils(_srcVaryingData, _srcVaryingDesc,
+                                _srcVaryingData, dstDesc,
+                                _varyingStencils,
+                                evalInstance,
+                                _deviceContext);
+    }
+    virtual void EvalPatches() {
+        EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcDesc, _vertexDesc, _deviceContext);
+
+        EVALUATOR::EvalPatches(
+            _srcData, _srcDesc,
+            _vertexData, _vertexDesc,
+            _patchCoords->GetNumVertices(),
+            _patchCoords,
+            _patchTable, evalInstance, _deviceContext);
+    }
+    virtual void EvalPatchesWithDerivatives() {
+        EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcDesc, _vertexDesc, _deviceContext);
+        EVALUATOR::EvalPatches(
+            _srcData, _srcDesc,
+            _vertexData, _vertexDesc,
+            _derivatives, _duDesc,
+            _derivatives, _dvDesc,
+            _patchCoords->GetNumVertices(),
+            _patchCoords,
+            _patchTable, evalInstance, _deviceContext);
+    }
+    virtual void EvalPatchesVarying() {
+        EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcVaryingDesc, _varyingDesc, _deviceContext);
+
+        EVALUATOR::EvalPatches(
+            _srcVaryingData, _srcVaryingDesc,
+            // varyingdata is interleved in vertexData.
+            _vertexData, _varyingDesc,
+            _patchCoords->GetNumVertices(),
+            _patchCoords,
+            _patchTable, evalInstance, _deviceContext);
+    }
+    virtual void UpdatePatchCoords(
+        std::vector<Osd::PatchCoord> const &patchCoords) {
+        if (_patchCoords and
+            _patchCoords->GetNumVertices() != (int)patchCoords.size()) {
+            delete _patchCoords;
+            _patchCoords = NULL;
+        }
+        if (not _patchCoords) {
+            _patchCoords = EVAL_VERTEX_BUFFER::Create(5,
+                                                      (int)patchCoords.size(),
+                                                      _deviceContext);
+        }
+        _patchCoords->UpdateData((float*)&patchCoords[0], 0, (int)patchCoords.size(), _deviceContext);
+    }
+private:
+    SRC_VERTEX_BUFFER *_srcData;
+    SRC_VERTEX_BUFFER *_srcVaryingData;
+    EVAL_VERTEX_BUFFER *_vertexData;
+    EVAL_VERTEX_BUFFER *_derivatives;
+    EVAL_VERTEX_BUFFER *_varyingData;
+    EVAL_VERTEX_BUFFER *_patchCoords;
+    PATCH_TABLE *_patchTable;
+    Osd::VertexBufferDescriptor _srcDesc;
+    Osd::VertexBufferDescriptor _srcVaryingDesc;
+    Osd::VertexBufferDescriptor _vertexDesc;
+    Osd::VertexBufferDescriptor _varyingDesc;
+    Osd::VertexBufferDescriptor _duDesc;
+    Osd::VertexBufferDescriptor _dvDesc;
+    int _numCoarseVerts;
+
+    STENCIL_TABLE const *_vertexStencils;
+    STENCIL_TABLE const *_varyingStencils;
+
+    EvaluatorCache *_evaluatorCache;
+    DEVICE_CONTEXT *_deviceContext;
+};
+
+EvalOutputBase *g_evalOutput = NULL;
 
 STParticles * g_particles=0;
 
 //------------------------------------------------------------------------------
 static void
 updateGeom() {
-
     int nverts = (int)g_orgPositions.size() / 3;
 
     const float *p = &g_orgPositions[0];
@@ -255,27 +457,17 @@ updateGeom() {
     Stopwatch s;
     s.Start();
 
-    g_vertexData->UpdateData( &g_positions[0], 0, nverts);
+    // update coarse vertices
+    g_evalOutput->UpdateData(&g_positions[0], 0, nverts);
 
-    if (! g_topologyRefiner) return;
+    // update coarse varying
+    if (g_drawMode == kVARYING) {
+        g_evalOutput->UpdateVaryingData(&g_varyingColors[0], 0, nverts);
 
-    // note that for patch eval we need coarse+refined combined buffer.
-    int nCoarseVertices = g_topologyRefiner->GetLevel(0).GetNumVertices();
-    Osd::CpuEvaluator::EvalStencils(g_vertexData,
-                                    Osd::VertexBufferDescriptor(0, 3, 3),
-                                    g_vertexData,
-                                    Osd::VertexBufferDescriptor(
-                                        nCoarseVertices*3, 3, 3),
-                                    g_vertexStencils);
-
-    if (g_varyingData) {
-        Osd::CpuEvaluator::EvalStencils(g_varyingData,
-                                        Osd::VertexBufferDescriptor(0, 3, 3),
-                                        g_varyingData,
-                                        Osd::VertexBufferDescriptor(
-                                            nCoarseVertices*3, 3, 3),
-                                        g_varyingStencils);
     }
+
+    // Refine
+    g_evalOutput->Refine();
 
     s.Stop();
     g_computeTime = float(s.GetElapsed() * 1000.0f);
@@ -287,60 +479,28 @@ updateGeom() {
 
     // Apply 'dynamics' update
     assert(g_particles);
+
     g_particles->Update(g_evalTime); // XXXX g_evalTime is not really elapsed time...
 
+    std::vector<OpenSubdiv::Osd::PatchCoord> const &patchCoords
+        = g_particles->GetPatchCoords();
 
-    // resolve particle positions into patch handles
-    // XXX: this process should be handled by OsdKernel in parallel
-    g_patchCoords.clear();
-    for (int i = 0; i < g_particles->GetNumParticles(); ++i) {
-        STParticles::Position const &position = g_particles->GetPositions()[i];
-        Far::PatchTable::PatchHandle const *handle =
-            g_patchMap->FindPatch(position.ptexIndex, position.s, position.t);
-        if (handle) {
-            g_patchCoords.push_back(Osd::PatchCoord(
-                                        *handle, position.s, position.t));
-        }
-    }
+    // update patchcoord to be evaluated
+    g_evalOutput->UpdatePatchCoords(patchCoords);
 
     // Evaluate the positions of the samples on the limit surface
     if (g_drawMode == kNORMAL || g_drawMode == kSHADE) {
         // evaluate positions and derivatives
-        g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(
-            g_vertexData,      g_idesc,
-            g_outVertexData,   g_odesc,
-            g_outDerivatives,  g_duDesc,
-            g_outDerivatives,  g_dvDesc,
-            (int)g_patchCoords.size(),
-            &g_patchCoords[0],
-            g_patchTable, NULL);
+        g_evalOutput->EvalPatchesWithDerivatives();
     } else {
         // evaluate positions
-        g_nsamplesFound = Osd::CpuEvaluator::EvalPatches(
-            g_vertexData,     g_idesc,
-            g_outVertexData,  g_odesc,
-            (int)g_patchCoords.size(),
-            &g_patchCoords[0],
-            g_patchTable, NULL);
+        g_evalOutput->EvalPatches();
     }
 
     // color
-    if (g_drawMode == kUV) {
-        // store patchCoords as colors
-        float *p = g_outVertexData->BindCpuBuffer() + g_vdesc.offset;
-        for (int i = 0; i < (int)g_patchCoords.size(); ++i) {
-            p[0] = g_patchCoords[i].s;
-            p[1] = g_patchCoords[i].t;
-            p[2] = 0;
-            p += g_vdesc.stride;
-        }
-    } else if (g_drawMode == kVARYING) {
+    if (g_drawMode == kVARYING) {
         // XXX: is this really varying?
-        Osd::CpuEvaluator::EvalPatches(g_varyingData,   g_idesc,
-                                       g_outVertexData, g_vdesc,
-                                       (int)g_patchCoords.size(),
-                                       &g_patchCoords[0],
-                                       g_patchTable, NULL);
+        g_evalOutput->EvalPatchesVarying();
     }
 
     s.Stop();
@@ -359,8 +519,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    delete g_topologyRefiner;
-    g_topologyRefiner =
+    Far::TopologyRefiner *topologyRefiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
@@ -371,22 +530,16 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
     float speed = g_particles ? g_particles->GetSpeed() : 0.2f;
 
-    // Create the 'uv particles' manager - this class manages the limit
-    // location samples (ptex face index, (s,t) and updates them between frames.
-    // Note: the number of limit locations can be entirely arbitrary
-    delete g_particles;
-    g_particles = new STParticles(*g_topologyRefiner, g_nsamples, !g_randomStart);
-    g_nparticles = g_particles->GetNumParticles();
-    g_particles->SetSpeed(speed);
+    createCoarseMesh(*topologyRefiner);
 
-    createCoarseMesh(*g_topologyRefiner);
-
+    Far::StencilTable const * vertexStencils = NULL;
+    Far::StencilTable const * varyingStencils = NULL;
     int nverts=0;
     {
         // Apply feature adaptive refinement to the mesh so that we can use the
         // limit evaluation API features.
         Far::TopologyRefiner::AdaptiveOptions options(level);
-        g_topologyRefiner->RefineAdaptive(options);
+        topologyRefiner->RefineAdaptive(options);
 
         // Generate stencil table to update the bi-cubic patches control
         // vertices after they have been re-posed (both for vertex & varying
@@ -395,27 +548,33 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         soptions.generateOffsets=true;
         soptions.generateIntermediateLevels=true;
 
-        Far::StencilTable const * vertexStencils =
-            Far::StencilTableFactory::Create(*g_topologyRefiner, soptions);
+        vertexStencils =
+            Far::StencilTableFactory::Create(*topologyRefiner, soptions);
 
         soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_VARYING;
-        Far::StencilTable const * varyingStencils =
-            Far::StencilTableFactory::Create(*g_topologyRefiner, soptions);
+
+        varyingStencils =
+            Far::StencilTableFactory::Create(*topologyRefiner, soptions);
 
         // Generate bi-cubic patch table for the limit surface
         Far::PatchTableFactory::Options poptions;
-        poptions.SetEndCapType(
-            Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+        if (g_endCap == kEndCapBSplineBasis) {
+            poptions.SetEndCapType(
+                Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
+        } else {
+            poptions.SetEndCapType(
+                Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+        }
 
         Far::PatchTable const * patchTable =
-            Far::PatchTableFactory::Create(*g_topologyRefiner, poptions);
+            Far::PatchTableFactory::Create(*topologyRefiner, poptions);
 
         // append endcap stencils
         if (Far::StencilTable const *endCapVertexStencilTable =
             patchTable->GetEndCapVertexStencilTable()) {
             Far::StencilTable const *table =
                 Far::StencilTableFactory::AppendEndCapStencilTable(
-                    *g_topologyRefiner,
+                    *topologyRefiner,
                     vertexStencils, endCapVertexStencilTable);
             delete vertexStencils;
             vertexStencils = table;
@@ -424,7 +583,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
             patchTable->GetEndCapVaryingStencilTable()) {
             Far::StencilTable const *table =
                 Far::StencilTableFactory::AppendEndCapStencilTable(
-                    *g_topologyRefiner,
+                    *topologyRefiner,
                     varyingStencils, endCapVaryingStencilTable);
             delete varyingStencils;
             varyingStencils = table;
@@ -434,47 +593,103 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         nverts = vertexStencils->GetNumControlVertices() +
             vertexStencils->GetNumStencils();
 
-        if (g_vertexStencils) delete g_vertexStencils;
-        g_vertexStencils = vertexStencils;
-        if (g_varyingStencils) delete g_varyingStencils;
-        g_varyingStencils = varyingStencils;
-
         if (g_patchTable) delete g_patchTable;
         g_patchTable = patchTable;
-
-        // Create a far patch map
-        if (g_patchMap) delete g_patchMap;
-        g_patchMap = new Far::PatchMap(*g_patchTable);
     }
 
-    {   // Create vertex primvar buffer for the CVs
-        delete g_vertexData;
-        g_vertexData = Osd::CpuVertexBuffer::Create(3, nverts);
+    // note that for patch eval we need coarse+refined combined buffer.
+    int nCoarseVertices = topologyRefiner->GetLevel(0).GetNumVertices();
 
-        // Create varying primvar buffer for the CVs with random colors.
-        // These are immediately interpolated (once) and saved for display.
-        delete g_varyingData; g_varyingData = 0;
-        if (g_drawMode==kVARYING) {
-            g_varyingData = Osd::CpuVertexBuffer::Create(3, nverts);
-            g_varyingData->UpdateData( 
-                &g_varyingColors[0], 0, (int)g_varyingColors.size()/3 );
-        }
-
-        // Create output buffers for the limit samples (position & tangents)
-        delete g_outVertexData;
-        g_outVertexData = Osd::CpuGLVertexBuffer::Create(6, g_nparticles);
-        memset(g_outVertexData->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
-        if (g_drawMode==kRANDOM) {
-            createRandomColors(g_nparticles, 6, g_outVertexData->BindCpuBuffer()+3);
-        }
-
-        delete g_outDerivatives;
-        g_outDerivatives = Osd::CpuGLVertexBuffer::Create(6, g_nparticles);
-        memset(g_outDerivatives->BindCpuBuffer(), 0, g_nparticles*6*sizeof(float));
+    delete g_evalOutput;
+    if (g_kernel == kCPU) {
+        g_evalOutput = new EvalOutput<Osd::CpuVertexBuffer,
+                                      Osd::CpuGLVertexBuffer,
+                                      Far::StencilTable,
+                                      Osd::CpuPatchTable,
+                                      Osd::CpuEvaluator>
+            (vertexStencils, varyingStencils,
+             nCoarseVertices, nverts, g_nParticles, g_patchTable);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    } else if (g_kernel == kOPENMP) {
+        g_evalOutput = new EvalOutput<Osd::CpuVertexBuffer,
+                                      Osd::CpuGLVertexBuffer,
+                                      Far::StencilTable,
+                                      Osd::CpuPatchTable,
+                                      Osd::OmpEvaluator>
+            (vertexStencils, varyingStencils,
+            nCoarseVertices, nverts, g_nParticles, g_patchTable);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (g_kernel == kTBB) {
+        g_evalOutput = new EvalOutput<Osd::CpuVertexBuffer,
+                                      Osd::CpuGLVertexBuffer,
+                                      Far::StencilTable,
+                                      Osd::CpuPatchTable,
+                                      Osd::TbbEvaluator>
+            (vertexStencils, varyingStencils,
+            nCoarseVertices, nverts, g_nParticles, g_patchTable);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    } else if (g_kernel == kCUDA) {
+        g_evalOutput = new EvalOutput<Osd::CudaVertexBuffer,
+                                      Osd::CudaGLVertexBuffer,
+                                      Osd::CudaStencilTable,
+                                      Osd::CudaPatchTable,
+                                      Osd::CudaEvaluator>
+            (vertexStencils, varyingStencils,
+            nCoarseVertices, nverts, g_nParticles, g_patchTable);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    } else if (g_kernel == kCL) {
+        static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
+        g_evalOutput = new EvalOutput<Osd::CLVertexBuffer,
+                                      Osd::CLGLVertexBuffer,
+                                      Osd::CLStencilTable,
+                                      Osd::CLPatchTable,
+                                      Osd::CLEvaluator,
+                                      CLDeviceContext>
+            (vertexStencils, varyingStencils,
+            nCoarseVertices, nverts, g_nParticles, g_patchTable,
+            &clEvaluatorCache, &g_clDeviceContext);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    } else if (g_kernel == kGLXFB) {
+        static Osd::EvaluatorCacheT<Osd::GLXFBEvaluator> glXFBEvaluatorCache;
+        g_evalOutput = new EvalOutput<Osd::GLVertexBuffer,
+                                      Osd::GLVertexBuffer,
+                                      Osd::GLStencilTableTBO,
+                                      Osd::GLPatchTable,
+                                      Osd::GLXFBEvaluator>
+            (vertexStencils, varyingStencils,
+             nCoarseVertices, nverts, g_nParticles, g_patchTable,
+             &glXFBEvaluatorCache);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    } else if (g_kernel == kGLCompute) {
+        static Osd::EvaluatorCacheT<Osd::GLComputeEvaluator> glComputeEvaluatorCache;
+        g_evalOutput = new EvalOutput<Osd::GLVertexBuffer,
+                                      Osd::GLVertexBuffer,
+                                      Osd::GLStencilTableSSBO,
+                                      Osd::GLPatchTable,
+                                      Osd::GLComputeEvaluator>
+            (vertexStencils, varyingStencils,
+             nCoarseVertices, nverts, g_nParticles, g_patchTable,
+             &glComputeEvaluatorCache);
+#endif
     }
+
+    // Create the 'uv particles' manager - this class manages the limit
+    // location samples (ptex face index, (s,t) and updates them between frames.
+    // Note: the number of limit locations can be entirely arbitrary
+    delete g_particles;
+    g_particles = new STParticles(*topologyRefiner, g_patchTable,
+                                  g_nParticles, !g_randomStart);
+    g_nParticles = g_particles->GetNumParticles();
+    g_particles->SetSpeed(speed);
 
     updateGeom();
 
+    delete topologyRefiner;
 }
 
 //------------------------------------------------------------------------------
@@ -505,32 +720,33 @@ linkDefaultProgram() {
         "in vec3 color;\n"
         "in vec3 tangentU;\n"
         "in vec3 tangentV;\n"
+        "in vec2 patchCoord;\n"
         "out vec4 fragColor;\n"
-        "out vec3 normal;\n"
         "uniform mat4 ModelViewMatrix;\n"
         "uniform mat4 ProjectionMatrix;\n"
+        "uniform int DrawMode;\n"
         "void main() {\n"
-        "  fragColor = vec4(color, 1);\n"
-        // XXX: fix the normal transform
-        "  normal = (ModelViewMatrix * vec4(normalize(cross(tangentU, tangentV)), 0)).xyz;\n"
+        "  vec3 normal = (ModelViewMatrix * "
+        "               vec4(normalize(cross(tangentU, tangentV)), 0)).xyz;\n"
         "  gl_Position = ProjectionMatrix * ModelViewMatrix * "
         "                  vec4(position, 1);\n"
+        "  if (DrawMode == 0) {\n" // UV
+        "    fragColor = vec4(patchCoord.x, patchCoord.y, 0, 1);\n"
+        "  } else if (DrawMode == 2) {\n"
+        "    fragColor = vec4(normal*0.5+vec3(0.5), 1);\n"
+        "  } else if (DrawMode == 3) {\n"
+        "    fragColor = vec4(vec3(1)*dot(normal, vec3(0,0,1)), 1);\n"
+        "  } else {\n" // varying
+        "    fragColor = vec4(color, 1);\n"
+        "  }\n"
         "}\n";
 
     static const char *fsSrc =
         GLSL_VERSION_DEFINE
         "in vec4 fragColor;\n"
-        "in vec3 normal;\n"
-        "uniform int DrawMode;\n"
         "out vec4 color;\n"
         "void main() {\n"
-        "  if (DrawMode == 3) {\n"
-        "    color = vec4(normal*0.5+vec3(0.5), 1);\n"
-        "  } else if (DrawMode == 4) {\n"
-        "    color = vec4(vec3(1)*dot(normal, vec3(0,0,1)), 1);\n"
-        "  } else {\n"
-        "    color = fragColor;\n"
-        "  }\n"
+        "  color = fragColor;\n"
         "}\n";
 
     GLuint program = glCreateProgram();
@@ -544,6 +760,7 @@ linkDefaultProgram() {
     glBindAttribLocation(program, 1, "color");
     glBindAttribLocation(program, 2, "tangentU");
     glBindAttribLocation(program, 3, "tangentV");
+    glBindAttribLocation(program, 4, "patchCoord");
     glBindFragDataLocation(program, 0, "color");
 
     glLinkProgram(program);
@@ -571,6 +788,7 @@ linkDefaultProgram() {
     g_defaultProgram.attrColor = glGetAttribLocation(program, "color");
     g_defaultProgram.attrTangentU = glGetAttribLocation(program, "tangentU");
     g_defaultProgram.attrTangentV = glGetAttribLocation(program, "tangentV");
+    g_defaultProgram.attrPatchCoord = glGetAttribLocation(program, "patchCoord");
 
     return true;
 }
@@ -621,6 +839,7 @@ drawCageEdges() {
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
     glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
     glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
+    glDisableVertexAttribArray(g_defaultProgram.attrPatchCoord);
     glVertexAttribPointer(g_defaultProgram.attrPosition,
                           3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(g_defaultProgram.attrColor,
@@ -680,6 +899,7 @@ drawCageVertices() {
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
     glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
     glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
+    glDisableVertexAttribArray(g_defaultProgram.attrPatchCoord);
     glVertexAttribPointer(g_defaultProgram.attrPosition,
                           3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(g_defaultProgram.attrColor,
@@ -711,27 +931,33 @@ drawSamples() {
     glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
     glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_outVertexData->BindVBO());
+    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindVertexData());
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_outDerivatives->BindVBO());
+    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindDerivatives());
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
+
+    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindPatchCoords());
+    glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, (float*)12);
 
     glEnableVertexAttribArray(g_defaultProgram.attrPosition);
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
     glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
     glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
+    glEnableVertexAttribArray(g_defaultProgram.attrPatchCoord);
 
     glPointSize(2.0f);
-    glDrawArrays(GL_POINTS, 0, g_nparticles);
+    int nPatchCoords = (int)g_particles->GetPatchCoords().size();
+    glDrawArrays(GL_POINTS, 0, nPatchCoords);
     glPointSize(1.0f);
 
     glDisableVertexAttribArray(g_defaultProgram.attrPosition);
     glDisableVertexAttribArray(g_defaultProgram.attrColor);
     glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
     glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
+    glDisableVertexAttribArray(g_defaultProgram.attrPatchCoord);
 
     glBindVertexArray(0);
 
@@ -789,9 +1015,10 @@ display() {
         double fps = 1.0/g_fpsTimer.GetElapsed();
         g_fpsTimer.Start();
 
+        int nPatchCoords = (int)g_particles->GetPatchCoords().size();
+
         g_hud.DrawString(10, -150, "Particle Speed ([) (]): %.1f", g_particles->GetSpeed());
-        g_hud.DrawString(10, -120, "# Samples  : (%d/%d)",
-                         g_nsamplesFound, g_outVertexData->GetNumVertices());
+        g_hud.DrawString(10, -120, "# Samples  : (%d / %d)", nPatchCoords, g_nParticles);
         g_hud.DrawString(10, -100, "Compute    : %.3f ms", g_computeTime);
         g_hud.DrawString(10, -80,  "Eval       : %.3f ms", g_evalTime * 1000.f);
         g_hud.DrawString(10, -60,  "GPU Draw   : %.3f ms", drawGpuTime);
@@ -884,9 +1111,11 @@ void windowClose(GLFWwindow*) {
 //------------------------------------------------------------------------------
 static void
 setSamples(bool add) {
-    g_nsamples += add ? 50 : -50;
-
-    g_nsamples = std::max(0, g_nsamples);
+    if (add) {
+        g_nParticles = g_nParticles * 2;
+    } else {
+        g_nParticles = std::max(1, g_nParticles / 2);
+    }
 
     createOsdMesh(g_defaultShapes[g_currentShape], g_level);
 }
@@ -934,6 +1163,40 @@ callbackModel(int m) {
 
     g_currentShape = m;
     createOsdMesh(g_defaultShapes[g_currentShape], g_level);
+}
+
+//------------------------------------------------------------------------------
+static void
+callbackEndCap(int endCap) {
+    g_endCap = endCap;
+    createOsdMesh(g_defaultShapes[g_currentShape], g_level);
+}
+
+//------------------------------------------------------------------------------
+static void
+callbackKernel(int k) {
+
+    g_kernel = k;
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+        if (g_clDeviceContext.Initialize() == false) {
+            printf("Error in initializing OpenCL\n");
+            exit(1);
+        }
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+        if (g_cudaDeviceContext.Initialize() == false) {
+            printf("Error in initializing Cuda\n");
+            exit(1);
+        }
+    }
+#endif
+
+    createOsdMesh(g_defaultShapes[g_currentShape], g_level);
+
 }
 
 //------------------------------------------------------------------------------
@@ -1001,10 +1264,40 @@ initHUD() {
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
     g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
 
-    g_hud.AddCheckBox("Random Start", false, 10, 120, callbackCentered, g_randomStart);
+    g_hud.AddCheckBox("Random Start", g_randomStart, 10, 120, callbackCentered, 0);
+
+    int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300,
+                                             callbackKernel, 'k');
+    g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    g_hud.AddPullDownButton(compute_pulldown, "OPENMP", kOPENMP);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    g_hud.AddPullDownButton(compute_pulldown, "GL XFB", kGLXFB);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    g_hud.AddPullDownButton(compute_pulldown, "GL Compute", kGLCompute);
+#endif
+
+    int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 140, 200,
+                                            callbackEndCap, 'e');
+    g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+        kEndCapBSplineBasis,
+        g_endCap == kEndCapBSplineBasis);
+    g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+        kEndCapGregoryBasis,
+        g_endCap == kEndCapGregoryBasis);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 250, 10, 250, callbackDisplayVaryingColors, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Random", kRANDOM, g_drawMode==kRANDOM);
     g_hud.AddPullDownButton(shading_pulldown, "(u,v)", kUV, g_drawMode==kUV);
     g_hud.AddPullDownButton(shading_pulldown, "Varying", kVARYING, g_drawMode==kVARYING);
     g_hud.AddPullDownButton(shading_pulldown, "Normal", kNORMAL, g_drawMode==kNORMAL);

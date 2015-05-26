@@ -27,6 +27,8 @@
 
 #include "../version.h"
 
+#include <cstddef>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -41,14 +43,16 @@ class CudaVertexBuffer {
 
 public:
     /// Creator. Returns NULL if error.
-    static CudaVertexBuffer * Create(int numElements, int numVertices);
+    static CudaVertexBuffer * Create(int numElements, int numVertices,
+                                     void *deviceContext = NULL);
 
     /// Destructor.
     ~CudaVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext=NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
