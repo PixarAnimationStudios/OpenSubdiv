@@ -222,7 +222,7 @@ private:
         //
         // Additionally, if the client does not want the resulting verts
         // compacted, do not attempt to combine weights.
-        if (_compactWeights and _dests[lastOffset] == dst) {
+        if (_compactWeights and !_dests.empty() and _dests[lastOffset] == dst) {
 
             // tableSize is exactly _sources.size(), but using tableSize is
             // significantly faster.
