@@ -100,8 +100,8 @@ public:
             _weights[i] = 1.0;
         }
 
-        _size = (int)_sources.size();
-        _lastOffset = (int)_sources.size() - 1;
+        _size = static_cast<int>(_sources.size());
+        _lastOffset = _size - 1;
     }
 
     template <class W, class WACCUM>
@@ -260,11 +260,11 @@ private:
                 _sizes.resize(dst+1);
             }
             // Initialize the new stencil's meta-data (offset, size).
-            _indices[dst] = (int)_sources.size();
+            _indices[dst] = static_cast<int>(_sources.size());
             _sizes[dst] = 0;
             // Keep track of where the current stencil begins, which lets us
             // avoid having to look it up later.
-            _lastOffset = (int)_sources.size();
+            _lastOffset = static_cast<int>(_sources.size());
         }
         // Cache the number of elements as an optimization, it's faster than
         // calling size() on any of the vectors.
