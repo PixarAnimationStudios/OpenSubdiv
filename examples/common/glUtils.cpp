@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include <sstream>
+#include <string>
 #include "glUtils.h"
 
 namespace GLUtils {
@@ -57,7 +59,7 @@ CompileShader(GLenum shaderType, const char *source) {
 bool
 SupportsAdaptiveTessellation() {
 #ifdef OSD_USES_GLEW
-    return (glewIsSupported("GL_ARB_tessellation_shader") == GL_TRUE);
+    return glewGetExtension("GL_ARB_tessellation_shader") == GL_TRUE;
 #else
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     return true;
@@ -67,4 +69,102 @@ SupportsAdaptiveTessellation() {
 #endif
 }
 
+///Helper function that parses the open gl version string, retrieving the major 
+///and minor version from it.
+void GetMajorMinorVersion(int *major, int *minor){
+	static bool initialized = false;
+	int _major = -1, _minor = -1;
+	if (!initialized || _major == -1 || _minor == -1){
+		const GLubyte *ver = glGetString(GL_SHADING_LANGUAGE_VERSION);
+		if (!ver){
+			_major = -1;
+			_minor = -1;
+		}
+		else{
+			std::string major_str(ver, ver + 1);
+			std::string minor_str(ver + 2, ver + 3);
+			std::stringstream ss;
+			ss << major_str << " " << minor_str;
+			ss >> _major;
+			ss >> _minor;
+		}
+		initialized = true;
+	}
+	*major = _major;
+	*minor = _minor;
+
+}
+
+/** Gets the shader version based on the current opengl version and returns 
+ * it in a string form */
+
+const std::string &GetShaderVersion(){
+	static bool initialized = false;
+	static std::string shader_version;
+	if (!initialized){
+
+		int major, minor;
+		GetMajorMinorVersion(&major, &minor);
+		int version_number = major * 10 + minor;
+		switch (version_number){
+		case 20:
+			shader_version = "110";
+			break;
+		case 21:
+			shader_version = "120";
+			break;
+		case 30:
+			shader_version = "130";
+			break;
+		case 31:
+			shader_version = "140";
+			break;
+		case 32:
+			shader_version = "150";
+			break;
+		default:
+			std::stringstream ss;
+			ss << version_number;
+			shader_version = ss.str() + "0";
+			break;
+		}
+		initialized = true;
+	}
+	return shader_version;
+}
+
+/* Generates the version defintion needed by the glsl shaders based on the 
+ * opengl string
+*/
+const std::string &GetShaderVersionInclude(){
+	static bool initialized = false;
+	static std::string include;
+	if (!initialized){
+		include = "#version " + GetShaderVersion() + "\n";
+		initialized = true;
+	}
+	return include;
+}
+
+bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1(){
+#if defined(OSD_USES_GLEW)
+	bool initialized = false, uses = false;
+	if (!initialized){
+		uses = glewGetExtension("GL_ARB_separate_shader_objects") ||
+			(GLEW_VERSION_4_1
+			&& glewGetExtension("GL_ARB_tessellation_shader"));
+		initialized = true;
+	}
+	return uses;
+#else
+#if defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
+	return true;
+#else
+	return false;
+#endif
+#endif
+}
+
+
+                      
 }   // namesapce GLUtils

@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+
 #include "clDeviceContext.h"
 
 #if defined(_WIN32)
@@ -40,6 +42,8 @@
 #include <D3D11.h>
 #include <CL/cl_d3d11.h>
 #endif
+
+
 
 #define message(...)    // fprintf(stderr, __VA_ARGS__)
 #define error(...)  fprintf(stderr, __VA_ARGS__)

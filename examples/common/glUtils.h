@@ -39,6 +39,15 @@ GLuint CompileShader(GLenum shaderType, const char *source);
 
 bool SupportsAdaptiveTessellation();
 
+void GetMajorMinorVersion(int *major, int *minor);
+
+
+const std::string &GetShaderVersion();
+
+const std::string &GetShaderVersionInclude();
+
+bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1();
+
 };
 
 #endif  // OPENSUBDIV_EXAMPLES_GL_UTILS_H

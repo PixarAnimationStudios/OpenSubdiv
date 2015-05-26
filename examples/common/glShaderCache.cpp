@@ -23,6 +23,7 @@
 //
 
 #include "glShaderCache.h"
+#include "glUtils.h"
 
 #include <vector>
 #include <osd/opengl.h>
@@ -41,14 +42,22 @@ GLDrawConfig::~GLDrawConfig() {
 
 bool
 GLDrawConfig::CompileAndAttachShader(GLenum shaderType,
-                                     const std::string &source) {
-    GLuint shader = glCreateShader(shaderType);
+const std::string &source) {
 
-    const char *sources[2];
-    sources[0] = _version.c_str();
-    sources[1] = source.c_str();
 
-    glShaderSource(shader, 2, sources, NULL);
+	GLuint shader = glCreateShader(shaderType);
+
+#if 0
+	const char *sources[2];
+	sources[0] = _version.c_str();
+	sources[1] = source.c_str();
+#endif
+
+	std::string sources = _version + source;
+
+	const char *src = sources.c_str();
+
+    glShaderSource(shader, 1, &src, NULL);
     glCompileShader(shader);
 
     GLint status;
