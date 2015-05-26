@@ -194,9 +194,8 @@ CudaEvaluator::EvalPatches(const float *src,
                            const PatchArray *patchArrays,
                            const int *patchIndices,
                            const PatchParam *patchParams) {
-    src += srcDesc.offset;
-    if (dst)
-        dst += dstDesc.offset;
+    if (src) src += srcDesc.offset;
+    if (dst) dst += dstDesc.offset;
 
     CudaEvalPatches(src, dst,
                     srcDesc.length, srcDesc.stride, dstDesc.stride,

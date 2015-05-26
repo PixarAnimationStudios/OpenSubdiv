@@ -128,37 +128,85 @@ static void getBSplineWeights(float t, float *point, float *deriv) {
     deriv[3] =  0.5f*t2;
 }
 
+static void adjustBoundaryWeights(uint bits, float *sWeights, float *tWeights) {
+    int boundary = ((bits >> 4) & 0xf);
+
+    if (boundary & 1) {
+        tWeights[2] -= tWeights[0];
+        tWeights[1] += 2*tWeights[0];
+        tWeights[0] = 0;
+    }
+    if (boundary & 2) {
+        sWeights[1] -= sWeights[3];
+        sWeights[2] += 2*sWeights[3];
+        sWeights[3] = 0;
+    }
+    if (boundary & 4) {
+        tWeights[1] -= tWeights[3];
+        tWeights[2] += 2*tWeights[3];
+        tWeights[3] = 0;
+    }
+    if (boundary & 8) {
+        sWeights[2] -= sWeights[0];
+        sWeights[1] += 2*sWeights[0];
+        sWeights[0] = 0;
+    }
+}
+
+static int getDepth(uint patchBits) {
+    return (patchBits & 0x7);
+}
+
+static float getParamFraction(uint patchBits) {
+    bool nonQuadRoot = (patchBits >> 3) & 0x1;
+    int depth = getDepth(patchBits);
+    if (nonQuadRoot) {
+        return 1.0f / (float)( 1 << (depth-1) );
+    } else {
+        return 1.0f / (float)( 1 << depth );
+    }
+}
+
+static void normalizePatchCoord(uint patchBits, float *uv) {
+    float frac = getParamFraction(patchBits);
+
+    int iu = (patchBits >> 22) & 0x3ff;
+    int iv = (patchBits >> 12) & 0x3ff;
+
+    // top left corner
+    float pu = (float)iu*frac;
+    float pv = (float)iv*frac;
+
+    // normalize u,v coordinates
+    uv[0] = (uv[0] - pu) / frac;
+    uv[1] = (uv[1] - pv) / frac;
+}
+
 __kernel void computePatches(__global float *src, int srcOffset,
                              __global float *dst, int dstOffset,
-//                             __global float *du,  int duOffset, int duStride,
-//                             __global float *dv,  int dvOffset, int dvStride,
-                             int numPatchCoords,
+                             __global float *du,  int duOffset, int duStride,
+                             __global float *dv,  int dvOffset, int dvStride,
                              __global struct PatchCoord *patchCoords,
                              __global struct PatchArray *patchArrayBuffer,
                              __global int *patchIndexBuffer,
                              __global struct PatchParam *patchParamBuffer) {
     int current = get_global_id(0);
 
-    if (current > numPatchCoords) return;
-
-    src += srcOffset;
-    dst += dstOffset;
-    // du += duOffset;
-    // dv += dvOffset;
+    if (src) src += srcOffset;
+    if (dst) dst += dstOffset;
+    if (du)  du += duOffset;
+    if (dv)  dv += dvOffset;
 
     struct PatchCoord coord = patchCoords[current];
-    int patchIndex = coord.patchIndex;
-//    struct PatchArray array = patchArrayBuffer[coord.arrayIndex];
-    struct PatchArray array = patchArrayBuffer[0];
+    struct PatchArray array = patchArrayBuffer[coord.arrayIndex];
 
-    int patchType = 6; // array.x XXX: REGULAR only for now.
+    int patchType = 6; // array.patchType XXX: REGULAR only for now.
     int numControlVertices = 16;
-
-    uint patchBits = patchParamBuffer[patchIndex].patchBits;
-//    vec2 uv = normalizePatchCoord(patchBits, vec2(coord.s, coord.t));
-    float dScale = 1.0f;//float(1 << getDepth(patchBits));
+    uint patchBits = patchParamBuffer[coord.patchIndex].patchBits;
 
     float uv[2] = {coord.s, coord.t};
+    normalizePatchCoord(patchBits, uv);
+    float dScale = (float)(1 << getDepth(patchBits));
 
     float wP[20], wDs[20], wDt[20];
     if (patchType == 6) {  // REGULAR
@@ -166,8 +214,8 @@ __kernel void computePatches(__global float *src, int srcOffset,
         getBSplineWeights(uv[0], sWeights, dsWeights);
         getBSplineWeights(uv[1], tWeights, dtWeights);
 
-//        adjustBoundaryWeights(patchBits, sWeights, tWeights);
-//        adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
+        adjustBoundaryWeights(patchBits, sWeights, tWeights);
+        adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
 
         for (int k = 0; k < 4; ++k) {
             for (int l = 0; l < 4; ++l) {
@@ -180,23 +228,33 @@ __kernel void computePatches(__global float *src, int srcOffset,
         // TODO: GREGORY BASIS
     }
 
+    int indexBase = array.indexBase + coord.vertIndex;
+
     struct Vertex v;
     clear(&v);
-
-#if 1
-    // debug
-    v.v[0] = uv[0];
-    v.v[1] = uv[1];
-    v.v[2] = patchIndexBuffer[current] * 0.1;
-    writeVertex(dst, current, &v);
-    return;
-#endif
-
-    int indexBase = array.indexBase + coord.vertIndex;
     for (int i = 0; i < numControlVertices; ++i) {
         int index = patchIndexBuffer[indexBase + i];
-        if (index < 0) index = 0;
         addWithWeight(&v, src, index, wP[i]);
     }
     writeVertex(dst, current, &v);
+
+    if (du) {
+        struct Vertex vdu;
+        clear(&vdu);
+        for (int i = 0; i < numControlVertices; ++i) {
+            int index = patchIndexBuffer[indexBase + i];
+            addWithWeight(&vdu, src, index, wDs[i]);
+        }
+        writeVertex(du, current, &vdu);
+    }
+    if (dv) {
+        struct Vertex vdv;
+        clear(&vdv);
+        for (int i = 0; i < numControlVertices; ++i) {
+            int index = patchIndexBuffer[indexBase + i];
+            addWithWeight(&vdv, src, index, wDt[i]);
+        }
+        writeVertex(dv, current, &vdv);
+    }
+
 }

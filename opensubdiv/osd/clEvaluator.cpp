@@ -219,17 +219,16 @@ CLEvaluator::EvalPatches(cl_mem src, VertexBufferDescriptor const &srcDesc,
     clSetKernelArg(_patchKernel,  1, sizeof(int),    &srcDesc.offset);
     clSetKernelArg(_patchKernel,  2, sizeof(cl_mem), &dst);
     clSetKernelArg(_patchKernel,  3, sizeof(int),    &dstDesc.offset);
-    clSetKernelArg(_patchKernel,  4, sizeof(int),    &numPatchCoords);
-    // clSetKernelArg(_patchKernel,  4, sizeof(cl_mem), &du);
-    // clSetKernelArg(_patchKernel,  5, sizeof(int),    &duDesc.offset);
-    // clSetKernelArg(_patchKernel,  6, sizeof(int),    &duDesc.stride);
-    // clSetKernelArg(_patchKernel,  7, sizeof(cl_mem), &dv);
-    // clSetKernelArg(_patchKernel,  8, sizeof(int),    &dvDesc.offset);
-    // clSetKernelArg(_patchKernel,  9, sizeof(int),    &dvDesc.stride);
-    clSetKernelArg(_patchKernel, 5, sizeof(cl_mem), &patchCoordsBuffer);
-    clSetKernelArg(_patchKernel, 6, sizeof(cl_mem), &patchArrayBuffer);
-    clSetKernelArg(_patchKernel, 7, sizeof(cl_mem), &patchIndexBuffer);
-    clSetKernelArg(_patchKernel, 8, sizeof(cl_mem), &patchParamBuffer);
+    clSetKernelArg(_patchKernel,  4, sizeof(cl_mem), &du);
+    clSetKernelArg(_patchKernel,  5, sizeof(int),    &duDesc.offset);
+    clSetKernelArg(_patchKernel,  6, sizeof(int),    &duDesc.stride);
+    clSetKernelArg(_patchKernel,  7, sizeof(cl_mem), &dv);
+    clSetKernelArg(_patchKernel,  8, sizeof(int),    &dvDesc.offset);
+    clSetKernelArg(_patchKernel,  9, sizeof(int),    &dvDesc.stride);
+    clSetKernelArg(_patchKernel, 10, sizeof(cl_mem), &patchCoordsBuffer);
+    clSetKernelArg(_patchKernel, 11, sizeof(cl_mem), &patchArrayBuffer);
+    clSetKernelArg(_patchKernel, 12, sizeof(cl_mem), &patchIndexBuffer);
+    clSetKernelArg(_patchKernel, 13, sizeof(cl_mem), &patchParamBuffer);
 
     cl_int errNum = clEnqueueNDRangeKernel(
         _clCommandQueue, _patchKernel, 1, NULL,

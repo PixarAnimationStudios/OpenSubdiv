@@ -334,23 +334,9 @@ void normalizePatchCoord(unsigned int patchBits, float *u, float *v) {
     float pv = (float)iv*frac;
 
     // normalize u,v coordinates
-    *u = (*u - pu) / frac,
+    *u = (*u - pu) / frac;
     *v = (*v - pv) / frac;
 }
-
-// Far::PatchDescriptor::Type
-enum Type {
-    NON_PATCH = 0,     ///< undefined
-    POINTS,            ///< points (useful for cage drawing)
-    LINES,             ///< lines  (useful for cage drawing)
-    QUADS,             ///< bilinear quads-only patches
-    TRIANGLES,         ///< bilinear triangles-only mesh
-    LOOP,              ///< Loop patch
-    REGULAR,           ///< feature-adaptive bicubic patches
-    GREGORY,
-    GREGORY_BOUNDARY,
-    GREGORY_BASIS
-};
 
 __global__ void
 computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
@@ -371,7 +357,7 @@ computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
         PatchCoord const &coord = patchCoords[i];
         PatchArray const &array = patchArrayBuffer[coord.arrayIndex];
 
-        int patchType = array.patchType;
+        int patchType = 6; // array.patchType XXX: REGULAR only for now.
         int numControlVertices = 16;
         // note: patchIndex is absolute.
         unsigned int patchBits = patchParamBuffer[coord.patchIndex].bitField;
@@ -382,7 +368,7 @@ computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
         normalizePatchCoord(patchBits, &s, &t);
         float dScale = (float)(1 << getDepth(patchBits));
 
-        if (patchType == REGULAR) {
+        if (patchType == 6) {
             float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
             getBSplineWeights(s, sWeights, dsWeights);
             getBSplineWeights(t, tWeights, dtWeights);
@@ -399,15 +385,11 @@ computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
                     wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
                 }
             }
-        } else if (patchType == GREGORY_BASIS) {
-            // XXX: not yet implemented.
-            continue;
         } else {
-            // unknown patchType
+            // TODO: Gregory Basis.
             continue;
         }
-        const int *cvs =
-            &patchIndexBuffer[array.indexBase + coord.vertIndex];
+        const int *cvs = patchIndexBuffer + array.indexBase + coord.vertIndex;
 
         float * dstVert = dst + i * dstStride;
         clear(dstVert, length);

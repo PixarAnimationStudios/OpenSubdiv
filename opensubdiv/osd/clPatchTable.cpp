@@ -62,7 +62,8 @@ CLPatchTable::allocate(Far::PatchTable const *farPatchTable, cl_context clContex
     size_t patchParamSize = patchTable.GetPatchParamSize();
 
     cl_int err = 0;
-    _patchArrays = clCreateBuffer(clContext, CL_MEM_READ_WRITE,
+    _patchArrays = clCreateBuffer(clContext,
+                                  CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
                                   numPatchArrays * sizeof(Osd::PatchArray),
                                   (void*)patchTable.GetPatchArrayBuffer(),
                                   &err);
@@ -71,7 +72,8 @@ CLPatchTable::allocate(Far::PatchTable const *farPatchTable, cl_context clContex
         return false;
     }
 
-    _indexBuffer = clCreateBuffer(clContext, CL_MEM_READ_WRITE,
+    _indexBuffer = clCreateBuffer(clContext,
+                                  CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
                                   indexSize * sizeof(int),
                                   (void*)patchTable.GetPatchIndexBuffer(),
                                   &err);
@@ -80,7 +82,8 @@ CLPatchTable::allocate(Far::PatchTable const *farPatchTable, cl_context clContex
         return false;
     }
 
-    _patchParamBuffer = clCreateBuffer(clContext, CL_MEM_READ_WRITE,
+    _patchParamBuffer = clCreateBuffer(clContext,
+                                       CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,
                                        patchParamSize * sizeof(Osd::PatchParam),
                                        (void*)patchTable.GetPatchParamBuffer(),
                                        &err);
