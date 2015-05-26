@@ -112,7 +112,8 @@ STParticles::STParticles(Refiner const & refiner,
         Position * pos = &_positions[0];
 
         for (int i = 0; i < nParticles; ++i) {
-            pos->ptexIndex = (int)(((float)rand()/(float)RAND_MAX) * nPtexFaces);
+            pos->ptexIndex = std::min(
+                (int)(((float)rand()/(float)RAND_MAX) * nPtexFaces), nPtexFaces-1);
             pos->s = centered ? 0.5f : (float)rand()/(float)RAND_MAX;
             pos->t = centered ? 0.5f : (float)rand()/(float)RAND_MAX;
             ++pos;
