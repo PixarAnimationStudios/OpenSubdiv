@@ -43,7 +43,6 @@
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/primvarRefiner.h>
 #include <opensubdiv/far/patchTableFactory.h>
-#include <opensubdiv/far/endCapGregoryBasisPatchFactory.h>
 #include <opensubdiv/far/patchMap.h>
 #include <opensubdiv/far/ptexIndices.h>
 
@@ -144,7 +143,8 @@ int main(int, char **) {
     // Adaptively refine the topology with an isolation level capped at 3
     // because the sharpest crease in the shape is 3.0f (in g_creaseweights[])
     int maxIsolation = 3;
-    refiner->RefineAdaptive(Far::TopologyRefiner::AdaptiveOptions(maxIsolation));
+    refiner->RefineAdaptive(
+        Far::TopologyRefiner::AdaptiveOptions(maxIsolation));
 
 
     // Create a buffer to hold the position of the
@@ -158,9 +158,9 @@ int main(int, char **) {
 
     // Generate a set of Far::PatchTable that we will use to evaluate the
     // surface limit
-    Far::EndCapGregoryBasisPatchFactory endcapFactory(*refiner);
     Far::PatchTable const * patchTable =
-        Far::PatchTableFactory::Create(*refiner, Far::PatchTableFactory::Options());
+        Far::PatchTableFactory::Create(*refiner, 
+            Far::PatchTableFactory::Options());
 
     // Create a Far::PatchMap to help locating patches in the table
     Far::PatchMap patchmap(*patchTable);
