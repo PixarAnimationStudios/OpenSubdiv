@@ -23,7 +23,7 @@
 //
 
 //----------------------------------------------------------
-// Patches.TessVertexBSpline
+// Patches.VertexBSpline
 //----------------------------------------------------------
 #ifdef OSD_PATCH_VERTEX_BSPLINE_SHADER
 
@@ -49,23 +49,7 @@ void main()
 //----------------------------------------------------------
 #ifdef OSD_PATCH_TESS_CONTROL_BSPLINE_SHADER
 
-// Regular
-uniform mat4 Q = mat4(
-    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-    0.f,     4.f/6.f, 2.f/6.f, 0.f,
-    0.f,     2.f/6.f, 4.f/6.f, 0.f,
-    0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
-);
-
-// Infinite sharp
-uniform mat4 Mi = mat4(
-    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-    0.f,     4.f/6.f, 2.f/6.f, 0.f,
-    0.f,     2.f/6.f, 4.f/6.f, 0.f,
-    0.f,     0.f,     1.f,     0.f
-);
-
-layout(vertices = 16) out;
+patch out vec4 tessOuterLo, tessOuterHi;
 
 in block {
     ControlVertex v;
@@ -73,127 +57,42 @@ in block {
 } inpt[];
 
 out block {
-    ControlVertex v;
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    vec4 P1;
-    vec4 P2;
-    float sharpness;
-#endif
+    OsdPerPatchVertexBSpline v;
     OSD_USER_VARYING_DECLARE
 } outpt[];
 
-patch out vec4 tessOuterLo, tessOuterHi;
-
-#define ID gl_InvocationID
-
-// compute single-crease patch matrix
-mat4
-ComputeMatrixSimplified(float sharpness)
-{
-    float s = pow(2.0f, sharpness);
-    float s2 = s*s;
-    float s3 = s2*s;
-
-    mat4 m = mat4(
-        0, s + 1 + 3*s2 - s3, 7*s - 2 - 6*s2 + 2*s3, (1-s)*(s-1)*(s-1),
-        0,       (1+s)*(1+s),        6*s - 2 - 2*s2,       (s-1)*(s-1),
-        0,               1+s,               6*s - 2,               1-s,
-        0,                 1,               6*s - 2,                 1);
-
-    m /= (s*6.0);
-    m[0][0] = 1.0/6.0;
-
-    return m;
-}
+layout(vertices = 16) out;
 
 void main()
 {
-    int i = ID%4;
-    int j = ID/4;
-
-    vec3 position[16];
+    vec3 cv[16];
     for (int i=0; i<16; ++i) {
-        position[i] = inpt[i].v.position.xyz;
+        cv[i] = inpt[i].v.position.xyz;
     }
 
     ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID));
+    OsdComputePerPatchVertexBSpline(patchParam, gl_InvocationID, cv, outpt[gl_InvocationID].v);
 
-    OsdComputeBSplineBoundaryPoints(position, patchParam);
-
-    vec3 H[4];
-    for (int l=0; l<4; ++l) {
-        H[l] = vec3(0,0,0);
-        for (int k=0; k<4; ++k) {
-            H[l] += Q[i][k] * position[l*4 + k].xyz;
-        }
-    }
-
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness = OsdGetPatchSharpness(patchParam);
-    if (sharpness > 0) {
-        float Sf = floor(sharpness);
-        float Sc = ceil(sharpness);
-        float Sr = fract(sharpness);
-        mat4 Mf = ComputeMatrixSimplified(Sf);
-        mat4 Mc = ComputeMatrixSimplified(Sc);
-        mat4 Mj = (1-Sr) * Mf + Sr * Mi;
-        mat4 Ms = (1-Sr) * Mf + Sr * Mc;
-
-        vec3 P = vec3(0);
-        vec3 P1 = vec3(0);
-        vec3 P2 = vec3(0);
-        for (int k=0; k<4; ++k) {
-            P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
-            P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
-            P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
-        }
-        outpt[ID].v.position = vec4(P, 1.0);
-        outpt[ID].P1 = vec4(P1, 1.0);
-        outpt[ID].P2 = vec4(P2, 1.0);
-        outpt[ID].sharpness = sharpness;
-    } else {
-        vec3 pos = vec3(0,0,0);
-        for (int k=0; k<4; ++k) {
-            pos += Q[j][k]*H[k];
-        }
-        outpt[ID].v.position = vec4(pos, 1.0);
-        outpt[ID].P1 = vec4(0);
-        outpt[ID].P2 = vec4(0);
-        outpt[ID].sharpness = 0;
-    }
-#else
-    {
-        vec3 pos = vec3(0,0,0);
-        for (int k=0; k<4; ++k) {
-            pos += Q[j][k]*H[k];
-        }
-        outpt[ID].v.position = vec4(pos, 1.0);
-    }
-#endif
-
-    OSD_USER_VARYING_PER_CONTROL_POINT(ID, ID);
-
-    outpt[ID].v.patchCoord = OsdGetPatchCoord(patchParam);
+    OSD_USER_VARYING_PER_CONTROL_POINT(gl_InvocationID, gl_InvocationID);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
     // Wait for all basis conversion to be finished
     barrier();
 #endif
-    if (ID == 0) {
+    if (gl_InvocationID == 0) {
+        vec4 tessLevelOuter = vec4(0);
+        vec2 tessLevelInner = vec2(0);
+
         OSD_PATCH_CULL(16);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
         for (int i=0; i<16; ++i) {
-            position[i] = outpt[i].v.position.xyz;
+            cv[i] = outpt[i].v.P.xyz;
         }
 #endif
 
-        vec4 tessLevelOuter = vec4(0);
-        vec2 tessLevelInner = vec2(0);
-
-        OsdGetTessLevels(position, patchParam,
-                         tessLevelOuter, tessLevelInner,
+        OsdGetTessLevels(cv, patchParam, tessLevelOuter, tessLevelInner,
                          tessOuterLo, tessOuterHi);
 
         gl_TessLevelOuter[0] = tessLevelOuter[0];
@@ -214,20 +113,12 @@ void main()
 #ifdef OSD_PATCH_TESS_EVAL_BSPLINE_SHADER
 
 layout(quads) in;
+layout(OSD_SPACING) in;
 
-#if defined OSD_FRACTIONAL_ODD_SPACING
-    layout(fractional_odd_spacing) in;
-#elif defined OSD_FRACTIONAL_EVEN_SPACING
-    layout(fractional_even_spacing) in;
-#endif
+patch in vec4 tessOuterLo, tessOuterHi;
 
 in block {
-    ControlVertex v;
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    vec4 P1;
-    vec4 P2;
-    float sharpness;
-#endif
+    OsdPerPatchVertexBSpline v;
     OSD_USER_VARYING_DECLARE
 } inpt[];
 
@@ -239,153 +130,39 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt;
 
-patch in vec4 tessOuterLo, tessOuterHi;
-
 void main()
 {
+    vec3 P = vec3(0), dPu = vec3(0), dPv = vec3(0);
+    vec3 N = vec3(0), dNu = vec3(0), dNv = vec3(0);
+
+    OsdPerPatchVertexBSpline cv[16];
+    for (int i = 0; i < 16; ++i) {
+        cv[i] = inpt[i].v;
+    }
+
     vec2 UV = OsdGetTessParameterization(gl_TessCoord.xy,
-                                         tessOuterLo,
-                                         tessOuterHi);
+                                         tessOuterLo, tessOuterHi);
 
+    ivec3 patchParam = inpt[0].v.patchParam;
+    OsdEvalPatchBSpline(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
+
+    // all code below here is client code
+    outpt.v.position = OsdModelViewMatrix() * vec4(P, 1.0f);
+    outpt.v.normal = (OsdModelViewMatrix() * vec4(N, 0.0f)).xyz;
+    outpt.v.tangent = (OsdModelViewMatrix() * vec4(dPu, 0.0f)).xyz;
+    outpt.v.bitangent = (OsdModelViewMatrix() * vec4(dPv, 0.0f)).xyz;
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-    float B[4], D[4], C[4];
-    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
-         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
-         CUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
-    Univar4x4(UV.x, B, D, C);
-#else
-    float B[4], D[4];
-    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)),
-         DUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
-    Univar4x4(UV.x, B, D);
+    outpt.v.Nu = dNu;
+    outpt.v.Nv = dNv;
 #endif
-
-    // ----------------------------------------------------------------
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    // sharpness
-    float sharpness = inpt[0].sharpness;
-    if (sharpness != 0) {
-        float s0 = 1.0 - pow(2.0f, -floor(sharpness));
-        float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
-
-        for (int i=0; i<4; ++i) {
-            for (int j=0; j<4; ++j) {
-                int k = 4*i + j;
-                float s = UV.y;
-
-                vec3 A = (s < s0) ?
-                    inpt[k].v.position.xyz :
-                    ((s < s1) ?
-                     inpt[k].P1.xyz :
-                     inpt[k].P2.xyz);
-
-                BUCP[i] += A * B[j];
-                DUCP[i] += A * D[j];
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-                CUCP[i] += A * C[j];
+    outpt.sharpness = cv[0].sharpness;
 #endif
-            }
-        }
-        outpt.sharpness = sharpness;
-    } else {
-        for (int i=0; i<4; ++i) {
-            for (int j=0; j<4; ++j) {
-                vec3 A = inpt[4*i + j].v.position.xyz;
-                BUCP[i] += A * B[j];
-                DUCP[i] += A * D[j];
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-                CUCP[i] += A * C[j];
-#endif
-            }
-        }
-        outpt.sharpness = 0;
-    }
-#else
-    // ----------------------------------------------------------------
-        for (int i=0; i<4; ++i) {
-            for (int j=0; j<4; ++j) {
-                vec3 A = inpt[4*i + j].v.position.xyz;
-                BUCP[i] += A * B[j];
-                DUCP[i] += A * D[j];
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-                CUCP[i] += A * C[j];
-#endif
-            }
-        }
-#endif
-    // ----------------------------------------------------------------
-
-    vec3 position = vec3(0);
-    vec3 uTangent = vec3(0);
-    vec3 vTangent = vec3(0);
-
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-    // used for weingarten term
-    Univar4x4(UV.y, B, D, C);
-
-    vec3 dUU = vec3(0);
-    vec3 dVV = vec3(0);
-    vec3 dUV = vec3(0);
-
-    for (int k=0; k<4; ++k) {
-        position += B[k] * BUCP[k];
-        uTangent += B[k] * DUCP[k];
-        vTangent += D[k] * BUCP[k];
-
-        dUU += B[k] * CUCP[k];
-        dVV += C[k] * BUCP[k];
-        dUV += D[k] * DUCP[k];
-    }
-
-    int level = inpt[0].v.patchCoord.z;
-    uTangent *= 3 * level;
-    vTangent *= 3 * level;
-    dUU *= 6 * level;
-    dVV *= 6 * level;
-    dUV *= 9 * level;
-
-    vec3 n = cross(uTangent, vTangent);
-    vec3 normal = normalize(n);
-
-    float E = dot(uTangent, uTangent);
-    float F = dot(uTangent, vTangent);
-    float G = dot(vTangent, vTangent);
-    float e = dot(normal, dUU);
-    float f = dot(normal, dUV);
-    float g = dot(normal, dVV);
-
-    vec3 Nu = (f*F-e*G)/(E*G-F*F) * uTangent + (e*F-f*E)/(E*G-F*F) * vTangent;
-    vec3 Nv = (g*F-f*G)/(E*G-F*F) * uTangent + (f*F-g*E)/(E*G-F*F) * vTangent;
-
-    Nu = Nu/length(n) - n * (dot(Nu,n)/pow(dot(n,n), 1.5));
-    Nv = Nv/length(n) - n * (dot(Nv,n)/pow(dot(n,n), 1.5));
-
-    outpt.v.Nu = Nu;
-    outpt.v.Nv = Nv;
-#else
-    Univar4x4(UV.y, B, D);
-
-    for (int k=0; k<4; ++k) {
-        position += B[k] * BUCP[k];
-        uTangent += B[k] * DUCP[k];
-        vTangent += D[k] * BUCP[k];
-    }
-    int level = inpt[0].v.patchCoord.z;
-    uTangent *= 3 * level;
-    vTangent *= 3 * level;
-
-    vec3 normal = normalize(cross(uTangent, vTangent));
-#endif
-
-    outpt.v.position = OsdModelViewMatrix() * vec4(position, 1.0f);
-    outpt.v.normal = (OsdModelViewMatrix() * vec4(normal, 0.0f)).xyz;
-    outpt.v.tangent = (OsdModelViewMatrix() * vec4(uTangent, 0.0f)).xyz;
-    outpt.v.bitangent = (OsdModelViewMatrix() * vec4(vTangent, 0.0f)).xyz;
-
-    OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
     outpt.v.tessCoord = UV;
-    outpt.v.patchCoord = OsdInterpolatePatchCoord(UV, inpt[0].v.patchCoord);
+    outpt.v.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
+
+    OSD_USER_VARYING_PER_EVAL_POINT(UV, 5, 6, 9, 10);
 
     OSD_DISPLACEMENT_CALLBACK;
 
