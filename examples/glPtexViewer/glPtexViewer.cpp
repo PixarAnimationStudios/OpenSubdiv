@@ -1249,7 +1249,7 @@ bindTextures() {
 //------------------------------------------------------------------------------
 static GLenum
 bindProgram(Effect effect,
-            OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch) {
+            OpenSubdiv::Osd::PatchArray const & patch) {
     EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
@@ -1296,10 +1296,10 @@ drawModel() {
     glBindVertexArray(g_vao);
 
     // patch drawing
-    OpenSubdiv::Osd::GLPatchTable::PatchArrayVector const & patches =
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::GLPatchTable::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
         Effect effect;
         effect.value = 0;

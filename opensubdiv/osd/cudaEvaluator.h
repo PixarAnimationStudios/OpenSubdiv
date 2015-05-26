@@ -29,11 +29,13 @@
 
 #include <vector>
 #include "../osd/vertexDescriptor.h"
+#include "../osd/types.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
+    class PatchTable;
     class StencilTable;
 }
 
@@ -43,7 +45,7 @@ namespace Osd {
 ///
 /// This class is a cuda buffer representation of Far::StencilTable.
 ///
-/// CudaComputeKernel consumes this table to apply stencils
+/// CudaEvaluator consumes this table to apply stencils
 ///
 ///
 class CudaStencilTable {
@@ -72,10 +74,14 @@ private:
     int _numStencils;
 };
 
-// ---------------------------------------------------------------------------
-
 class CudaEvaluator {
 public:
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Stencil evaluations with StencilTable
+    ///
+    /// ----------------------------------------------------------------------
+
     /// \brief Generic static compute function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        transparently from OsdMesh template interface.
@@ -99,21 +105,18 @@ public:
     ///
     /// @param deviceContext  not used in the CudaEvaluator
     ///
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE>
-    static bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                             VertexBufferDescriptor const &srcDesc,
-                             VERTEX_BUFFER *dstVertexBuffer,
-                             VertexBufferDescriptor const &dstDesc,
-                             STENCIL_TABLE const *stencilTable,
-                             const void *instance = NULL,
-                             void * deviceContext = NULL) {
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable,
+        const void *instance = NULL,
+        void * deviceContext = NULL) {
 
         (void)instance;  // unused
         (void)deviceContext;  // unused
-        return EvalStencils(srcVertexBuffer->BindCudaBuffer(),
-                            srcDesc,
-                            dstVertexBuffer->BindCudaBuffer(),
-                            dstDesc,
+        return EvalStencils(srcBuffer->BindCudaBuffer(), srcDesc,
+                            dstBuffer->BindCudaBuffer(), dstDesc,
                             (int const *)stencilTable->GetSizesBuffer(),
                             (int const *)stencilTable->GetOffsetsBuffer(),
                             (int const *)stencilTable->GetIndicesBuffer(),
@@ -122,17 +125,369 @@ public:
                             /*end   = */ stencilTable->GetNumStencils());
     }
 
-    static bool EvalStencils(const float *src,
-                             VertexBufferDescriptor const &srcDesc,
-                             float *dst,
-                             VertexBufferDescriptor const &dstDesc,
-                             const int * sizes,
-                             const int * offsets,
-                             const int * indices,
-                             const float * weights,
-                             int start,
-                             int end);
+    /// \brief Static eval stencils function which takes raw cuda buffers for
+    ///        input and output.
+    ///
+    /// @param src            Input primvar pointer. An offset of srcDesc
+    ///                       will be applied internally (i.e. the pointer
+    ///                       should not include the offset)
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dst            Output primvar pointer. An offset of dstDesc
+    ///                       will be applied internally.
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param sizes          pointer to the sizes buffer of the stencil table
+    ///
+    /// @param offsets        pointer to the offsets buffer of the stencil table
+    ///
+    /// @param indices        pointer to the indices buffer of the stencil table
+    ///
+    /// @param weights        pointer to the weights buffer of the stencil table
+    ///
+    /// @param start          start index of stencil table
+    ///
+    /// @param end            end index of stencil table
+    ///
+    static bool EvalStencils(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        const int * sizes,
+        const int * offsets,
+        const int * indices,
+        const float * weights,
+        int start, int end);
 
+    /// \brief Generic static eval stencils function with derivatives.
+    ///        This function has a same signature as other device kernels
+    ///        have so that it can be called in the same way from OsdMesh
+    ///        template interface.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCudaBuffer() method returning a
+    ///                       const float pointer for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCudaBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer       Output U-derivative buffer
+    ///                       must have BindCudaBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param duDesc         vertex buffer descriptor for the output buffer
+    ///
+    /// @param dvBuffer       Output V-derivative buffer
+    ///                       must have BindCudaBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    ///
+    /// @param stencilTable   stencil table to be applied.
+    ///
+    /// @param instance       not used in the cuda kernel
+    ///                       (declared as a typed pointer to prevent
+    ///                        undesirable template resolution)
+    ///
+    /// @param deviceContext  not used in the cuda kernel
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        STENCIL_TABLE const *stencilTable,
+        const CudaEvaluator *instance = NULL,
+        void * deviceContext = NULL) {
+
+        (void)instance;   // unused
+        (void)deviceContext;   // unused
+
+        return EvalStencils(srcBuffer->BindCudaBuffer(), srcDesc,
+                            dstBuffer->BindCudaBuffer(), dstDesc,
+                            duBuffer->BindCudaBuffer(),  duDesc,
+                            dvBuffer->BindCudaBuffer(),  dvDesc,
+                            &stencilTable->GetSizes()[0],
+                            &stencilTable->GetOffsets()[0],
+                            &stencilTable->GetControlIndices()[0],
+                            &stencilTable->GetWeights()[0],
+                            &stencilTable->GetDuWeights()[0],
+                            &stencilTable->GetDvWeights()[0],
+                            /*start = */ 0,
+                            /*end   = */ stencilTable->GetNumStencils());
+    }
+
+    /// \brief Static eval stencils function with derivatives, which takes
+    ///        raw cuda pointers for input and output.
+    ///
+    /// @param src            Input primvar pointer. An offset of srcDesc
+    ///                       will be applied internally (i.e. the pointer
+    ///                       should not include the offset)
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dst            Output primvar pointer. An offset of dstDesc
+    ///                       will be applied internally.
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param du             Output U-derivatives pointer. An offset of
+    ///                       duDesc will be applied internally.
+    ///
+    /// @param duDesc         vertex buffer descriptor for the output buffer
+    ///
+    /// @param dv             Output V-derivatives pointer. An offset of
+    ///                       dvDesc will be applied internally.
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    ///
+    /// @param sizes          pointer to the sizes buffer of the stencil table
+    ///
+    /// @param offsets        pointer to the offsets buffer of the stencil table
+    ///
+    /// @param indices        pointer to the indices buffer of the stencil table
+    ///
+    /// @param weights        pointer to the weights buffer of the stencil table
+    ///
+    /// @param duWeights      pointer to the du-weights buffer of the stencil table
+    ///
+    /// @param dvWeights      pointer to the dv-weights buffer of the stencil table
+    ///
+    /// @param start          start index of stencil table
+    ///
+    /// @param end            end index of stencil table
+    ///
+    static bool EvalStencils(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        float *du,        VertexBufferDescriptor const &duDesc,
+        float *dv,        VertexBufferDescriptor const &dvDesc,
+        const int * sizes,
+        const int * offsets,
+        const int * indices,
+        const float * weights,
+        const float * duWeights,
+        const float * dvWeights,
+        int start, int end);
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Limit evaluations with PatchTable
+    ///
+    /// ----------------------------------------------------------------------
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///                         must have BindCudaBuffer() method returning an
+    ///                         array of PatchCoord struct in cuda memory.
+    ///
+    /// @param patchTable       CudaPatchTable or equivalent
+    ///
+    /// @param instance         not used in the cuda evaluator
+    ///
+    /// @param deviceContext    not used in the cuda evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CudaEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        (void)instance;   // unused
+        (void)deviceContext;   // unused
+
+        return EvalPatches(srcBuffer->BindCudaBuffer(), srcDesc,
+                           dstBuffer->BindCudaBuffer(), dstDesc,
+                           numPatchCoords,
+                           (const PatchCoord *)patchCoords->BindCudaBuffer(),
+                           (const PatchArray *)patchTable->GetPatchArrayBuffer(),
+                           (const int *)patchTable->GetPatchIndexBuffer(),
+                           (const PatchParam *)patchTable->GetPatchParamBuffer());
+    }
+
+    /// \brief Generic limit eval function with derivatives. This function has
+    ///        a same signature as other device kernels have so that it can be
+    ///        called in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer         Output U-derivatives buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dvBuffer         Output V-derivatives buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchTable       CudaPatchTable or equivalent
+    ///
+    /// @param instance         not used in the cuda evaluator
+    ///
+    /// @param deviceContext    not used in the cuda evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CudaEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        (void)instance;   // unused
+        (void)deviceContext;   // unused
+
+        return EvalPatches(srcBuffer->BindCudaBuffer(), srcDesc,
+                           dstBuffer->BindCudaBuffer(), dstDesc,
+                           duBuffer->BindCudaBuffer(),  duDesc,
+                           dvBuffer->BindCudaBuffer(),  dvDesc,
+                           numPatchCoords,
+                           (const PatchCoord *)patchCoords->BindCudaBuffer(),
+                           (const PatchArray *)patchTable->GetPatchArrayBuffer(),
+                           (const int *)patchTable->GetPatchIndexBuffer(),
+                           (const PatchParam *)patchTable->GetPatchParamBuffer());
+    }
+
+    /// \brief Static limit eval function. It takes an array of PatchCoord
+    ///        and evaluate limit values on given PatchTable.
+    ///
+    /// @param src              Input primvar pointer. An offset of srcDesc
+    ///                         will be applied internally (i.e. the pointer
+    ///                         should not include the offset)
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dst              Output primvar pointer. An offset of dstDesc
+    ///                         will be applied internally.
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchArrays      an array of Osd::PatchArray struct
+    ///                         indexed by PatchCoord::arrayIndex
+    ///
+    /// @param patchIndices     an array of patch indices
+    ///                         indexed by PatchCoord::vertIndex
+    ///
+    /// @param patchParams      an array of Osd::PatchParam struct
+    ///                         indexed by PatchCoord::patchIndex
+    ///
+    static bool EvalPatches(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        const PatchCoord *patchCoords,
+        const PatchArray *patchArrays,
+        const int *patchIndices,
+        const PatchParam *patchParams);
+
+    /// \brief Static limit eval function. It takes an array of PatchCoord
+    ///        and evaluate limit values on given PatchTable.
+    ///
+    /// @param src              Input primvar pointer. An offset of srcDesc
+    ///                         will be applied internally (i.e. the pointer
+    ///                         should not include the offset)
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dst              Output primvar pointer. An offset of dstDesc
+    ///                         will be applied internally.
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param du               Output U-derivatives pointer. An offset of
+    ///                         duDesc will be applied internally.
+    ///
+    /// @param duDesc           vertex buffer descriptor for the du buffer
+    ///
+    /// @param dv               Output V-derivatives pointer. An offset of
+    ///                         dvDesc will be applied internally.
+    ///
+    /// @param dvDesc           vertex buffer descriptor for the dv buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchArrays      an array of Osd::PatchArray struct
+    ///                         indexed by PatchCoord::arrayIndex
+    ///
+    /// @param patchIndices     an array of patch indices
+    ///                         indexed by PatchCoord::vertIndex
+    ///
+    /// @param patchParams      an array of Osd::PatchParam struct
+    ///                         indexed by PatchCoord::patchIndex
+    ///
+    static bool EvalPatches(
+        const float *src, VertexBufferDescriptor const &srcDesc,
+        float *dst,       VertexBufferDescriptor const &dstDesc,
+        float *du,        VertexBufferDescriptor const &duDesc,
+        float *dv,        VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        const PatchCoord *patchCoords,
+        const PatchArray *patchArrays,
+        const int *patchIndices,
+        const PatchParam *patchParams);
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Other methods
+    ///
+    /// ----------------------------------------------------------------------
     static void Synchronize(void *deviceContext = NULL);
 };
 

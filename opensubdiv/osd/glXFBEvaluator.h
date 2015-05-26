@@ -28,6 +28,7 @@
 #include "../version.h"
 
 #include "../osd/opengl.h"
+#include "../osd/types.h"
 #include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
@@ -93,6 +94,12 @@ public:
     /// Destructor. note that the GL context must be made current.
     ~GLXFBEvaluator();
 
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Stencil evaluations with StencilTable
+    ///
+    /// ----------------------------------------------------------------------
+
     /// \brief Generic static stencil function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        transparently from OsdMesh template interface.
@@ -120,25 +127,25 @@ public:
     ///
     /// @param deviceContext  not used in the GLSLTransformFeedback kernel
     ///
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE>
-    static bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                             VertexBufferDescriptor const &srcDesc,
-                             VERTEX_BUFFER *dstVertexBuffer,
-                             VertexBufferDescriptor const &dstDesc,
-                             STENCIL_TABLE const *stencilTable,
-                             GLXFBEvaluator const *instance,
-                             void * deviceContext = NULL) {
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable,
+        GLXFBEvaluator const *instance,
+        void * deviceContext = NULL) {
+
         if (instance) {
-            return instance->EvalStencils(srcVertexBuffer, srcDesc,
-                                          dstVertexBuffer, dstDesc,
+            return instance->EvalStencils(srcBuffer, srcDesc,
+                                          dstBuffer, dstDesc,
                                           stencilTable);
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc);
             if (instance) {
-                bool r = instance->EvalStencils(srcVertexBuffer, srcDesc,
-                                                dstVertexBuffer, dstDesc,
+                bool r = instance->EvalStencils(srcBuffer, srcDesc,
+                                                dstBuffer, dstDesc,
                                                 stencilTable);
                 delete instance;
                 return r;
@@ -147,18 +154,30 @@ public:
         }
     }
 
-    /// Dispatch the GLSL compute kernel on GPU asynchronously.
-    /// returns false if the kernel hasn't been compiled yet.
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE>
-    bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                      VertexBufferDescriptor const &srcDesc,
-                      VERTEX_BUFFER *dstVertexBuffer,
-                      VertexBufferDescriptor const &dstDesc,
-                      STENCIL_TABLE const *stencilTable) const {
-        return EvalStencils(srcVertexBuffer->BindVBO(),
-                            srcDesc,
-                            dstVertexBuffer->BindVBO(),
-                            dstDesc,
+    /// \brief dispatch eval stencils function.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object for destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param stencilTable   stencil table to be applied.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable) const {
+
+        return EvalStencils(srcBuffer->BindVBO(), srcDesc,
+                            dstBuffer->BindVBO(), dstDesc,
                             stencilTable->GetSizesTexture(),
                             stencilTable->GetOffsetsTexture(),
                             stencilTable->GetIndicesTexture(),
@@ -167,18 +186,301 @@ public:
                             /* end   = */ stencilTable->GetNumStencils());
     }
 
-    /// Dispatch the GLSL compute kernel on GPU asynchronously.
-    /// returns false if the kernel hasn't been compiled yet.
-    bool EvalStencils(GLuint srcBuffer,
-                      VertexBufferDescriptor const &srcDesc,
-                      GLuint dstBuffer,
-                      VertexBufferDescriptor const &dstDesc,
+    /// \brief Static eval stencils function, dispatch the GLSL XFB kernel on
+    ///        on GPU asynchronously.
+    ///
+    /// @param srcBuffer      GL buffer of input primvars.
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      GL buffer of output primvars.
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param sizesBuffer    GL buffer of the sizes in the stencil table
+    ///
+    /// @param offsetsBuffer  GL buffer of the offsets in the stencil table
+    ///
+    /// @param indicesBuffer  GL buffer of the indices in the stencil table
+    ///
+    /// @param weightsBuffer  GL buffer of the weifgrs in the stencil table
+    ///
+    /// @param start          start index of stencil table
+    ///
+    /// @param end            end index of stencil table
+    ///
+    bool EvalStencils(GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
+                      GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
                       GLuint sizesBuffer,
                       GLuint offsetsBuffer,
                       GLuint indicesBuffer,
                       GLuint weightsBuffer,
                       int start,
                       int end) const;
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Limit evaluations with PatchTable
+    ///
+    /// ----------------------------------------------------------------------
+    ///
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindVBO() method returning an
+    ///                       array of PatchCoord struct in VBO.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  not used in the GLXFB evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        GLXFBEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        if (instance) {
+            return instance->EvalPatches(srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc);
+            if (instance) {
+                bool r = instance->EvalPatches(srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer
+    ///
+    /// @param duDesc
+    ///
+    /// @param dvBuffer
+    ///
+    /// @param dvDesc
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindVBO() method returning an
+    ///                       array of PatchCoord struct in VBO.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  not used in the GLXFB evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        GLXFBEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        if (instance) {
+            return instance->EvalPatches(srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         duBuffer, duDesc,
+                                         dvBuffer, dvDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc);
+            if (instance) {
+                bool r = instance->EvalPatches(srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               duBuffer, duDesc,
+                                               dvBuffer, dvDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCudaBuffer() method returning a
+    ///                       const float pointer for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCudaBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCudaBuffer() method returning an
+    ///                       array of PatchCoord struct in cuda memory.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable) const {
+
+        return EvalPatches(srcBuffer->BindVBO(), srcDesc,
+                           dstBuffer->BindVBO(), dstDesc,
+                           0, VertexBufferDescriptor(),
+                           0, VertexBufferDescriptor(),
+                           numPatchCoords,
+                           patchCoords->BindVBO(),
+                           patchTable->GetPatchArrays(),
+                           patchTable->GetPatchIndexTextureBuffer(),
+                           patchTable->GetPatchParamTextureBuffer());
+    }
+
+    /// \brief Generic limit eval function with derivatives. This function has
+    ///        a same signature as other device kernels have so that it can be
+    ///        called in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer         Output s-derivatives buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dvBuffer         Output t-derivatives buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchTable       GLPatchTable or equivalent
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable) const {
+
+        return EvalPatches(srcBuffer->BindVBO(), srcDesc,
+                           dstBuffer->BindVBO(), dstDesc,
+                           duBuffer->BindVBO(),  duDesc,
+                           dvBuffer->BindVBO(),  dvDesc,
+                           numPatchCoords,
+                           patchCoords->BindVBO(),
+                           patchTable->GetPatchArrays(),
+                           patchTable->GetPatchIndexTextureBuffer(),
+                           patchTable->GetPatchParamTextureBuffer());
+    }
+
+    bool EvalPatches(GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
+                     GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
+                     GLuint duBuffer, VertexBufferDescriptor const &duDesc,
+                     GLuint dvBuffer, VertexBufferDescriptor const &dvDesc,
+                     int numPatchCoords,
+                     GLuint patchCoordsBuffer,
+                     const PatchArrayVector &patchArrays,
+                     GLuint patchIndexBuffer,
+                     GLuint patchParamsBuffer) const;
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Other methods
+    ///
+    /// ----------------------------------------------------------------------
 
     /// Configure GLSL kernel. A valid GL context must be made current before
     /// calling this function. Returns false if it fails to compile the kernel.
@@ -189,19 +491,31 @@ public:
     static void Synchronize(void *kernel);
 
 private:
-    GLuint _program;
-
     GLuint _srcBufferTexture;
 
-    GLuint _uniformSrcBufferTexture;
-    GLuint _uniformSizesTexture;
-    GLuint _uniformOffsetsTexture;
-    GLuint _uniformIndicesTexture;
-    GLuint _uniformWeightsTexture;
+    struct _StencilKernel {
+        GLuint program;
+        GLuint uniformSrcBufferTexture;
+        GLuint uniformSrcOffset;    // src buffer offset (in elements)
 
-    GLuint _uniformStart;     // range
-    GLuint _uniformEnd;
-    GLuint _uniformSrcOffset;    // src buffer offset (in elements)
+        GLuint uniformSizesTexture;
+        GLuint uniformOffsetsTexture;
+        GLuint uniformIndicesTexture;
+        GLuint uniformWeightsTexture;
+        GLuint uniformStart;     // range
+        GLuint uniformEnd;
+    } _stencilKernel;
+
+    struct _PatchKernel {
+        GLuint program;
+        GLuint uniformSrcBufferTexture;
+        GLuint uniformSrcOffset;    // src buffer offset (in elements)
+
+        GLuint uniformPatchArray;
+        GLuint uniformPatchParamTexture;
+        GLuint uniformPatchIndexTexture;
+    } _patchKernel;
+
 };
 
 }  // end namespace Osd

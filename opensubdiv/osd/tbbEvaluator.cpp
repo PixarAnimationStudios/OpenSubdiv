@@ -34,19 +34,95 @@ namespace Osd {
 
 /* static */
 bool
-TbbEvaluator::EvalStencils(const float *src,
-                           VertexBufferDescriptor const &srcDesc,
-                           float *dst,
-                           VertexBufferDescriptor const &dstDesc,
-                           const int * sizes,
-                           const int * offsets,
-                           const int * indices,
-                           const float * weights,
-                           int start, int end) {
+TbbEvaluator::EvalStencils(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    const int * sizes,
+    const int * offsets,
+    const int * indices,
+    const float * weights,
+    int start, int end) {
+
     if (end <= start) return true;
 
     TbbEvalStencils(src, srcDesc, dst, dstDesc,
                     sizes, offsets, indices, weights, start, end);
+
+    return true;
+}
+
+/* static */
+bool
+TbbEvaluator::EvalStencils(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    float *du,        VertexBufferDescriptor const &duDesc,
+    float *dv,        VertexBufferDescriptor const &dvDesc,
+    const int * sizes,
+    const int * offsets,
+    const int * indices,
+    const float * weights,
+    const float * duWeights,
+    const float * dvWeights,
+    int start, int end) {
+
+    if (end <= start) return true;
+    if (srcDesc.length != dstDesc.length) return false;
+    if (srcDesc.length != duDesc.length) return false;
+    if (srcDesc.length != dvDesc.length) return false;
+
+    TbbEvalStencils(src, srcDesc,
+                    dst, dstDesc,
+                    du,  duDesc,
+                    dv,  dvDesc,
+                    sizes, offsets, indices,
+                    weights, duWeights, dvWeights,
+                    start, end);
+
+    return true;
+}
+
+/* static */
+bool
+TbbEvaluator::EvalPatches(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    int numPatchCoords,
+    const PatchCoord *patchCoords,
+    const PatchArray *patchArrayBuffer,
+    const int *patchIndexBuffer,
+    const PatchParam *patchParamBuffer) {
+
+    if (srcDesc.length != dstDesc.length) return false;
+
+    TbbEvalPatches(src, srcDesc, dst, dstDesc,
+                   NULL, VertexBufferDescriptor(),
+                   NULL, VertexBufferDescriptor(),
+                   numPatchCoords, patchCoords,
+                   patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
+
+    return true;
+}
+
+/* static */
+bool
+TbbEvaluator::EvalPatches(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    float *du,        VertexBufferDescriptor const &duDesc,
+    float *dv,        VertexBufferDescriptor const &dvDesc,
+    int numPatchCoords,
+    const PatchCoord *patchCoords,
+    const PatchArray *patchArrayBuffer,
+    const int *patchIndexBuffer,
+    const PatchParam *patchParamBuffer) {
+
+    if (srcDesc.length != dstDesc.length) return false;
+
+    TbbEvalPatches(src, srcDesc, dst, dstDesc,
+                   du,  duDesc,  dv,  dvDesc,
+                   numPatchCoords, patchCoords,
+                   patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
 
     return true;
 }

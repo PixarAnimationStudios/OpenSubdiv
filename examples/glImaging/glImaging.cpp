@@ -422,11 +422,11 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
                       mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
 
-    Osd::GLPatchTable::PatchArrayVector const & patches =
+    Osd::PatchArrayVector const & patches =
         mesh->GetPatchTable()->GetPatchArrays();
 
     for (int i=0; i<(int)patches.size(); ++i) {
-        Osd::GLPatchTable::PatchArray const & patch = patches[i];
+        Osd::PatchArray const & patch = patches[i];
         Far::PatchDescriptor desc = patch.GetDescriptor();
         Far::PatchDescriptor::Type patchType = desc.GetType();
 

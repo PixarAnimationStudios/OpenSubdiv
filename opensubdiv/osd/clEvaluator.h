@@ -28,6 +28,7 @@
 #include "../version.h"
 
 #include "../osd/opencl.h"
+#include "../osd/types.h"
 #include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
@@ -75,9 +76,6 @@ private:
 
 // ---------------------------------------------------------------------------
 
-/// \brief OpenCL stencil kernel
-///
-///
 class CLEvaluator {
 public:
     typedef bool Instantiatable;
@@ -107,6 +105,12 @@ public:
         return NULL;
     }
 
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Stencil evaluations with StencilTable
+    ///
+    /// ----------------------------------------------------------------------
+
     /// \brief Generic static compute function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        transparently from OsdMesh template interface.
@@ -124,7 +128,7 @@ public:
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
     /// @param stencilTable   stencil table to be applied. The table must have
-    ///                       OpenCL memory interfaces.
+    ///                       SSBO interfaces.
     ///
     /// @param instance       cached compiled instance. Clients are supposed to
     ///                       pre-compile an instance of this class and provide
@@ -137,25 +141,25 @@ public:
     ///                         cl_command_queue GetCommandQueue()
     ///                       methods.
     ///
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE,
-              typename DEVICE_CONTEXT>
-    static bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                             VertexBufferDescriptor const &srcDesc,
-                             VERTEX_BUFFER *dstVertexBuffer,
-                             VertexBufferDescriptor const &dstDesc,
-                             STENCIL_TABLE const *stencilTable,
-                             CLEvaluator const *instance,
-                             DEVICE_CONTEXT deviceContext) {
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename STENCIL_TABLE, typename DEVICE_CONTEXT>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable,
+        CLEvaluator const *instance,
+        DEVICE_CONTEXT deviceContext) {
+
         if (instance) {
-            return instance->EvalStencils(srcVertexBuffer, srcDesc,
-                                          dstVertexBuffer, dstDesc,
+            return instance->EvalStencils(srcBuffer, srcDesc,
+                                          dstBuffer, dstDesc,
                                           stencilTable);
         } else {
             // Create an instance on demand (slow)
             instance = Create(srcDesc, dstDesc, deviceContext);
             if (instance) {
-                bool r = instance->EvalStencils(srcVertexBuffer, srcDesc,
-                                                dstVertexBuffer, dstDesc,
+                bool r = instance->EvalStencils(srcBuffer, srcDesc,
+                                                dstBuffer, dstDesc,
                                                 stencilTable);
                 delete instance;
                 return r;
@@ -167,15 +171,14 @@ public:
     /// Generic compute function.
     /// Dispatch the CL compute kernel asynchronously.
     /// Returns false if the kernel hasn't been compiled yet.
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE>
-    bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                      VertexBufferDescriptor const &srcDesc,
-                      VERTEX_BUFFER *dstVertexBuffer,
-                      VertexBufferDescriptor const &dstDesc,
-                      STENCIL_TABLE const *stencilTable) const {
-        return EvalStencils(srcVertexBuffer->BindCLBuffer(_clCommandQueue),
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable) const {
+        return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue),
                             srcDesc,
-                            dstVertexBuffer->BindCLBuffer(_clCommandQueue),
+                            dstBuffer->BindCLBuffer(_clCommandQueue),
                             dstDesc,
                             stencilTable->GetSizesBuffer(),
                             stencilTable->GetOffsetsBuffer(),
@@ -187,16 +190,286 @@ public:
 
     /// Dispatch the CL compute kernel asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
-    bool EvalStencils(cl_mem src,
-                      VertexBufferDescriptor const &srcDesc,
-                      cl_mem dst,
-                      VertexBufferDescriptor const &dstDesc,
+    bool EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
+                      cl_mem dst, VertexBufferDescriptor const &dstDesc,
                       cl_mem sizes,
                       cl_mem offsets,
                       cl_mem indices,
                       cl_mem weights,
                       int start,
                       int end) const;
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Limit evaluations with PatchTable
+    ///
+    /// ----------------------------------------------------------------------
+    ///
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct.
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  client providing context class which supports
+    ///                         cL_context GetContext()
+    ///                         cl_command_queue GetCommandQueue()
+    ///                       methods.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
+              typename DEVICE_CONTEXT>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CLEvaluator const *instance,
+        DEVICE_CONTEXT deviceContext) {
+
+        if (instance) {
+            return instance->EvalPatches(srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc, deviceContext);
+            if (instance) {
+                bool r = instance->EvalPatches(srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer
+    ///
+    /// @param duDesc
+    ///
+    /// @param dvBuffer
+    ///
+    /// @param dvDesc
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  client providing context class which supports
+    ///                         cL_context GetContext()
+    ///                         cl_command_queue GetCommandQueue()
+    ///                       methods.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
+              typename DEVICE_CONTEXT>
+    static bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CLEvaluator const *instance,
+        DEVICE_CONTEXT deviceContext) {
+
+        if (instance) {
+            return instance->EvalPatches(srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         duBuffer, duDesc,
+                                         dvBuffer, dvDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc, deviceContext);
+            if (instance) {
+                bool r = instance->EvalPatches(srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               duBuffer, duDesc,
+                                               dvBuffer, dvDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct.
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable) const {
+
+        return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
+                           dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
+                           0, VertexBufferDescriptor(),
+                           0, VertexBufferDescriptor(),
+                           numPatchCoords,
+                           patchCoords->BindCLBuffer(_clCommandQueue),
+                           patchTable->GetPatchArrayBuffer(),
+                           patchTable->GetPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
+    }
+
+    /// \brief Generic limit eval function with derivatives. This function has
+    ///        a same signature as other device kernels have so that it can be
+    ///        called in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCLBuffer() method returning a CL
+    ///                         buffer object of source data
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCLBuffer() method returning a CL
+    ///                         buffer object of destination data
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer         Output U-derivatives buffer
+    ///                         must have BindCLBuffer() method returning a CL
+    ///                         buffer object of destination data of Du
+    ///
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dvBuffer         Output V-derivatives buffer
+    ///                         must have BindCLBuffer() method returning a CL
+    ///                         buffer object of destination data of Dv
+    ///
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchTable       CLPatchTable or equivalent
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatches(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable) const {
+
+        return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
+                           dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
+                           duBuffer->BindCLBuffer(_clCommandQueue),  duDesc,
+                           dvBuffer->BindCLBuffer(_clCommandQueue),  dvDesc,
+                           numPatchCoords,
+                           patchCoords->BindCLBuffer(_clCommandQueue),
+                           patchTable->GetPatchArrayBuffer(),
+                           patchTable->GetPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
+    }
+
+    bool EvalPatches(cl_mem src, VertexBufferDescriptor const &srcDesc,
+                     cl_mem dst, VertexBufferDescriptor const &dstDesc,
+                     cl_mem du,  VertexBufferDescriptor const &duDesc,
+                     cl_mem dv,  VertexBufferDescriptor const &dvDesc,
+                     int numPatchCoords,
+                     cl_mem patchCoordsBuffer,
+                     cl_mem patchArrayBuffer,
+                     cl_mem patchIndexBuffer,
+                     cl_mem patchParamsBuffer) const;
+
+    /// ----------------------------------------------------------------------
+    ///
+    ///   Other methods
+    ///
+    /// ----------------------------------------------------------------------
 
     /// Configure OpenCL kernel.
     /// Returns false if it fails to compile the kernel.
@@ -215,7 +488,8 @@ private:
     cl_context _clContext;
     cl_command_queue _clCommandQueue;
     cl_program _program;
-    cl_kernel _stencilsKernel;
+    cl_kernel _stencilKernel;
+    cl_kernel _patchKernel;
 };
 
 

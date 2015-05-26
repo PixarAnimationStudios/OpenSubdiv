@@ -117,10 +117,82 @@ OmpEvalStencils(float const * src,
 
         copy(dst, i, threadResult, dstDesc);
     }
+}
+
+void
+OmpEvalStencils(float const * src,
+                VertexBufferDescriptor const &srcDesc,
+                float * dst,
+                VertexBufferDescriptor const &dstDesc,
+                float * dstDu,
+                VertexBufferDescriptor const &dstDuDesc,
+                float * dstDv,
+                VertexBufferDescriptor const &dstDvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end) {
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+        duWeights += offsets[start];
+        dvWeights += offsets[start];
+    }
+
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
+    dstDu += dstDuDesc.offset;
+    dstDv += dstDvDesc.offset;
+
+    int numThreads = omp_get_max_threads();
+    int n = end - start;
+
+    float * result = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
+    float * resultDu = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
+    float * resultDv = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
+
+#pragma omp parallel for
+    for (int i = 0; i < n; ++i) {
+
+        int index = i + (start > 0 ? start : 0); // Stencil index
+
+        // Get thread-local pointers
+        int const           * threadIndices = indices + offsets[index];
+        float const         * threadWeights = weights + offsets[index];
+        float const         * threadWeightsDu = duWeights + offsets[index];
+        float const         * threadWeightsDv = dvWeights + offsets[index];
+
+        int threadId = omp_get_thread_num();
+
+        float * threadResult = result + threadId*srcDesc.length;
+        float * threadResultDu = resultDu + threadId*srcDesc.length;
+        float * threadResultDv = resultDv + threadId*srcDesc.length;
+
+        clear(threadResult, dstDesc);
+        clear(threadResultDu, dstDuDesc);
+        clear(threadResultDv, dstDvDesc);
+
+        for (int j=0; j<(int)sizes[index]; ++j) {
+            addWithWeight(threadResult, src,
+                threadIndices[j], threadWeights[j], srcDesc);
+            addWithWeight(threadResultDu, src,
+                threadIndices[j], threadWeightsDu[j], srcDesc);
+            addWithWeight(threadResultDv, src,
+                threadIndices[j], threadWeightsDv[j], srcDesc);
+        }
+
+        copy(dst, i, threadResult, dstDesc);
+        copy(dstDu, i, threadResultDu, dstDuDesc);
+        copy(dstDv, i, threadResultDv, dstDvDesc);
+    }
 
 }
 
-} // end namespace Osd
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

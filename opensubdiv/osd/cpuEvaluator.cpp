@@ -24,6 +24,7 @@
 
 #include "../osd/cpuEvaluator.h"
 #include "../osd/cpuKernel.h"
+#include "../far/patchBasis.h"
 
 #include <cstdlib>
 
@@ -34,15 +35,15 @@ namespace Osd {
 
 /* static */
 bool
-CpuEvaluator::EvalStencils(const float *src,
-                           VertexBufferDescriptor const &srcDesc,
-                           float *dst,
-                           VertexBufferDescriptor const &dstDesc,
-                           const int * sizes,
-                           const int * offsets,
-                           const int * indices,
-                           const float * weights,
-                           int start, int end) {
+CpuEvaluator::EvalStencils(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    const int * sizes,
+    const int * offsets,
+    const int * indices,
+    const float * weights,
+    int start, int end) {
+
     if (end <= start) return true;
     if (srcDesc.length != dstDesc.length) return false;
 
@@ -55,30 +56,28 @@ CpuEvaluator::EvalStencils(const float *src,
 
 /* static */
 bool
-CpuEvaluator::EvalStencils(const float *src,
-                           VertexBufferDescriptor const &srcDesc,
-                           float *dst,
-                           VertexBufferDescriptor const &dstDesc,
-                           float *dstDs,
-                           VertexBufferDescriptor const &dstDsDesc,
-                           float *dstDt,
-                           VertexBufferDescriptor const &dstDtDesc,
-                           const int * sizes,
-                           const int * offsets,
-                           const int * indices,
-                           const float * weights,
-                           const float * duWeights,
-                           const float * dvWeights,
-                           int start, int end) {
+CpuEvaluator::EvalStencils(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    float *du,        VertexBufferDescriptor const &duDesc,
+    float *dv,        VertexBufferDescriptor const &dvDesc,
+    const int * sizes,
+    const int * offsets,
+    const int * indices,
+    const float * weights,
+    const float * duWeights,
+    const float * dvWeights,
+    int start, int end) {
+
     if (end <= start) return true;
     if (srcDesc.length != dstDesc.length) return false;
-    if (srcDesc.length != dstDsDesc.length) return false;
-    if (srcDesc.length != dstDtDesc.length) return false;
+    if (srcDesc.length != duDesc.length) return false;
+    if (srcDesc.length != dvDesc.length) return false;
 
     CpuEvalStencils(src, srcDesc,
                     dst, dstDesc,
-                    dstDs, dstDsDesc,
-                    dstDt, dstDtDesc,
+                    du,  duDesc,
+                    dv,  dvDesc,
                     sizes, offsets, indices,
                     weights, duWeights, dvWeights,
                     start, end);
@@ -123,10 +122,13 @@ CpuEvaluator::EvalPatches(const float *src,
                           float *dst,
                           VertexBufferDescriptor const &dstDesc,
                           int numPatchCoords,
-                          PatchCoord const *patchCoords,
-                          Far::PatchTable const *patchTable) {
+                          const PatchCoord *patchCoords,
+                          const PatchArray *patchArrays,
+                          const int *patchIndexBuffer,
+                          const PatchParam *patchParamBuffer){
     src += srcDesc.offset;
     if (dst) dst += dstDesc.offset;
+    else return false;
 
     BufferAdapter<const float> srcT(src, srcDesc.length, srcDesc.stride);
     BufferAdapter<float>       dstT(dst, dstDesc.length, dstDesc.stride);
@@ -134,14 +136,38 @@ CpuEvaluator::EvalPatches(const float *src,
     float wP[20], wDs[20], wDt[20];
 
     for (int i = 0; i < numPatchCoords; ++i) {
-        PatchCoord const &coords = patchCoords[i];
+        PatchCoord const &coord = patchCoords[i];
+        PatchArray const &array = patchArrays[coord.handle.arrayIndex];
 
-        patchTable->EvaluateBasis(coords.handle, coords.s, coords.t, wP, wDs, wDt);
+        int patchType = array.GetPatchType();
+        // XXX: patchIndex is absolute. not sure it's consistent.
+        //      (should be offsetted by array.primitiveIdBase?)
+        //    patchParamBuffer[array.primitiveIdBase + coord.handle.patchIndex]
+        Far::PatchParam::BitField patchBits = *(Far::PatchParam::BitField*)
+            &patchParamBuffer[coord.handle.patchIndex].patchBits;
 
-        Far::ConstIndexArray cvs = patchTable->GetPatchVertices(coords.handle);
+        int numControlVertices = 0;
+        if (patchType == Far::PatchDescriptor::REGULAR) {
+            Far::internal::GetBSplineWeights(patchBits,
+                                             coord.s, coord.t, wP, wDs, wDt);
+            numControlVertices = 16;
+        } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
+            Far::internal::GetGregoryWeights(patchBits,
+                                             coord.s, coord.t, wP, wDs, wDt);
+            numControlVertices = 20;
+        } else if (patchType == Far::PatchDescriptor::QUADS) {
+            Far::internal::GetBilinearWeights(patchBits,
+                                              coord.s, coord.t, wP, wDs, wDt);
+            numControlVertices = 4;
+        } else {
+            assert(0);
+            return false;
+        }
+        const int *cvs =
+            &patchIndexBuffer[array.indexBase + coord.handle.vertIndex];
 
         dstT.Clear();
-        for (int j = 0; j < cvs.size(); ++j) {
+        for (int j = 0; j < numControlVertices; ++j) {
             dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
         }
         ++dstT;
@@ -151,47 +177,67 @@ CpuEvaluator::EvalPatches(const float *src,
 
 /* static */
 bool
-CpuEvaluator::EvalPatches(const float *src,
-                          VertexBufferDescriptor const &srcDesc,
-                          float *dst,
-                          VertexBufferDescriptor const &dstDesc,
-                          float *dstDs,
-                          VertexBufferDescriptor const &dstDsDesc,
-                          float *dstDt,
-                          VertexBufferDescriptor const &dstDtDesc,
-                          int numPatchCoords,
-                          PatchCoord const *patchCoords,
-                          Far::PatchTable const *patchTable) {
+CpuEvaluator::EvalPatches(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    float *du,        VertexBufferDescriptor const &duDesc,
+    float *dv,        VertexBufferDescriptor const &dvDesc,
+    int numPatchCoords,
+    PatchCoord const *patchCoords,
+    PatchArray const *patchArrays,
+    const int *patchIndexBuffer,
+    PatchParam const *patchParamBuffer) {
+
     src += srcDesc.offset;
     if (dst) dst += dstDesc.offset;
-    if (dstDs) dstDs += dstDsDesc.offset;
-    if (dstDt) dstDt += dstDtDesc.offset;
+    if (du)  du  += duDesc.offset;
+    if (dv)  dv  += dvDesc.offset;
 
     BufferAdapter<const float> srcT(src, srcDesc.length, srcDesc.stride);
-    BufferAdapter<float> dstT(dst, dstDesc.length, dstDesc.stride);
-    BufferAdapter<float> dstDsT(dstDs, dstDsDesc.length, dstDsDesc.stride);
-    BufferAdapter<float> dstDtT(dstDt, dstDtDesc.length, dstDtDesc.stride);
+    BufferAdapter<float>       dstT(dst, dstDesc.length, dstDesc.stride);
+    BufferAdapter<float>       duT (du,  duDesc.length,  duDesc.stride);
+    BufferAdapter<float>       dvT (dv,  dvDesc.length,  dvDesc.stride);
 
     float wP[20], wDs[20], wDt[20];
 
     for (int i = 0; i < numPatchCoords; ++i) {
-        PatchCoord const &coords = patchCoords[i];
+        PatchCoord const &coord = patchCoords[i];
+        PatchArray const &array = patchArrays[coord.handle.arrayIndex];
 
-        patchTable->EvaluateBasis(coords.handle, coords.s, coords.t, wP, wDs, wDt);
+        int patchType = array.GetPatchType();
+        Far::PatchParam::BitField patchBits = *(Far::PatchParam::BitField*)
+            &patchParamBuffer[coord.handle.patchIndex].patchBits;
 
-        Far::ConstIndexArray cvs = patchTable->GetPatchVertices(coords.handle);
+        int numControlVertices = 0;
+        if (patchType == Far::PatchDescriptor::REGULAR) {
+            Far::internal::GetBSplineWeights(patchBits,
+                                             coord.s, coord.t, wP, wDs, wDt);
+            numControlVertices = 16;
+        } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
+            Far::internal::GetGregoryWeights(patchBits,
+                                             coord.s, coord.t, wP, wDs, wDt);
+            numControlVertices = 20;
+        } else if (patchType == Far::PatchDescriptor::QUADS) {
+            Far::internal::GetBilinearWeights(patchBits,
+                                              coord.s, coord.t, wP, wDs, wDt);
+            numControlVertices = 4;
+        } else {
+            assert(0);
+        }
+        const int *cvs =
+            &patchIndexBuffer[array.indexBase + coord.handle.vertIndex];
 
         dstT.Clear();
-        dstDsT.Clear();
-        dstDtT.Clear();
-        for (int j = 0; j < cvs.size(); ++j) {
+        duT.Clear();
+        dvT.Clear();
+        for (int j = 0; j < numControlVertices; ++j) {
             dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
-            dstDsT.AddWithWeight(srcT[cvs[j]], wDs[j]);
-            dstDtT.AddWithWeight(srcT[cvs[j]], wDt[j]);
+            duT.AddWithWeight (srcT[cvs[j]], wDs[j]);
+            dvT.AddWithWeight (srcT[cvs[j]], wDt[j]);
         }
         ++dstT;
-        ++dstDsT;
-        ++dstDtT;
+        ++duT;
+        ++dvT;
     }
     return true;
 }

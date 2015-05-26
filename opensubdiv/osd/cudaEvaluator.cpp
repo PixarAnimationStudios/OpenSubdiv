@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "../far/stencilTable.h"
+#include "../osd/types.h"
 
 extern "C" {
     void CudaEvalStencils(const float *src,
@@ -41,6 +42,25 @@ extern "C" {
                           const float * weights,
                           int start,
                           int end);
+
+    void CudaEvalPatches(
+        const float *src, float *dst,
+        int length, int srcStride, int dstStride,
+        int numPatchCoords,
+        const void *patchCoords,
+        const void *patchArrays,
+        const int *patchIndices,
+        const void *patchParams);
+
+    void CudaEvalPatchesWithDerivatives(
+        const float *src, float *dst, float *du, float *dv,
+        int length,
+        int srcStride, int dstStride, int dvStride, int duStride,
+        int numPatchCoords,
+        const void *patchCoords,
+        const void *patchArrays,
+        const int *patchIndices,
+        const void *patchParams);
 }
 
 namespace OpenSubdiv {
@@ -102,6 +122,8 @@ CudaEvaluator::EvalStencils(const float *src,
                             const float * weights,
                             int start,
                             int end) {
+    if (dst == NULL) return false;
+
     CudaEvalStencils(src + srcDesc.offset,
                      dst + dstDesc.offset,
                      srcDesc.length,
@@ -111,6 +133,105 @@ CudaEvaluator::EvalStencils(const float *src,
                      start, end);
     return true;
 }
+
+/* static */
+bool
+CudaEvaluator::EvalStencils(const float *src,
+                            VertexBufferDescriptor const &srcDesc,
+                            float *dst,
+                            VertexBufferDescriptor const &dstDesc,
+                            float *dstDu,
+                            VertexBufferDescriptor const &dstDuDesc,
+                            float *dstDv,
+                            VertexBufferDescriptor const &dstDvDesc,
+                            const int * sizes,
+                            const int * offsets,
+                            const int * indices,
+                            const float * weights,
+                            const float * duWeights,
+                            const float * dvWeights,
+                            int start,
+                            int end) {
+    // PERFORMANCE: need to combine 3 launches together
+    if (dst) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         dst + dstDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         dstDesc.stride,
+                         sizes, offsets, indices, weights,
+                         start, end);
+    }
+    if (dstDu) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         dstDu + dstDuDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         dstDuDesc.stride,
+                         sizes, offsets, indices, duWeights,
+                         start, end);
+    }
+    if (dstDv) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         dstDv + dstDvDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         dstDvDesc.stride,
+                         sizes, offsets, indices, dvWeights,
+                         start, end);
+    }
+    return true;
+}
+
+/* static */
+bool
+CudaEvaluator::EvalPatches(const float *src,
+                           VertexBufferDescriptor const &srcDesc,
+                           float *dst,
+                           VertexBufferDescriptor const &dstDesc,
+                           int numPatchCoords,
+                           const PatchCoord *patchCoords,
+                           const PatchArray *patchArrays,
+                           const int *patchIndices,
+                           const PatchParam *patchParams) {
+    src += srcDesc.offset;
+    if (dst)
+        dst += dstDesc.offset;
+
+    CudaEvalPatches(src, dst,
+                    srcDesc.length, srcDesc.stride, dstDesc.stride,
+                    numPatchCoords, patchCoords, patchArrays, patchIndices, patchParams);
+
+    return true;
+}
+
+/* static */
+bool
+CudaEvaluator::EvalPatches(
+    const float *src, VertexBufferDescriptor const &srcDesc,
+    float *dst,       VertexBufferDescriptor const &dstDesc,
+    float *du,        VertexBufferDescriptor const &duDesc,
+    float *dv,        VertexBufferDescriptor const &dvDesc,
+    int numPatchCoords,
+    const PatchCoord *patchCoords,
+    const PatchArray *patchArrays,
+    const int *patchIndices,
+    const PatchParam *patchParams) {
+
+    if (src) src += srcDesc.offset;
+    if (dst) dst += dstDesc.offset;
+    if (du)  du  += duDesc.offset;
+    if (dv)  dv  += dvDesc.offset;
+
+    CudaEvalPatchesWithDerivatives(
+        src, dst, du, dv,
+        srcDesc.length, srcDesc.stride,
+        dstDesc.stride, duDesc.stride, dvDesc.stride,
+        numPatchCoords, patchCoords, patchArrays, patchIndices, patchParams);
+    return true;
+}
+
+
 
 /* static */
 void

@@ -43,7 +43,8 @@ CudaVertexBuffer::~CudaVertexBuffer() {
 }
 
 CudaVertexBuffer *
-CudaVertexBuffer::Create(int numElements, int numVertices) {
+CudaVertexBuffer::Create(int numElements, int numVertices,
+                         void * /*deviceContext */) {
     CudaVertexBuffer *instance =
         new CudaVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
@@ -52,7 +53,8 @@ CudaVertexBuffer::Create(int numElements, int numVertices) {
 }
 
 void
-CudaVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CudaVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
+                             void * /*deviceContext*/) {
 
     size_t size = _numElements * numVertices * sizeof(float);
 
