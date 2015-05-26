@@ -59,7 +59,13 @@ CompileShader(GLenum shaderType, const char *source) {
 bool
 SupportsAdaptiveTessellation() {
 #ifdef OSD_USES_GLEW
-    return glewGetExtension("GL_ARB_tessellation_shader") == GL_TRUE;
+    // XXXtakahito:
+    //    glewGetExtension doesn't work if the context is initialized
+    //    with core profile, since glGetStrings(GL_EXTENSIONS) return
+    //    NULL.
+    //
+    //return glewGetExtension("GL_ARB_tessellation_shader") != NULL;
+    return glewIsSupported("GL_ARB_tessellation_shader");
 #else
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     return true;
