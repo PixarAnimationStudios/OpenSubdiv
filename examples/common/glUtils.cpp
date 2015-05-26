@@ -65,7 +65,7 @@ SupportsAdaptiveTessellation() {
     //    NULL.
     //
     //return glewGetExtension("GL_ARB_tessellation_shader") != NULL;
-    return glewIsSupported("GL_ARB_tessellation_shader");
+    return glewIsSupported("GL_ARB_tessellation_shader") == GL_TRUE;
 #else
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     return true;
