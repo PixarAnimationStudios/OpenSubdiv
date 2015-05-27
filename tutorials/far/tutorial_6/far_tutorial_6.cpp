@@ -146,21 +146,38 @@ int main(int, char **) {
     refiner->RefineAdaptive(
         Far::TopologyRefiner::AdaptiveOptions(maxIsolation));
 
+    // Generate a set of Far::PatchTable that we will use to evaluate the
+    // surface limit
+    Far::PatchTableFactory::Options patchOptions;
+    patchOptions.endCapType =
+        Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
 
-    // Create a buffer to hold the position of the
-    std::vector<Vertex> verts(refiner->GetNumVerticesTotal());
+    Far::PatchTable const * patchTable =
+        Far::PatchTableFactory::Create(*refiner, patchOptions);
+
+    // In this example, we use Gregory basis patch for endcaps.
+    Far::StencilTable const *endCapStencils =
+        patchTable->GetEndCapVertexStencilTable();
+    int nEndCapPoints = endCapStencils ? endCapStencils->GetNumStencils() : 0;
+    int nRefinerVertices = refiner->GetNumVerticesTotal();
+
+    // Create a buffer to hold the position of the refined verts and
+    // endcap points, and copy the coarse positions.
+    std::vector<Vertex> verts(nRefinerVertices + nEndCapPoints);
     memcpy(&verts[0], g_verts, g_nverts*3*sizeof(float));
 
     // Interpolate vertex primvar data : they are the control vertices
     // of the limit patches (see far_tutorial_0 for details)
     Far::PrimvarRefiner(*refiner).Interpolate(&verts[0], &verts[g_nverts]);
 
+    // Evaluate endcaps from interpolated vertex primvars.
+    if (endCapStencils) {
+        int maxLevelVertsIndex = nRefinerVertices
+            - refiner->GetLevel(refiner->GetMaxLevel()).GetNumVertices();
 
-    // Generate a set of Far::PatchTable that we will use to evaluate the
-    // surface limit
-    Far::PatchTable const * patchTable =
-        Far::PatchTableFactory::Create(*refiner, 
-            Far::PatchTableFactory::Options());
+        endCapStencils->UpdateValues(&verts[maxLevelVertsIndex],
+                                     &verts[nRefinerVertices]);
+    }
 
     // Create a Far::PatchMap to help locating patches in the table
     Far::PatchMap patchmap(*patchTable);
