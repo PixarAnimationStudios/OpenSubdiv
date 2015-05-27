@@ -45,6 +45,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple (for now) constructor and destructor:
@@ -693,6 +694,7 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
             interiorEdgeCount, pEdgeSharpness, cEdgeSharpness);
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

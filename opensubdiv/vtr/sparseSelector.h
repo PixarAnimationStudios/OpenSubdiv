@@ -38,6 +38,8 @@ namespace Vtr {
 
 class Refinement;
 
+namespace internal {
+
 //
 //  SparseSelector:
 //      Class supporting "selection" of components in a Level for sparse Refinement.
@@ -92,6 +94,7 @@ private:
     bool        _selected;
 };
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

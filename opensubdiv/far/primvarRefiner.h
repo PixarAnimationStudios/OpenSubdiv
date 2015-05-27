@@ -47,8 +47,6 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Vtr { class SparseSelector; }
-
 namespace Far {
 
 
@@ -196,17 +194,17 @@ private:
     PrimvarRefiner(PrimvarRefiner const & src) : _refiner(src._refiner) { }
     PrimvarRefiner & operator=(PrimvarRefiner const &) { return *this; }
 
-    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
-    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
-    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromFaces(Vtr::internal::Refinement const &, T const & src, U & dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromEdges(Vtr::internal::Refinement const &, T const & src, U & dst) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void interpolateChildVertsFromVerts(Vtr::internal::Refinement const &, T const & src, U & dst) const;
 
-    template <class T, class U> void varyingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst) const;
-    template <class T, class U> void varyingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst) const;
-    template <class T, class U> void varyingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void varyingInterpolateChildVertsFromFaces(Vtr::internal::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void varyingInterpolateChildVertsFromEdges(Vtr::internal::Refinement const &, T const & src, U & dst) const;
+    template <class T, class U> void varyingInterpolateChildVertsFromVerts(Vtr::internal::Refinement const &, T const & src, U & dst) const;
 
-    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromFaces(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
-    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
-    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::Refinement const &, T const & src, U & dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromFaces(Vtr::internal::Refinement const &, T const & src, U & dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromEdges(Vtr::internal::Refinement const &, T const & src, U & dst, int channel) const;
+    template <Sdc::SchemeType SCHEME, class T, class U> void faceVaryingInterpolateChildVertsFromVerts(Vtr::internal::Refinement const &, T const & src, U & dst, int channel) const;
 
     template <Sdc::SchemeType SCHEME, class T, class U, class U1, class U2> void limit(T const & src, U & pos, U1 * tan1, U2 * tan2) const;
 
@@ -238,7 +236,7 @@ PrimvarRefiner::Interpolate(int level, T const & src, U & dst) const {
 
     assert(level>0 and level<=(int)_refiner._refinements.size());
 
-    Vtr::Refinement const & refinement = _refiner.getRefinement(level-1);
+    Vtr::internal::Refinement const & refinement = _refiner.getRefinement(level-1);
 
     switch (_refiner._subdivType) {
     case Sdc::SCHEME_CATMARK:
@@ -262,13 +260,13 @@ PrimvarRefiner::Interpolate(int level, T const & src, U & dst) const {
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 PrimvarRefiner::interpolateChildVertsFromFaces(
-    Vtr::Refinement const & refinement, T const & src, U & dst) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst) const {
 
     if (refinement.getNumChildVerticesFromFaces() == 0) return;
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    const Vtr::Level& parent = refinement.parent();
+    const Vtr::internal::Level& parent = refinement.parent();
 
     Vtr::internal::StackBuffer<float,16> fVertWeights(parent.getMaxValence());
 
@@ -283,8 +281,8 @@ PrimvarRefiner::interpolateChildVertsFromFaces(
 
         float fVaryingWeight = 1.0f / (float) fVerts.size();
 
-        Vtr::MaskInterface fMask(fVertWeights, 0, 0);
-        Vtr::FaceInterface fHood(fVerts.size());
+        Vtr::internal::MaskInterface fMask(fVertWeights, 0, 0);
+        Vtr::internal::FaceInterface fHood(fVerts.size());
 
         scheme.ComputeFaceVertexMask(fHood, fMask);
 
@@ -303,14 +301,14 @@ PrimvarRefiner::interpolateChildVertsFromFaces(
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 PrimvarRefiner::interpolateChildVertsFromEdges(
-    Vtr::Refinement const & refinement, T const & src, U & dst) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst) const {
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    const Vtr::Level& parent = refinement.parent();
-    const Vtr::Level& child  = refinement.child();
+    const Vtr::internal::Level& parent = refinement.parent();
+    const Vtr::internal::Level& child  = refinement.child();
 
-    Vtr::EdgeInterface eHood(parent);
+    Vtr::internal::EdgeInterface eHood(parent);
 
     float                               eVertWeights[2];
     Vtr::internal::StackBuffer<float,8> eFaceWeights(parent.getMaxEdgeFaces());
@@ -325,7 +323,7 @@ PrimvarRefiner::interpolateChildVertsFromEdges(
         ConstIndexArray eVerts = parent.getEdgeVertices(edge),
                         eFaces = parent.getEdgeFaces(edge);
 
-        Vtr::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
+        Vtr::internal::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
 
         eHood.SetIndex(edge);
 
@@ -375,14 +373,14 @@ PrimvarRefiner::interpolateChildVertsFromEdges(
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 PrimvarRefiner::interpolateChildVertsFromVerts(
-    Vtr::Refinement const & refinement, T const & src, U & dst) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst) const {
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    const Vtr::Level& parent = refinement.parent();
-    const Vtr::Level& child  = refinement.child();
+    const Vtr::internal::Level& parent = refinement.parent();
+    const Vtr::internal::Level& child  = refinement.child();
 
-    Vtr::VertexInterface vHood(parent, child);
+    Vtr::internal::VertexInterface vHood(parent, child);
 
     Vtr::internal::StackBuffer<float,32> weightBuffer(2*parent.getMaxValence());
 
@@ -400,7 +398,7 @@ PrimvarRefiner::interpolateChildVertsFromVerts(
               * vEdgeWeights = weightBuffer,
               * vFaceWeights = vEdgeWeights + vEdges.size();
 
-        Vtr::MaskInterface vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
+        Vtr::internal::MaskInterface vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
 
         vHood.SetIndex(vert, cVert);
 
@@ -466,7 +464,7 @@ PrimvarRefiner::InterpolateVarying(int level, T const & src, U & dst) const {
 
     assert(level>0 and level<=(int)_refiner._refinements.size());
 
-    Vtr::Refinement const & refinement = _refiner.getRefinement(level-1);
+    Vtr::internal::Refinement const & refinement = _refiner.getRefinement(level-1);
 
     varyingInterpolateChildVertsFromFaces(refinement, src, dst);
     varyingInterpolateChildVertsFromEdges(refinement, src, dst);
@@ -476,11 +474,11 @@ PrimvarRefiner::InterpolateVarying(int level, T const & src, U & dst) const {
 template <class T, class U>
 inline void
 PrimvarRefiner::varyingInterpolateChildVertsFromFaces(
-    Vtr::Refinement const & refinement, T const & src, U & dst) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst) const {
 
     if (refinement.getNumChildVerticesFromFaces() == 0) return;
 
-    const Vtr::Level& parent = refinement.parent();
+    const Vtr::internal::Level& parent = refinement.parent();
 
     for (int face = 0; face < parent.getNumFaces(); ++face) {
 
@@ -504,9 +502,9 @@ PrimvarRefiner::varyingInterpolateChildVertsFromFaces(
 template <class T, class U>
 inline void
 PrimvarRefiner::varyingInterpolateChildVertsFromEdges(
-    Vtr::Refinement const & refinement, T const & src, U & dst) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst) const {
 
-    const Vtr::Level& parent = refinement.parent();
+    const Vtr::internal::Level& parent = refinement.parent();
 
     for (int edge = 0; edge < parent.getNumEdges(); ++edge) {
 
@@ -528,9 +526,9 @@ PrimvarRefiner::varyingInterpolateChildVertsFromEdges(
 template <class T, class U>
 inline void
 PrimvarRefiner::varyingInterpolateChildVertsFromVerts(
-    Vtr::Refinement const & refinement, T const & src, U & dst) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst) const {
 
-    const Vtr::Level& parent = refinement.parent();
+    const Vtr::internal::Level& parent = refinement.parent();
 
     for (int vert = 0; vert < parent.getNumVertices(); ++vert) {
 
@@ -568,7 +566,7 @@ PrimvarRefiner::InterpolateFaceVarying(int level, T const & src, U & dst, int ch
 
     assert(level>0 and level<=(int)_refiner._refinements.size());
 
-    Vtr::Refinement const & refinement = _refiner.getRefinement(level-1);
+    Vtr::internal::Refinement const & refinement = _refiner.getRefinement(level-1);
 
     switch (_refiner._subdivType) {
     case Sdc::SCHEME_CATMARK:
@@ -592,17 +590,17 @@ PrimvarRefiner::InterpolateFaceVarying(int level, T const & src, U & dst, int ch
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 PrimvarRefiner::faceVaryingInterpolateChildVertsFromFaces(
-    Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst, int channel) const {
 
     if (refinement.getNumChildVerticesFromFaces() == 0) return;
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    const Vtr::Level& parentLevel = refinement.parent();
-    const Vtr::Level& childLevel  = refinement.child();
+    const Vtr::internal::Level& parentLevel = refinement.parent();
+    const Vtr::internal::Level& childLevel  = refinement.child();
 
-    const Vtr::FVarLevel& parentFVar = *parentLevel._fvarChannels[channel];
-    const Vtr::FVarLevel& childFVar  = *childLevel._fvarChannels[channel];
+    const Vtr::internal::FVarLevel& parentFVar = *parentLevel._fvarChannels[channel];
+    const Vtr::internal::FVarLevel& childFVar  = *childLevel._fvarChannels[channel];
 
     Vtr::internal::StackBuffer<float,16> fValueWeights(parentLevel.getMaxValence());
 
@@ -622,8 +620,8 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromFaces(
         //  Declare and compute mask weights for this vertex relative to its parent face:
         ConstIndexArray fValues = parentFVar.getFaceValues(face);
 
-        Vtr::MaskInterface fMask(fValueWeights, 0, 0);
-        Vtr::FaceInterface fHood(fValues.size());
+        Vtr::internal::MaskInterface fMask(fValueWeights, 0, 0);
+        Vtr::internal::FaceInterface fHood(fValues.size());
 
         scheme.ComputeFaceVertexMask(fHood, fMask);
 
@@ -639,16 +637,16 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromFaces(
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 PrimvarRefiner::faceVaryingInterpolateChildVertsFromEdges(
-    Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst, int channel) const {
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    const Vtr::Level& parentLevel = refinement.parent();
-    const Vtr::Level& childLevel  = refinement.child();
+    const Vtr::internal::Level& parentLevel = refinement.parent();
+    const Vtr::internal::Level& childLevel  = refinement.child();
 
-    const Vtr::FVarRefinement& refineFVar = *refinement._fvarChannels[channel];
-    const Vtr::FVarLevel&      parentFVar = *parentLevel._fvarChannels[channel];
-    const Vtr::FVarLevel&      childFVar  = *childLevel._fvarChannels[channel];
+    const Vtr::internal::FVarRefinement& refineFVar = *refinement._fvarChannels[channel];
+    const Vtr::internal::FVarLevel&      parentFVar = *parentLevel._fvarChannels[channel];
+    const Vtr::internal::FVarLevel&      childFVar  = *childLevel._fvarChannels[channel];
 
     //
     //  Allocate and intialize (if linearly interpolated) interpolation weights for
@@ -657,7 +655,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromEdges(
     float                               eVertWeights[2];
     Vtr::internal::StackBuffer<float,8> eFaceWeights(parentLevel.getMaxEdgeFaces());
 
-    Vtr::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
+    Vtr::internal::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
 
     bool isLinearFVar = parentFVar._isLinear;
     if (isLinearFVar) {
@@ -669,7 +667,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromEdges(
         eVertWeights[1] = 0.5f;
     }
 
-    Vtr::EdgeInterface eHood(parentLevel);
+    Vtr::internal::EdgeInterface eHood(parentLevel);
 
     for (int edge = 0; edge < parentLevel.getNumEdges(); ++edge) {
 
@@ -782,16 +780,16 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromEdges(
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
 PrimvarRefiner::faceVaryingInterpolateChildVertsFromVerts(
-    Vtr::Refinement const & refinement, T const & src, U & dst, int channel) const {
+    Vtr::internal::Refinement const & refinement, T const & src, U & dst, int channel) const {
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    const Vtr::Level& parentLevel = refinement.parent();
-    const Vtr::Level& childLevel  = refinement.child();
+    const Vtr::internal::Level& parentLevel = refinement.parent();
+    const Vtr::internal::Level& childLevel  = refinement.child();
 
-    const Vtr::FVarRefinement& refineFVar = *refinement._fvarChannels[channel];
-    const Vtr::FVarLevel&      parentFVar = *parentLevel._fvarChannels[channel];
-    const Vtr::FVarLevel&      childFVar  = *childLevel._fvarChannels[channel];
+    const Vtr::internal::FVarRefinement& refineFVar = *refinement._fvarChannels[channel];
+    const Vtr::internal::FVarLevel&      parentFVar = *parentLevel._fvarChannels[channel];
+    const Vtr::internal::FVarLevel&      childFVar  = *childLevel._fvarChannels[channel];
 
     bool isLinearFVar = parentFVar._isLinear;
 
@@ -799,7 +797,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromVerts(
 
     Vtr::internal::StackBuffer<Vtr::Index,16> vEdgeValues(parentLevel.getMaxValence());
 
-    Vtr::VertexInterface vHood(parentLevel, childLevel);
+    Vtr::internal::VertexInterface vHood(parentLevel, childLevel);
 
     for (int vert = 0; vert < parentLevel.getNumVertices(); ++vert) {
 
@@ -830,7 +828,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromVerts(
             float * vEdgeWeights = weightBuffer;
             float * vFaceWeights = vEdgeWeights + vEdges.size();
 
-            Vtr::MaskInterface vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
+            Vtr::internal::MaskInterface vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
 
             vHood.SetIndex(vert, cVert);
 
@@ -898,8 +896,8 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromVerts(
             //      - otherwise if the PARENT is a crease, both will be creases (no transition)
             //      - otherwise the parent must be a corner and the child a crease (transition)
             //
-            Vtr::FVarLevel::ConstValueTagArray pValueTags = parentFVar.getVertexValueTags(vert);
-            Vtr::FVarLevel::ConstValueTagArray cValueTags = childFVar.getVertexValueTags(cVert);
+            Vtr::internal::FVarLevel::ConstValueTagArray pValueTags = parentFVar.getVertexValueTags(vert);
+            Vtr::internal::FVarLevel::ConstValueTagArray cValueTags = childFVar.getVertexValueTags(cVert);
 
             for (int cSibling = 0; cSibling < cVertValues.size(); ++cSibling) {
                 int pSibling = refineFVar.getChildValueParentSource(cVert, cSibling);
@@ -997,7 +995,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    Vtr::Level const & level = _refiner.getLevel(_refiner.GetMaxLevel());
+    Vtr::internal::Level const & level = _refiner.getLevel(_refiner.GetMaxLevel());
 
     int  maxWeightsPerMask = 1 + 2 * level.getMaxValence();
     bool hasTangents = (dstTan1Ptr && dstTan2Ptr);
@@ -1016,13 +1014,13 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
           * eTan2Weights = eTan1Weights + maxWeightsPerMask,
           * fTan2Weights = fTan1Weights + maxWeightsPerMask;
 
-    Vtr::MaskInterface posMask( vPosWeights,  ePosWeights,  fPosWeights);
-    Vtr::MaskInterface tan1Mask(vTan1Weights, eTan1Weights, fTan1Weights);
-    Vtr::MaskInterface tan2Mask(vTan2Weights, eTan2Weights, fTan2Weights);
+    Vtr::internal::MaskInterface posMask( vPosWeights,  ePosWeights,  fPosWeights);
+    Vtr::internal::MaskInterface tan1Mask(vTan1Weights, eTan1Weights, fTan1Weights);
+    Vtr::internal::MaskInterface tan2Mask(vTan2Weights, eTan2Weights, fTan2Weights);
 
     //  This is a bit obscure -- assigning both parent and child as last level -- but
     //  this mask type was intended for another purpose.  Consider one for the limit:
-    Vtr::VertexInterface vHood(level, level);
+    Vtr::internal::VertexInterface vHood(level, level);
 
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
         ConstIndexArray vEdges = level.getVertexEdges(vert);
@@ -1154,8 +1152,8 @@ PrimvarRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
-    Vtr::Level const &      level       = _refiner.getLevel(_refiner.GetMaxLevel());
-    Vtr::FVarLevel const &  fvarChannel = *level._fvarChannels[channel];
+    Vtr::internal::Level const &      level       = _refiner.getLevel(_refiner.GetMaxLevel());
+    Vtr::internal::FVarLevel const &  fvarChannel = *level._fvarChannels[channel];
 
     int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
 
@@ -1163,7 +1161,7 @@ PrimvarRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
     Vtr::internal::StackBuffer<Index,16> vEdgeBuffer(level.getMaxValence());
 
     //  This is a bit obscure -- assign both parent and child as last level
-    Vtr::VertexInterface vHood(level, level);
+    Vtr::internal::VertexInterface vHood(level, level);
 
     for (int vert = 0; vert < level.getNumVertices(); ++vert) {
 
@@ -1196,7 +1194,7 @@ PrimvarRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
                   * eWeights = vWeights + 1,
                   * fWeights = eWeights + vEdges.size();
 
-            Vtr::MaskInterface vMask(vWeights, eWeights, fWeights);
+            Vtr::internal::MaskInterface vMask(vWeights, eWeights, fWeights);
 
             vHood.SetIndex(vert, vert);
 

@@ -35,6 +35,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple constructor, destructor and basic initializers:
@@ -921,6 +922,8 @@ TriRefinement::markSparseFaceChildren() {
         }
     }
 }
+
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

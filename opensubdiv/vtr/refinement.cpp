@@ -41,6 +41,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple constructor, destructor and basic initializers:
@@ -1256,6 +1257,7 @@ Refinement::markSparseEdgeChildren() {
     }
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

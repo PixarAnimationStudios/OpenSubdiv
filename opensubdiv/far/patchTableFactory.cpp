@@ -462,8 +462,8 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
     FVarChannelCursor & fvc = context.fvarChannelCursor;
     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
 
-        Vtr::Level const & vtxLevel = refiner.getLevel(level);
-        Vtr::FVarLevel const & fvarLevel = vtxLevel.getFVarLevel(*fvc);
+        Vtr::internal::Level const & vtxLevel = refiner.getLevel(level);
+        Vtr::internal::FVarLevel const & fvarLevel = vtxLevel.getFVarLevel(*fvc);
 
         if (refiner.GetFVarLinearInterpolation(*fvc)!=Sdc::Options::FVAR_LINEAR_ALL) {
 
@@ -480,7 +480,7 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
             ConstIndexArray faceVerts = vtxLevel.getFaceVertices(faceIndex),
                             fvarValues = fvarLevel.getFaceValues(faceIndex);
 
-            Vtr::FVarLevel::ValueTag compFVarTagsForFace =
+            Vtr::internal::FVarLevel::ValueTag compFVarTagsForFace =
                 fvarLevel.getFaceCompositeValueTag(fvarValues, faceVerts);
 
             if (compFVarTagsForFace.isMismatch()) {
@@ -517,9 +517,9 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
                 //  of each vertex merged with the FVar tag of its value) while computing the
                 //  composite VTag:
                 //
-                Vtr::Level::VTag fvarVertTags[4];
+                Vtr::internal::Level::VTag fvarVertTags[4];
 
-                Vtr::Level::VTag compFVarVTag =
+                Vtr::internal::Level::VTag compFVarVTag =
                             fvarLevel.getFaceCompositeValueAndVTag(fvarValues, faceVerts, fvarVertTags);
 
                 //
@@ -531,11 +531,11 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
                 fvarPatchTag._isRegular = not compFVarVTag._xordinary;
 
                 if (compFVarVTag._boundary) {
-                    Vtr::Level::ETag fvarEdgeTags[4];
+                    Vtr::internal::Level::ETag fvarEdgeTags[4];
 
                     ConstIndexArray faceEdges = vtxLevel.getFaceEdges(faceIndex);
 
-                    Vtr::Level::ETag compFVarETag =
+                    Vtr::internal::Level::ETag compFVarETag =
                                 fvarLevel.getFaceCompositeCombinedEdgeTag(faceEdges, fvarEdgeTags);
 
                     if (compFVarETag._boundary) {
@@ -668,8 +668,8 @@ PatchTableFactory::computePatchParam(
     bool nonquad = (refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() != 4);
 
     for (int i = depth; i > 0; --i) {
-        Vtr::Refinement const& refinement  = refiner.getRefinement(i-1);
-        Vtr::Level const&      parentLevel = refiner.getLevel(i-1);
+        Vtr::internal::Refinement const& refinement  = refiner.getRefinement(i-1);
+        Vtr::internal::Level const&      parentLevel = refiner.getLevel(i-1);
 
         Vtr::Index parentFaceIndex    = refinement.getChildFaceParentFace(faceIndex);
                  childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
@@ -988,7 +988,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
     PatchFaceTag * levelPatchTags = &context.patchTags[0];
 
     for (int levelIndex = 0; levelIndex < refiner.GetNumLevels(); ++levelIndex) {
-        Vtr::Level const * level = &refiner.getLevel(levelIndex);
+        Vtr::internal::Level const * level = &refiner.getLevel(levelIndex);
 
         //
         //  Given components at Level[i], we need to be looking at Refinement[i] -- and not
@@ -1000,8 +1000,8 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
         //    - what Faces are "transitional" (already done in Refinement for parent)
         //    - what Faces are "complete" (applied to this Level in previous refinement)
         //
-        Vtr::Refinement const            * refinement = 0;
-        Vtr::Refinement::SparseTag const * refinedFaceTags = 0;
+        Vtr::internal::Refinement const            * refinement = 0;
+        Vtr::internal::Refinement::SparseTag const * refinedFaceTags = 0;
 
         if (levelIndex < refiner.GetMaxLevel()) {
             refinement      = &refiner.getRefinement(levelIndex);
@@ -1032,8 +1032,8 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             //  "incomplete" (and all are tagged) the face must be "incomplete", so get the
             //  "composite" tag which combines bits for all vertices:
             //
-            Vtr::Refinement::SparseTag refinedFaceTag = refinedFaceTags ?
-                refinedFaceTags[faceIndex] : Vtr::Refinement::SparseTag();
+            Vtr::internal::Refinement::SparseTag refinedFaceTag = refinedFaceTags ?
+                refinedFaceTags[faceIndex] : Vtr::internal::Refinement::SparseTag();
 
             if (refinedFaceTag._selected) {
                 continue;
@@ -1042,7 +1042,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             Vtr::ConstIndexArray fVerts = level->getFaceVertices(faceIndex);
             assert(fVerts.size() == 4);
 
-            Vtr::Level::VTag compFaceVertTag = level->getFaceCompositeVTag(fVerts);
+            Vtr::internal::Level::VTag compFaceVertTag = level->getFaceCompositeVTag(fVerts);
             if (compFaceVertTag._incomplete) {
                 continue;
             }
@@ -1085,7 +1085,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                 not hasXOrdinaryVertex and not hasBoundaryVertex and not hasNonManifoldVertex) {
 
                 Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
-                Vtr::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
+                Vtr::internal::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
 
                 if (compFaceETag._semiSharp or compFaceETag._infSharp) {
                     float sharpness = 0;
@@ -1321,7 +1321,7 @@ PatchTableFactory::populateAdaptivePatches(
     }
 
     for (int i = 0; i < refiner.GetNumLevels(); ++i) {
-        Vtr::Level const * level = &refiner.getLevel(i);
+        Vtr::internal::Level const * level = &refiner.getLevel(i);
 
         const PatchFaceTag * levelPatchTags = &context.patchTags[levelFaceOffset];
 

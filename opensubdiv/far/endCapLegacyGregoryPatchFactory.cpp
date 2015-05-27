@@ -40,7 +40,7 @@ EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(
 
 ConstIndexArray
 EndCapLegacyGregoryPatchFactory::GetPatchPoints(
-    Vtr::Level const * level, Index faceIndex,
+    Vtr::internal::Level const * level, Index faceIndex,
     PatchTableFactory::PatchFaceTag const * levelPatchTags,
     int levelVertOffset) {
 
@@ -70,7 +70,7 @@ EndCapLegacyGregoryPatchFactory::GetPatchPoints(
 //  Populate the quad-offsets table used by Gregory patches
 //
 static void getQuadOffsets(
-    Vtr::Level const& level, Index faceIndex, unsigned int offsets[]) {
+    Vtr::internal::Level const& level, Index faceIndex, unsigned int offsets[]) {
 
     Vtr::ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
@@ -112,7 +112,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     size_t numTotalGregoryPatches = 
         numGregoryPatches + numGregoryBoundaryPatches;
 
-    Vtr::Level const &level = _refiner.getLevel(_refiner.GetMaxLevel());
+    Vtr::internal::Level const &level = _refiner.getLevel(_refiner.GetMaxLevel());
 
     quadOffsetsTable->resize(numTotalGregoryPatches*4);
 
@@ -151,7 +151,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     int levelLast = _refiner.GetMaxLevel();
     for (int i = 0; i <= levelLast; ++i) {
 
-        Vtr::Level const * level = &_refiner.getLevel(i);
+        Vtr::internal::Level const * level = &_refiner.getLevel(i);
 
         if (i == levelLast) {
 

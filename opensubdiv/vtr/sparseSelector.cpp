@@ -32,6 +32,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Component selection methods:
@@ -93,6 +94,7 @@ SparseSelector::selectFace(Index parentFace) {
     }
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

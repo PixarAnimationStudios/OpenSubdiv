@@ -38,6 +38,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple classes supporting the interfaces required of generic types in the Scheme mask
@@ -190,6 +191,7 @@ private:
     int _fCount;
 };
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

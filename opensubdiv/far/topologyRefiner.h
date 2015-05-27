@@ -50,7 +50,7 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Vtr { class SparseSelector; }
+namespace Vtr { namespace internal { class SparseSelector; } }
 
 namespace Far {
 
@@ -254,11 +254,11 @@ protected:
     friend class PtexIndices;
     friend class PrimvarRefiner;
 
-    Vtr::Level & getLevel(int l) { return *_levels[l]; }
-    Vtr::Level const & getLevel(int l) const { return *_levels[l]; }
+    Vtr::internal::Level & getLevel(int l) { return *_levels[l]; }
+    Vtr::internal::Level const & getLevel(int l) const { return *_levels[l]; }
 
-    Vtr::Refinement & getRefinement(int l) { return *_refinements[l]; }
-    Vtr::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
+    Vtr::internal::Refinement & getRefinement(int l) { return *_refinements[l]; }
+    Vtr::internal::Refinement const & getRefinement(int l) const { return *_refinements[l]; }
 
 private:
     //  Not default constructible or copyable:
@@ -266,13 +266,13 @@ private:
     TopologyRefiner(TopologyRefiner const &) : _uniformOptions(0), _adaptiveOptions(0) { }
     TopologyRefiner & operator=(TopologyRefiner const &) { return *this; }
 
-    void selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector);
+    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector);
 
     void initializeInventory();
-    void updateInventory(Vtr::Level const & newLevel);
+    void updateInventory(Vtr::internal::Level const & newLevel);
 
-    void appendLevel(Vtr::Level & newLevel);
-    void appendRefinement(Vtr::Refinement & newRefinement);
+    void appendLevel(Vtr::internal::Level & newLevel);
+    void appendRefinement(Vtr::internal::Refinement & newRefinement);
     void assembleFarLevels();
 
 private:
@@ -296,8 +296,8 @@ private:
     int _maxValence;
 
     //  There is some redundancy here -- to be reduced later
-    std::vector<Vtr::Level *>      _levels;
-    std::vector<Vtr::Refinement *> _refinements;
+    std::vector<Vtr::internal::Level *>      _levels;
+    std::vector<Vtr::internal::Refinement *> _refinements;
 
     std::vector<TopologyLevel> _farLevels;;
 };

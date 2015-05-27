@@ -41,6 +41,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 class Refinement;
 class FVarLevel;
@@ -761,6 +762,7 @@ Level::shareFaceVertCountsAndOffsets() const {
         (int)_faceVertCountsAndOffsets.size());
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

@@ -33,6 +33,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  TriRefinement:
@@ -96,6 +97,7 @@ private:
     IndexVector _localFaceChildFaceCountsAndOffsets;
 };
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

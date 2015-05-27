@@ -67,7 +67,7 @@ public:
     /// @param faceIndex        vtr faceIndex at the level
     ///
     ConstIndexArray GetPatchPoints(
-        Vtr::Level const * level, Index faceIndex);
+        Vtr::internal::Level const * level, Index faceIndex);
 
     /// \brief Create a StencilTable for end patch points, relative to the max
     ///        subdivision level.

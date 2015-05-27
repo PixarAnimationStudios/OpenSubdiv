@@ -57,7 +57,7 @@ TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options scheme
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
     _levels.reserve(10);
-    _levels.push_back(new Vtr::Level);
+    _levels.push_back(new Vtr::internal::Level);
     _farLevels.reserve(10);
     assembleFarLevels();
 }
@@ -101,7 +101,7 @@ TopologyRefiner::initializeInventory() {
     if (_levels.size()) {
         assert(_levels.size() == 1);
 
-        Vtr::Level const & baseLevel = *_levels[0];
+        Vtr::internal::Level const & baseLevel = *_levels[0];
 
         _totalVertices     = baseLevel.getNumVertices();
         _totalEdges        = baseLevel.getNumEdges();
@@ -120,7 +120,7 @@ TopologyRefiner::initializeInventory() {
 }
 
 void
-TopologyRefiner::updateInventory(Vtr::Level const & newLevel) {
+TopologyRefiner::updateInventory(Vtr::internal::Level const & newLevel) {
 
     _totalVertices     += newLevel.getNumVertices();
     _totalEdges        += newLevel.getNumEdges();
@@ -131,7 +131,7 @@ TopologyRefiner::updateInventory(Vtr::Level const & newLevel) {
 }
 
 void
-TopologyRefiner::appendLevel(Vtr::Level & newLevel) {
+TopologyRefiner::appendLevel(Vtr::internal::Level & newLevel) {
 
     _levels.push_back(&newLevel);
 
@@ -139,7 +139,7 @@ TopologyRefiner::appendLevel(Vtr::Level & newLevel) {
 }
 
 void
-TopologyRefiner::appendRefinement(Vtr::Refinement & newRefinement) {
+TopologyRefiner::appendRefinement(Vtr::internal::Refinement & newRefinement) {
 
     //
     //  There may be properties to transfer between refinements that cannot be passed on
@@ -223,7 +223,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
     //
-    Vtr::Refinement::Options refineOptions;
+    Vtr::internal::Refinement::Options refineOptions;
     refineOptions._sparse         = false;
     refineOptions._faceVertsFirst = options.orderVerticesFromFacesFirst;
 
@@ -231,14 +231,14 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
         refineOptions._minimalTopology =
             options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
 
-        Vtr::Level& parentLevel = getLevel(i-1);
-        Vtr::Level& childLevel  = *(new Vtr::Level);
+        Vtr::internal::Level& parentLevel = getLevel(i-1);
+        Vtr::internal::Level& childLevel  = *(new Vtr::internal::Level);
 
-        Vtr::Refinement* refinement = 0;
+        Vtr::internal::Refinement* refinement = 0;
         if (splitType == Sdc::SPLIT_TO_QUADS) {
-            refinement = new Vtr::QuadRefinement(parentLevel, childLevel, _subdivOptions);
+            refinement = new Vtr::internal::QuadRefinement(parentLevel, childLevel, _subdivOptions);
         } else {
-            refinement = new Vtr::TriRefinement(parentLevel, childLevel, _subdivOptions);
+            refinement = new Vtr::internal::TriRefinement(parentLevel, childLevel, _subdivOptions);
         }
         refinement->refine(refineOptions);
 
@@ -275,7 +275,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     //  Initialize refinement options for Vtr -- full topology is always generated in
     //  the last level as expected usage is for patch retrieval:
     //
-    Vtr::Refinement::Options refineOptions;
+    Vtr::internal::Refinement::Options refineOptions;
 
     refineOptions._sparse          = true;
     refineOptions._minimalTopology = false;
@@ -285,14 +285,14 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
     for (int i = 1; i <= (int)options.isolationLevel; ++i) {
 
-        Vtr::Level& parentLevel     = getLevel(i-1);
-        Vtr::Level& childLevel      = *(new Vtr::Level);
+        Vtr::internal::Level& parentLevel     = getLevel(i-1);
+        Vtr::internal::Level& childLevel      = *(new Vtr::internal::Level);
 
-        Vtr::Refinement* refinement = 0;
+        Vtr::internal::Refinement* refinement = 0;
         if (splitType == Sdc::SPLIT_TO_QUADS) {
-            refinement = new Vtr::QuadRefinement(parentLevel, childLevel, _subdivOptions);
+            refinement = new Vtr::internal::QuadRefinement(parentLevel, childLevel, _subdivOptions);
         } else {
-            refinement = new Vtr::TriRefinement(parentLevel, childLevel, _subdivOptions);
+            refinement = new Vtr::internal::TriRefinement(parentLevel, childLevel, _subdivOptions);
         }
 
         //
@@ -301,7 +301,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         //  maximum level and stop refinining any further.  Otherwise, refine and append
         //  the new refinement and child.
         //
-        Vtr::SparseSelector selector(*refinement);
+        Vtr::internal::SparseSelector selector(*refinement);
 
         selectFeatureAdaptiveComponents(selector);
         if (selector.isSelectionEmpty()) {
@@ -324,7 +324,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 //   Method for selecting components for sparse refinement based on the feature-adaptive needs
 //   of patch generation.
 //
-//   It assumes we have a freshly initialized Vtr::SparseSelector (i.e. nothing already selected)
+//   It assumes we have a freshly initialized SparseSelector (i.e. nothing already selected)
 //   and will select all relevant topological features for inclusion in the subsequent sparse
 //   refinement.
 //
@@ -338,9 +338,9 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 //   identification of the intended patch that result from it.
 //
 void
-TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) {
+TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector) {
 
-    Vtr::Level const& level = selector.getRefinement().parent();
+    Vtr::internal::Level const& level = selector.getRefinement().parent();
 
     int  regularFaceSize           =  selector.getRefinement()._regFaceSize;
     bool considerSingleCreasePatch = _adaptiveOptions.useSingleCreasePatch && (regularFaceSize == 4);
@@ -409,7 +409,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
         //  be necessary in some cases, particularly when we start trying to be clever about
         //  minimizing refinement for inf-sharp creases, etc.):
         //
-        Vtr::Level::VTag compFaceVTag = level.getFaceCompositeVTag(faceVerts);
+        Vtr::internal::Level::VTag compFaceVTag = level.getFaceCompositeVTag(faceVerts);
         if (compFaceVTag._incomplete) {
             continue;
         }
@@ -491,7 +491,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
         //
         if (not selectFace and considerFVarChannels) {
             for (int channel = 0; not selectFace && (channel < numFVarChannels); ++channel) {
-                Vtr::FVarLevel const & fvarLevel = *level._fvarChannels[channel];
+                Vtr::internal::FVarLevel const & fvarLevel = *level._fvarChannels[channel];
 
                 //
                 //  Retrieve the counterpart to the face-vertices composite tag for the face-values
@@ -501,7 +501,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
                 //
                 Vtr::ConstIndexArray faceValues = fvarLevel.getFaceValues(face);
 
-                Vtr::FVarLevel::ValueTag compFVarFaceTag =
+                Vtr::internal::FVarLevel::ValueTag compFVarFaceTag =
                         fvarLevel.getFaceCompositeValueTag(faceValues, faceVerts);
 
                 //  No mismatch in topology -> no need to further isolate...
@@ -514,8 +514,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::SparseSelector& selector) 
                     //  Combine the FVar topology tags (ValueTags) at corners with the vertex topology
                     //  tags (VTags), then make similar inferences from the combined tags as was done
                     //  for the face.
-                    Vtr::Level::VTag fvarVTags[4];
-                    Vtr::Level::VTag compFVarVTag =
+                    Vtr::internal::Level::VTag fvarVTags[4];
+                    Vtr::internal::Level::VTag compFVarVTag =
                             fvarLevel.getFaceCompositeValueAndVTag(faceValues, faceVerts, fvarVTags);
 
                     if (not (compFVarVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
