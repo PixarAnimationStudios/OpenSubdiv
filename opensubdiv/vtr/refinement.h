@@ -147,9 +147,6 @@ public:
 
     Index getChildVertexParentIndex(Index v) const  { return _childVertexParentIndex[v]; }
 
-    //  Child-to-"ancestor" relationships:
-    Index getChildFaceBaseFace(Index f) const { return _childFaceBaseFaceIndex[f]; }
-
 //
 //  Modifiers intended for internal/protected use:
 //
@@ -247,8 +244,6 @@ public:
     void populateVertexTagsFromParentFaces();
     void populateVertexTagsFromParentEdges();
     void populateVertexTagsFromParentVertices();
-
-    void propagateBaseFace(Refinement const * previousRefinement);
 
     //
     //  Methods (and types) involved in subdividing the topology -- though not
@@ -379,11 +374,6 @@ public:
     //  Refinement data for face-varying channels present in the Levels being refined:
     //
     std::vector<FVarRefinement*> _fvarChannels;
-
-    //
-    //  Child-to-base/ancestor mappings:
-    //
-    IndexVector _childFaceBaseFaceIndex;
 };
 
 inline ConstIndexArray

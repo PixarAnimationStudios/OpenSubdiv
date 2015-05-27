@@ -1081,26 +1081,6 @@ Refinement::subdivideFVarChannels() {
 }
 
 //
-//  Methods to inherit properties between refinements in a hierarchy:
-//
-void
-Refinement::propagateBaseFace(Refinement const * grandParent) {
-
-    _childFaceBaseFaceIndex.resize(_child->_faceCount);
-
-    if (grandParent == 0) {
-        _childFaceBaseFaceIndex = _childFaceParentIndex;
-    } else {
-        IndexVector &       childBaseFace  = _childFaceBaseFaceIndex;
-        IndexVector const & parentBaseFace = grandParent->_childFaceBaseFaceIndex;
-
-        for (Index cFace = 0; cFace < _child->_faceCount; ++cFace) {
-            childBaseFace[cFace] = parentBaseFace[_childFaceParentIndex[cFace]];
-        }
-    }
-}
-
-//
 //  Marking of sparse child components -- including those selected and those neighboring...
 //
 //      For schemes requiring neighboring support, this is the equivalent of the "guarantee

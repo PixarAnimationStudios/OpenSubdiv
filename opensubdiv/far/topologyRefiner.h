@@ -118,13 +118,10 @@ public:
 
         UniformOptions(int level) :
             refinementLevel(level),
-            applyBaseFacePerFace(false),
             orderVerticesFromFacesFirst(false),
             fullTopologyInLastLevel(false) { }
 
         unsigned int refinementLevel:4,             ///< Number of refinement iterations
-                     applyBaseFacePerFace:1,        ///< For each refined face, record the index
-                                                    ///< of the base face from which it originates
                      orderVerticesFromFacesFirst:1, ///< Order child vertices from faces first
                                                     ///< instead of child vertices of vertices
                      fullTopologyInLastLevel:1;     ///< Skip topological relationships in the last
@@ -151,15 +148,12 @@ public:
         AdaptiveOptions(int level) :
             isolationLevel(level),
             useSingleCreasePatch(false),
-            applyBaseFacePerFace(false),
             orderVerticesFromFacesFirst(false) { }
 
         unsigned int isolationLevel:4,              ///< Number of iterations applied to isolate
                                                     ///< extraordinary vertices and creases
                      useSingleCreasePatch:1,        ///< Use 'single-crease' patch and stop
                                                     ///< isolation where applicable
-                     applyBaseFacePerFace:1,        ///< For each refined face, record the index
-                                                    ///< of the base face from which it originates
                      orderVerticesFromFacesFirst:1; ///< Order child vertices from faces first
                                                     ///< instead of child vertices of vertices
     };
