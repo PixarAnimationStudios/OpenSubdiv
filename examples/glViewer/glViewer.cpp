@@ -111,6 +111,7 @@ static const char *res =
 #else
 #include "shader_gl3.gen.h"
 #endif
+;
 #else
 		static char *res = NULL;
 		if (!res){
