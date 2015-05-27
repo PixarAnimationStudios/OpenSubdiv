@@ -189,6 +189,7 @@ struct FVarData
         glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
                      &data[0], GL_STATIC_DRAW);
 
+        glGenTextures(1, &textureBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
