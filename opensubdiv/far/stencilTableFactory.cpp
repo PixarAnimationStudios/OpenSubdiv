@@ -70,7 +70,7 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     }
 
     bool interpolateVarying = options.interpolationMode==INTERPOLATE_VARYING;
-    Internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
                                 interpolateVarying,
                                 /*genControlVerts*/ true,
                                 /*compactWeights*/  true);
@@ -81,8 +81,8 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     //
     PrimvarRefiner primvarRefiner(refiner);
 
-    Internal::StencilBuilder::Index srcIndex(&builder, 0);
-    Internal::StencilBuilder::Index dstIndex(&builder,
+    internal::StencilBuilder::Index srcIndex(&builder, 0);
+    internal::StencilBuilder::Index dstIndex(&builder,
                                         refiner.GetLevel(0).GetNumVertices());
     for (int level=1; level<=maxlevel; ++level) {
         if (not interpolateVarying) {
@@ -258,13 +258,13 @@ StencilTableFactory::AppendEndCapStencilTable(
     int nEndCapStencils = endCapStencilTable->GetNumStencils();
     int nEndCapStencilsElements = 0;
 
-    Internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
                                 /*isVarying*/       false,
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  factorize);
-    Internal::StencilBuilder::Index origin(&builder, 0);
-    Internal::StencilBuilder::Index dst = origin;
-    Internal::StencilBuilder::Index srcIdx = origin;
+    internal::StencilBuilder::Index origin(&builder, 0);
+    internal::StencilBuilder::Index dst = origin;
+    internal::StencilBuilder::Index srcIdx = origin;
 
     for (int i = 0 ; i < nEndCapStencils; ++i) {
         Stencil src = endCapStencilTable->GetStencil(i);
@@ -416,12 +416,12 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     // Generate limit stencils for locations
     //
 
-    Internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
                                 /*isVarying*/       false,
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  true);
-    Internal::StencilBuilder::Index origin(&builder, 0);
-    Internal::StencilBuilder::Index dst = origin;
+    internal::StencilBuilder::Index origin(&builder, 0);
+    internal::StencilBuilder::Index dst = origin;
 
     float wP[20], wDs[20], wDt[20];
 
