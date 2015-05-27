@@ -88,8 +88,10 @@ void main() {
     int offset = _offsets[current],
         size   = _sizes[current];
 
-    for (int i=0; i<size; ++i) {
-        addWithWeight(dst, readVertex( _indices[offset+i] ), _weights[offset+i]);
+    for (int stencil = 0; stencil < size; ++stencil) {
+        int vindex = offset + stencil;
+        addWithWeight(
+            dst, readVertex(_indices[vindex]), _weights[vindex]);
     }
 
     writeVertex(current, dst);
@@ -259,27 +261,27 @@ void main() {
     clear(dst);
 
     int indexBase = array.z + coord.vertIndex;
-    for (int i = 0; i < numControlVertices; ++i) {
-        int index = patchIndexBuffer[indexBase + i];
-        addWithWeight(dst, readVertex(index), wP[i]);
+    for (int cv = 0; cv < numControlVertices; ++cv) {
+        int index = patchIndexBuffer[indexBase + cv];
+        addWithWeight(dst, readVertex(index), wP[cv]);
     }
     writeVertex(current, dst);
 
     if (dstDuDesc.y > 0) { // length
         Vertex du;
         clear(du);
-        for (int i = 0; i < numControlVertices; ++i) {
-            int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(du, readVertex(index), wDs[i]);
+        for (int cv = 0; cv < numControlVertices; ++cv) {
+            int index = patchIndexBuffer[indexBase + cv];
+            addWithWeight(du, readVertex(index), wDs[cv]);
         }
         writeDu(current, du);
     }
     if (dstDvDesc.y > 0) {
         Vertex dv;
         clear(dv);
-        for (int i = 0; i < numControlVertices; ++i) {
-            int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(dv, readVertex(index), wDt[i]);
+        for (int cv = 0; cv < numControlVertices; ++cv) {
+            int index = patchIndexBuffer[indexBase + cv];
+            addWithWeight(dv, readVertex(index), wDt[cv]);
         }
         writeDv(current, dv);
     }
