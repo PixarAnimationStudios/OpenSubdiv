@@ -29,7 +29,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-namespace Internal {
+namespace internal {
 
 struct PointDerivWeight {
     float p;
@@ -446,7 +446,7 @@ StencilBuilder::Index::AddFaceVaryingWithWeight(Index const &, float)
     // Not supported.
 }
 
-} // end namespace Internal
+} // end namespace internal
 } // end namespace Far
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv

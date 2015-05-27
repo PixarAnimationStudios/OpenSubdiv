@@ -34,7 +34,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-namespace Internal {
+namespace internal {
 
 class WeightTable;
 
@@ -102,7 +102,7 @@ private:
     bool _isVarying;
 };
 
-} // end namespace Internal
+} // end namespace internal
 } // end namespace Far
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
