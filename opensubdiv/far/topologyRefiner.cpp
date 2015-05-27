@@ -141,16 +141,6 @@ TopologyRefiner::appendLevel(Vtr::internal::Level & newLevel) {
 void
 TopologyRefiner::appendRefinement(Vtr::internal::Refinement & newRefinement) {
 
-    //
-    //  There may be properties to transfer between refinements that cannot be passed on
-    //  when refining between the parent and child since they exist "above" the parent:
-    //
-    bool applyBaseFace = (_isUniform && _uniformOptions.applyBaseFacePerFace) ||
-                        (!_isUniform && _adaptiveOptions.applyBaseFacePerFace);
-    if (applyBaseFace) {
-        newRefinement.propagateBaseFace(_refinements.size() ? _refinements.back() : 0);
-    }
-
     _refinements.push_back(&newRefinement);
 }
 

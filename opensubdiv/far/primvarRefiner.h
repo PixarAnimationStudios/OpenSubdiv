@@ -160,6 +160,15 @@ public:
     ///
     template <class T, class U> void InterpolateVarying(int level, T const & src, U & dst) const;
 
+    /// \brief Apply uniform (per-face) primvar data between levels.  Data is simply copied
+    /// from a parent face to its child faces and does not involve any weighting.  Setting
+    /// the source primvar data for the base level to be the index of each face allows the
+    /// propagation of the base face to primvar data for child faces in all levels.
+    ///
+    template <class T, class U> void InterpolateFaceUniform(T const * src, U * dst) const;
+
+    template <class T, class U> void InterpolateFaceUniform(int level, T const & src, U & dst) const;
+
     /// \brief Apply face-varying interpolation weights to a primvar buffer
     //         associated with a particular face-varying channel
     ///
@@ -438,6 +447,39 @@ PrimvarRefiner::interpolateChildVertsFromVerts(
         dst[cVert].AddWithWeight(src[vert], vVertWeight);
 
         dst[cVert].AddVaryingWithWeight(src[vert], 1.0f);
+    }
+}
+
+//
+// Face-uniform "interpolation":
+//
+template <class T, class U>
+inline void
+PrimvarRefiner::InterpolateFaceUniform(T const * src, U * dst) const {
+
+    for (int level = 1; level <= _refiner.GetMaxLevel(); ++level) {
+
+        InterpolateFaceUniform(level, src, dst);
+
+        src = dst;
+        dst += _refiner.GetLevel(level).GetNumFaces();
+    }
+}
+
+template <class T, class U>
+inline void
+PrimvarRefiner::InterpolateFaceUniform(int level, T const & src, U & dst) const {
+
+    assert(level>0 and level<=(int)_refiner._refinements.size());
+
+    Vtr::internal::Refinement const & refinement = _refiner.getRefinement(level-1);
+    Vtr::internal::Level const & child = refinement.child();
+
+    for (int cFace = 0; cFace < child.getNumFaces(); ++cFace) {
+
+        Vtr::Index pFace = refinement.getChildFaceParentFace(cFace);
+
+        dst[cFace] = src[pFace];
     }
 }
 

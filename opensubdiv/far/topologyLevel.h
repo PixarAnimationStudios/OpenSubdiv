@@ -84,7 +84,6 @@ public:
     Index GetVertexChildVertex(Index v) const { return _refToChild->getVertexChildVertex(v); }
 
     Index GetFaceParentFace(Index f) const { return _refToParent->getChildFaceParentFace(f); }
-    Index GetFaceBaseFace(  Index f) const { return _refToParent->getChildFaceBaseFace(f); }
 
     bool ValidateTopology() const { return _level->validateTopology(); }
     void PrintTopology(bool children = true) const { _level->print((children && _refToChild) ? _refToChild : 0); }
