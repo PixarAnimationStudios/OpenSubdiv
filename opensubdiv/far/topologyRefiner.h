@@ -45,7 +45,7 @@
 #include "../vtr/fvarLevel.h"
 #include "../vtr/fvarRefinement.h"
 #include "../vtr/stackBuffer.h"
-#include "../vtr/maskInterfaces.h"
+#include "../vtr/componentInterfaces.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

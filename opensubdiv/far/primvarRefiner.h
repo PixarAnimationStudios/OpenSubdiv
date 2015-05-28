@@ -36,7 +36,7 @@
 #include "../vtr/refinement.h"
 #include "../vtr/fvarRefinement.h"
 #include "../vtr/stackBuffer.h"
-#include "../vtr/maskInterfaces.h"
+#include "../vtr/componentInterfaces.h"
 #include "../far/types.h"
 #include "../far/error.h"
 #include "../far/topologyLevel.h"
@@ -222,6 +222,50 @@ private:
 private:
 
     TopologyRefiner const &  _refiner;
+
+private:
+    //
+    //  Local class to fulfil interface for <typename MASK> in the Scheme mask queries:
+    //
+    class Mask {
+    public:
+        typedef float Weight;  //  Also part of the expected interface
+
+    public:
+        Mask(Weight* v, Weight* e, Weight* f) : _vertWeights(v), _edgeWeights(e), _faceWeights(f) { }
+        ~Mask() { }
+
+    public:  //  Generic interface expected of <typename MASK>:
+        int GetNumVertexWeights() const { return _vertCount; }
+        int GetNumEdgeWeights()   const { return _edgeCount; }
+        int GetNumFaceWeights()   const { return _faceCount; }
+
+        void SetNumVertexWeights(int count) { _vertCount = count; }
+        void SetNumEdgeWeights(  int count) { _edgeCount = count; }
+        void SetNumFaceWeights(  int count) { _faceCount = count; }
+
+        Weight const& VertexWeight(int index) const { return _vertWeights[index]; }
+        Weight const& EdgeWeight(  int index) const { return _edgeWeights[index]; }
+        Weight const& FaceWeight(  int index) const { return _faceWeights[index]; }
+
+        Weight& VertexWeight(int index) { return _vertWeights[index]; }
+        Weight& EdgeWeight(  int index) { return _edgeWeights[index]; }
+        Weight& FaceWeight(  int index) { return _faceWeights[index]; }
+
+        bool AreFaceWeightsForFaceCenters() const  { return _faceWeightsForFaceCenters; }
+        void SetFaceWeightsForFaceCenters(bool on) { _faceWeightsForFaceCenters = on; }
+
+    private:
+        Weight* _vertWeights;
+        Weight* _edgeWeights;
+        Weight* _faceWeights;
+
+        int _vertCount;
+        int _edgeCount;
+        int _faceCount;
+
+        bool _faceWeightsForFaceCenters;
+    };
 };
 
 
@@ -290,7 +334,7 @@ PrimvarRefiner::interpolateChildVertsFromFaces(
 
         float fVaryingWeight = 1.0f / (float) fVerts.size();
 
-        Vtr::internal::MaskInterface fMask(fVertWeights, 0, 0);
+        Mask fMask(fVertWeights, 0, 0);
         Vtr::internal::FaceInterface fHood(fVerts.size());
 
         scheme.ComputeFaceVertexMask(fHood, fMask);
@@ -332,7 +376,7 @@ PrimvarRefiner::interpolateChildVertsFromEdges(
         ConstIndexArray eVerts = parent.getEdgeVertices(edge),
                         eFaces = parent.getEdgeFaces(edge);
 
-        Vtr::internal::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
+        Mask eMask(eVertWeights, 0, eFaceWeights);
 
         eHood.SetIndex(edge);
 
@@ -407,7 +451,7 @@ PrimvarRefiner::interpolateChildVertsFromVerts(
               * vEdgeWeights = weightBuffer,
               * vFaceWeights = vEdgeWeights + vEdges.size();
 
-        Vtr::internal::MaskInterface vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
+        Mask vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
 
         vHood.SetIndex(vert, cVert);
 
@@ -662,7 +706,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromFaces(
         //  Declare and compute mask weights for this vertex relative to its parent face:
         ConstIndexArray fValues = parentFVar.getFaceValues(face);
 
-        Vtr::internal::MaskInterface fMask(fValueWeights, 0, 0);
+        Mask fMask(fValueWeights, 0, 0);
         Vtr::internal::FaceInterface fHood(fValues.size());
 
         scheme.ComputeFaceVertexMask(fHood, fMask);
@@ -697,7 +741,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromEdges(
     float                               eVertWeights[2];
     Vtr::internal::StackBuffer<float,8> eFaceWeights(parentLevel.getMaxEdgeFaces());
 
-    Vtr::internal::MaskInterface eMask(eVertWeights, 0, eFaceWeights);
+    Mask eMask(eVertWeights, 0, eFaceWeights);
 
     bool isLinearFVar = parentFVar._isLinear;
     if (isLinearFVar) {
@@ -870,7 +914,7 @@ PrimvarRefiner::faceVaryingInterpolateChildVertsFromVerts(
             float * vEdgeWeights = weightBuffer;
             float * vFaceWeights = vEdgeWeights + vEdges.size();
 
-            Vtr::internal::MaskInterface vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
+            Mask vMask(&vVertWeight, vEdgeWeights, vFaceWeights);
 
             vHood.SetIndex(vert, cVert);
 
@@ -1056,9 +1100,9 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
           * eTan2Weights = eTan1Weights + maxWeightsPerMask,
           * fTan2Weights = fTan1Weights + maxWeightsPerMask;
 
-    Vtr::internal::MaskInterface posMask( vPosWeights,  ePosWeights,  fPosWeights);
-    Vtr::internal::MaskInterface tan1Mask(vTan1Weights, eTan1Weights, fTan1Weights);
-    Vtr::internal::MaskInterface tan2Mask(vTan2Weights, eTan2Weights, fTan2Weights);
+    Mask posMask( vPosWeights,  ePosWeights,  fPosWeights);
+    Mask tan1Mask(vTan1Weights, eTan1Weights, fTan1Weights);
+    Mask tan2Mask(vTan2Weights, eTan2Weights, fTan2Weights);
 
     //  This is a bit obscure -- assigning both parent and child as last level -- but
     //  this mask type was intended for another purpose.  Consider one for the limit:
@@ -1236,7 +1280,7 @@ PrimvarRefiner::faceVaryingLimit(T const & src, U * dst, int channel) const {
                   * eWeights = vWeights + 1,
                   * fWeights = eWeights + vEdges.size();
 
-            Vtr::internal::MaskInterface vMask(vWeights, eWeights, fWeights);
+            Mask vMask(vWeights, eWeights, fWeights);
 
             vHood.SetIndex(vert, vert);
 
