@@ -35,7 +35,9 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
+    class PatchTable;
     class StencilTable;
+    class LimitStencilTable;
 }
 
 namespace Osd {
@@ -55,7 +57,15 @@ public:
         return new GLStencilTableTBO(stencilTable);
     }
 
+    static GLStencilTableTBO *Create(
+        Far::LimitStencilTable const *limitStencilTable,
+        void *deviceContext = NULL) {
+        (void)deviceContext;  // unused
+        return new GLStencilTableTBO(limitStencilTable);
+    }
+
     explicit GLStencilTableTBO(Far::StencilTable const *stencilTable);
+    explicit GLStencilTableTBO(Far::LimitStencilTable const *limitStencilTable);
     ~GLStencilTableTBO();
 
     // interfaces needed for GLSLTransformFeedbackKernel
@@ -63,6 +73,8 @@ public:
     GLuint GetOffsetsTexture() const { return _offsets; }
     GLuint GetIndicesTexture() const { return _indices; }
     GLuint GetWeightsTexture() const { return _weights; }
+    GLuint GetDuWeightsTexture() const { return _duWeights; }
+    GLuint GetDvWeightsTexture() const { return _dvWeights; }
     int GetNumStencils() const { return _numStencils; }
 
 private:
@@ -70,6 +82,8 @@ private:
     GLuint _offsets;
     GLuint _indices;
     GLuint _weights;
+    GLuint _duWeights;
+    GLuint _dvWeights;
     int _numStencils;
 };
 
@@ -80,10 +94,13 @@ public:
     typedef bool Instantiatable;
     static GLXFBEvaluator * Create(VertexBufferDescriptor const &srcDesc,
                                    VertexBufferDescriptor const &dstDesc,
+                                   VertexBufferDescriptor const &duDesc,
+                                   VertexBufferDescriptor const &dvDesc,
                                    void * deviceContext = NULL) {
         (void)deviceContext;  // not used
         GLXFBEvaluator *instance = new GLXFBEvaluator();
-        if (instance->Compile(srcDesc, dstDesc)) return instance;
+        if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc))
+            return instance;
         delete instance;
         return NULL;
     }
@@ -142,7 +159,9 @@ public:
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
-            instance = Create(srcDesc, dstDesc);
+            instance = Create(srcDesc, dstDesc,
+                              VertexBufferDescriptor(),
+                              VertexBufferDescriptor());
             if (instance) {
                 bool r = instance->EvalStencils(srcBuffer, srcDesc,
                                                 dstBuffer, dstDesc,
@@ -154,7 +173,77 @@ public:
         }
     }
 
-    /// \brief dispatch eval stencils function.
+    /// \brief Generic static stencil function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        transparently from OsdMesh template interface.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a
+    ///                       const float pointer for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer       Output U-derivative buffer
+    ///                       must have BindVBO() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param duDesc         vertex buffer descriptor for the output buffer
+    ///
+    /// @param dvBuffer       Output V-derivative buffer
+    ///                       must have BindVBO() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param stencilTable   stencil table to be applied. The table must have
+    ///                       Texture Buffer Object interfaces.
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  not used in the GLSLTransformFeedback kernel
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer, VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer, VertexBufferDescriptor const &dvDesc,
+        STENCIL_TABLE const *stencilTable,
+        GLXFBEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        if (instance) {
+            return instance->EvalStencils(srcBuffer, srcDesc,
+                                          dstBuffer, dstDesc,
+                                          duBuffer,  duDesc,
+                                          dvBuffer,  dvDesc,
+                                          stencilTable);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
+            if (instance) {
+                bool r = instance->EvalStencils(srcBuffer, srcDesc,
+                                                dstBuffer, dstDesc,
+                                                duBuffer, duDesc,
+                                                dvBuffer, dvDesc,
+                                                stencilTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic eval stencils function.
     ///
     /// @param srcBuffer      Input primvar buffer.
     ///                       must have BindVBO() method returning a GL
@@ -178,24 +267,74 @@ public:
 
         return EvalStencils(srcBuffer->BindVBO(), srcDesc,
                             dstBuffer->BindVBO(), dstDesc,
+                            0, VertexBufferDescriptor(),
+                            0, VertexBufferDescriptor(),
                             stencilTable->GetSizesTexture(),
                             stencilTable->GetOffsetsTexture(),
                             stencilTable->GetIndicesTexture(),
                             stencilTable->GetWeightsTexture(),
+                            0,
+                            0,
                             /* start = */ 0,
                             /* end   = */ stencilTable->GetNumStencils());
     }
 
-    /// \brief Static eval stencils function, dispatch the GLSL XFB kernel on
-    ///        on GPU asynchronously.
+    /// \brief Generic eval stencils function with derivative evaluation.
     ///
-    /// @param srcBuffer      GL buffer of input primvars.
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
-    /// @param dstBuffer      GL buffer of output primvars.
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object for destination data
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param stencilTable   stencil table to be applied.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        STENCIL_TABLE const *stencilTable) const {
+
+        return EvalStencils(srcBuffer->BindVBO(), srcDesc,
+                            dstBuffer->BindVBO(), dstDesc,
+                            duBuffer->BindVBO(),  duDesc,
+                            dvBuffer->BindVBO(),  dvDesc,
+                            stencilTable->GetSizesTexture(),
+                            stencilTable->GetOffsetsTexture(),
+                            stencilTable->GetIndicesTexture(),
+                            stencilTable->GetWeightsTexture(),
+                            stencilTable->GetDuWeightsTexture(),
+                            stencilTable->GetDvWeightsTexture(),
+                            /* start = */ 0,
+                            /* end   = */ stencilTable->GetNumStencils());
+    }
+
+    /// \brief dispatch eval stencils function with derivatives.
+    ///        dispatch the GLSL XFB kernel on on GPU asynchronously.
+    ///
+    /// @param srcBuffer      GL buffer of input primvars.
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the srcBuffer
+    ///
+    /// @param dstBuffer      GL buffer of output primvars.
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the dstBuffer
+    ///
+    /// @param duBuffer       GL buffer of output U-derivatives.
+    ///
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dvBuffer       GL buffer of output V-derivatives.
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param sizesBuffer    GL buffer of the sizes in the stencil table
     ///
@@ -211,10 +350,14 @@ public:
     ///
     bool EvalStencils(GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
                       GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
+                      GLuint duBuffer,  VertexBufferDescriptor const &duDesc,
+                      GLuint dvBuffer,  VertexBufferDescriptor const &dvDesc,
                       GLuint sizesBuffer,
                       GLuint offsetsBuffer,
                       GLuint indicesBuffer,
                       GLuint weightsBuffer,
+                      GLuint duWeightsBuffer,
+                      GLuint dvWeightsBuffer,
                       int start,
                       int end) const;
 
@@ -275,7 +418,9 @@ public:
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
-            instance = Create(srcDesc, dstDesc);
+            instance = Create(srcDesc, dstDesc,
+                              VertexBufferDescriptor(),
+                              VertexBufferDescriptor());
             if (instance) {
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
                                                dstBuffer, dstDesc,
@@ -351,7 +496,7 @@ public:
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
-            instance = Create(srcDesc, dstDesc);
+            instance = Create(srcDesc, dstDesc, duDesc, dvDesc);
             if (instance) {
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
                                                dstBuffer, dstDesc,
@@ -485,7 +630,9 @@ public:
     /// Configure GLSL kernel. A valid GL context must be made current before
     /// calling this function. Returns false if it fails to compile the kernel.
     bool Compile(VertexBufferDescriptor const &srcDesc,
-                 VertexBufferDescriptor const &dstDesc);
+                 VertexBufferDescriptor const &dstDesc,
+                 VertexBufferDescriptor const &duDesc,
+                 VertexBufferDescriptor const &dvDesc);
 
     /// Wait the dispatched kernel finishes.
     static void Synchronize(void *kernel);
@@ -494,26 +641,40 @@ private:
     GLuint _srcBufferTexture;
 
     struct _StencilKernel {
+        _StencilKernel();
+        ~_StencilKernel();
+        bool Compile(VertexBufferDescriptor const &srcDesc,
+                     VertexBufferDescriptor const &dstDesc,
+                     VertexBufferDescriptor const &duDesc,
+                     VertexBufferDescriptor const &dvDesc);
         GLuint program;
-        GLuint uniformSrcBufferTexture;
-        GLuint uniformSrcOffset;    // src buffer offset (in elements)
+        GLint uniformSrcBufferTexture;
+        GLint uniformSrcOffset;    // src buffer offset (in elements)
 
-        GLuint uniformSizesTexture;
-        GLuint uniformOffsetsTexture;
-        GLuint uniformIndicesTexture;
-        GLuint uniformWeightsTexture;
-        GLuint uniformStart;     // range
-        GLuint uniformEnd;
+        GLint uniformSizesTexture;
+        GLint uniformOffsetsTexture;
+        GLint uniformIndicesTexture;
+        GLint uniformWeightsTexture;
+        GLint uniformDuWeightsTexture;
+        GLint uniformDvWeightsTexture;
+        GLint uniformStart;     // range
+        GLint uniformEnd;
     } _stencilKernel;
 
     struct _PatchKernel {
+        _PatchKernel();
+        ~_PatchKernel();
+        bool Compile(VertexBufferDescriptor const &srcDesc,
+                     VertexBufferDescriptor const &dstDesc,
+                     VertexBufferDescriptor const &duDesc,
+                     VertexBufferDescriptor const &dvDesc);
         GLuint program;
-        GLuint uniformSrcBufferTexture;
-        GLuint uniformSrcOffset;    // src buffer offset (in elements)
+        GLint uniformSrcBufferTexture;
+        GLint uniformSrcOffset;    // src buffer offset (in elements)
 
-        GLuint uniformPatchArray;
-        GLuint uniformPatchParamTexture;
-        GLuint uniformPatchIndexTexture;
+        GLint uniformPatchArray;
+        GLint uniformPatchParamTexture;
+        GLint uniformPatchIndexTexture;
     } _patchKernel;
 
 };

@@ -96,8 +96,25 @@ CudaStencilTable::CudaStencilTable(Far::StencilTable const *stencilTable) {
         _offsets = createCudaBuffer(stencilTable->GetOffsets());
         _indices = createCudaBuffer(stencilTable->GetControlIndices());
         _weights = createCudaBuffer(stencilTable->GetWeights());
+        _duWeights = _dvWeights = NULL;
     } else {
         _sizes = _offsets = _indices = _weights = NULL;
+        _duWeights = _dvWeights = NULL;
+    }
+}
+
+CudaStencilTable::CudaStencilTable(Far::LimitStencilTable const *limitStencilTable) {
+    _numStencils = limitStencilTable->GetNumStencils();
+    if (_numStencils > 0) {
+        _sizes   = createCudaBuffer(limitStencilTable->GetSizes());
+        _offsets = createCudaBuffer(limitStencilTable->GetOffsets());
+        _indices = createCudaBuffer(limitStencilTable->GetControlIndices());
+        _weights = createCudaBuffer(limitStencilTable->GetWeights());
+        _duWeights = createCudaBuffer(limitStencilTable->GetDuWeights());
+        _dvWeights = createCudaBuffer(limitStencilTable->GetDvWeights());
+    } else {
+        _sizes = _offsets = _indices = _weights = NULL;
+        _duWeights = _dvWeights = NULL;
     }
 }
 
@@ -106,6 +123,8 @@ CudaStencilTable::~CudaStencilTable() {
     if (_offsets) cudaFree(_offsets);
     if (_indices) cudaFree(_indices);
     if (_weights) cudaFree(_weights);
+    if (_duWeights) cudaFree(_duWeights);
+    if (_dvWeights) cudaFree(_dvWeights);
 }
 
 // ---------------------------------------------------------------------------

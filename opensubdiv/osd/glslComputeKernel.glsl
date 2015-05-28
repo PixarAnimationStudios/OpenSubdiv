@@ -24,11 +24,65 @@
 
 //------------------------------------------------------------------------------
 
+
+layout(local_size_x=WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+
+// source and destination buffers
+
 uniform int srcOffset = 0;
 uniform int dstOffset = 0;
 layout(binding=0) buffer src_buffer      { float    srcVertexBuffer[]; };
 layout(binding=1) buffer dst_buffer      { float    dstVertexBuffer[]; };
-layout(local_size_x=WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+
+// derivative buffers (if needed)
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+uniform ivec3 duDesc;
+uniform ivec3 dvDesc;
+layout(binding=2) buffer du_buffer   { float duBuffer[]; };
+layout(binding=3) buffer dv_buffer   { float dvBuffer[]; };
+#endif
+
+// stencil buffers
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
+
+uniform int batchStart = 0;
+uniform int batchEnd = 0;
+layout(binding=4) buffer stencilSizes    { int      _sizes[];   };
+layout(binding=5) buffer stencilOffsets  { int      _offsets[]; };
+layout(binding=6) buffer stencilIndices  { int      _indices[]; };
+layout(binding=7) buffer stencilWeights  { float    _weights[]; };
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+layout(binding=8) buffer stencilDuWeights { float  _duWeights[]; };
+layout(binding=9) buffer stencilDvWeights { float  _dvWeights[]; };
+#endif
+
+#endif
+
+// patch buffers
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
+
+struct PatchCoord {
+   int arrayIndex;
+   int patchIndex;
+   int vertIndex;
+   float s;
+   float t;
+};
+struct PatchParam {
+    int faceIndex;
+    uint patchBits;
+    float sharpness;
+};
+uniform ivec4 patchArray[2];
+layout(binding=4) buffer patchCoord_buffer { PatchCoord patchCoords[]; };
+layout(binding=5) buffer patchIndex_buffer { int patchIndexBuffer[]; };
+layout(binding=6) buffer patchParam_buffer { PatchParam patchParamBuffer[]; };
+
+#endif
 
 //------------------------------------------------------------------------------
 
@@ -64,15 +118,24 @@ void addWithWeight(inout Vertex v, const Vertex src, float weight) {
     }
 }
 
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+void writeDu(int index, Vertex du) {
+    int duIndex = duDesc.x + index * duDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        duBuffer[duIndex + i] = du.vertexData[i];
+    }
+}
+
+void writeDv(int index, Vertex dv) {
+    int dvIndex = dvDesc.x + index * dvDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        dvBuffer[dvIndex + i] = dv.vertexData[i];
+    }
+}
+#endif
+
 //------------------------------------------------------------------------------
 #if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
-
-uniform int batchStart = 0;
-uniform int batchEnd = 0;
-layout(binding=2) buffer stencilSizes    { int      _sizes[];   };
-layout(binding=3) buffer stencilOffsets  { int      _offsets[]; };
-layout(binding=4) buffer stencilIndices  { int      _indices[]; };
-layout(binding=5) buffer stencilWeights  { float    _weights[]; };
 
 void main() {
 
@@ -95,6 +158,25 @@ void main() {
     }
 
     writeVertex(current, dst);
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+    Vertex du, dv;
+    clear(du);
+    clear(dv);
+    for (int i=0; i<size; ++i) {
+        // expects the compiler optimizes readVertex out here.
+        Vertex src = readVertex(_indices[offset+i]);
+        addWithWeight(du, src, _duWeights[offset+i]);
+        addWithWeight(dv, src, _dvWeights[offset+i]);
+    }
+
+    if (duDesc.y > 0) { // length
+        writeDu(current, du);
+    }
+    if (dvDesc.y > 0) {
+        writeDv(current, dv);
+    }
+#endif
 }
 
 #endif
@@ -111,44 +193,6 @@ void main() {
 //    int primitiveIdBase;  // an offset within the patch param buffer
 //};
 // # of patcharrays is 1 or 2.
-
-uniform ivec4 patchArray[2];
-uniform ivec3 dstDuDesc;
-uniform ivec3 dstDvDesc;
-layout(binding=2) buffer du_buffer   { float dstDuBuffer[]; };
-layout(binding=3) buffer dv_buffer   { float dstDvBuffer[]; };
-
-struct PatchCoord {
-   int arrayIndex;
-   int patchIndex;
-   int vertIndex;
-   float s;
-   float t;
-};
-
-struct PatchParam {
-    int faceIndex;
-    uint patchBits;
-    float sharpness;
-};
-
-layout(binding=4) buffer patchCoord_buffer { PatchCoord patchCoords[]; };
-layout(binding=5) buffer patchIndex_buffer { int patchIndexBuffer[]; };
-layout(binding=6) buffer patchParam_buffer { PatchParam patchParamBuffer[]; };
-
-void writeDu(int index, Vertex du) {
-    int duIndex = dstDuDesc.x + index * dstDuDesc.z;
-    for (int i = 0; i < LENGTH; ++i) {
-        dstDuBuffer[duIndex + i] = du.vertexData[i];
-    }
-}
-
-void writeDv(int index, Vertex dv) {
-    int dvIndex = dstDvDesc.x + index * dstDvDesc.z;
-    for (int i = 0; i < LENGTH; ++i) {
-        dstDvBuffer[dvIndex + i] = dv.vertexData[i];
-    }
-}
 
 void getBSplineWeights(float t, inout vec4 point, inout vec4 deriv) {
     // The four uniform cubic B-Spline basis functions evaluated at t:
@@ -257,34 +301,28 @@ void main() {
         // TODO: GREGORY BASIS
     }
 
-    Vertex dst;
+    Vertex dst, du, dv;
     clear(dst);
+    clear(du);
+    clear(dv);
 
     int indexBase = array.z + coord.vertIndex;
     for (int cv = 0; cv < numControlVertices; ++cv) {
         int index = patchIndexBuffer[indexBase + cv];
         addWithWeight(dst, readVertex(index), wP[cv]);
+        addWithWeight(du, readVertex(index), wDs[cv]);
+        addWithWeight(dv, readVertex(index), wDt[cv]);
     }
     writeVertex(current, dst);
 
-    if (dstDuDesc.y > 0) { // length
-        Vertex du;
-        clear(du);
-        for (int cv = 0; cv < numControlVertices; ++cv) {
-            int index = patchIndexBuffer[indexBase + cv];
-            addWithWeight(du, readVertex(index), wDs[cv]);
-        }
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+    if (duDesc.y > 0) { // length
         writeDu(current, du);
     }
-    if (dstDvDesc.y > 0) {
-        Vertex dv;
-        clear(dv);
-        for (int cv = 0; cv < numControlVertices; ++cv) {
-            int index = patchIndexBuffer[indexBase + cv];
-            addWithWeight(dv, readVertex(index), wDt[cv]);
-        }
+    if (dvDesc.y > 0) {
         writeDv(current, dv);
     }
+#endif
 }
 
 #endif

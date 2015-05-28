@@ -55,7 +55,16 @@ public:
         return new CLStencilTable(stencilTable, context->GetContext());
     }
 
+    template <typename DEVICE_CONTEXT>
+    static CLStencilTable *Create(
+        Far::LimitStencilTable const *limitStencilTable,
+        DEVICE_CONTEXT context) {
+        return new CLStencilTable(limitStencilTable, context->GetContext());
+    }
+
     CLStencilTable(Far::StencilTable const *stencilTable,
+                   cl_context clContext);
+    CLStencilTable(Far::LimitStencilTable const *limitStencilTable,
                    cl_context clContext);
     ~CLStencilTable();
 
@@ -64,6 +73,8 @@ public:
     cl_mem GetOffsetsBuffer()   const { return _offsets; }
     cl_mem GetIndicesBuffer()   const { return _indices; }
     cl_mem GetWeightsBuffer()   const { return _weights; }
+    cl_mem GetDuWeightsBuffer() const { return _duWeights; }
+    cl_mem GetDvWeightsBuffer() const { return _dvWeights; }
     int GetNumStencils()        const { return _numStencils; }
 
 private:
@@ -71,6 +82,8 @@ private:
     cl_mem _offsets;
     cl_mem _indices;
     cl_mem _weights;
+    cl_mem _duWeights;
+    cl_mem _dvWeights;
     int _numStencils;
 };
 
@@ -89,18 +102,22 @@ public:
     template <typename DEVICE_CONTEXT>
     static CLEvaluator *Create(VertexBufferDescriptor const &srcDesc,
                                VertexBufferDescriptor const &dstDesc,
+                               VertexBufferDescriptor const &duDesc,
+                               VertexBufferDescriptor const &dvDesc,
                                DEVICE_CONTEXT deviceContext) {
-        return Create(srcDesc, dstDesc,
+        return Create(srcDesc, dstDesc, duDesc, dvDesc,
                       deviceContext->GetContext(),
                       deviceContext->GetCommandQueue());
     }
 
     static CLEvaluator * Create(VertexBufferDescriptor const &srcDesc,
                                 VertexBufferDescriptor const &dstDesc,
+                                VertexBufferDescriptor const &duDesc,
+                                VertexBufferDescriptor const &dvDesc,
                                 cl_context clContext,
                                 cl_command_queue clCommandQueue) {
         CLEvaluator *kernel = new CLEvaluator(clContext, clCommandQueue);
-        if (kernel->Compile(srcDesc, dstDesc)) return kernel;
+        if (kernel->Compile(srcDesc, dstDesc, duDesc, dvDesc)) return kernel;
         delete kernel;
         return NULL;
     }
@@ -156,10 +173,77 @@ public:
                                           stencilTable);
         } else {
             // Create an instance on demand (slow)
-            instance = Create(srcDesc, dstDesc, deviceContext);
+            instance = Create(srcDesc, dstDesc,
+                              VertexBufferDescriptor(),
+                              VertexBufferDescriptor(),
+                              deviceContext);
             if (instance) {
                 bool r = instance->EvalStencils(srcBuffer, srcDesc,
                                                 dstBuffer, dstDesc,
+                                                stencilTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic static compute function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        transparently from OsdMesh template interface.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a
+    ///                       const float pointer for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param stencilTable   stencil table to be applied. The table must have
+    ///                       SSBO interfaces.
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  client providing context class which supports
+    ///                         cL_context GetContext()
+    ///                         cl_command_queue GetCommandQueue()
+    ///                       methods.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename STENCIL_TABLE, typename DEVICE_CONTEXT>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer, VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer, VertexBufferDescriptor const &dvDesc,
+        STENCIL_TABLE const *stencilTable,
+        CLEvaluator const *instance,
+        DEVICE_CONTEXT deviceContext) {
+
+        if (instance) {
+            return instance->EvalStencils(srcBuffer, srcDesc,
+                                          dstBuffer, dstDesc,
+                                          duBuffer,  duDesc,
+                                          dvBuffer,  dvDesc,
+                                          stencilTable);
+        } else {
+            // Create an instance on demand (slow)
+            instance = Create(srcDesc, dstDesc, duDesc, dvDesc,
+                              deviceContext);
+            if (instance) {
+                bool r = instance->EvalStencils(srcBuffer, srcDesc,
+                                                dstBuffer, dstDesc,
+                                                duBuffer,  duDesc,
+                                                dvBuffer,  dvDesc,
                                                 stencilTable);
                 delete instance;
                 return r;
@@ -176,14 +260,36 @@ public:
         SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
         DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable) const {
-        return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue),
-                            srcDesc,
-                            dstBuffer->BindCLBuffer(_clCommandQueue),
-                            dstDesc,
+        return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
+                            dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
                             stencilTable->GetSizesBuffer(),
                             stencilTable->GetOffsetsBuffer(),
                             stencilTable->GetIndicesBuffer(),
                             stencilTable->GetWeightsBuffer(),
+                            0,
+                            stencilTable->GetNumStencils());
+    }
+
+    /// Generic compute function.
+    /// Dispatch the CL compute kernel asynchronously.
+    /// Returns false if the kernel hasn't been compiled yet.
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    bool EvalStencils(
+        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        STENCIL_TABLE const *stencilTable) const {
+        return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
+                            dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
+                            duBuffer->BindCLBuffer(_clCommandQueue), duDesc,
+                            dvBuffer->BindCLBuffer(_clCommandQueue), dvDesc,
+                            stencilTable->GetSizesBuffer(),
+                            stencilTable->GetOffsetsBuffer(),
+                            stencilTable->GetIndicesBuffer(),
+                            stencilTable->GetWeightsBuffer(),
+                            stencilTable->GetDuWeightsBuffer(),
+                            stencilTable->GetDvWeightsBuffer(),
                             0,
                             stencilTable->GetNumStencils());
     }
@@ -196,6 +302,21 @@ public:
                       cl_mem offsets,
                       cl_mem indices,
                       cl_mem weights,
+                      int start,
+                      int end) const;
+
+    /// Dispatch the CL compute kernel asynchronously.
+    /// returns false if the kernel hasn't been compiled yet.
+    bool EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
+                      cl_mem dst, VertexBufferDescriptor const &dstDesc,
+                      cl_mem du,  VertexBufferDescriptor const &duDesc,
+                      cl_mem dv,  VertexBufferDescriptor const &dvDesc,
+                      cl_mem sizes,
+                      cl_mem offsets,
+                      cl_mem indices,
+                      cl_mem weights,
+                      cl_mem duWeights,
+                      cl_mem dvWeights,
                       int start,
                       int end) const;
 
@@ -260,7 +381,10 @@ public:
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
-            instance = Create(srcDesc, dstDesc, deviceContext);
+            instance = Create(srcDesc, dstDesc,
+                              VertexBufferDescriptor(),
+                              VertexBufferDescriptor(),
+                              deviceContext);
             if (instance) {
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
                                                dstBuffer, dstDesc,
@@ -340,7 +464,7 @@ public:
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
-            instance = Create(srcDesc, dstDesc, deviceContext);
+            instance = Create(srcDesc, dstDesc, duDesc, dvDesc, deviceContext);
             if (instance) {
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
                                                dstBuffer, dstDesc,
@@ -474,7 +598,9 @@ public:
     /// Configure OpenCL kernel.
     /// Returns false if it fails to compile the kernel.
     bool Compile(VertexBufferDescriptor const &srcDesc,
-                 VertexBufferDescriptor const &dstDesc);
+                 VertexBufferDescriptor const &dstDesc,
+                 VertexBufferDescriptor const &duDesc,
+                 VertexBufferDescriptor const &dvDesc);
 
     /// Wait the OpenCL kernels finish.
     template <typename DEVICE_CONTEXT>
@@ -489,6 +615,7 @@ private:
     cl_command_queue _clCommandQueue;
     cl_program _program;
     cl_kernel _stencilKernel;
+    cl_kernel _stencilDerivKernel;
     cl_kernel _patchKernel;
 };
 

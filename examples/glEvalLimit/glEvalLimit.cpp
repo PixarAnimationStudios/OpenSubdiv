@@ -318,6 +318,8 @@ public:
         delete _derivatives;
         delete _patchTable;
         delete _patchCoords;
+        delete _vertexStencils;
+        delete _varyingStencils;
     }
     virtual GLuint BindVertexData() const {
         return _vertexData->BindVBO();
@@ -371,7 +373,7 @@ public:
     }
     virtual void EvalPatchesWithDerivatives() {
         EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
-            _evaluatorCache, _srcDesc, _vertexDesc, _deviceContext);
+            _evaluatorCache, _srcDesc, _vertexDesc, _duDesc, _dvDesc, _deviceContext);
         EVALUATOR::EvalPatches(
             _srcData, _srcDesc,
             _vertexData, _vertexDesc,
@@ -736,6 +738,8 @@ linkDefaultProgram() {
         "    fragColor = vec4(normal*0.5+vec3(0.5), 1);\n"
         "  } else if (DrawMode == 3) {\n"
         "    fragColor = vec4(vec3(1)*dot(normal, vec3(0,0,1)), 1);\n"
+        "  } else if (DrawMode == 4) {\n"  // face varying
+        "    fragColor = vec4(1);\n"
         "  } else {\n" // varying
         "    fragColor = vec4(color, 1);\n"
         "  }\n"

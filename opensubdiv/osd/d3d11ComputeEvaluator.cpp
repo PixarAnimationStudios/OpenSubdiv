@@ -169,8 +169,15 @@ D3D11ComputeEvaluator::D3D11ComputeEvaluator() :
 D3D11ComputeEvaluator *
 D3D11ComputeEvaluator::Create(VertexBufferDescriptor const &srcDesc,
                               VertexBufferDescriptor const &dstDesc,
+                              VertexBufferDescriptor const &duDesc,
+                              VertexBufferDescriptor const &dvDesc,
                               ID3D11DeviceContext *deviceContext) {
     (void)deviceContext;  // not used
+
+    // TODO: implements derivatives
+    (void)duDesc;
+    (void)dvDesc;
+
     D3D11ComputeEvaluator *instance = new D3D11ComputeEvaluator();
     if (instance->Compile(srcDesc, dstDesc, deviceContext)) return instance;
     delete instance;

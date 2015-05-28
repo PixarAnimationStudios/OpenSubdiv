@@ -51,18 +51,26 @@ static void writeVertex(__global float *dstOrigin,
         dst[i] = src->v[i];
     }
 }
+static void writeVertexStride(__global float *dstOrigin,
+                              int index,
+                              struct Vertex *src,
+                              int stride) {
+
+    __global float *dst = dstOrigin + index * stride;
+    for (int i = 0; i < LENGTH; ++i) {
+        dst[i] = src->v[i];
+    }
+}
 
 
-__kernel void computeStencils(__global float * src,
-                              int srcOffset,
-                              __global float * dst,
-                              int dstOffset,
-                              __global int * sizes,
-                              __global int * offsets,
-                              __global int * indices,
-                              __global float * weights,
-                              int batchStart,
-                              int batchEnd) {
+__kernel void computeStencils(
+    __global float * src, int srcOffset,
+    __global float * dst, int dstOffset,
+    __global int * sizes,
+    __global int * offsets,
+    __global int * indices,
+    __global float * weights,
+    int batchStart, int batchEnd) {
 
     int current = get_global_id(0) + batchStart;
 
@@ -84,6 +92,51 @@ __kernel void computeStencils(__global float * src,
     }
 
     writeVertex(dst, current, &v);
+}
+
+__kernel void computeStencilsDerivatives(
+    __global float * src, int srcOffset,
+    __global float * dst, int dstOffset,
+    __global float * du,  int duOffset, int duStride,
+    __global float * dv,  int dvOffset, int dvStride,
+    __global int * sizes,
+    __global int * offsets,
+    __global int * indices,
+    __global float * weights,
+    __global float * duWeights,
+    __global float * dvWeights,
+    int batchStart, int batchEnd) {
+
+    int current = get_global_id(0) + batchStart;
+
+    if (current>=batchEnd) {
+        return;
+    }
+
+    struct Vertex v, vdu, vdv;
+    clear(&v);
+    clear(&vdu);
+    clear(&vdv);
+
+    int size = sizes[current],
+        offset = offsets[current];
+
+    if (src) src += srcOffset;
+    if (dst) dst += dstOffset;
+    if (du)  du  += duOffset;
+    if (dv)  dv  += dvOffset;
+
+    for (int i=0; i<size; ++i) {
+        int ofs = offset + i;
+        int vid = indices[ofs];
+        if (weights)   addWithWeight(  &v, src, vid,   weights[ofs]);
+        if (duWeights) addWithWeight(&vdu, src, vid, duWeights[ofs]);
+        if (dvWeights) addWithWeight(&vdv, src, vid, dvWeights[ofs]);
+    }
+
+    if (dst) writeVertex      (dst, current, &v);
+    if (du)  writeVertexStride(du,  current, &vdu, duStride);
+    if (dv)  writeVertexStride(dv,  current, &vdv, dvStride);
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +298,7 @@ __kernel void computePatches(__global float *src, int srcOffset,
             int index = patchIndexBuffer[indexBase + i];
             addWithWeight(&vdu, src, index, wDs[i]);
         }
-        writeVertex(du, current, &vdu);
+        writeVertexStride(du, current, &vdu, duStride);
     }
     if (dv) {
         struct Vertex vdv;
@@ -254,7 +307,7 @@ __kernel void computePatches(__global float *src, int srcOffset,
             int index = patchIndexBuffer[indexBase + i];
             addWithWeight(&vdv, src, index, wDt[i]);
         }
-        writeVertex(dv, current, &vdv);
+        writeVertexStride(dv, current, &vdv, dvStride);
     }
 
 }

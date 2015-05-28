@@ -98,6 +98,8 @@ public:
     typedef bool Instantiatable;
     static D3D11ComputeEvaluator * Create(VertexBufferDescriptor const &srcDesc,
                                           VertexBufferDescriptor const &dstDesc,
+                                          VertexBufferDescriptor const &duDesc,
+                                          VertexBufferDescriptor const &dvDesc,
                                           ID3D11DeviceContext *deviceContext);
 
     /// Constructor.
@@ -149,7 +151,10 @@ public:
         } else {
             // Create an instace on demand (slow)
             (void)deviceContext;  // unused
-            instance = Create(srcDesc, dstDesc, deviceContext);
+            instance = Create(srcDesc, dstDesc,
+                              VertexBufferDescriptor(),
+                              VertexBufferDescriptor(),
+                              deviceContext);
             if (instance) {
                 bool r = instance->EvalStencils(srcVertexBuffer, srcDesc,
                                                 dstVertexBuffer, dstDesc,
