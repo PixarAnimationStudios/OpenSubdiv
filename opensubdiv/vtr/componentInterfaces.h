@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef OPENSUBDIV3_VTR_INTERFACES_H
-#define OPENSUBDIV3_VTR_INTERFACES_H
+#ifndef OPENSUBDIV3_VTR_COMPONENT_INTERFACES_H
+#define OPENSUBDIV3_VTR_COMPONENT_INTERFACES_H
 
 #include "../version.h"
 
@@ -41,60 +41,17 @@ namespace Vtr {
 namespace internal {
 
 //
-//  Simple classes supporting the interfaces required of generic types in the Scheme mask
-//  queries, e.g. <typename FACE, MASK, etc.>
+//  Simple classes supporting the interfaces required of generic topological
+//  types in the Scheme mask queries, e.g. <typename FACE, VERTEX, etc.>
 //
-//  These were added solely to support the temporary Refinement::computeMasks(), which
-//  is not expected to persist in its current form.  So these are for illustration purposes
-//  now and may eventually be moved elsewhere (likely into Far).
+//  These are not used with Vtr but arguably belong with it as the details to
+//  write these efficiently depends very much on intimate details of Vtr's
+//  implmentation, e.g. the use of tag bits, subdivision Rules, etc.
 //
-
-//
-//  For <typename MASK>, where the mask weights are stored:
-//
-class MaskInterface {
-public:
-    typedef float Weight;  //  Also part of the expected interface
-
-public:
-    MaskInterface(Weight* v, Weight* e, Weight* f) : _vertWeights(v), _edgeWeights(e), _faceWeights(f) { }
-    ~MaskInterface() { }
-
-public:  //  Generic interface expected of <typename MASK>:
-    int GetNumVertexWeights() const { return _vertCount; }
-    int GetNumEdgeWeights()   const { return _edgeCount; }
-    int GetNumFaceWeights()   const { return _faceCount; }
-
-    void SetNumVertexWeights(int count) { _vertCount = count; }
-    void SetNumEdgeWeights(  int count) { _edgeCount = count; }
-    void SetNumFaceWeights(  int count) { _faceCount = count; }
-
-    Weight const& VertexWeight(int index) const { return _vertWeights[index]; }
-    Weight const& EdgeWeight(  int index) const { return _edgeWeights[index]; }
-    Weight const& FaceWeight(  int index) const { return _faceWeights[index]; }
-
-    Weight& VertexWeight(int index) { return _vertWeights[index]; }
-    Weight& EdgeWeight(  int index) { return _edgeWeights[index]; }
-    Weight& FaceWeight(  int index) { return _faceWeights[index]; }
-
-    bool AreFaceWeightsForFaceCenters() const  { return _faceWeightsForFaceCenters; }
-    void SetFaceWeightsForFaceCenters(bool on) { _faceWeightsForFaceCenters = on; }
-
-private:
-    Weight* _vertWeights;
-    Weight* _edgeWeights;
-    Weight* _faceWeights;
-
-    int _vertCount;
-    int _edgeCount;
-    int _faceCount;
-
-    bool _faceWeightsForFaceCenters;
-};
 
 
 //
-//  For <typename FACE>, which provides information int the neighborhood of a face:
+//  For <typename FACE>, which provides information in the neighborhood of a face:
 //
 class FaceInterface {
 public:
@@ -198,4 +155,4 @@ private:
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* OPENSUBDIV3_VTR_INTERFACES_H */
+#endif /* OPENSUBDIV3_VTR_COMPONENT_INTERFACES_H */

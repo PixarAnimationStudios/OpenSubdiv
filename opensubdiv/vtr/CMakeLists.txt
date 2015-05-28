@@ -38,10 +38,10 @@ set(SOURCE_FILES
 
 set(PUBLIC_HEADER_FILES
      array.h
+     componentInterfaces.h
      fvarLevel.h
      fvarRefinement.h
      level.h
-     maskInterfaces.h
      quadRefinement.h
      refinement.h
      sparseSelector.h

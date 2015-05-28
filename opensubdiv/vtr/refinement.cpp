@@ -29,7 +29,6 @@
 #include "../vtr/refinement.h"
 #include "../vtr/fvarLevel.h"
 #include "../vtr/fvarRefinement.h"
-#include "../vtr/maskInterfaces.h"
 #include "../vtr/stackBuffer.h"
 
 #include <cassert>
