@@ -165,30 +165,32 @@ inline void Spline<BASIS_BOX_SPLINE>::GetWeights(
 
 template <>
 inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam::BitField bits,
-    float s, float t, float point[4], float deriv1[4], float deriv2[4]) {
+    float s, float t, float point[4], float derivS[4], float derivT[4]) {
 
     bits.Normalize(s,t);
 
-    float os = 1.0f - s,
-          ot = 1.0f - t;
+    float sC = 1.0f - s,
+          tC = 1.0f - t;
 
     if (point) {
-        point[0] = os*ot;
-        point[1] = s*ot;
-        point[2] = s*t;
-        point[3] = os*t;
+        point[0] = sC * tC;
+        point[1] =  s * tC;
+        point[2] =  s * t;
+        point[3] = sC * t;
     }
     
-    if (deriv1 and deriv2) {
-        deriv1[0] = t-1.0f;
-        deriv1[1] = ot;
-        deriv1[2] = t;
-        deriv1[3] = -t;
+    if (derivS and derivT) {
+        float dScale = (float)(1 << bits.GetDepth());
 
-        deriv2[0] = s-1.0f;
-        deriv2[1] = -s;
-        deriv2[2] = s;
-        deriv2[3] = os;
+        derivS[0] = -tC * dScale;
+        derivS[1] =  tC * dScale;
+        derivS[2] =   t * dScale;
+        derivS[3] =  -t * dScale;
+
+        derivT[0] = -sC * dScale;
+        derivT[1] =  -s * dScale;
+        derivT[2] =   s * dScale;
+        derivT[3] =  sC * dScale;
     }
 }
 
