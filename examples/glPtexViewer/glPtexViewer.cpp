@@ -2013,8 +2013,7 @@ int main(int argc, char ** argv) {
     g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    // Must also check at run time for OpenGL 4.3
-    if (GLEW_VERSION_4_3) {
+    if (GLUtils::GL_ARBComputeShaderOrGL_VERSION_4_3()) {
         g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif

@@ -1133,7 +1133,9 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "GL XFB", kGLXFB);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    g_hud.AddPullDownButton(compute_pulldown, "GL Compute", kGLCompute);
+    if (GLUtils::GL_ARBComputeShaderOrGL_VERSION_4_3()) {
+        g_hud.AddPullDownButton(compute_pulldown, "GL Compute", kGLCompute);
+    }
 #endif
 
     for (int i = 1; i < 11; ++i) {
