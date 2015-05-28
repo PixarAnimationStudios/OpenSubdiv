@@ -73,16 +73,36 @@ GLStencilTableSSBO::GLStencilTableSSBO(
         _offsets = createSSBO(stencilTable->GetOffsets());
         _indices = createSSBO(stencilTable->GetControlIndices());
         _weights = createSSBO(stencilTable->GetWeights());
+        _duWeights = _dvWeights = 0;
     } else {
         _sizes = _offsets = _indices = _weights = 0;
+        _duWeights = _dvWeights = 0;
+    }
+}
+
+GLStencilTableSSBO::GLStencilTableSSBO(
+    Far::LimitStencilTable const *limitStencilTable) {
+    _numStencils = limitStencilTable->GetNumStencils();
+    if (_numStencils > 0) {
+        _sizes   = createSSBO(limitStencilTable->GetSizes());
+        _offsets = createSSBO(limitStencilTable->GetOffsets());
+        _indices = createSSBO(limitStencilTable->GetControlIndices());
+        _weights = createSSBO(limitStencilTable->GetWeights());
+        _duWeights = createSSBO(limitStencilTable->GetDuWeights());
+        _dvWeights = createSSBO(limitStencilTable->GetDvWeights());
+    } else {
+        _sizes = _offsets = _indices = _weights = 0;
+        _duWeights = _dvWeights = 0;
     }
 }
 
 GLStencilTableSSBO::~GLStencilTableSSBO() {
     if (_sizes)   glDeleteBuffers(1, &_sizes);
     if (_offsets) glDeleteBuffers(1, &_offsets);
-    if (_weights) glDeleteBuffers(1, &_weights);
     if (_indices) glDeleteBuffers(1, &_indices);
+    if (_weights) glDeleteBuffers(1, &_weights);
+    if (_duWeights) glDeleteBuffers(1, &_duWeights);
+    if (_dvWeights) glDeleteBuffers(1, &_dvWeights);
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +125,8 @@ GLComputeEvaluator::~GLComputeEvaluator() {
 static GLuint
 compileKernel(VertexBufferDescriptor const &srcDesc,
               VertexBufferDescriptor const &dstDesc,
+              VertexBufferDescriptor const & /* duDesc */,
+              VertexBufferDescriptor const & /* dvDesc */,
               const char *kernelDefine,
               int workGroupSize) {
     GLuint program = glCreateProgram();
@@ -147,66 +169,23 @@ compileKernel(VertexBufferDescriptor const &srcDesc,
     return program;
 }
 
-
 bool
 GLComputeEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
-                            VertexBufferDescriptor const &dstDesc) {
-    if (srcDesc.length > dstDesc.length) {
-        Far::Error(Far::FAR_RUNTIME_ERROR,
-                   "srcDesc length must be less than or equal to "
-                   "dstDesc length.\n");
+                            VertexBufferDescriptor const &dstDesc,
+                            VertexBufferDescriptor const &duDesc,
+                            VertexBufferDescriptor const &dvDesc) {
+
+    // create a stencil kernel
+    if (!_stencilKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc,
+                                _workGroupSize)) {
         return false;
     }
 
-    // create stencil kernel
-    if (_stencilKernel.program) {
-        glDeleteProgram(_stencilKernel.program);
+    // create a patch kernel
+    if (!_patchKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc,
+                              _workGroupSize)) {
+        return false;
     }
-    _stencilKernel.program = compileKernel(
-        srcDesc, dstDesc,
-        "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS",
-        _workGroupSize);
-    if (_stencilKernel.program == 0) return false;
-
-    // store uniform locations for the compute kernel program.
-    _stencilKernel.uniformSizes   =
-        glGetUniformLocation(_stencilKernel.program, "stencilSizes");
-    _stencilKernel.uniformOffsets =
-        glGetUniformLocation(_stencilKernel.program, "stencilOffsets");
-    _stencilKernel.uniformIndices =
-        glGetUniformLocation(_stencilKernel.program, "stencilIndices");
-    _stencilKernel.uniformWeights =
-        glGetUniformLocation(_stencilKernel.program, "stencilIWeights");
-    _stencilKernel.uniformStart   =
-        glGetUniformLocation(_stencilKernel.program, "batchStart");
-    _stencilKernel.uniformEnd     =
-        glGetUniformLocation(_stencilKernel.program, "batchEnd");
-    _stencilKernel.uniformSrcOffset =
-        glGetUniformLocation(_stencilKernel.program, "srcOffset");
-    _stencilKernel.uniformDstOffset =
-        glGetUniformLocation(_stencilKernel.program, "dstOffset");
-
-    // create patch kernel
-    if (_patchKernel.program) {
-        glDeleteProgram(_patchKernel.program);
-    }
-    _patchKernel.program = compileKernel(
-        srcDesc, dstDesc,
-        "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES",
-        _workGroupSize);
-    if (_patchKernel.program == 0) return false;
-
-    // uniform locaitons
-    _patchKernel.uniformSrcOffset =
-        glGetUniformLocation(_patchKernel.program, "srcOffset");
-    _patchKernel.uniformDstOffset =
-        glGetUniformLocation(_patchKernel.program, "dstOffset");
-    _patchKernel.uniformPatchArray =
-        glGetUniformLocation(_patchKernel.program, "patchArray");
-    _patchKernel.uniformDuDesc =
-        glGetUniformLocation(_patchKernel.program, "dstDuDesc");
-    _patchKernel.uniformDvDesc =
-        glGetUniformLocation(_patchKernel.program, "dstDvDesc");
 
     return true;
 }
@@ -220,16 +199,19 @@ GLComputeEvaluator::Synchronize(void * /*kernel*/) {
 }
 
 bool
-GLComputeEvaluator::EvalStencils(GLuint srcBuffer,
-                                 VertexBufferDescriptor const &srcDesc,
-                                 GLuint dstBuffer,
-                                 VertexBufferDescriptor const &dstDesc,
-                                 GLuint sizesBuffer,
-                                 GLuint offsetsBuffer,
-                                 GLuint indicesBuffer,
-                                 GLuint weightsBuffer,
-                                 int start,
-                                 int end) const {
+GLComputeEvaluator::EvalStencils(
+    GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
+    GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
+    GLuint duBuffer,  VertexBufferDescriptor const &duDesc,
+    GLuint dvBuffer,  VertexBufferDescriptor const &dvDesc,
+    GLuint sizesBuffer,
+    GLuint offsetsBuffer,
+    GLuint indicesBuffer,
+    GLuint weightsBuffer,
+    GLuint duWeightsBuffer,
+    GLuint dvWeightsBuffer,
+    int start, int end) const {
+
     if (!_stencilKernel.program) return false;
     int count = end - start;
     if (count <= 0) {
@@ -238,10 +220,16 @@ GLComputeEvaluator::EvalStencils(GLuint srcBuffer,
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, srcBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, dstBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, sizesBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, offsetsBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, indicesBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, weightsBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, duBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, dvBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, sizesBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, offsetsBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, indicesBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, weightsBuffer);
+    if (duWeightsBuffer)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, duWeightsBuffer);
+    if (dvWeightsBuffer)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, dvWeightsBuffer);
 
     glUseProgram(_stencilKernel.program);
 
@@ -249,18 +237,23 @@ GLComputeEvaluator::EvalStencils(GLuint srcBuffer,
     glUniform1i(_stencilKernel.uniformEnd,       end);
     glUniform1i(_stencilKernel.uniformSrcOffset, srcDesc.offset);
     glUniform1i(_stencilKernel.uniformDstOffset, dstDesc.offset);
+    if (_stencilKernel.uniformDuDesc > 0) {
+        glUniform3i(_stencilKernel.uniformDuDesc,
+                    duDesc.offset, duDesc.length, duDesc.stride);
+    }
+    if (_stencilKernel.uniformDvDesc > 0) {
+        glUniform3i(_stencilKernel.uniformDvDesc,
+                    dvDesc.offset, dvDesc.length, dvDesc.stride);
+    }
 
     glDispatchCompute((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
 
     glUseProgram(0);
 
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, 0);
+    for (int i = 0; i < 10; ++i) {
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, 0);
+    }
 
     return true;
 }
@@ -307,6 +300,95 @@ GLComputeEvaluator::EvalPatches(
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, 0);
+
+    return true;
+}
+// ---------------------------------------------------------------------------
+
+GLComputeEvaluator::_StencilKernel::_StencilKernel() : program(0) {
+}
+GLComputeEvaluator::_StencilKernel::~_StencilKernel() {
+    if (program) {
+        glDeleteProgram(program);
+    }
+}
+
+bool
+GLComputeEvaluator::_StencilKernel::Compile(
+    VertexBufferDescriptor const &srcDesc,
+    VertexBufferDescriptor const &dstDesc,
+    VertexBufferDescriptor const &duDesc,
+    VertexBufferDescriptor const &dvDesc,
+    int workGroupSize) {
+    // create stencil kernel
+    if (program) {
+        glDeleteProgram(program);
+    }
+
+    bool derivatives = (duDesc.length > 0 || dvDesc.length > 0);
+    const char *kernelDef = derivatives
+        ? "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS\n"
+          "#define OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES\n"
+        : "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS\n";
+
+    if (program) {
+        glDeleteProgram(program);
+    }
+    program = compileKernel(srcDesc, dstDesc, duDesc, dvDesc, kernelDef,
+                            workGroupSize);
+    if (program == 0) return false;
+
+    // cache uniform locations (TODO: use uniform block)
+    uniformStart     = glGetUniformLocation(program, "batchStart");
+    uniformEnd       = glGetUniformLocation(program, "batchEnd");
+    uniformSrcOffset = glGetUniformLocation(program, "srcOffset");
+    uniformDstOffset = glGetUniformLocation(program, "dstOffset");
+    uniformDuDesc    = glGetUniformLocation(program, "duDesc");
+    uniformDvDesc    = glGetUniformLocation(program, "dvDesc");
+
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+
+GLComputeEvaluator::_PatchKernel::_PatchKernel() : program(0) {
+}
+GLComputeEvaluator::_PatchKernel::~_PatchKernel() {
+    if (program) {
+        glDeleteProgram(program);
+    }
+}
+
+bool
+GLComputeEvaluator::_PatchKernel::Compile(VertexBufferDescriptor const &srcDesc,
+                                          VertexBufferDescriptor const &dstDesc,
+                                          VertexBufferDescriptor const &duDesc,
+                                          VertexBufferDescriptor const &dvDesc,
+                                          int workGroupSize) {
+    // create stencil kernel
+    if (program) {
+        glDeleteProgram(program);
+    }
+
+    bool derivatives = (duDesc.length > 0 || dvDesc.length > 0);
+    const char *kernelDef = derivatives
+        ? "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES\n"
+          "#define OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES\n"
+        : "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES\n";
+
+    if (program) {
+        glDeleteProgram(program);
+    }
+    program = compileKernel(srcDesc, dstDesc, duDesc, dvDesc, kernelDef,
+                            workGroupSize);
+    if (program == 0) return false;
+
+    // cache uniform locations
+    uniformSrcOffset  = glGetUniformLocation(program, "srcOffset");
+    uniformDstOffset  = glGetUniformLocation(program, "dstOffset");
+    uniformPatchArray = glGetUniformLocation(program, "patchArray");
+    uniformDuDesc     = glGetUniformLocation(program, "duDesc");
+    uniformDvDesc     = glGetUniformLocation(program, "dvDesc");
 
     return true;
 }

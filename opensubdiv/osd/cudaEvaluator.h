@@ -37,6 +37,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
     class PatchTable;
     class StencilTable;
+    class LimitStencilTable;
 }
 
 namespace Osd {
@@ -55,8 +56,14 @@ public:
         (void)deviceContext;  // unused
         return new CudaStencilTable(stencilTable);
     }
+    static CudaStencilTable *Create(Far::LimitStencilTable const *limitStencilTable,
+                                    void *deviceContext = NULL) {
+        (void)deviceContext;  // unused
+        return new CudaStencilTable(limitStencilTable);
+    }
 
     explicit CudaStencilTable(Far::StencilTable const *stencilTable);
+    explicit CudaStencilTable(Far::LimitStencilTable const *limitStencilTable);
     ~CudaStencilTable();
 
     // interfaces needed for CudaCompute
@@ -64,13 +71,17 @@ public:
     void *GetOffsetsBuffer() const { return _offsets; }
     void *GetIndicesBuffer() const { return _indices; }
     void *GetWeightsBuffer() const { return _weights; }
+    void *GetDuWeightsBuffer() const { return _duWeights; }
+    void *GetDvWeightsBuffer() const { return _dvWeights; }
     int GetNumStencils() const { return _numStencils; }
 
 private:
     void * _sizes,
          * _offsets,
          * _indices,
-         * _weights;
+         * _weights,
+         * _duWeights,
+         * _dvWeights;
     int _numStencils;
 };
 
@@ -214,12 +225,12 @@ public:
                             dstBuffer->BindCudaBuffer(), dstDesc,
                             duBuffer->BindCudaBuffer(),  duDesc,
                             dvBuffer->BindCudaBuffer(),  dvDesc,
-                            &stencilTable->GetSizes()[0],
-                            &stencilTable->GetOffsets()[0],
-                            &stencilTable->GetControlIndices()[0],
-                            &stencilTable->GetWeights()[0],
-                            &stencilTable->GetDuWeights()[0],
-                            &stencilTable->GetDvWeights()[0],
+                            (int const *)stencilTable->GetSizesBuffer(),
+                            (int const *)stencilTable->GetOffsetsBuffer(),
+                            (int const *)stencilTable->GetIndicesBuffer(),
+                            (float const *)stencilTable->GetWeightsBuffer(),
+                            (float const *)stencilTable->GetDuWeightsBuffer(),
+                            (float const *)stencilTable->GetDvWeightsBuffer(),
                             /*start = */ 0,
                             /*end   = */ stencilTable->GetNumStencils());
     }

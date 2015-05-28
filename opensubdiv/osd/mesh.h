@@ -114,17 +114,18 @@ protected:
 
 // ---------------------------------------------------------------------------
 
-template <typename STENCIL_TABLE, typename DEVICE_CONTEXT>
+template <typename STENCIL_TABLE, typename SRC_STENCIL_TABLE,
+          typename DEVICE_CONTEXT>
 STENCIL_TABLE const *
 convertToCompatibleStencilTable(
-    Far::StencilTable const *table, DEVICE_CONTEXT *context) {
+    SRC_STENCIL_TABLE const *table, DEVICE_CONTEXT *context) {
     if (not table) return NULL;
     return STENCIL_TABLE::Create(table, context);
 }
 
 template <>
 Far::StencilTable const *
-convertToCompatibleStencilTable<Far::StencilTable, void>(
+convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
     Far::StencilTable const *table, void *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
@@ -133,8 +134,18 @@ convertToCompatibleStencilTable<Far::StencilTable, void>(
 }
 
 template <>
+Far::LimitStencilTable const *
+convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, void>(
+    Far::LimitStencilTable const *table, void *  /*context*/) {
+    // no need for conversion
+    // XXX: We don't want to even copy.
+    if (not table) return NULL;
+    return new Far::LimitStencilTable(*table);
+}
+
+template <>
 Far::StencilTable const *
-convertToCompatibleStencilTable<Far::StencilTable, ID3D11DeviceContext>(
+convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, ID3D11DeviceContext>(
     Far::StencilTable const *table, ID3D11DeviceContext *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
@@ -144,6 +155,12 @@ convertToCompatibleStencilTable<Far::StencilTable, ID3D11DeviceContext>(
 
 // ---------------------------------------------------------------------------
 
+// Osd evaluator cache: for the GPU backends require compiled instance
+//   (GLXFB, GLCompue, CL)
+//
+// note: this is just an example usage and client applications are supposed
+//       to implement their own structure for Evaluator instance.
+//
 template <typename EVALUATOR>
 class EvaluatorCacheT {
 public:
@@ -156,10 +173,13 @@ public:
 
     // XXX: FIXME, linear search
     struct Entry {
-        Entry(VertexBufferDescriptor const &sd,
-              VertexBufferDescriptor const &dd,
-              EVALUATOR *e) : srcDesc(sd), dstDesc(dd), evaluator(e) {}
-        VertexBufferDescriptor srcDesc, dstDesc;
+        Entry(VertexBufferDescriptor const &srcDesc,
+              VertexBufferDescriptor const &dstDesc,
+              VertexBufferDescriptor const &duDesc,
+              VertexBufferDescriptor const &dvDesc,
+              EVALUATOR *e) : srcDesc(srcDesc), dstDesc(dstDesc),
+                              duDesc(duDesc), dvDesc(dvDesc), evaluator(e) {}
+        VertexBufferDescriptor srcDesc, dstDesc, duDesc, dvDesc;
         EVALUATOR *evaluator;
     };
     typedef std::vector<Entry> Evaluators;
@@ -168,27 +188,48 @@ public:
     EVALUATOR *GetEvaluator(VertexBufferDescriptor const &srcDesc,
                             VertexBufferDescriptor const &dstDesc,
                             DEVICE_CONTEXT *deviceContext) {
+        return GetEvaluator(srcDesc, dstDesc,
+                            VertexBufferDescriptor(),
+                            VertexBufferDescriptor(),
+                            deviceContext);
+    }
+
+    template <typename DEVICE_CONTEXT>
+    EVALUATOR *GetEvaluator(VertexBufferDescriptor const &srcDesc,
+                            VertexBufferDescriptor const &dstDesc,
+                            VertexBufferDescriptor const &duDesc,
+                            VertexBufferDescriptor const &dvDesc,
+                            DEVICE_CONTEXT *deviceContext) {
 
         for(typename Evaluators::iterator it = _evaluators.begin();
             it != _evaluators.end(); ++it) {
-            // Note: XFB kernel needs to be configured with the local offset
-            // of the dstDesc to skip preceding primvars.
-            int dstOffset1 = it->dstDesc.offset % it->dstDesc.stride;
-            int dstOffset2 = dstDesc.offset % dstDesc.stride;
-            if (dstOffset1 == dstOffset2 and
-                it->srcDesc.length == srcDesc.length and
-                it->srcDesc.stride == srcDesc.stride and
-                it->dstDesc.length == dstDesc.length and
-                it->dstDesc.stride == dstDesc.stride) {
+            if (isEqual(srcDesc, it->srcDesc) &&
+                isEqual(dstDesc, it->dstDesc) &&
+                isEqual(duDesc, it->duDesc) &&
+                isEqual(dvDesc, it->dvDesc)) {
                 return it->evaluator;
             }
         }
-        EVALUATOR *e = EVALUATOR::Create(srcDesc, dstDesc, deviceContext);
-        _evaluators.push_back(Entry(srcDesc, dstDesc, e));
+        EVALUATOR *e = EVALUATOR::Create(srcDesc, dstDesc,
+                                         duDesc, dvDesc,
+                                         deviceContext);
+        _evaluators.push_back(Entry(srcDesc, dstDesc, duDesc, dvDesc, e));
         return e;
     }
 
 private:
+    static bool isEqual(VertexBufferDescriptor const &a,
+                        VertexBufferDescriptor const &b) {
+        int offsetA = a.stride ? (a.offset % a.stride) : 0;
+        int offsetB = b.stride ? (b.offset % b.stride) : 0;
+
+        // Note: XFB kernel needs to be configured with the local offset
+        // of the dstDesc to skip preceding primvars.
+        return (offsetA == offsetB &&
+                a.length == b.length &&
+                a.stride == b.stride);
+    }
+
     Evaluators _evaluators;
 };
 
@@ -214,14 +255,44 @@ static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *cache,
     VertexBufferDescriptor const &srcDesc,
     VertexBufferDescriptor const &dstDesc,
+    VertexBufferDescriptor const &duDesc,
+    VertexBufferDescriptor const &dvDesc,
     DEVICE_CONTEXT deviceContext,
     typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
     (void)t;
     if (cache == NULL) return NULL;
-    return cache->GetEvaluator(srcDesc, dstDesc, deviceContext);
+    return cache->GetEvaluator(srcDesc, dstDesc, duDesc, dvDesc, deviceContext);
+}
+
+template <typename EVALUATOR, typename DEVICE_CONTEXT>
+static EVALUATOR *GetEvaluator(
+    EvaluatorCacheT<EVALUATOR> *cache,
+    VertexBufferDescriptor const &srcDesc,
+    VertexBufferDescriptor const &dstDesc,
+    DEVICE_CONTEXT deviceContext,
+    typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
+    (void)t;
+    if (cache == NULL) return NULL;
+    return cache->GetEvaluator(srcDesc, dstDesc,
+                               VertexBufferDescriptor(),
+                               VertexBufferDescriptor(),
+                               deviceContext);
 }
 
 // fallback
+template <typename EVALUATOR, typename DEVICE_CONTEXT>
+static EVALUATOR *GetEvaluator(
+    EvaluatorCacheT<EVALUATOR> *,
+    VertexBufferDescriptor const &,
+    VertexBufferDescriptor const &,
+    VertexBufferDescriptor const &,
+    VertexBufferDescriptor const &,
+    DEVICE_CONTEXT,
+    typename enable_if<!instantiatable<EVALUATOR>::value, void>::type*t=0) {
+    (void)t;
+    return NULL;
+}
+
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
 static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *,
@@ -340,7 +411,8 @@ public:
         // the evaluatorInstance can be NULL
         //  (for uninstantiatable kernels CPU,TBB etc)
         Evaluator const *instance = GetEvaluator<Evaluator>(
-            _evaluatorCache, srcDesc, dstDesc, _deviceContext);
+            _evaluatorCache, srcDesc, dstDesc,
+            _deviceContext);
 
         Evaluator::EvalStencils(_vertexBuffer, srcDesc,
                                 _vertexBuffer, dstDesc,
@@ -353,7 +425,8 @@ public:
             dstDesc.offset += numControlVertices * dstDesc.stride;
 
             instance = GetEvaluator<Evaluator>(
-                _evaluatorCache, srcDesc, dstDesc, _deviceContext);
+                _evaluatorCache, srcDesc, dstDesc,
+                _deviceContext);
 
             if (_varyingBuffer) {
                 // non-interleaved

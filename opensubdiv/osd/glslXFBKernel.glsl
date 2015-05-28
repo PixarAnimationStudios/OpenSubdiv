@@ -63,38 +63,73 @@ void writeVertex(Vertex v) {
 
 //------------------------------------------------------------------------------
 
+#if defined(OPENSUBDIV_GLSL_XFB_USE_DERIVATIVES)
+out float outDuBuffer[LENGTH];
+out float outDvBuffer[LENGTH];
+
+void writeDu(Vertex v) {
+    for(int i = 0; i < LENGTH; i++) {
+        outDuBuffer[i] = v.vertexData[i];
+    }
+}
+
+void writeDv(Vertex v) {
+    for(int i = 0; i < LENGTH; i++) {
+        outDvBuffer[i] = v.vertexData[i];
+    }
+}
+#endif
+
+//------------------------------------------------------------------------------
+
 #if defined(OPENSUBDIV_GLSL_XFB_KERNEL_EVAL_STENCILS)
 
 uniform usamplerBuffer sizes;
 uniform isamplerBuffer offsets;
 uniform isamplerBuffer indices;
 uniform samplerBuffer  weights;
+
+#if defined(OPENSUBDIV_GLSL_XFB_USE_DERIVATIVES)
+uniform samplerBuffer  duWeights;
+uniform samplerBuffer  dvWeights;
+#endif
+
 uniform int batchStart = 0;
 uniform int batchEnd = 0;
 
 void main() {
-
     int current = gl_VertexID + batchStart;
 
     if (current>=batchEnd) {
         return;
     }
 
-    Vertex dst;
+    Vertex dst, du, dv;
     clear(dst);
+    clear(du);
+    clear(dv);
 
     int offset = texelFetch(offsets, current).x;
     uint size = texelFetch(sizes, current).x;
 
-    for (int i=0; i<size; ++i) {
-        int index = texelFetch(indices, offset+i).x;
-        float weight = texelFetch(weights, offset+i).x;
+    for (int stencil=0; stencil<size; ++stencil) {
+        int index = texelFetch(indices, offset+stencil).x;
+        float weight = texelFetch(weights, offset+stencil).x;
         addWithWeight(dst, readVertex( index ), weight);
-    }
 
-    // the vertex buffer contains our control vertices at the beginning: don't
-    // stomp on those !
+#if defined(OPENSUBDIV_GLSL_XFB_USE_DERIVATIVES)
+        float duWeight = texelFetch(duWeights, offset+stencil).x;
+        float dvWeight = texelFetch(dvWeights, offset+stencil).x;
+        addWithWeight(du,  readVertex(index), duWeight);
+        addWithWeight(dv,  readVertex(index), dvWeight);
+#endif
+    }
     writeVertex(dst);
+
+#if defined(OPENSUBDIV_GLSL_XFB_USE_DERIVATIVES)
+    writeDu(du);
+    writeDv(dv);
+#endif
 }
 
 #endif
@@ -118,7 +153,7 @@ uniform ivec4 patchArray[2];
 uniform isamplerBuffer patchParamBuffer;
 uniform isamplerBuffer patchIndexBuffer;
 
-void getBSplineWeights(float t, inout vec4 point, vec4 deriv) {
+void getBSplineWeights(float t, inout vec4 point, inout vec4 deriv) {
     // The four uniform cubic B-Spline basis functions evaluated at t:
     float one6th = 1.0f / 6.0f;
 
@@ -131,12 +166,10 @@ void getBSplineWeights(float t, inout vec4 point, vec4 deriv) {
     point.w = one6th * (                                 t3);
 
     // Derivatives of the above four basis functions at t:
-    /* if (deriv) { */
-    /*     deriv[0] = -0.5f*t2 +      t - 0.5f; */
-    /*     deriv[1] =  1.5f*t2 - 2.0f*t; */
-    /*     deriv[2] = -1.5f*t2 +      t + 0.5f; */
-    /*     deriv[3] =  0.5f*t2; */
-    /* } */
+    deriv.x = -0.5f*t2 +      t - 0.5f;
+    deriv.y =  1.5f*t2 - 2.0f*t;
+    deriv.z = -1.5f*t2 +      t + 0.5f;
+    deriv.w =  0.5f*t2;
 }
 
 uint getDepth(uint patchBits) {
@@ -207,35 +240,47 @@ void main() {
 
     // normalize
     coord = normalizePatchCoord(patchBits, coord);
-
-    // XXX: dScale for derivative
+    float dScale = float(1 << getDepth(patchBits));
 
     // if regular
-    float wP[20];
+    float wP[20], wDs[20], wDt[20];
     {
         vec4 sWeights, tWeights, dsWeights, dtWeights;
         getBSplineWeights(coord.s, sWeights, dsWeights);
         getBSplineWeights(coord.t, tWeights, dtWeights);
 
         adjustBoundaryWeights(patchBits, sWeights, tWeights);
+        adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
 
         for (int k = 0; k < 4; ++k) {
             for (int l = 0; l < 4; ++l) {
                 wP[4*k+l]  = sWeights[l]  * tWeights[k];
+                wDs[4*k+l] = dsWeights[l] * tWeights[k]  * dScale;
+                wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
             }
         }
     }
 
-    Vertex dst;
+    Vertex dst, du, dv;
     clear(dst);
+    clear(du);
+    clear(dv);
 
     int indexBase = array.z + handle.z;
-    for (int i = 0; i < numControlVertices; ++i) {
-        int index = texelFetch(patchIndexBuffer, indexBase + i).x;
-        addWithWeight(dst, readVertex(index), wP[i]);
+    for (int cv = 0; cv < numControlVertices; ++cv) {
+        int index = texelFetch(patchIndexBuffer, indexBase + cv).x;
+        addWithWeight(dst, readVertex(index), wP[cv]);
+        addWithWeight(du,  readVertex(index), wDs[cv]);
+        addWithWeight(dv,  readVertex(index), wDt[cv]);
     }
 
     writeVertex(dst);
+
+#if defined(OPENSUBDIV_GLSL_XFB_USE_DERIVATIVES)
+    writeDu(du);
+    writeDv(dv);
+#endif
+
 }
 
 #endif
