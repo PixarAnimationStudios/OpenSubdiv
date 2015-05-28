@@ -159,8 +159,9 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     Sdc::Options options = refiner.GetSchemeOptions();
     Sdc::Crease  creasing(options);
 
-    bool sharpenCornerVerts    = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
-    bool sharpenNonManFeatures = true; //(options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
+    bool makeBoundaryFacesHoles = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_NONE);
+    bool sharpenCornerVerts     = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
+    bool sharpenNonManFeatures  = true; //(options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
 
     //
     //  Process the Edge tags first, as Vertex tags (notably the Rule) are dependent on
@@ -249,8 +250,20 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
             vTag._xordinary = (vFaces.size() != schemeRegularInteriorValence);
         }
         vTag._incomplete = 0;
-    }
 
+        //
+        //  Having just decided if a vertex is on a boundary, and with its incident faces
+        //  available, mark incident faces as holes in the rare cases this is needed:
+        //
+        if (makeBoundaryFacesHoles && vTag._boundary) {
+            for (int i = 0; i < vFaces.size(); ++i) {
+                baseLevel._faceTags[vFaces[i]]._hole = true;
+
+                //  Don't forget this -- but it will eventually move to the Level
+                refiner._hasHoles = true;
+            }
+        }
+    }
     return true;
 }
 
