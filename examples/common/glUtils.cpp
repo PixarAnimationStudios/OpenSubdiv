@@ -171,6 +171,18 @@ bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1(){
 #endif
 }
 
+bool GL_ARBComputeShaderOrGL_VERSION_4_3() {
+#if defined(OSD_USES_GLEW)
+    return (glewIsSupported("GL_ARB_compute_shader") == GL_TRUE) ||
+           (GLEW_VERSION_4_3);
+#else
+#if defined(GL_ARB_compute_shader) || defined(GL_VERSION_4_3)
+    return true;
+#else
+    return false;
+#endif
+#endif
+}
 
-                      
+
 }   // namesapce GLUtils

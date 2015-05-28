@@ -30,7 +30,6 @@
 #include <vector>
 #include "../far/patchDescriptor.h"
 #include "../osd/nonCopyable.h"
-#include "../osd/opengl.h"
 #include "../osd/types.h"
 
 namespace OpenSubdiv {

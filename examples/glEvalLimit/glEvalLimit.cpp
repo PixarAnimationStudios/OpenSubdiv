@@ -1289,7 +1289,9 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "GL XFB", kGLXFB);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    g_hud.AddPullDownButton(compute_pulldown, "GL Compute", kGLCompute);
+    if (GLUtils::GL_ARBComputeShaderOrGL_VERSION_4_3()) {
+        g_hud.AddPullDownButton(compute_pulldown, "GL Compute", kGLCompute);
+    }
 #endif
 
     int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 140, 200,

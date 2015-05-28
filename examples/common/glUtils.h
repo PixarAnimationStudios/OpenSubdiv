@@ -47,6 +47,7 @@ const std::string &GetShaderVersion();
 const std::string &GetShaderVersionInclude();
 
 bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1();
+bool GL_ARBComputeShaderOrGL_VERSION_4_3();
 
 };
 
