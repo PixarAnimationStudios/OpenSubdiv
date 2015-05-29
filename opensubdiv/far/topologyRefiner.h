@@ -189,56 +189,6 @@ public:
 protected:
 
     //
-    //  For use by the TopologyRefinerFactory<MESH> subclasses to construct the base level:
-    //
-    template <class MESH>
-    friend class TopologyRefinerFactory;
-
-    //  Topology sizing methods required before allocation:
-    void setNumBaseFaces(   int count) { _levels[0]->resizeFaces(count); }
-    void setNumBaseEdges(   int count) { _levels[0]->resizeEdges(count); }
-    void setNumBaseVertices(int count) { _levels[0]->resizeVertices(count); }
-
-    void setNumBaseFaceVertices(Index f, int count) { _levels[0]->resizeFaceVertices(f, count); }
-    void setNumBaseEdgeFaces(   Index e, int count) { _levels[0]->resizeEdgeFaces(e, count); }
-    void setNumBaseVertexFaces( Index v, int count) { _levels[0]->resizeVertexFaces(v, count); }
-    void setNumBaseVertexEdges( Index v, int count) { _levels[0]->resizeVertexEdges(v, count); }
-
-    //  Topology assignment methods to populate base level after allocation:
-    IndexArray setBaseFaceVertices(Index f) { return _levels[0]->getFaceVertices(f); }
-    IndexArray setBaseFaceEdges(   Index f) { return _levels[0]->getFaceEdges(f); }
-    IndexArray setBaseEdgeVertices(Index e) { return _levels[0]->getEdgeVertices(e); }
-    IndexArray setBaseEdgeFaces(   Index e) { return _levels[0]->getEdgeFaces(e); }
-    IndexArray setBaseVertexFaces( Index v) { return _levels[0]->getVertexFaces(v); }
-    IndexArray setBaseVertexEdges( Index v) { return _levels[0]->getVertexEdges(v); }
-
-    LocalIndexArray setBaseEdgeFaceLocalIndices(Index e)   { return _levels[0]->getEdgeFaceLocalIndices(e); }
-    LocalIndexArray setBaseVertexFaceLocalIndices(Index v) { return _levels[0]->getVertexFaceLocalIndices(v); }
-    LocalIndexArray setBaseVertexEdgeLocalIndices(Index v) { return _levels[0]->getVertexEdgeLocalIndices(v); }
-
-    void populateBaseLocalIndices() { _levels[0]->populateLocalIndices(); }
-
-    void setBaseEdgeNonManifold(Index e, bool b) { _levels[0]->setEdgeNonManifold(e, b); }
-    void setBaseVertexNonManifold(Index v, bool b) { _levels[0]->setVertexNonManifold(v, b); }
-
-    //  Optional feature tagging methods for setting sharpness, holes, etc.:
-    void setBaseEdgeSharpness(Index e, float s)   { _levels[0]->getEdgeSharpness(e) = s; }
-    void setBaseVertexSharpness(Index v, float s) { _levels[0]->getVertexSharpness(v) = s; }
-
-    void setBaseFaceHole(Index f, bool b) { _levels[0]->setFaceHole(f, b); _hasHoles |= b; }
-
-    //  Optional methods for creating and assigning face-varying data channels:
-    int createBaseFVarChannel(int numValues);
-    int createBaseFVarChannel(int numValues, Sdc::Options const& options);
-
-    IndexArray setBaseFVarFaceValues(Index face, int channel = 0);
-
-    void setBaseMaxValence(int valence) { _levels[0]->setMaxValence(valence); }
-    void initializeBaseInventory() { initializeInventory(); }
-
-protected:
-
-    //
     //  Lower level protected methods intended strictly for internal use:
     //
     friend class TopologyRefinerFactoryBase;
@@ -306,23 +256,6 @@ inline Sdc::Options::FVarLinearInterpolation
 TopologyRefiner::GetFVarLinearInterpolation(int channel) const {
 
     return _levels[0]->getFVarOptions(channel).GetFVarLinearInterpolation();
-}
-inline int
-TopologyRefiner::createBaseFVarChannel(int numValues) {
-
-    return _levels[0]->createFVarChannel(numValues, _subdivOptions);
-}
-inline int
-TopologyRefiner::createBaseFVarChannel(int numValues, Sdc::Options const& fvarOptions) {
-
-    Sdc::Options options = _subdivOptions;
-    options.SetFVarLinearInterpolation(fvarOptions.GetFVarLinearInterpolation());
-    return _levels[0]->createFVarChannel(numValues, options);
-}
-inline IndexArray
-TopologyRefiner::setBaseFVarFaceValues(Index face, int channel) {
-
-    return _levels[0]->getFVarFaceValues(face, channel);
 }
 
 } // end namespace Far

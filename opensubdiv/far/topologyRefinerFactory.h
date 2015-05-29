@@ -44,9 +44,10 @@ namespace Far {
 //  TopologyRefinerFactoryBase:
 //      This is an abstract base class for subclasses that are intended to construct
 //  TopologyRefiner from external mesh representations.  These subclasses are
-//  parameterized by the mesh type <class MESH>.  The base class provides all
-//  implementation details related to assembly and validation that are independent
-//  of the subclass' mesh type.
+//  parameterized by the mesh type <class MESH>.
+//      This base class provides all implementation details related to assembly and
+//  validation that are independent of the subclass' mesh type.  It also includes a
+//  suite of methods for modifying/assembling a newly created TopologyRefiner.
 //
 class TopologyRefinerFactoryBase {
 
@@ -96,6 +97,57 @@ public:
 protected:
 
     //
+    //  For use by subclasses to construct the base level:
+    //
+    //  Topology sizing methods required before allocation:
+    static void setNumBaseFaces(TopologyRefiner & newRefiner, int count);
+    static void setNumBaseEdges(TopologyRefiner & newRefiner, int count);
+    static void setNumBaseVertices(TopologyRefiner & newRefiner, int count);
+
+    static int getNumBaseFaces(TopologyRefiner const & newRefiner);
+    static int getNumBaseEdges(TopologyRefiner const & newRefiner);
+    static int getNumBaseVertices(TopologyRefiner const & newRefiner);
+
+    static void setNumBaseFaceVertices(TopologyRefiner & newRefiner, Index f, int count);
+    static void setNumBaseEdgeFaces(TopologyRefiner & newRefiner, Index e, int count);
+    static void setNumBaseVertexFaces(TopologyRefiner & newRefiner, Index v, int count);
+    static void setNumBaseVertexEdges(TopologyRefiner & newRefiner, Index v, int count);
+
+    //  Topology assignment methods to populate base level after allocation:
+    static IndexArray getBaseFaceVertices(TopologyRefiner & newRefiner, Index f);
+    static IndexArray getBaseFaceEdges(TopologyRefiner & newRefiner,    Index f);
+    static IndexArray getBaseEdgeVertices(TopologyRefiner & newRefiner, Index e);
+    static IndexArray getBaseEdgeFaces(TopologyRefiner & newRefiner,    Index e);
+    static IndexArray getBaseVertexFaces(TopologyRefiner & newRefiner,  Index v);
+    static IndexArray getBaseVertexEdges(TopologyRefiner & newRefiner,  Index v);
+
+    static LocalIndexArray getBaseEdgeFaceLocalIndices(TopologyRefiner & newRefiner, Index e);
+    static LocalIndexArray getBaseVertexFaceLocalIndices(TopologyRefiner & newRefiner, Index v);
+    static LocalIndexArray getBaseVertexEdgeLocalIndices(TopologyRefiner & newRefiner, Index v);
+
+    static Index findBaseEdge(TopologyRefiner const & newRefiner, Index v0, Index v1);
+
+    static void populateBaseLocalIndices(TopologyRefiner & newRefiner);
+
+    static void setBaseEdgeNonManifold(TopologyRefiner & newRefiner, Index e, bool b);
+    static void setBaseVertexNonManifold(TopologyRefiner & newRefiner, Index v, bool b);
+
+    //  Optional feature tagging methods for setting sharpness, holes, etc.:
+    static void setBaseEdgeSharpness(TopologyRefiner & newRefiner, Index e, float s);
+    static void setBaseVertexSharpness(TopologyRefiner & newRefiner, Index v, float s);
+    static void setBaseFaceHole(TopologyRefiner & newRefiner, Index f, bool b);
+
+    //  Optional methods for creating and assigning face-varying data channels:
+    static int createBaseFVarChannel(TopologyRefiner & newRefiner, int numValues);
+    static int createBaseFVarChannel(TopologyRefiner & newRefiner, int numValues, Sdc::Options const& fvarOptions);
+    static IndexArray getBaseFVarFaceValues(TopologyRefiner & newRefiner, Index face, int channel = 0);
+
+    static void setBaseMaxValence(TopologyRefiner & newRefiner, int valence);
+    static void initializeBaseInventory(TopologyRefiner & newRefiner);
+
+protected:
+
+    //
     //  Protected methods invoked by the subclass template to verify and process each
     //  stage of construction implemented by the subclass:
     //
@@ -107,6 +159,148 @@ protected:
     static bool prepareComponentTagsAndSharpness(TopologyRefiner& refiner);
     static bool prepareFaceVaryingChannels(TopologyRefiner& refiner);
 };
+
+
+//
+//  Inline methods:
+//
+inline void
+TopologyRefinerFactoryBase::setNumBaseFaces(TopologyRefiner & newRefiner, int count) {
+    newRefiner._levels[0]->resizeFaces(count);
+}
+inline void
+TopologyRefinerFactoryBase::setNumBaseEdges(TopologyRefiner & newRefiner, int count) {
+    newRefiner._levels[0]->resizeEdges(count);
+}
+inline void
+TopologyRefinerFactoryBase::setNumBaseVertices(TopologyRefiner & newRefiner, int count) {
+    newRefiner._levels[0]->resizeVertices(count);
+}
+
+inline int
+TopologyRefinerFactoryBase::getNumBaseFaces(TopologyRefiner const & newRefiner) {
+    return newRefiner._levels[0]->getNumFaces();
+}
+inline int
+TopologyRefinerFactoryBase::getNumBaseEdges(TopologyRefiner const & newRefiner) {
+    return newRefiner._levels[0]->getNumEdges();
+}
+inline int
+TopologyRefinerFactoryBase::getNumBaseVertices(TopologyRefiner const & newRefiner) {
+    return newRefiner._levels[0]->getNumVertices();
+}
+
+inline void
+TopologyRefinerFactoryBase::setNumBaseFaceVertices(TopologyRefiner & newRefiner, Index f, int count) {
+    newRefiner._levels[0]->resizeFaceVertices(f, count);
+}
+inline void
+TopologyRefinerFactoryBase::setNumBaseEdgeFaces(TopologyRefiner & newRefiner, Index e, int count) {
+    newRefiner._levels[0]->resizeEdgeFaces(e, count);
+}
+inline void
+TopologyRefinerFactoryBase::setNumBaseVertexFaces(TopologyRefiner & newRefiner, Index v, int count) {
+    newRefiner._levels[0]->resizeVertexFaces(v, count);
+}
+inline void
+TopologyRefinerFactoryBase::setNumBaseVertexEdges(TopologyRefiner & newRefiner, Index v, int count) {
+    newRefiner._levels[0]->resizeVertexEdges(v, count);
+}
+
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseFaceVertices(TopologyRefiner & newRefiner, Index f) {
+    return newRefiner._levels[0]->getFaceVertices(f);
+}
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseFaceEdges(TopologyRefiner & newRefiner,    Index f) {
+    return newRefiner._levels[0]->getFaceEdges(f);
+}
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseEdgeVertices(TopologyRefiner & newRefiner, Index e) {
+    return newRefiner._levels[0]->getEdgeVertices(e);
+}
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseEdgeFaces(TopologyRefiner & newRefiner,    Index e) {
+    return newRefiner._levels[0]->getEdgeFaces(e);
+}
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseVertexFaces(TopologyRefiner & newRefiner,  Index v) {
+    return newRefiner._levels[0]->getVertexFaces(v);
+}
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseVertexEdges(TopologyRefiner & newRefiner,  Index v) {
+    return newRefiner._levels[0]->getVertexEdges(v);
+}
+
+inline LocalIndexArray
+TopologyRefinerFactoryBase::getBaseEdgeFaceLocalIndices(TopologyRefiner & newRefiner, Index e)   {
+    return newRefiner._levels[0]->getEdgeFaceLocalIndices(e);
+}
+inline LocalIndexArray
+TopologyRefinerFactoryBase::getBaseVertexFaceLocalIndices(TopologyRefiner & newRefiner, Index v) {
+    return newRefiner._levels[0]->getVertexFaceLocalIndices(v);
+}
+inline LocalIndexArray
+TopologyRefinerFactoryBase::getBaseVertexEdgeLocalIndices(TopologyRefiner & newRefiner, Index v) {
+    return newRefiner._levels[0]->getVertexEdgeLocalIndices(v);
+}
+
+inline Index
+TopologyRefinerFactoryBase::findBaseEdge(TopologyRefiner const & newRefiner, Index v0, Index v1) {
+    return newRefiner._levels[0]->findEdge(v0, v1);
+}
+
+inline void
+TopologyRefinerFactoryBase::populateBaseLocalIndices(TopologyRefiner & newRefiner) {
+    newRefiner._levels[0]->populateLocalIndices();
+}
+
+inline void
+TopologyRefinerFactoryBase::setBaseEdgeNonManifold(TopologyRefiner & newRefiner, Index e, bool b) {
+    newRefiner._levels[0]->setEdgeNonManifold(e, b);
+}
+inline void
+TopologyRefinerFactoryBase::setBaseVertexNonManifold(TopologyRefiner & newRefiner, Index v, bool b) {
+    newRefiner._levels[0]->setVertexNonManifold(v, b);
+}
+
+inline void
+TopologyRefinerFactoryBase::setBaseEdgeSharpness(TopologyRefiner & newRefiner, Index e, float s)   {
+    newRefiner._levels[0]->getEdgeSharpness(e) = s;
+}
+inline void
+TopologyRefinerFactoryBase::setBaseVertexSharpness(TopologyRefiner & newRefiner, Index v, float s) {
+    newRefiner._levels[0]->getVertexSharpness(v) = s;
+}
+inline void
+TopologyRefinerFactoryBase::setBaseFaceHole(TopologyRefiner & newRefiner, Index f, bool b) {
+    newRefiner._levels[0]->setFaceHole(f, b);
+    newRefiner._hasHoles |= b;
+}
+
+inline int
+TopologyRefinerFactoryBase::createBaseFVarChannel(TopologyRefiner & newRefiner, int numValues) {
+    return newRefiner._levels[0]->createFVarChannel(numValues, newRefiner._subdivOptions);
+}
+inline int
+TopologyRefinerFactoryBase::createBaseFVarChannel(TopologyRefiner & newRefiner, int numValues, Sdc::Options const& fvarOptions) {
+    Sdc::Options newOptions = newRefiner._subdivOptions;
+    newOptions.SetFVarLinearInterpolation(fvarOptions.GetFVarLinearInterpolation());
+    return newRefiner._levels[0]->createFVarChannel(numValues, newOptions);
+}
+inline IndexArray
+TopologyRefinerFactoryBase::getBaseFVarFaceValues(TopologyRefiner & newRefiner, Index face, int channel) {
+    return newRefiner._levels[0]->getFVarFaceValues(face, channel);
+}
+
+inline void
+TopologyRefinerFactoryBase::setBaseMaxValence(TopologyRefiner & newRefiner, int valence) {
+    newRefiner._levels[0]->setMaxValence(valence);
+}
+inline void
+TopologyRefinerFactoryBase::initializeBaseInventory(TopologyRefiner & newRefiner) {
+    newRefiner.initializeInventory();
+}
 
 
 //
