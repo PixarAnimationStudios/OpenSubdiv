@@ -71,13 +71,12 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
 
     bool interpolateVarying = options.interpolationMode==INTERPOLATE_VARYING;
     internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
-                                interpolateVarying,
                                 /*genControlVerts*/ true,
                                 /*compactWeights*/  true);
 
     //
     // Interpolate stencils for each refinement level using
-    // PrimvarRefiner::InterpolateLevel<>()
+    // PrimvarRefiner::InterpolateLevel<>() for vertex or varying
     //
     PrimvarRefiner primvarRefiner(refiner);
 
@@ -259,7 +258,6 @@ StencilTableFactory::AppendEndCapStencilTable(
     int nEndCapStencilsElements = 0;
 
     internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
-                                /*isVarying*/       false,
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  factorize);
     internal::StencilBuilder::Index origin(&builder, 0);
@@ -417,7 +415,6 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     //
 
     internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
-                                /*isVarying*/       false,
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  true);
     internal::StencilBuilder::Index origin(&builder, 0);

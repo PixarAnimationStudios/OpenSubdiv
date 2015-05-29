@@ -304,13 +304,11 @@ private:
 };
 
 StencilBuilder::StencilBuilder(int coarseVertCount, 
-                               bool isVarying, 
                                bool genCtrlVertStencils, 
                                bool compactWeights)
         : _weightTable(new WeightTable(coarseVertCount, 
                                    genCtrlVertStencils, 
                                    compactWeights))
-        , _isVarying(isVarying)
 {
 }
 
@@ -368,8 +366,6 @@ StencilBuilder::GetStencilDvWeights() const {
 void
 StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 {
-    if (_owner->_isVarying)
-        return;
     // Ignore no-op weights.
     if (weight == 0)
         return;
@@ -426,24 +422,6 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                            _owner->_weightTable->GetPointDerivAccumulator());
     }
-}
-
-void 
-StencilBuilder::Index::AddVaryingWithWeight(Index const &src, float weight)
-{
-    if (not _owner->_isVarying)
-        return;
-    // Ignore no-op weights.
-    if (weight == 0)
-        return;
-    _owner->_weightTable->AddWithWeight(src._index, _index, weight,
-                                _owner->_weightTable->GetScalarAccumulator());
-}
-
-void 
-StencilBuilder::Index::AddFaceVaryingWithWeight(Index const &, float)
-{
-    // Not supported.
 }
 
 } // end namespace internal

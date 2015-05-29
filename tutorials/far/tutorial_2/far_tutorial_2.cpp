@@ -27,8 +27,7 @@
 // Tutorial description:
 //
 // Building on tutorial 0, this example shows how to instantiate a simple mesh,
-// refine it uniformly and then interpolate both 'vertex' and 'varying' primvar
-// data.
+// refine it uniformly and then interpolate both additional primvar data.
 //
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
@@ -39,11 +38,7 @@
 //------------------------------------------------------------------------------
 // Vertex container implementation.
 //
-// We are adding a per-vertex color attribute to our Vertex interface. Unlike
-// the position attribute however, the new color attribute is interpolated using
-// the 'varying' mode of evaluation ('vertex' is bi-cubic, 'varying' is
-// bi-linear). We also implemented the 'AddVaryingWithWeight()' method, which
-// be performing the interpolation on the primvar data.
+// We are adding a per-vertex color attribute to our Vertex interface.
 //
 struct Vertex {
 
@@ -59,11 +54,6 @@ struct Vertex {
         _position[0]+=weight*src._position[0];
         _position[1]+=weight*src._position[1];
         _position[2]+=weight*src._position[2];
-    }
-
-    // The varying interpolation specialization must now be implemented.
-    // Just like 'vertex' interpolation, it is a simple multiply-add.
-    void AddVaryingWithWeight(Vertex const & src, float weight) {
         _color[0]+=weight*src._color[0];
         _color[1]+=weight*src._color[1];
         _color[2]+=weight*src._color[2];
@@ -157,9 +147,7 @@ int main(int, char **) {
     }
 
 
-    // Interpolate all primvar data - not that this will perform both 'vertex' and
-    // 'varying' interpolation at once by calling each specialized method in our
-    // Vertex class with the appropriate weights.
+    // Interpolate all primvar data 
     Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + nCoarseVerts);
 
 
@@ -188,7 +176,7 @@ int main(int, char **) {
         // Add per-particle color attribute ('rgbPP')
         printf("addAttr -ln \"rgbPP\" -dt vectorArray particleShape1;\n");
 
-        // Set per-particle color values from our 'varying' primvar data
+        // Set per-particle color values from our primvar data
         printf("setAttr \"particleShape1.rgbPP\" -type \"vectorArray\" %d ", nverts);
         for (int vert=0; vert<nverts; ++vert) {
             float const * color = verts[vert].GetColor();
