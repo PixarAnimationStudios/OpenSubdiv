@@ -265,7 +265,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::resizeComponentTopology(
     assert(edges.size()==0);
 
     // Faces and face-verts
-    refiner.setNumBaseFaces(nfaces);
+    setNumBaseFaces(refiner, nfaces);
     for (int i=0; i<nfaces; ++i) {
 
         OsdHbrFace const * f = hmesh.GetFace(i);
@@ -273,7 +273,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::resizeComponentTopology(
         int nv = f->GetNumVertices();
         assert(nv==4); // temporary until n-gons are supported
 
-        refiner.setNumBaseFaceVertices(i, nv);
+        setNumBaseFaceVertices(refiner, i, nv);
 
         for (int j=0; j<nv; ++j) {
 
@@ -289,14 +289,14 @@ FarTopologyRefinerFactory<OsdHbrConverter>::resizeComponentTopology(
     conv.FinishEdgeMap();
 
     // Edges and edge-faces
-    refiner.setNumBaseEdges((int)edges.size());
+    setNumBaseEdges(refiner, (int)edges.size());
     for (int i=0; i!=conv.GetNumEdges(); ++i) {
         OsdHbrHalfedge const * e = conv.GetEdge(i);
-        refiner.setNumBaseEdgeFaces(i, e->GetRightFace() ? 2 : 1);
+        setNumBaseEdgeFaces(refiner, i, e->GetRightFace() ? 2 : 1);
     }
 
     // Vertices and vert-faces and vert-edges
-    refiner.setNumBaseVertices(nverts);
+    setNumBaseVertices(refiner, nverts);
     for (int i=0; i<nverts; ++i) {
 
         OsdHbrVertex * v = hmesh.GetVertex(i);
@@ -320,8 +320,8 @@ FarTopologyRefinerFactory<OsdHbrConverter>::resizeComponentTopology(
         GatherOperator op(v);
         v->ApplyOperatorSurroundingEdges(op);
 
-        refiner.setNumBaseVertexEdges(i, op.vertEdgeCount);
-        refiner.setNumBaseVertexFaces(i, op.vertFaceCount);
+        setNumBaseVertexEdges(refiner, i, op.vertEdgeCount);
+        setNumBaseVertexFaces(refiner, i, op.vertFaceCount);
     }
 }
 
@@ -339,11 +339,11 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
     OsdHbrConverter::EdgeMap & edges = const_cast<OsdHbrConverter &>(conv).GetEdges();
 
     { // Face relations:
-        int nfaces = refiner.GetLevel(0).GetNumFaces();
+        int nfaces = getNumBaseFaces(refiner);
         for (int i=0; i < nfaces; ++i) {
 
-            IndexArray dstFaceVerts = refiner.setBaseFaceVertices(i);
-            IndexArray dstFaceEdges = refiner.setBaseFaceEdges(i);
+            IndexArray dstFaceVerts = getBaseFaceVertices(refiner, i);
+            IndexArray dstFaceEdges = getBaseFaceEdges(refiner, i);
 
             OsdHbrFace * f = hmesh.GetFace(i);
 
@@ -362,12 +362,12 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
             int eidx = it->second;
 
             //  Edge-vertices:
-            IndexArray dstEdgeVerts = refiner.setBaseEdgeVertices(eidx);
+            IndexArray dstEdgeVerts = getBaseEdgeVertices(refiner, eidx);
             dstEdgeVerts[0] = e->GetOrgVertex()->GetID();
             dstEdgeVerts[1] = e->GetDestVertex()->GetID();
 
             //  Edge-faces
-            IndexArray dstEdgeFaces = refiner.setBaseEdgeFaces(eidx);
+            IndexArray dstEdgeFaces = getBaseEdgeFaces(refiner, eidx);
             dstEdgeFaces[0] = e->GetLeftFace()->GetID();
             // half-edges only have 2 faces incident to an edge (no non-manifold)
             if (e->GetRightFace()) {
@@ -377,7 +377,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
     }
 
     { // Vert relations
-        for (int i=0; i<refiner.GetLevel(0).GetNumVertices(); ++i) {
+        for (int i=0; i<getNumBaseVertices(refiner); ++i) {
 
             OsdHbrVertex const * v = hmesh.GetVertex(i);
 
@@ -398,11 +398,11 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
                 GatherOperator(FarTopologyRefiner & refiner, OsdHbrConverter const & conv,
                     OsdHbrVertex const * v, int idx) : _conv(conv), _v(v) {
 
-                    _dstVertFaces = refiner.setBaseVertexFaces(idx).begin(),
-                    _dstVertEdges = refiner.setBaseVertexEdges(idx).begin();
+                    _dstVertFaces = getBaseVertexFaces(refiner, idx).begin(),
+                    _dstVertEdges = getBaseVertexEdges(refiner, idx).begin();
 
-                    _dstVertInFaceIndices = refiner.setBaseVertexFaceLocalIndices(idx).begin(),
-                    _dstVertInEdgeIndices = refiner.setBaseVertexEdgeLocalIndices(idx).begin();
+                    _dstVertInFaceIndices = getBaseVertexFaceLocalIndices(refiner, idx).begin(),
+                    _dstVertInEdgeIndices = getBaseVertexEdgeLocalIndices(refiner, idx).begin();
                 }
 
                 virtual void operator() (OsdHbrHalfedge &e) {
@@ -447,12 +447,12 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTags(
             sharpness = std::max(sharpness, e->GetOpposite()->GetSharpness());
 
         }
-        refiner.setBaseEdgeSharpness(it->second, sharpness);
+        setBaseEdgeSharpness(refiner, it->second, sharpness);
     }
 
     // Initialize vertex sharpness
-    for (int i=0; i<refiner.GetLevel(0).GetNumVertices(); ++i) {
-        refiner.setBaseVertexSharpness(i, hmesh.GetVertex(i)->GetSharpness());
+    for (int i=0; i<getNumBaseVertices(refiner); ++i) {
+        setBaseVertexSharpness(refiner, i, hmesh.GetVertex(i)->GetSharpness());
     }
 
     // XXXX Initialize h-edits

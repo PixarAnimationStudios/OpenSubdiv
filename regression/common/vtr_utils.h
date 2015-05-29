@@ -187,15 +187,15 @@ TopologyRefinerFactory<Shape>::resizeComponentTopology(
     int nfaces = shape.GetNumFaces(),
         nverts = shape.GetNumVertices();
 
-    refiner.setNumBaseFaces(nfaces);
+    setNumBaseFaces(refiner, nfaces);
     for (int i=0; i<nfaces; ++i) {
 
         int nv = shape.nvertsPerFace[i];
-        refiner.setNumBaseFaceVertices(i, nv);
+        setNumBaseFaceVertices(refiner, i, nv);
     }
 
     // Vertices and vert-faces and vert-edges
-    refiner.setNumBaseVertices(nverts);
+    setNumBaseVertices(refiner, nverts);
 
     return true;
 }
@@ -207,12 +207,11 @@ TopologyRefinerFactory<Shape>::assignComponentTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
     { // Face relations:
-        int nfaces = refiner.GetLevel(0).GetNumFaces();
+        int nfaces = getNumBaseFaces(refiner);
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 
-            Far::IndexArray dstFaceVerts = refiner.setBaseFaceVertices(i);
-            //IndexArray dstFaceEdges = refiner.setBaseFaceEdges(i);
+            Far::IndexArray dstFaceVerts = getBaseFaceVertices(refiner, i);
 
             if (shape.isLeftHanded) {
                 dstFaceVerts[0] = shape.faceverts[ofs++];
@@ -238,13 +237,12 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     // UV layyout (we only parse 1 channel)
     if (not shape.faceuvs.empty()) {
 
-        int nfaces = refiner.GetLevel(0).GetNumFaces(),
-           channel = refiner.createBaseFVarChannel( (int)shape.uvs.size()/2 );
+        int nfaces = getNumBaseFaces(refiner),
+           channel = createBaseFVarChannel(refiner, (int)shape.uvs.size()/2 );
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 
-            Far::IndexArray dstFaceUVs =
-                refiner.setBaseFVarFaceValues(i, channel);
+            Far::IndexArray dstFaceUVs = getBaseFVarFaceValues(refiner, i, channel);
 
             if (shape.isLeftHanded) {
                 dstFaceUVs[0] = shape.faceuvs[ofs++];
@@ -276,13 +274,13 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size()-1; j += 2) {
 
-                OpenSubdiv::Vtr::Index edge = refiner.GetLevel(0).FindEdge(t->intargs[j], t->intargs[j+1]);
+                OpenSubdiv::Vtr::Index edge = findBaseEdge(refiner, t->intargs[j], t->intargs[j+1]);
                 if (edge==OpenSubdiv::Vtr::INDEX_INVALID) {
                     printf("cannot find edge for crease tag (%d,%d)\n", t->intargs[j], t->intargs[j+1] );
                     return false;
                 } else {
                     int nfloat = (int) t->floatargs.size();
-                    refiner.setBaseEdgeSharpness(edge,
+                    setBaseEdgeSharpness(refiner, edge,
                         std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0])));
                 }
             }
@@ -290,12 +288,12 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size(); ++j) {
                 int vertex = t->intargs[j];
-                if (vertex<0 or vertex>=refiner.GetLevel(0).GetNumVertices()) {
+                if (vertex<0 or vertex>=getNumBaseVertices(refiner)) {
                     printf("cannot find vertex for corner tag (%d)\n", vertex );
                     return false;
                 } else {
                     int nfloat = (int) t->floatargs.size();
-                    refiner.setBaseVertexSharpness(vertex,
+                    setBaseVertexSharpness(refiner, vertex,
                         std::max(0.0f, ((nfloat > 1) ? t->floatargs[j] : t->floatargs[0])));
                 }
             }
@@ -306,7 +304,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
             Shape::tag * t = shape.tags[i];
             if (t->name=="hole") {
                 for (int j=0; j<(int)t->intargs.size(); ++j) {
-                    refiner.setBaseFaceHole(t->intargs[j], true);
+                    setBaseFaceHole(refiner, t->intargs[j], true);
                 }
             }
         }

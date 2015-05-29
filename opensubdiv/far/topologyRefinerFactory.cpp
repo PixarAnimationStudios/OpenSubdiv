@@ -137,7 +137,7 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
     }
 
     //  Now that we have a valid base level, initialize the Refiner's component inventory:
-    refiner.initializeBaseInventory();
+    initializeBaseInventory(refiner);
     return true;
 }
 
@@ -253,7 +253,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
 
         //
         //  Having just decided if a vertex is on a boundary, and with its incident faces
-        //  available, mark incident faces as holes in the rare cases this is needed:
+        //  available, mark incident faces as holes.
         //
         if (makeBoundaryFacesHoles && vTag._boundary) {
             for (int i = 0; i < vFaces.size(); ++i) {
@@ -290,12 +290,12 @@ bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::resizeComponentTopology(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
-    refiner.setNumBaseVertices(desc.numVertices);
-    refiner.setNumBaseFaces(desc.numFaces);
+    setNumBaseVertices(refiner, desc.numVertices);
+    setNumBaseFaces(refiner, desc.numFaces);
 
     for (int face=0; face<desc.numFaces; ++face) {
 
-        refiner.setNumBaseFaceVertices(face, desc.numVertsPerFace[face]);
+        setNumBaseFaceVertices(refiner, face, desc.numVertsPerFace[face]);
     }
     return true;
 }
@@ -307,7 +307,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
     for (int face=0, idx=0; face<desc.numFaces; ++face) {
 
-        IndexArray dstFaceVerts = refiner.setBaseFaceVertices(face);
+        IndexArray dstFaceVerts = getBaseFaceVertices(refiner, face);
 
         if (desc.isLeftHanded) {
             dstFaceVerts[0] = desc.vertIndicesPerFace[idx++];
@@ -330,17 +330,15 @@ bool
 TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignComponentTags(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
-    TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
-
     if ((desc.numCreases>0) and desc.creaseVertexIndexPairs and desc.creaseWeights) {
 
         int const * vertIndexPairs = desc.creaseVertexIndexPairs;
         for (int edge=0; edge<desc.numCreases; ++edge, vertIndexPairs+=2) {
 
-            Index idx = refBaseLevel.FindEdge(vertIndexPairs[0], vertIndexPairs[1]);
+            Index idx = findBaseEdge(refiner, vertIndexPairs[0], vertIndexPairs[1]);
 
             if (idx!=Vtr::INDEX_INVALID) {
-                refiner.setBaseEdgeSharpness(idx, desc.creaseWeights[edge]);
+                setBaseEdgeSharpness(refiner, idx, desc.creaseWeights[edge]);
             } else {
                 char msg[1024];
                 snprintf(msg, 1024, "Edge %d specified to be sharp does not exist (%d, %d)",
@@ -356,8 +354,8 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
 
             int idx = desc.cornerVertexIndices[vert];
 
-            if (idx >= 0 and idx < refBaseLevel.GetNumVertices()) {
-                refiner.setBaseVertexSharpness(idx, desc.cornerWeights[vert]);
+            if (idx >= 0 and idx < getNumBaseVertices(refiner)) {
+                setBaseVertexSharpness(refiner, idx, desc.cornerWeights[vert]);
             } else {
                 char msg[1024];
                 snprintf(msg, 1024, "Vertex %d specified to be sharp does not exist", idx);
@@ -367,7 +365,7 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignCo
     }
     if (desc.numHoles>0) {
         for (int i=0; i<desc.numHoles; ++i) {
-            refiner.setBaseFaceHole(desc.holeIndices[i], true);
+            setBaseFaceHole(refiner, desc.holeIndices[i], true);
         }
     }
     return true;
@@ -386,14 +384,14 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFa
             int const* channelIndices = desc.fvarChannels[channel].valueIndices;
 
 #if defined(DEBUG) or defined(_DEBUG)
-            int channelIndex = refiner.createBaseFVarChannel(channelSize);
+            int channelIndex = createBaseFVarChannel(refiner, channelSize);
             assert(channelIndex == channel);
 #else
-            refiner.createBaseFVarChannel(channelSize);
+            createBaseFVarChannel(refiner, channelSize);
 #endif
             for (int face=0, idx=0; face<desc.numFaces; ++face) {
 
-                IndexArray dstFaceValues = refiner.setBaseFVarFaceValues(face, channel);
+                IndexArray dstFaceValues = getBaseFVarFaceValues(refiner, face, channel);
 
                 if (desc.isLeftHanded) {
                     dstFaceValues[0] = channelIndices[idx++];
