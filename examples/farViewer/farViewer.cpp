@@ -48,8 +48,6 @@ GLFWmonitor* g_primary=0;
 
 #include <osd/cpuGLVertexBuffer.h>
 
-#include <far/gregoryBasis.h>
-#include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/patchTableFactory.h>
 #include <far/stencilTable.h>
 #include <far/stencilTableFactory.h>

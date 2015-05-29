@@ -87,8 +87,6 @@ GLFWmonitor* g_primary=0;
     #include <osd/glPatchTable.h>
 #endif
 
-#include <far/gregoryBasis.h>
-#include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/topologyRefiner.h>
 #include <far/stencilTableFactory.h>
 #include <far/patchTableFactory.h>
