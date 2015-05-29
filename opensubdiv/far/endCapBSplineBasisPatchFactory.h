@@ -66,8 +66,14 @@ public:
     ///
     /// @param faceIndex        vtr faceIndex at the level
     ///
+    /// @param levelPatchTags   Array of patchTags for all faces in the level
+    ///
+    /// @param levelVertOffset  relative offset of patch vertex indices
+    ///
     ConstIndexArray GetPatchPoints(
-        Vtr::internal::Level const * level, Index faceIndex);
+        Vtr::internal::Level const * level, Index faceIndex,
+        PatchTableFactory::PatchFaceTag const * levelPatchTags,
+        int levelVertOffset);
 
     /// \brief Create a StencilTable for end patch points, relative to the max
     ///        subdivision level.

@@ -153,13 +153,47 @@ public:
 
 
     //@{
-    ///  @name End-Cap patches
+    ///  @name change of basis patches
     ///
-    /// \anchor end_cap_patches
+    /// \anchor change_of_basis_patches
     ///
-    /// \brief Accessors for end-cap patch additional data
+    /// \brief Accessors for change of basis patch points
+    ///
     ///
 
+    /// \brief Returns the number of points of the change of basis patches.
+    int GetNumLocalPoints() const;
+
+    /// \brief Updates local point values based on the refined values
+    ///
+    /// @param src       Buffer with primvar data for the control vertices
+    ///                  and refined vertices
+    ///
+    /// @param dst       Destination buffer for the computed local points
+    ///
+    ///
+    template <class T> void
+    ComputeLocalPointValues(T const *src, T *dst) const;
+
+    /// \brief Returns the stencil table to get change of basis patch points.
+    StencilTable const *GetLocalPointStencilTable() const {
+        return _localPointStencils;
+    }
+
+    /// \brief Returns the varying stencil table for the change of basis patch
+    ///        points.
+    StencilTable const *GetLocalPointVaryingStencilTable() const {
+        return _localPointVaryingStencils;
+    }
+    //@}
+
+
+    //@{
+    ///  @name Legacy gregory patch evaluation buffers
+
+    /// \brief Accessors for the gregory patch evaluation buffers.
+    ///        These methods will be deprecated.
+    ///
     typedef Vtr::ConstArray<unsigned int> ConstQuadOffsetsArray;
 
     /// \brief Returns the 'QuadOffsets' for the Gregory patch identified by 'handle'
@@ -171,19 +205,6 @@ public:
     VertexValenceTable const & GetVertexValenceTable() const {
         return _vertexValenceTable;
     }
-
-    /// \brief Returns the basis conversion stencil table to get endcap patch points.
-    ///        This stencil is relative to the max level refined vertices.
-    StencilTable const *GetEndCapVertexStencilTable() const {
-        return _vertexStencilTable;
-    }
-
-    /// \brief Returns the varying stencil table for the endcap patches
-    ///        which has same ordering as the endcap vertex stencil table.
-    StencilTable const *GetEndCapVaryingStencilTable() const {
-        return _varyingStencilTable;
-    }
-
     //@}
 
 
@@ -386,8 +407,8 @@ private:
     //
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
-    StencilTable const * _vertexStencilTable;  // endcap basis conversion stencils
-    StencilTable const * _varyingStencilTable; // endcap varying stencils (for convenience)
+    StencilTable const * _localPointStencils;  // endcap basis conversion stencils
+    StencilTable const * _localPointVaryingStencils; // endcap varying stencils (for convenience)
 
     //
     // Face-varying data
@@ -402,6 +423,15 @@ private:
     std::vector<Index>   _sharpnessIndices; // Indices of single-crease sharpness (one per patch)
     std::vector<float>   _sharpnessValues;  // Sharpness values.
 };
+
+template <class T>
+inline void
+PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
+    if (_localPointStencils) {
+        _localPointStencils->UpdateValues(src, dst);
+    }
+};
+
 
 } // end namespace Far
 

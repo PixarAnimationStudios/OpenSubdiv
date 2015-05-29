@@ -150,7 +150,8 @@ inline float computeCoefficient(int valence) {
 }
 
 GregoryBasis::ProtoBasis::ProtoBasis(
-    Vtr::internal::Level const & level, Index faceIndex, int fvarChannel) {
+    Vtr::internal::Level const & level, Index faceIndex,
+    int levelVertOffset, int fvarChannel) {
 
     Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
         level.getFaceVertices(faceIndex) :
@@ -388,6 +389,19 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             Em[vid] = (org[vid]*2.0f + org[im])/3.0f;
             Fp[vid] = Fm[vid] = (org[vid]*4.0f + org[((vid+2)%n)] + org[ip]*2.0f + org[im]*2.0f)/9.0f;
         }
+    }
+
+    // offset stencil indices.
+    // These stencils are created relative to the level. Adding levelVertOffset,
+    // we get stencils with absolute indices
+    // (starts from the coarse level if the leveVertOffset includes level 0)
+    for (int i = 0; i < 4; ++i) {
+        P[i].OffsetIndices(levelVertOffset);
+        Ep[i].OffsetIndices(levelVertOffset);
+        Em[i].OffsetIndices(levelVertOffset);
+        Fp[i].OffsetIndices(levelVertOffset);
+        Fm[i].OffsetIndices(levelVertOffset);
+        V[i].OffsetIndices(levelVertOffset);
     }
 }
 

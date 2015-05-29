@@ -181,29 +181,23 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
 //------------------------------------------------------------------------------
 
 StencilTable const *
-StencilTableFactory::AppendEndCapStencilTable(
+StencilTableFactory::AppendLocalPointStencilTable(
     TopologyRefiner const &refiner,
     StencilTable const * baseStencilTable,
-    StencilTable const * endCapStencilTable,
+    StencilTable const * localPointStencilTable,
     bool factorize) {
 
     // factorize and append.
     if (baseStencilTable == NULL or
-        endCapStencilTable == NULL) return NULL;
+        localPointStencilTable == NULL) return NULL;
 
-    // endcap stencils have indices that are relative to the level
-    // (maxlevel) of subdivision. These indices need to be offset to match
-    // the indices from the multi-level adaptive stencil table.
-    // In addition: stencil table can be built with singular stencils
-    // (single weight of 1.0f) as place-holders for coarse mesh vertices,
-    // which also needs to be accounted for.
+    // baseStencilTable can be built with or without singular stencils
+    // (single weight of 1.0f) as place-holders for coarse mesh vertices.
 
-    int stencilsIndexOffset = 0;
     int controlVertsIndexOffset = 0;
     int nBaseStencils = baseStencilTable->GetNumStencils();
     int nBaseStencilsElements = (int)baseStencilTable->_indices.size();
     {
-        int maxlevel = refiner.GetMaxLevel();
         int nverts = refiner.GetNumVerticesTotal();
         if (nBaseStencils == nverts) {
 
@@ -212,18 +206,15 @@ StencilTableFactory::AppendEndCapStencilTable(
             //  <-----------------  nverts ------------------>
             //
             //  +---------------+----------------------------+-----------------+
-            //  | control verts | refined verts   : (max lv) |  endcap points  |
+            //  | control verts | refined verts   : (max lv) |   local points  |
             //  +---------------+----------------------------+-----------------+
-            //  |          base stencil table                | endcap stencils |
+            //  |          base stencil table                |    LP stencils  |
             //  +--------------------------------------------+-----------------+
-            //                                    :    ^           /
-            //                                    :     \_________/
-            //  <-------------------------------->
-            //                          stencilsIndexOffset
+            //                         ^                           /
+            //                          \_________________________/
             //
             //
-            stencilsIndexOffset = nverts - refiner.GetLevel(maxlevel).GetNumVertices();
-            controlVertsIndexOffset = stencilsIndexOffset;
+            controlVertsIndexOffset = 0;
 
         } else if (nBaseStencils == (nverts -refiner.GetLevel(0).GetNumVertices())) {
 
@@ -232,19 +223,16 @@ StencilTableFactory::AppendEndCapStencilTable(
             //  <-----------------  nverts ------------------>
             //                  <------ nBaseStencils ------->
             //  +---------------+----------------------------+-----------------+
-            //  | control verts | refined verts   : (max lv) |  endcap points  |
+            //  | control verts | refined verts   : (max lv) |   local points  |
             //  +---------------+----------------------------+-----------------+
-            //                  |     base stencil table     | endcap stencils |
+            //                  |     base stencil table     |    LP stencils  |
             //                  +----------------------------+-----------------+
-            //                                    :    ^           /
-            //                                    :     \_________/
-            //                  <---------------->
-            //                          stencilsIndexOffset
-            //  <-------------------------------->
-            //                          controlVertsIndexOffset
+            //                                 ^                   /
+            //                                  \_________________/
+            //  <-------------->
+            //                 controlVertsIndexOffset
             //
-            stencilsIndexOffset = nBaseStencils - refiner.GetLevel(maxlevel).GetNumVertices();
-            controlVertsIndexOffset = nverts - refiner.GetLevel(maxlevel).GetNumVertices();
+            controlVertsIndexOffset = refiner.GetLevel(0).GetNumVertices();
 
         } else {
             // these are not the stencils you are looking for.
@@ -252,10 +240,10 @@ StencilTableFactory::AppendEndCapStencilTable(
             return NULL;
         }
     }
-    
-    // copy all endcap stencils to proto stencils, and factorize if needed.
-    int nEndCapStencils = endCapStencilTable->GetNumStencils();
-    int nEndCapStencilsElements = 0;
+
+    // copy all local points stencils to proto stencils, and factoriz if needed.
+    int nLocalPointStencils = localPointStencilTable->GetNumStencils();
+    int nLocalPointStencilsElements = 0;
 
     internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
                                 /*genControlVerts*/ false,
@@ -264,8 +252,8 @@ StencilTableFactory::AppendEndCapStencilTable(
     internal::StencilBuilder::Index dst = origin;
     internal::StencilBuilder::Index srcIdx = origin;
 
-    for (int i = 0 ; i < nEndCapStencils; ++i) {
-        Stencil src = endCapStencilTable->GetStencil(i);
+    for (int i = 0 ; i < nLocalPointStencils; ++i) {
+        Stencil src = localPointStencilTable->GetStencil(i);
         dst = origin[i];
         for (int j = 0; j < src.GetSize(); ++j) {
             Index index = src.GetVertexIndices()[j];
@@ -274,21 +262,25 @@ StencilTableFactory::AppendEndCapStencilTable(
 
             if (factorize) {
                 dst.AddWithWeight(
-                    baseStencilTable->GetStencil(index+stencilsIndexOffset), 
+                    // subtracting controlVertsIndex if the baseStencil doesn't
+                    // include control vertices (see above diagram)
+                    // since currently local point stencils are created with
+                    // absolute indices including control (level=0) vertices.
+                    baseStencilTable->GetStencil(index - controlVertsIndexOffset),
                     weight);
             } else {
                 srcIdx = origin[index + controlVertsIndexOffset];
                 dst.AddWithWeight(srcIdx, weight);
             }
         }
-        nEndCapStencilsElements += builder.GetNumVertsInStencil(i);
+        nLocalPointStencilsElements += builder.GetNumVertsInStencil(i);
     }
 
     // create new stencil table
     StencilTable * result = new StencilTable;
     result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
-    result->resize(nBaseStencils + nEndCapStencils,
-                   nBaseStencilsElements + nEndCapStencilsElements);
+    result->resize(nBaseStencils + nLocalPointStencils,
+                   nBaseStencilsElements + nLocalPointStencilsElements);
 
     int* sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
@@ -307,7 +299,7 @@ StencilTableFactory::AppendEndCapStencilTable(
     weights += nBaseStencilsElements;
 
     // endcap stencils second
-    for (int i = 0 ; i < nEndCapStencils; ++i) {
+    for (int i = 0 ; i < nLocalPointStencils; ++i) {
         int size = builder.GetNumVertsInStencil(i);
         int idx = builder.GetStencilOffsets()[i];
         for (int j = 0; j < size; ++j) {
@@ -385,11 +377,11 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
 
         if (not cvStencilsIn) {
             // if cvstencils is just created above, append endcap stencils
-            if (StencilTable const *endCapStencilTable =
-                patchtable->GetEndCapVertexStencilTable()) {
+            if (StencilTable const *localPointStencilTable =
+                patchtable->GetLocalPointStencilTable()) {
                 StencilTable const *table =
-                    StencilTableFactory::AppendEndCapStencilTable(
-                        refiner, cvstencils, endCapStencilTable);
+                    StencilTableFactory::AppendLocalPointStencilTable(
+                        refiner, cvstencils, localPointStencilTable);
                 delete cvstencils;
                 cvstencils = table;
             }

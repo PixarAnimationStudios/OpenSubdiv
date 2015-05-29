@@ -44,16 +44,16 @@ set(SOURCE_FILES
 )
 
 set(PRIVATE_HEADER_FILES
+    gregoryBasis.h
+    endCapBSplineBasisPatchFactory.h
+    endCapGregoryBasisPatchFactory.h
+    endCapLegacyGregoryPatchFactory.h
+    patchBasis.h
     stencilBuilder.h
 )
 
 set(PUBLIC_HEADER_FILES
     error.h
-    endCapBSplineBasisPatchFactory.h
-    endCapGregoryBasisPatchFactory.h
-    endCapLegacyGregoryPatchFactory.h
-    gregoryBasis.h
-    patchBasis.h
     patchDescriptor.h
     patchParam.h
     patchMap.h
@@ -68,8 +68,6 @@ set(PUBLIC_HEADER_FILES
     topologyRefinerFactory.h
     types.h
 )
-
-set(PRIVATE_HEADER_FILES )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 

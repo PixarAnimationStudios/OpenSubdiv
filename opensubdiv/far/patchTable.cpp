@@ -35,8 +35,8 @@ namespace Far {
 
 PatchTable::PatchTable(int maxvalence) :
     _maxValence(maxvalence),
-    _vertexStencilTable(NULL),
-    _varyingStencilTable(NULL) {
+    _localPointStencils(NULL),
+    _localPointVaryingStencils(NULL) {
 }
 
 // Copy constructor
@@ -49,23 +49,25 @@ PatchTable::PatchTable(PatchTable const & src) :
     _paramTable(src._paramTable),
     _quadOffsetsTable(src._quadOffsetsTable),
     _vertexValenceTable(src._vertexValenceTable),
-    _vertexStencilTable(NULL),
-    _varyingStencilTable(NULL),
+    _localPointStencils(NULL),
+    _localPointVaryingStencils(NULL),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
 
-    if (src._vertexStencilTable) {
-        _vertexStencilTable = new StencilTable(*src._vertexStencilTable);
+    if (src._localPointStencils) {
+        _localPointStencils =
+            new StencilTable(*src._localPointStencils);
     }
-    if (src._varyingStencilTable) {
-        _varyingStencilTable = new StencilTable(*src._varyingStencilTable);
+    if (src._localPointVaryingStencils) {
+        _localPointVaryingStencils =
+            new StencilTable(*src._localPointVaryingStencils);
     }
 }
 
 PatchTable::~PatchTable() {
-    delete _vertexStencilTable;
-    delete _varyingStencilTable;
+    delete _localPointStencils;
+    delete _localPointVaryingStencils;
 }
 
 //
@@ -396,6 +398,11 @@ PatchTable::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) c
     return _sharpnessValues[index];
 }
 
+int
+PatchTable::GetNumLocalPoints() const {
+    return _localPointStencils ? _localPointStencils->GetNumStencils() : 0;
+}
+
 PatchTable::ConstQuadOffsetsArray
 PatchTable::GetPatchQuadOffsets(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
@@ -528,6 +535,7 @@ PatchTable::EvaluateBasis(PatchHandle const & handle, float s, float t,
         assert(0);
     }
 }
+
 
 } // end namespace Far
 
