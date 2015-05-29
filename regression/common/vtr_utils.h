@@ -29,7 +29,7 @@
 #include <far/primvarRefiner.h>
 #include <far/types.h>
 
-#include "../../regression/common/shape_utils.h"
+#include "shape_utils.h"
 
 //------------------------------------------------------------------------------
 

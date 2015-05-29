@@ -61,7 +61,7 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/vtr_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11Hud.h"

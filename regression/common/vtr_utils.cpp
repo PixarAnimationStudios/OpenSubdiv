@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../../regression/common/vtr_utils.h"
+#include "vtr_utils.h"
 
 struct FVarVertex {
 

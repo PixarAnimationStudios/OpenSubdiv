@@ -48,15 +48,12 @@ GLFWwindow* g_window=0;
 
 #include <osd/cpuEvaluator.h>
 #include <osd/cpuVertexBuffer.h>
-
-
 #include <osd/cpuGLVertexBuffer.h>
-
 #include <far/stencilTableFactory.h>
 
-#include "../../regression/common/cmp_utils.h"
-#include "../../regression/common/hbr_utils.h"
-#include "../../regression/common/vtr_utils.h"
+#include "../common/cmp_utils.h"
+#include "../common/hbr_utils.h"
+#include "../common/vtr_utils.h"
 
 //
 // Regression testing matching Osd to Hbr

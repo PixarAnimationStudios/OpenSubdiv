@@ -43,14 +43,12 @@ GLFWwindow* g_window = 0;
 GLFWmonitor* g_primary = 0;
 
 #include <far/error.h>
-
 #include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/vtr_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"

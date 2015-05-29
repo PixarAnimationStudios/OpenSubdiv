@@ -33,10 +33,7 @@ set(REGRESSION_COMMON_HEADER_FILES
     vtr_utils.h
 )
 
-include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${CMAKE_CURRENT_BINARY_DIR}"
-)
+include_directories("${OPENSUBDIV_INCLUDE_DIR}")
 
 add_library(regression_common_obj
     OBJECT

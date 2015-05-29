@@ -84,7 +84,7 @@
 
 #include <osd/glMesh.h>
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/vtr_utils.h"
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "../common/glShaderCache.h"

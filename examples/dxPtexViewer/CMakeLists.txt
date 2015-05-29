@@ -35,8 +35,7 @@ set(PLATFORM_LIBRARIES
 )
 
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${PROJECT_SOURCE_DIR}/regression"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${DXSDK_INCLUDE_DIR}"
     "${PTEX_INCLUDE_DIR}"
 )

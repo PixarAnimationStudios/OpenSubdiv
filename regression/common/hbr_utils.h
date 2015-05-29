@@ -37,7 +37,7 @@
 #include <hbr/cornerEdit.h>
 #include <hbr/holeEdit.h>
 
-#include "../../regression/common/shape_utils.h"
+#include "shape_utils.h"
 
 #include <sstream>
 

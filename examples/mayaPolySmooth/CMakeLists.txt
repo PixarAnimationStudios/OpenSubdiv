@@ -41,7 +41,7 @@ set(PLATFORM_LIBRARIES
 )
 
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${MAYA_INCLUDE_DIRS}"
 )
 
