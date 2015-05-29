@@ -41,7 +41,6 @@ class WeightTable;
 class StencilBuilder {
 public:
     StencilBuilder(int coarseVertCount, 
-                   bool isVarying=false,
                    bool genCtrlVertStencils=true,
                    bool compactWeights=true);
     ~StencilBuilder();
@@ -82,9 +81,6 @@ public:
         void AddWithWeight(Stencil const& src,
                                      float weight, float du, float dv);
 
-        void AddVaryingWithWeight(Index const &, float);
-        void AddFaceVaryingWithWeight(Index const &, float);
-        
         Index operator[](int index) const {
             return Index(_owner, index+_index);
         }
@@ -99,7 +95,6 @@ public:
 
 private:
     WeightTable* _weightTable;
-    bool _isVarying;
 };
 
 } // end namespace internal

@@ -80,9 +80,6 @@ public:
     ///           void Clear();
     ///           void AddWithWeight(MySource const & value, float weight);
     ///           void AddWithWeight(MyDestination const & value, float weight);
-    ///
-    ///           // optional
-    ///           void AddVaryingWithWeight(MySource const & value, float weight);
     ///       };
     ///
     ///       \endcode
@@ -101,8 +98,7 @@ public:
     ///       Far tutorials</a> for code examples.
     ///
 
-    /// \brief Apply vertex and varying interpolation weights to a primvar
-    ///        buffer
+    /// \brief Apply vertex interpolation weights to a primvar buffer
     ///
     /// The destination buffer must allocate an array of data for all the refined
     /// vertices (at least GetNumVerticesTotal()-GetLevel(0).GetNumVertices())
@@ -113,9 +109,8 @@ public:
     ///
     template <class T, class U> void Interpolate(T const * src, U * dst) const;
 
-    /// \brief Apply vertex and varying interpolation weights to a primvar
-    ///        buffer for a single level
-    /// level of refinement.
+    /// \brief Apply vertex interpolation weights to a primvar buffer for a single
+    ///        level level of refinement.
     ///
     /// The destination buffer must allocate an array of data for all the
     /// refined vertices (at least GetLevel(level).GetNumVertices())
@@ -129,10 +124,10 @@ public:
     template <class T, class U> void Interpolate(int level, T const & src, U & dst) const;
 
 
-    /// \brief Apply only varying interpolation weights to a primvar buffer
+    /// \brief Apply varying interpolation weights to a primvar buffer
     ///
-    /// This method can be a useful alternative if the varying primvar data
-    /// does not need to be re-computed over time.
+    /// This method is useful if the varying primvar data does not need to be
+    /// re-computed over time.
     ///
     /// The destination buffer must allocate an array of data for all the refined
     /// vertices (at least GetNumVerticesTotal()-GetLevel(0).GetNumVertices())
@@ -146,8 +141,8 @@ public:
     /// \brief Apply only varying interpolation weights to a primvar buffer
     ///        for a single level level of refinement.
     ///
-    /// This method can be a useful alternative if the varying primvar data
-    /// does not need to be re-computed over time.
+    /// This method can useful if the varying primvar data does not need to be
+    /// re-computed over time.
     ///
     /// The destination buffer must allocate an array of data for all the
     /// refined vertices (at least GetLevel(level).GetNumVertices())
@@ -160,10 +155,12 @@ public:
     ///
     template <class T, class U> void InterpolateVarying(int level, T const & src, U & dst) const;
 
-    /// \brief Apply uniform (per-face) primvar data between levels.  Data is simply copied
-    /// from a parent face to its child faces and does not involve any weighting.  Setting
-    /// the source primvar data for the base level to be the index of each face allows the
-    /// propagation of the base face to primvar data for child faces in all levels.
+    /// \brief Apply uniform (per-face) primvar data between levels.
+    ///
+    /// Data is simply copied from a parent face to its child faces and does not involve
+    /// any weighting.  Setting the source primvar data for the base level to be the index
+    /// of each face allows the propagation of the base face to primvar data for child
+    /// faces in all levels.
     ///
     template <class T, class U> void InterpolateFaceUniform(T const * src, U * dst) const;
 
@@ -332,8 +329,6 @@ PrimvarRefiner::interpolateChildVertsFromFaces(
         //  Declare and compute mask weights for this vertex relative to its parent face:
         ConstIndexArray fVerts = parent.getFaceVertices(face);
 
-        float fVaryingWeight = 1.0f / (float) fVerts.size();
-
         Mask fMask(fVertWeights, 0, 0);
         Vtr::internal::FaceInterface fHood(fVerts.size());
 
@@ -345,8 +340,6 @@ PrimvarRefiner::interpolateChildVertsFromFaces(
         for (int i = 0; i < fVerts.size(); ++i) {
 
             dst[cVert].AddWithWeight(src[fVerts[i]], fVertWeights[i]);
-
-            dst[cVert].AddVaryingWithWeight(src[fVerts[i]], fVaryingWeight);
         }
     }
 }
@@ -390,9 +383,6 @@ PrimvarRefiner::interpolateChildVertsFromEdges(
         dst[cVert].Clear();
         dst[cVert].AddWithWeight(src[eVerts[0]], eVertWeights[0]);
         dst[cVert].AddWithWeight(src[eVerts[1]], eVertWeights[1]);
-
-        dst[cVert].AddVaryingWithWeight(src[eVerts[0]], 0.5f);
-        dst[cVert].AddVaryingWithWeight(src[eVerts[1]], 0.5f);
 
         if (eMask.GetNumFaceWeights() > 0) {
 
@@ -489,8 +479,6 @@ PrimvarRefiner::interpolateChildVertsFromVerts(
             }
         }
         dst[cVert].AddWithWeight(src[vert], vVertWeight);
-
-        dst[cVert].AddVaryingWithWeight(src[vert], 1.0f);
     }
 }
 
@@ -580,7 +568,7 @@ PrimvarRefiner::varyingInterpolateChildVertsFromFaces(
         dst[cVert].Clear();
 
         for (int i = 0; i < fVerts.size(); ++i) {
-            dst[cVert].AddVaryingWithWeight(src[fVerts[i]], fVaryingWeight);
+            dst[cVert].AddWithWeight(src[fVerts[i]], fVaryingWeight);
         }
     }
 }
@@ -604,8 +592,8 @@ PrimvarRefiner::varyingInterpolateChildVertsFromEdges(
         //  Apply the weights to the parent edges's vertices
         dst[cVert].Clear();
 
-        dst[cVert].AddVaryingWithWeight(src[eVerts[0]], 0.5f);
-        dst[cVert].AddVaryingWithWeight(src[eVerts[1]], 0.5f);
+        dst[cVert].AddWithWeight(src[eVerts[0]], 0.5f);
+        dst[cVert].AddWithWeight(src[eVerts[1]], 0.5f);
     }
 }
 
@@ -624,7 +612,7 @@ PrimvarRefiner::varyingInterpolateChildVertsFromVerts(
 
         //  Apply the weights to the parent vertex
         dst[cVert].Clear();
-        dst[cVert].AddVaryingWithWeight(src[vert], 1.0f);
+        dst[cVert].AddWithWeight(src[vert], 1.0f);
     }
 }
 
