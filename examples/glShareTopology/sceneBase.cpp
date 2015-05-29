@@ -22,11 +22,11 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "sceneBase.h"
 #include <limits>
-#include <common/vtr_utils.h>
+#include "../../regression/common/vtr_utils.h"
 #include <far/patchTableFactory.h>
 #include <far/stencilTableFactory.h>
-#include "sceneBase.h"
 
 using namespace OpenSubdiv;
 

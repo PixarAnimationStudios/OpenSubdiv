@@ -27,7 +27,7 @@
 
 #include <far/topologyRefinerFactory.h>
 
-#include "../../regression/common/hbr_utils.h"
+#include "hbr_utils.h"
 
 //------------------------------------------------------------------------------
 

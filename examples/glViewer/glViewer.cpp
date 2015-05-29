@@ -86,7 +86,7 @@ GLFWmonitor* g_primary=0;
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/vtr_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"

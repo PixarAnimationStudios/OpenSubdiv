@@ -687,6 +687,17 @@ endmacro()
 #-------------------------------------------------------------------------------
 # Build targets
 
+
+# if you want to build examples against installed OpenSubdiv header files,
+# use OPENSUBDIV_INCLUDE_DIR.
+
+# example: if you have already installed opensubdiv libs in this cmake setup,
+# set (OPENSUBDIV_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INCDIR_BASE})
+
+if (NOT OPENSUBDIV_INCLUDE_DIR)
+    set(OPENSUBDIV_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/opensubdiv")
+endif()
+
 if (NOT NO_TESTS)
     enable_testing()
 endif()

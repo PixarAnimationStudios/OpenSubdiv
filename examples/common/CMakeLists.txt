@@ -148,7 +148,7 @@ endif()
 #-------------------------------------------------------------------------------
 
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
@@ -165,4 +165,3 @@ add_library(examples_common_obj
         ${EXAMPLES_COMMON_HEADER_FILES}
         ${INC_FILES}
 )
-

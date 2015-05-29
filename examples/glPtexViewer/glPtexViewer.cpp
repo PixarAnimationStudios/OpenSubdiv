@@ -92,7 +92,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/vtr_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"

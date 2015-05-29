@@ -23,8 +23,7 @@
 //
 
 #include "objAnim.h"
-
-#include <../regression/common/shape_utils.h>
+#include "../../regression/common/shape_utils.h"
 
 #include <cassert>
 #include <cstdio>
