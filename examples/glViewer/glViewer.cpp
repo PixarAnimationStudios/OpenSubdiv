@@ -113,27 +113,25 @@ static const char *res =
 #endif
 ;
 #else
-		static char *res = NULL;
-		if (!res){
-			static char *gen =
+        static const char *res = NULL;
+        if (!res){
+            static const char *gen =
 #include "shader.gen.h"
-				;
-			static char *gen3 =
+                ;
+            static const char *gen3 =
 #include "shader_gl3.gen.h"
-				;
-			//Determine the shader file to use. Since some opengl implementations
-			//define that an extension is available but not an implementation 
-			//for it you cannnot trust in the glew header definitions to know that is 
-			//available, but you need to query it during runtime.
-			if (GLUtils::SupportsAdaptiveTessellation())
-				res = gen;
-			else
-				res = gen3;
-		}
+                ;
+            //Determine the shader file to use. Since some opengl implementations
+            //define that an extension is available but not an implementation 
+            //for it you cannnot trust in the glew header definitions to know that is 
+            //available, but you need to query it during runtime.
+            if (GLUtils::SupportsAdaptiveTessellation())
+                res = gen;
+            else
+                res = gen3;
+        }
 #endif
-		return res;
-
-
+        return res;
 }
 
 #include <cfloat>
@@ -334,11 +332,11 @@ checkGLErrors(std::string const & where = "")
 static bool
 linkDefaultProgram() {
 
-	const std::string glsl_version = GLUtils::GetShaderVersionInclude();
+    const std::string glsl_version = GLUtils::GetShaderVersionInclude();
 
 
     static const std::string vsSrc =
-		glsl_version +
+        glsl_version +
         "in vec3 position;\n"
         "in vec3 color;\n"
         "out vec4 fragColor;\n"
@@ -350,7 +348,7 @@ linkDefaultProgram() {
         "}\n";
 
     static const std::string fsSrc =
-		glsl_version +
+        glsl_version +
         "in vec4 fragColor;\n"
         "out vec4 color;\n"
         "void main() {\n"
@@ -1016,7 +1014,7 @@ public:
         ss << common
             // enable local vertex shader
            << (effectDesc.desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n")
-		   << shaderSource()
+           << shaderSource()
            << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
         config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
         ss.str("");
@@ -1024,14 +1022,14 @@ public:
         if (effectDesc.desc.IsAdaptive()) {
             // tess control shader
             ss << common
-				<< shaderSource()
+                << shaderSource()
                << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
             config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
             ss.str("");
 
             // tess eval shader
             ss << common
-				<< shaderSource()
+                << shaderSource()
                << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
             config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
             ss.str("");
@@ -1821,105 +1819,105 @@ setGLCoreProfile(int major, int minor) {
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
-	bool fullscreen = false;
-	std::string str;
-	std::vector<char const *> animobjs;
+    bool fullscreen = false;
+    std::string str;
+    std::vector<char const *> animobjs;
 
-	for (int i = 1; i < argc; ++i) {
-		if (strstr(argv[i], ".obj")) {
-			animobjs.push_back(argv[i]);
-		}
-		else if (!strcmp(argv[i], "-axis")) {
-			g_axis = false;
-		}
-		else if (!strcmp(argv[i], "-d")) {
-			g_level = atoi(argv[++i]);
-		}
-		else if (!strcmp(argv[i], "-c")) {
-			g_repeatCount = atoi(argv[++i]);
-		}
-		else if (!strcmp(argv[i], "-f")) {
-			fullscreen = true;
-		}
-		else {
-			std::ifstream ifs(argv[1]);
-			if (ifs) {
-				std::stringstream ss;
-				ss << ifs.rdbuf();
-				ifs.close();
-				str = ss.str();
-				g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
-			}
-		}
-	}
+    for (int i = 1; i < argc; ++i) {
+        if (strstr(argv[i], ".obj")) {
+            animobjs.push_back(argv[i]);
+        }
+        else if (!strcmp(argv[i], "-axis")) {
+            g_axis = false;
+        }
+        else if (!strcmp(argv[i], "-d")) {
+            g_level = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-c")) {
+            g_repeatCount = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-f")) {
+            fullscreen = true;
+        }
+        else {
+            std::ifstream ifs(argv[1]);
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+                str = ss.str();
+                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+            }
+        }
+    }
 
-	if (not animobjs.empty()) {
+    if (not animobjs.empty()) {
 
-		g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
+        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
 
-		g_objAnim = ObjAnim::Create(animobjs, g_axis);
-	}
+        g_objAnim = ObjAnim::Create(animobjs, g_axis);
+    }
 
-	initShapes();
+    initShapes();
 
-	g_fpsTimer.Start();
+    g_fpsTimer.Start();
 
-	OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
+    OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
-	glfwSetErrorCallback(callbackErrorGLFW);
-	if (not glfwInit()) {
-		printf("Failed to initialize GLFW\n");
-		return 1;
-	}
+    glfwSetErrorCallback(callbackErrorGLFW);
+    if (not glfwInit()) {
+        printf("Failed to initialize GLFW\n");
+        return 1;
+    }
 
-	static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
+    static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
 
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
-	setGLCoreProfile(4, 4);
+    setGLCoreProfile(4, 4);
 #endif
 
-	if (fullscreen) {
+    if (fullscreen) {
 
-		g_primary = glfwGetPrimaryMonitor();
+        g_primary = glfwGetPrimaryMonitor();
 
-		// apparently glfwGetPrimaryMonitor fails under linux : if no primary,
-		// settle for the first one in the list
-		if (not g_primary) {
-			int count = 0;
-			GLFWmonitor ** monitors = glfwGetMonitors(&count);
+        // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
+        // settle for the first one in the list
+        if (not g_primary) {
+            int count = 0;
+            GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
-			if (count)
-				g_primary = monitors[0];
-		}
+            if (count)
+                g_primary = monitors[0];
+        }
 
-		if (g_primary) {
-			GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
-			g_width = vidmode->width;
-			g_height = vidmode->height;
-		}
-	}
+        if (g_primary) {
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
+        }
+    }
 
-	g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-		fullscreen and g_primary ? g_primary : NULL, NULL);
+    g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+        fullscreen and g_primary ? g_primary : NULL, NULL);
 
 #ifdef CORE_PROFILE
-	if (not g_window){
-		setGLCoreProfile(4, 2);
-		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-			fullscreen and g_primary ? g_primary : NULL, NULL);
-	}
-	if (not g_window){
-		setGLCoreProfile(3, 3);
-		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-			fullscreen and g_primary ? g_primary : NULL, NULL);
-	}
+    if (not g_window){
+        setGLCoreProfile(4, 2);
+        g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+            fullscreen and g_primary ? g_primary : NULL, NULL);
+    }
+    if (not g_window){
+        setGLCoreProfile(3, 3);
+        g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+            fullscreen and g_primary ? g_primary : NULL, NULL);
+    }
 
 #endif
-	if (not g_window){
-		glfwTerminate();
-		return 1;
-	}
+    if (not g_window){
+        glfwTerminate();
+        return 1;
+    }
 
     
     glfwMakeContextCurrent(g_window);

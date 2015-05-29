@@ -42,9 +42,9 @@ bool SupportsAdaptiveTessellation();
 void GetMajorMinorVersion(int *major, int *minor);
 
 
-const std::string &GetShaderVersion();
+std::string GetShaderVersion();
 
-const std::string &GetShaderVersionInclude();
+std::string GetShaderVersionInclude();
 
 bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1();
 bool GL_ARBComputeShaderOrGL_VERSION_4_3();

@@ -143,7 +143,7 @@ GLFrameBuffer::compileProgram(char const * src, char const * defines) {
 
     GLuint program = glCreateProgram();
 
-	const std::string &versionStr = GLUtils::GetShaderVersionInclude();
+    const std::string &versionStr = GLUtils::GetShaderVersionInclude();
     static char const vtxDefineStr[] = "#define IMAGE_VERTEX_SHADER\n",
                       fragDefineStr[] = "#define IMAGE_FRAGMENT_SHADER\n";
 
@@ -172,33 +172,33 @@ GLFrameBuffer::compileProgram(char const * src, char const * defines) {
     }
 
 
-	if (GLUtils::GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1()){
-		GLint colorMap = glGetUniformLocation(program, "colorMap");
-		if (colorMap != -1)
-			glProgramUniform1i(program, colorMap, 0);  // GL_TEXTURE0
+    if (GLUtils::GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1()){
+        GLint colorMap = glGetUniformLocation(program, "colorMap");
+        if (colorMap != -1)
+            glProgramUniform1i(program, colorMap, 0);  // GL_TEXTURE0
 
-		GLint normalMap = glGetUniformLocation(program, "normalMap");
-		if (normalMap != -1)
-			glProgramUniform1i(program, normalMap, 1);  // GL_TEXTURE1
+        GLint normalMap = glGetUniformLocation(program, "normalMap");
+        if (normalMap != -1)
+            glProgramUniform1i(program, normalMap, 1);  // GL_TEXTURE1
 
-		GLint depthMap = glGetUniformLocation(program, "depthMap");
-		if (depthMap != -1)
-			glProgramUniform1i(program, depthMap, 2);  // GL_TEXTURE2
-	}
-	else{
-		glUseProgram(program);
-		GLint colorMap = glGetUniformLocation(program, "colorMap");
-		if (colorMap != -1)
-			glUniform1i(colorMap, 0);  // GL_TEXTURE0
+        GLint depthMap = glGetUniformLocation(program, "depthMap");
+        if (depthMap != -1)
+            glProgramUniform1i(program, depthMap, 2);  // GL_TEXTURE2
+    }
+    else{
+        glUseProgram(program);
+        GLint colorMap = glGetUniformLocation(program, "colorMap");
+        if (colorMap != -1)
+            glUniform1i(colorMap, 0);  // GL_TEXTURE0
 
-		GLint normalMap = glGetUniformLocation(program, "normalMap");
-		if (normalMap != -1)
-			glUniform1i(normalMap, 1);  // GL_TEXTURE1
+        GLint normalMap = glGetUniformLocation(program, "normalMap");
+        if (normalMap != -1)
+            glUniform1i(normalMap, 1);  // GL_TEXTURE1
 
-		GLint depthMap = glGetUniformLocation(program, "depthMap");
-		if (depthMap != -1)
-			glUniform1i(depthMap, 2);  // GL_TEXTURE2
-	}
+        GLint depthMap = glGetUniformLocation(program, "depthMap");
+        if (depthMap != -1)
+            glUniform1i(depthMap, 2);  // GL_TEXTURE2
+    }
 
     return program;
 }
