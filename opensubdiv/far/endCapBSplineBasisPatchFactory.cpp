@@ -44,7 +44,9 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
 
 ConstIndexArray
 EndCapBSplineBasisPatchFactory::GetPatchPoints(
-    Vtr::internal::Level const * level, Index faceIndex) {
+    Vtr::internal::Level const * level, Index faceIndex,
+    PatchTableFactory::PatchFaceTag const * /*levelPatchTags*/,
+    int levelVertOffset) {
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
@@ -60,7 +62,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     //      vertices if available
     //
     // Reorder gregory basis stencils into regular bezier
-    GregoryBasis::ProtoBasis basis(*level, faceIndex);
+    GregoryBasis::ProtoBasis basis(*level, faceIndex, levelVertOffset, -1);
     std::vector<GregoryBasis::Point> bezierCP;
     bezierCP.reserve(16);
 

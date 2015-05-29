@@ -59,7 +59,7 @@ EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
     // Gregory patches are end-caps: they only exist on max-level
     Vtr::internal::Level const & level = refiner.getLevel(refiner.GetMaxLevel());
 
-    GregoryBasis::ProtoBasis basis(level, faceIndex, fvarChannel);
+    GregoryBasis::ProtoBasis basis(level, faceIndex, 0, fvarChannel);
     GregoryBasis * result = new GregoryBasis;
     basis.Copy(result);
 
@@ -69,14 +69,15 @@ EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
 
 bool
 EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
-                                   bool verticesMask[4][5]) {
+                                              bool verticesMask[4][5],
+                                              int levelVertOffset) {
 
     // Gregory patches only exist on the hight
     Vtr::internal::Level const & level = _refiner->getLevel(_refiner->GetMaxLevel());
 
     // Gather the CVs that influence the Gregory patch and their relative
     // weights in a basis
-    GregoryBasis::ProtoBasis basis(level, faceIndex);
+    GregoryBasis::ProtoBasis basis(level, faceIndex, levelVertOffset, -1);
 
     for (int i = 0; i < 4; ++i) {
         if (verticesMask[i][0]) {
@@ -112,8 +113,8 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
 ConstIndexArray
 EndCapGregoryBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
-    PatchTableFactory::PatchFaceTag const * levelPatchTags)
-{
+    PatchTableFactory::PatchFaceTag const * levelPatchTags,
+    int levelVertOffset) {
     // allocate indices (awkward)
     // assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
     for (int i = 0; i < 20; ++i) {
@@ -208,7 +209,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
     _faceIndices.push_back(faceIndex);
 
     // add basis
-    addPatchBasis(faceIndex, newVerticesMask);
+    addPatchBasis(faceIndex, newVerticesMask, levelVertOffset);
 
     ++_numGregoryBasisPatches;
 

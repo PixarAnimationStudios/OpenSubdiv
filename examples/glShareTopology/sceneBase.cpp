@@ -144,24 +144,24 @@ SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
     }
     *patchTableOut = patchTable;
 
-    // append gregory vertices into stencils
+    // append local points to stencils
     {
-        if (Far::StencilTable const *vertexStencilsWithEndCap =
-            Far::StencilTableFactory::AppendEndCapStencilTable(
+        if (Far::StencilTable const *vertexStencilsWithLocalPoints =
+            Far::StencilTableFactory::AppendLocalPointStencilTable(
                 *refiner,
                 vertexStencils,
-                patchTable->GetEndCapVertexStencilTable())) {
+                patchTable->GetLocalPointStencilTable())) {
             delete vertexStencils;
-            vertexStencils = vertexStencilsWithEndCap;
+            vertexStencils = vertexStencilsWithLocalPoints;
         }
         if (varyingStencils) {
-            if (Far::StencilTable const *varyingStencilsWithEndCap =
-                Far::StencilTableFactory::AppendEndCapStencilTable(
+            if (Far::StencilTable const *varyingStencilsWithLocalPoints =
+                Far::StencilTableFactory::AppendLocalPointStencilTable(
                     *refiner,
                     varyingStencils,
-                    patchTable->GetEndCapVaryingStencilTable())) {
+                    patchTable->GetLocalPointVaryingStencilTable())) {
                 delete varyingStencils;
-                varyingStencils = varyingStencilsWithEndCap;
+                varyingStencils = varyingStencilsWithLocalPoints;
             }
         }
     }

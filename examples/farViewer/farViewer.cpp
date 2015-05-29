@@ -621,9 +621,9 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         patchTable =
             Far::PatchTableFactory::Create(*refiner, options);
 
-        // increase vertex buffer for the additional endcap verts
-        if (patchTable->GetEndCapVertexStencilTable()) {
-            numTotalVerts += patchTable->GetEndCapVertexStencilTable()->GetNumStencils();
+        // increase vertex buffer for the additional local points
+        if (patchTable->GetLocalPointStencilTable()) {
+            numTotalVerts += patchTable->GetLocalPointStencilTable()->GetNumStencils();
         }
 
         g_numPatches = patchTable->GetNumPatchesTotal();
@@ -679,14 +679,14 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         options.generateIntermediateLevels=true;
         stencilTable = Far::StencilTableFactory::Create(*refiner, options);
 
-        // append endpatch stencils if needed
-        if (patchTable and patchTable->GetEndCapVertexStencilTable()) {
-            if (Far::StencilTable const * stencilTableWithEndCap =
-                Far::StencilTableFactory::AppendEndCapStencilTable(
+        // append local point stencils if needed
+        if (patchTable and patchTable->GetLocalPointStencilTable()) {
+            if (Far::StencilTable const * stencilTableWithLocalPoints =
+                Far::StencilTableFactory::AppendLocalPointStencilTable(
                     *refiner, stencilTable,
-                    patchTable->GetEndCapVertexStencilTable())) {
+                    patchTable->GetLocalPointStencilTable())) {
                 delete stencilTable;
-                stencilTable = stencilTableWithEndCap;
+                stencilTable = stencilTableWithLocalPoints;
             }
         }
 

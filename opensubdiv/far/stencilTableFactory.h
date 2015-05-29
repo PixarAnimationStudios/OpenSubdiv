@@ -103,24 +103,24 @@ public:
     static StencilTable const * Create(int numTables, StencilTable const ** tables);
 
 
-    /// \brief Utility function for stencil splicing for endcap stencils.
+    /// \brief Utility function for stencil splicing for local point stencils.
     ///
     /// @param refiner              The TopologyRefiner containing the topology
     ///
     /// @param baseStencilTable     Input StencilTable for refined vertices
     ///
-    /// @param endCapStencilTable   EndCap basis conversion stencils. This stenciltable
-    ///                             has to be relative to the max level of subdivision.
+    /// @param localPointStencilTable
+    ///                             StencilTable for the change of basis patch points.
     ///
     /// @param factorize            If factorize sets to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
     ///
-    static StencilTable const * AppendEndCapStencilTable(
+    static StencilTable const * AppendLocalPointStencilTable(
         TopologyRefiner const &refiner,
         StencilTable const *baseStencilTable,
-        StencilTable const *endCapStencilTable,
+        StencilTable const *localPointStencilTable,
         bool factorize = true);
 
 private:

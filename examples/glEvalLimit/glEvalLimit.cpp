@@ -569,22 +569,21 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         Far::PatchTable const * patchTable =
             Far::PatchTableFactory::Create(*topologyRefiner, poptions);
 
-        // append endcap stencils
-        if (Far::StencilTable const *endCapVertexStencilTable =
-            patchTable->GetEndCapVertexStencilTable()) {
+        // append local points stencils
+        if (Far::StencilTable const *localPointStencilTable =
+            patchTable->GetLocalPointStencilTable()) {
             Far::StencilTable const *table =
-                Far::StencilTableFactory::AppendEndCapStencilTable(
-                    *topologyRefiner,
-                    vertexStencils, endCapVertexStencilTable);
+                Far::StencilTableFactory::AppendLocalPointStencilTable(
+                    *topologyRefiner, vertexStencils, localPointStencilTable);
             delete vertexStencils;
             vertexStencils = table;
         }
-        if (Far::StencilTable const *endCapVaryingStencilTable =
-            patchTable->GetEndCapVaryingStencilTable()) {
+        if (Far::StencilTable const *localPointVaryingStencilTable =
+            patchTable->GetLocalPointVaryingStencilTable()) {
             Far::StencilTable const *table =
-                Far::StencilTableFactory::AppendEndCapStencilTable(
+                Far::StencilTableFactory::AppendLocalPointStencilTable(
                     *topologyRefiner,
-                    varyingStencils, endCapVaryingStencilTable);
+                    varyingStencils, localPointVaryingStencilTable);
             delete varyingStencils;
             varyingStencils = table;
         }

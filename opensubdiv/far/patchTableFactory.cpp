@@ -1410,7 +1410,7 @@ PatchTableFactory::populateAdaptivePatches(
                 {
                     // note: this call will be moved into vtr::level.
                     ConstIndexArray cvs = endCapGregoryBasis->GetPatchPoints(
-                        level, faceIndex, levelPatchTags);
+                        level, faceIndex, levelPatchTags, levelVertOffset);
 
                     for (int j = 0; j < cvs.size(); ++j) iptrs.GP[j] = cvs[j];
                     iptrs.GP += cvs.size();
@@ -1425,7 +1425,7 @@ PatchTableFactory::populateAdaptivePatches(
                 case Options::ENDCAP_BSPLINE_BASIS:
                 {
                     ConstIndexArray cvs = endCapBSpline->GetPatchPoints(
-                        level, faceIndex);
+                        level, faceIndex, levelPatchTags, levelVertOffset);
 
                     for (int j = 0; j < cvs.size(); ++j) iptrs.R[j] = cvs[j];
                     iptrs.R += cvs.size();
@@ -1486,16 +1486,16 @@ PatchTableFactory::populateAdaptivePatches(
     // finalize end patches
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_GREGORY_BASIS:
-        table->_vertexStencilTable =
+        table->_localPointStencils =
             endCapGregoryBasis->CreateVertexStencilTable();
-        table->_varyingStencilTable =
+        table->_localPointVaryingStencils =
             endCapGregoryBasis->CreateVaryingStencilTable();
         delete endCapGregoryBasis;
         break;
     case Options::ENDCAP_BSPLINE_BASIS:
-        table->_vertexStencilTable =
+        table->_localPointStencils =
             endCapBSpline->CreateVertexStencilTable();
-        table->_varyingStencilTable =
+        table->_localPointVaryingStencils =
             endCapBSpline->CreateVaryingStencilTable();
         delete endCapBSpline;
         break;

@@ -92,9 +92,12 @@ public:
     ///
     /// @param levelPatchTags   Array of patchTags for all faces in the level
     ///
+    /// @param levelVertOffset  relative offset of patch vertex indices
+    ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
-        PatchTableFactory::PatchFaceTag const * levelPatchTags);
+        PatchTableFactory::PatchFaceTag const * levelPatchTags,
+        int levelVertOffset);
 
     /// \brief Create a StencilTable for end patch points, relative to the max
     ///        subdivision level.
@@ -115,7 +118,8 @@ private:
 
     /// Creates a basis for the vertices specified in mask on the face and
     /// accumates it
-    bool addPatchBasis(Index faceIndex, bool newVerticesMask[4][5]);
+    bool addPatchBasis(Index faceIndex, bool newVerticesMask[4][5],
+                       int levelVertOffset);
 
     GregoryBasis::PointsVector _vertexStencils;
     GregoryBasis::PointsVector _varyingStencils;

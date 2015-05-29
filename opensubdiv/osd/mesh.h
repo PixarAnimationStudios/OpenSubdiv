@@ -527,24 +527,24 @@ private:
         _farPatchTable = Far::PatchTableFactory::Create(*_refiner, poptions);
 
         // if there's endcap stencils, merge it into regular stencils.
-        if (_farPatchTable->GetEndCapVertexStencilTable()) {
+        if (_farPatchTable->GetLocalPointStencilTable()) {
             // append stencils
-            if (Far::StencilTable const *vertexStencilsWithEndCap =
-                Far::StencilTableFactory::AppendEndCapStencilTable(
+            if (Far::StencilTable const *vertexStencilsWithLocalPoints =
+                Far::StencilTableFactory::AppendLocalPointStencilTable(
                     *_refiner,
                     vertexStencils,
-                    _farPatchTable->GetEndCapVertexStencilTable())) {
+                    _farPatchTable->GetLocalPointStencilTable())) {
                 delete vertexStencils;
-                vertexStencils = vertexStencilsWithEndCap;
+                vertexStencils = vertexStencilsWithLocalPoints;
             }
             if (varyingStencils) {
-                if (Far::StencilTable const *varyingStencilsWithEndCap =
-                    Far::StencilTableFactory::AppendEndCapStencilTable(
+                if (Far::StencilTable const *varyingStencilsWithLocalPoints =
+                    Far::StencilTableFactory::AppendLocalPointStencilTable(
                         *_refiner,
                         varyingStencils,
-                        _farPatchTable->GetEndCapVaryingStencilTable())) {
+                        _farPatchTable->GetLocalPointVaryingStencilTable())) {
                     delete varyingStencils;
-                    varyingStencils = varyingStencilsWithEndCap;
+                    varyingStencils = varyingStencilsWithLocalPoints;
                 }
             }
         }

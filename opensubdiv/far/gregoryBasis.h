@@ -202,7 +202,10 @@ public:
     //
     struct ProtoBasis {
 
-        ProtoBasis(Vtr::internal::Level const & level, Vtr::Index faceIndex, int fvarChannel=-1);
+        ProtoBasis(Vtr::internal::Level const & level,
+                   Vtr::Index faceIndex,
+                   int levelVertOffset,
+                   int fvarChannel);
 
         int GetNumElements() const;
 
