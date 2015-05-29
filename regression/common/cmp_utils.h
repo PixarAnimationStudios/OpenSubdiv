@@ -31,6 +31,15 @@
 
 //------------------------------------------------------------------------------
 
+namespace {
+    template <class Face, class Edge, class Vertex>
+    struct LevelMapT {
+        std::vector<Face *>     faces;
+        std::vector<Edge *>     edges;
+        std::vector<Vertex *>   verts;
+    };
+};
+
 
 // Copies vertex data from hmesh into hbrVertexData reordered to match
 // the given refiner and subdivision level.  This is used for later easy 
@@ -48,13 +57,7 @@ GetReorderedHbrVertexData(
     typedef OpenSubdiv::HbrHalfedge<T> Hhalfedge;
 
     struct Mapper {
-
-        struct LevelMap {
-            std::vector<Hface *>     faces;
-            std::vector<Hhalfedge *> edges;
-            std::vector<Hvertex *>   verts;
-        };
-
+        typedef LevelMapT<Hface, Hhalfedge, Hvertex> LevelMap;
         std::vector<LevelMap> maps;
 
         Mapper(const OpenSubdiv::Far::TopologyRefiner &refiner, 
