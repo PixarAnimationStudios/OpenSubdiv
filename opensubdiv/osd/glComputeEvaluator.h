@@ -29,7 +29,7 @@
 
 #include "../osd/opengl.h"
 #include "../osd/types.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -90,10 +90,10 @@ private:
 class GLComputeEvaluator {
 public:
     typedef bool Instantiatable;
-    static GLComputeEvaluator * Create(VertexBufferDescriptor const &srcDesc,
-                                       VertexBufferDescriptor const &dstDesc,
-                                       VertexBufferDescriptor const &duDesc,
-                                       VertexBufferDescriptor const &dvDesc,
+    static GLComputeEvaluator * Create(BufferDescriptor const &srcDesc,
+                                       BufferDescriptor const &dstDesc,
+                                       BufferDescriptor const &duDesc,
+                                       BufferDescriptor const &dvDesc,
                                        void * deviceContext = NULL) {
         (void)deviceContext;  // not used
         GLComputeEvaluator *instance = new GLComputeEvaluator();
@@ -143,8 +143,8 @@ public:
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     static bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable,
         GLComputeEvaluator const *instance,
         void * deviceContext = NULL) {
@@ -157,8 +157,8 @@ public:
             // Create a kernel on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc,
-                              VertexBufferDescriptor(),
-                              VertexBufferDescriptor());
+                              BufferDescriptor(),
+                              BufferDescriptor());
             if (instance) {
                 bool r = instance->EvalStencils(srcBuffer, srcDesc,
                                                 dstBuffer, dstDesc,
@@ -211,10 +211,10 @@ public:
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     static bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable,
         GLComputeEvaluator const *instance,
         void * deviceContext = NULL) {
@@ -246,13 +246,13 @@ public:
     /// returns false if the kernel hasn't been compiled yet.
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable) const {
         return EvalStencils(srcBuffer->BindVBO(), srcDesc,
                             dstBuffer->BindVBO(), dstDesc,
-                            0, VertexBufferDescriptor(),
-                            0, VertexBufferDescriptor(),
+                            0, BufferDescriptor(),
+                            0, BufferDescriptor(),
                             stencilTable->GetSizesBuffer(),
                             stencilTable->GetOffsetsBuffer(),
                             stencilTable->GetIndicesBuffer(),
@@ -267,10 +267,10 @@ public:
     /// returns false if the kernel hasn't been compiled yet.
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable) const {
         return EvalStencils(srcBuffer->BindVBO(), srcDesc,
                             dstBuffer->BindVBO(), dstDesc,
@@ -288,10 +288,10 @@ public:
 
     /// Dispatch the GLSL compute kernel on GPU asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
-    bool EvalStencils(GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
-                      GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
-                      GLuint duBuffer,  VertexBufferDescriptor const &duDesc,
-                      GLuint dvBuffer,  VertexBufferDescriptor const &dvDesc,
+    bool EvalStencils(GLuint srcBuffer, BufferDescriptor const &srcDesc,
+                      GLuint dstBuffer, BufferDescriptor const &dstDesc,
+                      GLuint duBuffer,  BufferDescriptor const &duDesc,
+                      GLuint dvBuffer,  BufferDescriptor const &dvDesc,
                       GLuint sizesBuffer,
                       GLuint offsetsBuffer,
                       GLuint indicesBuffer,
@@ -342,8 +342,8 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     static bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
@@ -359,8 +359,8 @@ public:
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc,
-                              VertexBufferDescriptor(),
-                              VertexBufferDescriptor());
+                              BufferDescriptor(),
+                              BufferDescriptor());
             if (instance) {
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
                                                dstBuffer, dstDesc,
@@ -416,10 +416,10 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     static bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
@@ -478,16 +478,16 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable) const {
 
         return EvalPatches(srcBuffer->BindVBO(), srcDesc,
                            dstBuffer->BindVBO(), dstDesc,
-                           0, VertexBufferDescriptor(),
-                           0, VertexBufferDescriptor(),
+                           0, BufferDescriptor(),
+                           0, BufferDescriptor(),
                            numPatchCoords,
                            patchCoords->BindVBO(),
                            patchTable->GetPatchArrays(),
@@ -532,10 +532,10 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable) const {
@@ -551,10 +551,10 @@ public:
                            patchTable->GetPatchParamBuffer());
     }
 
-    bool EvalPatches(GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
-                     GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
-                     GLuint duBuffer, VertexBufferDescriptor const &duDesc,
-                     GLuint dvBuffer, VertexBufferDescriptor const &dvDesc,
+    bool EvalPatches(GLuint srcBuffer, BufferDescriptor const &srcDesc,
+                     GLuint dstBuffer, BufferDescriptor const &dstDesc,
+                     GLuint duBuffer, BufferDescriptor const &duDesc,
+                     GLuint dvBuffer, BufferDescriptor const &dvDesc,
                      int numPatchCoords,
                      GLuint patchCoordsBuffer,
                      const PatchArrayVector &patchArrays,
@@ -569,10 +569,10 @@ public:
 
     /// Configure GLSL kernel. A valid GL context must be made current before
     /// calling this function. Returns false if it fails to compile the kernel.
-    bool Compile(VertexBufferDescriptor const &srcDesc,
-                 VertexBufferDescriptor const &dstDesc,
-                 VertexBufferDescriptor const &duDesc,
-                 VertexBufferDescriptor const &dvDesc);
+    bool Compile(BufferDescriptor const &srcDesc,
+                 BufferDescriptor const &dstDesc,
+                 BufferDescriptor const &duDesc,
+                 BufferDescriptor const &dvDesc);
 
     /// Wait the dispatched kernel finishes.
     static void Synchronize(void *deviceContext);
@@ -581,10 +581,10 @@ private:
     struct _StencilKernel {
         _StencilKernel();
         ~_StencilKernel();
-        bool Compile(VertexBufferDescriptor const &srcDesc,
-                     VertexBufferDescriptor const &dstDesc,
-                     VertexBufferDescriptor const &duDesc,
-                     VertexBufferDescriptor const &dvDesc,
+        bool Compile(BufferDescriptor const &srcDesc,
+                     BufferDescriptor const &dstDesc,
+                     BufferDescriptor const &duDesc,
+                     BufferDescriptor const &dvDesc,
                      int workGroupSize);
         GLuint program;
         GLuint uniformStart;
@@ -598,10 +598,10 @@ private:
     struct _PatchKernel {
         _PatchKernel();
         ~_PatchKernel();
-        bool Compile(VertexBufferDescriptor const &srcDesc,
-                     VertexBufferDescriptor const &dstDesc,
-                     VertexBufferDescriptor const &duDesc,
-                     VertexBufferDescriptor const &dvDesc,
+        bool Compile(BufferDescriptor const &srcDesc,
+                     BufferDescriptor const &dstDesc,
+                     BufferDescriptor const &duDesc,
+                     BufferDescriptor const &dvDesc,
                      int workGroupSize);
         GLuint program;
         GLuint uniformSrcOffset;

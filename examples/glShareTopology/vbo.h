@@ -26,14 +26,14 @@
 #define OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_VBO_H
 
 #include <vector>
-#include <osd/vertexDescriptor.h>
+#include <osd/bufferDescriptor.h>
 #include <osd/opengl.h>
 
 template <class VERTEX_BUFFER, class DEVICE_CONTEXT>
 class VBO {
 public:
-    VBO(OpenSubdiv::Osd::VertexBufferDescriptor const &vertexDesc,
-        OpenSubdiv::Osd::VertexBufferDescriptor const &varyingDesc,
+    VBO(OpenSubdiv::Osd::BufferDescriptor const &vertexDesc,
+        OpenSubdiv::Osd::BufferDescriptor const &varyingDesc,
         bool interleaved, int numVertices, DEVICE_CONTEXT *deviceContext) :
         _vertexDesc(vertexDesc),
         _varyingDesc(varyingDesc),
@@ -62,10 +62,10 @@ public:
         delete _varyingBuffer;
     }
 
-    OpenSubdiv::Osd::VertexBufferDescriptor const &GetVertexDesc() const {
+    OpenSubdiv::Osd::BufferDescriptor const &GetVertexDesc() const {
         return _vertexDesc;
     }
-    OpenSubdiv::Osd::VertexBufferDescriptor const &GetVaryingDesc() const {
+    OpenSubdiv::Osd::BufferDescriptor const &GetVaryingDesc() const {
         return _varyingDesc;
     }
 
@@ -111,8 +111,8 @@ private:
         vertexBuffer->UpdateData(src, startVertex, numVertices, _deviceContext);
     }
 
-    OpenSubdiv::Osd::VertexBufferDescriptor _vertexDesc;
-    OpenSubdiv::Osd::VertexBufferDescriptor _varyingDesc;
+    OpenSubdiv::Osd::BufferDescriptor _vertexDesc;
+    OpenSubdiv::Osd::BufferDescriptor _varyingDesc;
 
     // # of vertices total, including both control verts and refined verts.
     int _numVertices;

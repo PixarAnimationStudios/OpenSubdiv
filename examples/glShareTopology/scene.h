@@ -81,8 +81,8 @@ public:
     }
 
     virtual size_t AllocateVBO(int numVerts,
-                               OpenSubdiv::Osd::VertexBufferDescriptor const &vertexDesc,
-                               OpenSubdiv::Osd::VertexBufferDescriptor const &varyingDesc,
+                               OpenSubdiv::Osd::BufferDescriptor const &vertexDesc,
+                               OpenSubdiv::Osd::BufferDescriptor const &varyingDesc,
                                bool interleaved) {
 
         if (_vbo) delete _vbo;

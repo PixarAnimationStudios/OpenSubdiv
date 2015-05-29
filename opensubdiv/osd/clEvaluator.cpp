@@ -124,10 +124,10 @@ CLEvaluator::~CLEvaluator() {
 }
 
 bool
-CLEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
-                     VertexBufferDescriptor const &dstDesc,
-                     VertexBufferDescriptor const & /*duDesc*/,
-                     VertexBufferDescriptor const & /*dvDesc*/) {
+CLEvaluator::Compile(BufferDescriptor const &srcDesc,
+                     BufferDescriptor const &dstDesc,
+                     BufferDescriptor const & /*duDesc*/,
+                     BufferDescriptor const & /*dvDesc*/) {
     if (srcDesc.length > dstDesc.length) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
                    "srcDesc length must be less than or equal to "
@@ -198,8 +198,8 @@ CLEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
 }
 
 bool
-CLEvaluator::EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
-                          cl_mem dst, VertexBufferDescriptor const &dstDesc,
+CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
+                          cl_mem dst, BufferDescriptor const &dstDesc,
                           cl_mem sizes,
                           cl_mem offsets,
                           cl_mem indices,
@@ -235,10 +235,10 @@ CLEvaluator::EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
 }
 
 bool
-CLEvaluator::EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
-                          cl_mem dst, VertexBufferDescriptor const &dstDesc,
-                          cl_mem du, VertexBufferDescriptor const &duDesc,
-                          cl_mem dv, VertexBufferDescriptor const &dvDesc,
+CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
+                          cl_mem dst, BufferDescriptor const &dstDesc,
+                          cl_mem du, BufferDescriptor const &duDesc,
+                          cl_mem dv, BufferDescriptor const &dvDesc,
                           cl_mem sizes,
                           cl_mem offsets,
                           cl_mem indices,
@@ -284,10 +284,10 @@ CLEvaluator::EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
 }
 
 bool
-CLEvaluator::EvalPatches(cl_mem src, VertexBufferDescriptor const &srcDesc,
-                         cl_mem dst, VertexBufferDescriptor const &dstDesc,
-                         cl_mem du,  VertexBufferDescriptor const &duDesc,
-                         cl_mem dv,  VertexBufferDescriptor const &dvDesc,
+CLEvaluator::EvalPatches(cl_mem src, BufferDescriptor const &srcDesc,
+                         cl_mem dst, BufferDescriptor const &dstDesc,
+                         cl_mem du,  BufferDescriptor const &duDesc,
+                         cl_mem dv,  BufferDescriptor const &dvDesc,
                          int numPatchCoords,
                          cl_mem patchCoordsBuffer,
                          cl_mem patchArrayBuffer,

@@ -35,7 +35,7 @@ struct ID3D11ClassInstance;
 struct ID3D11ShaderResourceView;
 struct ID3D11UnorderedAccessView;
 
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -96,10 +96,10 @@ private:
 class D3D11ComputeEvaluator {
 public:
     typedef bool Instantiatable;
-    static D3D11ComputeEvaluator * Create(VertexBufferDescriptor const &srcDesc,
-                                          VertexBufferDescriptor const &dstDesc,
-                                          VertexBufferDescriptor const &duDesc,
-                                          VertexBufferDescriptor const &dvDesc,
+    static D3D11ComputeEvaluator * Create(BufferDescriptor const &srcDesc,
+                                          BufferDescriptor const &dstDesc,
+                                          BufferDescriptor const &duDesc,
+                                          BufferDescriptor const &dvDesc,
                                           ID3D11DeviceContext *deviceContext);
 
     /// Constructor.
@@ -135,29 +135,28 @@ public:
     ///
     /// @param deviceContext  ID3D11DeviceContext.
     ///
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE>
-    static bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                             VertexBufferDescriptor const &srcDesc,
-                             VERTEX_BUFFER *dstVertexBuffer,
-                             VertexBufferDescriptor const &dstDesc,
-                             STENCIL_TABLE const *stencilTable,
-                             D3D11ComputeEvaluator const *instance,
-                             ID3D11DeviceContext * deviceContext) {
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    static bool EvalStencils(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable,
+        D3D11ComputeEvaluator const *instance,
+        ID3D11DeviceContext * deviceContext) {
         if (instance) {
-            return instance->EvalStencils(srcVertexBuffer, srcDesc,
-                                          dstVertexBuffer, dstDesc,
+            return instance->EvalStencils(srcBuffer, srcDesc,
+                                          dstBuffer, dstDesc,
                                           stencilTable,
                                           deviceContext);
         } else {
             // Create an instace on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc,
-                              VertexBufferDescriptor(),
-                              VertexBufferDescriptor(),
+                              BufferDescriptor(),
+                              BufferDescriptor(),
                               deviceContext);
             if (instance) {
-                bool r = instance->EvalStencils(srcVertexBuffer, srcDesc,
-                                                dstVertexBuffer, dstDesc,
+                bool r = instance->EvalStencils(srcBuffer, srcDesc,
+                                                dstBuffer, dstDesc,
                                                 stencilTable,
                                                 deviceContext);
                 delete instance;
@@ -169,17 +168,14 @@ public:
 
     /// Dispatch the DX compute kernel on GPU asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
-    template <typename VERTEX_BUFFER, typename STENCIL_TABLE>
-    bool EvalStencils(VERTEX_BUFFER *srcVertexBuffer,
-                      VertexBufferDescriptor const &srcDesc,
-                      VERTEX_BUFFER *dstVertexBuffer,
-                      VertexBufferDescriptor const &dstDesc,
-                      STENCIL_TABLE const *stencilTable,
-                      ID3D11DeviceContext *deviceContext) const {
-        return EvalStencils(srcVertexBuffer->BindD3D11UAV(deviceContext),
-                            srcDesc,
-                            dstVertexBuffer->BindD3D11UAV(deviceContext),
-                            dstDesc,
+    template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
+    bool EvalStencils(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        STENCIL_TABLE const *stencilTable,
+        ID3D11DeviceContext *deviceContext) const {
+        return EvalStencils(srcBuffer->BindD3D11UAV(deviceContext), srcDesc,
+                            dstBuffer->BindD3D11UAV(deviceContext), dstDesc,
                             stencilTable->GetSizesSRV(),
                             stencilTable->GetOffsetsSRV(),
                             stencilTable->GetIndicesSRV(),
@@ -192,9 +188,9 @@ public:
     /// Dispatch the DX compute kernel on GPU asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
     bool EvalStencils(ID3D11UnorderedAccessView *srcSRV,
-                      VertexBufferDescriptor const &srcDesc,
+                      BufferDescriptor const &srcDesc,
                       ID3D11UnorderedAccessView *dstUAV,
-                      VertexBufferDescriptor const &dstDesc,
+                      BufferDescriptor const &dstDesc,
                       ID3D11ShaderResourceView *sizesSRV,
                       ID3D11ShaderResourceView *offsetsSRV,
                       ID3D11ShaderResourceView *indicesSRV,
@@ -204,8 +200,8 @@ public:
                       ID3D11DeviceContext *deviceContext) const;
 
     /// Configure DX kernel. Returns false if it fails to compile the kernel.
-    bool Compile(VertexBufferDescriptor const &srcDesc,
-                 VertexBufferDescriptor const &dstDesc,
+    bool Compile(BufferDescriptor const &srcDesc,
+                 BufferDescriptor const &dstDesc,
                  ID3D11DeviceContext *deviceContext);
 
     /// Wait the dispatched kernel finishes.

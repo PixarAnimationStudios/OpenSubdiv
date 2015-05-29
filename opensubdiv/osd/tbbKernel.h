@@ -35,13 +35,11 @@ namespace Osd {
 struct PatchArray;
 struct PatchCoord;
 struct PatchParam;
-struct VertexBufferDescriptor;
+struct BufferDescriptor;
 
 void
-TbbEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
@@ -49,14 +47,10 @@ TbbEvalStencils(float const * src,
                 int start, int end);
 
 void
-TbbEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
-                float * dstDu,
-                VertexBufferDescriptor const &dstDuDesc,
-                float * dstDv,
-                VertexBufferDescriptor const &dstDvDesc,
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
@@ -66,14 +60,10 @@ TbbEvalStencils(float const * src,
                 int start, int end);
 
 void
-TbbEvalPatches(float const *src,
-               VertexBufferDescriptor const &srcDesc,
-               float *dst,
-               VertexBufferDescriptor const &dstDesc,
-               float *dstDu,
-               VertexBufferDescriptor const &dstDuDesc,
-               float *dstDv,
-               VertexBufferDescriptor const &dstDvDesc,
+TbbEvalPatches(float const *src, BufferDescriptor const &srcDesc,
+               float *dst,       BufferDescriptor const &dstDesc,
+               float *dstDu,     BufferDescriptor const &dstDuDesc,
+               float *dstDv,     BufferDescriptor const &dstDvDesc,
                int numPatchCoords,
                const PatchCoord *patchCoords,
                const PatchArray *patchArrayBuffer,

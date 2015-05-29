@@ -27,7 +27,7 @@
 
 #include "../version.h"
 #include "../osd/types.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 #include "../far/patchTable.h"
 
 #include <cstddef>
@@ -71,8 +71,8 @@ public:
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     static bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable,
         TbbEvaluator const *instance = NULL,
         void *deviceContext = NULL) {
@@ -118,8 +118,8 @@ public:
     /// @param end            end index of stencil table
     ///
     static bool EvalStencils(
-        const float *src, VertexBufferDescriptor const &srcDesc,
-        float *dst,       VertexBufferDescriptor const &dstDesc,
+        const float *src, BufferDescriptor const &srcDesc,
+        float *dst,       BufferDescriptor const &dstDesc,
         const int *sizes,
         const int *offsets,
         const int *indices,
@@ -165,10 +165,10 @@ public:
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     static bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable,
         const TbbEvaluator *instance = NULL,
         void * deviceContext = NULL) {
@@ -232,10 +232,10 @@ public:
     /// @param end            end index of stencil table
     ///
     static bool EvalStencils(
-        const float *src, VertexBufferDescriptor const &srcDesc,
-        float *dst,       VertexBufferDescriptor const &dstDesc,
-        float *du,        VertexBufferDescriptor const &duDesc,
-        float *dv,        VertexBufferDescriptor const &dvDesc,
+        const float *src, BufferDescriptor const &srcDesc,
+        float *dst,       BufferDescriptor const &dstDesc,
+        float *du,        BufferDescriptor const &duDesc,
+        float *dv,        BufferDescriptor const &dvDesc,
         const int * sizes,
         const int * offsets,
         const int * indices,
@@ -279,8 +279,8 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     static bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
@@ -342,10 +342,10 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     static bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
@@ -395,8 +395,8 @@ public:
     ///                         indexed by PatchCoord::patchIndex
     ///
     static bool EvalPatches(
-        const float *src, VertexBufferDescriptor const &srcDesc,
-        float *dst,       VertexBufferDescriptor const &dstDesc,
+        const float *src, BufferDescriptor const &srcDesc,
+        float *dst,       BufferDescriptor const &dstDesc,
         int numPatchCoords,
         const PatchCoord *patchCoords,
         const PatchArray *patchArrays,
@@ -441,10 +441,10 @@ public:
     ///                         indexed by PatchCoord::patchIndex
     ///
     static bool EvalPatches(
-        const float *src, VertexBufferDescriptor const &srcDesc,
-        float *dst,       VertexBufferDescriptor const &dstDesc,
-        float *du,        VertexBufferDescriptor const &duDesc,
-        float *dv,        VertexBufferDescriptor const &dvDesc,
+        const float *src, BufferDescriptor const &srcDesc,
+        float *dst,       BufferDescriptor const &dstDesc,
+        float *du,        BufferDescriptor const &duDesc,
+        float *dv,        BufferDescriptor const &dvDesc,
         int numPatchCoords,
         const PatchCoord *patchCoords,
         const PatchArray *patchArrays,

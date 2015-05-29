@@ -29,7 +29,7 @@
 
 #include "../osd/opencl.h"
 #include "../osd/types.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -100,20 +100,20 @@ public:
 
     /// Generic creator template.
     template <typename DEVICE_CONTEXT>
-    static CLEvaluator *Create(VertexBufferDescriptor const &srcDesc,
-                               VertexBufferDescriptor const &dstDesc,
-                               VertexBufferDescriptor const &duDesc,
-                               VertexBufferDescriptor const &dvDesc,
+    static CLEvaluator *Create(BufferDescriptor const &srcDesc,
+                               BufferDescriptor const &dstDesc,
+                               BufferDescriptor const &duDesc,
+                               BufferDescriptor const &dvDesc,
                                DEVICE_CONTEXT deviceContext) {
         return Create(srcDesc, dstDesc, duDesc, dvDesc,
                       deviceContext->GetContext(),
                       deviceContext->GetCommandQueue());
     }
 
-    static CLEvaluator * Create(VertexBufferDescriptor const &srcDesc,
-                                VertexBufferDescriptor const &dstDesc,
-                                VertexBufferDescriptor const &duDesc,
-                                VertexBufferDescriptor const &dvDesc,
+    static CLEvaluator * Create(BufferDescriptor const &srcDesc,
+                                BufferDescriptor const &dstDesc,
+                                BufferDescriptor const &duDesc,
+                                BufferDescriptor const &dvDesc,
                                 cl_context clContext,
                                 cl_command_queue clCommandQueue) {
         CLEvaluator *kernel = new CLEvaluator(clContext, clCommandQueue);
@@ -161,8 +161,8 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename STENCIL_TABLE, typename DEVICE_CONTEXT>
     static bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable,
         CLEvaluator const *instance,
         DEVICE_CONTEXT deviceContext) {
@@ -174,8 +174,8 @@ public:
         } else {
             // Create an instance on demand (slow)
             instance = Create(srcDesc, dstDesc,
-                              VertexBufferDescriptor(),
-                              VertexBufferDescriptor(),
+                              BufferDescriptor(),
+                              BufferDescriptor(),
                               deviceContext);
             if (instance) {
                 bool r = instance->EvalStencils(srcBuffer, srcDesc,
@@ -221,10 +221,10 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename STENCIL_TABLE, typename DEVICE_CONTEXT>
     static bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer, VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer, VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer, BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer, BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable,
         CLEvaluator const *instance,
         DEVICE_CONTEXT deviceContext) {
@@ -257,8 +257,8 @@ public:
     /// Returns false if the kernel hasn't been compiled yet.
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable) const {
         return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                             dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
@@ -275,10 +275,10 @@ public:
     /// Returns false if the kernel hasn't been compiled yet.
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable) const {
         return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                             dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
@@ -296,8 +296,8 @@ public:
 
     /// Dispatch the CL compute kernel asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
-    bool EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
-                      cl_mem dst, VertexBufferDescriptor const &dstDesc,
+    bool EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
+                      cl_mem dst, BufferDescriptor const &dstDesc,
                       cl_mem sizes,
                       cl_mem offsets,
                       cl_mem indices,
@@ -307,10 +307,10 @@ public:
 
     /// Dispatch the CL compute kernel asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
-    bool EvalStencils(cl_mem src, VertexBufferDescriptor const &srcDesc,
-                      cl_mem dst, VertexBufferDescriptor const &dstDesc,
-                      cl_mem du,  VertexBufferDescriptor const &duDesc,
-                      cl_mem dv,  VertexBufferDescriptor const &dvDesc,
+    bool EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
+                      cl_mem dst, BufferDescriptor const &dstDesc,
+                      cl_mem du,  BufferDescriptor const &duDesc,
+                      cl_mem dv,  BufferDescriptor const &dvDesc,
                       cl_mem sizes,
                       cl_mem offsets,
                       cl_mem indices,
@@ -365,8 +365,8 @@ public:
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
               typename DEVICE_CONTEXT>
     static bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
@@ -382,8 +382,8 @@ public:
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc,
-                              VertexBufferDescriptor(),
-                              VertexBufferDescriptor(),
+                              BufferDescriptor(),
+                              BufferDescriptor(),
                               deviceContext);
             if (instance) {
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
@@ -444,10 +444,10 @@ public:
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
               typename DEVICE_CONTEXT>
     static bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
@@ -506,16 +506,16 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable) const {
 
         return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                            dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
-                           0, VertexBufferDescriptor(),
-                           0, VertexBufferDescriptor(),
+                           0, BufferDescriptor(),
+                           0, BufferDescriptor(),
                            numPatchCoords,
                            patchCoords->BindCLBuffer(_clCommandQueue),
                            patchTable->GetPatchArrayBuffer(),
@@ -560,10 +560,10 @@ public:
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     bool EvalPatches(
-        SRC_BUFFER *srcBuffer, VertexBufferDescriptor const &srcDesc,
-        DST_BUFFER *dstBuffer, VertexBufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer,  VertexBufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer,  VertexBufferDescriptor const &dvDesc,
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable) const {
@@ -579,10 +579,10 @@ public:
                            patchTable->GetPatchParamBuffer());
     }
 
-    bool EvalPatches(cl_mem src, VertexBufferDescriptor const &srcDesc,
-                     cl_mem dst, VertexBufferDescriptor const &dstDesc,
-                     cl_mem du,  VertexBufferDescriptor const &duDesc,
-                     cl_mem dv,  VertexBufferDescriptor const &dvDesc,
+    bool EvalPatches(cl_mem src, BufferDescriptor const &srcDesc,
+                     cl_mem dst, BufferDescriptor const &dstDesc,
+                     cl_mem du,  BufferDescriptor const &duDesc,
+                     cl_mem dv,  BufferDescriptor const &dvDesc,
                      int numPatchCoords,
                      cl_mem patchCoordsBuffer,
                      cl_mem patchArrayBuffer,
@@ -597,10 +597,10 @@ public:
 
     /// Configure OpenCL kernel.
     /// Returns false if it fails to compile the kernel.
-    bool Compile(VertexBufferDescriptor const &srcDesc,
-                 VertexBufferDescriptor const &dstDesc,
-                 VertexBufferDescriptor const &duDesc,
-                 VertexBufferDescriptor const &dvDesc);
+    bool Compile(BufferDescriptor const &srcDesc,
+                 BufferDescriptor const &dstDesc,
+                 BufferDescriptor const &duDesc,
+                 BufferDescriptor const &dvDesc);
 
     /// Wait the OpenCL kernels finish.
     template <typename DEVICE_CONTEXT>

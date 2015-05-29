@@ -123,10 +123,10 @@ GLComputeEvaluator::~GLComputeEvaluator() {
 }
 
 static GLuint
-compileKernel(VertexBufferDescriptor const &srcDesc,
-              VertexBufferDescriptor const &dstDesc,
-              VertexBufferDescriptor const & /* duDesc */,
-              VertexBufferDescriptor const & /* dvDesc */,
+compileKernel(BufferDescriptor const &srcDesc,
+              BufferDescriptor const &dstDesc,
+              BufferDescriptor const & /* duDesc */,
+              BufferDescriptor const & /* dvDesc */,
               const char *kernelDefine,
               int workGroupSize) {
     GLuint program = glCreateProgram();
@@ -170,10 +170,10 @@ compileKernel(VertexBufferDescriptor const &srcDesc,
 }
 
 bool
-GLComputeEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
-                            VertexBufferDescriptor const &dstDesc,
-                            VertexBufferDescriptor const &duDesc,
-                            VertexBufferDescriptor const &dvDesc) {
+GLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
+                            BufferDescriptor const &dstDesc,
+                            BufferDescriptor const &duDesc,
+                            BufferDescriptor const &dvDesc) {
 
     // create a stencil kernel
     if (!_stencilKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc,
@@ -200,10 +200,10 @@ GLComputeEvaluator::Synchronize(void * /*kernel*/) {
 
 bool
 GLComputeEvaluator::EvalStencils(
-    GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
-    GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
-    GLuint duBuffer,  VertexBufferDescriptor const &duDesc,
-    GLuint dvBuffer,  VertexBufferDescriptor const &dvDesc,
+    GLuint srcBuffer, BufferDescriptor const &srcDesc,
+    GLuint dstBuffer, BufferDescriptor const &dstDesc,
+    GLuint duBuffer,  BufferDescriptor const &duDesc,
+    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
     GLuint sizesBuffer,
     GLuint offsetsBuffer,
     GLuint indicesBuffer,
@@ -260,10 +260,10 @@ GLComputeEvaluator::EvalStencils(
 
 bool
 GLComputeEvaluator::EvalPatches(
-    GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
-    GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
-    GLuint duBuffer, VertexBufferDescriptor const &duDesc,
-    GLuint dvBuffer, VertexBufferDescriptor const &dvDesc,
+    GLuint srcBuffer, BufferDescriptor const &srcDesc,
+    GLuint dstBuffer, BufferDescriptor const &dstDesc,
+    GLuint duBuffer,  BufferDescriptor const &duDesc,
+    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
     int numPatchCoords,
     GLuint patchCoordsBuffer,
     const PatchArrayVector &patchArrays,
@@ -314,12 +314,11 @@ GLComputeEvaluator::_StencilKernel::~_StencilKernel() {
 }
 
 bool
-GLComputeEvaluator::_StencilKernel::Compile(
-    VertexBufferDescriptor const &srcDesc,
-    VertexBufferDescriptor const &dstDesc,
-    VertexBufferDescriptor const &duDesc,
-    VertexBufferDescriptor const &dvDesc,
-    int workGroupSize) {
+GLComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
+                                            BufferDescriptor const &dstDesc,
+                                            BufferDescriptor const &duDesc,
+                                            BufferDescriptor const &dvDesc,
+                                            int workGroupSize) {
     // create stencil kernel
     if (program) {
         glDeleteProgram(program);
@@ -360,10 +359,10 @@ GLComputeEvaluator::_PatchKernel::~_PatchKernel() {
 }
 
 bool
-GLComputeEvaluator::_PatchKernel::Compile(VertexBufferDescriptor const &srcDesc,
-                                          VertexBufferDescriptor const &dstDesc,
-                                          VertexBufferDescriptor const &duDesc,
-                                          VertexBufferDescriptor const &dvDesc,
+GLComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
+                                          BufferDescriptor const &dstDesc,
+                                          BufferDescriptor const &duDesc,
+                                          BufferDescriptor const &dvDesc,
                                           int workGroupSize) {
     // create stencil kernel
     if (program) {

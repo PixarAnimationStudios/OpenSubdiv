@@ -62,16 +62,16 @@ public:
 
     template <typename VBO>
     void Refine(VBO *vbo, int vertsOffset) {
-        OpenSubdiv::Osd::VertexBufferDescriptor const &globalVertexDesc =
+        OpenSubdiv::Osd::BufferDescriptor const &globalVertexDesc =
             vbo->GetVertexDesc();
-        OpenSubdiv::Osd::VertexBufferDescriptor const &globalVaryingDesc =
+        OpenSubdiv::Osd::BufferDescriptor const &globalVaryingDesc =
             vbo->GetVaryingDesc();
 
-        OpenSubdiv::Osd::VertexBufferDescriptor vertexSrcDesc(
+        OpenSubdiv::Osd::BufferDescriptor vertexSrcDesc(
             globalVertexDesc.offset + vertsOffset * globalVertexDesc.stride,
             globalVertexDesc.length,
             globalVertexDesc.stride);
-        OpenSubdiv::Osd::VertexBufferDescriptor vertexDstDesc(
+        OpenSubdiv::Osd::BufferDescriptor vertexDstDesc(
             vertexSrcDesc.offset + (_numControlVertices * vertexSrcDesc.stride),
             vertexSrcDesc.length,
             vertexSrcDesc.stride);
@@ -89,12 +89,12 @@ public:
 
         // varying
         if (_varyingStencils) {
-            OpenSubdiv::Osd::VertexBufferDescriptor varyingSrcDesc(
+            OpenSubdiv::Osd::BufferDescriptor varyingSrcDesc(
                 globalVaryingDesc.offset + vertsOffset * globalVaryingDesc.stride,
                 globalVaryingDesc.length,
                 globalVaryingDesc.stride);
 
-            OpenSubdiv::Osd::VertexBufferDescriptor varyingDstDesc(
+            OpenSubdiv::Osd::BufferDescriptor varyingDstDesc(
                 varyingSrcDesc.offset + (_numControlVertices * varyingSrcDesc.stride),
                 varyingSrcDesc.length,
                 varyingSrcDesc.stride);

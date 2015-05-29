@@ -278,10 +278,8 @@ checkMeshCPU( FarTopologyRefiner *refiner,
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
     
     Osd::CpuEvaluator::EvalStencils(
-        vb,
-        Osd::VertexBufferDescriptor(0, 3, 3),
-        vb,
-        Osd::VertexBufferDescriptor(refiner->GetLevel(0).GetNumVertices()*3, 3, 3),
+        vb, Osd::BufferDescriptor(0, 3, 3),
+        vb, Osd::BufferDescriptor(refiner->GetLevel(0).GetNumVertices()*3, 3, 3),
         vertexStencils);
 
     int result = checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
@@ -310,10 +308,8 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
 
     Osd::CpuEvaluator::EvalStencils(
-        vb,
-        Osd::VertexBufferDescriptor(0, 3, 3),
-        vb,
-        Osd::VertexBufferDescriptor(refiner->GetLevel(0).GetNumVertices()*3, 3, 3),
+        vb, Osd::BufferDescriptor(0, 3, 3),
+        vb, Osd::BufferDescriptor(refiner->GetLevel(0).GetNumVertices()*3, 3, 3),
         vertexStencils);
 
     int result = checkVertexBuffer(*refiner, refmesh, 

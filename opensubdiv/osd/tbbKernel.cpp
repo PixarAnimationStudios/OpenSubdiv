@@ -25,7 +25,7 @@
 #include "../osd/cpuKernel.h"
 #include "../osd/tbbKernel.h"
 #include "../osd/types.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 #include "../far/patchBasis.h"
 
 #include <cassert>
@@ -40,13 +40,13 @@ namespace Osd {
 #define grain_size  200
 
 template <class T> T *
-elementAtIndex(T * src, int index, VertexBufferDescriptor const &desc) {
+elementAtIndex(T * src, int index, BufferDescriptor const &desc) {
 
     return src + index * desc.stride;
 }
 
 static inline void
-clear(float *dst, VertexBufferDescriptor const &desc) {
+clear(float *dst, BufferDescriptor const &desc) {
 
     assert(dst);
     memset(dst, 0, desc.length*sizeof(float));
@@ -54,7 +54,7 @@ clear(float *dst, VertexBufferDescriptor const &desc) {
 
 static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
-              VertexBufferDescriptor const &desc) {
+              BufferDescriptor const &desc) {
 
     assert(src and dst);
     src = elementAtIndex(src, srcIndex, desc);
@@ -65,7 +65,7 @@ addWithWeight(float *dst, const float *src, int srcIndex, float weight,
 
 static inline void
 copy(float *dst, int dstIndex, const float *src,
-     VertexBufferDescriptor const &desc) {
+     BufferDescriptor const &desc) {
 
     assert(src and dst);
 
@@ -76,8 +76,8 @@ copy(float *dst, int dstIndex, const float *src,
 
 class TBBStencilKernel {
 
-    VertexBufferDescriptor _srcDesc;
-    VertexBufferDescriptor _dstDesc;
+    BufferDescriptor _srcDesc;
+    BufferDescriptor _dstDesc;
     float const * _vertexSrc;
     float * _vertexDst;
 
@@ -88,10 +88,8 @@ class TBBStencilKernel {
 
 
 public:
-    TBBStencilKernel(float const *src,
-                     VertexBufferDescriptor srcDesc,
-                     float *dst,
-                     VertexBufferDescriptor dstDesc,
+    TBBStencilKernel(float const *src, BufferDescriptor srcDesc,
+                     float *dst,       BufferDescriptor dstDesc,
                      int const * sizes, int const * offsets,
                      int const * indices, float const * weights) :
          _srcDesc(srcDesc),
@@ -163,10 +161,8 @@ public:
 };
 
 void
-TbbEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
@@ -190,10 +186,10 @@ TbbEvalStencils(float const * src,
 }
 
 void
-TbbEvalStencils(float const * src, VertexBufferDescriptor const &srcDesc,
-                float * dst,       VertexBufferDescriptor const &dstDesc,
-                float * du,        VertexBufferDescriptor const &duDesc,
-                float * dv,        VertexBufferDescriptor const &dvDesc,
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * du,        BufferDescriptor const &duDesc,
+                float * dv,        BufferDescriptor const &dvDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
@@ -269,10 +265,10 @@ struct BufferAdapter {
 };
 
 class TbbEvalPatchesKernel {
-    VertexBufferDescriptor _srcDesc;
-    VertexBufferDescriptor _dstDesc;
-    VertexBufferDescriptor _dstDuDesc;
-    VertexBufferDescriptor _dstDvDesc;
+    BufferDescriptor _srcDesc;
+    BufferDescriptor _dstDesc;
+    BufferDescriptor _dstDuDesc;
+    BufferDescriptor _dstDvDesc;
     float const * _src;
     float * _dst;
     float * _dstDu;
@@ -284,14 +280,10 @@ class TbbEvalPatchesKernel {
     const PatchParam *_patchParamBuffer;
 
 public:
-    TbbEvalPatchesKernel(float const *src,
-                         VertexBufferDescriptor srcDesc,
-                         float *dst,
-                         VertexBufferDescriptor dstDesc,
-                         float *dstDu,
-                         VertexBufferDescriptor dstDuDesc,
-                         float *dstDv,
-                         VertexBufferDescriptor dstDvDesc,
+    TbbEvalPatchesKernel(float const *src, BufferDescriptor srcDesc,
+                         float *dst,       BufferDescriptor dstDesc,
+                         float *dstDu,     BufferDescriptor dstDuDesc,
+                         float *dstDv,     BufferDescriptor dstDvDesc,
                          int numPatchCoords,
                          const PatchCoord *patchCoords,
                          const PatchArray *patchArrayBuffer,
@@ -431,14 +423,10 @@ public:
 
 
 void
-TbbEvalPatches(float const *src,
-               VertexBufferDescriptor const &srcDesc,
-               float *dst,
-               VertexBufferDescriptor const &dstDesc,
-               float *dstDu,
-               VertexBufferDescriptor const &dstDuDesc,
-               float *dstDv,
-               VertexBufferDescriptor const &dstDvDesc,
+TbbEvalPatches(float const *src, BufferDescriptor const &srcDesc,
+               float *dst,       BufferDescriptor const &dstDesc,
+               float *dstDu,     BufferDescriptor const &dstDuDesc,
+               float *dstDv,     BufferDescriptor const &dstDvDesc,
                int numPatchCoords,
                const PatchCoord *patchCoords,
                const PatchArray *patchArrayBuffer,

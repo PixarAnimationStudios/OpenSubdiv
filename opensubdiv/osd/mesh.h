@@ -37,7 +37,7 @@
 #include "../far/stencilTable.h"
 #include "../far/stencilTableFactory.h"
 
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 struct ID3D11DeviceContext;
 
@@ -173,32 +173,32 @@ public:
 
     // XXX: FIXME, linear search
     struct Entry {
-        Entry(VertexBufferDescriptor const &srcDesc,
-              VertexBufferDescriptor const &dstDesc,
-              VertexBufferDescriptor const &duDesc,
-              VertexBufferDescriptor const &dvDesc,
+        Entry(BufferDescriptor const &srcDesc,
+              BufferDescriptor const &dstDesc,
+              BufferDescriptor const &duDesc,
+              BufferDescriptor const &dvDesc,
               EVALUATOR *e) : srcDesc(srcDesc), dstDesc(dstDesc),
                               duDesc(duDesc), dvDesc(dvDesc), evaluator(e) {}
-        VertexBufferDescriptor srcDesc, dstDesc, duDesc, dvDesc;
+        BufferDescriptor srcDesc, dstDesc, duDesc, dvDesc;
         EVALUATOR *evaluator;
     };
     typedef std::vector<Entry> Evaluators;
 
     template <typename DEVICE_CONTEXT>
-    EVALUATOR *GetEvaluator(VertexBufferDescriptor const &srcDesc,
-                            VertexBufferDescriptor const &dstDesc,
+    EVALUATOR *GetEvaluator(BufferDescriptor const &srcDesc,
+                            BufferDescriptor const &dstDesc,
                             DEVICE_CONTEXT *deviceContext) {
         return GetEvaluator(srcDesc, dstDesc,
-                            VertexBufferDescriptor(),
-                            VertexBufferDescriptor(),
+                            BufferDescriptor(),
+                            BufferDescriptor(),
                             deviceContext);
     }
 
     template <typename DEVICE_CONTEXT>
-    EVALUATOR *GetEvaluator(VertexBufferDescriptor const &srcDesc,
-                            VertexBufferDescriptor const &dstDesc,
-                            VertexBufferDescriptor const &duDesc,
-                            VertexBufferDescriptor const &dvDesc,
+    EVALUATOR *GetEvaluator(BufferDescriptor const &srcDesc,
+                            BufferDescriptor const &dstDesc,
+                            BufferDescriptor const &duDesc,
+                            BufferDescriptor const &dvDesc,
                             DEVICE_CONTEXT *deviceContext) {
 
         for(typename Evaluators::iterator it = _evaluators.begin();
@@ -218,8 +218,8 @@ public:
     }
 
 private:
-    static bool isEqual(VertexBufferDescriptor const &a,
-                        VertexBufferDescriptor const &b) {
+    static bool isEqual(BufferDescriptor const &a,
+                        BufferDescriptor const &b) {
         int offsetA = a.stride ? (a.offset % a.stride) : 0;
         int offsetB = b.stride ? (b.offset % b.stride) : 0;
 
@@ -253,10 +253,10 @@ struct enable_if<false, T> { };
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
 static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *cache,
-    VertexBufferDescriptor const &srcDesc,
-    VertexBufferDescriptor const &dstDesc,
-    VertexBufferDescriptor const &duDesc,
-    VertexBufferDescriptor const &dvDesc,
+    BufferDescriptor const &srcDesc,
+    BufferDescriptor const &dstDesc,
+    BufferDescriptor const &duDesc,
+    BufferDescriptor const &dvDesc,
     DEVICE_CONTEXT deviceContext,
     typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
     (void)t;
@@ -267,15 +267,15 @@ static EVALUATOR *GetEvaluator(
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
 static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *cache,
-    VertexBufferDescriptor const &srcDesc,
-    VertexBufferDescriptor const &dstDesc,
+    BufferDescriptor const &srcDesc,
+    BufferDescriptor const &dstDesc,
     DEVICE_CONTEXT deviceContext,
     typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
     (void)t;
     if (cache == NULL) return NULL;
     return cache->GetEvaluator(srcDesc, dstDesc,
-                               VertexBufferDescriptor(),
-                               VertexBufferDescriptor(),
+                               BufferDescriptor(),
+                               BufferDescriptor(),
                                deviceContext);
 }
 
@@ -283,10 +283,10 @@ static EVALUATOR *GetEvaluator(
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
 static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *,
-    VertexBufferDescriptor const &,
-    VertexBufferDescriptor const &,
-    VertexBufferDescriptor const &,
-    VertexBufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
     DEVICE_CONTEXT,
     typename enable_if<!instantiatable<EVALUATOR>::value, void>::type*t=0) {
     (void)t;
@@ -296,8 +296,8 @@ static EVALUATOR *GetEvaluator(
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
 static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *,
-    VertexBufferDescriptor const &,
-    VertexBufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
     DEVICE_CONTEXT,
     typename enable_if<!instantiatable<EVALUATOR>::value, void>::type*t=0) {
     (void)t;
@@ -362,17 +362,14 @@ public:
                                 varyingBufferStride);
 
         // configure vertex buffer descriptor
-        _vertexDesc = VertexBufferDescriptor(0,
-                                             numVertexElements,
-                                             vertexBufferStride);
+        _vertexDesc =
+            BufferDescriptor(0, numVertexElements, vertexBufferStride);
         if (bits.test(MeshInterleaveVarying)) {
-            _varyingDesc = VertexBufferDescriptor(numVertexElements,
-                                                  numVaryingElements,
-                                                  vertexBufferStride);
+            _varyingDesc = BufferDescriptor(
+                numVertexElements, numVaryingElements, vertexBufferStride);
         } else {
-            _varyingDesc = VertexBufferDescriptor(0,
-                                                  numVaryingElements,
-                                                  varyingBufferStride);
+            _varyingDesc = BufferDescriptor(
+                0, numVaryingElements, varyingBufferStride);
         }
     }
 
@@ -403,8 +400,8 @@ public:
 
         int numControlVertices = _refiner->GetLevel(0).GetNumVertices();
 
-        VertexBufferDescriptor srcDesc = _vertexDesc;
-        VertexBufferDescriptor dstDesc(srcDesc);
+        BufferDescriptor srcDesc = _vertexDesc;
+        BufferDescriptor dstDesc(srcDesc);
         dstDesc.offset += numControlVertices * dstDesc.stride;
 
         // note that the _evaluatorCache can be NULL and thus
@@ -420,8 +417,8 @@ public:
                                 instance, _deviceContext);
 
         if (_varyingDesc.length > 0) {
-            VertexBufferDescriptor srcDesc = _varyingDesc;
-            VertexBufferDescriptor dstDesc(srcDesc);
+            BufferDescriptor srcDesc = _varyingDesc;
+            BufferDescriptor dstDesc(srcDesc);
             dstDesc.offset += numControlVertices * dstDesc.stride;
 
             instance = GetEvaluator<Evaluator>(
@@ -596,8 +593,8 @@ private:
     VertexBuffer * _vertexBuffer;
     VertexBuffer * _varyingBuffer;
 
-    VertexBufferDescriptor _vertexDesc;
-    VertexBufferDescriptor _varyingDesc;
+    BufferDescriptor _vertexDesc;
+    BufferDescriptor _varyingDesc;
 
     StencilTable const * _vertexStencilTable;
     StencilTable const * _varyingStencilTable;

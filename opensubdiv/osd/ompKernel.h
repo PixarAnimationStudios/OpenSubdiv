@@ -32,13 +32,11 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-struct VertexBufferDescriptor;
+struct BufferDescriptor;
 
 void
-OmpEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
@@ -46,14 +44,10 @@ OmpEvalStencils(float const * src,
                 int start, int end);
 
 void
-OmpEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
-                float * dstDu,
-                VertexBufferDescriptor const &dstDuDesc,
-                float * dstDv,
-                VertexBufferDescriptor const &dstDvDesc,
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
