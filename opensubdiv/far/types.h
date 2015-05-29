@@ -35,7 +35,8 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 //
-//  Typedef's for indices we want at the Far level -- need to go elsewhere eventually...
+//  Typedef's for indices that are inherited from the Vtr level -- eventually
+//  these primitive Vtr types may be declared at a lower, more public level.
 //
 typedef Vtr::Index       Index;
 typedef Vtr::LocalIndex  LocalIndex;
@@ -45,6 +46,11 @@ typedef Vtr::LocalIndexArray  LocalIndexArray;
 
 typedef Vtr::ConstIndexArray       ConstIndexArray;
 typedef Vtr::ConstLocalIndexArray  ConstLocalIndexArray;
+
+inline bool IndexIsValid(Index index) { return Vtr::IndexIsValid(index); }
+
+static const Index INDEX_INVALID = Vtr::INDEX_INVALID;
+static const int   VALENCE_LIMIT = Vtr::VALENCE_LIMIT;
 
 } // end namespace Far
 
