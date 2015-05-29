@@ -337,7 +337,7 @@ public:
         _srcVaryingData->UpdateData(src, startVertex, numVertices, _deviceContext);
     }
     virtual void Refine() {
-        Osd::VertexBufferDescriptor dstDesc = _srcDesc;
+        Osd::BufferDescriptor dstDesc = _srcDesc;
         dstDesc.offset += _numCoarseVerts * _srcDesc.stride;
 
         EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
@@ -417,12 +417,12 @@ private:
     EVAL_VERTEX_BUFFER *_varyingData;
     EVAL_VERTEX_BUFFER *_patchCoords;
     PATCH_TABLE *_patchTable;
-    Osd::VertexBufferDescriptor _srcDesc;
-    Osd::VertexBufferDescriptor _srcVaryingDesc;
-    Osd::VertexBufferDescriptor _vertexDesc;
-    Osd::VertexBufferDescriptor _varyingDesc;
-    Osd::VertexBufferDescriptor _duDesc;
-    Osd::VertexBufferDescriptor _dvDesc;
+    Osd::BufferDescriptor _srcDesc;
+    Osd::BufferDescriptor _srcVaryingDesc;
+    Osd::BufferDescriptor _vertexDesc;
+    Osd::BufferDescriptor _varyingDesc;
+    Osd::BufferDescriptor _duDesc;
+    Osd::BufferDescriptor _dvDesc;
     int _numCoarseVerts;
 
     STENCIL_TABLE const *_vertexStencils;

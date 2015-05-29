@@ -107,8 +107,8 @@ int main(int, char **) {
         vbuffer->UpdateData(g_verts, 0, nCoarseVerts);
 
 
-        Osd::VertexBufferDescriptor srcDesc(0, 3, 3);
-        Osd::VertexBufferDescriptor dstDesc(nCoarseVerts*3, 3, 3);
+        Osd::BufferDescriptor srcDesc(0, 3, 3);
+        Osd::BufferDescriptor dstDesc(nCoarseVerts*3, 3, 3);
 
         // Launch the computation
         Osd::CpuEvaluator::EvalStencils(vbuffer, srcDesc,

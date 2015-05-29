@@ -245,10 +245,10 @@ public:
 private:
     SRC_BUFFER *_srcData;
     DST_BUFFER *_dstData;
-    Osd::VertexBufferDescriptor _srcDesc;
-    Osd::VertexBufferDescriptor _dstDesc;
-    Osd::VertexBufferDescriptor _duDesc;
-    Osd::VertexBufferDescriptor _dvDesc;
+    Osd::BufferDescriptor _srcDesc;
+    Osd::BufferDescriptor _dstDesc;
+    Osd::BufferDescriptor _duDesc;
+    Osd::BufferDescriptor _dvDesc;
 
     STENCIL_TABLE const *_stencils;
     int _numStencils;

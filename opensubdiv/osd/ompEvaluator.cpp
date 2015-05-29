@@ -35,8 +35,8 @@ namespace Osd {
 /* static */
 bool
 OmpEvaluator::EvalStencils(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
     const int * sizes,
     const int * offsets,
     const int * indices,
@@ -56,10 +56,10 @@ OmpEvaluator::EvalStencils(
 /* static */
 bool
 OmpEvaluator::EvalStencils(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
-    float *du,        VertexBufferDescriptor const &duDesc,
-    float *dv,        VertexBufferDescriptor const &dvDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
     const int * sizes,
     const int * offsets,
     const int * indices,
@@ -117,8 +117,8 @@ struct BufferAdapter {
 /* static */
 bool
 OmpEvaluator::EvalPatches(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
     int numPatchCoords,
     const PatchCoord *patchCoords,
     const PatchArray *patchArrays,
@@ -175,10 +175,10 @@ OmpEvaluator::EvalPatches(
 /* static */
 bool
 OmpEvaluator::EvalPatches(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
-    float *du,        VertexBufferDescriptor const &duDesc,
-    float *dv,        VertexBufferDescriptor const &dvDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
     int numPatchCoords,
     PatchCoord const *patchCoords,
     PatchArray const *patchArrays,

@@ -23,7 +23,7 @@
 //
 
 #include "../osd/ompKernel.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -36,13 +36,13 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 template <class T> T *
-elementAtIndex(T * src, int index, VertexBufferDescriptor const &desc) {
+elementAtIndex(T * src, int index, BufferDescriptor const &desc) {
 
     return src + index * desc.stride;
 }
 
 static inline void
-clear(float *dst, VertexBufferDescriptor const &desc) {
+clear(float *dst, BufferDescriptor const &desc) {
 
     assert(dst);
     memset(dst, 0, desc.length*sizeof(float));
@@ -50,7 +50,7 @@ clear(float *dst, VertexBufferDescriptor const &desc) {
 
 static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
-              VertexBufferDescriptor const &desc) {
+              BufferDescriptor const &desc) {
 
     assert(src and dst);
     src = elementAtIndex(src, srcIndex, desc);
@@ -61,7 +61,7 @@ addWithWeight(float *dst, const float *src, int srcIndex, float weight,
 
 static inline void
 copy(float *dst, int dstIndex, const float *src,
-     VertexBufferDescriptor const &desc) {
+     BufferDescriptor const &desc) {
 
     assert(src and dst);
 
@@ -73,10 +73,8 @@ copy(float *dst, int dstIndex, const float *src,
 // XXXX manuelk this should be optimized further by using SIMD - considering
 //              OMP is somewhat obsolete - this is probably not worth it.
 void
-OmpEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,
@@ -120,14 +118,10 @@ OmpEvalStencils(float const * src,
 }
 
 void
-OmpEvalStencils(float const * src,
-                VertexBufferDescriptor const &srcDesc,
-                float * dst,
-                VertexBufferDescriptor const &dstDesc,
-                float * dstDu,
-                VertexBufferDescriptor const &dstDuDesc,
-                float * dstDv,
-                VertexBufferDescriptor const &dstDvDesc,
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
                 int const * sizes,
                 int const * offsets,
                 int const * indices,

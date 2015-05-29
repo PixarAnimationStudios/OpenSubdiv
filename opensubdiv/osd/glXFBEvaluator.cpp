@@ -144,10 +144,10 @@ GLXFBEvaluator::~GLXFBEvaluator() {
 }
 
 static GLuint
-compileKernel(VertexBufferDescriptor const &srcDesc,
-              VertexBufferDescriptor const &dstDesc,
-              VertexBufferDescriptor const &duDesc,
-              VertexBufferDescriptor const &dvDesc,
+compileKernel(BufferDescriptor const &srcDesc,
+              BufferDescriptor const &dstDesc,
+              BufferDescriptor const &duDesc,
+              BufferDescriptor const &dvDesc,
               const char *kernelDefine) {
 
     GLuint program = glCreateProgram();
@@ -263,10 +263,10 @@ compileKernel(VertexBufferDescriptor const &srcDesc,
 }
 
 bool
-GLXFBEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
-                        VertexBufferDescriptor const &dstDesc,
-                        VertexBufferDescriptor const &duDesc,
-                        VertexBufferDescriptor const &dvDesc) {
+GLXFBEvaluator::Compile(BufferDescriptor const &srcDesc,
+                        BufferDescriptor const &dstDesc,
+                        BufferDescriptor const &duDesc,
+                        BufferDescriptor const &dvDesc) {
 
     // create a stencil kernel
     _stencilKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc);
@@ -302,10 +302,10 @@ bindTexture(GLint sampler, GLuint texture, int unit) {
 
 bool
 GLXFBEvaluator::EvalStencils(
-    GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
-    GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
-    GLuint duBuffer,  VertexBufferDescriptor const &duDesc,
-    GLuint dvBuffer,  VertexBufferDescriptor const &dvDesc,
+    GLuint srcBuffer, BufferDescriptor const &srcDesc,
+    GLuint dstBuffer, BufferDescriptor const &dstDesc,
+    GLuint duBuffer,  BufferDescriptor const &duDesc,
+    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
     GLuint sizesTexture,
     GLuint offsetsTexture,
     GLuint indicesTexture,
@@ -430,10 +430,10 @@ GLXFBEvaluator::EvalStencils(
 
 bool
 GLXFBEvaluator::EvalPatches(
-    GLuint srcBuffer, VertexBufferDescriptor const &srcDesc,
-    GLuint dstBuffer, VertexBufferDescriptor const &dstDesc,
-    GLuint duBuffer, VertexBufferDescriptor const &duDesc,
-    GLuint dvBuffer, VertexBufferDescriptor const &dvDesc,
+    GLuint srcBuffer, BufferDescriptor const &srcDesc,
+    GLuint dstBuffer, BufferDescriptor const &dstDesc,
+    GLuint duBuffer,  BufferDescriptor const &duDesc,
+    GLuint dvBuffer,  BufferDescriptor const &dvDesc,
     int numPatchCoords,
     GLuint patchCoordsBuffer,
     const PatchArrayVector &patchArrays,
@@ -543,10 +543,10 @@ GLXFBEvaluator::_StencilKernel::~_StencilKernel() {
 }
 
 bool
-GLXFBEvaluator::_StencilKernel::Compile(VertexBufferDescriptor const &srcDesc,
-                                        VertexBufferDescriptor const &dstDesc,
-                                        VertexBufferDescriptor const &duDesc,
-                                        VertexBufferDescriptor const &dvDesc) {
+GLXFBEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
+                                        BufferDescriptor const &dstDesc,
+                                        BufferDescriptor const &duDesc,
+                                        BufferDescriptor const &dvDesc) {
     // create stencil kernel
     if (program) {
         glDeleteProgram(program);
@@ -587,10 +587,10 @@ GLXFBEvaluator::_PatchKernel::~_PatchKernel() {
 }
 
 bool
-GLXFBEvaluator::_PatchKernel::Compile(VertexBufferDescriptor const &srcDesc,
-                                        VertexBufferDescriptor const &dstDesc,
-                                        VertexBufferDescriptor const &duDesc,
-                                        VertexBufferDescriptor const &dvDesc) {
+GLXFBEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
+                                      BufferDescriptor const &dstDesc,
+                                      BufferDescriptor const &duDesc,
+                                      BufferDescriptor const &dvDesc) {
     // create stencil kernel
     if (program) {
         glDeleteProgram(program);

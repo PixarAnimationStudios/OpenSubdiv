@@ -35,8 +35,8 @@ namespace Osd {
 /* static */
 bool
 TbbEvaluator::EvalStencils(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
     const int * sizes,
     const int * offsets,
     const int * indices,
@@ -54,10 +54,10 @@ TbbEvaluator::EvalStencils(
 /* static */
 bool
 TbbEvaluator::EvalStencils(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
-    float *du,        VertexBufferDescriptor const &duDesc,
-    float *dv,        VertexBufferDescriptor const &dvDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
     const int * sizes,
     const int * offsets,
     const int * indices,
@@ -85,8 +85,8 @@ TbbEvaluator::EvalStencils(
 /* static */
 bool
 TbbEvaluator::EvalPatches(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
     int numPatchCoords,
     const PatchCoord *patchCoords,
     const PatchArray *patchArrayBuffer,
@@ -96,8 +96,8 @@ TbbEvaluator::EvalPatches(
     if (srcDesc.length != dstDesc.length) return false;
 
     TbbEvalPatches(src, srcDesc, dst, dstDesc,
-                   NULL, VertexBufferDescriptor(),
-                   NULL, VertexBufferDescriptor(),
+                   NULL, BufferDescriptor(),
+                   NULL, BufferDescriptor(),
                    numPatchCoords, patchCoords,
                    patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
 
@@ -107,10 +107,10 @@ TbbEvaluator::EvalPatches(
 /* static */
 bool
 TbbEvaluator::EvalPatches(
-    const float *src, VertexBufferDescriptor const &srcDesc,
-    float *dst,       VertexBufferDescriptor const &dstDesc,
-    float *du,        VertexBufferDescriptor const &duDesc,
-    float *dv,        VertexBufferDescriptor const &dvDesc,
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
     int numPatchCoords,
     const PatchCoord *patchCoords,
     const PatchArray *patchArrayBuffer,

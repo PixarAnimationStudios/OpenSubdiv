@@ -167,10 +167,10 @@ D3D11ComputeEvaluator::D3D11ComputeEvaluator() :
 }
 
 D3D11ComputeEvaluator *
-D3D11ComputeEvaluator::Create(VertexBufferDescriptor const &srcDesc,
-                              VertexBufferDescriptor const &dstDesc,
-                              VertexBufferDescriptor const &duDesc,
-                              VertexBufferDescriptor const &dvDesc,
+D3D11ComputeEvaluator::Create(BufferDescriptor const &srcDesc,
+                              BufferDescriptor const &dstDesc,
+                              BufferDescriptor const &duDesc,
+                              BufferDescriptor const &dvDesc,
                               ID3D11DeviceContext *deviceContext) {
     (void)deviceContext;  // not used
 
@@ -193,8 +193,8 @@ D3D11ComputeEvaluator::~D3D11ComputeEvaluator() {
 }
 
 bool
-D3D11ComputeEvaluator::Compile(VertexBufferDescriptor const &srcDesc,
-                               VertexBufferDescriptor const &dstDesc,
+D3D11ComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
+                               BufferDescriptor const &dstDesc,
                                ID3D11DeviceContext *deviceContext) {
 
     if (srcDesc.length > dstDesc.length) {
@@ -308,9 +308,9 @@ D3D11ComputeEvaluator::Synchronize(ID3D11DeviceContext *deviceContext) {
 
 bool
 D3D11ComputeEvaluator::EvalStencils(ID3D11UnorderedAccessView *srcUAV,
-                                    VertexBufferDescriptor const &srcDesc,
+                                    BufferDescriptor const &srcDesc,
                                     ID3D11UnorderedAccessView *dstUAV,
-                                    VertexBufferDescriptor const &dstDesc,
+                                    BufferDescriptor const &dstDesc,
                                     ID3D11ShaderResourceView *sizesSRV,
                                     ID3D11ShaderResourceView *offsetsSRV,
                                     ID3D11ShaderResourceView *indicesSRV,

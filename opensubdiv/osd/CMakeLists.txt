@@ -38,11 +38,11 @@ set(GPU_SOURCE_FILES )
 set(INC_FILES )
 
 set(PRIVATE_HEADER_FILES
-    debug.h
     cpuKernel.h
 )
 
 set(PUBLIC_HEADER_FILES
+    bufferDescriptor.h
     cpuEvaluator.h
     cpuPatchTable.h
     cpuVertexBuffer.h
@@ -50,7 +50,6 @@ set(PUBLIC_HEADER_FILES
     nonCopyable.h
     opengl.h
     types.h
-    vertexDescriptor.h
 )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})

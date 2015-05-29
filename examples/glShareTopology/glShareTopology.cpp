@@ -860,20 +860,20 @@ rebuildObjects() {
 
     int numVerts = g_scene->AddObjects(g_numObjects);
 
-    Osd::VertexBufferDescriptor vertexDesc, varyingDesc;
+    Osd::BufferDescriptor vertexDesc, varyingDesc;
     bool interleaved = true;
 
     if (g_displayStyle == kVaryingInterleaved) {
-        vertexDesc = Osd::VertexBufferDescriptor(0, 3, 7);
-        varyingDesc = Osd::VertexBufferDescriptor(3, 4, 7);
+        vertexDesc = Osd::BufferDescriptor(0, 3, 7);
+        varyingDesc = Osd::BufferDescriptor(3, 4, 7);
         interleaved = true;
     } else if (g_displayStyle == kVarying) {
-        vertexDesc = Osd::VertexBufferDescriptor(0, 3, 3);
-        varyingDesc = Osd::VertexBufferDescriptor(0, 4, 4);
+        vertexDesc = Osd::BufferDescriptor(0, 3, 3);
+        varyingDesc = Osd::BufferDescriptor(0, 4, 4);
         interleaved = false;
     } else {
-        vertexDesc = Osd::VertexBufferDescriptor(0, 3, 3);
-        varyingDesc = Osd::VertexBufferDescriptor(0, 0, 0);
+        vertexDesc = Osd::BufferDescriptor(0, 3, 3);
+        varyingDesc = Osd::BufferDescriptor(0, 0, 0);
         interleaved = false;
     }
 
