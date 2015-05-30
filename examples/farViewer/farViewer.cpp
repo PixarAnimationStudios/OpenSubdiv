@@ -649,7 +649,14 @@ createFarGLMesh(Shape * shape, int maxlevel) {
                 float const * ptr = &shape->uvs[i*2];
                 values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
             }
-            Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(values, values + nCoarseValues);
+
+            int lastLevel = refiner->GetMaxLevel();
+            Vertex * src = values;
+            for (int level = 1; level <= lastLevel; ++level) {
+                Vertex * dst = src + refiner->GetLevel(level-1).GetNumFVarValues(channel);
+                Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(level, src, dst, channel);
+                src = dst;
+            }
         }
     }
 
@@ -701,7 +708,13 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         // TopologyRefiner interpolation
         //
         // populate buffer with Far interpolated vertex data
-        Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + ncoarseverts);
+        int lastLevel = refiner->GetMaxLevel();
+        Vertex * src = verts;
+        for (int level = 1; level <= lastLevel; ++level) {
+            Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
+            Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst);
+            src = dst;
+        }
         //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
 
