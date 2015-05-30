@@ -73,6 +73,10 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         include_directories("${GLEW_INCLUDE_DIR}")
     endif()
 
+    if (GLFW_FOUND)
+        include_directories("${GLFW_INCLUDE_DIR}")
+    endif()
+
 endif()
 
 
