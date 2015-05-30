@@ -659,7 +659,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             std::vector<Vertex> refinedVerts(
                 refiner->GetNumVerticesTotal() - refiner->GetLevel(0).GetNumVertices());
             
-            Vertex * srcVerts = controlVerts;
+            Vertex const * srcVerts = controlVerts;
             Vertex * dstVerts = &refinedVerts[0];
             for (int level = 1; level <= subdivisionLevel; ++level) {
                 OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(level, srcVerts, dstVerts);
