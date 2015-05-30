@@ -48,6 +48,8 @@ GLFWmonitor* g_primary=0;
 
 #include <osd/cpuGLVertexBuffer.h>
 
+#include <far/gregoryBasis.h>
+#include <far/endCapGregoryBasisPatchFactory.h>
 #include <far/patchTableFactory.h>
 #include <far/stencilTable.h>
 #include <far/stencilTableFactory.h>
@@ -621,9 +623,9 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         patchTable =
             Far::PatchTableFactory::Create(*refiner, options);
 
-        // increase vertex buffer for the additional local points
-        if (patchTable->GetLocalPointStencilTable()) {
-            numTotalVerts += patchTable->GetLocalPointStencilTable()->GetNumStencils();
+        // increase vertex buffer for the additional endcap verts
+        if (patchTable->GetEndCapVertexStencilTable()) {
+            numTotalVerts += patchTable->GetEndCapVertexStencilTable()->GetNumStencils();
         }
 
         g_numPatches = patchTable->GetNumPatchesTotal();
@@ -649,7 +651,14 @@ createFarGLMesh(Shape * shape, int maxlevel) {
                 float const * ptr = &shape->uvs[i*2];
                 values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
             }
-            Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(values, values + nCoarseValues);
+
+            int lastLevel = refiner->GetMaxLevel();
+            Vertex * src = values;
+            for (int level = 1; level <= lastLevel; ++level) {
+                Vertex * dst = src + refiner->GetLevel(level-1).GetNumFVarValues(channel);
+                Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst, channel);
+                src = dst;
+            }
         }
     }
 
@@ -679,14 +688,14 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         options.generateIntermediateLevels=true;
         stencilTable = Far::StencilTableFactory::Create(*refiner, options);
 
-        // append local point stencils if needed
-        if (patchTable and patchTable->GetLocalPointStencilTable()) {
-            if (Far::StencilTable const * stencilTableWithLocalPoints =
-                Far::StencilTableFactory::AppendLocalPointStencilTable(
+        // append endpatch stencils if needed
+        if (patchTable and patchTable->GetEndCapVertexStencilTable()) {
+            if (Far::StencilTable const * stencilTableWithEndCap =
+                Far::StencilTableFactory::AppendEndCapStencilTable(
                     *refiner, stencilTable,
-                    patchTable->GetLocalPointStencilTable())) {
+                    patchTable->GetEndCapVertexStencilTable())) {
                 delete stencilTable;
-                stencilTable = stencilTableWithLocalPoints;
+                stencilTable = stencilTableWithEndCap;
             }
         }
 
@@ -701,7 +710,13 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         // TopologyRefiner interpolation
         //
         // populate buffer with Far interpolated vertex data
-        Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + ncoarseverts);
+        int lastLevel = refiner->GetMaxLevel();
+        Vertex * src = verts;
+        for (int level = 1; level <= lastLevel; ++level) {
+            Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
+            Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst);
+            src = dst;
+        }
         //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
 
