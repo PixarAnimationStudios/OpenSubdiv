@@ -654,7 +654,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
             Vertex * src = values;
             for (int level = 1; level <= lastLevel; ++level) {
                 Vertex * dst = src + refiner->GetLevel(level-1).GetNumFVarValues(channel);
-                Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst, channel);
+                Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(level, src, dst, channel);
                 src = dst;
             }
         }
