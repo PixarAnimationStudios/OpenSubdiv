@@ -162,10 +162,15 @@ InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
                             shape->verts[i*3+2]);
     }
 
-    T * verts = &data[0];
+    T * srcVerts = &data[0];
+    T * dstVerts = srcVerts + refiner->GetLevel(0).GetNumVertices();
+    OpenSubdiv::Far::PrimvarRefiner primvarRefiner(*refiner);
 
-    OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(
-            verts, verts+refiner->GetLevel(0).GetNumVertices());
+    for (int i = 1; i <= refiner->GetMaxLevel(); ++i) {
+        primvarRefiner.Interpolate(i, srcVerts, dstVerts);
+        srcVerts = dstVerts;
+        dstVerts += refiner->GetLevel(i).GetNumVertices();
+    }
 
     delete shape;
     return refiner;

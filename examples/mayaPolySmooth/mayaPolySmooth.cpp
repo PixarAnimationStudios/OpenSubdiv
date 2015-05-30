@@ -659,7 +659,13 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             std::vector<Vertex> refinedVerts(
                 refiner->GetNumVerticesTotal() - refiner->GetLevel(0).GetNumVertices());
             
-            OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(controlVerts, &refinedVerts.at(0));
+            Vertex * srcVerts = controlVerts;
+            Vertex * dstVerts = &refinedVerts[0];
+            for (int level = 1; level <= subdivisionLevel; ++level) {
+                OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(level, srcVerts, dstVerts);
+                srcVerts = dstVerts;
+                dstVerts += refiner->GetLevel(level).GetNumVertices();
+            }
 
             // == Convert subdivided OpenSubdiv mesh to MFnMesh Data outputMesh =============
 

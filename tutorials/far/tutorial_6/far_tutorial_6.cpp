@@ -167,7 +167,12 @@ int main(int, char **) {
 
     // Interpolate vertex primvar data : they are the control vertices
     // of the limit patches (see far_tutorial_0 for details)
-    Far::PrimvarRefiner(*refiner).Interpolate(&verts[0], &verts[g_nverts]);
+    Vertex * src = &verts[0];
+    for (int level = 1; level <= maxIsolation; ++level) {
+        Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
+        Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst);
+        src = dst;
+    }
 
     // Evaluate local points from interpolated vertex primvars.
     patchTable->ComputeLocalPointValues(&verts[0], &verts[nRefinerVertices]);

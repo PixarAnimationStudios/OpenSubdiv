@@ -45,40 +45,52 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
     int channel = 0,    // shapes only have 1 UV channel
         fvarWidth = 2;
 
-    int numValuesTotal = refiner.GetNumFVarValuesTotal(channel),
-            numValues0 = refiner.GetLevel(0).GetNumFVarValues(channel);
+    int maxlevel = refiner.GetMaxLevel(),
+        numValuesM = refiner.GetLevel(maxlevel).GetNumFVarValues(channel),
+        numValuesTotal = refiner.GetNumFVarValuesTotal(channel);
 
     if (shape.uvs.empty() or numValuesTotal<=0) {
         return;
     }
 
+    OpenSubdiv::Far::PrimvarRefiner primvarRefiner(refiner);
+
     if (refiner.IsUniform()) {
 
-        std::vector<FVarVertex> buffer(numValuesTotal);
-
-        int maxlevel = refiner.GetMaxLevel(),
-            numValuesM = refiner.GetLevel(maxlevel).GetNumFVarValues(channel);
-
-        memcpy(&buffer[0], &shape.uvs[0], shape.uvs.size()*sizeof(float));
-
-        OpenSubdiv::Far::PrimvarRefiner(refiner).InterpolateFaceVarying(
-            &buffer[0], &buffer[numValues0], channel);
-
-        // we only keep the highest level of refinement !
+        // For uniform we only keep the highest level of refinement:
         fvarData.resize(numValuesM * fvarWidth);
-        memcpy(&fvarData[0],
-            &buffer[numValuesTotal-numValuesM], numValuesM*sizeof(FVarVertex));
+
+        std::vector<FVarVertex> buffer(numValuesTotal - numValuesM);
+
+        FVarVertex * src = &buffer[0];
+        memcpy(src, &shape.uvs[0], shape.uvs.size()*sizeof(float));
+
+        //  Defer the last level to treat separately with its alternate destination:
+        for (int level = 1; level < maxlevel; ++level) {
+            FVarVertex * dst = src + refiner.GetLevel(level-1).GetNumFVarValues(channel);
+
+            primvarRefiner.InterpolateFaceVarying(level, src, dst, channel);
+
+            src = dst;
+        }
+
+        FVarVertex * dst = reinterpret_cast<FVarVertex *>(&fvarData[0]);
+        primvarRefiner.InterpolateFaceVarying(maxlevel, src, dst, channel);
 
     } else {
 
+        // For adaptive we keep all levels:
         fvarData.resize(numValuesTotal * fvarWidth);
 
-        FVarVertex * src = reinterpret_cast<FVarVertex *>(&fvarData[0]),
-                   * dst = src + numValues0;
-
+        FVarVertex * src = reinterpret_cast<FVarVertex *>(&fvarData[0]);
         memcpy(src, &shape.uvs[0], shape.uvs.size()*sizeof(float));
 
-        OpenSubdiv::Far::PrimvarRefiner(refiner).InterpolateFaceVarying(
-            src, dst, channel);
+        for (int level = 1; level <= maxlevel; ++level) {
+            FVarVertex * dst = src + refiner.GetLevel(level-1).GetNumFVarValues(channel);
+
+            primvarRefiner.InterpolateFaceVarying(level, src, dst, channel);
+
+            src = dst;
+        }
     }
 }
