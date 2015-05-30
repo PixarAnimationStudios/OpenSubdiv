@@ -30,6 +30,14 @@
 #undef OSD_FRACTIONAL_ODD_SPACING
 #undef OSD_FRACTIONAL_EVEN_SPACING
 
+#if defined OSD_FRACTIONAL_ODD_SPACING
+  #define OSD_PARTITIONING "fractional_odd"
+#elif defined OSD_FRACTIONAL_EVEN_SPACING
+  #define OSD_PARTITIONING "fractional_even"
+#else
+  #define OSD_PARTITIONING "integer"
+#endif
+
 #define M_PI 3.14159265359f
 
 struct InputVertex {
@@ -39,17 +47,12 @@ struct InputVertex {
 
 struct HullVertex {
     float4 position : POSITION;
-    int4 patchCoord : PATCHCOORD; // U offset, V offset, faceLevel, faceId
 #ifdef OSD_ENABLE_PATCH_CULL
     int3 clipFlag : CLIPFLAG;
 #endif
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float4 P1 : POSITION1;
-    float4 P2 : POSITION2;
-    float sharpness : BLENDWEIGHT0;
-#endif
 };
 
+// XXXdyu all downstream data can be handled by client code
 struct OutputVertex {
     float4 positionOut : SV_Position;
     float4 position : POSITION1;
@@ -67,29 +70,6 @@ struct OutputVertex {
 #endif
 };
 
-struct GregHullVertex {
-    float3 position : POSITION0;
-    float3 hullPosition : HULLPOSITION;
-    int3 clipFlag : CLIPFLAG;
-    int valence : BLENDINDICE0;
-    float3 e0 : POSITION1;
-    float3 e1 : POSITION2;
-    uint zerothNeighbor : BLENDINDICE1;
-    float3 org : POSITION3;
-#if defined OSD_MAX_VALENCE && OSD_MAX_VALENCE > 0
-    float3 r[OSD_MAX_VALENCE] : POSITION4;
-#endif
-};
-
-struct GregDomainVertex {
-    float3 position : POSITION0;
-    float3 Ep : POSITION1;
-    float3 Em : POSITION2;
-    float3 Fp : POSITION3;
-    float3 Fm : POSITION4;
-    int4   patchCoord: PATCHCOORD;
-};
-
 struct HS_CONSTANT_FUNC_OUT {
     float tessLevelInner[2] : SV_InsideTessFactor;
     float tessLevelOuter[4] : SV_TessFactor;
@@ -104,6 +84,7 @@ float4x4 OsdModelViewProjectionMatrix();
 float OsdTessLevel();
 int OsdGregoryQuadOffsetBase();
 int OsdPrimitiveIdBase();
+int OsdBaseVertex();
 
 #ifndef OSD_DISPLACEMENT_CALLBACK
 #define OSD_DISPLACEMENT_CALLBACK
@@ -192,12 +173,14 @@ int4 OsdGetPatchCoord(int3 patchParam)
     return int4(faceUV.x, faceUV.y, faceLevel, faceId);
 }
 
-float4 OsdInterpolatePatchCoord(float2 localUV, int4 perPrimPatchCoord)
+float4 OsdInterpolatePatchCoord(float2 localUV, int3 patchParam)
 {
+    int4 perPrimPatchCoord = OsdGetPatchCoord(patchParam);
     int faceId = perPrimPatchCoord.w;
     int faceLevel = perPrimPatchCoord.z;
     float2 faceUV = float2(perPrimPatchCoord.x, perPrimPatchCoord.y);
     float2 uv = localUV/faceLevel + faceUV/faceLevel;
+    // add 0.5 to integer values for more robust interpolation
     return float4(uv.x, uv.y, faceLevel+0.5, faceId+0.5);
 }
 
@@ -240,7 +223,7 @@ float4 OsdInterpolatePatchCoord(float2 localUV, int4 perPrimPatchCoord)
 // ----------------------------------------------------------------------------
 
 void
-Univar4x4(in float u, out float B[4], out float D[4])
+OsdUnivar4x4(in float u, out float B[4], out float D[4])
 {
     float t = u;
     float s = 1.0f - u;
@@ -261,7 +244,7 @@ Univar4x4(in float u, out float B[4], out float D[4])
 }
 
 void
-Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
+OsdUnivar4x4(in float u, out float B[4], out float D[4], out float C[4])
 {
     float t = u;
     float s = 1.0f - u;
@@ -295,13 +278,11 @@ Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
 float3
 OsdEvalBezier(float3 cp[16], float2 uv)
 {
-    float3 BUCP[4] = {
-        float3(0,0,0), float3(0,0,0), float3(0,0,0), float3(0,0,0)
-    };
+    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
 
     float B[4], D[4];
 
-    Univar4x4(uv.x, B, D);
+    OsdUnivar4x4(uv.x, B, D);
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
             float3 A = cp[4*i + j];
@@ -309,14 +290,14 @@ OsdEvalBezier(float3 cp[16], float2 uv)
         }
     }
 
-    float3 position = float3(0,0,0);
+    float3 P = float3(0,0,0);
 
-    Univar4x4(uv.y, B, D);
+    OsdUnivar4x4(uv.y, B, D);
     for (int k=0; k<4; ++k) {
-        position  += B[k] * BUCP[k];
+        P += B[k] * BUCP[k];
     }
 
-    return position;
+    return P;
 }
 
 // ----------------------------------------------------------------------------
@@ -407,8 +388,8 @@ OsdComputeBSplineBoundaryPoints(inout float3 cpt[16], int3 patchParam)
 
 float OsdComputePostProjectionSphereExtent(float3 center, float diameter)
 {
-    float4 p = mul(OsdModelViewProjectionMatrix(), float4(center, 1.0));
-    return abs(diameter * OsdModelViewProjectionMatrix()[1][1] / p.w);
+    float4 p = mul(OsdProjectionMatrix(), float4(center, 1.0));
+    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
 }
 
 float OsdComputeTessLevel(float3 p0, float3 p1)
@@ -416,6 +397,8 @@ float OsdComputeTessLevel(float3 p0, float3 p1)
     // Adaptive factor can be any computation that depends only on arg values.
     // Project the diameter of the edge's bounding sphere instead of using the
     // length of the projected edge itself to avoid problems near silhouettes.
+    p0 = mul(OsdModelViewMatrix(), float4(p0, 1.0)).xyz;
+    p1 = mul(OsdModelViewMatrix(), float4(p1, 1.0)).xyz;
     float3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
     float projLength = OsdComputePostProjectionSphereExtent(center, diameter);
@@ -424,7 +407,7 @@ float OsdComputeTessLevel(float3 p0, float3 p1)
 
 void
 OsdGetTessLevelsUniform(int3 patchParam,
-                        inout float4 tessOuterLo, inout float4 tessOuterHi)
+                        out float4 tessOuterLo, out float4 tessOuterHi)
 {
     int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
     float tessLevel = OsdTessLevel() / pow(2, refinementLevel-1);
@@ -435,7 +418,7 @@ OsdGetTessLevelsUniform(int3 patchParam,
 
 void
 OsdGetTessLevelsRefinedPoints(float3 cp[16], int3 patchParam,
-                              inout float4 tessOuterLo, inout float4 tessOuterHi)
+                              out float4 tessOuterLo, out float4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
     // at the next refined level of subdivision. We compute the corresponding
@@ -496,7 +479,7 @@ OsdGetTessLevelsRefinedPoints(float3 cp[16], int3 patchParam,
 
 void
 OsdGetTessLevelsLimitPoints(float3 cpBezier[16], int3 patchParam,
-                            inout float4 tessOuterLo, inout float4 tessOuterHi)
+                            out float4 tessOuterLo, out float4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
     // at the next refined level of subdivision. When the patch control
@@ -543,8 +526,8 @@ OsdGetTessLevelsLimitPoints(float3 cpBezier[16], int3 patchParam,
 
 void
 OsdGetTessLevels(float3 cp[16], int3 patchParam,
-                 inout float4 tessLevelOuter, inout float4 tessLevelInner,
-                 inout float4 tessOuterLo, inout float4 tessOuterHi)
+                 out float4 tessLevelOuter, out float2 tessLevelInner,
+                 out float4 tessOuterLo, out float4 tessOuterHi)
 {
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
     OsdGetTessLevelsLimitPoints(cp, patchParam, tessOuterLo, tessOuterHi);
@@ -566,7 +549,7 @@ OsdGetTessLevels(float3 cp[16], int3 patchParam,
 void
 OsdGetTessLevels(float3 cp0, float3 cp1, float3 cp2, float3 cp3,
                  int3 patchParam,
-                 inout float4 tessLevelOuter, inout float4 tessLevelInner)
+                 out float4 tessLevelOuter, out float2 tessLevelInner)
 {
     float4 tessOuterLo = float4(0,0,0,0);
     float4 tessOuterHi = float4(0,0,0,0);
@@ -621,3 +604,748 @@ OsdGetTessParameterization(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
     return UV;
 }
 
+// ----------------------------------------------------------------------------
+// BSpline
+// ----------------------------------------------------------------------------
+
+struct OsdPerPatchVertexBSpline {
+    int3 patchParam : PATCHPARAM;
+    float3 P : POSITION;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    float3 P1 : POSITION1;
+    float3 P2 : POSITION2;
+    float sharpness : BLENDWEIGHT0;
+#endif
+};
+
+// compute single-crease patch matrix
+float4x4
+OsdComputeMs(float sharpness)
+{
+    float s = pow(2.0f, sharpness);
+    float s2 = s*s;
+    float s3 = s2*s;
+
+    float4x4 m ={
+        0, s + 1 + 3*s2 - s3, 7*s - 2 - 6*s2 + 2*s3, (1-s)*(s-1)*(s-1),
+        0,       (1+s)*(1+s),        6*s - 2 - 2*s2,       (s-1)*(s-1),
+        0,               1+s,               6*s - 2,               1-s,
+        0,                 1,               6*s - 2,                 1 };
+
+    m /= (s*6.0);
+    m[0][0] = 1.0/6.0;
+
+    return m;
+}
+
+void
+OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
+                                out OsdPerPatchVertexBSpline result)
+{
+    // Regular BSpline to Bezier
+    float4x4 Q = {
+        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+        0.f,     4.f/6.f, 2.f/6.f, 0.f,
+        0.f,     2.f/6.f, 4.f/6.f, 0.f,
+        0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
+    };
+
+    result.patchParam = patchParam;
+
+    OsdComputeBSplineBoundaryPoints(cv, patchParam);
+
+    int i = ID%4;
+    int j = ID/4;
+
+    float3 H[4];
+    for (int l=0; l<4; ++l) {
+        H[l] = float3(0,0,0);
+        for(int k=0; k<4; ++k) {
+            H[l] += Q[i][k] * cv[l*4 + k];
+        }
+    }
+
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // Infinitly Sharp (boundary)
+    float4x4 Mi = {
+        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+        0.f,     4.f/6.f, 2.f/6.f, 0.f,
+        0.f,     2.f/6.f, 4.f/6.f, 0.f,
+        0.f,     0.f,     1.f,     0.f
+    };
+
+    result.sharpness = OsdGetPatchSharpness(patchParam);
+    if (result.sharpness > 0) {
+        float Sf = floor(result.sharpness);
+        float Sc = ceil(result.sharpness);
+        float Sr = frac(result.sharpness);
+        float4x4 Mf = OsdComputeMs(Sf);
+        float4x4 Mc = OsdComputeMs(Sc);
+        float4x4 Mj = (1-Sr) * Mf + Sr * Mi;
+        float4x4 Ms = (1-Sr) * Mf + Sr * Mc;
+
+        result.P  = float3(0,0,0);
+        result.P1 = float3(0,0,0);
+        result.P2 = float3(0,0,0);
+        for (int k=0; k<4; ++k) {
+            result.P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
+            result.P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
+            result.P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+        }
+    } else {
+        result.P  = float3(0,0,0);
+        result.P1 = float3(0,0,0);
+        result.P2 = float3(0,0,0);
+        for (int k=0; k<4; ++k){
+            result.P += Q[j][k]*H[k];
+        }
+    }
+#else
+    {
+        result.P = float3(0,0,0);
+        for (int k=0; k<4; ++k){
+            result.P += Q[j][k]*H[k];
+        }
+    }
+#endif
+}
+
+void
+OsdEvalPatchBSpline(int3 patchParam, float2 UV,
+                    OsdPerPatchVertexBSpline cv[16],
+                    out float3 P, out float3 dPu, out float3 dPv,
+                    out float3 N, out float3 dNu, out float3 dNv)
+{
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
+           CUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
+    OsdUnivar4x4(UV.x, B, D, C);
+#else
+    float B[4], D[4];
+    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
+    OsdUnivar4x4(UV.x, B, D);
+#endif
+
+    // ----------------------------------------------------------------
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    float sharpness = cv[0].sharpness;
+    if (sharpness != 0) {
+        float s0 = 1.0 - pow(2.0f, -floor(sharpness));
+        float s1 = 1.0 - pow(2.0f, -ceil(sharpness));
+
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                int k = 4*i + j;
+                float s = UV.y;
+
+                float3 A = (s < s0) ?
+                     cv[k].P :
+                     ((s < s1) ?
+                      cv[k].P1 :
+                      cv[k].P2);
+
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+    } else {
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                float3 A = cv[4*i + j].P;
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+    }
+#else
+    // ----------------------------------------------------------------
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                float3 A = cv[4*i + j].P;
+                BUCP[i] += A * B[j];
+                DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+                CUCP[i] += A * C[j];
+#endif
+            }
+        }
+#endif
+    // ----------------------------------------------------------------
+
+    P   = float3(0,0,0);
+    dPu = float3(0,0,0);
+    dPv = float3(0,0,0);
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    // used for weingarten term
+    OsdUnivar4x4(UV.y, B, D, C);
+
+    float3 dUU = float3(0,0,0);
+    float3 dVV = float3(0,0,0);
+    float3 dUV = float3(0,0,0);
+
+    for (int k=0; k<4; ++k) {
+        P   += B[k] * BUCP[k];
+        dPu += B[k] * DUCP[k];
+        dPv += D[k] * BUCP[k];
+
+        dUU += B[k] * CUCP[k];
+        dVV += C[k] * BUCP[k];
+        dUV += D[k] * DUCP[k];
+    }
+
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    float3 n = cross(dPu, dPv);
+    N = normalize(n);
+
+    float E = dot(dPu, dPu);
+    float F = dot(dPu, dPv);
+    float G = dot(dPv, dPv);
+    float e = dot(N, dUU);
+    float f = dot(N, dUV);
+    float g = dot(N, dVV);
+
+    dNu = (f*F-e*G)/(E*G-F*F) * dPu + (e*F-f*E)/(E*G-F*F) * dPv;
+    dNv = (g*F-f*G)/(E*G-F*F) * dPu + (f*F-g*E)/(E*G-F*F) * dPv;
+
+    dNu = dNu/length(n) - n * (dot(dNu,n)/pow(dot(n,n), 1.5));
+    dNv = dNv/length(n) - n * (dot(dNv,n)/pow(dot(n,n), 1.5));
+#else
+    OsdUnivar4x4(UV.y, B, D);
+
+    for (int k=0; k<4; ++k) {
+        P   += B[k] * BUCP[k];
+        dPu += B[k] * DUCP[k];
+        dPv += D[k] * BUCP[k];
+    }
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+
+    N = normalize(cross(dPu, dPv));
+    dNu = float3(0,0,0);
+    dNv = float3(0,0,0);
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// GregoryBasis
+// ----------------------------------------------------------------------------
+
+struct OsdPerPatchVertexGregoryBasis {
+    int3 patchParam : PATCHPARAM;
+    float3 P : POSITION0;
+};
+
+void
+OsdComputePerPatchVertexGregoryBasis(int3 patchParam, int ID, float3 cv,
+                                     out OsdPerPatchVertexGregoryBasis result)
+{
+    result.patchParam = patchParam;
+    result.P = cv;
+}
+
+void
+OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
+                    out float3 P, out float3 dPu, out float3 dPv,
+                    out float3 N, out float3 dNu, out float3 dNv)
+{
+    float u = UV.x, v = UV.y;
+    float U = 1-u, V = 1-v;
+
+    float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
+    float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
+    float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
+    float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
+
+    float3 q[16];
+
+    q[ 5] = (u*cv[3] + v*cv[4])/d11;
+    q[ 6] = (U*cv[9] + v*cv[8])/d12;
+    q[ 9] = (u*cv[19] + V*cv[18])/d21;
+    q[10] = (U*cv[13] + V*cv[14])/d22;
+
+    q[ 0] = cv[0];
+    q[ 1] = cv[1];
+    q[ 2] = cv[7];
+    q[ 3] = cv[5];
+    q[ 4] = cv[2];
+    q[ 7] = cv[6];
+    q[ 8] = cv[16];
+    q[11] = cv[12];
+    q[12] = cv[15];
+    q[13] = cv[17];
+    q[14] = cv[11];
+    q[15] = cv[10];
+
+    P   = float3(0,0,0);
+    dPu = float3(0,0,0);
+    dPv = float3(0,0,0);
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
+           CUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
+    float3 dUU = float3(0,0,0);
+    float3 dVV = float3(0,0,0);
+    float3 dUV = float3(0,0,0);
+
+    OsdUnivar4x4(UV.x, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            float3 A = q[4*i + j];
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+            CUCP[i] += A * C[j];
+        }
+    }
+
+    OsdUnivar4x4(UV.y, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        P   += B[i] * BUCP[i];
+        dPu += B[i] * DUCP[i];
+        dPv += D[i] * BUCP[i];
+        dUU += B[i] * CUCP[i];
+        dVV += C[i] * BUCP[i];
+        dUV += D[i] * DUCP[i];
+    }
+
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    float3 n = cross(dPu, dPv);
+    float3 N = normalize(n);
+
+    float E = dot(dPu, dPu);
+    float F = dot(dPu, dPv);
+    float G = dot(dPv, dPv);
+    float e = dot(N, dUU);
+    float f = dot(N, dUV);
+    float g = dot(N, dVV);
+
+    dNu = (f*F-e*G)/(E*G-F*F) * dPu + (e*F-f*E)/(E*G-F*F) * dPv;
+    dNv = (g*F-f*G)/(E*G-F*F) * dPu + (f*F-g*E)/(E*G-F*F) * dPv;
+
+    dNu = dNu/length(n) - n * (dot(dNu,n)/pow(dot(n,n), 1.5));
+    dNv = dNv/length(n) - n * (dot(dNv,n)/pow(dot(n,n), 1.5));
+#else
+    float B[4], D[4];
+    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
+           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
+
+    OsdUnivar4x4(UV.x, B, D);
+
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            float3 A = q[4*i + j];
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+        }
+    }
+
+    OsdUnivar4x4(UV.y, B, D);
+
+    for (int i=0; i<4; ++i) {
+        P += B[i] * BUCP[i];
+        dPu += B[i] * DUCP[i];
+        dPv += D[i] * BUCP[i];
+    }
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+
+    N = normalize(cross(dPu, dPv));
+    dNu = float3(0,0,0);
+    dNv = float3(0,0,0);
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Legacy Gregory
+// ----------------------------------------------------------------------------
+#if defined(OSD_PATCH_GREGORY) || defined(OSD_PATCH_GREGORY_BOUNDARY)
+
+#if OSD_MAX_VALENCE<=10
+static float ef[7] = {
+    0.813008, 0.500000, 0.363636, 0.287505,
+    0.238692, 0.204549, 0.179211
+};
+#else
+static float ef[27] = {
+    0.812816, 0.500000, 0.363644, 0.287514,
+    0.238688, 0.204544, 0.179229, 0.159657,
+    0.144042, 0.131276, 0.120632, 0.111614,
+    0.103872, 0.09715, 0.0912559, 0.0860444,
+    0.0814022, 0.0772401, 0.0734867, 0.0700842,
+    0.0669851, 0.0641504, 0.0615475, 0.0591488,
+    0.0569311, 0.0548745, 0.0529621
+};
+#endif
+
+float cosfn(int n, int j) {
+    return cos((2.0f * M_PI * j)/float(n));
+}
+
+float sinfn(int n, int j) {
+    return sin((2.0f * M_PI * j)/float(n));    
+}
+
+#if !defined OSD_MAX_VALENCE || OSD_MAX_VALENCE < 1
+#undef OSD_MAX_VALENCE
+#define OSD_MAX_VALENCE 4
+#endif
+
+struct OsdPerVertexGregory {
+    float3 P : POSITION0;
+    int3 clipFlag : CLIPFLAG;
+    int valence : BLENDINDICE0;
+    float3 e0 : POSITION1;
+    float3 e1 : POSITION2;
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    int zerothNeighbor : BLENDINDICE1;
+    float3 org : POSITION3;
+#endif
+    float3 r[OSD_MAX_VALENCE] : POSITION4;
+};
+
+struct OsdPerPatchVertexGregory {
+    int3   patchParam: PATCHPARAM;
+    float3 P : POSITION0;
+    float3 Ep : POSITION1;
+    float3 Em : POSITION2;
+    float3 Fp : POSITION3;
+    float3 Fm : POSITION4;
+};
+
+#ifndef OSD_NUM_ELEMENTS
+#define OSD_NUM_ELEMENTS 3
+#endif
+
+Buffer<float> OsdVertexBuffer : register( t2 );
+Buffer<int> OsdValenceBuffer : register( t3 );
+
+float3 OsdReadVertex(int vertexIndex)
+{
+    int index = int(OSD_NUM_ELEMENTS * (vertexIndex /*+ OsdBaseVertex()*/));
+    return float3(OsdVertexBuffer[index],
+                  OsdVertexBuffer[index+1],
+                  OsdVertexBuffer[index+2]);
+}
+
+int OsdReadVertexValence(int vertexID)
+{
+    int index = int(vertexID * (2 * OSD_MAX_VALENCE + 1));
+    return OsdValenceBuffer[index];
+}
+
+int OsdReadVertexIndex(int vertexID, int valenceVertex)
+{
+    int index = int(vertexID * (2 * OSD_MAX_VALENCE + 1) + 1 + valenceVertex);
+    return OsdValenceBuffer[index];
+}
+
+Buffer<int> OsdQuadOffsetBuffer : register( t4 );
+
+int OsdReadQuadOffset(int primitiveID, int offsetVertex)
+{
+    int index = int(4*primitiveID+OsdGregoryQuadOffsetBase() + offsetVertex);
+    return OsdQuadOffsetBuffer[index];
+}
+
+void
+OsdComputePerVertexGregory(int vID, float3 P, out OsdPerVertexGregory v)
+{
+    v.clipFlag = int3(0,0,0);
+
+    int ivalence = OsdReadVertexValence(vID);
+    v.valence = ivalence;
+    int valence = abs(ivalence);
+
+    float3 f[OSD_MAX_VALENCE];
+    float3 pos = P;
+    float3 opos = float3(0,0,0);
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    v.org = pos;
+    int boundaryEdgeNeighbors[2];
+    int currNeighbor = 0;
+    int ibefore = 0;
+    int zerothNeighbor = 0;
+#endif
+
+    for (int i=0; i<valence; ++i) {
+        int im = (i+valence-1)%valence;
+        int ip = (i+1)%valence;
+
+        int idx_neighbor = OsdReadVertexIndex(vID, 2*i);
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+        bool isBoundaryNeighbor = false;
+        int valenceNeighbor = OsdReadVertexValence(idx_neighbor);
+
+        if (valenceNeighbor < 0) {
+            isBoundaryNeighbor = true;
+            if (currNeighbor<2) {
+                boundaryEdgeNeighbors[currNeighbor] = idx_neighbor;
+            }
+            currNeighbor++;
+            if (currNeighbor == 1) {
+                ibefore = i;
+                zerothNeighbor = i;
+            } else {
+                if (i-ibefore == 1) {
+                    int tmp = boundaryEdgeNeighbors[0];
+                    boundaryEdgeNeighbors[0] = boundaryEdgeNeighbors[1];
+                    boundaryEdgeNeighbors[1] = tmp;
+                    zerothNeighbor = i;
+                }
+            }
+        }
+#endif
+
+        float3 neighbor = OsdReadVertex(idx_neighbor);
+
+        int idx_diagonal = OsdReadVertexIndex(vID, 2*i + 1);
+        float3 diagonal = OsdReadVertex(idx_diagonal);
+
+        int idx_neighbor_p = OsdReadVertexIndex(vID, 2*ip);
+        float3 neighbor_p = OsdReadVertex(idx_neighbor_p);
+
+        int idx_neighbor_m = OsdReadVertexIndex(vID, 2*im);
+        float3 neighbor_m = OsdReadVertex(idx_neighbor_m);
+
+        int idx_diagonal_m = OsdReadVertexIndex(vID, 2*im + 1);
+        float3 diagonal_m = OsdReadVertex(idx_diagonal_m);
+
+        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
+
+        opos += f[i];
+        v.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
+    }
+
+    opos /= valence;
+    v.P = float4(opos, 1.0f).xyz;
+
+    float3 e;
+    v.e0 = float3(0,0,0);
+    v.e1 = float3(0,0,0);
+
+    for(int i=0; i<valence; ++i) {
+        int im = (i + valence -1) % valence;
+        e = 0.5f * (f[i] + f[im]);
+        v.e0 += cosfn(valence, i)*e;
+        v.e1 += sinfn(valence, i)*e;
+    }
+    v.e0 *= ef[valence - 3];
+    v.e1 *= ef[valence - 3];
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    v.zerothNeighbor = zerothNeighbor;
+    if (currNeighbor == 1) {
+        boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
+    }
+
+    if (ivalence < 0) {
+        if (valence > 2) {
+            v.P = (OsdReadVertex(boundaryEdgeNeighbors[0]) +
+                   OsdReadVertex(boundaryEdgeNeighbors[1]) +
+                   4.0f * pos)/6.0f;
+        } else {
+            v.P = pos;
+        }
+
+        v.e0 = (OsdReadVertex(boundaryEdgeNeighbors[0]) -
+                OsdReadVertex(boundaryEdgeNeighbors[1]))/6.0;
+
+        float k = float(float(valence) - 1.0f);    //k is the number of faces
+        float c = cos(M_PI/k);
+        float s = sin(M_PI/k);
+        float gamma = -(4.0f*s)/(3.0f*k+c);
+        float alpha_0k = -((1.0f+2.0f*c)*sqrt(1.0f+c))/((3.0f*k+c)*sqrt(1.0f-c));
+        float beta_0 = s/(3.0f*k + c);
+
+        int idx_diagonal = OsdReadVertexIndex(vID, 2*zerothNeighbor + 1);
+        float3 diagonal = OsdReadVertex(idx_diagonal);
+
+        v.e1 = gamma * pos +
+            alpha_0k * OsdReadVertex(boundaryEdgeNeighbors[0]) +
+            alpha_0k * OsdReadVertex(boundaryEdgeNeighbors[1]) +
+            beta_0 * diagonal;
+
+        for (int x=1; x<valence - 1; ++x) {
+            int curri = ((x + zerothNeighbor)%valence);
+            float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
+            float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
+
+            int idx_neighbor = OsdReadVertexIndex(vID, 2*curri);
+            float3 neighbor = OsdReadVertex(idx_neighbor);
+
+            idx_diagonal = OsdReadVertexIndex(vID, 2*curri + 1);
+            diagonal = OsdReadVertex(idx_diagonal);
+
+            v.e1 += alpha * neighbor + beta * diagonal;
+        }
+
+        v.e1 /= 3.0f;
+    }
+#endif
+}
+
+void
+OsdComputePerPatchVertexGregory(int3 patchParam, int ID, int primitiveID,
+                                in OsdPerVertexGregory v[4],
+                                out OsdPerPatchVertexGregory result)
+{
+    result.patchParam = patchParam;
+    result.P = v[ID].P;
+
+    int i = ID;
+    int ip = (i+1)%4;
+    int im = (i+3)%4;
+    int valence = abs(v[i].valence);
+    int n = valence;
+
+    int start = OsdReadQuadOffset(primitiveID, i) & 0xff;
+    int prev = (OsdReadQuadOffset(primitiveID, i) >> 8) & 0xff;
+
+    int start_m = OsdReadQuadOffset(primitiveID, im) & 0xff;
+    int prev_p = (OsdReadQuadOffset(primitiveID, ip) >> 8) & 0xff;
+
+    int np = abs(v[ip].valence);
+    int nm = abs(v[im].valence);
+
+    // Control Vertices based on :
+    // "Approximating Subdivision Surfaces with Gregory Patches
+    //  for Hardware Tessellation"
+    // Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia 2009)
+    //
+    //  P3         e3-      e2+         E2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         E1
+    //
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    float3 Em_ip;
+    if (v[ip].valence < -2) {
+        int j = (np + prev_p - v[ip].zerothNeighbor) % np;
+        Em_ip = v[ip].P + cos((M_PI*j)/float(np-1))*v[ip].e0 + sin((M_PI*j)/float(np-1))*v[ip].e1;
+    } else {
+        Em_ip = v[ip].P + v[ip].e0*cosfn(np, prev_p) + v[ip].e1*sinfn(np, prev_p);
+    }
+
+    float3 Ep_im;
+    if (v[im].valence < -2) {
+        int j = (nm + start_m - v[im].zerothNeighbor) % nm;
+        Ep_im = v[im].P + cos((M_PI*j)/float(nm-1))*v[im].e0 + sin((M_PI*j)/float(nm-1))*v[im].e1;
+    } else {
+        Ep_im = v[im].P + v[im].e0*cosfn(nm, start_m) + v[im].e1*sinfn(nm, start_m);
+    }
+
+    if (v[i].valence < 0) {
+        n = (n-1)*2;
+    }
+    if (v[im].valence < 0) {
+        nm = (nm-1)*2;
+    }
+    if (v[ip].valence < 0) {
+        np = (np-1)*2;
+    }
+
+    if (v[i].valence > 2) {
+        result.Ep = v[i].P + (v[i].e0*cosfn(n, start) + v[i].e1*sinfn(n, start));
+        result.Em = v[i].P + (v[i].e0*cosfn(n, prev) +  v[i].e1*sinfn(n, prev));
+
+        float s1=3-2*cosfn(n,1)-cosfn(np,1);
+        float s2=2*cosfn(n,1);
+
+        result.Fp = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+        result.Fm = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+
+    } else if (v[i].valence < -2) {
+        int j = (valence + start - v[i].zerothNeighbor) % valence;
+
+        result.Ep = v[i].P + cos((M_PI*j)/float(valence-1))*v[i].e0 + sin((M_PI*j)/float(valence-1))*v[i].e1;
+        j = (valence + prev - v[i].zerothNeighbor) % valence;
+        result.Em = v[i].P + cos((M_PI*j)/float(valence-1))*v[i].e0 + sin((M_PI*j)/float(valence-1))*v[i].e1;
+
+        float3 Rp = ((-2.0f * v[i].org - 1.0f * v[im].org) + (2.0f * v[ip].org + 1.0f * v[(i+2)%4].org))/3.0f;
+        float3 Rm = ((-2.0f * v[i].org - 1.0f * v[ip].org) + (2.0f * v[im].org + 1.0f * v[(i+2)%4].org))/3.0f;
+
+        float s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+        float s2 = 2*cosfn(n,1);
+
+        result.Fp = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+        result.Fm = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+
+        if (v[im].valence < 0) {
+            s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+            result.Fp = result.Fm = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+        } else if (v[ip].valence < 0) {
+            s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
+            result.Fm = result.Fp = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+        }
+
+    } else if (v[i].valence == -2) {
+        result.Ep = (2.0f * v[i].org + v[ip].org)/3.0f;
+        result.Em = (2.0f * v[i].org + v[im].org)/3.0f;
+        result.Fp = result.Fm = (4.0f * v[i].org + v[(i+2)%n].org + 2.0f * v[ip].org + 2.0f * v[im].org)/9.0f;
+    }
+
+#else // not OSD_PATCH_GREGORY_BOUNDARY
+
+    result.Ep = v[i].P + v[i].e0 * cosfn(n, start) + v[i].e1*sinfn(n, start);
+    result.Em = v[i].P + v[i].e0 * cosfn(n, prev ) + v[i].e1*sinfn(n, prev );
+
+    float3 Em_ip = v[ip].P + v[ip].e0*cosfn(np, prev_p) + v[ip].e1*sinfn(np, prev_p);
+    float3 Ep_im = v[im].P + v[im].e0*cosfn(nm, start_m) + v[im].e1*sinfn(nm, start_m);
+
+    float s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+    float s2 = 2*cosfn(n,1);
+
+    result.Fp = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+    s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+    result.Fm = (cosfn(nm,1)*v[i].P + s1*result.Em +s2*Ep_im - v[i].r[prev])/3.0f;
+
+#endif
+}
+
+#endif  // OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY

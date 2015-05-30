@@ -189,7 +189,7 @@ void emit(int index, vec4 position, vec3 normal, vec4 patchCoord, vec4 edgeVerts
 vec4 GeneratePatchCoord(vec2 uv, int primitiveID) // for non-adaptive
 {
     ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-    return OsdInterpolatePatchCoord(uv, OsdGetPatchCoord(patchParam));
+    return OsdInterpolatePatchCoord(uv, patchParam);
 }
 
 void main()
