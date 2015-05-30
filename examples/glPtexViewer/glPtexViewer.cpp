@@ -305,16 +305,6 @@ const char * g_ptexColorFilename;
 size_t g_ptexMemoryUsage = 0;
 
 
-static void
-checkGLErrors(std::string const & where = "") {
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
-}
-
 //------------------------------------------------------------------------------
 static void
 calcNormals(OpenSubdiv::Far::TopologyRefiner * refiner,
@@ -509,7 +499,7 @@ reshape(GLFWwindow *, int width, int height) {
     glBindTexture(GL_TEXTURE_2D, 0);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    checkGLErrors("Reshape");
+    GLUtils::CheckGLErrors("Reshape");
 }
 
 void reshape() {
@@ -879,7 +869,7 @@ createPtex(const char *filename, int memLimit) {
 void
 createOsdMesh(int level, int kernel) {
 
-    checkGLErrors("createOsdMesh");
+    GLUtils::CheckGLErrors("createOsdMesh");
 
     Ptex::String ptexError;
     PtexTexture *ptexColor = PtexTexture::open(g_ptexColorFilename, ptexError, true);
@@ -1367,7 +1357,7 @@ drawSky() {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 
-    checkGLErrors("draw model");
+    GLUtils::CheckGLErrors("draw model");
 }
 
 //------------------------------------------------------------------------------
@@ -1395,7 +1385,7 @@ drawCageEdges() {
     glBindVertexArray(0);
     glUseProgram(0);
 
-    checkGLErrors("draw cage edges");
+    GLUtils::CheckGLErrors("draw cage edges");
 }
 
 //------------------------------------------------------------------------------
@@ -1503,7 +1493,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("draw end");
+    GLUtils::CheckGLErrors("draw end");
 }
 
 //------------------------------------------------------------------------------
@@ -1782,29 +1772,6 @@ static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
 
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
@@ -1878,10 +1845,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glPtexViewer" OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
         g_primary = glfwGetPrimaryMonitor();
@@ -1904,12 +1868,15 @@ int main(int argc, char ** argv) {
     }
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+                               fullscreen and g_primary ? g_primary : NULL, NULL))) {
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
+
     glfwSetKeyCallback(g_window, keyboard);
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);

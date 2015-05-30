@@ -22,21 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -97,7 +83,6 @@ GLFWmonitor* g_primary=0;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
-#include "../common/glUtils.h"
 
 #include "init_shapes.h"
 #include "particles.h"
@@ -692,18 +677,6 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 }
 
 //------------------------------------------------------------------------------
-static void
-checkGLErrors(std::string const & where = "") {
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
-}
-
-//------------------------------------------------------------------------------
 static bool
 linkDefaultProgram() {
 
@@ -1036,7 +1009,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("display leave");
+    GLUtils::CheckGLErrors("display leave");
 }
 
 //------------------------------------------------------------------------------
@@ -1356,25 +1329,6 @@ callbackErrorGLFW(int error, const char* description) {
 }
 
 //------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
-//------------------------------------------------------------------------------
 int main(int argc, char **argv) {
 
     bool fullscreen = false;
@@ -1407,10 +1361,7 @@ int main(int argc, char **argv) {
 
     static const char windowTitle[] = "OpenSubdiv glEvalLimit " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
 
@@ -1435,11 +1386,13 @@ int main(int argc, char **argv) {
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
                                        fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
