@@ -26,6 +26,8 @@
 #include <string>
 #include "glUtils.h"
 
+#include <GLFW/glfw3.h>
+
 namespace GLUtils {
 
 // Note that glewIsSupported is required here for Core profile, glewGetExtension
@@ -34,6 +36,41 @@ namespace GLUtils {
 #define IS_SUPPORTED(x) \
    (glewIsSupported(x) == GL_TRUE)
 #endif
+
+void
+SetMinimumGLVersion() {
+    // Here 3.2 is the minimum GL version supported, GLFW will allocate
+    // a higher version if possible.
+    int major = 3,
+        minor = 2;
+
+    #define glfwOpenWindowHint glfwWindowHint
+    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
+    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
+
+    #ifdef CORE_PROFILE
+    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    #endif
+
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
+    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
+
+    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+}
+
+void
+PrintGLVersion() {
+    std::cout << glGetString(GL_VENDOR) << "\n";
+    std::cout << glGetString(GL_RENDERER) << "\n";
+    std::cout << glGetString(GL_VERSION) << "\n";
+
+    int i;
+    std::cout << "Init OpenGL ";
+    glGetIntegerv(GL_MAJOR_VERSION, &i);
+    std::cout << i << ".";
+    glGetIntegerv(GL_MINOR_VERSION, &i);
+    std::cout << i << "\n";
+}
 
 void
 CheckGLErrors(std::string const & where) {
@@ -76,8 +113,6 @@ SupportsAdaptiveTessellation() {
 #endif
 }
 
-///Helper function that parses the open gl version string, retrieving the major 
-///and minor version from it.
 void GetMajorMinorVersion(int *major, int *minor){
     const GLubyte *ver = glGetString(GL_SHADING_LANGUAGE_VERSION);
     if (!ver){
@@ -91,9 +126,6 @@ void GetMajorMinorVersion(int *major, int *minor){
         ss >> *minor;
     }
 }
-
-/** Gets the shader version based on the current opengl version and returns 
- * it in a string form */
 
 std::string
 GetShaderVersion(){

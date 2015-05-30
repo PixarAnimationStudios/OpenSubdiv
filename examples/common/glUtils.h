@@ -25,13 +25,35 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_UTILS_H
 #define OPENSUBDIV_EXAMPLES_GL_UTILS_H
 
+#if defined(__APPLE__)
+    #if defined(OSD_USES_GLEW)
+        #include <GL/glew.h>
+    #else
+        #include <OpenGL/gl3.h>
+    #endif
+    #define GLFW_INCLUDE_GL3
+    #define GLFW_NO_GLU
+#else
+    #include <stdlib.h>
+    #include <GL/glew.h>
+    #if defined(WIN32)
+        #include <GL/wglew.h>
+    #endif
+#endif
+
 #include <osd/opengl.h>
 
 #include <cstdio>
 #include <string>
 #include <iostream>
 
+#define CORE_PROFILE
+
 namespace GLUtils {
+
+void SetMinimumGLVersion();
+
+void PrintGLVersion();
 
 void CheckGLErrors(std::string const & where = "");
 
@@ -39,14 +61,18 @@ GLuint CompileShader(GLenum shaderType, const char *source);
 
 bool SupportsAdaptiveTessellation();
 
+// Helper function that parses the open gl version string, retrieving the
+// major and minor version from it.
 void GetMajorMinorVersion(int *major, int *minor);
 
-
+// Gets the shader version based on the current opengl version and returns 
+// it in a string form.
 std::string GetShaderVersion();
 
 std::string GetShaderVersionInclude();
 
 bool GL_ARBSeparateShaderObjectsOrGL_VERSION_4_1();
+
 bool GL_ARBComputeShaderOrGL_VERSION_4_3();
 
 };
