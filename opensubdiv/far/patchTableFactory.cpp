@@ -806,9 +806,9 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     // Allocate various tables
     allocateVertexTables( table, 0, /*hasSharpness=*/false );
 
-    bool generateFVarPatches=false;
     FVarChannelCursor fvc(refiner, options);
-    if (options.generateFVarTables and fvc.size()>0) {
+    bool generateFVarPatches = (options.generateFVarTables and fvc.size()>0);
+    if (generateFVarPatches) {
         int npatches = table->GetNumPatchesTotal();
         allocateFVarChannels(refiner, options, npatches, table);
         assert(fvc.size() == table->GetNumFVarChannels());

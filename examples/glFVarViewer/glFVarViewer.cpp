@@ -583,9 +583,11 @@ struct EffectDesc {
     int numElements;
 
     bool operator < (const EffectDesc &e) const {
-        return desc < e.desc || (desc == e.desc &&
-              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
-              (effect < e.effect))));
+        return
+            (desc < e.desc || ((desc == e.desc &&
+            (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+            (numElements < e.numElements || ((numElements == e.numElements) &&
+            (effect < e.effect))))))));
     }
 };
 
@@ -612,6 +614,7 @@ public:
 
         if (type == Far::PatchDescriptor::QUADS) {
             ss << "#define PRIM_QUAD\n";
+            ss << "#define UNIFORM_SUBDIVISION\n";
         } else {
             ss << "#define PRIM_TRI\n";
         }
@@ -967,7 +970,11 @@ mouse(GLFWwindow *, int button, int state, int /* mods */) {
         g_mbutton[button] = (state == GLFW_PRESS);
     }
 
-    g_mouseUvView = (g_prev_x > g_width/2);
+    // window size might not match framebuffer size on a high DPI display
+    int windowWidth = g_width, windowHeight = g_height;
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+
+    g_mouseUvView = (g_prev_x > windowWidth/2);
 }
 
 //------------------------------------------------------------------------------
