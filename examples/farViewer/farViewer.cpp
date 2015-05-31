@@ -53,7 +53,7 @@ GLFWmonitor* g_primary=0;
 #include <far/stencilTableFactory.h>
 #include <far/primvarRefiner.h>
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glUtils.h"
