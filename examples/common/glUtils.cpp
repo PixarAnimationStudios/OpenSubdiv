@@ -24,6 +24,7 @@
 
 #include <sstream>
 #include <string>
+#include <cstring>
 #include "glUtils.h"
 
 #include <GLFW/glfw3.h>
@@ -37,34 +38,104 @@ namespace GLUtils {
    (glewIsSupported(x) == GL_TRUE)
 #endif
 
+static void
+_argParseBool(bool *ret, const char *lbl, int i, int argc, char **argv)
+{
+    if (i < argc-1) {
+        if (!strcmp(argv[i+1], "on")) {
+            *ret = true;
+        } else if (!strcmp(argv[i+1], "off")) {
+            *ret = false;
+        } else {
+            fprintf(stderr, "Unknown setting for %s: %s\n", lbl, argv[i+1]);
+            exit(1);
+        }
+    } else {
+        fprintf(stderr,
+            "Please specify \"on\" or \"off\" for %s.\n", lbl);
+        exit(1);
+    }
+}
+
 void
-SetMinimumGLVersion() {
+SetMinimumGLVersion(int argc, char ** argv) {
+
+#if defined(__APPLE__)
+    // Here 3.2 is the minimum GL version supported, GLFW will allocate a
+    // higher version if possible. This works on OS X, but instead limits
+    // the version to 3.2 on Linux. On Linux & Windows, specifying no 
+    // version hint should use the highest version available.
+    //
+    // http://www.glfw.org/faq.html#how-do-i-create-an-opengl-30-context
+    // http://www.glfw.org/faq.html#what-versions-of-opengl-are-supported-by-glfw
+    bool coreProfile = true;
+    bool forwardCompat = true;
+    bool versionSet = true;
+    int  major = 3;
+    int  minor = 2;
+#else
+    bool coreProfile = false;
+    bool forwardCompat = false;
+    bool versionSet = false;
+    int  major = 4;
+    int  minor = 2;
+#endif
+
+    for (int i = 1; i < argc; ++i) {
+
+        if (!strcmp(argv[i], "-glCoreProfile")) {
+            _argParseBool(&coreProfile, argv[i], i, argc, argv);
+        }
+        if (!strcmp(argv[i], "-glForwardCompat")) {
+            _argParseBool(&forwardCompat, argv[i], i, argc, argv);
+        }
+        if (!strcmp(argv[i], "-glVersion")) {
+            if (i < argc-1) {
+                char *versionStr = argv[i+1];
+                size_t len = strlen(versionStr);
+                if (len == 3 && versionStr[1] == '.' &&
+                    versionStr[0] >= '0' && versionStr[0] <= '9' &&
+                    versionStr[2] >= '0' && versionStr[2] <= '9') {
+                        
+                    major = versionStr[0] - '0';
+                    minor = versionStr[2] - '0';
+                    versionSet = true;
+
+                } else {
+                    fprintf(stderr,
+                        "Invalid version number: %s, please specify a number "
+                        "in the format M.n, e.g., -glVersion 4.2.\n",
+                        versionStr);
+                    exit(1);
+                }
+            } else {
+                fprintf(stderr,
+                    "Please specify a version number for glVersion "
+                    "in the form M.n, e.g., -glVersion 4.2.\n");
+                exit(1);
+            }
+        }
+    }
+
+
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
-    #if defined(__APPLE__)
-
-        #ifdef CORE_PROFILE
+#ifdef CORE_PROFILE
+    if (coreProfile) {
         glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    }
+
+    if (forwardCompat) {
         glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-        #endif
+    }
+#endif
 
-        // Here 3.2 is the minimum GL version supported, GLFW will allocate a
-        // higher version if possible. This works on OS X, but instead limits
-        // the version to 3.2 on Linux. On Linux & Windows, specifying no 
-        // version hint should use the highest version available.
-        //
-        // http://www.glfw.org/faq.html#how-do-i-create-an-opengl-30-context
-        // http://www.glfw.org/faq.html#what-versions-of-opengl-are-supported-by-glfw
-        //
-        int major = 3,
-            minor = 2;
-
+    if (versionSet) {
         glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
         glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
-
-    #endif
+    }
 }
 
 void

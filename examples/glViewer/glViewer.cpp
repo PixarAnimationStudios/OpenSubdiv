@@ -1829,7 +1829,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
 
-    GLUtils::SetMinimumGLVersion();
+    GLUtils::SetMinimumGLVersion(argc, argv);
 
     if (fullscreen) {
 
