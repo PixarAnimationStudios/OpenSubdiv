@@ -59,7 +59,7 @@ in block {
 out block {
     OsdPerPatchVertexBezier v;
     OSD_USER_VARYING_DECLARE
-} outpt[];
+} outpt[16];
 
 layout(vertices = 16) out;
 
