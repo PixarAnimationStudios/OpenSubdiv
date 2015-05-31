@@ -43,11 +43,13 @@ SetMinimumGLVersion() {
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
 
-    #ifdef CORE_PROFILE
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    #endif
-
     #if defined(__APPLE__)
+
+        #ifdef CORE_PROFILE
+        glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        #endif
+
         // Here 3.2 is the minimum GL version supported, GLFW will allocate a
         // higher version if possible. This works on OS X, but instead limits
         // the version to 3.2 on Linux. On Linux & Windows, specifying no 
@@ -62,7 +64,6 @@ SetMinimumGLVersion() {
         glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
         glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
 
-        glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
 }
 
