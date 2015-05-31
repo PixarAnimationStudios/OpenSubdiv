@@ -51,7 +51,7 @@
 
 namespace GLUtils {
 
-void SetMinimumGLVersion();
+void SetMinimumGLVersion(int argc=0, char **argv=NULL);
 
 void PrintGLVersion();
 
