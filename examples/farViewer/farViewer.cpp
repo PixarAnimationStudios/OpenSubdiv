@@ -1297,33 +1297,6 @@ idle() {
         g_running = 0;
 }
 
-
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-
-    #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-    #else
-        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-    #endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv)
 {
@@ -1356,10 +1329,7 @@ int main(int argc, char ** argv)
 
     static const char windowTitle[] = "OpenSubdiv farViewer";
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
 
@@ -1398,6 +1368,8 @@ int main(int argc, char ** argv)
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowCloseCallback(g_window, windowClose);
+
+    GLUtils::PrintGLVersion();
 
 #if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
