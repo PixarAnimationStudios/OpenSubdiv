@@ -443,7 +443,7 @@ ps_main( in OutputVertex input,
 {
     float sharpness = 0;
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    sharpness = input.sharpness;
+    sharpness = input.vSegments.y;
 #endif
     float4 color = getAdaptivePatchColor(
         OsdGetPatchParam(OsdGetPatchIndex(primitiveID)), sharpness);
