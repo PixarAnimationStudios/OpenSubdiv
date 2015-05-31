@@ -39,11 +39,6 @@ namespace GLUtils {
 
 void
 SetMinimumGLVersion() {
-    // Here 3.2 is the minimum GL version supported, GLFW will allocate
-    // a higher version if possible.
-    int major = 3,
-        minor = 2;
-
     #define glfwOpenWindowHint glfwWindowHint
     #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
     #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
@@ -52,10 +47,23 @@ SetMinimumGLVersion() {
     glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     #endif
 
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
+    #if defined(__APPLE__)
+        // Here 3.2 is the minimum GL version supported, GLFW will allocate a
+        // higher version if possible. This works on OS X, but instead limits
+        // the version to 3.2 on Linux. On Linux & Windows, specifying no 
+        // version hint should use the highest version available.
+        //
+        // http://www.glfw.org/faq.html#how-do-i-create-an-opengl-30-context
+        // http://www.glfw.org/faq.html#what-versions-of-opengl-are-supported-by-glfw
+        //
+        int major = 3,
+            minor = 2;
 
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
+        glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
+
+        glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    #endif
 }
 
 void
