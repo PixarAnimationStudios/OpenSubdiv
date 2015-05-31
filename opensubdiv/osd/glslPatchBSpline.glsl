@@ -57,7 +57,7 @@ in block {
 } inpt[];
 
 out block {
-    OsdPerPatchVertexBSpline v;
+    OsdPerPatchVertexBezier v;
     OSD_USER_VARYING_DECLARE
 } outpt[];
 
@@ -87,13 +87,37 @@ void main()
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
+        OsdPerPatchVertexBezier cpBezier[16];
+#if 0
+        // XXX: this doesn't work on nvidia driver 34x.
         for (int i=0; i<16; ++i) {
-            cv[i] = outpt[i].v.P.xyz;
+            cpBezier[i] = outpt[i].v;
         }
+#else
+        cpBezier[0] = outpt[0].v;
+        cpBezier[1] = outpt[1].v;
+        cpBezier[2] = outpt[2].v;
+        cpBezier[3] = outpt[3].v;
+        cpBezier[4] = outpt[4].v;
+        cpBezier[5] = outpt[5].v;
+        cpBezier[6] = outpt[6].v;
+        cpBezier[7] = outpt[7].v;
+        cpBezier[8] = outpt[8].v;
+        cpBezier[9] = outpt[9].v;
+        cpBezier[10] = outpt[10].v;
+        cpBezier[11] = outpt[11].v;
+        cpBezier[12] = outpt[12].v;
+        cpBezier[13] = outpt[13].v;
+        cpBezier[14] = outpt[14].v;
+        cpBezier[15] = outpt[15].v;
 #endif
-
-        OsdGetTessLevels(cv, patchParam, tessLevelOuter, tessLevelInner,
+        OsdGetTessLevelsAdaptiveLimitPoints(cpBezier, patchParam,
+                         tessLevelOuter, tessLevelInner,
                          tessOuterLo, tessOuterHi);
+#else
+        OsdGetTessLevelsUniform(patchParam, tessLevelOuter, tessLevelInner,
+                         tessOuterLo, tessOuterHi);
+#endif
 
         gl_TessLevelOuter[0] = tessLevelOuter[0];
         gl_TessLevelOuter[1] = tessLevelOuter[1];
@@ -118,14 +142,14 @@ layout(OSD_SPACING) in;
 patch in vec4 tessOuterLo, tessOuterHi;
 
 in block {
-    OsdPerPatchVertexBSpline v;
+    OsdPerPatchVertexBezier v;
     OSD_USER_VARYING_DECLARE
 } inpt[];
 
 out block {
     OutputVertex v;
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness;
+    vec2 vSegments;
 #endif
     OSD_USER_VARYING_DECLARE
 } outpt;
@@ -135,7 +159,7 @@ void main()
     vec3 P = vec3(0), dPu = vec3(0), dPv = vec3(0);
     vec3 N = vec3(0), dNu = vec3(0), dNv = vec3(0);
 
-    OsdPerPatchVertexBSpline cv[16];
+    OsdPerPatchVertexBezier cv[16];
     for (int i = 0; i < 16; ++i) {
         cv[i] = inpt[i].v;
     }
@@ -144,7 +168,7 @@ void main()
                                          tessOuterLo, tessOuterHi);
 
     ivec3 patchParam = inpt[0].v.patchParam;
-    OsdEvalPatchBSpline(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
+    OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     // all code below here is client code
     outpt.v.position = OsdModelViewMatrix() * vec4(P, 1.0f);
@@ -156,7 +180,7 @@ void main()
     outpt.v.Nv = dNv;
 #endif
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    outpt.sharpness = cv[0].sharpness;
+    outpt.vSegments = cv[0].vSegments;
 #endif
 
     outpt.v.tessCoord = UV;

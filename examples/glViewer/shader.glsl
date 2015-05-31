@@ -113,7 +113,7 @@ OSD_USER_VARYING_ATTRIBUTE_DECLARE
 out block {
     OutputVertex v;
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness;
+    vec2 vSegments;
 #endif
     OSD_USER_VARYING_DECLARE
 } outpt;
@@ -123,7 +123,7 @@ void main()
     outpt.v.position = ModelViewMatrix * position;
     outpt.v.patchCoord = vec4(0);
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    outpt.sharpness = 0;
+    outpt.vSegments = vec2(0);
 #endif
     OSD_USER_VARYING_PER_VERTEX();
 }
@@ -156,7 +156,7 @@ layout(triangle_strip, max_vertices = EDGE_VERTS) out;
 in block {
     OutputVertex v;
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness;
+    vec2 vSegments;
 #endif
     OSD_USER_VARYING_DECLARE
 } inpt[EDGE_VERTS];
@@ -165,7 +165,7 @@ out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness;
+    vec2 vSegments;
 #endif
     OSD_USER_VARYING_DECLARE
 } outpt;
@@ -181,7 +181,7 @@ void emit(int index, vec3 normal)
 #endif
 
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    outpt.sharpness = inpt[index].sharpness;
+    outpt.vSegments = inpt[index].vSegments;
 #endif
 
 #ifdef VARYING_COLOR
@@ -315,7 +315,7 @@ in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    float sharpness;
+    vec2 vSegments;
 #endif
     OSD_USER_VARYING_DECLARE
 } inpt;
@@ -449,7 +449,7 @@ getAdaptivePatchColor(ivec3 patchParam)
 
     int patchType = 0;
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    if (inpt.sharpness > 0) {
+    if (inpt.vSegments.y > 0) {
         patchType = 1;
     }
 #elif defined OSD_PATCH_GREGORY
