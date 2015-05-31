@@ -68,7 +68,7 @@
 
 #include <osd/glMesh.h>
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "../common/glShaderCache.h"
@@ -285,7 +285,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(),
                                           shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
 

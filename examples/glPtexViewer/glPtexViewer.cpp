@@ -92,7 +92,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
@@ -888,7 +888,7 @@ createOsdMesh(int level, int kernel) {
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 

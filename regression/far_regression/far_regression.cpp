@@ -27,7 +27,7 @@
 
 
 #include "../../regression/common/hbr_utils.h"
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../../regression/common/cmp_utils.h"
 
 #include "init_shapes.h"
@@ -121,17 +121,17 @@ typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory
 //------------------------------------------------------------------------------
 #ifdef foo
 static void
-printVertexData(std::vector<xyzVV> const & hbrBuffer, std::vector<xyzVV> const & vtrBuffer) {
+printVertexData(std::vector<xyzVV> const & hbrBuffer, std::vector<xyzVV> const & farBuffer) {
 
-    assert(hbrBuffer.size()==vtrBuffer.size());
+    assert(hbrBuffer.size()==farBuffer.size());
     for (int i=0; i<(int)hbrBuffer.size(); ++i) {
 
         float const * hbr = hbrBuffer[i].GetPos(),
-                    * vtr = vtrBuffer[i].GetPos();
+                    * far = farBuffer[i].GetPos();
 
-        printf("%3d %d (%f %f %f) (%f %f %f)\n", i, hbrBuffer[i]==vtrBuffer[i],
+        printf("%3d %d (%f %f %f) (%f %f %f)\n", i, hbrBuffer[i]==farBuffer[i],
                                                     hbr[0], hbr[1], hbr[2],
-                                                    vtr[0], vtr[1], vtr[2]);
+                                                    far[0], far[1], far[2]);
     }
 }
 #endif
@@ -148,40 +148,40 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
 
     std::vector<xyzVV> hbrVertexData,
-                       vtrVertexData;
+                       farVertexData;
 
     Hmesh *  hmesh = interpolateHbrVertexData<xyzVV>(
         desc.data.c_str(), desc.scheme, maxlevel);
 
     FarTopologyRefiner * refiner =
-        InterpolateVtrVertexData<xyzVV>(
-            desc.data.c_str(), desc.scheme, maxlevel, vtrVertexData);
+        InterpolateFarVertexData<xyzVV>(
+            desc.data.c_str(), desc.scheme, maxlevel, farVertexData);
 
     // copy Hbr vertex data into a re-ordered buffer (for easier comparison)
     GetReorderedHbrVertexData(*refiner, *hmesh, &hbrVertexData);
 
-    int nverts = (int)vtrVertexData.size();
+    int nverts = (int)farVertexData.size();
 
     for (int i=0; i<nverts; ++i) {
 
         xyzVV & hbrVert = hbrVertexData[i],
-              & vtrVert = vtrVertexData[i];
+              & farVert = farVertexData[i];
 
 #ifdef __INTEL_COMPILER // remark #1572: floating-point equality and inequality comparisons are unreliable
 #pragma warning disable 1572
 #endif
-        if ( hbrVert.GetPos()[0] != vtrVert.GetPos()[0] )
+        if ( hbrVert.GetPos()[0] != farVert.GetPos()[0] )
             deltaCnt[0]++;
-        if ( hbrVert.GetPos()[1] != vtrVert.GetPos()[1] )
+        if ( hbrVert.GetPos()[1] != farVert.GetPos()[1] )
             deltaCnt[1]++;
-        if ( hbrVert.GetPos()[2] != vtrVert.GetPos()[2] )
+        if ( hbrVert.GetPos()[2] != farVert.GetPos()[2] )
             deltaCnt[2]++;
 #ifdef __INTEL_COMPILER
 #pragma warning enable 1572
 #endif
-        float delta[3] = { hbrVert.GetPos()[0] - vtrVert.GetPos()[0],
-                           hbrVert.GetPos()[1] - vtrVert.GetPos()[1],
-                           hbrVert.GetPos()[2] - vtrVert.GetPos()[2] };
+        float delta[3] = { hbrVert.GetPos()[0] - farVert.GetPos()[0],
+                           hbrVert.GetPos()[1] - farVert.GetPos()[1],
+                           hbrVert.GetPos()[2] - farVert.GetPos()[2] };
 
         deltaAvg[0]+=delta[0];
         deltaAvg[1]+=delta[1];
@@ -194,9 +194,9 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
                        " (%.10f %.10f %.10f)\n", i, dist, hbrVert.GetPos()[0],
                                                           hbrVert.GetPos()[1],
                                                           hbrVert.GetPos()[2],
-                                                          vtrVert.GetPos()[0],
-                                                          vtrVert.GetPos()[1],
-                                                          vtrVert.GetPos()[2] );
+                                                          farVert.GetPos()[0],
+                                                          farVert.GetPos()[1],
+                                                          farVert.GetPos()[2] );
            count++;
         }
     }

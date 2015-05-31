@@ -60,7 +60,7 @@
 OpenSubdiv::Osd::D3D11MeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11Hud.h"
@@ -268,7 +268,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
 

@@ -68,7 +68,7 @@ GLFWmonitor* g_primary=0;
 #endif
 
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "init_shapes.h"
 
 #include "../common/stopwatch.h"

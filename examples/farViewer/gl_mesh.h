@@ -25,7 +25,7 @@
 #ifndef GL_MESH_H
 #define GL_MESH_H
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../../regression/common/hbr_utils.h"
 #include <far/patchTable.h>
 

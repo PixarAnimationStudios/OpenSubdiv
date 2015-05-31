@@ -72,7 +72,7 @@ GLFWmonitor* g_primary=0;
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
@@ -517,7 +517,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme, shapeDesc.isLeftHanded);
     }
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
