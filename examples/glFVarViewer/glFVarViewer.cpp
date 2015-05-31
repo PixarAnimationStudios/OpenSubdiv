@@ -37,6 +37,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 #include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
+#include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
 #include "../common/glShaderCache.h"
 
@@ -95,6 +96,7 @@ int   g_width = 1600,
       g_height = 800;
 
 GLhud g_hud;
+GLControlMeshDisplay g_controlMeshDisplay;
 
 // geometry
 std::vector<float> g_orgPositions,
@@ -121,10 +123,6 @@ struct Transform {
 } g_transformData;
 
 GLuint g_vao = 0;
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0;
 
 std::vector<int> g_coarseEdges;
 std::vector<float> g_coarseEdgeSharpness;
@@ -335,9 +333,10 @@ updateGeom() {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) {
-
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
+rebuildMesh() {
+    ShapeDesc const &shapeDesc = g_defaultShapes[g_currentShape];
+    int level = g_level;
+    Scheme scheme = g_defaultShapes[g_currentShape].scheme;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
@@ -352,24 +351,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
-    int nedges = refBaseLevel.GetNumEdges(),
-        nverts = refBaseLevel.GetNumVertices();
-
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
-    }
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
     g_orgPositions=shape->verts;
     g_normals.resize(g_orgPositions.size(), 0.0f);
@@ -448,100 +430,6 @@ fitFrame() {
     g_dolly = g_size;
     g_uvPan[0] = g_uvPan[1] = 0;
     g_uvScale = 1.0;
-}
-
-//------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-static void
-drawCageEdges() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (void*)12);
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-static void
-drawCageVertices() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = (int)g_positions.size()/3;
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-        vbo.push_back(g_positions[i*3+0]);
-        vbo.push_back(g_positions[i*3+1]);
-        vbo.push_back(g_positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (void*)12);
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
 }
 
 //------------------------------------------------------------------------------
@@ -851,7 +739,7 @@ display() {
     glEnable(GL_DEPTH_TEST);
 
     // make sure that the vertex buffer is interoped back as a GL resources.
-    g_mesh->BindVertexBuffer();
+    GLuint vbo = g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
 
@@ -882,8 +770,9 @@ display() {
     glBindVertexArray(0);
     glUseProgram(0);
 
-    drawCageEdges();
-    drawCageVertices();
+    // draw the control mesh
+    g_controlMeshDisplay.Draw(vbo, 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
     // ---------------------------------------------
     // uv viewport
@@ -981,12 +870,7 @@ mouse(GLFWwindow *, int button, int state, int /* mods */) {
 static void
 uninitGL() {
 
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
     glDeleteVertexArrays(1, &g_vao);
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
-
     if (g_mesh)
         delete g_mesh;
 }
@@ -1038,14 +922,6 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh() {
-
-    createOsdMesh(g_defaultShapes[g_currentShape],
-                  g_level,
-                  g_defaultShapes[g_currentShape].scheme);
-}
-
-static void
 callbackDisplayStyle(int b) {
 
     g_displayStyle = b;
@@ -1055,7 +931,7 @@ static void
 callbackLevel(int l) {
 
     g_level = l;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1063,7 +939,7 @@ callbackModel(int m) {
 
     int maxShapes = static_cast<int>(g_defaultShapes.size());
     g_currentShape = std::max(0, std::min(m, maxShapes-1));
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1071,7 +947,7 @@ callbackAdaptive(bool checked, int /* a */) {
 
     if (GLUtils::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
-        rebuildOsdMesh();
+        rebuildMesh();
     }
 }
 
@@ -1101,7 +977,7 @@ callbackBoundary(int b) {
             g_fvarBoundary = SdcOptions::FVAR_LINEAR_ALL; break;
 
     }
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1166,10 +1042,6 @@ initGL() {
     glEnable(GL_CULL_FACE);
 
     glGenVertexArrays(1, &g_vao);
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
@@ -1297,7 +1169,7 @@ int main(int argc, char ** argv) {
     glfwSwapInterval(0);
 
     initHUD();
-    rebuildOsdMesh();
+    rebuildMesh();
 
     while (g_running) {
         idle();

@@ -271,7 +271,7 @@ STParticles::~STParticles() {
 void
 STParticles::Update(float deltaTime) {
 
-    if (fabs(GetSpeed()) < 0.001f) return;
+    if (deltaTime == 0) return;
     float speed = GetSpeed() * std::max(0.001f, std::min(deltaTime, 0.5f));
 
     _patchCoords.clear();

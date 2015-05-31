@@ -52,6 +52,7 @@ set(EXAMPLES_COMMON_HEADER_FILES
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        glControlMeshDisplay.cpp
         glFramebuffer.cpp
         glHud.cpp
         glUtils.cpp
@@ -59,6 +60,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        glControlMeshDisplay.h
         glFramebuffer.h
         glHud.h
         glUtils.h
@@ -83,12 +85,14 @@ endif()
 if(DXSDK_FOUND)
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        d3d11ControlMeshDisplay.cpp
         d3d11Hud.cpp
         d3d11Utils.cpp
         d3d11ShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        d3d11ControlMeshDisplay.h
         d3d11Hud.h
         d3d11Utils.h
         d3d11ShaderCache.h
