@@ -47,6 +47,7 @@ SetMinimumGLVersion() {
 
         #ifdef CORE_PROFILE
         glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
         #endif
 
         // Here 3.2 is the minimum GL version supported, GLFW will allocate a
@@ -63,7 +64,6 @@ SetMinimumGLVersion() {
         glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
         glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
 
-        glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
 }
 
