@@ -165,7 +165,8 @@ void main()
     }
 
     vec2 UV = OsdGetTessParameterization(gl_TessCoord.xy,
-                                         tessOuterLo, tessOuterHi);
+                                         tessOuterLo,
+                                         tessOuterHi);
 
     ivec3 patchParam = inpt[0].v.patchParam;
     OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);

@@ -42,12 +42,12 @@ void vs_main_patches( in InputVertex input,
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(16)]
 [patchconstantfunc("HSConstFunc")]
-OsdPerPatchVertexBSpline hs_main_patches(
+OsdPerPatchVertexBezier hs_main_patches(
     in InputPatch<HullVertex, 16> patch,
     uint primitiveID : SV_PrimitiveID,
     in uint ID : SV_OutputControlPointID )
 {
-    OsdPerPatchVertexBSpline output;
+    OsdPerPatchVertexBezier output;
 
     float3 cv[16];
     for (int i=0; i<16; ++i) {
@@ -63,19 +63,12 @@ OsdPerPatchVertexBSpline hs_main_patches(
 HS_CONSTANT_FUNC_OUT
 HSConstFunc(
     InputPatch<HullVertex, 16> patch,
-    OutputPatch<OsdPerPatchVertexBSpline, 16> bezierPatch,
+    OutputPatch<OsdPerPatchVertexBezier, 16> bezierPatch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
 
-    float3 cv[16];
-    for (int i=0; i<16; ++i) {
-        cv[i] = bezierPatch[i].P;
-    }
-
     int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-
-    OsdComputeBSplineBoundaryPoints(cv, patchParam);
 
     float4 tessLevelOuter = float4(0,0,0,0);
     float2 tessLevelInner = float2(0,0);
@@ -84,9 +77,27 @@ HSConstFunc(
 
     OSD_PATCH_CULL(16);
 
-    OsdGetTessLevels(cv, patchParam,
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+#if 0
+    // XXX: this doesn't work on nvidia driver 34x.
+    OsdGetTessLevelsAdaptiveLimitPoints(bezierPatch, patchParam,
                      tessLevelOuter, tessLevelInner,
                      tessOuterLo, tessOuterHi);
+#else
+    // This is needed to coerce correct behavior on nvidia driver 34x
+    OsdPerPatchVertexBezier cpBezier[16];
+    for (int i=0; i<16; ++i) {
+        cpBezier[i] = bezierPatch[i];
+        cpBezier[i].P += 0.0f;
+    }
+    OsdGetTessLevelsAdaptiveLimitPoints(cpBezier, patchParam,
+                     tessLevelOuter, tessLevelInner,
+                     tessOuterLo, tessOuterHi);
+#endif
+#else
+    OsdGetTessLevelsUniform(patchParam, tessLevelOuter, tessLevelInner,
+                     tessOuterLo, tessOuterHi);
+#endif
 
     output.tessLevelOuter[0] = tessLevelOuter[0];
     output.tessLevelOuter[1] = tessLevelOuter[1];
@@ -109,14 +120,14 @@ HSConstFunc(
 [domain("quad")]
 void ds_main_patches(
     in HS_CONSTANT_FUNC_OUT input,
-    in OutputPatch<OsdPerPatchVertexBSpline, 16> patch,
+    in OutputPatch<OsdPerPatchVertexBezier, 16> patch,
     in float2 domainCoord : SV_DomainLocation,
     out OutputVertex output )
 {
     float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
     float3 N = float3(0,0,0), dNu = float3(0,0,0), dNv = float3(0,0,0);
 
-    OsdPerPatchVertexBSpline cv[16];
+    OsdPerPatchVertexBezier cv[16];
     for (int i=0; i<16; ++i) {
         cv[i] = patch[i];
     }
@@ -126,7 +137,7 @@ void ds_main_patches(
                                            input.tessOuterHi);
 
     int3 patchParam = patch[0].patchParam;
-    OsdEvalPatchBSpline(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
+    OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     // all code below here is client code
     output.position = mul(OsdModelViewMatrix(), float4(P, 1.0f));
@@ -138,7 +149,7 @@ void ds_main_patches(
     output.Nv = dNv;
 #endif
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    output.sharpness = cv[0].sharpness;
+    output.vSegments = cv[0].vSegments;
 #endif
 
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);

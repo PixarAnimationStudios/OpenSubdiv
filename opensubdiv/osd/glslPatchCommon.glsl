@@ -350,6 +350,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 #endif
 
 // ----------------------------------------------------------------------------
+
 void
 OsdUnivar4x4(in float u, out float B[4], out float D[4])
 {
@@ -461,21 +462,21 @@ OsdEvalBezier(OsdPerPatchVertexBezier cp[16], vec2 uv)
     if (uv.y < vSegments.x) {
         for (int i=0; i<4; ++i) {
             for (int j=0; j<4; ++j) {
-                vec3 A = cp[4*i + j].P.xyz;
+                vec3 A = cp[4*i + j].P;
                 BUCP[i] += A * B[j];
             }
         }
     } else if (uv.y < vSegments.y) {
         for (int i=0; i<4; ++i) {
             for (int j=0; j<4; ++j) {
-                vec3 A = cp[4*i + j].P1.xyz;
+                vec3 A = cp[4*i + j].P1;
                 BUCP[i] += A * B[j];
             }
         }
     } else {
         for (int i=0; i<4; ++i) {
             for (int j=0; j<4; ++j) {
-                vec3 A = cp[4*i + j].P2.xyz;
+                vec3 A = cp[4*i + j].P2;
                 BUCP[i] += A * B[j];
             }
         }
@@ -915,7 +916,7 @@ OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
     }
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    // Infinitly Sharp (boundary)
+    // Infinitely Sharp (boundary)
     mat4 Mi = mat4(
         1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
         0.f,     4.f/6.f, 2.f/6.f, 0.f,
@@ -989,9 +990,9 @@ OsdEvalPatchBezier(ivec3 patchParam, vec2 UV,
             int k = 4*i + j;
             float s = UV.y;
 
-            vec3 A = (s <= vSegments.x) ? cv[k].P.xyz
-                :   ((s <= vSegments.y) ? cv[k].P1.xyz
-                                        :  cv[k].P2.xyz);
+            vec3 A = (s <= vSegments.x) ? cv[k].P
+                :   ((s <= vSegments.y) ? cv[k].P1
+                                        : cv[k].P2);
 
             BUCP[i] += A * B[j];
             DUCP[i] += A * D[j];
@@ -1002,16 +1003,16 @@ OsdEvalPatchBezier(ivec3 patchParam, vec2 UV,
     }
 #else
     // ----------------------------------------------------------------
-        for (int i=0; i<4; ++i) {
-            for (int j=0; j<4; ++j) {
-                vec3 A = cv[4*i + j].P;
-                BUCP[i] += A * B[j];
-                DUCP[i] += A * D[j];
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            vec3 A = cv[4*i + j].P;
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
 #ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-                CUCP[i] += A * C[j];
+            CUCP[i] += A * C[j];
 #endif
-            }
         }
+    }
 #endif
     // ----------------------------------------------------------------
 
