@@ -57,7 +57,7 @@ in block {
 out block {
     OsdPerPatchVertexGregory v;
     OSD_USER_VARYING_DECLARE
-} outpt[];
+} outpt[4];
 
 layout(vertices = 4) out;
 
