@@ -44,6 +44,7 @@
 // Patches.Common
 //----------------------------------------------------------
 
+// XXXdyu all handling of varying data can be managed by client code
 #ifndef OSD_USER_VARYING_DECLARE
 #define OSD_USER_VARYING_DECLARE
 // type var;
@@ -75,6 +76,14 @@
 #undef OSD_FRACTIONAL_ODD_SPACING
 #undef OSD_FRACTIONAL_EVEN_SPACING
 
+#if defined OSD_FRACTIONAL_ODD_SPACING
+  #define OSD_SPACING fractional_odd_spacing
+#elif defined OSD_FRACTIONAL_EVEN_SPACING
+  #define OSD_SPACING fractional_even_spacing
+#else
+  #define OSD_SPACING equal_spacing
+#endif
+
 #define M_PI 3.14159265359f
 
 #if __VERSION__ < 420
@@ -83,12 +92,12 @@
 
 struct ControlVertex {
     vec4 position;
-    ivec4 patchCoord;  // U offset, V offset, faceLevel, faceId
 #ifdef OSD_ENABLE_PATCH_CULL
     ivec3 clipFlag;
 #endif
 };
 
+// XXXdyu all downstream data can be handled by client code
 struct OutputVertex {
     vec4 position;
     vec3 normal;
@@ -100,29 +109,6 @@ struct OutputVertex {
     vec3 Nu;
     vec3 Nv;
 #endif
-};
-
-struct GregControlVertex {
-    vec3 position;
-    vec3 hullPosition;
-    ivec3 clipFlag;
-    int  valence;
-    vec3 e0;
-    vec3 e1;
-    uint zerothNeighbor;
-    vec3 org;
-#if defined OSD_MAX_VALENCE && OSD_MAX_VALENCE > 0
-    vec3 r[OSD_MAX_VALENCE];
-#endif
-};
-
-struct GregEvalVertex {
-    vec3 position;
-    vec3 Ep;
-    vec3 Em;
-    vec3 Fp;
-    vec3 Fm;
-    ivec4 patchCoord;
 };
 
 // osd shaders need following functions defined
@@ -212,8 +198,9 @@ ivec4 OsdGetPatchCoord(ivec3 patchParam)
     return ivec4(faceUV.x, faceUV.y, faceLevel, faceId);
 }
 
-vec4 OsdInterpolatePatchCoord(vec2 localUV, ivec4 perPrimPatchCoord)
+vec4 OsdInterpolatePatchCoord(vec2 localUV, ivec3 patchParam)
 {
+    ivec4 perPrimPatchCoord = OsdGetPatchCoord(patchParam);
     int faceId = perPrimPatchCoord.w;
     int faceLevel = perPrimPatchCoord.z;
     vec2 faceUV = vec2(perPrimPatchCoord.x, perPrimPatchCoord.y);
@@ -365,7 +352,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
 // ----------------------------------------------------------------------------
 
 void
-Univar4x4(in float u, out float B[4], out float D[4])
+OsdUnivar4x4(in float u, out float B[4], out float D[4])
 {
     float t = u;
     float s = 1.0f - u;
@@ -386,7 +373,7 @@ Univar4x4(in float u, out float B[4], out float D[4])
 }
 
 void
-Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
+OsdUnivar4x4(in float u, out float B[4], out float D[4], out float C[4])
 {
     float t = u;
     float s = 1.0f - u;
@@ -417,14 +404,24 @@ Univar4x4(in float u, out float B[4], out float D[4], out float C[4])
 
 // ----------------------------------------------------------------------------
 
+struct OsdPerPatchVertexBezier {
+    ivec3 patchParam;
+    vec3 P;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec3 P1;
+    vec3 P2;
+    vec2 vSegments;
+#endif
+};
+
 vec3
 OsdEvalBezier(vec3 cp[16], vec2 uv)
 {
-    vec3 BUCP[4] = vec3[4](vec3(0,0,0), vec3(0,0,0), vec3(0,0,0), vec3(0,0,0));
+    vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
 
     float B[4], D[4];
 
-    Univar4x4(uv.x, B, D);
+    OsdUnivar4x4(uv.x, B, D);
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
             vec3 A = cp[4*i + j];
@@ -432,14 +429,75 @@ OsdEvalBezier(vec3 cp[16], vec2 uv)
         }
     }
 
-    vec3 position = vec3(0);
+    vec3 P = vec3(0);
 
-    Univar4x4(uv.y, B, D);
+    OsdUnivar4x4(uv.y, B, D);
     for (int k=0; k<4; ++k) {
-        position  += B[k] * BUCP[k];
+        P += B[k] * BUCP[k];
     }
 
-    return position;
+    return P;
+}
+
+// When OSD_PATCH_ENABLE_SINGLE_CREASE is defined,
+// this function evaluates single-crease patch, which is segmented into
+// 3 parts in the v-direction.
+//
+//  v=0             vSegment.x        vSegment.y              v=1
+//   +------------------+-------------------+------------------+
+//   |       cp 0       |     cp 1          |      cp 2        |
+//   | (infinite sharp) | (floor sharpness) | (ceil sharpness) |
+//   +------------------+-------------------+------------------+
+//
+vec3
+OsdEvalBezier(OsdPerPatchVertexBezier cp[16], vec2 uv)
+{
+    vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
+
+    float B[4], D[4];
+
+    OsdUnivar4x4(uv.x, B, D);
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments = cp[0].vSegments;
+    if (uv.y < vSegments.x) {
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                vec3 A = cp[4*i + j].P;
+                BUCP[i] += A * B[j];
+            }
+        }
+    } else if (uv.y < vSegments.y) {
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                vec3 A = cp[4*i + j].P1;
+                BUCP[i] += A * B[j];
+            }
+        }
+    } else {
+        for (int i=0; i<4; ++i) {
+            for (int j=0; j<4; ++j) {
+                vec3 A = cp[4*i + j].P2;
+                BUCP[i] += A * B[j];
+            }
+        }
+    }
+#else
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            vec3 A = cp[4*i + j].P;
+            BUCP[i] += A * B[j];
+        }
+    }
+#endif
+
+    vec3 P = vec3(0);
+
+    OsdUnivar4x4(uv.y, B, D);
+    for (int k=0; k<4; ++k) {
+        P += B[k] * BUCP[k];
+    }
+
+    return P;
 }
 
 // ----------------------------------------------------------------------------
@@ -530,8 +588,8 @@ OsdComputeBSplineBoundaryPoints(inout vec3 cpt[16], ivec3 patchParam)
 
 float OsdComputePostProjectionSphereExtent(vec3 center, float diameter)
 {
-    vec4 p = OsdModelViewProjectionMatrix() * vec4(center, 1.0);
-    return abs(diameter * OsdModelViewProjectionMatrix()[1][1] / p.w);
+    vec4 p = OsdProjectionMatrix() * vec4(center, 1.0);
+    return abs(diameter * OsdProjectionMatrix()[1][1] / p.w);
 }
 
 float OsdComputeTessLevel(vec3 p0, vec3 p1)
@@ -539,6 +597,8 @@ float OsdComputeTessLevel(vec3 p0, vec3 p1)
     // Adaptive factor can be any computation that depends only on arg values.
     // Project the diameter of the edge's bounding sphere instead of using the
     // length of the projected edge itself to avoid problems near silhouettes.
+    p0 = (OsdModelViewMatrix() * vec4(p0, 1.0)).xyz;
+    p1 = (OsdModelViewMatrix() * vec4(p1, 1.0)).xyz;
     vec3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
     float projLength = OsdComputePostProjectionSphereExtent(center, diameter);
@@ -547,7 +607,7 @@ float OsdComputeTessLevel(vec3 p0, vec3 p1)
 
 void
 OsdGetTessLevelsUniform(ivec3 patchParam,
-                        inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+                        out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
     int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
     float tessLevel = OsdTessLevel() / pow(2, refinementLevel-1);
@@ -558,7 +618,7 @@ OsdGetTessLevelsUniform(ivec3 patchParam,
 
 void
 OsdGetTessLevelsRefinedPoints(vec3 cp[16], ivec3 patchParam,
-                              inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+                              out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
     // at the next refined level of subdivision. We compute the corresponding
@@ -618,8 +678,8 @@ OsdGetTessLevelsRefinedPoints(vec3 cp[16], ivec3 patchParam,
 }
 
 void
-OsdGetTessLevelsLimitPoints(vec3 cpBezier[16], ivec3 patchParam,
-                            inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
+                 ivec3 patchParam, out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
     // at the next refined level of subdivision. When the patch control
@@ -634,48 +694,107 @@ OsdGetTessLevelsLimitPoints(vec3 cpBezier[16], ivec3 patchParam,
 
     int transitionMask = OsdGetPatchTransitionMask(patchParam);
 
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     if ((transitionMask & 8) != 0) {
         vec3 ev03 = OsdEvalBezier(cpBezier, vec2(0.0, 0.5));
-        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0], ev03);
-        tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12], ev03);
+        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, ev03);
+        tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12].P2, ev03);
     } else {
-        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0], cpBezier[12]);
+        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[12].P2);
     }
     if ((transitionMask & 1) != 0) {
         vec3 ev01 = OsdEvalBezier(cpBezier, vec2(0.5, 0.0));
-        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0], ev01);
-        tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3], ev01);
+        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, ev01);
+        tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3].P, ev01);
     } else {
-        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0], cpBezier[3]);
+        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[3].P);
     }
     if ((transitionMask & 2) != 0) {
         vec3 ev12 = OsdEvalBezier(cpBezier, vec2(1.0, 0.5));
-        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3], ev12);
-        tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15], ev12);
+        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, ev12);
+        tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15].P2, ev12);
     } else {
-        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3], cpBezier[15]);
+        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, cpBezier[15].P2);
     }
     if ((transitionMask & 4) != 0) {
         vec3 ev23 = OsdEvalBezier(cpBezier, vec2(0.5, 1.0));
-        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12], ev23);
-        tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15], ev23);
+        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P2, ev23);
+        tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15].P2, ev23);
     } else {
-        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12], cpBezier[15]);
+        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P2, cpBezier[15].P2);
     }
+#else
+    if ((transitionMask & 8) != 0) {
+        vec3 ev03 = OsdEvalBezier(cpBezier, vec2(0.0, 0.5));
+        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, ev03);
+        tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12].P, ev03);
+    } else {
+        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[12].P);
+    }
+    if ((transitionMask & 1) != 0) {
+        vec3 ev01 = OsdEvalBezier(cpBezier, vec2(0.5, 0.0));
+        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, ev01);
+        tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3].P, ev01);
+    } else {
+        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[3].P);
+    }
+    if ((transitionMask & 2) != 0) {
+        vec3 ev12 = OsdEvalBezier(cpBezier, vec2(1.0, 0.5));
+        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, ev12);
+        tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15].P, ev12);
+    } else {
+        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, cpBezier[15].P);
+    }
+    if ((transitionMask & 4) != 0) {
+        vec3 ev23 = OsdEvalBezier(cpBezier, vec2(0.5, 1.0));
+        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P, ev23);
+        tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15].P, ev23);
+    } else {
+        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P, cpBezier[15].P);
+    }
+#endif
 }
 
 void
-OsdGetTessLevels(vec3 cp[16], ivec3 patchParam,
-                 inout vec4 tessLevelOuter, inout vec2 tessLevelInner,
-                 inout vec4 tessOuterLo, inout vec4 tessOuterHi)
+OsdGetTessLevelsUniform(ivec3 patchParam,
+                 out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                 out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
-#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
-    OsdGetTessLevelsLimitPoints(cp, patchParam, tessOuterLo, tessOuterHi);
-#elif defined OSD_ENABLE_SCREENSPACE_TESSELLATION_REFINED
-    OsdGetTessLevelsRefinedPoints(cp, patchParam, tessOuterLo, tessOuterHi);
-#else
+    // uniform tessellation
     OsdGetTessLevelsUniform(patchParam, tessOuterLo, tessOuterHi);
-#endif
+
+    // Outer levels are the sum of the Lo and Hi segments where the Hi
+    // segments will have a length of zero for non-transition edges.
+    tessLevelOuter = tessOuterLo + tessOuterHi;
+
+    // Inner levels are the average the corresponding outer levels.
+    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
+    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+}
+
+void
+OsdGetTessLevelsAdaptiveRefinedPoints(vec3 cpRefined[16], ivec3 patchParam,
+                        out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                        out vec4 tessOuterLo, out vec4 tessOuterHi)
+{
+    OsdGetTessLevelsRefinedPoints(cpRefined, patchParam, tessOuterLo, tessOuterHi);
+
+    // Outer levels are the sum of the Lo and Hi segments where the Hi
+    // segments will have a length of zero for non-transition edges.
+    tessLevelOuter = tessOuterLo + tessOuterHi;
+
+    // Inner levels are the average the corresponding outer levels.
+    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
+    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+}
+
+void
+OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
+                 ivec3 patchParam,
+                 out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                 out vec4 tessOuterLo, out vec4 tessOuterHi)
+{
+    OsdGetTessLevelsLimitPoints(cpBezier, patchParam, tessOuterLo, tessOuterHi);
 
     // Outer levels are the sum of the Lo and Hi segments where the Hi
     // segments will have a length of zero for non-transition edges.
@@ -689,7 +808,7 @@ OsdGetTessLevels(vec3 cp[16], ivec3 patchParam,
 void
 OsdGetTessLevels(vec3 cp0, vec3 cp1, vec3 cp2, vec3 cp3,
                  ivec3 patchParam,
-                 inout vec4 tessLevelOuter, inout vec2 tessLevelInner)
+                 out vec4 tessLevelOuter, out vec2 tessLevelInner)
 {
     vec4 tessOuterLo = vec4(0);
     vec4 tessOuterHi = vec4(0);
@@ -744,3 +863,723 @@ OsdGetTessParameterization(vec2 uv, vec4 tessOuterLo, vec4 tessOuterHi)
     return UV;
 }
 
+// ----------------------------------------------------------------------------
+// BSpline
+// ----------------------------------------------------------------------------
+
+// compute single-crease patch matrix
+mat4
+OsdComputeMs(float sharpness)
+{
+    float s = pow(2.0f, sharpness);
+    float s2 = s*s;
+    float s3 = s2*s;
+
+    mat4 m = mat4(
+        0, s + 1 + 3*s2 - s3, 7*s - 2 - 6*s2 + 2*s3, (1-s)*(s-1)*(s-1),
+        0,       (1+s)*(1+s),        6*s - 2 - 2*s2,       (s-1)*(s-1),
+        0,               1+s,               6*s - 2,               1-s,
+        0,                 1,               6*s - 2,                 1);
+
+    m /= (s*6.0);
+    m[0][0] = 1.0/6.0;
+
+    return m;
+}
+
+// convert BSpline cv to Bezier cv
+void
+OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
+                                out OsdPerPatchVertexBezier result)
+{
+    // Regular BSpline to Bezier
+    mat4 Q = mat4(
+        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+        0.f,     4.f/6.f, 2.f/6.f, 0.f,
+        0.f,     2.f/6.f, 4.f/6.f, 0.f,
+        0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
+    );
+
+    result.patchParam = patchParam;
+
+    OsdComputeBSplineBoundaryPoints(cv, patchParam);
+
+    int i = ID%4;
+    int j = ID/4;
+
+    vec3 H[4];
+    for (int l=0; l<4; ++l) {
+        H[l] = vec3(0);
+        for (int k=0; k<4; ++k) {
+            H[l] += Q[i][k] * cv[l*4 + k];
+        }
+    }
+
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // Infinitely Sharp (boundary)
+    mat4 Mi = mat4(
+        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+        0.f,     4.f/6.f, 2.f/6.f, 0.f,
+        0.f,     2.f/6.f, 4.f/6.f, 0.f,
+        0.f,     0.f,     1.f,     0.f
+    );
+
+    float sharpness = OsdGetPatchSharpness(patchParam);
+    if (sharpness > 0) {
+        float Sf = floor(sharpness);
+        float Sc = ceil(sharpness);
+        float Sr = fract(sharpness);
+        mat4 Mf = OsdComputeMs(Sf);
+        mat4 Mc = OsdComputeMs(Sc);
+        mat4 Mj = (1-Sr) * Mf + Sr * Mi;
+        mat4 Ms = (1-Sr) * Mf + Sr * Mc;
+        float s0 = 1 - pow(2, -floor(sharpness));
+        float s1 = 1 - pow(2, -ceil(sharpness));
+        result.P  = vec3(0);
+        result.P1 = vec3(0);
+        result.P2 = vec3(0);
+        result.vSegments = vec2(s0, s1);
+        for (int k=0; k<4; ++k) {
+            result.P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
+            result.P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
+            result.P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
+        }
+    } else {
+        result.P  = vec3(0);
+        for (int k=0; k<4; ++k) {
+            result.P += Q[j][k]*H[k];
+        }
+        result.P1 = result.P;
+        result.P2 = result.P;
+        result.vSegments = vec2(0);
+    }
+#else
+    {
+        result.P = vec3(0);
+        for (int k=0; k<4; ++k) {
+            result.P += Q[j][k]*H[k];
+        }
+    }
+#endif
+}
+
+void
+OsdEvalPatchBezier(ivec3 patchParam, vec2 UV,
+                   OsdPerPatchVertexBezier cv[16],
+                   out vec3 P, out vec3 dPu, out vec3 dPv,
+                   out vec3 N, out vec3 dNu, out vec3 dNv)
+{
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0)),
+         DUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0)),
+         CUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
+    OsdUnivar4x4(UV.x, B, D, C);
+#else
+    float B[4], D[4];
+    vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0)),
+         DUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
+    OsdUnivar4x4(UV.x, B, D);
+#endif
+
+    // ----------------------------------------------------------------
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments = cv[0].vSegments;
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            int k = 4*i + j;
+            float s = UV.y;
+
+            vec3 A = (s <= vSegments.x) ? cv[k].P
+                :   ((s <= vSegments.y) ? cv[k].P1
+                                        : cv[k].P2);
+
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+            CUCP[i] += A * C[j];
+#endif
+        }
+    }
+#else
+    // ----------------------------------------------------------------
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            vec3 A = cv[4*i + j].P;
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+            CUCP[i] += A * C[j];
+#endif
+        }
+    }
+#endif
+    // ----------------------------------------------------------------
+
+    P   = vec3(0);
+    dPu = vec3(0);
+    dPv = vec3(0);
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    // used for weingarten term
+    OsdUnivar4x4(UV.y, B, D, C);
+
+    vec3 dUU = vec3(0);
+    vec3 dVV = vec3(0);
+    vec3 dUV = vec3(0);
+
+    for (int k=0; k<4; ++k) {
+        P   += B[k] * BUCP[k];
+        dPu += B[k] * DUCP[k];
+        dPv += D[k] * BUCP[k];
+
+        dUU += B[k] * CUCP[k];
+        dVV += C[k] * BUCP[k];
+        dUV += D[k] * DUCP[k];
+    }
+
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    vec3 n = cross(dPu, dPv);
+    N = normalize(n);
+
+    float E = dot(dPu, dPu);
+    float F = dot(dPu, dPv);
+    float G = dot(dPv, dPv);
+    float e = dot(N, dUU);
+    float f = dot(N, dUV);
+    float g = dot(N, dVV);
+
+    dNu = (f*F-e*G)/(E*G-F*F) * dPu + (e*F-f*E)/(E*G-F*F) * dPv;
+    dNv = (g*F-f*G)/(E*G-F*F) * dPu + (f*F-g*E)/(E*G-F*F) * dPv;
+
+    dNu = dNu/length(n) - n * (dot(dNu,n)/pow(dot(n,n), 1.5));
+    dNv = dNv/length(n) - n * (dot(dNv,n)/pow(dot(n,n), 1.5));
+#else
+    OsdUnivar4x4(UV.y, B, D);
+
+    for (int k=0; k<4; ++k) {
+        P   += B[k] * BUCP[k];
+        dPu += B[k] * DUCP[k];
+        dPv += D[k] * BUCP[k];
+    }
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+
+    N = normalize(cross(dPu, dPv));
+    dNu = vec3(0);
+    dNv = vec3(0);
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Gregory Basis
+// ----------------------------------------------------------------------------
+
+struct OsdPerPatchVertexGregoryBasis {
+    ivec3 patchParam;
+    vec3 P;
+};
+
+void
+OsdComputePerPatchVertexGregoryBasis(ivec3 patchParam, int ID, vec3 cv,
+                                     out OsdPerPatchVertexGregoryBasis result)
+{
+    result.patchParam = patchParam;
+    result.P = cv;
+}
+
+void
+OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
+                    out vec3 P, out vec3 dPu, out vec3 dPv,
+                    out vec3 N, out vec3 dNu, out vec3 dNv)
+{
+    float u = UV.x, v = UV.y;
+    float U = 1-u, V = 1-v;
+
+    float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
+    float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
+    float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
+    float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
+
+    vec3 q[16];
+
+    q[ 5] = (u*cv[3] + v*cv[4])/d11;
+    q[ 6] = (U*cv[9] + v*cv[8])/d12;
+    q[ 9] = (u*cv[19] + V*cv[18])/d21;
+    q[10] = (U*cv[13] + V*cv[14])/d22;
+
+    q[ 0] = cv[0];
+    q[ 1] = cv[1];
+    q[ 2] = cv[7];
+    q[ 3] = cv[5];
+    q[ 4] = cv[2];
+    q[ 7] = cv[6];
+    q[ 8] = cv[16];
+    q[11] = cv[12];
+    q[12] = cv[15];
+    q[13] = cv[17];
+    q[14] = cv[11];
+    q[15] = cv[10];
+
+    P   = vec3(0);
+    dPu = vec3(0);
+    dPv = vec3(0);
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    float B[4], D[4], C[4];
+    vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0)),
+         DUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0)),
+         CUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
+    vec3 dUU = vec3(0);
+    vec3 dVV = vec3(0);
+    vec3 dUV = vec3(0);
+
+    OsdUnivar4x4(UV.x, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            vec3 A = q[4*i + j];
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+            CUCP[i] += A * C[j];
+        }
+    }
+
+    OsdUnivar4x4(UV.y, B, D, C);
+
+    for (int i=0; i<4; ++i) {
+        P   += B[i] * BUCP[i];
+        dPu += B[i] * DUCP[i];
+        dPv += D[i] * BUCP[i];
+        dUU += B[i] * CUCP[i];
+        dVV += C[i] * BUCP[i];
+        dUV += D[i] * DUCP[i];
+    }
+
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+    dUU *= 6 * level;
+    dVV *= 6 * level;
+    dUV *= 9 * level;
+
+    vec3 n = cross(dPu, dPv);
+    N = normalize(n);
+
+    float E = dot(dPu, dPu);
+    float F = dot(dPu, dPv);
+    float G = dot(dPv, dPv);
+    float e = dot(N, dUU);
+    float f = dot(N, dUV);
+    float g = dot(N, dVV);
+
+    dNu = (f*F-e*G)/(E*G-F*F) * dPu + (e*F-f*E)/(E*G-F*F) * dPv;
+    dNv = (g*F-f*G)/(E*G-F*F) * dPu + (f*F-g*E)/(E*G-F*F) * dPv;
+
+    dNu = dNu/length(n) - n * (dot(dNu,n)/pow(dot(n,n), 1.5));
+    dNv = dNv/length(n) - n * (dot(dNv,n)/pow(dot(n,n), 1.5));
+#else
+    float B[4], D[4];
+    vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0)),
+         DUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
+
+    OsdUnivar4x4(UV.x, B, D);
+
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+            vec3 A = q[4*i + j];
+            BUCP[i] += A * B[j];
+            DUCP[i] += A * D[j];
+        }
+    }
+
+    OsdUnivar4x4(UV.y, B, D);
+
+    for (int i=0; i<4; ++i) {
+        P += B[i] * BUCP[i];
+        dPu += B[i] * DUCP[i];
+        dPv += D[i] * BUCP[i];
+    }
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu *= 3 * level;
+    dPv *= 3 * level;
+
+    N = normalize(cross(dPu, dPv));
+    dNu = vec3(0);
+    dNv = vec3(0);
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Legacy Gregory
+// ----------------------------------------------------------------------------
+#if defined(OSD_PATCH_GREGORY) || defined(OSD_PATCH_GREGORY_BOUNDARY)
+
+#if OSD_MAX_VALENCE<=10
+uniform float ef[7] = float[](
+    0.813008, 0.500000, 0.363636, 0.287505,
+    0.238692, 0.204549, 0.179211
+);
+#else
+uniform float ef[27] = float[](
+    0.812816, 0.500000, 0.363644, 0.287514,
+    0.238688, 0.204544, 0.179229, 0.159657,
+    0.144042, 0.131276, 0.120632, 0.111614,
+    0.103872, 0.09715, 0.0912559, 0.0860444,
+    0.0814022, 0.0772401, 0.0734867, 0.0700842,
+    0.0669851, 0.0641504, 0.0615475, 0.0591488,
+    0.0569311, 0.0548745, 0.0529621
+);
+#endif
+
+float cosfn(int n, int j) {
+    return cos((2.0f * M_PI * j)/float(n));
+}
+
+float sinfn(int n, int j) {
+    return sin((2.0f * M_PI * j)/float(n));    
+}
+
+#if !defined OSD_MAX_VALENCE || OSD_MAX_VALENCE < 1
+#undef OSD_MAX_VALENCE
+#define OSD_MAX_VALENCE 4
+#endif
+
+struct OsdPerVertexGregory {
+    vec3 P;
+    ivec3 clipFlag;
+    int  valence;
+    vec3 e0;
+    vec3 e1;
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    int zerothNeighbor;
+    vec3 org;
+#endif
+    vec3 r[OSD_MAX_VALENCE];
+};
+
+struct OsdPerPatchVertexGregory {
+    ivec3 patchParam;
+    vec3 P;
+    vec3 Ep;
+    vec3 Em;
+    vec3 Fp;
+    vec3 Fm;
+};
+
+#ifndef OSD_NUM_ELEMENTS
+#define OSD_NUM_ELEMENTS 3
+#endif
+
+uniform samplerBuffer OsdVertexBuffer;
+uniform isamplerBuffer OsdValenceBuffer;
+
+vec3 OsdReadVertex(int vertexIndex)
+{
+    int index = int(OSD_NUM_ELEMENTS * (vertexIndex + OsdBaseVertex()));
+    return vec3(texelFetch(OsdVertexBuffer, index).x,
+                texelFetch(OsdVertexBuffer, index+1).x,
+                texelFetch(OsdVertexBuffer, index+2).x);
+}
+
+int OsdReadVertexValence(int vertexID)
+{
+    int index = int(vertexID * (2 * OSD_MAX_VALENCE + 1));
+    return texelFetch(OsdValenceBuffer, index).x;
+}
+
+int OsdReadVertexIndex(int vertexID, int valenceVertex)
+{
+    int index = int(vertexID * (2 * OSD_MAX_VALENCE + 1) + 1 + valenceVertex);
+    return texelFetch(OsdValenceBuffer, index).x;
+}
+
+uniform isamplerBuffer OsdQuadOffsetBuffer;
+
+int OsdReadQuadOffset(int primitiveID, int offsetVertex)
+{
+    int index = int(4*primitiveID+OsdGregoryQuadOffsetBase() + offsetVertex);
+    return texelFetch(OsdQuadOffsetBuffer, index).x;
+}
+
+void
+OsdComputePerVertexGregory(int vID, vec3 P, out OsdPerVertexGregory v)
+{
+    v.clipFlag = ivec3(0);
+
+    int ivalence = OsdReadVertexValence(vID);
+    v.valence = ivalence;
+    int valence = abs(ivalence);
+
+    vec3 f[OSD_MAX_VALENCE];
+    vec3 pos = P;
+    vec3 opos = vec3(0);
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    v.org = pos;
+    int boundaryEdgeNeighbors[2];
+    int currNeighbor = 0;
+    int ibefore = 0;
+    int zerothNeighbor = 0;
+#endif
+
+    for (int i=0; i<valence; ++i) {
+        int im = (i+valence-1)%valence;
+        int ip = (i+1)%valence;
+
+        int idx_neighbor = OsdReadVertexIndex(vID, 2*i);
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+        bool isBoundaryNeighbor = false;
+        int valenceNeighbor = OsdReadVertexValence(idx_neighbor);
+
+        if (valenceNeighbor < 0) {
+            isBoundaryNeighbor = true;
+            if (currNeighbor<2) {
+                boundaryEdgeNeighbors[currNeighbor] = idx_neighbor;
+            }
+            currNeighbor++;
+            if (currNeighbor == 1) {
+                ibefore = i;
+                zerothNeighbor = i;
+            } else {
+                if (i-ibefore == 1) {
+                    int tmp = boundaryEdgeNeighbors[0];
+                    boundaryEdgeNeighbors[0] = boundaryEdgeNeighbors[1];
+                    boundaryEdgeNeighbors[1] = tmp;
+                    zerothNeighbor = i;
+                }
+            }
+        }
+#endif
+
+        vec3 neighbor = OsdReadVertex(idx_neighbor);
+
+        int idx_diagonal = OsdReadVertexIndex(vID, 2*i + 1);
+        vec3 diagonal = OsdReadVertex(idx_diagonal);
+
+        int idx_neighbor_p = OsdReadVertexIndex(vID, 2*ip);
+        vec3 neighbor_p = OsdReadVertex(idx_neighbor_p);
+
+        int idx_neighbor_m = OsdReadVertexIndex(vID, 2*im);
+        vec3 neighbor_m = OsdReadVertex(idx_neighbor_m);
+
+        int idx_diagonal_m = OsdReadVertexIndex(vID, 2*im + 1);
+        vec3 diagonal_m = OsdReadVertex(idx_diagonal_m);
+
+        f[i] = (pos * float(valence) + (neighbor_p + neighbor)*2.0f + diagonal) / (float(valence)+5.0f);
+
+        opos += f[i];
+        v.r[i] = (neighbor_p-neighbor_m)/3.0f + (diagonal - diagonal_m)/6.0f;
+    }
+
+    opos /= valence;
+    v.P = vec4(opos, 1.0f).xyz;
+
+    vec3 e;
+    v.e0 = vec3(0);
+    v.e1 = vec3(0);
+
+    for(int i=0; i<valence; ++i) {
+        int im = (i + valence -1) % valence;
+        e = 0.5f * (f[i] + f[im]);
+        v.e0 += cosfn(valence, i)*e;
+        v.e1 += sinfn(valence, i)*e;
+    }
+    v.e0 *= ef[valence - 3];
+    v.e1 *= ef[valence - 3];
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    v.zerothNeighbor = zerothNeighbor;
+    if (currNeighbor == 1) {
+        boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
+    }
+
+    if (ivalence < 0) {
+        if (valence > 2) {
+            v.P = (OsdReadVertex(boundaryEdgeNeighbors[0]) +
+                   OsdReadVertex(boundaryEdgeNeighbors[1]) +
+                   4.0f * pos)/6.0f;
+        } else {
+            v.P = pos;
+        }
+
+        v.e0 = (OsdReadVertex(boundaryEdgeNeighbors[0]) -
+                OsdReadVertex(boundaryEdgeNeighbors[1]))/6.0;
+
+        float k = float(float(valence) - 1.0f);    //k is the number of faces
+        float c = cos(M_PI/k);
+        float s = sin(M_PI/k);
+        float gamma = -(4.0f*s)/(3.0f*k+c);
+        float alpha_0k = -((1.0f+2.0f*c)*sqrt(1.0f+c))/((3.0f*k+c)*sqrt(1.0f-c));
+        float beta_0 = s/(3.0f*k + c);
+
+        int idx_diagonal = OsdReadVertexIndex(vID, 2*zerothNeighbor + 1);
+        vec3 diagonal = OsdReadVertex(idx_diagonal);
+
+        v.e1 = gamma * pos +
+            alpha_0k * OsdReadVertex(boundaryEdgeNeighbors[0]) +
+            alpha_0k * OsdReadVertex(boundaryEdgeNeighbors[1]) +
+            beta_0 * diagonal;
+
+        for (int x=1; x<valence - 1; ++x) {
+            int curri = ((x + zerothNeighbor)%valence);
+            float alpha = (4.0f*sin((M_PI * float(x))/k))/(3.0f*k+c);
+            float beta = (sin((M_PI * float(x))/k) + sin((M_PI * float(x+1))/k))/(3.0f*k+c);
+
+            int idx_neighbor = OsdReadVertexIndex(vID, 2*curri);
+            vec3 neighbor = OsdReadVertex(idx_neighbor);
+
+            idx_diagonal = OsdReadVertexIndex(vID, 2*curri + 1);
+            diagonal = OsdReadVertex(idx_diagonal);
+
+            v.e1 += alpha * neighbor + beta * diagonal;
+        }
+
+        v.e1 /= 3.0f;
+    }
+#endif
+}
+
+void
+OsdComputePerPatchVertexGregory(ivec3 patchParam, int ID, int primitiveID,
+                                in OsdPerVertexGregory v[4],
+                                out OsdPerPatchVertexGregory result)
+{
+    result.patchParam = patchParam;
+    result.P = v[ID].P;
+
+    int i = ID;
+    int ip = (i+1)%4;
+    int im = (i+3)%4;
+    int valence = abs(v[i].valence);
+    int n = valence;
+
+    int start = OsdReadQuadOffset(primitiveID, i) & 0xff;
+    int prev = (OsdReadQuadOffset(primitiveID, i) >> 8) & 0xff;
+
+    int start_m = OsdReadQuadOffset(primitiveID, im) & 0xff;
+    int prev_p = (OsdReadQuadOffset(primitiveID, ip) >> 8) & 0xff;
+
+    int np = abs(v[ip].valence);
+    int nm = abs(v[im].valence);
+
+    // Control Vertices based on :
+    // "Approximating Subdivision Surfaces with Gregory Patches
+    //  for Hardware Tessellation"
+    // Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia 2009)
+    //
+    //  P3         e3-      e2+         E2
+    //     O--------O--------O--------O
+    //     |        |        |        |
+    //     |        |        |        |
+    //     |        | f3-    | f2+    |
+    //     |        O        O        |
+    // e3+ O------O            O------O e2-
+    //     |     f3+          f2-     |
+    //     |                          |
+    //     |                          |
+    //     |      f0-         f1+     |
+    // e0- O------O            O------O e1+
+    //     |        O        O        |
+    //     |        | f0+    | f1-    |
+    //     |        |        |        |
+    //     |        |        |        |
+    //     O--------O--------O--------O
+    //  P0         e0+      e1-         E1
+    //
+
+#ifdef OSD_PATCH_GREGORY_BOUNDARY
+    vec3 Em_ip;
+    if (v[ip].valence < -2) {
+        int j = (np + prev_p - v[ip].zerothNeighbor) % np;
+        Em_ip = v[ip].P + cos((M_PI*j)/float(np-1))*v[ip].e0 + sin((M_PI*j)/float(np-1))*v[ip].e1;
+    } else {
+        Em_ip = v[ip].P + v[ip].e0*cosfn(np, prev_p ) + v[ip].e1*sinfn(np, prev_p);
+    }
+
+    vec3 Ep_im;
+    if (v[im].valence < -2) {
+        int j = (nm + start_m - v[im].zerothNeighbor) % nm;
+        Ep_im = v[im].P + cos((M_PI*j)/float(nm-1))*v[im].e0 + sin((M_PI*j)/float(nm-1))*v[im].e1;
+    } else {
+        Ep_im = v[im].P + v[im].e0*cosfn(nm, start_m) + v[im].e1*sinfn(nm, start_m);
+    }
+
+    if (v[i].valence < 0) {
+        n = (n-1)*2;
+    }
+    if (v[im].valence < 0) {
+        nm = (nm-1)*2;
+    }
+    if (v[ip].valence < 0) {
+        np = (np-1)*2;
+    }
+
+    if (v[i].valence > 2) {
+        result.Ep = v[i].P + v[i].e0*cosfn(n, start) + v[i].e1*sinfn(n, start);
+        result.Em = v[i].P + v[i].e0*cosfn(n, prev ) + v[i].e1*sinfn(n, prev);
+
+        float s1=3-2*cosfn(n,1)-cosfn(np,1);
+        float s2=2*cosfn(n,1);
+
+        result.Fp = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+        result.Fm = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+
+    } else if (v[i].valence < -2) {
+        int j = (valence + start - v[i].zerothNeighbor) % valence;
+
+        result.Ep = v[i].P + cos((M_PI*j)/float(valence-1))*v[i].e0 + sin((M_PI*j)/float(valence-1))*v[i].e1;
+        j = (valence + prev - v[i].zerothNeighbor) % valence;
+        result.Em = v[i].P + cos((M_PI*j)/float(valence-1))*v[i].e0 + sin((M_PI*j)/float(valence-1))*v[i].e1;
+
+        vec3 Rp = ((-2.0f * v[i].org - 1.0f * v[im].org) + (2.0f * v[ip].org + 1.0f * v[(i+2)%4].org))/3.0f;
+        vec3 Rm = ((-2.0f * v[i].org - 1.0f * v[ip].org) + (2.0f * v[im].org + 1.0f * v[(i+2)%4].org))/3.0f;
+
+        float s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+        float s2 = 2*cosfn(n,1);
+
+        result.Fp = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+        s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+        result.Fm = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+
+        if (v[im].valence < 0) {
+            s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+            result.Fp = result.Fm = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+        } else if (v[ip].valence < 0) {
+            s1 = 3.0f-2.0f*cos(2.0f*M_PI/n)-cos(2.0f*M_PI/nm);
+            result.Fm = result.Fp = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+        }
+
+    } else if (v[i].valence == -2) {
+        result.Ep = (2.0f * v[i].org + v[ip].org)/3.0f;
+        result.Em = (2.0f * v[i].org + v[im].org)/3.0f;
+        result.Fp = result.Fm = (4.0f * v[i].org + v[(i+2)%n].org + 2.0f * v[ip].org + 2.0f * v[im].org)/9.0f;
+    }
+
+#else // not OSD_PATCH_GREGORY_BOUNDARY
+
+    result.Ep = v[i].P + v[i].e0 * cosfn(n, start) + v[i].e1*sinfn(n, start);
+    result.Em = v[i].P + v[i].e0 * cosfn(n, prev ) + v[i].e1*sinfn(n, prev);
+
+    vec3 Em_ip = v[ip].P + v[ip].e0 * cosfn(np, prev_p ) + v[ip].e1*sinfn(np, prev_p);
+    vec3 Ep_im = v[im].P + v[im].e0 * cosfn(nm, start_m) + v[im].e1*sinfn(nm, start_m);
+
+    float s1 = 3-2*cosfn(n,1)-cosfn(np,1);
+    float s2 = 2*cosfn(n,1);
+
+    result.Fp = (cosfn(np,1)*v[i].P + s1*result.Ep + s2*Em_ip + v[i].r[start])/3.0f;
+    s1 = 3.0f-2.0f*cos(2.0f*M_PI/float(n))-cos(2.0f*M_PI/float(nm));
+    result.Fm = (cosfn(nm,1)*v[i].P + s1*result.Em + s2*Ep_im - v[i].r[prev])/3.0f;
+#endif
+}
+
+#endif  // OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY

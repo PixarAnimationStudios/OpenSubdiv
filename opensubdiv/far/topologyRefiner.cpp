@@ -23,6 +23,7 @@
 //
 #include "../far/topologyRefiner.h"
 #include "../far/error.h"
+#include "../vtr/fvarLevel.h"
 #include "../vtr/sparseSelector.h"
 #include "../vtr/quadRefinement.h"
 #include "../vtr/triRefinement.h"
@@ -332,7 +333,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
 
     Vtr::internal::Level const& level = selector.getRefinement().parent();
 
-    int  regularFaceSize           =  selector.getRefinement()._regFaceSize;
+    int  regularFaceSize           =  selector.getRefinement().getRegularFaceSize();
     bool considerSingleCreasePatch = _adaptiveOptions.useSingleCreasePatch && (regularFaceSize == 4);
 
     //
@@ -354,7 +355,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         considerFVarChannels = false;
 
         for (int channel = 0; channel < numFVarChannels; ++channel) {
-            if (not level._fvarChannels[channel]->isLinear()) {
+            if (not level.getFVarLevel(channel).isLinear()) {
                 considerFVarChannels = true;
                 break;
             }
@@ -467,9 +468,9 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
             } else {
                 //  Make sure the adjacent boundary vertices were not sharpened, or equivalently,
                 //  that only one corner is sharp:
-                unsigned int infSharpCount = level._vertTags[faceVerts[0]]._infSharp;
+                unsigned int infSharpCount = level.getVertexTag(faceVerts[0])._infSharp;
                 for (int i = 1; i < faceVerts.size(); ++i) {
-                    infSharpCount += level._vertTags[faceVerts[i]]._infSharp;
+                    infSharpCount += level.getVertexTag(faceVerts[i])._infSharp;
                 }
                 selectFace = (infSharpCount != 1);
             }
@@ -481,7 +482,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         //
         if (not selectFace and considerFVarChannels) {
             for (int channel = 0; not selectFace && (channel < numFVarChannels); ++channel) {
-                Vtr::internal::FVarLevel const & fvarLevel = *level._fvarChannels[channel];
+                Vtr::internal::FVarLevel const & fvarLevel = level.getFVarLevel(channel);
 
                 //
                 //  Retrieve the counterpart to the face-vertices composite tag for the face-values

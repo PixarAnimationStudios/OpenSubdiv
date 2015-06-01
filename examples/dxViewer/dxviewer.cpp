@@ -60,9 +60,10 @@
 OpenSubdiv::Osd::D3D11MeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
+#include "../common/d3d11ControlMeshDisplay.h"
 #include "../common/d3d11Hud.h"
 #include "../common/d3d11Utils.h"
 #include "../common/d3d11ShaderCache.h"
@@ -100,8 +101,8 @@ enum EndCap      { kEndCapNone = 0,
                    kEndCapGregoryBasis,
                    kEndCapLegacyGregory };
 
-enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
-                   kHUD_CB_DISPLAY_CAGE_VERTS,
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR,
                    kHUD_CB_DISPLAY_PATCH_CVs,
@@ -122,8 +123,6 @@ int   g_freeze = 0,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
-      g_drawCageEdges = 1,
-      g_drawCageVertices = 0,
       g_drawPatchCVs = 0,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0};
@@ -146,6 +145,8 @@ int   g_width = 1024,
       g_height = 1024;
 
 D3D11hud *g_hud = NULL;
+D3D11ControlMeshDisplay *g_controlMeshDisplay = NULL;
+float g_modelViewProjectionMatrix[16];
 
 // performance
 float g_cpuTime = 0;
@@ -163,10 +164,6 @@ int g_tessLevel = 1;
 int g_tessLevelMin = 1;
 int g_kernel = kCPU;
 float g_moveScale = 0.0f;
-
-std::vector<int> g_coarseEdges;
-std::vector<float> g_coarseEdgeSharpness;
-std::vector<float> g_coarseVertexSharpness;
 
 ID3D11Device * g_pd3dDevice = NULL;
 ID3D11DeviceContext * g_pd3dDeviceContext = NULL;
@@ -268,7 +265,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -278,24 +275,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     // save coarse topology (used for coarse mesh drawing)
     Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+    g_controlMeshDisplay->SetTopology(refBaseLevel);
 
-    int nedges = refBaseLevel.GetNumEdges(),
-        nverts = refBaseLevel.GetNumVertices();
-
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
-    }
+    int nverts = refBaseLevel.GetNumVertices();
 
     g_orgPositions=shape->verts;
 
@@ -689,6 +671,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         perspective(pData->ProjectionMatrix, 45.0, aspect, 0.01f, 500.0);
         multMatrix(pData->ModelViewProjectionMatrix, pData->ModelViewMatrix, pData->ProjectionMatrix);
 
+        memcpy(g_modelViewProjectionMatrix, pData->ModelViewProjectionMatrix, sizeof(float) * 16);
+
         g_pd3dDeviceContext->Unmap( g_pcbPerFrame, 0 );
     }
 
@@ -884,6 +868,9 @@ display() {
             patch.GetIndexBase(), 0);
     }
 
+    // draw the control mesh
+    g_controlMeshDisplay->Draw(buffer, 6, g_modelViewProjectionMatrix);
+
     g_fpsTimer.Stop();
     float elapsed = (float)g_fpsTimer.GetElapsed();
     g_fpsTimer.Start();
@@ -969,6 +956,9 @@ quit() {
 
     if (g_hud)
         delete g_hud;
+
+    if (g_controlMeshDisplay)
+        delete g_controlMeshDisplay;
 
     SAFE_RELEASE(g_pRasterizerState);
     SAFE_RELEASE(g_pInputLayout);
@@ -1097,11 +1087,11 @@ callbackSingleCreasePatch(bool checked, int /* a */) {
 static void
 callbackCheckBox(bool checked, int button) {
     switch (button) {
-    case kHUD_CB_DISPLAY_CAGE_EDGES:
-        g_drawCageEdges = checked;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
+        g_controlMeshDisplay->SetEdgesDisplay(checked);
         break;
-    case kHUD_CB_DISPLAY_CAGE_VERTS:
-        g_drawCageVertices = checked;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS:
+        g_controlMeshDisplay->SetVerticesDisplay(checked);
         break;
     case kHUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked;
@@ -1161,23 +1151,28 @@ initHUD() {
     g_hud->AddPullDownButton(shading_pulldown, "Shaded",      1, g_displayStyle==kShaded);
     g_hud->AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_displayStyle==kWireShaded);
 
-//    g_hud->AddCheckBox("Cage Edges (H)",         true,  10, 10, callbackDisplayCageEdges, 0, 'H');
-//    g_hud->AddCheckBox("Cage Verts (J)",         false, 10, 30, callbackDisplayCageVertices, 0, 'J');
-//    g_hud->AddCheckBox("Show normal vector (E)", false, 10, 10, callbackDisplayNormal, 0, 'E');
+    g_hud->AddCheckBox("Control edges (H)",
+                       g_controlMeshDisplay->GetEdgesDisplay(),
+                       10, 10, callbackCheckBox,
+                       kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'H');
+    g_hud->AddCheckBox("Control vertices (J)",
+                       g_controlMeshDisplay->GetVerticesDisplay(),
+                       10, 30, callbackCheckBox,
+                       kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'J');
 
-    g_hud->AddCheckBox("Patch CVs (L)",             false,                    10, 10,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_CVs, 'L');
-    g_hud->AddCheckBox("Patch Color (P)",           true,                     10, 30,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'P');
-    g_hud->AddCheckBox("Animate vertices (M)",      g_moveScale != 0,         10, 50,  callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'M');
-    g_hud->AddCheckBox("Freeze (spc)",              false,                    10, 70,  callbackCheckBox, kHUD_CB_FREEZE, ' ');
-    g_hud->AddCheckBox("Screen space LOD (V)",      g_screenSpaceTess != 0,   10, 110,  callbackCheckBox, kHUD_CB_VIEW_LOD, 'V');
-    g_hud->AddCheckBox("Fractional spacing (T)",    g_fractionalSpacing != 0, 10, 130, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 'T');
-    g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,         10, 150, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
+    g_hud->AddCheckBox("Patch CVs (L)",             false,                    10, 50,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_CVs, 'L');
+    g_hud->AddCheckBox("Patch Color (P)",           true,                     10, 70,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'P');
+    g_hud->AddCheckBox("Animate vertices (M)",      g_moveScale != 0,         10, 110,  callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'M');
+    g_hud->AddCheckBox("Freeze (spc)",              false,                    10, 130,  callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    g_hud->AddCheckBox("Screen space LOD (V)",      g_screenSpaceTess != 0,   10, 150,  callbackCheckBox, kHUD_CB_VIEW_LOD, 'V');
+    g_hud->AddCheckBox("Fractional spacing (T)",    g_fractionalSpacing != 0, 10, 170, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 'T');
+    g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,         10, 190, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
 
-    g_hud->AddCheckBox("Adaptive (`)", true, 10, 190, callbackAdaptive, 0, '`');
-    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 'S');
+    g_hud->AddCheckBox("Adaptive (`)", true, 10, 230, callbackAdaptive, 0, '`');
+    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 250, callbackSingleCreasePatch, 0, 'S');
 
     int endcap_pulldown = g_hud->AddPullDown(
-        "End cap (E)", 10, 230, 200, callbackEndCap, 'E');
+        "End cap (E)", 10, 270, 200, callbackEndCap, 'E');
     g_hud->AddPullDownButton(endcap_pulldown,"None",
                              kEndCapNone,
                              g_endCap == kEndCapNone);
@@ -1194,7 +1189,7 @@ initHUD() {
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud->AddRadioButton(3, level, i==2, 10, 230+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud->AddRadioButton(3, level, i==2, 10, 290+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud->AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
@@ -1317,6 +1312,9 @@ initD3D11(HWND hWnd) {
 
     g_pd3dDevice->CreateDepthStencilState(&depthStencilDesc, &g_pDepthStencilState);
     assert(g_pDepthStencilState);
+
+    // initialize control mesh display
+    g_controlMeshDisplay = new D3D11ControlMeshDisplay(g_pd3dDeviceContext);
 
     return true;
 }

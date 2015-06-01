@@ -31,10 +31,6 @@
 
 #include <cassert>
 
-#ifdef _MSC_VER
-    #define snprintf _snprintf
-#endif
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

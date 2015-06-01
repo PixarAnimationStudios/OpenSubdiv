@@ -76,6 +76,14 @@ public:
     Level const& child() const  { return *_child; }
     Level&       child()        { return *_child; }
 
+    Sdc::Split getSplitType() const { return _splitType; }
+    int getRegularFaceSize() const { return _regFaceSize; }
+
+    //  Face-varying:
+    int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
+
+    FVarRefinement const & getFVarRefinement(int c) const { return *_fvarChannels[c]; }
+
     //
     //  Options associated with the actual refinement operation, which may end up
     //  quite involved if we want to allow for the refinement of data that is not
@@ -188,6 +196,15 @@ public:
         unsigned char _parentType    : 2;  // type of parent component:  vertex, edge or face
         unsigned char _indexInParent : 2;  // index of child wrt parent:  0-3, or iterative if N > 4
     };
+
+    //  Methods to access and modify tags:
+    SparseTag const & getParentFaceSparseTag(  Index f) const { return _parentFaceTag[f]; }
+    SparseTag const & getParentEdgeSparseTag(  Index e) const { return _parentEdgeTag[e]; }
+    SparseTag const & getParentVertexSparseTag(Index v) const { return _parentVertexTag[v]; }
+
+    SparseTag & getParentFaceSparseTag(  Index f) { return _parentFaceTag[f]; }
+    SparseTag & getParentEdgeSparseTag(  Index e) { return _parentEdgeTag[e]; }
+    SparseTag & getParentVertexSparseTag(Index v) { return _parentVertexTag[v]; }
 
 //  Remaining methods should really be protected -- for use by subclasses...
 public:

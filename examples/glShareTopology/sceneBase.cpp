@@ -24,7 +24,7 @@
 
 #include "sceneBase.h"
 #include <limits>
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include <far/patchTableFactory.h>
 #include <far/stencilTableFactory.h>
 

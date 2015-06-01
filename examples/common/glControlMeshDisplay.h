@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2015 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,42 +22,46 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_EXAMPLES_GL_HUD_H
-#define OPENSUBDIV_EXAMPLES_GL_HUD_H
-
-#include "hud.h"
+#ifndef OPENSUBDIV_EXAMPLES_GL_CONTROL_MESH_DISPLAY_H
+#define OPENSUBDIV_EXAMPLES_GL_CONTROL_MESH_DISPLAY_H
 
 #include <osd/opengl.h>
+#include <far/topologyLevel.h>
 
-class GLhud : public Hud {
-
+class GLControlMeshDisplay {
 public:
-    GLhud();
-    ~GLhud();
+    GLControlMeshDisplay();
+    ~GLControlMeshDisplay();
 
-    virtual void Init(int width, int height, int framebufferWidth, int framebufferHeight);
+    void Draw(GLuint pointsVBO, GLint stride,
+              const float *modelViewProjectionMatrix);
 
-    virtual void Rebuild(int width, int height,
-                         int framebufferWidth, int framebufferHeight);
+    void SetTopology(OpenSubdiv::Far::TopologyLevel const &level);
 
-    virtual bool Flush();
-
-    GLuint GetFontTexture() const {
-        return _fontTexture;
-    }
-
-    void FillBackground();
+    bool GetEdgesDisplay() const { return _displayEdges; }
+    void SetEdgesDisplay(bool display) { _displayEdges = display; }
+    bool GetVerticesDisplay() const { return _displayVertices; }
+    void SetVerticesDisplay(bool display) { _displayVertices = display; }
 
 private:
-    GLuint _fontTexture;
-    GLuint _vbo, _staticVbo;
-    GLuint _vao, _staticVao, _bgVao;
-    int _staticVboSize;
+    bool createProgram();
 
-    GLint _program;
-    GLint _mvpMatrix;
-    GLint _aPosition, _aColor, _aUV;
-    GLint _bgProgram;
+    bool _displayEdges;
+    bool _displayVertices;
+
+    GLuint _program;
+    GLuint _uniformMvpMatrix;
+    GLuint _uniformDrawMode;
+    GLuint _uniformEdgeSharpness;
+    GLuint _attrPosition;
+    GLuint _attrVertSharpness;
+
+    GLuint _vao;
+    GLuint _vertSharpness;
+    GLuint _edgeSharpnessTexture;
+    GLuint _edgeIndices;
+
+    int _numEdges, _numPoints;
 };
 
-#endif  // OPENSUBDIV_EXAMPLES_GL_HUD_H
+#endif  // OPENSUBDIV_EXAMPLES_GL_CONTROL_MESH_DISPLAY_H

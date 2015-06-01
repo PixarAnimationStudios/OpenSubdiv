@@ -41,9 +41,10 @@
 // rebuilding them redundantly.
 //
 
-
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/primvarRefiner.h>
+
+#include <cstdio>
 
 //------------------------------------------------------------------------------
 
@@ -449,28 +450,33 @@ int main(int, char **) {
 
 
     // Interpolate vertex primvar data
-    Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + nCoarseVerts);
+    Far::PrimvarRefiner primvarRefiner(*refiner);
+
+    Vertex * src = verts;
+    for (int level = 1; level <= maxlevel; ++level) {
+        Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
+        primvarRefiner.Interpolate(level, src, dst);
+        src = dst;
+    }
 
 
     { // Output OBJ of the highest level refined -----------
 
         Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
 
-        // Print vertex positions
-        for (int level=0, firstVert=0; level<=maxlevel; ++level) {
+        int nverts = refLastLevel.GetNumVertices();
+        int nfaces = refLastLevel.GetNumFaces();
 
-            if (level==maxlevel) {
-                for (int vert=0; vert<refLastLevel.GetNumVertices(); ++vert) {
-                    float const * pos = verts[firstVert+vert].GetPosition();
-                    printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
-                }
-            } else {
-                firstVert += refiner->GetLevel(level).GetNumVertices();
-            }
+        // Print vertex positions
+        int firstOfLastVerts = refiner->GetNumVerticesTotal() - nverts;
+
+        for (int vert = 0; vert < nverts; ++vert) {
+            float const * pos = verts[firstOfLastVerts + vert].GetPosition();
+            printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
         }
 
         // Print faces
-        for (int face=0; face<refLastLevel.GetNumFaces(); ++face) {
+        for (int face = 0; face < nfaces; ++face) {
 
             Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
 

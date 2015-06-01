@@ -92,9 +92,10 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
+#include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
 #include "../common/glUtils.h"
 #include "../common/hdr_reader.h"
@@ -127,7 +128,7 @@ enum HudCheckBox { HUD_CB_ADAPTIVE,
                    HUD_CB_DISPLAY_OCCLUSION,
                    HUD_CB_DISPLAY_NORMALMAP,
                    HUD_CB_DISPLAY_SPECULAR,
-                   HUD_CB_CAGE_EDGES,
+                   HUD_CB_CONTROL_MESH_EDGES,
                    HUD_CB_ANIMATE_VERTICES,
                    HUD_CB_VIEW_LOD,
                    HUD_CB_FRACTIONAL_SPACING,
@@ -178,7 +179,6 @@ int   g_frame = 0,
 int   g_fullscreen = 0,
       g_wire = DISPLAY_SHADED,
       g_drawNormals = 0,
-      g_drawCageEdges = 0,
       g_mbutton[3] = {0, 0, 0},
       g_level = 1,
       g_tessLevel = 2,
@@ -219,6 +219,7 @@ float g_rotate[2] = {0, 0},
       g_pan[2] = {0, 0},
       g_center[3] = {0, 0, 0},
       g_size = 0;
+float g_modelViewProjection[16];
 
 int   g_prev_x = 0,
       g_prev_y = 0;
@@ -228,6 +229,7 @@ int   g_width = 1024,
       g_height = 1024;
 
 GLhud g_hud;
+GLControlMeshDisplay g_controlMeshDisplay;
 
 // performance
 float g_cpuTime = 0;
@@ -246,10 +248,8 @@ std::vector<std::vector<float> > g_animPositions;
 
 GLuint g_queries[2] = {0, 0};
 GLuint g_vao = 0;
-GLuint g_cageEdgeVAO = 0;
 GLuint g_skyVAO = 0;
 GLuint g_edgeIndexBuffer = 0;
-GLuint g_numCageEdges = 0;
 
 GLuint g_diffuseEnvironmentMap = 0;
 GLuint g_specularEnvironmentMap = 0;
@@ -304,16 +304,6 @@ GLPtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
 size_t g_ptexMemoryUsage = 0;
 
-
-static void
-checkGLErrors(std::string const & where = "") {
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
-}
 
 //------------------------------------------------------------------------------
 static void
@@ -502,14 +492,9 @@ reshape(GLFWwindow *, int width, int height) {
 
     g_hud.Rebuild(windowWidth, windowHeight, width, height);
 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE)
-        assert(false);
-
     glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    checkGLErrors("Reshape");
+    GLUtils::CheckGLErrors("Reshape");
 }
 
 void reshape() {
@@ -879,7 +864,7 @@ createPtex(const char *filename, int memLimit) {
 void
 createOsdMesh(int level, int kernel) {
 
-    checkGLErrors("createOsdMesh");
+    GLUtils::CheckGLErrors("createOsdMesh");
 
     Ptex::String ptexError;
     PtexTexture *ptexColor = PtexTexture::open(g_ptexColorFilename, ptexError, true);
@@ -896,9 +881,7 @@ createOsdMesh(int level, int kernel) {
 
     g_positions=shape->verts;
 
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
-
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -907,17 +890,7 @@ createOsdMesh(int level, int kernel) {
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-
-    // create cage edge index
-    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
-
-    int nedges = refBaseLevel.GetNumEdges();
-    std::vector<int> edgeIndices(nedges*2);
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
-        edgeIndices[i*2  ]=verts[0];
-        edgeIndices[i*2+1]=verts[1];
-    }
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
     delete shape;
 
@@ -1046,24 +1019,6 @@ createOsdMesh(int level, int kernel) {
     }
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
 
-    // ------ Cage VAO
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
-
-    if (g_adaptive) {
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    } else {
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    }
-    if (not g_edgeIndexBuffer) glGenBuffers(1, &g_edgeIndexBuffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_edgeIndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int)*edgeIndices.size(),
-                 &edgeIndices[0], GL_STATIC_DRAW);
-    g_numCageEdges = (int)edgeIndices.size();
-
     glBindVertexArray(0);
 }
 
@@ -1158,6 +1113,9 @@ updateConstantUniformBlock() {
                constantData.ProjectionMatrix);
     inverseMatrix(constantData.ModelViewInverseMatrix,
                   constantData.ModelViewMatrix);
+    // save mvp for the control mesh drawing
+    memcpy(g_modelViewProjection, constantData.ModelViewProjectionMatrix,
+           16*sizeof(float));
 
     // lighs
     Constant::Light light0 = {  { 0.6f, 1.0f, 0.6f, 0.0f },
@@ -1367,35 +1325,7 @@ drawSky() {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 
-    checkGLErrors("draw model");
-}
-
-//------------------------------------------------------------------------------
-
-void
-drawCageEdges() {
-
-    g_mesh->BindVertexBuffer();
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    Effect effect;
-    effect.value = 0;
-
-    EffectDesc effectDesc(
-        OpenSubdiv::Far::PatchDescriptor(
-            OpenSubdiv::Far::PatchDescriptor::LINES), effect);
-
-    GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
-    if (!config) return;
-
-    glUseProgram(config->GetProgram());
-    glDrawElements(GL_LINES, g_numCageEdges, GL_UNSIGNED_INT, 0);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-
-    checkGLErrors("draw cage edges");
+    GLUtils::CheckGLErrors("draw model");
 }
 
 //------------------------------------------------------------------------------
@@ -1403,13 +1333,12 @@ drawCageEdges() {
 void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
-    glViewport(0, 0, g_width, g_height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     if (g_ibl) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -1437,8 +1366,13 @@ display() {
     glEndQuery(GL_TIME_ELAPSED);
 #endif
 
-    if (g_drawCageEdges)
-        drawCageEdges();
+    // draw the control mesh
+    {
+        GLuint vbo = g_mesh->BindVertexBuffer();
+        int stride = g_adaptive ? 3 : 6;
+        g_controlMeshDisplay.Draw(vbo, stride*sizeof(float),
+                                  g_modelViewProjection);
+    }
 
     if (g_wire == DISPLAY_WIRE) {
         glEnable(GL_CULL_FACE);
@@ -1463,8 +1397,6 @@ display() {
     if (not g_freeze)
         g_animTime += elapsed;
     g_fpsTimer.Start();
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         double fps = 1.0/elapsed;
@@ -1503,7 +1435,7 @@ display() {
 
     glFinish();
 
-    checkGLErrors("draw end");
+    GLUtils::CheckGLErrors("draw end");
 }
 
 //------------------------------------------------------------------------------
@@ -1554,7 +1486,6 @@ void uninitGL() {
 
     glDeleteQueries(2, g_queries);
     glDeleteVertexArrays(1, &g_vao);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
     glDeleteVertexArrays(1, &g_skyVAO);
 
     if (g_mesh)
@@ -1637,8 +1568,8 @@ callbackCheckBox(bool checked, int button) {
     case HUD_CB_DISPLAY_SPECULAR:
         g_specular = checked;
         break;
-    case HUD_CB_CAGE_EDGES:
-        g_drawCageEdges = checked;
+    case HUD_CB_CONTROL_MESH_EDGES:
+        g_controlMeshDisplay.SetEdgesDisplay(checked);
         break;
     case HUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked ? 1.0f : 0.0f;
@@ -1723,7 +1654,7 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
-        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
+        case 'X': GLUtils::WriteScreenshot(g_width, g_height); break;
     }
 }
 
@@ -1749,7 +1680,6 @@ initGL() {
 
     glGenQueries(2, g_queries);
     glGenVertexArrays(1, &g_vao);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_skyVAO);
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -1781,29 +1711,6 @@ callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
-}
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 //------------------------------------------------------------------------------
@@ -1878,10 +1785,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glPtexViewer" OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
         g_primary = glfwGetPrimaryMonitor();
@@ -1904,12 +1808,15 @@ int main(int argc, char ** argv) {
     }
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+                               fullscreen and g_primary ? g_primary : NULL, NULL))) {
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
+
     glfwSetKeyCallback(g_window, keyboard);
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
@@ -1949,7 +1856,7 @@ int main(int argc, char ** argv) {
 
     g_hud.Init(windowWidth, windowHeight, g_width, g_height);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
+    g_controlMeshDisplay.SetEdgesDisplay(false);
 
     if (occlusionFilename != NULL) {
         g_hud.AddCheckBox("Ambient Occlusion (A)", g_occlusion,
@@ -1964,8 +1871,10 @@ int main(int argc, char ** argv) {
                           -200, 610, callbackCheckBox, HUD_CB_IBL, 'i');
     }
 
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      10, 10, callbackCheckBox, HUD_CB_CAGE_EDGES, 'h');
+    g_hud.AddCheckBox("Control edges (H)",
+                      g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, 10, callbackCheckBox,
+                      HUD_CB_CONTROL_MESH_EDGES, 'h');
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
                       10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,

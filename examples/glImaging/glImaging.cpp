@@ -22,23 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(_WIN32)
-        // XXX Must include windows.h here or GLFW pollutes the global namespace
-        #define WIN32_LEAN_AND_MEAN
-        #include <windows.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <iostream>
 #include <fstream>
@@ -84,7 +68,7 @@
 
 #include <osd/glMesh.h>
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "../common/glShaderCache.h"
@@ -96,28 +80,6 @@ using namespace OpenSubdiv;
 static const char *shaderSource =
 #include "shader.gen.h"
 ;
-
-static void
-setGLCoreProfile() {
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 1);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
 
 class ShaderCache : public GLShaderCache<OpenSubdiv::Far::PatchDescriptor> {
 public:
@@ -323,7 +285,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(),
                                           shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -565,14 +527,16 @@ int main(int argc, char ** argv) {
     static const char windowTitle[] =
         "OpenSubdiv imaging test " OPENSUBDIV_VERSION_STRING;
 
-    setGLCoreProfile();
+    GLUtils::SetMinimumGLVersion();
 
     GLFWwindow *window = glfwCreateWindow(width, height, windowTitle, NULL, NULL);
     if (not window) {
-        std::cout << "Failed to open window.\n";
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
     }
+
     glfwMakeContextCurrent(window);
+    GLUtils::PrintGLVersion();
 
 #if defined(OSD_USES_GLEW)
     // this is the only way to initialize glew correctly under core profile context.

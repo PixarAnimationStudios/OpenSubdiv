@@ -22,21 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -82,7 +68,7 @@ GLFWmonitor* g_primary=0;
 #endif
 
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "init_shapes.h"
 
 #include "../common/stopwatch.h"
@@ -625,14 +611,12 @@ std::string formatWithCommas(T value) {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = g_width/(double)g_height;
@@ -756,8 +740,6 @@ display() {
     glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
 #endif
     float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1067,8 +1049,6 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
-
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 10, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
@@ -1176,30 +1156,7 @@ callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
 //------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
 
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
-//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
     std::string str;
@@ -1218,17 +1175,16 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv batching example " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, NULL, NULL))) {
-        printf("Failed to open window.\n");
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommocate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);

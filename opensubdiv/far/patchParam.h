@@ -29,8 +29,6 @@
 
 #include "../far/types.h"
 
-#include <cassert>
-
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

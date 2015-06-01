@@ -28,24 +28,11 @@
 
 #include "../sdc/types.h"
 #include "../sdc/options.h"
-#include "../vtr/level.h"
-#include "../vtr/refinement.h"
 #include "../far/types.h"
-#include "../far/error.h"
 #include "../far/topologyLevel.h"
 
 #include <vector>
-#include <cassert>
-#include <cstdio>
 
-//  No longer necessary -- remove once we verify nothing implicitly relies on them:
-#include "../sdc/bilinearScheme.h"
-#include "../sdc/catmarkScheme.h"
-#include "../sdc/loopScheme.h"
-#include "../vtr/fvarLevel.h"
-#include "../vtr/fvarRefinement.h"
-#include "../vtr/stackBuffer.h"
-#include "../vtr/componentInterfaces.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

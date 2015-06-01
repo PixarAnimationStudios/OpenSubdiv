@@ -56,7 +56,7 @@ uniform int PrimitiveIdBase;
 vec4 GeneratePatchCoord(vec2 uv, int primitiveID) // for non-adaptive
 {
     ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-    return OsdInterpolatePatchCoord(uv, OsdGetPatchCoord(patchParam));
+    return OsdInterpolatePatchCoord(uv, patchParam);
 }
 
 #if    defined(DISPLACEMENT_HW_BILINEAR)        \

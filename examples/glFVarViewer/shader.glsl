@@ -112,6 +112,21 @@ out block {
 void main()
 {
     outpt.v.position = ModelViewMatrix * position;
+
+    // We don't actually want to write all these, but some
+    // compilers complain during about failing to fully write
+    // outpt.v if they are excluded.
+    outpt.v.normal = vec3(0);
+    outpt.v.tangent = vec3(0);
+    outpt.v.bitangent = vec3(0);
+    outpt.v.patchCoord = vec4(0);
+    outpt.v.tessCoord = vec2(0);
+#if defined OSD_COMPUTE_NORMAL_DERIVATIVES
+    outpt.v.Nu = vec3(0);
+    outpt.v.Nv = vec3(0);
+#endif
+    // --
+
     OSD_USER_VARYING_PER_VERTEX();
 }
 

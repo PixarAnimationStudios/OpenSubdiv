@@ -116,7 +116,7 @@ float4 displacement(float4 position, float3 normal, float4 patchCoord)
 float4 GeneratePatchCoord(float2 uv, int primitiveID)  // for non-adaptive
 {
     int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-    return OsdInterpolatePatchCoord(uv, OsdGetPatchCoord(patchParam));
+    return OsdInterpolatePatchCoord(uv, patchParam);
 }
 
 // ---------------------------------------------------------------------------

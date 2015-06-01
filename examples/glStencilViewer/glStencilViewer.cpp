@@ -22,31 +22,17 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/glUtils.h"
 #include "../common/glHud.h"
+#include "../common/glControlMeshDisplay.h"
 
 #include <far/patchTableFactory.h>
 #include <far/ptexIndices.h>
@@ -112,6 +98,12 @@ enum KernelType { kCPU = 0,
                   kGLXFB,
                   kGLCompute };
 
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
+                   kHUD_CB_ANIMATE_VERTICES,
+                   kHUD_CB_FREEZE,
+                   kHUD_CB_BILINEAR };
+
 int g_kernel = kCPU,
     g_isolationLevel = 5; // max level of extraordinary feature isolation
 
@@ -119,8 +111,6 @@ int   g_running = 1,
       g_width = 1024,
       g_height = 1024,
       g_fullscreen = 0,
-      g_drawCageEdges = 1,
-      g_drawCageVertices = 1,
       g_prev_x = 0,
       g_prev_y = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -151,21 +141,13 @@ Stopwatch g_fpsTimer;
 std::vector<float> g_orgPositions;
 std::vector<float> g_positions;
 
-std::vector<int>   g_coarseEdges;
-std::vector<float> g_coarseEdgeSharpness;
-std::vector<float> g_coarseVertexSharpness;
-
 int g_nsamples=2000,
     g_nsamplesDrawn=0;
 
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0,
-       g_stencilsVAO = 0;
+GLuint g_stencilsVAO = 0;
 
 GLhud g_hud;
-
+GLControlMeshDisplay g_controlMeshDisplay;
 
 //------------------------------------------------------------------------------
 
@@ -181,6 +163,7 @@ public:
     virtual ~StencilOutputBase() {}
     virtual void UpdateData(const float *src, int startVertex, int numVertices) = 0;
     virtual void EvalStencils() = 0;
+    virtual GLuint BindSrcBuffer() = 0;
     virtual GLuint BindDstBuffer() = 0;
     virtual int GetNumStencils() const = 0;
 };
@@ -237,6 +220,9 @@ public:
                                 _stencils,
                                 evalInstance,
                                 _deviceContext);
+    }
+    virtual GLuint BindSrcBuffer() {
+        return _srcData->BindVBO();
     }
     virtual GLuint BindDstBuffer() {
         return _dstData->BindVBO();
@@ -303,12 +289,11 @@ updateGeom() {
 static void
 createMesh(ShapeDesc const & shapeDesc, int level) {
 
-    typedef Far::ConstIndexArray IndexArray;
     typedef Far::LimitStencilTableFactory::LocationArray LocationArray;
 
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -319,25 +304,11 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     // save coarse topology (used for coarse mesh drawing)
     OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
 
-    int nedges = refBaseLevel.GetNumEdges(),
-        nverts = refBaseLevel.GetNumVertices();
+    g_controlMeshDisplay.SetTopology(refBaseLevel);
+    int nverts = refBaseLevel.GetNumVertices();
 
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
-    }
-
-    g_orgPositions=shape->verts;
+    // save rest pose
+    g_orgPositions = shape->verts;
 
     if (g_bilinear) {
         Far::TopologyRefiner::UniformOptions options(level);
@@ -385,14 +356,14 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
 
     delete g_stencilOutput;
     if (g_kernel == kCPU) {
-        g_stencilOutput = new StencilOutput<Osd::CpuVertexBuffer,
+        g_stencilOutput = new StencilOutput<Osd::CpuGLVertexBuffer,
                                             Osd::CpuGLVertexBuffer,
                                             Far::LimitStencilTable,
                                             Osd::CpuEvaluator>(
                                                 g_controlStencils, nverts);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
-        g_stencilOutput = new StencilOutput<Osd::CpuVertexBuffer,
+        g_stencilOutput = new StencilOutput<Osd::CpuGLVertexBuffer,
                                             Osd::CpuGLVertexBuffer,
                                             Far::LimitStencilTable,
                                             Osd::OmpEvaluator>(
@@ -400,7 +371,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (g_kernel == kTBB) {
-        g_stencilOutput = new StencilOutput<Osd::CpuVertexBuffer,
+        g_stencilOutput = new StencilOutput<Osd::CpuGLVertexBuffer,
                                             Osd::CpuGLVertexBuffer,
                                             Far::LimitStencilTable,
                                             Osd::TbbEvaluator>(
@@ -408,7 +379,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if (g_kernel == kCUDA) {
-        g_stencilOutput = new StencilOutput<Osd::CudaVertexBuffer,
+        g_stencilOutput = new StencilOutput<Osd::CudaGLVertexBuffer,
                                             Osd::CudaGLVertexBuffer,
                                             Osd::CudaStencilTable,
                                             Osd::CudaEvaluator>(
@@ -417,7 +388,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if (g_kernel == kCL) {
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
-        g_stencilOutput = new StencilOutput<Osd::CLVertexBuffer,
+        g_stencilOutput = new StencilOutput<Osd::CLGLVertexBuffer,
                                             Osd::CLGLVertexBuffer,
                                             Osd::CLStencilTable,
                                             Osd::CLEvaluator,
@@ -586,8 +557,7 @@ private:
 
 };
 
-GLSLProgram g_cageProgram,
-            g_samplesProgram;
+GLSLProgram g_samplesProgram;
 
 
 //------------------------------------------------------------------------------
@@ -599,35 +569,6 @@ linkDefaultPrograms() {
 #else
     #define GLSL_VERSION_DEFINE "#version 150\n"
 #endif
-
-    {   // setup control cage program
-        static const char *vsSrc =
-            GLSL_VERSION_DEFINE
-            "in vec3 position;\n"
-            "in vec3 color;\n"
-            "out vec4 fragColor;\n"
-            "uniform mat4 ModelViewProjectionMatrix;\n"
-            "void main() {\n"
-            "  fragColor = vec4(color, 1);\n"
-            "  gl_Position = ModelViewProjectionMatrix * "
-            "                  vec4(position, 1);\n"
-            "}\n";
-
-        static const char *fsSrc =
-            GLSL_VERSION_DEFINE
-            "in vec4 fragColor;\n"
-            "out vec4 color;\n"
-            "void main() {\n"
-            "  color = fragColor;\n"
-            "}\n";
-
-        g_cageProgram.SetVertexShaderSource(vsSrc);
-        g_cageProgram.SetFragShaderSource(fsSrc);
-
-        g_cageProgram.AddAttribute( "position",3 );
-        g_cageProgram.AddAttribute( "color",3 );
-    }
-
     {   // setup samples program
         //
         // this shader takes position, uTangent and vTangent for each point
@@ -708,97 +649,6 @@ linkDefaultPrograms() {
 
     return true;
 }
-//------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-//------------------------------------------------------------------------------
-static void
-drawCageEdges() {
-
-    g_cageProgram.Use( );
-
-    glUniformMatrix4fv(g_cageProgram.GetUniformModelViewProjectionMatrix(),
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    g_cageProgram.EnableVertexAttributes();
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-//------------------------------------------------------------------------------
-static void
-drawCageVertices() {
-
-    g_cageProgram.Use( );
-
-    glUniformMatrix4fv(g_cageProgram.GetUniformModelViewProjectionMatrix(),
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = (int)g_positions.size()/3;
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-
-        vbo.push_back(g_positions[i*3+0]);
-        vbo.push_back(g_positions[i*3+1]);
-        vbo.push_back(g_positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    g_cageProgram.EnableVertexAttributes();
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
 
 //------------------------------------------------------------------------------
 static void
@@ -816,9 +666,6 @@ drawStencils() {
 
     glBindVertexArray(g_stencilsVAO);
 
-//    int numEdges = g_controlStencils->GetNumStencils() * 3;
-//    g_samplesProgram.EnableVertexAttributes();
-
     glBindBuffer(GL_ARRAY_BUFFER, g_stencilOutput->BindDstBuffer());
 
     glEnableVertexAttribArray(0);
@@ -827,8 +674,6 @@ drawStencils() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*9, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*9, (void*)(sizeof(GLfloat)*3));
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*9, (void*)(sizeof(GLfloat)*6));
-
-//    g_samplesProgram.EnableVertexAttributes();
 
     glDrawArrays(GL_POINTS, 0, g_stencilOutput->GetNumStencils());
 
@@ -844,14 +689,12 @@ drawStencils() {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     double aspect = g_width/(double)g_height;
     identity(g_transformData.ModelViewMatrix);
@@ -869,21 +712,18 @@ display() {
 
     glEnable(GL_DEPTH_TEST);
 
-    if (g_drawCageEdges)
-        drawCageEdges();
-
-    if (g_drawCageVertices)
-        drawCageVertices();
-
     drawStencils();
+
+    // draw the control mesh
+    g_controlMeshDisplay.Draw(g_stencilOutput->BindSrcBuffer(), 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
+
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
     glFinish();
     s.Stop();
     float drawGpuTime = float(s.GetElapsed() * 1000.0f);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1043,41 +883,6 @@ callbackLevel(int l) {
     rebuildMesh();
 }
 
-
-//------------------------------------------------------------------------------
-static void
-callbackAnimate(bool checked, int /* m */) {
-
-    g_moveScale = checked;
-}
-
-//------------------------------------------------------------------------------
-static void
-callbackFreeze(bool checked, int /* f */) {
-
-    g_freeze = checked;
-}
-
-//------------------------------------------------------------------------------
-static void
-callbackDisplayCageVertices(bool checked, int /* d */) {
-
-    g_drawCageVertices = checked;
-}
-
-//------------------------------------------------------------------------------
-static void
-callbackDisplayCageEdges(bool checked, int /* d */) {
-    g_drawCageEdges = checked;
-}
-
-static void
-callbackBilinear(bool checked, int /* a */) {
-    g_bilinear = checked;
-    rebuildMesh();
-}
-
-
 //------------------------------------------------------------------------------
 static void
 callbackModel(int m) {
@@ -1095,6 +900,28 @@ callbackModel(int m) {
 
 //------------------------------------------------------------------------------
 static void
+callbackCheckBox(bool checked, int button) {
+    switch (button) {
+    case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
+        g_controlMeshDisplay.SetEdgesDisplay(checked);
+        break;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS:
+        g_controlMeshDisplay.SetVerticesDisplay(checked);
+        break;
+    case kHUD_CB_ANIMATE_VERTICES:
+        g_moveScale = checked;
+        break;
+    case kHUD_CB_FREEZE:
+        g_freeze = checked;
+        break;
+    case kHUD_CB_BILINEAR:
+        g_bilinear = checked;
+        rebuildMesh();
+    }
+}
+
+//------------------------------------------------------------------------------
+static void
 initHUD() {
 
     int windowWidth = g_width, windowHeight = g_height,
@@ -1106,14 +933,20 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
-
-    g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
-
-    g_hud.AddCheckBox("Bilinear Stencils (`)", g_bilinear!=0, 10, 190, callbackBilinear, 0, '`');
+    g_hud.AddCheckBox("Control edges (H)",
+                      g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, 10, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    g_hud.AddCheckBox("Control vertices (J)",
+                      g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, 30, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
+                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
+                      10, 70, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    g_hud.AddCheckBox("Bilinear Stencils (`)", g_bilinear != 0,
+                      10, 190, callbackCheckBox, kHUD_CB_BILINEAR, '`');
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 250, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
@@ -1160,23 +993,12 @@ initGL() {
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_stencilsVAO);
-
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
 static void
 uninitGL() {
-
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
-
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
     glDeleteVertexArrays(1, &g_stencilsVAO);
 }
 
@@ -1185,25 +1007,6 @@ static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char **argv) {
 
@@ -1237,10 +1040,7 @@ int main(int argc, char **argv) {
 
     static const char windowTitle[] = "OpenSubdiv glStencilViewer " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
 
@@ -1264,12 +1064,13 @@ int main(int argc, char **argv) {
     }
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+                           fullscreen and g_primary ? g_primary : NULL, NULL))) {
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);

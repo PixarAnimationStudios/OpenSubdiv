@@ -27,6 +27,8 @@
 #include <far/ptexIndices.h>
 #include <far/patchMap.h>
 
+#include <cmath>
+
 #ifdef OPENSUBDIV_HAS_TBB
 #include <tbb/parallel_for.h>
 #include <tbb/atomic.h>
@@ -271,7 +273,7 @@ STParticles::~STParticles() {
 void
 STParticles::Update(float deltaTime) {
 
-    if (fabs(GetSpeed()) < 0.001f) return;
+    if (deltaTime == 0) return;
     float speed = GetSpeed() * std::max(0.001f, std::min(deltaTime, 0.5f));
 
     _patchCoords.clear();

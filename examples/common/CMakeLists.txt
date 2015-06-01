@@ -23,8 +23,6 @@
 #
 
 set(EXAMPLES_COMMON_SHADER_FILES
-     framebuffer.glsl
-     ssao.glsl
      glslPtexCommon.glsl
      hlslPtexCommon.hlsl
 )
@@ -52,14 +50,14 @@ set(EXAMPLES_COMMON_HEADER_FILES
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-        glFramebuffer.cpp
+        glControlMeshDisplay.cpp
         glHud.cpp
         glUtils.cpp
         glShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        glFramebuffer.h
+        glControlMeshDisplay.h
         glHud.h
         glUtils.h
         glShaderCache.h
@@ -73,18 +71,24 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         include_directories("${GLEW_INCLUDE_DIR}")
     endif()
 
+    if (GLFW_FOUND)
+        include_directories("${GLFW_INCLUDE_DIR}")
+    endif()
+
 endif()
 
 
 if(DXSDK_FOUND)
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        d3d11ControlMeshDisplay.cpp
         d3d11Hud.cpp
         d3d11Utils.cpp
         d3d11ShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        d3d11ControlMeshDisplay.h
         d3d11Hud.h
         d3d11Utils.h
         d3d11ShaderCache.h

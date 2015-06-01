@@ -88,16 +88,49 @@ static const char *s_FS =
     "}\n";
 #endif
 
-GLhud::GLhud() : _frameBuffer(0), _fontTexture(0), _vbo(0), _staticVbo(0),
+static const char *s_BG_VS =
+#if defined(GL_VERSION_3_1)
+    "#version 150\n"
+    "out vec2 uv;\n"
+    "void main() {\n"
+    "  vec4 pos[4] = vec4[] (vec4(-1,-1,0,1), vec4(1,-1,0,1), \n"
+    "                        vec4(-1,1,0,1), vec4(1,1,0,1));  \n"
+    "  uv = pos[gl_VertexID].xy;\n"
+    "  gl_Position = pos[gl_VertexID];\n"
+    "}\n";
+#else
+    "varying vec2 uv;\n"
+    "void main() {\n"
+    "  vec4 pos[4] = vec4[] (vec4(-1,-1,0,1), vec4(1,-1,0,1), \n"
+    "                        vec4(-1,1,0,1), vec4(1,1,0,1));  \n"
+    "  uv = pos[gl_VertexID].xy;\n"
+    "  gl_Position = pos[gl_VertexID];\n"
+    "}\n";
+#endif
+
+static const char *s_BG_FS =
+#if defined(GL_VERSION_3_1)
+    "#version 150\n"
+    "in vec2 uv;\n"
+    "out vec4 color;\n"
+    "void main() {\n"
+    "  color = vec4(mix(0.1, 0.5, sin((uv.y*0.5+0.5)*3.14159)));\n"
+    "  color.a = 1.0;\n"
+    "}\n";
+#else
+    "varying vec2 uv;\n"
+    "void main() {\n"
+    "  gl_FragColor = vec4(mix(0.1, 0.5, sin((uv.y*0.5+0.5)*3.14159)));\n"
+    "  gl_FragColor.a = 1.0;\n";
+    "}\n";
+#endif
+
+GLhud::GLhud() : _fontTexture(0), _vbo(0), _staticVbo(0),
                  _vao(0), _staticVao(0), _program(0),
-                 _aPosition(0), _aColor(0), _aUV(0)
-{
+                 _aPosition(0), _aColor(0), _aUV(0), _bgProgram(0) {
 }
 
-GLhud::~GLhud()
-{
-    if (_frameBuffer)
-        delete _frameBuffer;
+GLhud::~GLhud() {
     if (_program)
         glDeleteProgram(_program);
     if (_fontTexture)
@@ -110,11 +143,14 @@ GLhud::~GLhud()
         glDeleteVertexArrays(1, &_vao);
     if (_staticVao)
         glDeleteVertexArrays(1, &_staticVao);
+    if (_bgVao)
+        glDeleteVertexArrays(1, &_bgVao);
+    if (_bgProgram)
+        glDeleteProgram(_bgProgram);
 }
 
 void
-GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
-{
+GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight) {
     Hud::Init(width, height, frameBufferWidth, frameBufferHeight);
 
     glGenTextures(1, &_fontTexture);
@@ -134,6 +170,7 @@ GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
 
     glGenVertexArrays(1, &_vao);
     glGenVertexArrays(1, &_staticVao);
+    glGenVertexArrays(1, &_bgVao);
 
     GLuint vertexShader = GLUtils::CompileShader(GL_VERTEX_SHADER, s_VS);
     GLuint fragmentShader = GLUtils::CompileShader(GL_FRAGMENT_SHADER, s_FS);
@@ -191,12 +228,22 @@ GLhud::Init(int width, int height, int frameBufferWidth, int frameBufferHeight)
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    // ------ create bg program
+    vertexShader = GLUtils::CompileShader(GL_VERTEX_SHADER, s_BG_VS);
+    fragmentShader = GLUtils::CompileShader(GL_FRAGMENT_SHADER, s_BG_FS);
+
+    _bgProgram = glCreateProgram();
+    glAttachShader(_bgProgram, vertexShader);
+    glAttachShader(_bgProgram, fragmentShader);
+
+    glLinkProgram(_bgProgram);
+
     GLUtils::CheckGLErrors("GLhud::Init");
 }
 
 void
-GLhud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
-{
+GLhud::Rebuild(int width, int height,
+               int framebufferWidth, int framebufferHeight) {
     Hud::Rebuild(width, height, framebufferWidth, framebufferHeight);
 
     if (not _staticVbo)
@@ -207,15 +254,10 @@ GLhud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeigh
     glBufferData(GL_ARRAY_BUFFER, _staticVboSize * sizeof(float),
                  &getStaticVboSource()[0], GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    if (GetFrameBuffer()) {
-        GetFrameBuffer()->Reshape(framebufferWidth, framebufferHeight);
-    }
 }
 
 bool
-GLhud::Flush()
-{
+GLhud::Flush() {
     if (!Hud::Flush())
         return false;
 
@@ -250,3 +292,17 @@ GLhud::Flush()
 
     return true;
 }
+
+void
+GLhud::FillBackground() {
+    glUseProgram(_bgProgram);
+    glBindVertexArray(_bgVao);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glUseProgram(0);
+    glBindVertexArray(0);
+}
+

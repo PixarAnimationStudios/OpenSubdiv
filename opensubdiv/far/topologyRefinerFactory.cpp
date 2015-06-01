@@ -25,6 +25,12 @@
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
 
+#include <cstdio>
+#ifdef _MSC_VER
+    #define snprintf _snprintf
+#endif
+
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -152,10 +158,6 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     //
     Vtr::internal::Level&  baseLevel = refiner.getLevel(0);
 
-    assert((int)baseLevel._edgeTags.size() == baseLevel.getNumEdges());
-    assert((int)baseLevel._vertTags.size() == baseLevel.getNumVertices());
-    assert((int)baseLevel._faceTags.size() == baseLevel.getNumFaces());
-
     Sdc::Options options = refiner.GetSchemeOptions();
     Sdc::Crease  creasing(options);
 
@@ -168,10 +170,10 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     //  properties of their incident edges.
     //
     for (Vtr::Index eIndex = 0; eIndex < baseLevel.getNumEdges(); ++eIndex) {
-        Vtr::internal::Level::ETag& eTag       = baseLevel._edgeTags[eIndex];
-        float&          eSharpness = baseLevel._edgeSharpness[eIndex];
+        Vtr::internal::Level::ETag& eTag       = baseLevel.getEdgeTag(eIndex);
+        float&                      eSharpness = baseLevel.getEdgeSharpness(eIndex);
 
-        eTag._boundary = (baseLevel._edgeFaceCountsAndOffsets[eIndex*2 + 0] < 2);
+        eTag._boundary = (baseLevel.getNumEdgeFaces(eIndex) < 2);
         if (eTag._boundary || (eTag._nonManifold && sharpenNonManFeatures)) {
             eSharpness = Sdc::Crease::SHARPNESS_INFINITE;
         }
@@ -187,8 +189,8 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     int schemeRegularBoundaryValence = schemeRegularInteriorValence / 2;
 
     for (Vtr::Index vIndex = 0; vIndex < baseLevel.getNumVertices(); ++vIndex) {
-        Vtr::internal::Level::VTag& vTag       = baseLevel._vertTags[vIndex];
-        float&          vSharpness = baseLevel._vertSharpness[vIndex];
+        Vtr::internal::Level::VTag& vTag       = baseLevel.getVertexTag(vIndex);
+        float&                      vSharpness = baseLevel.getVertexSharpness(vIndex);
 
         Vtr::ConstIndexArray vEdges = baseLevel.getVertexEdges(vIndex);
         Vtr::ConstIndexArray vFaces = baseLevel.getVertexFaces(vIndex);
@@ -201,7 +203,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         int semiSharpEdgeCount   = 0;
         int nonManifoldEdgeCount = 0;
         for (int i = 0; i < vEdges.size(); ++i) {
-            Vtr::internal::Level::ETag const& eTag = baseLevel._edgeTags[vEdges[i]];
+            Vtr::internal::Level::ETag const& eTag = baseLevel.getEdgeTag(vEdges[i]);
 
             boundaryEdgeCount    += eTag._boundary;
             infSharpEdgeCount    += eTag._infSharp;
@@ -257,7 +259,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         //
         if (makeBoundaryFacesHoles && vTag._boundary) {
             for (int i = 0; i < vFaces.size(); ++i) {
-                baseLevel._faceTags[vFaces[i]]._hole = true;
+                baseLevel.getFaceTag(vFaces[i])._hole = true;
 
                 //  Don't forget this -- but it will eventually move to the Level
                 refiner._hasHoles = true;

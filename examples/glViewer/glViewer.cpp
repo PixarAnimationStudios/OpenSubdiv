@@ -22,21 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -86,15 +72,16 @@ GLFWmonitor* g_primary=0;
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
-#include "../../regression/common/vtr_utils.h"
-#include "../common/stopwatch.h"
-#include "../common/simple_math.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/glHud.h"
 #include "../common/glUtils.h"
-#include "../common/objAnim.h"
-#include "../common/patchColors.h"
+#include "../common/glControlMeshDisplay.h"
 #include "../common/glShaderCache.h"
+#include "../common/objAnim.h"
+#include "../common/simple_math.h"
+#include "../common/stopwatch.h"
 #include <osd/glslPatchShaderSource.h>
+
 
 
 /* Function to get the correct shader file based on the opengl version.
@@ -113,27 +100,25 @@ static const char *res =
 #endif
 ;
 #else
-		static char *res = NULL;
-		if (!res){
-			static char *gen =
+        static const char *res = NULL;
+        if (!res){
+            static const char *gen =
 #include "shader.gen.h"
-				;
-			static char *gen3 =
+                ;
+            static const char *gen3 =
 #include "shader_gl3.gen.h"
-				;
-			//Determine the shader file to use. Since some opengl implementations
-			//define that an extension is available but not an implementation 
-			//for it you cannnot trust in the glew header definitions to know that is 
-			//available, but you need to query it during runtime.
-			if (GLUtils::SupportsAdaptiveTessellation())
-				res = gen;
-			else
-				res = gen3;
-		}
+                ;
+            //Determine the shader file to use. Since some opengl implementations
+            //define that an extension is available but not an implementation 
+            //for it you cannnot trust in the glew header definitions to know that is 
+            //available, but you need to query it during runtime.
+            if (GLUtils::SupportsAdaptiveTessellation())
+                res = gen;
+            else
+                res = gen3;
+        }
 #endif
-		return res;
-
-
+        return res;
 }
 
 #include <cfloat>
@@ -150,20 +135,27 @@ enum KernelType { kCPU = 0,
                   kGLSL = 5,
                   kGLSLCompute = 6 };
 
-enum DisplayStyle { kWire = 0,
-                    kShaded,
-                    kWireShaded,
-                    kVaryingColor,
-                    kInterleavedVaryingColor,
-                    kFaceVaryingColor };
+enum DisplayStyle { kDisplayStyleWire,
+                    kDisplayStyleShaded,
+                    kDisplayStyleWireOnShaded };
+
+enum ShadingMode { kShadingMaterial,
+                   kShadingVaryingColor,
+                   kShadingInterleavedVaryingColor,
+                   kShadingFaceVaryingColor,
+                   kShadingPatchType,
+                   kShadingPatchCoord,
+                   kShadingNormal,
+                   kShadingCurvature,
+                   kShadingAnalyticCurvature };
 
 enum EndCap      { kEndCapNone = 0,
                    kEndCapBSplineBasis,
                    kEndCapGregoryBasis,
                    kEndCapLegacyGregory };
 
-enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
-                   kHUD_CB_DISPLAY_CAGE_VERTS,
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR,
                    kHUD_CB_VIEW_LOD,
@@ -187,17 +179,15 @@ float g_animTime = 0;
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
-      g_displayStyle = kWireShaded,
+      g_shadingMode = kShadingPatchType,
+      g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
-      g_drawCageEdges = 1,
-      g_drawCageVertices = 0,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
-int   g_displayPatchColor = 1,
-      g_screenSpaceTess = 1,
+int   g_screenSpaceTess = 1,
       g_fractionalSpacing = 1,
       g_patchCull = 0,
       g_displayPatchCounts = 1;
@@ -215,6 +205,7 @@ int   g_width = 1024,
       g_height = 1024;
 
 GLhud g_hud;
+GLControlMeshDisplay g_controlMeshDisplay;
 
 // performance
 float g_cpuTime = 0;
@@ -222,10 +213,7 @@ float g_gpuTime = 0;
 Stopwatch g_fpsTimer;
 
 // geometry
-std::vector<float> g_orgPositions,
-                   g_positions;
-
-Scheme             g_scheme;
+std::vector<float> g_orgPositions;
 
 int g_level = 2;
 int g_tessLevel = 1;
@@ -238,34 +226,18 @@ GLuint g_queries[2] = {0, 0};
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
        g_tessellationUB = 0,
-       g_tessellationBinding = 0,
+       g_tessellationBinding = 1,
        g_lightingUB = 0,
-       g_lightingBinding = 0;
+       g_lightingBinding = 2;
 
 struct Transform {
     float ModelViewMatrix[16];
     float ProjectionMatrix[16];
     float ModelViewProjectionMatrix[16];
+    float ModelViewInverseMatrix[16];
 } g_transformData;
 
 GLuint g_vao = 0;
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0;
-
-std::vector<int> g_coarseEdges;
-std::vector<float> g_coarseEdgeSharpness;
-std::vector<float> g_coarseVertexSharpness;
-
-struct Program
-{
-    GLuint program;
-    GLuint uniformModelViewProjectionMatrix;
-    GLuint attrPosition;
-    GLuint attrColor;
-} g_defaultProgram;
-
 
 // XXX:
 // this struct meant to be used as a stopgap entity until we fully implement
@@ -310,82 +282,12 @@ struct FVarData
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
-        glBindTexture(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
     }
     GLuint textureBuffer;
 } g_fvarData;
-
-static void
-checkGLErrors(std::string const & where = "")
-{
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
-    }
-}
-
-
-
-
-static bool
-linkDefaultProgram() {
-
-	const std::string glsl_version = GLUtils::GetShaderVersionInclude();
-
-
-    static const std::string vsSrc =
-		glsl_version +
-        "in vec3 position;\n"
-        "in vec3 color;\n"
-        "out vec4 fragColor;\n"
-        "uniform mat4 ModelViewProjectionMatrix;\n"
-        "void main() {\n"
-        "  fragColor = vec4(color, 1);\n"
-        "  gl_Position = ModelViewProjectionMatrix * "
-        "                  vec4(position, 1);\n"
-        "}\n";
-
-    static const std::string fsSrc =
-		glsl_version +
-        "in vec4 fragColor;\n"
-        "out vec4 color;\n"
-        "void main() {\n"
-        "  color = fragColor;\n"
-        "}\n";
-
-    GLuint program = glCreateProgram();
-    GLuint vertexShader = GLUtils::CompileShader(GL_VERTEX_SHADER, vsSrc.c_str());
-    GLuint fragmentShader = GLUtils::CompileShader(GL_FRAGMENT_SHADER, fsSrc.c_str());
-
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-
-    glLinkProgram(program);
-
-    GLint status;
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint infoLogLength;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
-        char *infoLog = new char[infoLogLength];
-        glGetProgramInfoLog(program, infoLogLength, NULL, infoLog);
-        printf("%s\n", infoLog);
-        delete[] infoLog;
-        exit(1);
-    }
-
-    g_defaultProgram.program = program;
-    g_defaultProgram.uniformModelViewProjectionMatrix =
-        glGetUniformLocation(program, "ModelViewProjectionMatrix");
-    g_defaultProgram.attrPosition = glGetAttribLocation(program, "position");
-    g_defaultProgram.attrColor = glGetAttribLocation(program, "color");
-
-    return true;
-}
 
 //------------------------------------------------------------------------------
 
@@ -397,7 +299,8 @@ updateGeom() {
 
     std::vector<float> vertex, varying;
 
-    int nverts=0, stride=g_displayStyle == kInterleavedVaryingColor ? 7 : 3;
+    int nverts = 0;
+    int stride = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
 
     if (g_objAnim and g_currentShape==0) {
 
@@ -405,28 +308,18 @@ updateGeom() {
 
         vertex.resize(nverts*stride);
 
-        if (g_displayStyle == kVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor) {
             varying.resize(nverts*4);
         }
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], stride);
 
-        if (g_drawCageEdges or g_drawCageVertices) {
-            g_positions.resize(nverts*3);
-            for (int i=0; i<nverts; ++i) {
-                int ofs = i * stride;
-                g_positions[i*3+0] = vertex[ofs+0];
-                g_positions[i*3+1] = vertex[ofs+1];
-                g_positions[i*3+2] = vertex[ofs+2];
-            }
-        }
-
-        if (g_displayStyle == kVaryingColor or
-            g_displayStyle == kInterleavedVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor or
+            g_shadingMode == kShadingInterleavedVaryingColor) {
 
             const float *p = &g_objAnim->GetShape()->verts[0];
             for (int i = 0; i < nverts; ++i) {
-                if (g_displayStyle == kInterleavedVaryingColor) {
+                if (g_shadingMode == kShadingInterleavedVaryingColor) {
                     int ofs = i * stride;
                     vertex[ofs + 0] = p[1];
                     vertex[ofs + 1] = p[2];
@@ -434,7 +327,7 @@ updateGeom() {
                     vertex[ofs + 3] = 0.0f;
                     p += 3;
                 }
-                if (g_displayStyle == kVaryingColor) {
+                if (g_shadingMode == kShadingVaryingColor) {
                     varying.push_back(p[2]);
                     varying.push_back(p[1]);
                     varying.push_back(p[0]);
@@ -449,51 +342,36 @@ updateGeom() {
 
         vertex.reserve(nverts*stride);
 
-        if (g_displayStyle == kVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor) {
             varying.reserve(nverts*4);
         }
 
         const float *p = &g_orgPositions[0];
-
         float r = sin(g_frame*0.001f) * g_moveScale;
         for (int i = 0; i < nverts; ++i) {
-            //float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
             float ct = cos(p[2] * r);
             float st = sin(p[2] * r);
-            g_positions[i*3+0] = p[0]*ct + p[1]*st;
-            g_positions[i*3+1] = -p[0]*st + p[1]*ct;
-            g_positions[i*3+2] = p[2];
-
-            p += 3;
-        }
-
-        p = &g_orgPositions[0];
-        const float *pp = &g_positions[0];
-        for (int i = 0; i < nverts; ++i) {
-            vertex.push_back(pp[0]);
-            vertex.push_back(pp[1]);
-            vertex.push_back(pp[2]);
-            if (g_displayStyle == kInterleavedVaryingColor) {
+            vertex.push_back( p[0]*ct + p[1]*st);
+            vertex.push_back(-p[0]*st + p[1]*ct);
+            vertex.push_back( p[2]);
+            if (g_shadingMode == kShadingInterleavedVaryingColor) {
                 vertex.push_back(p[1]);
                 vertex.push_back(p[2]);
                 vertex.push_back(p[0]);
                 vertex.push_back(1.0f);
-                p += 3;
-            }
-            if (g_displayStyle == kVaryingColor) {
+            } else if (g_shadingMode == kShadingVaryingColor) {
                 varying.push_back(p[2]);
                 varying.push_back(p[1]);
                 varying.push_back(p[0]);
                 varying.push_back(1);
-                p += 3;
             }
-            pp += 3;
+            p += 3;
         }
     }
 
     g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
-    if (g_displayStyle == kVaryingColor)
+    if (g_shadingMode == kShadingVaryingColor)
         g_mesh->UpdateVaryingBuffer(&varying[0], 0, nverts);
 
     Stopwatch s;
@@ -534,21 +412,24 @@ getKernelName(int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
-
+rebuildMesh() {
     using namespace OpenSubdiv;
-    typedef Far::ConstIndexArray IndexArray;
 
+    ShapeDesc const &shapeDesc = g_defaultShapes[g_currentShape];
+    int level = g_level;
+    int kernel = g_kernel;
     bool doAnim = g_objAnim and g_currentShape==0;
+    Scheme scheme = shapeDesc.scheme;
 
     Shape const * shape = 0;
     if (doAnim) {
         shape = g_objAnim->GetShape();
     } else {
-        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme, shapeDesc.isLeftHanded);
+        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme,
+                                shapeDesc.isLeftHanded);
     }
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);
     Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -557,52 +438,31 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
             Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
-    int nedges = refBaseLevel.GetNumEdges(),
-        nverts = refBaseLevel.GetNumVertices();
-
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
-    }
-
-    g_orgPositions=shape->verts;
-
-    g_positions.resize(g_orgPositions.size(),0.0f);
+    g_orgPositions = shape->verts;
 
     delete g_mesh;
     g_mesh = NULL;
 
-    g_scheme = scheme;
-
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark),
-         interleaveVarying = g_displayStyle == kInterleavedVaryingColor,
-         doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark);
+    bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
+    bool doSingleCreasePatch = (g_singleCreasePatch!=0 and scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
-    bits.set(Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
+    bits.set(Osd::MeshFVarData, g_shadingMode == kShadingFaceVaryingColor);
     bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
     bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
     bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 3;
     int numVaryingElements =
-        (g_displayStyle == kVaryingColor or interleaveVarying) ? 4 : 0;
+        (g_shadingMode == kShadingVaryingColor or interleaveVarying) ? 4 : 0;
+
 
     if (kernel == kCPU) {
         g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
@@ -694,7 +554,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
 
-    if (g_displayStyle == kFaceVaryingColor and shape->HasUV()) {
+    if (g_shadingMode == kShadingFaceVaryingColor and shape->HasUV()) {
 
         std::vector<float> fvarData;
 
@@ -747,13 +607,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     glEnableVertexAttribArray(0);
 
-
-    if (g_displayStyle == kVaryingColor) {
+    if (g_shadingMode == kShadingVaryingColor) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
         glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVaryingBuffer());
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 4, 0);
-    } else if (g_displayStyle == kInterleavedVaryingColor) {
+    } else if (g_shadingMode == kShadingInterleavedVaryingColor) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 7, 0);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 7, (void*)(sizeof (GLfloat) * 3));
@@ -775,103 +634,13 @@ fitFrame() {
 }
 
 //------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-static void
-drawCageEdges() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (void*)12);
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-static void
-drawCageVertices() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = (int)g_positions.size()/3;
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-        vbo.push_back(g_positions[i*3+0]);
-        vbo.push_back(g_positions[i*3+1]);
-        vbo.push_back(g_positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (void*)12);
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-//------------------------------------------------------------------------------
 
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_, int singleCreasePatch_) : value(0) {
+    Effect(int displayStyle_, int shadingMode_, int screenSpaceTess_,
+           int fractionalSpacing_, int patchCull_, int singleCreasePatch_)
+        : value(0) {
         displayStyle = displayStyle_;
+        shadingMode = shadingMode_;
         screenSpaceTess = screenSpaceTess_;
         fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
@@ -879,7 +648,8 @@ union Effect {
     }
 
     struct {
-        unsigned int displayStyle:3;
+        unsigned int displayStyle:2;
+        unsigned int shadingMode:4;
         unsigned int screenSpaceTess:1;
         unsigned int fractionalSpacing:1;
         unsigned int patchCull:1;
@@ -896,6 +666,7 @@ static Effect
 GetEffect()
 {
     return Effect(g_displayStyle,
+                  g_shadingMode,
                   g_screenSpaceTess,
                   g_fractionalSpacing,
                   g_patchCull,
@@ -933,7 +704,6 @@ public:
 
         // compile shader program
 
-
         GLDrawConfig *config = new GLDrawConfig(GLUtils::GetShaderVersionInclude().c_str());
 
         Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
@@ -966,36 +736,55 @@ public:
 
         // display styles
         switch (effectDesc.effect.displayStyle) {
-        case kWire:
+        case kDisplayStyleWire:
             ss << "#define GEOMETRY_OUT_WIRE\n";
             break;
-        case kWireShaded:
+        case kDisplayStyleWireOnShaded:
             ss << "#define GEOMETRY_OUT_LINE\n";
             break;
-        case kShaded:
+        case kDisplayStyleShaded:
             ss << "#define GEOMETRY_OUT_FILL\n";
             break;
-        case kVaryingColor:
-            ss << "#define VARYING_COLOR\n";
-            ss << "#define GEOMETRY_OUT_FILL\n";
+        }
+
+        // shading mode
+        switch(effectDesc.effect.shadingMode) {
+        case kShadingMaterial:
+            ss << "#define SHADING_MATERIAL\n";
             break;
-        case kInterleavedVaryingColor:
-            ss << "#define VARYING_COLOR\n";
-            ss << "#define GEOMETRY_OUT_FILL\n";
+        case kShadingVaryingColor:
+            ss << "#define SHADING_VARYING_COLOR\n";
             break;
-        case kFaceVaryingColor:
+        case kShadingInterleavedVaryingColor:
+            ss << "#define SHADING_VARYING_COLOR\n";
+            break;
+        case kShadingFaceVaryingColor:
             ss << "#define OSD_FVAR_WIDTH 2\n";
-            ss << "#define FACEVARYING_COLOR\n";
-            ss << "#define GEOMETRY_OUT_FILL\n";
+            ss << "#define SHADING_FACEVARYING_COLOR\n";
+            break;
+        case kShadingPatchType:
+            ss << "#define SHADING_PATCH_TYPE\n";
+            break;
+        case kShadingPatchCoord:
+            ss << "#define SHADING_PATCH_COORD\n";
+            break;
+        case kShadingNormal:
+            ss << "#define SHADING_NORMAL\n";
+            break;
+        case kShadingCurvature:
+            ss << "#define SHADING_CURVATURE\n";
+            break;
+        case kShadingAnalyticCurvature:
+            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
+            ss << "#define SHADING_ANALYTIC_CURVATURE\n";
             break;
         }
-        if (effectDesc.desc.IsAdaptive()) {
-            ss << "#define SMOOTH_NORMALS\n";
-        } else {
-            ss << "#define UNIFORM_SUBDIVISION\n";
-        }
+
         if (type == Far::PatchDescriptor::TRIANGLES) {
             ss << "#define LOOP\n";
+        } else if (type == Far::PatchDescriptor::QUADS) {
+        } else {
+            ss << "#define SMOOTH_NORMALS\n";
         }
 
         // need for patch color-coding : we need these defines in the fragment shader
@@ -1016,7 +805,7 @@ public:
         ss << common
             // enable local vertex shader
            << (effectDesc.desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n")
-		   << shaderSource()
+           << shaderSource()
            << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
         config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
         ss.str("");
@@ -1024,14 +813,14 @@ public:
         if (effectDesc.desc.IsAdaptive()) {
             // tess control shader
             ss << common
-				<< shaderSource()
+                << shaderSource()
                << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
             config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
             ss.str("");
 
             // tess eval shader
             ss << common
-				<< shaderSource()
+                << shaderSource()
                << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
             config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
             ss.str("");
@@ -1059,17 +848,14 @@ public:
         // assign uniform locations
         GLuint uboIndex;
         GLuint program = config->GetProgram();
-        g_transformBinding = 0;
         uboIndex = glGetUniformBlockIndex(program, "Transform");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_transformBinding);
 
-        g_tessellationBinding = 1;
         uboIndex = glGetUniformBlockIndex(program, "Tessellation");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
 
-        g_lightingBinding = 2;
         uboIndex = glGetUniformBlockIndex(program, "Lighting");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_lightingBinding);
@@ -1211,7 +997,7 @@ bindProgram(Effect effect,
     if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
         int maxValence = g_mesh->GetMaxValence();
-        int numElements = (g_displayStyle == kInterleavedVaryingColor ? 7 : 3);
+        int numElements = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
         effectDesc.maxValence = maxValence;
         effectDesc.numElements = numElements;
         effectDesc.effect.singleCreasePatch = 0;
@@ -1244,6 +1030,12 @@ bindProgram(Effect effect,
             glUniform1i(uniformGregoryQuadOffsetBase, quadOffsetBase);
     }
 
+    // update uniform
+    GLint uniformDiffuseColor =
+        glGetUniformLocation(program, "diffuseColor");
+    if (uniformDiffuseColor >= 0)
+        glUniform4f(uniformDiffuseColor, 0.4f, 0.4f, 0.8f, 1);
+
     // return primtype
     GLenum primType;
     switch(effectDesc.desc.GetType()) {
@@ -1269,16 +1061,12 @@ bindProgram(Effect effect,
 //------------------------------------------------------------------------------
 static void
 display() {
-
-    SSAOGLFrameBuffer * fb = (SSAOGLFrameBuffer *)g_hud.GetFrameBuffer();
-    fb->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = g_width/(double)g_height;
@@ -1290,10 +1078,12 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, fb->IsActive() ? 1.0f : 0.0001f, 500.0f);
+                45.0f, (float)aspect, 0.1f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
+    inverseMatrix(g_transformData.ModelViewInverseMatrix,
+                  g_transformData.ModelViewMatrix);
 
     // make sure that the vertex buffer is interoped back as a GL resources.
     GLuint vbo = g_mesh->BindVertexBuffer();
@@ -1304,7 +1094,7 @@ display() {
         g_legacyGregoryPatchTable->UpdateVertexBuffer(vbo);
     }
 
-    if (g_displayStyle == kVaryingColor)
+    if (g_shadingMode == kShadingVaryingColor)
         g_mesh->BindVaryingBuffer();
 
     // update transform and lighting uniform blocks
@@ -1313,7 +1103,7 @@ display() {
     // also bind patch related textures
     bindTextures();
 
-    if (g_displayStyle == kWire)
+    if (g_displayStyle == kDisplayStyleWire)
         glDisable(GL_CULL_FACE);
 
     glEnable(GL_DEPTH_TEST);
@@ -1367,16 +1157,15 @@ display() {
 
     glUseProgram(0);
 
-    if (g_displayStyle == kWire)
+    if (g_displayStyle == kDisplayStyleWire)
         glEnable(GL_CULL_FACE);
 
-    if (g_drawCageEdges)
-        drawCageEdges();
+    // draw the control mesh
+    int stride = g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3;
+    g_controlMeshDisplay.Draw(vbo, stride*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
-    if (g_drawCageVertices)
-        drawCageVertices();
-
-    fb->ApplyImageShader();
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1421,19 +1210,18 @@ display() {
         g_hud.DrawString(10, y, "Draw calls : %d", numDrawCalls); y+= 20;
         g_hud.DrawString(10, y, "Primitives : %d", numPrimsGenerated); y+= 20;
         g_hud.DrawString(10, y, "Vertices   : %d", g_mesh->GetNumVertices()); y+= 20;
-        g_hud.DrawString(10, y, "Scheme     : %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK")); y+= 20;
         g_hud.DrawString(10, y, "GPU Kernel : %.3f ms", g_gpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "CPU Kernel : %.3f ms", g_cpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "GPU Draw   : %.3f ms", drawGpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "CPU Draw   : %.3f ms", drawCpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "FPS        : %3.1f", fps); y+= 20;
+        g_hud.DrawString(10, y, "CPU Kernel : %.3f ms", g_cpuTime); y+= 20;
+        g_hud.DrawString(10, y, "GPU Draw   : %.3f ms", drawGpuTime); y+= 20;
+        g_hud.DrawString(10, y, "CPU Draw   : %.3f ms", drawCpuTime); y+= 20;
+        g_hud.DrawString(10, y, "FPS        : %3.1f", fps); y+= 20;
 
         g_hud.Flush();
     }
 
     glFinish();
 
-    //checkGLErrors("display leave");
+    GLUtils::CheckGLErrors("display leave\n");
 }
 
 //------------------------------------------------------------------------------
@@ -1484,12 +1272,7 @@ static void
 uninitGL() {
 
     glDeleteQueries(2, g_queries);
-
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
     glDeleteVertexArrays(1, &g_vao);
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
 
     if (g_mesh)
         delete g_mesh;
@@ -1540,33 +1323,33 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(g_tessLevelMin, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
-        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
+        case 'X': GLUtils::WriteScreenshot(g_width, g_height); break;
     }
 }
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh() {
-    createOsdMesh( g_defaultShapes[ g_currentShape ], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+callbackDisplayStyle(int b) {
+    g_displayStyle = b;
 }
 
 static void
-callbackDisplayStyle(int b) {
-    if (g_displayStyle == kVaryingColor or b == kVaryingColor or
-        g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
-        g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
+callbackShadingMode(int b) {
+    if (g_shadingMode == kShadingVaryingColor or b == kShadingVaryingColor or
+        g_shadingMode == kShadingInterleavedVaryingColor or b == kShadingInterleavedVaryingColor or
+        g_shadingMode == kShadingFaceVaryingColor or b == kShadingFaceVaryingColor) {
         // need to rebuild for varying reconstruct
-        g_displayStyle = b;
-        rebuildOsdMesh();
+        g_shadingMode = b;
+        rebuildMesh();
         return;
     }
-    g_displayStyle = b;
+    g_shadingMode = b;
 }
 
 static void
 callbackEndCap(int endCap) {
     g_endCap = endCap;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1590,13 +1373,13 @@ callbackKernel(int k) {
     }
 #endif
 
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
 callbackLevel(int l) {
     g_level = l;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1608,7 +1391,7 @@ callbackModel(int m) {
         m = (int)g_defaultShapes.size() - 1;
 
     g_currentShape = m;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1618,11 +1401,11 @@ callbackCheckBox(bool checked, int button) {
         switch(button) {
         case kHUD_CB_ADAPTIVE:
             g_adaptive = checked;
-            rebuildOsdMesh();
+            rebuildMesh();
             return;
         case kHUD_CB_SINGLE_CREASE_PATCH:
             g_singleCreasePatch = checked;
-            rebuildOsdMesh();
+            rebuildMesh();
             return;
         default:
             break;
@@ -1630,17 +1413,14 @@ callbackCheckBox(bool checked, int button) {
     }
 
     switch (button) {
-    case kHUD_CB_DISPLAY_CAGE_EDGES:
-        g_drawCageEdges = checked;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
+        g_controlMeshDisplay.SetEdgesDisplay(checked);
         break;
-    case kHUD_CB_DISPLAY_CAGE_VERTS:
-        g_drawCageVertices = checked;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS:
+        g_controlMeshDisplay.SetVerticesDisplay(checked);
         break;
     case kHUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked;
-        break;
-    case kHUD_CB_DISPLAY_PATCH_COLOR:
-        g_displayPatchColor = checked;
         break;
     case kHUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
@@ -1671,32 +1451,71 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new SSAOGLFrameBuffer);
-
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
-                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
+    int y = 10;
+    g_hud.AddCheckBox("Control edges (H)",
+                      g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, y, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    y += 20;
+    g_hud.AddCheckBox("Control vertices (J)",
+                      g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, y, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
+    y += 20;
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
-                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
-                      10, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+                      10, y, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    y += 20;
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
-                      10, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+                      10, y, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    y += 20;
     g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
-                      10, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+                      10, y, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+    y += 20;
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      10, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+                      10, y, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+    y += 20;
     g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      10, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+                      10, y, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    y += 20;
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)", kInterleavedVaryingColor, g_displayStyle==kInterleavedVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
+    int displaystyle_pulldown = g_hud.AddPullDown("DisplayStyle (W)", 200, 10, 250,
+                                                  callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Wire", kDisplayStyleWire,
+                            g_displayStyle == kDisplayStyleWire);
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Shaded", kDisplayStyleShaded,
+                            g_displayStyle == kDisplayStyleShaded);
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Wire+Shaded", kDisplayStyleWireOnShaded,
+                            g_displayStyle == kDisplayStyleWireOnShaded);
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (C)", 200, 70, 250,
+                                             callbackShadingMode, 'c');
+    g_hud.AddPullDownButton(shading_pulldown, "Material",
+                            kShadingMaterial,
+                            g_shadingMode == kShadingMaterial);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color",
+                            kShadingVaryingColor,
+                            g_shadingMode == kShadingVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)",
+                            kShadingInterleavedVaryingColor,
+                            g_shadingMode == kShadingInterleavedVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color",
+                            kShadingFaceVaryingColor,
+                            g_shadingMode == kShadingFaceVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Type",
+                            kShadingPatchType,
+                            g_shadingMode == kShadingPatchType);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Coord",
+                            kShadingPatchCoord,
+                            g_shadingMode == kShadingPatchCoord);
+    g_hud.AddPullDownButton(shading_pulldown, "Normal",
+                            kShadingNormal,
+                            g_shadingMode == kShadingNormal);
+    g_hud.AddPullDownButton(shading_pulldown, "Curvature",
+                            kShadingCurvature,
+                            g_shadingMode == kShadingCurvature);
+    g_hud.AddPullDownButton(shading_pulldown, "Analytic Curvature",
+                            kShadingAnalyticCurvature,
+                            g_shadingMode == kShadingAnalyticCurvature);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
@@ -1763,7 +1582,7 @@ initHUD() {
 //------------------------------------------------------------------------------
 static void
 initGL() {
-    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1772,10 +1591,6 @@ initGL() {
     glGenQueries(2, g_queries);
 
     glGenVertexArrays(1, &g_vao);
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
@@ -1804,125 +1619,96 @@ callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
 //------------------------------------------------------------------------------
-static void
-setGLCoreProfile(int major, int minor) {
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, major);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, minor);
-
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
-	bool fullscreen = false;
-	std::string str;
-	std::vector<char const *> animobjs;
+    bool fullscreen = false;
+    std::string str;
+    std::vector<char const *> animobjs;
 
-	for (int i = 1; i < argc; ++i) {
-		if (strstr(argv[i], ".obj")) {
-			animobjs.push_back(argv[i]);
-		}
-		else if (!strcmp(argv[i], "-axis")) {
-			g_axis = false;
-		}
-		else if (!strcmp(argv[i], "-d")) {
-			g_level = atoi(argv[++i]);
-		}
-		else if (!strcmp(argv[i], "-c")) {
-			g_repeatCount = atoi(argv[++i]);
-		}
-		else if (!strcmp(argv[i], "-f")) {
-			fullscreen = true;
-		}
-		else {
-			std::ifstream ifs(argv[1]);
-			if (ifs) {
-				std::stringstream ss;
-				ss << ifs.rdbuf();
-				ifs.close();
-				str = ss.str();
-				g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
-			}
-		}
-	}
+    for (int i = 1; i < argc; ++i) {
+        if (strstr(argv[i], ".obj")) {
+            animobjs.push_back(argv[i]);
+        }
+        else if (!strcmp(argv[i], "-axis")) {
+            g_axis = false;
+        }
+        else if (!strcmp(argv[i], "-d")) {
+            g_level = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-c")) {
+            g_repeatCount = atoi(argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-f")) {
+            fullscreen = true;
+        }
+        else {
+            std::ifstream ifs(argv[1]);
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+                str = ss.str();
+                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+            }
+        }
+    }
 
-	if (not animobjs.empty()) {
+    if (not animobjs.empty()) {
 
-		g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
+        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
 
-		g_objAnim = ObjAnim::Create(animobjs, g_axis);
-	}
+        g_objAnim = ObjAnim::Create(animobjs, g_axis);
+    }
 
-	initShapes();
+    initShapes();
 
-	g_fpsTimer.Start();
+    g_fpsTimer.Start();
 
-	OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
+    OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
-	glfwSetErrorCallback(callbackErrorGLFW);
-	if (not glfwInit()) {
-		printf("Failed to initialize GLFW\n");
-		return 1;
-	}
+    glfwSetErrorCallback(callbackErrorGLFW);
+    if (not glfwInit()) {
+        printf("Failed to initialize GLFW\n");
+        return 1;
+    }
 
-	static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
+    static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-	setGLCoreProfile(4, 4);
-#endif
+    GLUtils::SetMinimumGLVersion(argc, argv);
 
-	if (fullscreen) {
+    if (fullscreen) {
 
-		g_primary = glfwGetPrimaryMonitor();
+        g_primary = glfwGetPrimaryMonitor();
 
-		// apparently glfwGetPrimaryMonitor fails under linux : if no primary,
-		// settle for the first one in the list
-		if (not g_primary) {
-			int count = 0;
-			GLFWmonitor ** monitors = glfwGetMonitors(&count);
+        // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
+        // settle for the first one in the list
+        if (not g_primary) {
+            int count = 0;
+            GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
-			if (count)
-				g_primary = monitors[0];
-		}
+            if (count)
+                g_primary = monitors[0];
+        }
 
-		if (g_primary) {
-			GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
-			g_width = vidmode->width;
-			g_height = vidmode->height;
-		}
-	}
+        if (g_primary) {
+            GLFWvidmode const * vidmode = glfwGetVideoMode(g_primary);
+            g_width = vidmode->width;
+            g_height = vidmode->height;
+        }
+    }
 
-	g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-		fullscreen and g_primary ? g_primary : NULL, NULL);
+    g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+        fullscreen and g_primary ? g_primary : NULL, NULL);
 
-#ifdef CORE_PROFILE
-	if (not g_window){
-		setGLCoreProfile(4, 2);
-		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-			fullscreen and g_primary ? g_primary : NULL, NULL);
-	}
-	if (not g_window){
-		setGLCoreProfile(3, 3);
-		g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-			fullscreen and g_primary ? g_primary : NULL, NULL);
-	}
+    if (not g_window) {
+        std::cerr << "Failed to create OpenGL context.\n";
+        glfwTerminate();
+        return 1;
+    }
 
-#endif
-	if (not g_window){
-		glfwTerminate();
-		return 1;
-	}
-
-    
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommocate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
@@ -1952,12 +1738,11 @@ int main(int argc, char ** argv) {
     g_adaptive = GLUtils::SupportsAdaptiveTessellation();
 
     initGL();
-    linkDefaultProgram();
 
     glfwSwapInterval(0);
 
     initHUD();
-    rebuildOsdMesh();
+    rebuildMesh();
 
     while (g_running) {
         idle();

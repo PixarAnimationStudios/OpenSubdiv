@@ -22,21 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window = 0;
@@ -48,11 +34,11 @@ GLFWmonitor* g_primary = 0;
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
+#include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
-#include "../common/glUtils.h"
 #include "../common/glShaderCache.h"
 
 #include <osd/glslPatchShaderSource.h>
@@ -110,6 +96,7 @@ int   g_width = 1600,
       g_height = 800;
 
 GLhud g_hud;
+GLControlMeshDisplay g_controlMeshDisplay;
 
 // geometry
 std::vector<float> g_orgPositions,
@@ -136,10 +123,6 @@ struct Transform {
 } g_transformData;
 
 GLuint g_vao = 0;
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0;
 
 std::vector<int> g_coarseEdges;
 std::vector<float> g_coarseEdgeSharpness;
@@ -350,13 +333,14 @@ updateGeom() {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) {
-
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
+rebuildMesh() {
+    ShapeDesc const &shapeDesc = g_defaultShapes[g_currentShape];
+    int level = g_level;
+    Scheme scheme = g_defaultShapes[g_currentShape].scheme;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -367,24 +351,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
-    int nedges = refBaseLevel.GetNumEdges(),
-        nverts = refBaseLevel.GetNumVertices();
-
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refBaseLevel.GetEdgeVertices(i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refBaseLevel.GetEdgeSharpness(i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refBaseLevel.GetVertexSharpness(i);
-    }
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
     g_orgPositions=shape->verts;
     g_normals.resize(g_orgPositions.size(), 0.0f);
@@ -466,100 +433,6 @@ fitFrame() {
 }
 
 //------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-static void
-drawCageEdges() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (void*)12);
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-static void
-drawCageVertices() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = (int)g_positions.size()/3;
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-        vbo.push_back(g_positions[i*3+0]);
-        vbo.push_back(g_positions[i*3+1]);
-        vbo.push_back(g_positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (void*)12);
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-//------------------------------------------------------------------------------
 
 union Effect {
 
@@ -598,9 +471,11 @@ struct EffectDesc {
     int numElements;
 
     bool operator < (const EffectDesc &e) const {
-        return desc < e.desc || (desc == e.desc &&
-              (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
-              (effect < e.effect))));
+        return
+            (desc < e.desc || ((desc == e.desc &&
+            (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+            (numElements < e.numElements || ((numElements == e.numElements) &&
+            (effect < e.effect))))))));
     }
 };
 
@@ -627,6 +502,7 @@ public:
 
         if (type == Far::PatchDescriptor::QUADS) {
             ss << "#define PRIM_QUAD\n";
+            ss << "#define UNIFORM_SUBDIVISION\n";
         } else {
             ss << "#define PRIM_TRI\n";
         }
@@ -831,15 +707,12 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // ---------------------------------------------
     glViewport(0, 0, g_width/2, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = (g_width/2)/(double)g_height;
@@ -863,7 +736,7 @@ display() {
     glEnable(GL_DEPTH_TEST);
 
     // make sure that the vertex buffer is interoped back as a GL resources.
-    g_mesh->BindVertexBuffer();
+    GLuint vbo = g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
 
@@ -894,8 +767,9 @@ display() {
     glBindVertexArray(0);
     glUseProgram(0);
 
-    drawCageEdges();
-    drawCageVertices();
+    // draw the control mesh
+    g_controlMeshDisplay.Draw(vbo, 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
     // ---------------------------------------------
     // uv viewport
@@ -923,8 +797,6 @@ display() {
 
     // full viewport
     glViewport(0, 0, g_width, g_height);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_hud.DrawString(10, -40, "Tess level : %d", g_tessLevel);
@@ -982,19 +854,18 @@ mouse(GLFWwindow *, int button, int state, int /* mods */) {
         g_mbutton[button] = (state == GLFW_PRESS);
     }
 
-    g_mouseUvView = (g_prev_x > g_width/2);
+    // window size might not match framebuffer size on a high DPI display
+    int windowWidth = g_width, windowHeight = g_height;
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+
+    g_mouseUvView = (g_prev_x > windowWidth/2);
 }
 
 //------------------------------------------------------------------------------
 static void
 uninitGL() {
 
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
     glDeleteVertexArrays(1, &g_vao);
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
-
     if (g_mesh)
         delete g_mesh;
 }
@@ -1046,14 +917,6 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh() {
-
-    createOsdMesh(g_defaultShapes[g_currentShape],
-                  g_level,
-                  g_defaultShapes[g_currentShape].scheme);
-}
-
-static void
 callbackDisplayStyle(int b) {
 
     g_displayStyle = b;
@@ -1063,7 +926,7 @@ static void
 callbackLevel(int l) {
 
     g_level = l;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1071,7 +934,7 @@ callbackModel(int m) {
 
     int maxShapes = static_cast<int>(g_defaultShapes.size());
     g_currentShape = std::max(0, std::min(m, maxShapes-1));
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1079,7 +942,7 @@ callbackAdaptive(bool checked, int /* a */) {
 
     if (GLUtils::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
-        rebuildOsdMesh();
+        rebuildMesh();
     }
 }
 
@@ -1109,7 +972,7 @@ callbackBoundary(int b) {
             g_fvarBoundary = SdcOptions::FVAR_LINEAR_ALL; break;
 
     }
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1122,8 +985,6 @@ initHUD() {
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 375, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
@@ -1174,10 +1035,6 @@ initGL() {
     glEnable(GL_CULL_FACE);
 
     glGenVertexArrays(1, &g_vao);
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
@@ -1204,24 +1061,6 @@ callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
-}
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 //------------------------------------------------------------------------------
@@ -1260,10 +1099,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glFVarViewer " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
         g_primary = glfwGetPrimaryMonitor();
@@ -1287,11 +1123,13 @@ int main(int argc, char ** argv) {
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
                                        fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
@@ -1324,7 +1162,7 @@ int main(int argc, char ** argv) {
     glfwSwapInterval(0);
 
     initHUD();
-    rebuildOsdMesh();
+    rebuildMesh();
 
     while (g_running) {
         idle();

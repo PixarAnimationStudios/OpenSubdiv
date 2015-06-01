@@ -53,7 +53,7 @@ GLFWwindow* g_window=0;
 
 #include "../common/cmp_utils.h"
 #include "../common/hbr_utils.h"
-#include "../common/vtr_utils.h"
+#include "../common/far_utils.h"
 
 //
 // Regression testing matching Osd to Hbr
@@ -333,18 +333,18 @@ checkMesh( char const * msg, std::string const & shape, int levels, Scheme schem
     xyzmesh * refmesh = 
         interpolateHbrVertexData<xyzVV>(shape.c_str(), scheme, levels);
 
-    std::vector<xyzVV> vtrVertexData;
+    std::vector<xyzVV> farVertexData;
 
     FarTopologyRefiner *refiner =
-        InterpolateVtrVertexData(shape.c_str(), scheme, levels, 
-            vtrVertexData);
+        InterpolateFarVertexData(shape.c_str(), scheme, levels, 
+            farVertexData);
 
     switch (backend) {
         case kBackendCPU:
-            result = checkMeshCPU(refiner, vtrVertexData, refmesh); 
+            result = checkMeshCPU(refiner, farVertexData, refmesh); 
             break;
         case kBackendCPUGL: 
-            result = checkMeshCPUGL(refiner, vtrVertexData, refmesh); 
+            result = checkMeshCPUGL(refiner, farVertexData, refmesh); 
             break;
     }
 

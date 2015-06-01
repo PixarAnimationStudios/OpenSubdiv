@@ -22,12 +22,14 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef VTR_UTILS_H
-#define VTR_UTILS_H
+#ifndef FAR_UTILS_H
+#define FAR_UTILS_H
 
 #include <far/topologyRefinerFactory.h>
 #include <far/primvarRefiner.h>
 #include <far/types.h>
+
+#include <cstdio>
 
 #include "shape_utils.h"
 
@@ -135,13 +137,13 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
 
 template <class T>
 OpenSubdiv::Far::TopologyRefiner *
-InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
+InterpolateFarVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
     std::vector<T> &data) {
 
     typedef OpenSubdiv::Far::TopologyRefiner FarTopologyRefiner;
     typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory;
 
-    // Vtr interpolation
+    // Far interpolation
     Shape * shape = Shape::parseObj(shapeStr, scheme);
 
     FarTopologyRefiner * refiner =
@@ -162,10 +164,15 @@ InterpolateVtrVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
                             shape->verts[i*3+2]);
     }
 
-    T * verts = &data[0];
+    T * srcVerts = &data[0];
+    T * dstVerts = srcVerts + refiner->GetLevel(0).GetNumVertices();
+    OpenSubdiv::Far::PrimvarRefiner primvarRefiner(*refiner);
 
-    OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(
-            verts, verts+refiner->GetLevel(0).GetNumVertices());
+    for (int i = 1; i <= refiner->GetMaxLevel(); ++i) {
+        primvarRefiner.Interpolate(i, srcVerts, dstVerts);
+        srcVerts = dstVerts;
+        dstVerts += refiner->GetLevel(i).GetNumVertices();
+    }
 
     delete shape;
     return refiner;
@@ -274,8 +281,8 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size()-1; j += 2) {
 
-                OpenSubdiv::Vtr::Index edge = findBaseEdge(refiner, t->intargs[j], t->intargs[j+1]);
-                if (edge==OpenSubdiv::Vtr::INDEX_INVALID) {
+                OpenSubdiv::Far::Index edge = findBaseEdge(refiner, t->intargs[j], t->intargs[j+1]);
+                if (edge==OpenSubdiv::Far::INDEX_INVALID) {
                     printf("cannot find edge for crease tag (%d,%d)\n", t->intargs[j], t->intargs[j+1] );
                     return false;
                 } else {
@@ -326,4 +333,4 @@ TopologyRefinerFactory<Shape>::reportInvalidTopology(
 
 //------------------------------------------------------------------------------
 
-#endif /* VTR_UTILS_H */
+#endif /* FAR_UTILS_H */

@@ -31,6 +31,15 @@
 
 //------------------------------------------------------------------------------
 
+namespace {
+    template <class Face, class Edge, class Vertex>
+    struct LevelMapT {
+        std::vector<Face *>     faces;
+        std::vector<Edge *>     edges;
+        std::vector<Vertex *>   verts;
+    };
+};
+
 
 // Copies vertex data from hmesh into hbrVertexData reordered to match
 // the given refiner and subdivision level.  This is used for later easy 
@@ -48,13 +57,7 @@ GetReorderedHbrVertexData(
     typedef OpenSubdiv::HbrHalfedge<T> Hhalfedge;
 
     struct Mapper {
-
-        struct LevelMap {
-            std::vector<Hface *>     faces;
-            std::vector<Hhalfedge *> edges;
-            std::vector<Hvertex *>   verts;
-        };
-
+        typedef LevelMapT<Hface, Hhalfedge, Hvertex> LevelMap;
         std::vector<LevelMap> maps;
 
         Mapper(const OpenSubdiv::Far::TopologyRefiner &refiner, 
@@ -68,7 +71,7 @@ GetReorderedHbrVertexData(
             typedef OpenSubdiv::Far::ConstIndexArray ConstIndexArray;
 
             {   // Populate base level
-                // note : topological ordering is identical between Hbr and Vtr
+                // note : topological ordering is identical between Hbr and Far
                 // for the base level
                 OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
 
@@ -86,10 +89,10 @@ GetReorderedHbrVertexData(
 
                 for (int edge = 0; edge <nedges; ++edge) {
 
-                    ConstIndexArray vtrVerts = refBaseLevel.GetEdgeVertices(edge);
+                    ConstIndexArray farVerts = refBaseLevel.GetEdgeVertices(edge);
 
-                    Hvertex const * v0 = hmesh.GetVertex(vtrVerts[0]),
-                                  * v1 = hmesh.GetVertex(vtrVerts[1]);
+                    Hvertex const * v0 = hmesh.GetVertex(farVerts[0]),
+                                  * v1 = hmesh.GetVertex(farVerts[1]);
 
                     Hhalfedge * e = v0->GetEdge(v1);
                     if (not e) {
@@ -157,10 +160,10 @@ GetReorderedHbrVertexData(
                 // populate child edges
                 for (int edge=0; edge < refLevel.GetNumEdges(); ++edge) {
 
-                    ConstIndexArray vtrVerts = refLevel.GetEdgeVertices(edge);
+                    ConstIndexArray farVerts = refLevel.GetEdgeVertices(edge);
 
-                    Hvertex const * v0 = current.verts[vtrVerts[0]],
-                                  * v1 = current.verts[vtrVerts[1]];
+                    Hvertex const * v0 = current.verts[farVerts[0]],
+                                  * v1 = current.verts[farVerts[1]];
                     assert(v0 and v1);
 
                     Hhalfedge * e= v0->GetEdge(v1);

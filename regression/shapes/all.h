@@ -74,6 +74,7 @@
 #include "catmark_pyramid_creases1.h"
 #include "catmark_pyramid.h"
 #include "catmark_rook.h"
+#include "catmark_single_crease.h"
 #include "catmark_smoothtris0.h"
 #include "catmark_smoothtris1.h"
 #include "catmark_square_hedit0.h"

@@ -22,21 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -49,7 +36,7 @@ GLFWmonitor* g_primary=0;
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
@@ -216,7 +203,7 @@ createOsdMesh() {
 
     g_orgPositions=shape->verts;
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -624,11 +611,9 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // primitive counting
     glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
@@ -704,8 +689,6 @@ display() {
 
     GLuint numPrimsGenerated = 0;
     glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -991,8 +974,6 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
-
     g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 10, 10, callbackDisplay, 0, 'c');
     g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 10, 30, callbackDisplay, 1, 'd');
 
@@ -1092,24 +1073,6 @@ static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
 
 //------------------------------------------------------------------------------
 
@@ -1144,10 +1107,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glPaintTest " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
 
@@ -1181,6 +1141,7 @@ int main(int argc, char ** argv) {
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowCloseCallback(g_window, windowClose);
+    GLUtils::PrintGLVersion();
 
 #if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE

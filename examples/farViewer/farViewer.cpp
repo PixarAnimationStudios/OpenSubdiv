@@ -53,7 +53,7 @@ GLFWmonitor* g_primary=0;
 #include <far/stencilTableFactory.h>
 #include <far/primvarRefiner.h>
 
-#include "../../regression/common/vtr_utils.h"
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glUtils.h"
@@ -649,7 +649,14 @@ createFarGLMesh(Shape * shape, int maxlevel) {
                 float const * ptr = &shape->uvs[i*2];
                 values[i].SetPosition(ptr[0],  ptr[1], 0.0f);
             }
-            Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(values, values + nCoarseValues);
+
+            int lastLevel = refiner->GetMaxLevel();
+            Vertex * src = values;
+            for (int level = 1; level <= lastLevel; ++level) {
+                Vertex * dst = src + refiner->GetLevel(level-1).GetNumFVarValues(channel);
+                Far::PrimvarRefiner(*refiner).InterpolateFaceVarying(level, src, dst, channel);
+                src = dst;
+            }
         }
     }
 
@@ -701,7 +708,13 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         // TopologyRefiner interpolation
         //
         // populate buffer with Far interpolated vertex data
-        Far::PrimvarRefiner(*refiner).Interpolate(verts, verts + ncoarseverts);
+        int lastLevel = refiner->GetMaxLevel();
+        Vertex * src = verts;
+        for (int level = 1; level <= lastLevel; ++level) {
+            Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
+            Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst);
+            src = dst;
+        }
         //printf("          %f ms (interpolate)\n", float(s.GetElapsed())*1000.0f);
         //printf("          %f ms (total)\n", float(s.GetTotalElapsed())*1000.0f);
 
@@ -789,8 +802,6 @@ fitFrame() {
 //------------------------------------------------------------------------------
 static void
 display() {
-
-    g_hud.GetFrameBuffer()->Bind();
 
     Stopwatch s;
     s.Start();
@@ -906,8 +917,6 @@ display() {
     g_font->Draw(g_transformUB);
 
     // -----------------------------------------------------
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1193,8 +1202,6 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
-
     g_hud.AddCheckBox("Cage Edges (e)", g_drawCageEdges != 0,
                       10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'e');
     g_hud.AddCheckBox("Cage Verts (r)", g_drawCageVertices != 0,
@@ -1284,31 +1291,6 @@ idle() {
         g_running = 0;
 }
 
-
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv)
 {
@@ -1341,10 +1323,7 @@ int main(int argc, char ** argv)
 
     static const char windowTitle[] = "OpenSubdiv farViewer";
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
 
@@ -1383,6 +1362,8 @@ int main(int argc, char ** argv)
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowCloseCallback(g_window, windowClose);
+
+    GLUtils::PrintGLVersion();
 
 #if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE

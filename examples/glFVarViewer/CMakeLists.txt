@@ -59,7 +59,7 @@ _add_glfw_executable(glFVarViewer
     "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
-    $<TARGET_OBJECTS:regression_vtr_utils_obj>
+    $<TARGET_OBJECTS:regression_far_utils_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
 
