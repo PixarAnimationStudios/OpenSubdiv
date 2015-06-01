@@ -226,9 +226,9 @@ GLuint g_queries[2] = {0, 0};
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
        g_tessellationUB = 0,
-       g_tessellationBinding = 0,
+       g_tessellationBinding = 1,
        g_lightingUB = 0,
-       g_lightingBinding = 0;
+       g_lightingBinding = 2;
 
 struct Transform {
     float ModelViewMatrix[16];
@@ -848,17 +848,14 @@ public:
         // assign uniform locations
         GLuint uboIndex;
         GLuint program = config->GetProgram();
-        g_transformBinding = 0;
         uboIndex = glGetUniformBlockIndex(program, "Transform");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_transformBinding);
 
-        g_tessellationBinding = 1;
         uboIndex = glGetUniformBlockIndex(program, "Tessellation");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
 
-        g_lightingBinding = 2;
         uboIndex = glGetUniformBlockIndex(program, "Lighting");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_lightingBinding);
