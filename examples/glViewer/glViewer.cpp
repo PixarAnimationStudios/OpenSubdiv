@@ -78,7 +78,6 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 #include "../common/glControlMeshDisplay.h"
 #include "../common/glShaderCache.h"
 #include "../common/objAnim.h"
-#include "../common/patchColors.h"
 #include "../common/simple_math.h"
 #include "../common/stopwatch.h"
 #include <osd/glslPatchShaderSource.h>
@@ -136,12 +135,19 @@ enum KernelType { kCPU = 0,
                   kGLSL = 5,
                   kGLSLCompute = 6 };
 
-enum DisplayStyle { kWire = 0,
-                    kShaded,
-                    kWireShaded,
-                    kVaryingColor,
-                    kInterleavedVaryingColor,
-                    kFaceVaryingColor };
+enum DisplayStyle { kDisplayStyleWire,
+                    kDisplayStyleShaded,
+                    kDisplayStyleWireOnShaded };
+
+enum ShadingMode { kShadingMaterial,
+                   kShadingVaryingColor,
+                   kShadingInterleavedVaryingColor,
+                   kShadingFaceVaryingColor,
+                   kShadingPatchType,
+                   kShadingPatchCoord,
+                   kShadingNormal,
+                   kShadingCurvature,
+                   kShadingAnalyticCurvature };
 
 enum EndCap      { kEndCapNone = 0,
                    kEndCapBSplineBasis,
@@ -173,15 +179,15 @@ float g_animTime = 0;
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
-      g_displayStyle = kWireShaded,
+      g_shadingMode = kShadingPatchType,
+      g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
-int   g_displayPatchColor = 1,
-      g_screenSpaceTess = 1,
+int   g_screenSpaceTess = 1,
       g_fractionalSpacing = 1,
       g_patchCull = 0,
       g_displayPatchCounts = 1;
@@ -220,14 +226,15 @@ GLuint g_queries[2] = {0, 0};
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
        g_tessellationUB = 0,
-       g_tessellationBinding = 0,
+       g_tessellationBinding = 1,
        g_lightingUB = 0,
-       g_lightingBinding = 0;
+       g_lightingBinding = 2;
 
 struct Transform {
     float ModelViewMatrix[16];
     float ProjectionMatrix[16];
     float ModelViewProjectionMatrix[16];
+    float ModelViewInverseMatrix[16];
 } g_transformData;
 
 GLuint g_vao = 0;
@@ -292,7 +299,8 @@ updateGeom() {
 
     std::vector<float> vertex, varying;
 
-    int nverts=0, stride=g_displayStyle == kInterleavedVaryingColor ? 7 : 3;
+    int nverts = 0;
+    int stride = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
 
     if (g_objAnim and g_currentShape==0) {
 
@@ -300,18 +308,18 @@ updateGeom() {
 
         vertex.resize(nverts*stride);
 
-        if (g_displayStyle == kVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor) {
             varying.resize(nverts*4);
         }
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], stride);
 
-        if (g_displayStyle == kVaryingColor or
-            g_displayStyle == kInterleavedVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor or
+            g_shadingMode == kShadingInterleavedVaryingColor) {
 
             const float *p = &g_objAnim->GetShape()->verts[0];
             for (int i = 0; i < nverts; ++i) {
-                if (g_displayStyle == kInterleavedVaryingColor) {
+                if (g_shadingMode == kShadingInterleavedVaryingColor) {
                     int ofs = i * stride;
                     vertex[ofs + 0] = p[1];
                     vertex[ofs + 1] = p[2];
@@ -319,7 +327,7 @@ updateGeom() {
                     vertex[ofs + 3] = 0.0f;
                     p += 3;
                 }
-                if (g_displayStyle == kVaryingColor) {
+                if (g_shadingMode == kShadingVaryingColor) {
                     varying.push_back(p[2]);
                     varying.push_back(p[1]);
                     varying.push_back(p[0]);
@@ -334,7 +342,7 @@ updateGeom() {
 
         vertex.reserve(nverts*stride);
 
-        if (g_displayStyle == kVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor) {
             varying.reserve(nverts*4);
         }
 
@@ -346,12 +354,12 @@ updateGeom() {
             vertex.push_back( p[0]*ct + p[1]*st);
             vertex.push_back(-p[0]*st + p[1]*ct);
             vertex.push_back( p[2]);
-            if (g_displayStyle == kInterleavedVaryingColor) {
+            if (g_shadingMode == kShadingInterleavedVaryingColor) {
                 vertex.push_back(p[1]);
                 vertex.push_back(p[2]);
                 vertex.push_back(p[0]);
                 vertex.push_back(1.0f);
-            } else if (g_displayStyle == kVaryingColor) {
+            } else if (g_shadingMode == kShadingVaryingColor) {
                 varying.push_back(p[2]);
                 varying.push_back(p[1]);
                 varying.push_back(p[0]);
@@ -363,7 +371,7 @@ updateGeom() {
 
     g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
-    if (g_displayStyle == kVaryingColor)
+    if (g_shadingMode == kShadingVaryingColor)
         g_mesh->UpdateVaryingBuffer(&varying[0], 0, nverts);
 
     Stopwatch s;
@@ -438,22 +446,22 @@ rebuildMesh() {
     g_mesh = NULL;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark),
-         interleaveVarying = g_displayStyle == kInterleavedVaryingColor,
-         doSingleCreasePatch = (g_singleCreasePatch!=0 and scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark);
+    bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
+    bool doSingleCreasePatch = (g_singleCreasePatch!=0 and scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
-    bits.set(Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
+    bits.set(Osd::MeshFVarData, g_shadingMode == kShadingFaceVaryingColor);
     bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
     bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
     bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 3;
     int numVaryingElements =
-        (g_displayStyle == kVaryingColor or interleaveVarying) ? 4 : 0;
+        (g_shadingMode == kShadingVaryingColor or interleaveVarying) ? 4 : 0;
 
 
     if (kernel == kCPU) {
@@ -546,7 +554,7 @@ rebuildMesh() {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
 
-    if (g_displayStyle == kFaceVaryingColor and shape->HasUV()) {
+    if (g_shadingMode == kShadingFaceVaryingColor and shape->HasUV()) {
 
         std::vector<float> fvarData;
 
@@ -599,13 +607,12 @@ rebuildMesh() {
 
     glEnableVertexAttribArray(0);
 
-
-    if (g_displayStyle == kVaryingColor) {
+    if (g_shadingMode == kShadingVaryingColor) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
         glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVaryingBuffer());
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 4, 0);
-    } else if (g_displayStyle == kInterleavedVaryingColor) {
+    } else if (g_shadingMode == kShadingInterleavedVaryingColor) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 7, 0);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 7, (void*)(sizeof (GLfloat) * 3));
@@ -629,8 +636,11 @@ fitFrame() {
 //------------------------------------------------------------------------------
 
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_, int singleCreasePatch_) : value(0) {
+    Effect(int displayStyle_, int shadingMode_, int screenSpaceTess_,
+           int fractionalSpacing_, int patchCull_, int singleCreasePatch_)
+        : value(0) {
         displayStyle = displayStyle_;
+        shadingMode = shadingMode_;
         screenSpaceTess = screenSpaceTess_;
         fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
@@ -638,7 +648,8 @@ union Effect {
     }
 
     struct {
-        unsigned int displayStyle:3;
+        unsigned int displayStyle:2;
+        unsigned int shadingMode:4;
         unsigned int screenSpaceTess:1;
         unsigned int fractionalSpacing:1;
         unsigned int patchCull:1;
@@ -655,6 +666,7 @@ static Effect
 GetEffect()
 {
     return Effect(g_displayStyle,
+                  g_shadingMode,
                   g_screenSpaceTess,
                   g_fractionalSpacing,
                   g_patchCull,
@@ -724,36 +736,55 @@ public:
 
         // display styles
         switch (effectDesc.effect.displayStyle) {
-        case kWire:
+        case kDisplayStyleWire:
             ss << "#define GEOMETRY_OUT_WIRE\n";
             break;
-        case kWireShaded:
+        case kDisplayStyleWireOnShaded:
             ss << "#define GEOMETRY_OUT_LINE\n";
             break;
-        case kShaded:
+        case kDisplayStyleShaded:
             ss << "#define GEOMETRY_OUT_FILL\n";
             break;
-        case kVaryingColor:
-            ss << "#define VARYING_COLOR\n";
-            ss << "#define GEOMETRY_OUT_FILL\n";
+        }
+
+        // shading mode
+        switch(effectDesc.effect.shadingMode) {
+        case kShadingMaterial:
+            ss << "#define SHADING_MATERIAL\n";
             break;
-        case kInterleavedVaryingColor:
-            ss << "#define VARYING_COLOR\n";
-            ss << "#define GEOMETRY_OUT_FILL\n";
+        case kShadingVaryingColor:
+            ss << "#define SHADING_VARYING_COLOR\n";
             break;
-        case kFaceVaryingColor:
+        case kShadingInterleavedVaryingColor:
+            ss << "#define SHADING_VARYING_COLOR\n";
+            break;
+        case kShadingFaceVaryingColor:
             ss << "#define OSD_FVAR_WIDTH 2\n";
-            ss << "#define FACEVARYING_COLOR\n";
-            ss << "#define GEOMETRY_OUT_FILL\n";
+            ss << "#define SHADING_FACEVARYING_COLOR\n";
+            break;
+        case kShadingPatchType:
+            ss << "#define SHADING_PATCH_TYPE\n";
+            break;
+        case kShadingPatchCoord:
+            ss << "#define SHADING_PATCH_COORD\n";
+            break;
+        case kShadingNormal:
+            ss << "#define SHADING_NORMAL\n";
+            break;
+        case kShadingCurvature:
+            ss << "#define SHADING_CURVATURE\n";
+            break;
+        case kShadingAnalyticCurvature:
+            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
+            ss << "#define SHADING_ANALYTIC_CURVATURE\n";
             break;
         }
-        if (effectDesc.desc.IsAdaptive()) {
-            ss << "#define SMOOTH_NORMALS\n";
-        } else {
-            ss << "#define UNIFORM_SUBDIVISION\n";
-        }
+
         if (type == Far::PatchDescriptor::TRIANGLES) {
             ss << "#define LOOP\n";
+        } else if (type == Far::PatchDescriptor::QUADS) {
+        } else {
+            ss << "#define SMOOTH_NORMALS\n";
         }
 
         // need for patch color-coding : we need these defines in the fragment shader
@@ -817,17 +848,14 @@ public:
         // assign uniform locations
         GLuint uboIndex;
         GLuint program = config->GetProgram();
-        g_transformBinding = 0;
         uboIndex = glGetUniformBlockIndex(program, "Transform");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_transformBinding);
 
-        g_tessellationBinding = 1;
         uboIndex = glGetUniformBlockIndex(program, "Tessellation");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
 
-        g_lightingBinding = 2;
         uboIndex = glGetUniformBlockIndex(program, "Lighting");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_lightingBinding);
@@ -969,7 +997,7 @@ bindProgram(Effect effect,
     if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
         int maxValence = g_mesh->GetMaxValence();
-        int numElements = (g_displayStyle == kInterleavedVaryingColor ? 7 : 3);
+        int numElements = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
         effectDesc.maxValence = maxValence;
         effectDesc.numElements = numElements;
         effectDesc.effect.singleCreasePatch = 0;
@@ -1001,6 +1029,12 @@ bindProgram(Effect effect,
         if (uniformGregoryQuadOffsetBase >= 0)
             glUniform1i(uniformGregoryQuadOffsetBase, quadOffsetBase);
     }
+
+    // update uniform
+    GLint uniformDiffuseColor =
+        glGetUniformLocation(program, "diffuseColor");
+    if (uniformDiffuseColor >= 0)
+        glUniform4f(uniformDiffuseColor, 0.4f, 0.4f, 0.8f, 1);
 
     // return primtype
     GLenum primType;
@@ -1048,6 +1082,8 @@ display() {
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
+    inverseMatrix(g_transformData.ModelViewInverseMatrix,
+                  g_transformData.ModelViewMatrix);
 
     // make sure that the vertex buffer is interoped back as a GL resources.
     GLuint vbo = g_mesh->BindVertexBuffer();
@@ -1058,7 +1094,7 @@ display() {
         g_legacyGregoryPatchTable->UpdateVertexBuffer(vbo);
     }
 
-    if (g_displayStyle == kVaryingColor)
+    if (g_shadingMode == kShadingVaryingColor)
         g_mesh->BindVaryingBuffer();
 
     // update transform and lighting uniform blocks
@@ -1067,7 +1103,7 @@ display() {
     // also bind patch related textures
     bindTextures();
 
-    if (g_displayStyle == kWire)
+    if (g_displayStyle == kDisplayStyleWire)
         glDisable(GL_CULL_FACE);
 
     glEnable(GL_DEPTH_TEST);
@@ -1121,11 +1157,11 @@ display() {
 
     glUseProgram(0);
 
-    if (g_displayStyle == kWire)
+    if (g_displayStyle == kDisplayStyleWire)
         glEnable(GL_CULL_FACE);
 
     // draw the control mesh
-    int stride = g_displayStyle == kInterleavedVaryingColor ? 7 : 3;
+    int stride = g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3;
     g_controlMeshDisplay.Draw(vbo, stride*sizeof(float),
                               g_transformData.ModelViewProjectionMatrix);
 
@@ -1294,15 +1330,20 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 //------------------------------------------------------------------------------
 static void
 callbackDisplayStyle(int b) {
-    if (g_displayStyle == kVaryingColor or b == kVaryingColor or
-        g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
-        g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
+    g_displayStyle = b;
+}
+
+static void
+callbackShadingMode(int b) {
+    if (g_shadingMode == kShadingVaryingColor or b == kShadingVaryingColor or
+        g_shadingMode == kShadingInterleavedVaryingColor or b == kShadingInterleavedVaryingColor or
+        g_shadingMode == kShadingFaceVaryingColor or b == kShadingFaceVaryingColor) {
         // need to rebuild for varying reconstruct
-        g_displayStyle = b;
+        g_shadingMode = b;
         rebuildMesh();
         return;
     }
-    g_displayStyle = b;
+    g_shadingMode = b;
 }
 
 static void
@@ -1381,9 +1422,6 @@ callbackCheckBox(bool checked, int button) {
     case kHUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked;
         break;
-    case kHUD_CB_DISPLAY_PATCH_COLOR:
-        g_displayPatchColor = checked;
-        break;
     case kHUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
         break;
@@ -1413,34 +1451,71 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
+    int y = 10;
     g_hud.AddCheckBox("Control edges (H)",
                       g_controlMeshDisplay.GetEdgesDisplay(),
-                      10, 10, callbackCheckBox,
+                      10, y, callbackCheckBox,
                       kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    y += 20;
     g_hud.AddCheckBox("Control vertices (J)",
                       g_controlMeshDisplay.GetVerticesDisplay(),
-                      10, 30, callbackCheckBox,
+                      10, y, callbackCheckBox,
                       kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
+    y += 20;
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
-                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
-                      10, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+                      10, y, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    y += 20;
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
-                      10, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+                      10, y, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    y += 20;
     g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
-                      10, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+                      10, y, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+    y += 20;
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      10, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+                      10, y, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+    y += 20;
     g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      10, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+                      10, y, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    y += 20;
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)", kInterleavedVaryingColor, g_displayStyle==kInterleavedVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
+    int displaystyle_pulldown = g_hud.AddPullDown("DisplayStyle (W)", 200, 10, 250,
+                                                  callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Wire", kDisplayStyleWire,
+                            g_displayStyle == kDisplayStyleWire);
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Shaded", kDisplayStyleShaded,
+                            g_displayStyle == kDisplayStyleShaded);
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Wire+Shaded", kDisplayStyleWireOnShaded,
+                            g_displayStyle == kDisplayStyleWireOnShaded);
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (C)", 200, 70, 250,
+                                             callbackShadingMode, 'c');
+    g_hud.AddPullDownButton(shading_pulldown, "Material",
+                            kShadingMaterial,
+                            g_shadingMode == kShadingMaterial);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color",
+                            kShadingVaryingColor,
+                            g_shadingMode == kShadingVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)",
+                            kShadingInterleavedVaryingColor,
+                            g_shadingMode == kShadingInterleavedVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color",
+                            kShadingFaceVaryingColor,
+                            g_shadingMode == kShadingFaceVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Type",
+                            kShadingPatchType,
+                            g_shadingMode == kShadingPatchType);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Coord",
+                            kShadingPatchCoord,
+                            g_shadingMode == kShadingPatchCoord);
+    g_hud.AddPullDownButton(shading_pulldown, "Normal",
+                            kShadingNormal,
+                            g_shadingMode == kShadingNormal);
+    g_hud.AddPullDownButton(shading_pulldown, "Curvature",
+                            kShadingCurvature,
+                            g_shadingMode == kShadingCurvature);
+    g_hud.AddPullDownButton(shading_pulldown, "Analytic Curvature",
+                            kShadingAnalyticCurvature,
+                            g_shadingMode == kShadingAnalyticCurvature);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
