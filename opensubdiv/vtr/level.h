@@ -217,6 +217,15 @@ public:
     void setVertexNonManifold(Index vertIndex, bool b);
     bool isVertexNonManifold(Index vertIndex) const;
 
+    //  General access to all component tags:
+    VTag const & getVertexTag(Index vertIndex) const { return _vertTags[vertIndex]; }
+    ETag const & getEdgeTag(Index edgeIndex) const { return _edgeTags[edgeIndex]; }
+    FTag const & getFaceTag(Index faceIndex) const { return _faceTags[faceIndex]; }
+
+    VTag & getVertexTag(Index vertIndex) { return _vertTags[vertIndex]; }
+    ETag & getEdgeTag(Index edgeIndex) { return _edgeTags[edgeIndex]; }
+    FTag & getFaceTag(Index faceIndex) { return _faceTags[faceIndex]; }
+
 public:
 
     //  Debugging aides:

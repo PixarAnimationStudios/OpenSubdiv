@@ -646,8 +646,8 @@ PrimvarRefiner::interpFVarFromFaces(int level, T const & src, U & dst, int chann
     Vtr::internal::Level const & parentLevel = refinement.parent();
     Vtr::internal::Level const & childLevel  = refinement.child();
 
-    Vtr::internal::FVarLevel const & parentFVar = *parentLevel._fvarChannels[channel];
-    Vtr::internal::FVarLevel const & childFVar  = *childLevel._fvarChannels[channel];
+    Vtr::internal::FVarLevel const & parentFVar = parentLevel.getFVarLevel(channel);
+    Vtr::internal::FVarLevel const & childFVar  = childLevel.getFVarLevel(channel);
 
     Vtr::internal::StackBuffer<float,16> fValueWeights(parentLevel.getMaxValence());
 
@@ -692,9 +692,9 @@ PrimvarRefiner::interpFVarFromEdges(int level, T const & src, U & dst, int chann
     Vtr::internal::Level const & parentLevel = refinement.parent();
     Vtr::internal::Level const & childLevel  = refinement.child();
 
-    Vtr::internal::FVarRefinement const & refineFVar = *refinement._fvarChannels[channel];
-    Vtr::internal::FVarLevel const &      parentFVar = *parentLevel._fvarChannels[channel];
-    Vtr::internal::FVarLevel const &      childFVar  = *childLevel._fvarChannels[channel];
+    Vtr::internal::FVarRefinement const & refineFVar = refinement.getFVarRefinement(channel);
+    Vtr::internal::FVarLevel const &      parentFVar = parentLevel.getFVarLevel(channel);
+    Vtr::internal::FVarLevel const &      childFVar  = childLevel.getFVarLevel(channel);
 
     //
     //  Allocate and intialize (if linearly interpolated) interpolation weights for
@@ -705,7 +705,7 @@ PrimvarRefiner::interpFVarFromEdges(int level, T const & src, U & dst, int chann
 
     Mask eMask(eVertWeights, 0, eFaceWeights);
 
-    bool isLinearFVar = parentFVar._isLinear;
+    bool isLinearFVar = parentFVar.isLinear();
     if (isLinearFVar) {
         eMask.SetNumVertexWeights(2);
         eMask.SetNumEdgeWeights(0);
@@ -836,11 +836,11 @@ PrimvarRefiner::interpFVarFromVerts(int level, T const & src, U & dst, int chann
     Vtr::internal::Level const & parentLevel = refinement.parent();
     Vtr::internal::Level const & childLevel  = refinement.child();
 
-    Vtr::internal::FVarRefinement const & refineFVar = *refinement._fvarChannels[channel];
-    Vtr::internal::FVarLevel const &      parentFVar = *parentLevel._fvarChannels[channel];
-    Vtr::internal::FVarLevel const &      childFVar  = *childLevel._fvarChannels[channel];
+    Vtr::internal::FVarRefinement const & refineFVar = refinement.getFVarRefinement(channel);
+    Vtr::internal::FVarLevel const &      parentFVar = parentLevel.getFVarLevel(channel);
+    Vtr::internal::FVarLevel const &      childFVar  = childLevel.getFVarLevel(channel);
 
-    bool isLinearFVar = parentFVar._isLinear;
+    bool isLinearFVar = parentFVar.isLinear();
 
     Vtr::internal::StackBuffer<float,32> weightBuffer(2*parentLevel.getMaxValence());
 
@@ -1031,7 +1031,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
         //  Incomplete vertices (present in sparse refinement) do not have their full
         //  topological neighborhood to determine a proper limit -- just leave the
         //  vertex at the refined location and continue to the next:
-        if (level._vertTags[vert]._incomplete || (vEdges.size() == 0)) {
+        if (level.getVertexTag(vert)._incomplete || (vEdges.size() == 0)) {
             dstPos[vert].Clear();
             dstPos[vert].AddWithWeight(src[vert], 1.0);
             if (hasTangents) {
@@ -1133,7 +1133,7 @@ PrimvarRefiner::limitFVar(T const & src, U * dst, int channel) const {
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
     Vtr::internal::Level const &      level       = _refiner.getLevel(_refiner.GetMaxLevel());
-    Vtr::internal::FVarLevel const &  fvarChannel = *level._fvarChannels[channel];
+    Vtr::internal::FVarLevel const &  fvarChannel = level.getFVarLevel(channel);
 
     int maxWeightsPerMask = 1 + 2 * level.getMaxValence();
 
@@ -1154,8 +1154,8 @@ PrimvarRefiner::limitFVar(T const & src, U * dst, int channel) const {
         //
         //  The same can be done if the face-varying channel is purely linear.
         //
-        bool isIncomplete = (level._vertTags[vert]._incomplete || (vEdges.size() == 0));
-        if (isIncomplete || fvarChannel._isLinear) {
+        bool isIncomplete = (level.getVertexTag(vert)._incomplete || (vEdges.size() == 0));
+        if (isIncomplete || fvarChannel.isLinear()) {
             for (int i = 0; i < vValues.size(); ++i) {
                 Vtr::Index vValue = vValues[i];
 
