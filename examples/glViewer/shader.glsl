@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(VARYING_COLOR) || defined(FACEVARYING_COLOR)
+#if defined(SHADING_VARYING_COLOR) || defined(SHADING_FACEVARYING_COLOR)
 #undef OSD_USER_VARYING_DECLARE
 #define OSD_USER_VARYING_DECLARE \
     vec3 color;
@@ -60,6 +60,7 @@ layout(std140) uniform Transform {
     mat4 ModelViewMatrix;
     mat4 ProjectionMatrix;
     mat4 ModelViewProjectionMatrix;
+    mat4 ModelViewInverseMatrix;
 };
 
 layout(std140) uniform Tessellation {
@@ -176,6 +177,10 @@ void emit(int index, vec3 normal)
     outpt.v.patchCoord = inpt[index].v.patchCoord;
 #ifdef SMOOTH_NORMALS
     outpt.v.normal = inpt[index].v.normal;
+#if defined(SHADING_ANALYTIC_CURVATURE)
+    outpt.v.Nu = inpt[index].v.Nu;
+    outpt.v.Nv = inpt[index].v.Nv;
+#endif
 #else
     outpt.v.normal = normal;
 #endif
@@ -184,11 +189,11 @@ void emit(int index, vec3 normal)
     outpt.vSegments = inpt[index].vSegments;
 #endif
 
-#ifdef VARYING_COLOR
+#ifdef SHADING_VARYING_COLOR
     outpt.color = inpt[index].color;
 #endif
 
-#ifdef FACEVARYING_COLOR
+#ifdef SHADING_FACEVARYING_COLOR
 #ifdef LOOP  // ----- scheme : LOOP
     vec2 uv;
     OSD_COMPUTE_FACE_VARYING_TRI_2(uv, /*fvarOffste=*/0, index);
@@ -379,7 +384,6 @@ edgeColor(vec4 Cfill, vec4 edgeDistance)
         min(min(inpt.edgeDistance[0], inpt.edgeDistance[1]),
             min(inpt.edgeDistance[2], inpt.edgeDistance[3]));
 #endif
-    //vec4 Cedge = vec4(1.0, 1.0, 0.0, 1.0);
     float v = 0.8;
     vec4 Cedge = vec4(Cfill.r*v, Cfill.g*v, Cfill.b*v, 1);
     float p = exp2(-2 * d * d);
@@ -477,20 +481,38 @@ getAdaptivePatchColor(ivec3 patchParam)
 void
 main()
 {
+    vec3 Nobj = (ModelViewInverseMatrix * vec4(inpt.v.normal, 0)).xyz;
     vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
 
-#if defined(VARYING_COLOR)
+#if defined(SHADING_VARYING_COLOR)
     vec4 color = vec4(inpt.color, 1);
-#elif defined(FACEVARYING_COLOR)
+#elif defined(SHADING_FACEVARYING_COLOR)
     // generating a checkerboard pattern
     vec4 color = vec4(inpt.color.rg,
                       int(floor(20*inpt.color.r)+floor(20*inpt.color.g))&1, 1);
-#else
-    //vec4 color = diffuseColor;
+#elif defined(SHADING_PATCH_TYPE)
     vec4 color = getAdaptivePatchColor(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID)));
+#elif defined(SHADING_PATCH_COORD)
+    vec4 color = vec4(inpt.v.patchCoord.xy, 0, 1);
+#elif defined(SHADING_MATERIAL)
+    vec4 color = diffuseColor;
+#else
+    vec4 color = vec4(1, 1, 1, 1);
 #endif
 
     vec4 Cf = lighting(color, inpt.v.position.xyz, N);
+
+#if defined(SHADING_NORMAL)
+    Cf.rgb = N;
+#elif defined(SHADING_CURVATURE)
+    vec3 pc = fwidth(inpt.v.position.xyz);
+    Cf.rgb = 0.1 * fwidth(Nobj) / length(pc);
+#elif defined(SHADING_ANALYTIC_CURVATURE)
+    // XXX: why need to scale by level?
+    int level = OsdGetPatchFaceLevel(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID)));
+    Cf.rgb = 0.1 * level *(abs(inpt.v.Nu) + abs(inpt.v.Nv));
+#endif
+
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     Cf = edgeColor(Cf, inpt.edgeDistance);
