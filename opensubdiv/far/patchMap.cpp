@@ -24,6 +24,8 @@
 
 #include "../far/patchMap.h"
 
+#include <algorithm>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
