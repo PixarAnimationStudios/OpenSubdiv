@@ -34,10 +34,7 @@
 #include "../sdc/options.h"
 
 #include <cstdlib>
-#include <cassert>
-#include <algorithm>
 #include <vector>
-#include <map>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
