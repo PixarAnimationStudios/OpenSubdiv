@@ -1005,7 +1005,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
         if (levelIndex < refiner.GetMaxLevel()) {
             refinement      = &refiner.getRefinement(levelIndex);
-            refinedFaceTags = &refinement->_parentFaceTag[0];
+            refinedFaceTags = &refinement->getParentFaceSparseTag(0);
         }
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
@@ -1108,31 +1108,31 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             if (hasBoundaryVertex or hasNonManifoldVertex) {
                 Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
 
-                int boundaryEdgeMask = ((level->_edgeTags[fEdges[0]]._boundary) << 0) |
-                                       ((level->_edgeTags[fEdges[1]]._boundary) << 1) |
-                                       ((level->_edgeTags[fEdges[2]]._boundary) << 2) |
-                                       ((level->_edgeTags[fEdges[3]]._boundary) << 3);
+                int boundaryEdgeMask = ((level->getEdgeTag(fEdges[0])._boundary) << 0) |
+                                       ((level->getEdgeTag(fEdges[1])._boundary) << 1) |
+                                       ((level->getEdgeTag(fEdges[2])._boundary) << 2) |
+                                       ((level->getEdgeTag(fEdges[3])._boundary) << 3);
                 if (hasNonManifoldVertex) {
-                    int nonManEdgeMask = ((level->_edgeTags[fEdges[0]]._nonManifold) << 0) |
-                                         ((level->_edgeTags[fEdges[1]]._nonManifold) << 1) |
-                                         ((level->_edgeTags[fEdges[2]]._nonManifold) << 2) |
-                                         ((level->_edgeTags[fEdges[3]]._nonManifold) << 3);
+                    int nonManEdgeMask = ((level->getEdgeTag(fEdges[0])._nonManifold) << 0) |
+                                         ((level->getEdgeTag(fEdges[1])._nonManifold) << 1) |
+                                         ((level->getEdgeTag(fEdges[2])._nonManifold) << 2) |
+                                         ((level->getEdgeTag(fEdges[3])._nonManifold) << 3);
                     boundaryEdgeMask |= nonManEdgeMask;
                 }
 
                 if (boundaryEdgeMask) {
                     patchTag.assignBoundaryPropertiesFromEdgeMask(boundaryEdgeMask);
                 } else {
-                    int boundaryVertMask = ((level->_vertTags[fVerts[0]]._boundary) << 0) |
-                                           ((level->_vertTags[fVerts[1]]._boundary) << 1) |
-                                           ((level->_vertTags[fVerts[2]]._boundary) << 2) |
-                                           ((level->_vertTags[fVerts[3]]._boundary) << 3);
+                    int boundaryVertMask = ((level->getVertexTag(fVerts[0])._boundary) << 0) |
+                                           ((level->getVertexTag(fVerts[1])._boundary) << 1) |
+                                           ((level->getVertexTag(fVerts[2])._boundary) << 2) |
+                                           ((level->getVertexTag(fVerts[3])._boundary) << 3);
 
                     if (hasNonManifoldVertex) {
-                        int nonManVertMask = ((level->_vertTags[fVerts[0]]._nonManifold) << 0) |
-                                             ((level->_vertTags[fVerts[1]]._nonManifold) << 1) |
-                                             ((level->_vertTags[fVerts[2]]._nonManifold) << 2) |
-                                             ((level->_vertTags[fVerts[3]]._nonManifold) << 3);
+                        int nonManVertMask = ((level->getVertexTag(fVerts[0])._nonManifold) << 0) |
+                                             ((level->getVertexTag(fVerts[1])._nonManifold) << 1) |
+                                             ((level->getVertexTag(fVerts[2])._nonManifold) << 2) |
+                                             ((level->getVertexTag(fVerts[3])._nonManifold) << 3);
                         boundaryVertMask |= nonManVertMask;
                     }
                     patchTag.assignBoundaryPropertiesFromVertexMask(boundaryVertMask);
@@ -1162,14 +1162,14 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                     } else {
                         int xordVertex = 0;
                         int xordCount = 0;
-                        if (level->_vertTags[fVerts[0]]._xordinary) { xordCount++; xordVertex = 0; }
-                        if (level->_vertTags[fVerts[1]]._xordinary) { xordCount++; xordVertex = 1; }
-                        if (level->_vertTags[fVerts[2]]._xordinary) { xordCount++; xordVertex = 2; }
-                        if (level->_vertTags[fVerts[3]]._xordinary) { xordCount++; xordVertex = 3; }
+                        if (level->getVertexTag(fVerts[0])._xordinary) { xordCount++; xordVertex = 0; }
+                        if (level->getVertexTag(fVerts[1])._xordinary) { xordCount++; xordVertex = 1; }
+                        if (level->getVertexTag(fVerts[2])._xordinary) { xordCount++; xordVertex = 2; }
+                        if (level->getVertexTag(fVerts[3])._xordinary) { xordCount++; xordVertex = 3; }
 
                         if (xordCount == 1) {
                             //  We require the vertex opposite the xordinary vertex be interior:
-                            if (not level->_vertTags[fVerts[(xordVertex + 2) % 4]]._boundary) {
+                            if (not level->getVertexTag(fVerts[(xordVertex + 2) % 4])._boundary) {
                                 patchTag._isRegular = true;
                             }
                         }
