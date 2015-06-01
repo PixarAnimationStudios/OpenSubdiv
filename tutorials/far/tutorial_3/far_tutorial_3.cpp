@@ -63,8 +63,6 @@ struct Vertex {
         _position[2]+=weight*src._position[2];
     }
 
-    void AddVaryingWithWeight(Vertex const &, float) { }
-
     // Public interface ------------------------------------
     void SetPosition(float x, float y, float z) {
         _position[0]=x;
@@ -268,7 +266,7 @@ int main(int, char **) {
         for (int face = 0; face < nfaces; ++face) {
 
             Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
-            Far::ConstIndexArray fuvs   = refLastLevel.GetFVarFaceValues(face, channel);
+            Far::ConstIndexArray fuvs   = refLastLevel.GetFaceFVarValues(face, channel);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4 and fuvs.size()==4);

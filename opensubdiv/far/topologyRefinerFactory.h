@@ -78,8 +78,8 @@ public:
         //
         struct FVarChannel {
 
-            int         numValues;
-            int const * valueIndices;
+            int           numValues;
+            Index const * valueIndices;
 
             FVarChannel() : numValues(0), valueIndices(0) { }
         };
@@ -136,7 +136,7 @@ protected:
     //  Optional methods for creating and assigning face-varying data channels:
     static int createBaseFVarChannel(TopologyRefiner & newRefiner, int numValues);
     static int createBaseFVarChannel(TopologyRefiner & newRefiner, int numValues, Sdc::Options const& fvarOptions);
-    static IndexArray getBaseFVarFaceValues(TopologyRefiner & newRefiner, Index face, int channel = 0);
+    static IndexArray getBaseFaceFVarValues(TopologyRefiner & newRefiner, Index face, int channel = 0);
 
     static void setBaseMaxValence(TopologyRefiner & newRefiner, int valence);
     static void initializeBaseInventory(TopologyRefiner & newRefiner);
@@ -285,7 +285,7 @@ TopologyRefinerFactoryBase::createBaseFVarChannel(TopologyRefiner & newRefiner, 
     return newRefiner._levels[0]->createFVarChannel(numValues, newOptions);
 }
 inline IndexArray
-TopologyRefinerFactoryBase::getBaseFVarFaceValues(TopologyRefiner & newRefiner, Index face, int channel) {
+TopologyRefinerFactoryBase::getBaseFaceFVarValues(TopologyRefiner & newRefiner, Index face, int channel) {
     return newRefiner._levels[0]->getFVarFaceValues(face, channel);
 }
 
@@ -550,7 +550,7 @@ TopologyRefinerFactory<MESH>::assignFaceVaryingTopology(TopologyRefiner& /* refi
     //      int TopologyRefiner::createBaseFVarChannel(int numValues)
     //
     //  For each channel, populate the face-vertex values:
-    //      IndexArray TopologyRefiner::setBaseFVarFaceValues(Index face, int channel = 0)
+    //      IndexArray TopologyRefiner::setBaseFaceFVarValues(Index face, int channel = 0)
     //
     return true;
 }

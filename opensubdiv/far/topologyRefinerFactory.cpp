@@ -382,29 +382,25 @@ TopologyRefinerFactory<TopologyRefinerFactoryBase::TopologyDescriptor>::assignFa
 
         for (int channel=0; channel<desc.numFVarChannels; ++channel) {
 
-            int        channelSize    = desc.fvarChannels[channel].numValues;
-            int const* channelIndices = desc.fvarChannels[channel].valueIndices;
+            int        numFVarValues = desc.fvarChannels[channel].numValues;
+            int const* srcFVarValues = desc.fvarChannels[channel].valueIndices;
 
-#if defined(DEBUG) or defined(_DEBUG)
-            int channelIndex = createBaseFVarChannel(refiner, channelSize);
-            assert(channelIndex == channel);
-#else
-            createBaseFVarChannel(refiner, channelSize);
-#endif
-            for (int face=0, idx=0; face<desc.numFaces; ++face) {
+            createBaseFVarChannel(refiner, numFVarValues);
 
-                IndexArray dstFaceValues = getBaseFVarFaceValues(refiner, face, channel);
+            for (int face = 0, srcNext = 0; face < desc.numFaces; ++face) {
+
+                IndexArray dstFaceFVarValues = getBaseFaceFVarValues(refiner, face, channel);
 
                 if (desc.isLeftHanded) {
-                    dstFaceValues[0] = channelIndices[idx++];
-                    for (int vert=dstFaceValues.size()-1; vert > 0; --vert) {
+                    dstFaceFVarValues[0] = srcFVarValues[srcNext++];
+                    for (int vert = dstFaceFVarValues.size() - 1; vert > 0; --vert) {
                         
-                        dstFaceValues[vert] = channelIndices[idx++];
+                        dstFaceFVarValues[vert] = srcFVarValues[srcNext++];
                     }
                 } else {
-                    for (int vert=0; vert<dstFaceValues.size(); ++vert) {
+                    for (int vert = 0; vert < dstFaceFVarValues.size(); ++vert) {
                         
-                        dstFaceValues[vert] = channelIndices[idx++];
+                        dstFaceFVarValues[vert] = srcFVarValues[srcNext++];
                     }
                 }
             }
