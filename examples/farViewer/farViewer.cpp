@@ -803,8 +803,6 @@ fitFrame() {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
@@ -919,8 +917,6 @@ display() {
     g_font->Draw(g_transformUB);
 
     // -----------------------------------------------------
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1205,8 +1201,6 @@ initHUD() {
     glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_hud.AddCheckBox("Cage Edges (e)", g_drawCageEdges != 0,
                       10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'e');

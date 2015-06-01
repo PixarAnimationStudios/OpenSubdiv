@@ -611,11 +611,9 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // primitive counting
     glBeginQuery(GL_PRIMITIVES_GENERATED, g_primQuery);
@@ -691,8 +689,6 @@ display() {
 
     GLuint numPrimsGenerated = 0;
     glGetQueryObjectuiv(g_primQuery, GL_QUERY_RESULT, &numPrimsGenerated);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -977,8 +973,6 @@ initHUD() {
     glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_hud.AddCheckBox("Color (C)",  g_displayColor != 0, 10, 10, callbackDisplay, 0, 'c');
     g_hud.AddCheckBox("Displacement (D)",  g_displayDisplacement != 0, 10, 30, callbackDisplay, 1, 'd');

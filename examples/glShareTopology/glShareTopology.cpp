@@ -611,14 +611,12 @@ std::string formatWithCommas(T value) {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = g_width/(double)g_height;
@@ -742,8 +740,6 @@ display() {
     glGetQueryObjectuiv(g_queries[1], GL_QUERY_RESULT, &timeElapsed);
 #endif
     float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1052,8 +1048,6 @@ initHUD() {
     glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 10, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);

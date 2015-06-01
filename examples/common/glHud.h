@@ -29,8 +29,6 @@
 
 #include <osd/opengl.h>
 
-#include "glFramebuffer.h"
-
 class GLhud : public Hud {
 
 public:
@@ -44,35 +42,22 @@ public:
 
     virtual bool Flush();
 
-    void SetFrameBuffer(GLFrameBuffer * frameBuffer) {
-        if (not _frameBuffer) {
-            _frameBuffer = frameBuffer;
-            _frameBuffer->Init(GetWidth(), GetHeight());
-            _frameBuffer->BuildUI(this, 10, 600);
-        }
-    }
-
-    GLFrameBuffer * GetFrameBuffer() {
-        return _frameBuffer;
-    }
-
     GLuint GetFontTexture() const {
         return _fontTexture;
     }
 
+    void FillBackground();
+
 private:
-
-
-    GLFrameBuffer * _frameBuffer;
-
     GLuint _fontTexture;
     GLuint _vbo, _staticVbo;
-    GLuint _vao, _staticVao;
+    GLuint _vao, _staticVao, _bgVao;
     int _staticVboSize;
 
     GLint _program;
     GLint _mvpMatrix;
     GLint _aPosition, _aColor, _aUV;
+    GLint _bgProgram;
 };
 
 #endif  // OPENSUBDIV_EXAMPLES_GL_HUD_H

@@ -25,9 +25,17 @@
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <vector>
 #include "glUtils.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION 1
+#include "stb_image_write.h"
+
 #include <GLFW/glfw3.h>
+
+#if _MSC_VER
+#define snprintf _snprintf
+#endif
 
 namespace GLUtils {
 
@@ -179,6 +187,25 @@ CompileShader(GLenum shaderType, const char *source) {
 
     return shader;
 }
+
+void
+WriteScreenshot(int width, int height) {
+
+    std::vector<unsigned char> data(width*height*4 /*RGBA*/);
+
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, &data[0]);
+
+    static int counter=0;
+    char fname[64];
+    snprintf(fname, 64, "screenshot.%d.png", counter++);
+
+    // flip vertical
+    stbi_write_png(fname, width, height, 4, &data[width*4*(height-1)], -width*4);
+
+    fprintf(stdout, "Saved %s\n", fname);
+}
+
 
 bool
 SupportsAdaptiveTessellation() {

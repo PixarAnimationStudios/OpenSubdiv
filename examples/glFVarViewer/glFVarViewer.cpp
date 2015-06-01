@@ -707,15 +707,12 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // ---------------------------------------------
     glViewport(0, 0, g_width/2, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = (g_width/2)/(double)g_height;
@@ -800,8 +797,6 @@ display() {
 
     // full viewport
     glViewport(0, 0, g_width, g_height);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_hud.DrawString(10, -40, "Tess level : %d", g_tessLevel);
@@ -990,8 +985,6 @@ initHUD() {
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 375, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
