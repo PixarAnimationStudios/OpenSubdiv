@@ -23,8 +23,6 @@
 #
 
 set(EXAMPLES_COMMON_SHADER_FILES
-     framebuffer.glsl
-     ssao.glsl
      glslPtexCommon.glsl
      hlslPtexCommon.hlsl
 )
@@ -53,7 +51,6 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
         glControlMeshDisplay.cpp
-        glFramebuffer.cpp
         glHud.cpp
         glUtils.cpp
         glShaderCache.cpp
@@ -61,7 +58,6 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
         glControlMeshDisplay.h
-        glFramebuffer.h
         glHud.h
         glUtils.h
         glShaderCache.h

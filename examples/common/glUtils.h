@@ -59,6 +59,8 @@ void CheckGLErrors(std::string const & where = "");
 
 GLuint CompileShader(GLenum shaderType, const char *source);
 
+void WriteScreenshot(int width, int height);
+
 bool SupportsAdaptiveTessellation();
 
 // Helper function that parses the open gl version string, retrieving the

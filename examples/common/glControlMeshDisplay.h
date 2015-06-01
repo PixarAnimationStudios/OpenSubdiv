@@ -53,6 +53,8 @@ private:
     GLuint _uniformMvpMatrix;
     GLuint _uniformDrawMode;
     GLuint _uniformEdgeSharpness;
+    GLuint _attrPosition;
+    GLuint _attrVertSharpness;
 
     GLuint _vao;
     GLuint _vertSharpness;

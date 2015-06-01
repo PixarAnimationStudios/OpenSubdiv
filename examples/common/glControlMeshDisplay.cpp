@@ -109,6 +109,10 @@ GLControlMeshDisplay::createProgram() {
         glGetUniformLocation(_program, "drawMode");
     _uniformEdgeSharpness =
         glGetUniformLocation(_program, "edgeSharpness");
+
+    _attrPosition = glGetAttribLocation(_program, "position");
+    _attrVertSharpness = glGetAttribLocation(_program, "vertSharpness");
+
     return true;
 }
 
@@ -139,9 +143,9 @@ GLControlMeshDisplay::Draw(GLuint vbo, GLint stride,
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, 0);
+    glVertexAttribPointer(_attrPosition, 3, GL_FLOAT, GL_FALSE, stride, 0);
     glBindBuffer(GL_ARRAY_BUFFER, _vertSharpness);
-    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(_attrVertSharpness, 1, GL_FLOAT, GL_FALSE, 0, 0);
 
     glPointSize(10.0);
 

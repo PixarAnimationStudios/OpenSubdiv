@@ -275,7 +275,7 @@ struct FVarData
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
-        glBindTexture(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
     }
@@ -1027,16 +1027,12 @@ bindProgram(Effect effect,
 //------------------------------------------------------------------------------
 static void
 display() {
-
-    SSAOGLFrameBuffer * fb = (SSAOGLFrameBuffer *)g_hud.GetFrameBuffer();
-    fb->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = g_width/(double)g_height;
@@ -1048,7 +1044,7 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, fb->IsActive() ? 1.0f : 0.0001f, 500.0f);
+                45.0f, (float)aspect, 0.1f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
@@ -1134,8 +1130,6 @@ display() {
                               g_transformData.ModelViewProjectionMatrix);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    fb->ApplyImageShader();
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1293,7 +1287,7 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(g_tessLevelMin, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
-        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
+        case 'X': GLUtils::WriteScreenshot(g_width, g_height); break;
     }
 }
 
@@ -1419,8 +1413,6 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new SSAOGLFrameBuffer);
-
     g_hud.AddCheckBox("Control edges (H)",
                       g_controlMeshDisplay.GetEdgesDisplay(),
                       10, 10, callbackCheckBox,
@@ -1515,7 +1507,7 @@ initHUD() {
 //------------------------------------------------------------------------------
 static void
 initGL() {
-    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);

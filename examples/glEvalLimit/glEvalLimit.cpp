@@ -814,14 +814,12 @@ drawSamples() {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     double aspect = g_width/(double)g_height;
     identity(g_transformData.ModelViewMatrix);
@@ -852,8 +850,6 @@ display() {
     g_controlMeshDisplay.Draw(
         g_evalOutput->BindSourceData(), 3*sizeof(float),
         g_transformData.ModelViewProjectionMatrix);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -1096,8 +1092,6 @@ initHUD() {
     glfwGetFramebufferSize(g_window, &frameBufferWidth, &frameBufferHeight);
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_hud.AddCheckBox("Control edges (H)",
                       g_controlMeshDisplay.GetEdgesDisplay(),

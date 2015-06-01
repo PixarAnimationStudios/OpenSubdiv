@@ -492,12 +492,7 @@ reshape(GLFWwindow *, int width, int height) {
 
     g_hud.Rebuild(windowWidth, windowHeight, width, height);
 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE)
-        assert(false);
-
     glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     GLUtils::CheckGLErrors("Reshape");
 }
@@ -1338,13 +1333,12 @@ drawSky() {
 void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
-    glViewport(0, 0, g_width, g_height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     if (g_ibl) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -1403,8 +1397,6 @@ display() {
     if (not g_freeze)
         g_animTime += elapsed;
     g_fpsTimer.Start();
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         double fps = 1.0/elapsed;
@@ -1662,7 +1654,7 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
         case '=': g_tessLevel++; break;
         case '-': g_tessLevel = std::max(1, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
-        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
+        case 'X': GLUtils::WriteScreenshot(g_width, g_height); break;
     }
 }
 
@@ -1863,8 +1855,6 @@ int main(int argc, char ** argv) {
     glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
 
     g_hud.Init(windowWidth, windowHeight, g_width, g_height);
-
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
 
     g_controlMeshDisplay.SetEdgesDisplay(false);
 
