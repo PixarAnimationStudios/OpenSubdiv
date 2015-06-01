@@ -23,6 +23,7 @@
 //
 #include "../far/topologyRefiner.h"
 #include "../far/error.h"
+#include "../vtr/fvarLevel.h"
 #include "../vtr/sparseSelector.h"
 #include "../vtr/quadRefinement.h"
 #include "../vtr/triRefinement.h"

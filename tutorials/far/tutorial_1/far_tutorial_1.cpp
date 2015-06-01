@@ -41,9 +41,10 @@
 // rebuilding them redundantly.
 //
 
-
 #include <opensubdiv/far/topologyRefinerFactory.h>
 #include <opensubdiv/far/primvarRefiner.h>
+
+#include <cstdio>
 
 //------------------------------------------------------------------------------
 

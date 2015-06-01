@@ -26,6 +26,7 @@
 #include "../far/ptexIndices.h"
 #include "../far/topologyRefiner.h"
 #include "../vtr/level.h"
+#include "../vtr/fvarLevel.h"
 #include "../vtr/refinement.h"
 #include "../far/endCapBSplineBasisPatchFactory.h"
 #include "../far/endCapGregoryBasisPatchFactory.h"
