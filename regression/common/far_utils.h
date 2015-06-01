@@ -29,6 +29,8 @@
 #include <far/primvarRefiner.h>
 #include <far/types.h>
 
+#include <cstdio>
+
 #include "shape_utils.h"
 
 //------------------------------------------------------------------------------

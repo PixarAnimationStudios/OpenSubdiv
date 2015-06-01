@@ -27,6 +27,8 @@
 #include <far/ptexIndices.h>
 #include <far/patchMap.h>
 
+#include <cmath>
+
 #ifdef OPENSUBDIV_HAS_TBB
 #include <tbb/parallel_for.h>
 #include <tbb/atomic.h>
