@@ -197,7 +197,6 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
             endif()
 
         endforeach()
-        
     endif()
 
 elseif(MSVC)
