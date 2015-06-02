@@ -183,6 +183,10 @@ void emit(int index, vec3 normal)
 #endif
 #else
     outpt.v.normal = normal;
+#if defined(SHADING_ANALYTIC_CURVATURE)
+    outpt.v.Nu = vec3(0);
+    outpt.v.Nv = vec3(0);
+    #endif
 #endif
 
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
