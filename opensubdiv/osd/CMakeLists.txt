@@ -242,7 +242,7 @@ if ( OPENCL_FOUND )
         list(APPEND PUBLIC_HEADER_FILES clGLVertexBuffer.h)
     endif()
 
-    if ( DXSDK_FOUND )
+    if ( OPENCL_D3D11_INTEROP_FOUND )
         list(APPEND GPU_SOURCE_FILES
              clD3D11VertexBuffer.cpp
         )
