@@ -393,7 +393,7 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
         handle.patchIndex = patch;
 
         OpenSubdiv::Far::ConstIndexArray const cvs =
-            patchTable.GetFVarPatchValues(channel, handle);
+            patchTable.GetPatchFVarValues(channel, handle);
 
         for (int i=0; i<cvs.size(); ++i) {
             snprintf(buf, 16, "%d", i);

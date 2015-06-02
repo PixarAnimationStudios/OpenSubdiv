@@ -834,7 +834,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
         fptr = (Index **)alloca(fvc.size()*sizeof(Index *));
         for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-            fptr[fvc.pos()] = table->getFVarPatchesValues(fvc.pos()).begin();
+            fptr[fvc.pos()] = table->getFVarValues(fvc.pos()).begin();
         }
     }
 
@@ -861,7 +861,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
                         ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, *fvc);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarPatchesValues(fvc.pos()).size());
+                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc.pos()).size());
                             fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
                         }
                         fptr[fvc.pos()]+=fvalues.size();
@@ -1282,7 +1282,7 @@ PatchTableFactory::populateAdaptivePatches(
 
                 Index pidx = table->getPatchIndex(arrayIndex, 0);
                 int ofs = pidx * 4;
-                fptr[fvc.pos()] = &table->getFVarPatchesValues(fvc.pos())[ofs];
+                fptr[fvc.pos()] = &table->getFVarValues(fvc.pos())[ofs];
             }
             fptrs.getValue(desc) = fptr;
         }

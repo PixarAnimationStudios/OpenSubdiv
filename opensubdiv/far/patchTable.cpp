@@ -450,12 +450,12 @@ PatchTable::GetFVarPatchTypes(int channel) const {
     }
 }
 ConstIndexArray
-PatchTable::GetFVarPatchesValues(int channel) const {
+PatchTable::GetFVarValues(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstIndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
 IndexArray
-PatchTable::getFVarPatchesValues(int channel) {
+PatchTable::getFVarValues(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return IndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
@@ -481,7 +481,7 @@ PatchTable::GetFVarPatchType(int channel, int arrayIndex, int patchIndex) const 
     return getFVarPatchType(channel, getPatchIndex(arrayIndex, patchIndex));
 }
 ConstIndexArray
-PatchTable::getFVarPatchValues(int channel, int patch) const {
+PatchTable::getPatchFVarValues(int channel, int patch) const {
 
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
 
@@ -496,12 +496,12 @@ PatchTable::getFVarPatchValues(int channel, int patch) const {
    }
 }
 ConstIndexArray
-PatchTable::GetFVarPatchValues(int channel, PatchHandle const & handle) const {
-    return getFVarPatchValues(channel, handle.patchIndex);
+PatchTable::GetPatchFVarValues(int channel, PatchHandle const & handle) const {
+    return getPatchFVarValues(channel, handle.patchIndex);
 }
 ConstIndexArray
-PatchTable::GetFVarPatchValues(int channel, int arrayIndex, int patchIndex) const {
-    return getFVarPatchValues(channel, getPatchIndex(arrayIndex, patchIndex));
+PatchTable::GetPatchFVarValues(int channel, int arrayIndex, int patchIndex) const {
+    return getPatchFVarValues(channel, getPatchIndex(arrayIndex, patchIndex));
 }
 
 void

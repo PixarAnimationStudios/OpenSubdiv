@@ -250,14 +250,14 @@ public:
 
 
     /// \brief Returns the value indices for a given patch in a channel
-    ConstIndexArray GetFVarPatchValues(int channel, PatchHandle const & handle) const;
+    ConstIndexArray GetPatchFVarValues(int channel, PatchHandle const & handle) const;
 
     /// \brief Returns the value indices for a given patch in a channel
-    ConstIndexArray GetFVarPatchValues(int channel, int array, int patch) const;
+    ConstIndexArray GetPatchFVarValues(int channel, int array, int patch) const;
 
 
     /// \brief Returns an array of value indices for the patches in a channel
-    ConstIndexArray GetFVarPatchesValues(int channel) const;
+    ConstIndexArray GetFVarValues(int channel) const;
     //@}
 
 
@@ -376,8 +376,8 @@ private:
     PatchDescriptor::Type getFVarPatchType(int channel, int patch) const;
     Vtr::Array<PatchDescriptor::Type> getFVarPatchTypes(int channel);
 
-    IndexArray getFVarPatchesValues(int channel);
-    ConstIndexArray getFVarPatchValues(int channel, int patch) const;
+    IndexArray getFVarValues(int channel);
+    ConstIndexArray getPatchFVarValues(int channel, int patch) const;
 
     void setBicubicFVarPatchChannelValues(int channel, int patchSize, std::vector<Index> const & values);
 
