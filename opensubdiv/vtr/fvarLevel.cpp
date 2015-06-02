@@ -219,8 +219,8 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         ConstIndexArray       vEdges  = _level.getVertexEdges(vIndex);
         ConstLocalIndexArray  vInEdge = _level.getVertexEdgeLocalIndices(vIndex);
 
-        bool vIsManifold = !_level._vertTags[vIndex]._nonManifold;
-        bool vIsBoundary = _level._vertTags[vIndex]._boundary;
+        bool vIsManifold = !_level.getVertexTag(vIndex)._nonManifold;
+        bool vIsBoundary = _level.getVertexTag(vIndex)._boundary;
 
         if (vIsManifold) {
             //
@@ -316,7 +316,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                     _edgeTags[vEdges[vEdges.size()-1]]._linear = true;
                 } else {
                     for (int i = 0; i < vEdges.size(); ++i) {
-                        if (_level._edgeTags[vEdges[i]]._boundary) {
+                        if (_level.getEdgeTag(vEdges[i])._boundary) {
                             _edgeTags[vEdges[i]]._linear = true;
                         }
                     }
@@ -457,7 +457,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //
         ValueTagArray vValueTags = getVertexValueTags(vIndex);
 
-        Level::VTag const vTag = _level._vertTags[vIndex];
+        Level::VTag const vTag = _level.getVertexTag(vIndex);
 
         bool allCornersAreSharp = _hasLinearBoundaries || vTag._infSharp || vTag._nonManifold ||
                                   (_hasDependentSharpness && (vValues.size() > 2)) ||
@@ -747,10 +747,10 @@ FVarLevel::print() const {
 void
 FVarLevel::initializeFaceValuesFromFaceVertices() {
 
-    Index const* srcFaceVerts  = &_level._faceVertIndices[0];
-    Index *      dstFaceValues = &_faceVertValues[0];
+    ConstIndexArray srcFaceVerts = _level.getFaceVertices();
+    Index *         dstFaceValues = &_faceVertValues[0];
 
-    std::memcpy(dstFaceValues, srcFaceVerts, getNumFaceValuesTotal() * sizeof(Index));
+    std::memcpy(dstFaceValues, &srcFaceVerts[0], srcFaceVerts.size() * sizeof(Index));
 }
 
 
@@ -763,9 +763,9 @@ FVarLevel::initializeFaceValuesFromVertexFaceSiblings() {
     //  more efficient than a single iteration through the vertex-faces since the first
     //  pass is much more memory coherent.
     //
-    int fvCount = (int) _level._faceVertIndices.size();
-    for (int i = 0; i < fvCount; ++i) {
-        _faceVertValues[i] = getVertexValueOffset(_level._faceVertIndices[i]);
+    ConstIndexArray fvIndices = _level.getFaceVertices();
+    for (int i = 0; i < fvIndices.size(); ++i) {
+        _faceVertValues[i] = getVertexValueOffset(fvIndices[i]);
     }
 
     //
@@ -856,8 +856,8 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
     ConstIndexArray      vFaces  = _level.getVertexFaces(vIndex);
     ConstLocalIndexArray vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
-    bool vIsBoundary = _level._vertTags[vIndex]._boundary;
-    bool vIsManifold = not _level._vertTags[vIndex]._nonManifold;
+    bool vIsBoundary = _level.getVertexTag(vIndex)._boundary;
+    bool vIsManifold = not _level.getVertexTag(vIndex)._nonManifold;
 
     bool isBaseLevel = (_level.getDepth() == 0);
 
@@ -933,10 +933,10 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
                     vValueSpans[0]._size  = (LocalIndex) vFaces.size();
                     vValueSpans[0]._start = (LocalIndex) i;
                 }
-            } else if (_level._edgeTags[vEdges[i]]._infSharp) {
+            } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
                 vValueSpans[0]._disjoint = true;
                 break;
-            } else if (_level._edgeTags[vEdges[i]]._semiSharp) {
+            } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
                 ++ vValueSpans[0]._semiSharp;
             }
         }
@@ -948,9 +948,9 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
         if (!vIsBoundary && (vFaceSiblings[vFaces.size() - 1] == 0)) {
             if (_edgeTags[vEdges[0]]._mismatch) {
                 vValueSpans[0]._disjoint = true;
-            } else if (_level._edgeTags[vEdges[0]]._infSharp) {
+            } else if (_level.getEdgeTag(vEdges[0])._infSharp) {
                 vValueSpans[0]._disjoint = true;
-            } else if (_level._edgeTags[vEdges[0]]._semiSharp) {
+            } else if (_level.getEdgeTag(vEdges[0])._semiSharp) {
                 ++ vValueSpans[0]._semiSharp;
             }
         }
@@ -958,9 +958,9 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
             if (vFaceSiblings[i] == vFaceSiblings[i-1]) {
                 if (_edgeTags[vEdges[i]]._mismatch) {
                     ++ vValueSpans[vFaceSiblings[i]]._disjoint;
-                } else if (_level._edgeTags[vEdges[i]]._infSharp) {
+                } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
                     vValueSpans[vFaceSiblings[i]]._disjoint = true;
-                } else if (_level._edgeTags[vEdges[i]]._semiSharp) {
+                } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
                     ++ vValueSpans[vFaceSiblings[i]]._semiSharp;
                 }
             } else {
@@ -1026,7 +1026,7 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
         VertTag &     srcVTag = fvarVTags[i];
         VertTagSize & srcInt  = *(reinterpret_cast<VertTagSize *>(&srcVTag));
 
-        srcVTag = _level._vertTags[faceVerts[i]];
+        srcVTag = _level.getVertexTag(faceVerts[i]);
 
         Index srcValueIndex = findVertexValueIndex(faceVerts[i], faceValues[i]);
         assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
@@ -1069,7 +1069,7 @@ FVarLevel::getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
         FaceETag &     srcETag = fvarETags[i];
         FaceETagSize & srcInt  = *(reinterpret_cast<FaceETagSize *>(&srcETag));
 
-        srcETag = _level._edgeTags[faceEdges[i]];
+        srcETag = _level.getEdgeTag(faceEdges[i]);
 
         FVarLevel::ETag const & fvarETag = _edgeTags[faceEdges[i]];
         if (fvarETag._mismatch) {
