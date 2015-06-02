@@ -236,28 +236,28 @@ public:
 
 
     /// \brief Returns the interpolation mode for a given channel
-    Sdc::Options::FVarLinearInterpolation GetFVarChannelLinearInterpolation(int channel) const;
+    Sdc::Options::FVarLinearInterpolation GetFVarChannelLinearInterpolation(int channel = 0) const;
 
 
     /// \brief Returns a descriptor for a given patch in a channel
-    PatchDescriptor::Type GetFVarPatchType(int channel, PatchHandle const & handle) const;
+    PatchDescriptor::Type GetFVarPatchType(PatchHandle const & handle, int channel = 0) const;
 
     /// \brief Returns a descriptor for a given patch in a channel
-    PatchDescriptor::Type GetFVarPatchType(int channel, int array, int patch) const;
+    PatchDescriptor::Type GetFVarPatchType(int array, int patch, int channel = 0) const;
 
     /// \brief Returns an array of descriptors for the patches in a channel
-    Vtr::ConstArray<PatchDescriptor::Type> GetFVarPatchTypes(int channel) const;
+    Vtr::ConstArray<PatchDescriptor::Type> GetFVarPatchTypes(int channel = 0) const;
 
 
     /// \brief Returns the value indices for a given patch in a channel
-    ConstIndexArray GetFVarPatchValues(int channel, PatchHandle const & handle) const;
+    ConstIndexArray GetPatchFVarValues(PatchHandle const & handle, int channel = 0) const;
 
     /// \brief Returns the value indices for a given patch in a channel
-    ConstIndexArray GetFVarPatchValues(int channel, int array, int patch) const;
+    ConstIndexArray GetPatchFVarValues(int array, int patch, int channel = 0) const;
 
 
     /// \brief Returns an array of value indices for the patches in a channel
-    ConstIndexArray GetFVarPatchesValues(int channel) const;
+    ConstIndexArray GetFVarValues(int channel = 0) const;
     //@}
 
 
@@ -362,24 +362,25 @@ private:
     struct FVarPatchChannel;
     typedef std::vector<FVarPatchChannel> FVarPatchChannelVector;
 
-    FVarPatchChannel & getFVarPatchChannel(int channel);
-    FVarPatchChannel const & getFVarPatchChannel(int channel) const;
+    FVarPatchChannel & getFVarPatchChannel(int channel = 0);
+    FVarPatchChannel const & getFVarPatchChannel(int channel = 0) const;
 
     void allocateFVarPatchChannels(int numChannels);
-    void allocateChannelValues(int channel, int numPatches, int numVerticesTotal);
+    void allocateFVarPatchChannelValues(
+        int numPatches, int numVerticesTotal, int channel = 0);
 
-    void setFVarPatchChannelLinearInterpolation(int channel,
-        Sdc::Options::FVarLinearInterpolation interpolation);
+    void setFVarPatchChannelLinearInterpolation(
+        Sdc::Options::FVarLinearInterpolation interpolation, int channel = 0);
 
-    void setFVarPatchChannelPatchesType(int channel, PatchDescriptor::Type type);
+    void setFVarPatchChannelPatchesType(PatchDescriptor::Type type, int channel = 0);
 
-    PatchDescriptor::Type getFVarPatchType(int channel, int patch) const;
-    Vtr::Array<PatchDescriptor::Type> getFVarPatchTypes(int channel);
+    PatchDescriptor::Type getFVarPatchType(int patch, int channel = 0) const;
+    Vtr::Array<PatchDescriptor::Type> getFVarPatchTypes(int channel = 0);
 
-    IndexArray getFVarPatchesValues(int channel);
-    ConstIndexArray getFVarPatchValues(int channel, int patch) const;
+    IndexArray getFVarValues(int channel = 0);
+    ConstIndexArray getPatchFVarValues(int patch, int channel = 0) const;
 
-    void setBicubicFVarPatchChannelValues(int channel, int patchSize, std::vector<Index> const & values);
+    void setBicubicFVarPatchChannelValues(int patchSize, std::vector<Index> const & values, int channel = 0);
 
 private:
 

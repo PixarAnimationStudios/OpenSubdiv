@@ -421,7 +421,7 @@ PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
         Sdc::Options::FVarLinearInterpolation interpolation =
             refiner.GetFVarLinearInterpolation(*fvc);
 
-        table->setFVarPatchChannelLinearInterpolation(fvc.pos(), interpolation);
+        table->setFVarPatchChannelLinearInterpolation(interpolation, fvc.pos());
 
         int nverts = 0;
         if (interpolation==Sdc::Options::FVAR_LINEAR_ALL) {
@@ -429,13 +429,13 @@ PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
             PatchDescriptor::Type type = options.triangulateQuads ?
                 PatchDescriptor::TRIANGLES : PatchDescriptor::QUADS;
 
-            table->setFVarPatchChannelPatchesType(fvc.pos(), type);
+            table->setFVarPatchChannelPatchesType(type, fvc.pos());
 
             nverts =
                 npatches * PatchDescriptor::GetNumFVarControlVertices(type);
 
         }
-        table->allocateChannelValues(fvc.pos(), npatches, nverts);
+        table->allocateFVarPatchChannelValues(npatches, nverts, fvc.pos());
     }
 }
 
@@ -834,7 +834,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
         fptr = (Index **)alloca(fvc.size()*sizeof(Index *));
         for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-            fptr[fvc.pos()] = table->getFVarPatchesValues(fvc.pos()).begin();
+            fptr[fvc.pos()] = table->getFVarValues(fvc.pos()).begin();
         }
     }
 
@@ -861,7 +861,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
                         ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, *fvc);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarPatchesValues(fvc.pos()).size());
+                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc.pos()).size());
                             fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
                         }
                         fptr[fvc.pos()]+=fvalues.size();
@@ -1282,7 +1282,7 @@ PatchTableFactory::populateAdaptivePatches(
 
                 Index pidx = table->getPatchIndex(arrayIndex, 0);
                 int ofs = pidx * 4;
-                fptr[fvc.pos()] = &table->getFVarPatchesValues(fvc.pos())[ofs];
+                fptr[fvc.pos()] = &table->getFVarValues(fvc.pos())[ofs];
             }
             fptrs.getValue(desc) = fptr;
         }
@@ -1508,8 +1508,10 @@ PatchTableFactory::populateAdaptivePatches(
         for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
 
             if (table->GetFVarChannelLinearInterpolation(fvc.pos())!=Sdc::Options::FVAR_LINEAR_ALL) {
-                table->setBicubicFVarPatchChannelValues(fvc.pos(),
-                    context.fvarPatchSize, context.fvarPatchValues[fvc.pos()]);
+                table->setBicubicFVarPatchChannelValues(
+                    context.fvarPatchSize,
+                    context.fvarPatchValues[fvc.pos()],
+                    fvc.pos());
             }
         }
     }
