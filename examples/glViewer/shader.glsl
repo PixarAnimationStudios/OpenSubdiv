@@ -183,6 +183,10 @@ void emit(int index, vec3 normal)
 #endif
 #else
     outpt.v.normal = normal;
+#if defined(SHADING_ANALYTIC_CURVATURE)
+    outpt.v.Nu = vec3(0);
+    outpt.v.Nv = vec3(0);
+#endif
 #endif
 
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
@@ -326,7 +330,6 @@ in block {
 } inpt;
 
 out vec4 outColor;
-out vec3 outNormal;
 
 #define NUM_LIGHTS 2
 
@@ -452,7 +455,17 @@ getAdaptivePatchColor(ivec3 patchParam)
     );
 
     int patchType = 0;
+
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // check this after boundary/corner since single crease patch also has edgeCount.
     if (inpt.vSegments.y > 0) {
         patchType = 1;
     }
@@ -463,14 +476,6 @@ getAdaptivePatchColor(ivec3 patchParam)
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
-
-    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
-    if (edgeCount == 1) {
-        patchType = 2; // BOUNDARY
-    }
-    if (edgeCount == 2) {
-        patchType = 3; // CORNER
-    }
 
     int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
 
@@ -519,7 +524,6 @@ main()
 #endif
 
     outColor = Cf;
-    outNormal = N;
 }
 #endif
 

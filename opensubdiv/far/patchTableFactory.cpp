@@ -1098,7 +1098,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                                 std::min(sharpness, (float)(context.options.maxIsolationLevel - levelIndex));
                         if (cappedSharpness > 0) {
                             patchTag._isSingleCrease = true;
-                            patchTag._boundaryIndex = (rotation + 2) % 4;
+                            patchTag._boundaryIndex = rotation;
                         }
                     }
                 }
@@ -1344,63 +1344,52 @@ PatchTableFactory::populateAdaptivePatches(
                 int boundaryMask = patchTag._boundaryMask;
                 int transitionMask = patchTag._transitionMask;
 
-                if (!patchTag._isSingleCrease) {
-                    int const * permutation = 0;
+                int const * permutation = 0;
+                // only single-crease patch has a sharpness.
+                float sharpness = 0;
 
-                    if (patchTag._boundaryCount == 0) {
-                        static int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                        permutation = permuteRegular;
-                        level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
-                    } else if (patchTag._boundaryCount == 1) {
-                        // Expand boundary patch vertices and rotate to restore correct orientation.
-                        static int const permuteBoundary[4][16] = {
-                            { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
-                            { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
-                            { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
-                            { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
-                        permutation = permuteBoundary[bIndex];
-                        level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
-                    } else if (patchTag._boundaryCount == 2) {
-                        // Expand corner patch vertices and rotate to restore correct orientation.
-                        static int const permuteCorner[4][16] = {
-                            { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
-                            { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
-                            { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
-                            { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
-                        permutation = permuteCorner[bIndex];
-                        level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
-                    } else {
-                        assert(patchTag._boundaryCount >=0 && patchTag._boundaryCount <= 2);
+                if (patchTag._boundaryCount == 0) {
+                    static int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+                    permutation = permuteRegular;
+
+                    if (patchTag._isSingleCrease) {
+                        boundaryMask = (1<<bIndex);
+                        sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[bIndex]));
+                        sharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
                     }
 
-                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);
-
-                    iptrs.R += 16;
-                    pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, boundaryMask, transitionMask, pptrs.R);
-                    // XXX: sharpness will be integrated into patch param soon.
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
-
-                    fofss.R += gatherFVarData(context,
-                        i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
+                    level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, 0 /* no rotation*/);
+                } else if (patchTag._boundaryCount == 1) {
+                    // Expand boundary patch vertices and rotate to restore correct orientation.
+                    static int const permuteBoundary[4][16] = {
+                        { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
+                        { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
+                        { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
+                        { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
+                    permutation = permuteBoundary[bIndex];
+                    level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
+                } else if (patchTag._boundaryCount == 2) {
+                    // Expand corner patch vertices and rotate to restore correct orientation.
+                    static int const permuteCorner[4][16] = {
+                        { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
+                        { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
+                        { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
+                        { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
+                    permutation = permuteCorner[bIndex];
+                    level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
                 } else {
-                    int const permuteInterior[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                    level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, bIndex);
-                    offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permuteInterior, iptrs.R);
-
-                    int creaseEdge = (bIndex+2)%4;
-                    float sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[creaseEdge]));
-                    sharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
-
-                    // rotate transition mask to align with crease edge
-                    transitionMask = ((((transitionMask << 4) | transitionMask) >> bIndex)) & 0xf;
-
-                    iptrs.R += 16;
-                    pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, /*boundary*/0, transitionMask, pptrs.R);
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, table->_sharpnessValues);
-
-                    fofss.R += gatherFVarData(context,
-                        i, faceIndex, levelFaceOffset, bIndex, levelFVarVertOffsets, fofss.R, fptrs.R);
+                    assert(patchTag._boundaryCount >=0 && patchTag._boundaryCount <= 2);
                 }
+
+                offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);
+
+                iptrs.R += 16;
+                pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, boundaryMask, transitionMask, pptrs.R);
+                // XXX: sharpness will be integrated into patch param soon.
+                if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, table->_sharpnessValues);
+
+                fofss.R += gatherFVarData(context,
+                                          i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
             } else {
                 // emit end patch. end patch should be in the max level (until we implement DFAS)
                 assert(i==refiner.GetMaxLevel());

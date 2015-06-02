@@ -91,10 +91,16 @@ enum KernelType { kCPU           = 0,
                   kCL            = 4,
                   kDirectCompute = 5 };
 
-enum DisplayStyle { kWire = 0,
-                    kShaded,
-                    kWireShaded,
-                    kPoint };
+enum DisplayStyle { kDisplayStyleWire = 0,
+                    kDisplayStyleShaded,
+                    kDisplayStyleWireOnShaded };
+
+enum ShadingMode { kShadingMaterial,
+                   kShadingPatchType,
+                   kShadingPatchCoord,
+                   kShadingNormal,
+                   kShadingCurvature,
+                   kShadingAnalyticCurvature };
 
 enum EndCap      { kEndCapNone = 0,
                    kEndCapBSplineBasis,
@@ -119,7 +125,8 @@ int   g_frame = 0,
 
 // GUI variables
 int   g_freeze = 0,
-      g_displayStyle = kWireShaded,
+      g_shadingMode = kShadingPatchType,
+      g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
@@ -423,8 +430,11 @@ fitFrame() {
 
 //------------------------------------------------------------------------------
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_, int singleCreasePatch_) : value(0) {
+    Effect(int displayStyle_, int shadingMode_, int screenSpaceTess_,
+           int fractionalSpacing_, int patchCull_, int singleCreasePatch_)
+        : value(0) {
         displayStyle = displayStyle_;
+        shadingMode = shadingMode_;
         screenSpaceTess = screenSpaceTess_;
         fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
@@ -432,7 +442,8 @@ union Effect {
     }
 
     struct {
-        unsigned int displayStyle:3;
+        unsigned int displayStyle:2;
+        unsigned int shadingMode:4;
         unsigned int screenSpaceTess:1;
         unsigned int fractionalSpacing:1;
         unsigned int patchCull:1;
@@ -468,6 +479,7 @@ static Effect
 GetEffect()
 {
     return Effect(g_displayStyle,
+                  g_shadingMode,
                   g_screenSpaceTess,
                   g_fractionalSpacing,
                   g_patchCull,
@@ -517,16 +529,39 @@ public:
         if (effectDesc.desc.IsAdaptive()) gs_entry += "_smooth";
 
         switch (effectDesc.effect.displayStyle) {
-        case kWire:
+        case kDisplayStyleWire:
             ss << "#define GEOMETRY_OUT_WIRE\n";
             gs_entry = gs_entry + "_wire";
             break;
-        case kWireShaded:
+        case kDisplayStyleWireOnShaded:
             ss << "#define GEOMETRY_OUT_LINE\n";
             gs_entry = gs_entry + "_wire";
             break;
-        case kShaded:
+        case kDisplayStyleShaded:
             ss << "#define GEOMETRY_OUT_FILL\n";
+            break;
+        }
+
+        // shading mode
+        switch(effectDesc.effect.shadingMode) {
+        case kShadingMaterial:
+            ss << "#define SHADING_MATERIAL\n";
+            break;
+        case kShadingPatchType:
+            ss << "#define SHADING_PATCH_TYPE\n";
+            break;
+        case kShadingPatchCoord:
+            ss << "#define SHADING_PATCH_COORD\n";
+            break;
+        case kShadingNormal:
+            ss << "#define SHADING_NORMAL\n";
+            break;
+        case kShadingCurvature:
+            ss << "#define SHADING_CURVATURE\n";
+            break;
+        case kShadingAnalyticCurvature:
+            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
+            ss << "#define SHADING_ANALYTIC_CURVATURE\n";
             break;
         }
 
@@ -641,6 +676,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
             float ModelViewMatrix[16];
             float ProjectionMatrix[16];
             float ModelViewProjectionMatrix[16];
+            float ModelViewInverseMatrix[16];
         };
 
         if (not g_pcbPerFrame) {
@@ -666,6 +702,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         rotate(pData->ModelViewMatrix, g_rotate[0], 0, 1, 0);
         translate(pData->ModelViewMatrix, -g_center[0], -g_center[2], g_center[1]); // z-up model
         rotate(pData->ModelViewMatrix, -90, 1, 0, 0); // z-up model
+        inverseMatrix(pData->ModelViewInverseMatrix, pData->ModelViewMatrix);
 
         identity(pData->ProjectionMatrix);
         perspective(pData->ProjectionMatrix, 45.0, aspect, 0.01f, 500.0);
@@ -1063,6 +1100,12 @@ callbackDisplayNormal(bool checked, int n) {
 }
 
 static void
+callbackShadingMode(int b) {
+    g_shadingMode = b;
+}
+
+
+static void
 callbackAnimate(bool checked, int m) {
     g_moveScale = checked;
 }
@@ -1146,19 +1189,35 @@ initHUD() {
 #endif
     g_hud->AddPullDownButton(compute_pulldown, "HLSL Compute", kDirectCompute);
 
-    int shading_pulldown = g_hud->AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'W');
-    g_hud->AddPullDownButton(shading_pulldown, "Wire",        0, g_displayStyle==kWire);
-    g_hud->AddPullDownButton(shading_pulldown, "Shaded",      1, g_displayStyle==kShaded);
-    g_hud->AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_displayStyle==kWireShaded);
+    int displaystyle_pulldown = g_hud->AddPullDown("DisplayStyle (W)", 200, 10, 250,
+                                                   callbackDisplayStyle, 'w');
+    g_hud->AddPullDownButton(displaystyle_pulldown, "Wire", kDisplayStyleWire,
+                            g_displayStyle == kDisplayStyleWire);
+    g_hud->AddPullDownButton(displaystyle_pulldown, "Shaded", kDisplayStyleShaded,
+                            g_displayStyle == kDisplayStyleShaded);
+    g_hud->AddPullDownButton(displaystyle_pulldown, "Wire+Shaded", kDisplayStyleWireOnShaded,
+                            g_displayStyle == kDisplayStyleWireOnShaded);
 
-    g_hud->AddCheckBox("Control edges (H)",
-                       g_controlMeshDisplay->GetEdgesDisplay(),
-                       10, 10, callbackCheckBox,
-                       kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'H');
-    g_hud->AddCheckBox("Control vertices (J)",
-                       g_controlMeshDisplay->GetVerticesDisplay(),
-                       10, 30, callbackCheckBox,
-                       kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'J');
+    int shading_pulldown = g_hud->AddPullDown("Shading (C)", 200, 70, 250,
+                                             callbackShadingMode, 'c');
+    g_hud->AddPullDownButton(shading_pulldown, "Material",
+                            kShadingMaterial,
+                            g_shadingMode == kShadingMaterial);
+    g_hud->AddPullDownButton(shading_pulldown, "Patch Type",
+                            kShadingPatchType,
+                            g_shadingMode == kShadingPatchType);
+    g_hud->AddPullDownButton(shading_pulldown, "Patch Coord",
+                            kShadingPatchCoord,
+                            g_shadingMode == kShadingPatchCoord);
+    g_hud->AddPullDownButton(shading_pulldown, "Normal",
+                            kShadingNormal,
+                            g_shadingMode == kShadingNormal);
+    g_hud->AddPullDownButton(shading_pulldown, "Curvature",
+                            kShadingCurvature,
+                            g_shadingMode == kShadingCurvature);
+    g_hud->AddPullDownButton(shading_pulldown, "Analytic Curvature",
+                            kShadingAnalyticCurvature,
+                            g_shadingMode == kShadingAnalyticCurvature);
 
     g_hud->AddCheckBox("Patch CVs (L)",             false,                    10, 50,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_CVs, 'L');
     g_hud->AddCheckBox("Patch Color (P)",           true,                     10, 70,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'P');
