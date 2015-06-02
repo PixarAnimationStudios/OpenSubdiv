@@ -200,7 +200,7 @@ void emit(int index, vec3 normal)
 
 #else        // ----- scheme : CATMARK / BILINEAR
 
-#ifdef UNIFORM_SUBDIVISION
+#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
     vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
     vec2 st = quadst[index];
 #else

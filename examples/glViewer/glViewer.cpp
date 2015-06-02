@@ -761,6 +761,9 @@ public:
         case kShadingFaceVaryingColor:
             ss << "#define OSD_FVAR_WIDTH 2\n";
             ss << "#define SHADING_FACEVARYING_COLOR\n";
+            if (not effectDesc.desc.IsAdaptive()) {
+                ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
+            }
             break;
         case kShadingPatchType:
             ss << "#define SHADING_PATCH_TYPE\n";

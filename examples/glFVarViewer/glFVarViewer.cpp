@@ -502,7 +502,6 @@ public:
 
         if (type == Far::PatchDescriptor::QUADS) {
             ss << "#define PRIM_QUAD\n";
-            ss << "#define UNIFORM_SUBDIVISION\n";
         } else {
             ss << "#define PRIM_TRI\n";
         }
@@ -530,6 +529,10 @@ public:
 
         // face varying width
         ss << "#define OSD_FVAR_WIDTH 2\n";
+
+        if (not effectDesc.desc.IsAdaptive()) {
+            ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
+        }
 
         // include osd PatchCommon
         ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
