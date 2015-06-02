@@ -38,7 +38,7 @@
     #include <osd/tbbEvaluator.h>
 #endif
 
-#ifdef OPENSUBDIV_HAS_OPENCL
+#ifdef OPENSUBDIV_HAS_OPENCL_DX_INTEROP
     #include <osd/clD3D11VertexBuffer.h>
     #include <osd/clEvaluator.h>
     #include "../common/clDeviceContext.h"
@@ -344,7 +344,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
                                    numVaryingElements,
                                    level, bits, NULL, g_pd3dDeviceContext);
 #endif
-#ifdef OPENSUBDIV_HAS_OPENCL
+#ifdef OPENSUBDIV_HAS_OPENCL_DX_INTEROP
     } else if(kernel == kCL) {
         static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
         g_mesh = new Osd::Mesh<Osd::CLD3D11VertexBuffer,
@@ -1053,7 +1053,7 @@ callbackKernel(int k) {
 
     g_kernel = k;
 
-#ifdef OPENSUBDIV_HAS_OPENCL
+#ifdef OPENSUBDIV_HAS_OPENCL_DX_INTEROP
     if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
         if (g_clDeviceContext.Initialize(g_pd3dDeviceContext) == false) {
             printf("Error in initializing OpenCL\n");
@@ -1182,7 +1182,7 @@ initHUD() {
 #ifdef OPENSUBDIV_HAS_CUDA
     g_hud->AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
-#ifdef OPENSUBDIV_HAS_OPENCL
+#ifdef OPENSUBDIV_HAS_OPENCL_DX_INTEROP
     if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
         g_hud->AddPullDownButton(compute_pulldown, "OpenCL", kCL);
     }
