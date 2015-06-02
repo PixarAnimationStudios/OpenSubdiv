@@ -286,7 +286,7 @@ TopologyRefinerFactoryBase::createBaseFVarChannel(TopologyRefiner & newRefiner, 
 }
 inline IndexArray
 TopologyRefinerFactoryBase::getBaseFaceFVarValues(TopologyRefiner & newRefiner, Index face, int channel) {
-    return newRefiner._levels[0]->getFVarFaceValues(face, channel);
+    return newRefiner._levels[0]->getFaceFVarValues(face, channel);
 }
 
 inline void

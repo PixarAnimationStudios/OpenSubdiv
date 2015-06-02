@@ -208,7 +208,7 @@ public:
     Sdc::Options getFVarOptions(int channel = 0) const; 
     int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
     int getNumFVarValues(int channel = 0) const;
-    ConstIndexArray getFVarFaceValues(Index faceIndex, int channel = 0) const;
+    ConstIndexArray getFaceFVarValues(Index faceIndex, int channel = 0) const;
 
     FVarLevel & getFVarLevel(int channel = 0) { return *_fvarChannels[channel]; }
     FVarLevel const & getFVarLevel(int channel = 0) const { return *_fvarChannels[channel]; }
@@ -329,7 +329,7 @@ public:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
     void destroyFVarChannel(int channel = 0);
 
-    IndexArray getFVarFaceValues(Index faceIndex, int channel = 0);
+    IndexArray getFaceFVarValues(Index faceIndex, int channel = 0);
 
     void completeFVarChannelTopology(int channel, int regBoundaryValence);
 

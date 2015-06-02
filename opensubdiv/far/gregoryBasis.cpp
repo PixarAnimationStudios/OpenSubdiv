@@ -62,7 +62,7 @@ getQuadOffsets(Vtr::internal::Level const & level, Vtr::Index fIndex,
 
     Far::ConstIndexArray fPoints = (fvarChannel<0) ?
         level.getFaceVertices(fIndex) :
-            level.getFVarFaceValues(fIndex, fvarChannel);
+            level.getFaceFVarValues(fIndex, fvarChannel);
     assert(fPoints.size()==4);
 
     for (int i = 0; i < 4; ++i) {
@@ -155,7 +155,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
     Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
         level.getFaceVertices(faceIndex) :
-            level.getFVarFaceValues(faceIndex, fvarChannel);
+            level.getFaceFVarValues(faceIndex, fvarChannel);
     assert(facePoints.size()==4);
 
     int maxvalence = level.getMaxValence(),
