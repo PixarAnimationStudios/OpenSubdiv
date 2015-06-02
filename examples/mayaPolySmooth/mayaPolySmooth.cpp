@@ -60,7 +60,7 @@
 #endif
 
 // OpenSubdiv includes
-#include <far/topologyRefinerFactory.h>
+#include <far/topologyDescriptor.h>
 #include <far/stencilTableFactory.h>
 #include <far/primvarRefiner.h>
 
@@ -189,7 +189,7 @@ createComp(MFnMeshData &dataCreator, MFn::Type compType, unsigned compId, MIntAr
 // OpenSubdiv Functions
 // ====================================
 
-typedef OpenSubdiv::Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+typedef OpenSubdiv::Far::TopologyDescriptor Descriptor;
 
 // Reference: OSD shape_utils.h:: applyTags() "crease"
 static float

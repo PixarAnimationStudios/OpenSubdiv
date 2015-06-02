@@ -39,6 +39,7 @@ set(SOURCE_FILES
     stencilTable.cpp
     stencilTableFactory.cpp
     stencilBuilder.cpp
+    topologyDescriptor.cpp
     topologyRefiner.cpp
     topologyRefinerFactory.cpp
 )
@@ -63,6 +64,7 @@ set(PUBLIC_HEADER_FILES
     ptexIndices.h
     stencilTable.h
     stencilTableFactory.h
+    topologyDescriptor.h
     topologyLevel.h
     topologyRefiner.h
     topologyRefinerFactory.h
