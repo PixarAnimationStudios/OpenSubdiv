@@ -86,8 +86,7 @@ public:
     void propagateValueCreases();
     void reclassifySemisharpValues();
 
-//  Members temporarily public pending re-assessment of friends:
-public:
+private:
     //
     //  Identify the Refinement, its Levels and assigned FVarLevels for more
     //  immediate access -- child FVarLevel is non-const as it is to be assigned:

@@ -234,8 +234,10 @@ public:
     void print() const;
     void buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& fvSiblings) const;
 
-//  Members temporarily public pending re-assessment of friends:
-public:
+private:
+    //  Just as Refinements build Levels, FVarRefinements build FVarLevels...
+    friend class FVarRefinement;
+
     Level const & _level;
 
     //  Linear interpolation options vary between channels:
@@ -280,30 +282,30 @@ public:
 inline ConstIndexArray
 FVarLevel::getFaceValues(Index fIndex) const {
 
-    int vCount  = _level._faceVertCountsAndOffsets[fIndex*2];
-    int vOffset = _level._faceVertCountsAndOffsets[fIndex*2+1];
+    int vCount  = _level.getNumFaceVertices(fIndex);
+    int vOffset = _level.getOffsetOfFaceVertices(fIndex);
     return ConstIndexArray(&_faceVertValues[vOffset], vCount);
 }
 inline IndexArray
 FVarLevel::getFaceValues(Index fIndex) {
 
-    int vCount  = _level._faceVertCountsAndOffsets[fIndex*2];
-    int vOffset = _level._faceVertCountsAndOffsets[fIndex*2+1];
+    int vCount  = _level.getNumFaceVertices(fIndex);
+    int vOffset = _level.getOffsetOfFaceVertices(fIndex);
     return IndexArray(&_faceVertValues[vOffset], vCount);
 }
 
 inline FVarLevel::ConstSiblingArray
 FVarLevel::getVertexFaceSiblings(Index vIndex) const {
 
-    int vCount  = _level._vertFaceCountsAndOffsets[vIndex*2];
-    int vOffset = _level._vertFaceCountsAndOffsets[vIndex*2+1];
+    int vCount  = _level.getNumVertexFaces(vIndex);
+    int vOffset = _level.getOffsetOfVertexFaces(vIndex);
     return ConstSiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 inline FVarLevel::SiblingArray
 FVarLevel::getVertexFaceSiblings(Index vIndex) {
 
-    int vCount  = _level._vertFaceCountsAndOffsets[vIndex*2];
-    int vOffset = _level._vertFaceCountsAndOffsets[vIndex*2+1];
+    int vCount  = _level.getNumVertexFaces(vIndex);
+    int vOffset = _level.getOffsetOfVertexFaces(vIndex);
     return SiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 

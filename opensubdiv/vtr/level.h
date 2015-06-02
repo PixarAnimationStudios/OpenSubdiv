@@ -44,6 +44,9 @@ namespace Vtr {
 namespace internal {
 
 class Refinement;
+class TriRefinement;
+class QuadRefinement;
+class FVarRefinement;
 class FVarLevel;
 
 //
@@ -350,6 +353,7 @@ public:
     int getNumVertexEdges(     Index vertIndex) const { return _vertEdgeCountsAndOffsets[2*vertIndex]; }
     int getOffsetOfVertexEdges(Index vertIndex) const { return _vertEdgeCountsAndOffsets[2*vertIndex + 1]; }
 
+    ConstIndexArray getFaceVertices() const;
 
     //
     //  Note that for some relations, the size of the relations for a child component
@@ -391,8 +395,12 @@ public:
 
     IndexArray shareFaceVertCountsAndOffsets() const;
 
-//  Members temporarily public pending re-assessment of friends:
-public:
+private:
+    //  Refinement classes (including all subclasses) build a Level:
+    friend class Refinement;
+    friend class TriRefinement;
+    friend class QuadRefinement;
+
     //
     //  A Level is independent of subdivision scheme or options.  While it may have been
     //  affected by them in its construction, they are not associated with it -- a Level
@@ -487,6 +495,11 @@ Level::resizeFaceVertices(Index faceIndex, int count) {
     countOffsetPair[1] = (faceIndex == 0) ? 0 : (countOffsetPair[-2] + countOffsetPair[-1]);
 
     _maxValence = std::max(_maxValence, count);
+}
+
+inline ConstIndexArray
+Level::getFaceVertices() const {
+    return ConstIndexArray(&_faceVertIndices[0], (int)_faceVertIndices.size());
 }
 
 //

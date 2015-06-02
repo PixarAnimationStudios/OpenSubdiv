@@ -35,9 +35,6 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
-
-class Refinement;
-
 namespace internal {
 
 //
@@ -79,13 +76,13 @@ public:
 private:
     SparseSelector() : _refine(0), _selected(false) { }
 
-    bool wasVertexSelected(Index pVertex) const { return _refine->_parentVertexTag[pVertex]._selected; }
-    bool wasEdgeSelected(  Index pEdge) const   { return _refine->_parentEdgeTag[pEdge]._selected; }
-    bool wasFaceSelected(  Index pFace) const   { return _refine->_parentFaceTag[pFace]._selected; }
+    bool wasVertexSelected(Index pVertex) const { return _refine->getParentVertexSparseTag(pVertex)._selected; }
+    bool wasEdgeSelected(  Index pEdge) const   { return _refine->getParentEdgeSparseTag(pEdge)._selected; }
+    bool wasFaceSelected(  Index pFace) const   { return _refine->getParentFaceSparseTag(pFace)._selected; }
 
-    void markVertexSelected(Index pVertex) const { _refine->_parentVertexTag[pVertex]._selected = true; }
-    void markEdgeSelected(  Index pEdge) const   { _refine->_parentEdgeTag[pEdge]._selected = true; }
-    void markFaceSelected(  Index pFace) const   { _refine->_parentFaceTag[pFace]._selected = true; }
+    void markVertexSelected(Index pVertex) const { _refine->getParentVertexSparseTag(pVertex)._selected = true; }
+    void markEdgeSelected(  Index pEdge) const   { _refine->getParentEdgeSparseTag(pEdge)._selected = true; }
+    void markFaceSelected(  Index pFace) const   { _refine->getParentFaceSparseTag(pFace)._selected = true; }
 
     void initializeSelection();
 

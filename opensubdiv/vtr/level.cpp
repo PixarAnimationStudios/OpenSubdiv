@@ -1947,7 +1947,7 @@ Level::getNumFVarValues(int channel) const {
 
 Sdc::Options
 Level::getFVarOptions(int channel) const {
-    return _fvarChannels[channel]->_options;
+    return _fvarChannels[channel]->getOptions();
 }
 
 ConstIndexArray
