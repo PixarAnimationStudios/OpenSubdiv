@@ -452,7 +452,17 @@ getAdaptivePatchColor(ivec3 patchParam)
     );
 
     int patchType = 0;
+
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // check this after boundary/corner since single crease patch also has edgeCount.
     if (inpt.vSegments.y > 0) {
         patchType = 1;
     }
@@ -463,14 +473,6 @@ getAdaptivePatchColor(ivec3 patchParam)
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
-
-    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
-    if (edgeCount == 1) {
-        patchType = 2; // BOUNDARY
-    }
-    if (edgeCount == 2) {
-        patchType = 3; // CORNER
-    }
 
     int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
 
