@@ -186,7 +186,7 @@ void emit(int index, vec3 normal)
 #if defined(SHADING_ANALYTIC_CURVATURE)
     outpt.v.Nu = vec3(0);
     outpt.v.Nv = vec3(0);
-    #endif
+#endif
 #endif
 
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
@@ -330,7 +330,6 @@ in block {
 } inpt;
 
 out vec4 outColor;
-out vec3 outNormal;
 
 #define NUM_LIGHTS 2
 
@@ -525,7 +524,6 @@ main()
 #endif
 
     outColor = Cf;
-    outNormal = N;
 }
 #endif
 

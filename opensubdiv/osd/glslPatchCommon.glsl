@@ -190,7 +190,7 @@ float OsdGetPatchSharpness(ivec3 patchParam)
     return intBitsToFloat(patchParam.z);
 }
 
-float OsdGetSingleCreaseSegmentParameter(ivec3 patchParam, vec2 uv)
+float OsdGetPatchSingleCreaseSegmentParameter(ivec3 patchParam, vec2 uv)
 {
     int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
     float s = 0;
@@ -471,7 +471,7 @@ OsdEvalBezier(OsdPerPatchVertexBezier cp[16], ivec3 patchParam, vec2 uv)
     vec3 BUCP[4] = vec3[4](vec3(0), vec3(0), vec3(0), vec3(0));
 
     float B[4], D[4];
-    float s = OsdGetSingleCreaseSegmentParameter(patchParam, uv);
+    float s = OsdGetPatchSingleCreaseSegmentParameter(patchParam, uv);
 
     OsdUnivar4x4(uv.x, B, D);
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
@@ -909,6 +909,7 @@ OsdComputeMs(float sharpness)
     return m;
 }
 
+// flip matrix orientation
 mat4
 OsdFlipMatrix(mat4 m)
 {
@@ -958,14 +959,14 @@ OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
         Ms = (1-Sr) * Mf + Sr * Mc;
         float s0 = 1 - pow(2, -floor(sharpness));
         float s1 = 1 - pow(2, -ceil(sharpness));
-        result.P  = vec3(0); // 0 to 1-2^(-Sf)
-        result.P1 = vec3(0); // 1-2^(-Sf) to 1-2^(-Sc)
-        result.P2 = vec3(0); // 1-2^(-Sc) to 1
         result.vSegments = vec2(s0, s1);
     } else {
-        result.vSegments = vec2(0);
         Mj = Ms = Mi;
+        result.vSegments = vec2(0);
     }
+    result.P  = vec3(0); // 0 to 1-2^(-Sf)
+    result.P1 = vec3(0); // 1-2^(-Sf) to 1-2^(-Sc)
+    result.P2 = vec3(0); // 1-2^(-Sc) to 1
 
     mat4 MUi, MUj, MUs;
     mat4 MVi, MVj, MVs;
@@ -1049,7 +1050,7 @@ OsdEvalPatchBezier(ivec3 patchParam, vec2 UV,
     // ----------------------------------------------------------------
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     vec2 vSegments = cv[0].vSegments;
-    float s = OsdGetSingleCreaseSegmentParameter(patchParam, UV);
+    float s = OsdGetPatchSingleCreaseSegmentParameter(patchParam, UV);
 
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {

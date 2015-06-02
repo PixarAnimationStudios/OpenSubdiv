@@ -30,6 +30,7 @@ cbuffer Transform : register( b0 ) {
     float4x4 ModelViewMatrix;
     float4x4 ProjectionMatrix;
     float4x4 ModelViewProjectionMatrix;
+    float4x4 ModelViewInverseMatrix;
 };
 
 cbuffer Tessellation : register( b1 ) {
@@ -348,7 +349,7 @@ edgeColor(float4 Cfill, float4 edgeDistance)
 }
 
 float4
-getAdaptivePatchColor(int3 patchParam, float sharpness)
+getAdaptivePatchColor(int3 patchParam, float2 vSegments)
 {
     const float4 patchColors[7*6] = {
         float4(1.0f,  1.0f,  1.0f,  1.0f),   // regular
@@ -402,12 +403,6 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
     };
 
     int patchType = 0;
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    if (sharpness > 0) {
-        patchType = 1;
-    }
-#endif
-
     int pattern = countbits(OsdGetPatchTransitionMask(patchParam));
     int edgeCount = countbits(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
@@ -416,6 +411,12 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
     if (edgeCount == 2) {
         patchType = 3; // CORNER
     }
+
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (vSegments.y > 0) {
+        patchType = 1;
+    }
+#endif
 
     // XXX: it looks like edgeCount != 0 for gregory_boundary.
     //      there might be a bug somewhere.
@@ -441,15 +442,38 @@ ps_main( in OutputVertex input,
          bool isFrontFacing : SV_IsFrontFace,
          out float4 colorOut : SV_Target )
 {
-    float sharpness = 0;
+    float2 vSegments = float2(0,0);
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    sharpness = input.vSegments.y;
+    vSegments = input.vSegments;
 #endif
+
+
+#if defined(SHADING_PATCH_TYPE)
     float4 color = getAdaptivePatchColor(
-        OsdGetPatchParam(OsdGetPatchIndex(primitiveID)), sharpness);
+        OsdGetPatchParam(OsdGetPatchIndex(primitiveID)), vSegments);
+#elif defined(SHADING_PATCH_COORD)
+    float4 color = float4(input.patchCoord.x, input.patchCoord.y, 0, 1);
+#elif defined(SHADING_MATERIAL)
+    float4 color = float4(0.4, 0.4, 0.8, 1.0);
+#else
+    float4 color = float4(1, 1, 1, 1);
+#endif
 
     float3 N = (isFrontFacing ? input.normal : -input.normal);
-    colorOut = edgeColor(lighting(color, input.position.xyz, N), input.edgeDistance);
+    float3 Nobj = mul(ModelViewInverseMatrix, float4(input.normal, 0)).xyz;
+    float4 Cf = lighting(color, input.position.xyz, N);
+
+#if defined(SHADING_NORMAL)
+    Cf.rgb = N;
+#elif defined(SHADING_CURVATURE)
+    float3 pc = fwidth(input.position.xyz);
+    Cf.rgb = 0.1 * fwidth(Nobj) / length(pc);
+#elif defined(SHADING_ANALYTIC_CURVATURE)
+    int level = OsdGetPatchFaceLevel(OsdGetPatchParam(OsdGetPatchIndex(primitiveID)));
+    Cf.rgb = 0.1 * level *(abs(input.Nu) + abs(input.Nv));
+#endif
+
+    colorOut = edgeColor(Cf, input.edgeDistance);
 }
 
 void
