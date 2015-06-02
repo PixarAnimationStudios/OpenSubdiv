@@ -59,8 +59,10 @@ public:
 
     Sdc::Crease::Rule GetVertexRule(Index v) const { return _level->getVertexRule(v); }
 
-    int             GetNumFVarValues(          int channel = 0) const { return _level->getNumFVarValues(channel); }
-    ConstIndexArray GetFVarFaceValues(Index f, int channel = 0) const { return _level->getFVarFaceValues(f, channel); }
+    int GetNumFVarChannels() const              { return _level->getNumFVarChannels(); }
+    int GetNumFVarValues(int channel = 0) const { return _level->getNumFVarValues(channel); }
+
+    ConstIndexArray GetFaceFVarValues(Index f, int channel = 0) const { return _level->getFVarFaceValues(f, channel); }
 
     ConstIndexArray GetFaceVertices(Index f) const { return _level->getFaceVertices(f); }
     ConstIndexArray GetFaceEdges(Index f) const    { return _level->getFaceEdges(f); }

@@ -249,7 +249,7 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
 
         for (int i=0, ofs=0; i < nfaces; ++i) {
 
-            Far::IndexArray dstFaceUVs = getBaseFVarFaceValues(refiner, i, channel);
+            Far::IndexArray dstFaceUVs = getBaseFaceFVarValues(refiner, i, channel);
 
             if (shape.isLeftHanded) {
                 dstFaceUVs[0] = shape.faceuvs[ofs++];

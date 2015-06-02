@@ -859,7 +859,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
                 if (generateFVarPatches) {
                     for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                        ConstIndexArray fvalues = refLevel.GetFVarFaceValues(face, *fvc);
+                        ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, *fvc);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
                             assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarPatchesValues(fvc.pos()).size());
                             fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
