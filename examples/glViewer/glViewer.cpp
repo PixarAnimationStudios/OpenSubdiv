@@ -1722,7 +1722,9 @@ int main(int argc, char ** argv) {
 #if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
+#if not defined(DISABLE_GLEW_EXPERIMENTAL)
     glewExperimental = true;
+#endif
 #endif
     if (GLenum r = glewInit() != GLEW_OK) {
         printf("Failed to initialize glew. Error = %s\n", glewGetErrorString(r));
