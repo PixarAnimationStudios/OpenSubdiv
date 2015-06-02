@@ -400,7 +400,9 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
             g_font->Print3D(fvarBuffer[cvs[i]].GetPos(), buf, 2);
         }
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
         g_currentFVarPatchType = patchTable.GetFVarPatchType(handle, channel);
+#endif
     }
 }
 

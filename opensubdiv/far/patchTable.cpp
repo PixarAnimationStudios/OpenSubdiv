@@ -128,13 +128,10 @@ PatchTable::reservePatchArrays(int numPatchArrays) {
 //
 //  - Face-varying channels can have a different interpolation modes
 //
-//  - Unlike "vertex" PatchTable, there are no "transition" patterns required
+//  - Unlike "vertex" patches, there are no transition masks required
 //    for face-varying patches.
 //
-//  - No transition patterns means vertex indices of face-varying patches can
-//    be pre-rotated in the factory, so we do not store patch rotation
-//
-//  - Face-varying patches still special variants for boundary and corner cases
+//  - Face-varying patches still require boundary edge masks.
 //
 //  - currently most patches with sharp boundaries but smooth interiors have
 //    to be isolated to level 10 : we need a special type of bicubic patch
@@ -178,6 +175,7 @@ PatchTable::allocateFVarPatchChannelValues(
         int numPatches, int numVerticesTotal, int channel) {
 
     FVarPatchChannel & c = getFVarPatchChannel(channel);
+#ifdef FAR_FVAR_SMOOTH_PATCH
     if (c.interpolation==Sdc::Options::FVAR_LINEAR_ALL) {
         // Allocate bi-linear channels (allows uniform topology to be populated
         // in a single traversal)
@@ -192,6 +190,12 @@ PatchTable::allocateFVarPatchChannelValues(
         c.patchesType = PatchDescriptor::NON_PATCH;
         c.patchTypes.resize(numPatches);
     }
+#else
+    (void)numPatches; // not used
+    // Allocate bi-linear channels (allows uniform topology to be populated
+    // in a single traversal)
+    c.patchValues.resize(numVerticesTotal);
+#endif
 }
 void
 PatchTable::setFVarPatchChannelLinearInterpolation(
@@ -199,6 +203,7 @@ PatchTable::setFVarPatchChannelLinearInterpolation(
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.interpolation = interpolation;
 }
+#ifdef FAR_FVAR_SMOOTH_PATCH
 void
 PatchTable::setFVarPatchChannelPatchesType(
         PatchDescriptor::Type type, int channel) {
@@ -246,6 +251,7 @@ PatchTable::setBicubicFVarPatchChannelValues(
         dstValues += nv;
     }
 }
+#endif
 
 //
 // PatchTable
@@ -434,6 +440,7 @@ PatchTable::GetFVarChannelLinearInterpolation(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.interpolation;
 }
+#ifdef FAR_FVAR_SMOOTH_PATCH
 Vtr::Array<PatchDescriptor::Type>
 PatchTable::getFVarPatchTypes(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
@@ -450,6 +457,7 @@ PatchTable::GetFVarPatchTypes(int channel) const {
             (int)c.patchTypes.size());
     }
 }
+#endif
 ConstIndexArray
 PatchTable::GetFVarValues(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
@@ -460,6 +468,7 @@ PatchTable::getFVarValues(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return IndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
+#ifdef FAR_FVAR_SMOOTH_PATCH
 PatchDescriptor::Type
 PatchTable::getFVarPatchType(int patch, int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
@@ -481,6 +490,7 @@ PatchDescriptor::Type
 PatchTable::GetFVarPatchType(int arrayIndex, int patchIndex, int channel) const {
     return getFVarPatchType(getPatchIndex(arrayIndex, patchIndex), channel);
 }
+#endif
 ConstIndexArray
 PatchTable::getPatchFVarValues(int patch, int channel) const {
 
