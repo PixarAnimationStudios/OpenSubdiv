@@ -393,14 +393,14 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
         handle.patchIndex = patch;
 
         OpenSubdiv::Far::ConstIndexArray const cvs =
-            patchTable.GetPatchFVarValues(channel, handle);
+            patchTable.GetPatchFVarValues(handle, channel);
 
         for (int i=0; i<cvs.size(); ++i) {
             snprintf(buf, 16, "%d", i);
             g_font->Print3D(fvarBuffer[cvs[i]].GetPos(), buf, 2);
         }
 
-        g_currentFVarPatchType = patchTable.GetFVarPatchType(channel, handle);
+        g_currentFVarPatchType = patchTable.GetFVarPatchType(handle, channel);
     }
 }
 
@@ -632,10 +632,6 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         if (createFVarWire) {
 
             // interpolate fvar values
-
-            //Far::FVarPatchTable const * fvarTable =
-            //    patchTable->GetFVarPatchTable();
-            //assert(fvarTable);
 
             int channel = 0;
 

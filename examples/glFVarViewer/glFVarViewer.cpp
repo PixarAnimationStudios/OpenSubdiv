@@ -151,8 +151,7 @@ struct FVarData
     void Create(OpenSubdiv::Far::PatchTable const *patchTable,
                 int fvarWidth, std::vector<float> const & fvarSrcData) {
         Release();
-        OpenSubdiv::Far::ConstIndexArray indices =
-            patchTable->GetFVarValues(0);
+        OpenSubdiv::Far::ConstIndexArray indices = patchTable->GetFVarValues();
 
         // expand fvardata to per-patch array
         std::vector<float> data;

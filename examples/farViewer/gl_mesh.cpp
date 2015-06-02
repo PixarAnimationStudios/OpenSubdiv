@@ -487,7 +487,7 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
                 handle.patchIndex = patch;
                 OpenSubdiv::Far::PatchDescriptor::Type type =
-                    patchTable->GetFVarPatchType(channel, handle);
+                    patchTable->GetFVarPatchType(handle, channel);
 
                 if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
                     color = getAdaptivePatchColor(

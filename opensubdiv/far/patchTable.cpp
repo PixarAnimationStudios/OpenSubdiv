@@ -174,8 +174,8 @@ PatchTable::allocateFVarPatchChannels(int numChannels) {
     _fvarChannels.resize(numChannels);
 }
 void
-PatchTable::allocateChannelValues(int channel,
-    int numPatches, int numVerticesTotal) {
+PatchTable::allocateFVarPatchChannelValues(
+        int numPatches, int numVerticesTotal, int channel) {
 
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     if (c.interpolation==Sdc::Options::FVAR_LINEAR_ALL) {
@@ -194,19 +194,20 @@ PatchTable::allocateChannelValues(int channel,
     }
 }
 void
-PatchTable::setFVarPatchChannelLinearInterpolation(int channel,
-        Sdc::Options::FVarLinearInterpolation interpolation) {
+PatchTable::setFVarPatchChannelLinearInterpolation(
+        Sdc::Options::FVarLinearInterpolation interpolation, int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.interpolation = interpolation;
 }
 void
-PatchTable::setFVarPatchChannelPatchesType(int channel, PatchDescriptor::Type type) {
+PatchTable::setFVarPatchChannelPatchesType(
+        PatchDescriptor::Type type, int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.patchesType = type;
 }
 void
-PatchTable::setBicubicFVarPatchChannelValues(int channel, int patchSize,
-    std::vector<Index> const & values) {
+PatchTable::setBicubicFVarPatchChannelValues(
+        int patchSize, std::vector<Index> const & values, int channel) {
 
     // This method populates the sparse array of values held in the patch
     // table from a non-sparse array of value indices generated during
@@ -460,7 +461,7 @@ PatchTable::getFVarValues(int channel) {
     return IndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
 PatchDescriptor::Type
-PatchTable::getFVarPatchType(int channel, int patch) const {
+PatchTable::getFVarPatchType(int patch, int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     PatchDescriptor::Type type;
     if (c.patchesType!=PatchDescriptor::NON_PATCH) {
@@ -473,15 +474,15 @@ PatchTable::getFVarPatchType(int channel, int patch) const {
     return type;
 }
 PatchDescriptor::Type
-PatchTable::GetFVarPatchType(int channel, PatchHandle const & handle) const {
-    return getFVarPatchType(channel, handle.patchIndex);
+PatchTable::GetFVarPatchType(PatchHandle const & handle, int channel) const {
+    return getFVarPatchType(handle.patchIndex, channel);
 }
 PatchDescriptor::Type
-PatchTable::GetFVarPatchType(int channel, int arrayIndex, int patchIndex) const {
-    return getFVarPatchType(channel, getPatchIndex(arrayIndex, patchIndex));
+PatchTable::GetFVarPatchType(int arrayIndex, int patchIndex, int channel) const {
+    return getFVarPatchType(getPatchIndex(arrayIndex, patchIndex), channel);
 }
 ConstIndexArray
-PatchTable::getPatchFVarValues(int channel, int patch) const {
+PatchTable::getPatchFVarValues(int patch, int channel) const {
 
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
 
@@ -496,12 +497,12 @@ PatchTable::getPatchFVarValues(int channel, int patch) const {
    }
 }
 ConstIndexArray
-PatchTable::GetPatchFVarValues(int channel, PatchHandle const & handle) const {
-    return getPatchFVarValues(channel, handle.patchIndex);
+PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
+    return getPatchFVarValues(handle.patchIndex, channel);
 }
 ConstIndexArray
-PatchTable::GetPatchFVarValues(int channel, int arrayIndex, int patchIndex) const {
-    return getPatchFVarValues(channel, getPatchIndex(arrayIndex, patchIndex));
+PatchTable::GetPatchFVarValues(int arrayIndex, int patchIndex, int channel) const {
+    return getPatchFVarValues(getPatchIndex(arrayIndex, patchIndex), channel);
 }
 
 void
