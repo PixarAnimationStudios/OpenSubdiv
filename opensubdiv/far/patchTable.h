@@ -41,12 +41,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-// XXXdyu We're going to postpone support for smooth interpolation of
-// face-varying patches until after the version 3.0 release. We've cordoned
-// off the related code with the following macro and will restore this
-// code after we cut the release.
-#undef FAR_FVAR_SMOOTH_PATCH
-
 /// \brief Container for arrays of parametric patches
 ///
 /// PatchTable contain topology and parametric information about the patches
@@ -245,18 +239,6 @@ public:
     Sdc::Options::FVarLinearInterpolation GetFVarChannelLinearInterpolation(int channel = 0) const;
 
 
-#ifdef FAR_FVAR_SMOOTH_PATCH
-    /// \brief Returns a descriptor for a given patch in a channel
-    PatchDescriptor::Type GetFVarPatchType(PatchHandle const & handle, int channel = 0) const;
-
-    /// \brief Returns a descriptor for a given patch in a channel
-    PatchDescriptor::Type GetFVarPatchType(int array, int patch, int channel = 0) const;
-
-    /// \brief Returns an array of descriptors for the patches in a channel
-    Vtr::ConstArray<PatchDescriptor::Type> GetFVarPatchTypes(int channel = 0) const;
-#endif
-
-
     /// \brief Returns the value indices for a given patch in a channel
     ConstIndexArray GetPatchFVarValues(PatchHandle const & handle, int channel = 0) const;
 
@@ -380,9 +362,6 @@ private:
     void setFVarPatchChannelLinearInterpolation(
         Sdc::Options::FVarLinearInterpolation interpolation, int channel = 0);
 
-#ifdef FAR_FVAR_SMOOTH_PATCH
-    void setFVarPatchChannelPatchesType(PatchDescriptor::Type type, int channel = 0);
-#endif
 
     PatchDescriptor::Type getFVarPatchType(int patch, int channel = 0) const;
     Vtr::Array<PatchDescriptor::Type> getFVarPatchTypes(int channel = 0);
@@ -390,9 +369,6 @@ private:
     IndexArray getFVarValues(int channel = 0);
     ConstIndexArray getPatchFVarValues(int patch, int channel = 0) const;
 
-#ifdef FAR_FVAR_SMOOTH_PATCH
-    void setBicubicFVarPatchChannelValues(int patchSize, std::vector<Index> const & values, int channel =0);
-#endif
 
 private:
 

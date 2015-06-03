@@ -483,22 +483,6 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
         for (int patch=0, offset=0; patch<npatches; ++patch) {
 
-#ifdef FAR_FVAR_SMOOTH_PATCH
-            if (options.edgeColorMode==EDGECOLOR_BY_PATCHTYPE) {
-                OpenSubdiv::Far::PatchTable::PatchHandle handle;
-
-                handle.patchIndex = patch;
-                OpenSubdiv::Far::PatchDescriptor::Type type =
-                    patchTable->GetFVarPatchType(handle, channel);
-
-                if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
-                    color = getAdaptivePatchColor(
-                        OpenSubdiv::Far::PatchDescriptor(type));
-                } else {
-                    color = quadColor;
-                }
-            }
-#endif
             assert(color);
 
             for (int edge=0; edge<nedgesperpatch; ++edge) {
