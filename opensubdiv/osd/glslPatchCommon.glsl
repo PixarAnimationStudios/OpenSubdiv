@@ -629,7 +629,14 @@ OsdGetTessLevelsUniform(ivec3 patchParam,
     int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
     float tessLevel = OsdTessLevel() / pow(2, refinementLevel-1);
 
-    tessOuterLo = vec4(tessLevel);
+    // tessLevels of transition edge should be clamped to 2.
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+    vec4 tessLevelMin = vec4(1) + vec4(((transitionMask & 8) >> 3),
+                                       ((transitionMask & 1) >> 0),
+                                       ((transitionMask & 2) >> 1),
+                                       ((transitionMask & 4) >> 2));
+
+    tessOuterLo = max(vec4(tessLevel), tessLevelMin);
     tessOuterHi = vec4(0);
 }
 
