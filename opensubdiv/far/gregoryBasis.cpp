@@ -350,7 +350,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
         Point const * rp = &r[vid*maxvalence];
 
-        if (valences[vid] > 2) {
+        if (valences[vid] >= 2) {
 
             float s1 = 3.0f - 2.0f*csf(n-3,2)-csf(np-3,2),
                   s2 = 2.0f*csf(n-3,2),
