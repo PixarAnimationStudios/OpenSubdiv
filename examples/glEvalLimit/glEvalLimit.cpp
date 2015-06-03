@@ -869,9 +869,18 @@ display() {
         g_hud.DrawString(10, -20,  "FPS        : %3.1f", fps);
 
         if (g_drawMode==kFACEVARYING) {
-            static char msg[] = "Face-varying interpolation not implemented yet";
-            g_hud.DrawString(g_width/2-20/2*8, g_height/2, msg);
+            static char msg[] =
+                "ERROR: Face-varying interpolation hasn't been supported yet.";
+            g_hud.DrawString(g_width/4, g_height/4, 1, 0, 0, msg);
         }
+
+        if (g_endCap != kEndCapBSplineBasis &&
+            (g_kernel != kCPU && g_kernel != kOPENMP && g_kernel != kTBB)) {
+            static char msg[] =
+                "ERROR: This kernel only supports BSpline basis patches.";
+            g_hud.DrawString(g_width/4, g_height/4+20, 1, 0, 0, msg);
+        }
+
 
         g_hud.Flush();
     }
@@ -1124,7 +1133,9 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
+        g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    }
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     g_hud.AddPullDownButton(compute_pulldown, "GL XFB", kGLXFB);
