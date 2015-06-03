@@ -652,7 +652,7 @@ int main(int argc, char ** argv) {
 
         // prep GPU kernel
 #ifdef OPENSUBDIV_HAS_OPENCL
-        if (kernel == "CL") {
+        if (kernel == "CL" && CLDeviceContext::HAS_CL_VERSION_1_1()) {
             if (g_clDeviceContext.IsInitialized() == false) {
                 if (g_clDeviceContext.Initialize() == false) {
                     std::cout << "Error in initializing OpenCL\n";

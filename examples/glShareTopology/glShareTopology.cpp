@@ -682,6 +682,8 @@ display() {
     updateUniformBlocks();
     bindTextures();
 
+//#define ENABLE_MDI
+#if defined(ENABLE_MDI) && defined(GL_ARB_multi_draw_indirect)
     if (g_MDI && glMultiDrawElementsIndirect) {
         SceneBase::BatchVector const &batches = g_scene->GetBatches();
         for (int i = 0; i < (int)batches.size(); ++i) {
@@ -698,6 +700,9 @@ display() {
         }
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
     } else {
+#else
+    {
+#endif
         int numObjects = g_scene->GetNumObjects();
         for (int i = 0; i < numObjects; ++i) {
             SceneBase::PatchArrayVector const &patchArrays = g_scene->GetPatchArrays(i);
@@ -1093,8 +1098,10 @@ initHUD() {
                     -200, 20, 20, true, callbackSlider, 0);
 
     {
+#if defined(ENABLE_MDI) && defined(GL_ARB_multi_draw_indirect)
         g_hud.AddCheckBox("Multi Draw Indirect (m)", g_MDI != 0,
                           10, 170, callbackCheckBox, kHUD_CB_MDI, 'm');
+#endif
         g_hud.AddCheckBox("Adaptive (`)", g_options.adaptive != 0,
                           10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
 
