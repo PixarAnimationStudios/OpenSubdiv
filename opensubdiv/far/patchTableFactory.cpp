@@ -264,10 +264,10 @@ public:
             _channelIndices[_currentChannel] : _currentChannel;
     }
 
-    int pos()   { return _currentChannel; }
-    int begin() { return 0; }
-    int end()   { return _numChannels; }
-    int size()  { return _numChannels; }
+    int pos() const   { return _currentChannel; }
+    int begin() const { return 0; }
+    int end() const   { return _numChannels; }
+    int size() const  { return _numChannels; }
 
 private:
     int _numChannels,             // total number of channels
@@ -322,6 +322,7 @@ public:
     // by client-code
     FVarChannelCursor fvarChannelCursor;
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
     // Allocate temporary space to store face-varying values : because we do
     // not know yet the types of each patch, we pre-emptively allocate
     // non-sparse arrays for each channel. Patches are assumed to have a maximum
@@ -339,6 +340,7 @@ public:
     // populated (in the correct sorted order), we copy them in the final sparse
     // vectors and generate offsets.
     std::vector<std::vector<Index> > fvarPatchValues;
+#endif
 };
 
 // Constructor
@@ -347,9 +349,12 @@ PatchTableFactory::AdaptiveContext::AdaptiveContext(
     refiner(ref), options(opts), table(0),
     fvarChannelCursor(ref, opts) {
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
     fvarPatchValues.resize(fvarChannelCursor.size());
+#endif
 }
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
 void
 PatchTableFactory::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
 
@@ -366,10 +371,11 @@ PatchTableFactory::AdaptiveContext::AllocateFVarPatchValues(int npatches) {
         }
     }
 }
+#endif
 
 bool
 PatchTableFactory::AdaptiveContext::RequiresFVarPatches() const {
-    return not fvarPatchValues.empty();
+    return (fvarChannelCursor.size() > 0);
 }
 
 //
@@ -424,6 +430,7 @@ PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
         table->setFVarPatchChannelLinearInterpolation(interpolation, fvc.pos());
 
         int nverts = 0;
+#ifdef FAR_FVAR_SMOOTH_PATCH
         if (interpolation==Sdc::Options::FVAR_LINEAR_ALL) {
 
             PatchDescriptor::Type type = options.triangulateQuads ?
@@ -435,6 +442,13 @@ PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
                 npatches * PatchDescriptor::GetNumFVarControlVertices(type);
 
         }
+#else
+        PatchDescriptor::Type type = options.triangulateQuads ?
+            PatchDescriptor::TRIANGLES : PatchDescriptor::QUADS;
+
+        nverts =
+            npatches * PatchDescriptor::GetNumFVarControlVertices(type);
+#endif
         table->allocateFVarPatchChannelValues(npatches, nverts, fvc.pos());
     }
 }
@@ -445,6 +459,10 @@ int
 PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
     Index faceIndex, Index levelFaceOffset, int rotation,
         Index const * levelFVarVertOffsets, Index fofss, Index ** fptrs) {
+#ifndef FAR_FVAR_SMOOTH_PATCH
+    (void)levelFaceOffset;  // not used
+    (void)fofss;  // not used
+#endif
 
     if (not context.RequiresFVarPatches()) {
         return 0;
@@ -452,12 +470,14 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
 
     TopologyRefiner const & refiner = context.refiner;
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
     PatchTable * table = context.table;
 
     assert((levelFaceOffset + faceIndex)<(int)context.patchTags.size());
     PatchFaceTag & vertexPatchTag = context.patchTags[levelFaceOffset + faceIndex];
 
     Index patchVerts[context.fvarPatchSize];
+#endif
 
     // Iterate over valid FVar channels (if any)
     FVarChannelCursor & fvc = context.fvarChannelCursor;
@@ -466,6 +486,7 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
         Vtr::internal::Level const & vtxLevel = refiner.getLevel(level);
         Vtr::internal::FVarLevel const & fvarLevel = vtxLevel.getFVarLevel(*fvc);
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
         if (refiner.GetFVarLinearInterpolation(*fvc)!=Sdc::Options::FVAR_LINEAR_ALL) {
 
             //
@@ -629,7 +650,9 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
 
             offsetAndPermuteIndices(patchVerts, nverts, levelFVarVertOffsets[fvc.pos()],
                 permutation, &context.fvarPatchValues[fvc.pos()][fofss*context.fvarPatchSize]);
-        } else {
+        } else
+#endif
+        {
 
             //
             // Bi-linear patches
@@ -643,6 +666,7 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
                     levelFVarVertOffsets[fvc.pos()] + fvarValues[(vert+rotation)%4];
             }
             fptrs[fvc.pos()]+=fvarValues.size();
+
         }
     }
     return 1;
@@ -949,11 +973,13 @@ PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options optio
 
         allocateFVarChannels(refiner, options, npatches, context.table);
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
         // Reserve temporary non-sparse storage for non-linear fvar channels.
         // FVar Values for these channels are copied into the final
         // FVarPatchChannel after the second traversal happens within the call to
         // populateAdaptivePatches()
         context.AllocateFVarPatchValues(npatches);
+#endif
     }
 
     //
@@ -1500,6 +1526,7 @@ PatchTableFactory::populateAdaptivePatches(
         break;
     }
 
+#ifdef FAR_FVAR_SMOOTH_PATCH
     if (context.RequiresFVarPatches()) {
         // Compress & copy FVar values from context into FVarPatchChannel
         // sparse array, generate offsets
@@ -1515,6 +1542,7 @@ PatchTableFactory::populateAdaptivePatches(
             }
         }
     }
+#endif
 }
 
 } // end namespace Far
