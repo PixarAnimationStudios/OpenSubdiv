@@ -178,6 +178,8 @@ protected:
     //
     //  Lower level protected methods intended strictly for internal use:
     //
+    template <class MESH>
+    friend class TopologyRefinerFactory;
     friend class TopologyRefinerFactoryBase;
     friend class PatchTableFactory;
     friend class EndCapGregoryBasisPatchFactory;

@@ -33,7 +33,7 @@
 // 'face-varying' data recorded in the uv texture layout.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyDescriptor.h>
 #include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
@@ -161,7 +161,7 @@ int main(int, char **) {
 
     int maxlevel = 3;
 
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 

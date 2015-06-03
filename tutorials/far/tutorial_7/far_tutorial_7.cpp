@@ -41,7 +41,7 @@
 // of refinement of the original cube.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyDescriptor.h>
 #include <opensubdiv/far/stencilTable.h>
 #include <opensubdiv/far/stencilTableFactory.h>
 
@@ -218,7 +218,7 @@ static Far::TopologyRefiner *
 createTopologyRefiner() {
 
     // Populate a topology descriptor with our raw data.
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 

@@ -30,7 +30,7 @@
 // instantiate and refine a mesh with Far from simple topological data.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyDescriptor.h>
 #include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
@@ -106,7 +106,7 @@ int main(int, char **) {
 
     // Populate a topology descriptor with our raw data
 
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
