@@ -442,6 +442,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
         std::vector<Vertex> verts(nverts);
         memset(&verts[0], 0, verts.size()*sizeof(Vertex));
 
+        /*
         OpenSubdiv::Far::PatchTable::PatchHandle handle;
 
         Vertex * vert = &verts[0];
@@ -454,6 +455,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
                 }
             }
         }
+        */
 
         GLMesh::Options options;
         options.edgeColorMode = GLMesh::EDGECOLOR_BY_PATCHTYPE;

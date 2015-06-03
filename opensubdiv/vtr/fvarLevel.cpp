@@ -268,7 +268,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
                 int   vertInEdge = vInEdge[i];
                 bool  markEdgeDiscts = false;
-                Index valueIndexInFace0;
+                Index valueIndexInFace0 = 0;
                 for (int j = 0; !markEdgeDiscts && (j < eFaces.size()); ++j) {
                     Index           fIndex  = eFaces[j];
                     ConstIndexArray fVerts  = _level.getFaceVertices(fIndex);
