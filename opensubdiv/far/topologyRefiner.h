@@ -145,7 +145,7 @@ public:
                                                     ///< instead of child vertices of vertices
     };
 
-    /// \brief Feature Adaptive topology refinement
+    /// \brief Feature Adaptive topology refinement (restricted to scheme Catmark)
     ///
     /// @param options   Options controlling adaptive refinement
     ///
