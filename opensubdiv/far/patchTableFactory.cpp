@@ -218,7 +218,9 @@ class FVarChannelCursor {
 public:
 
     FVarChannelCursor(TopologyRefiner const & refiner,
-                      PatchTableFactory::Options options) {
+                      PatchTableFactory::Options options)
+        : _channelIndices(0)
+    {
         if (options.generateFVarTables) {
             // If client-code does not select specific channels, default to all
             // the channels in the refiner.
