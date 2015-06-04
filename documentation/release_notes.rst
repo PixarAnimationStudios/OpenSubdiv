@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0.0.Beta Release Notes
+3.0.0 Release Notes
 ------------------------
 
 .. contents::
@@ -167,10 +167,6 @@ some much needed updates to our code-style guidelines and general conventions,
 throughout the entire OpenSubdiv code-base. We are hoping to drastically
 improve the quality, consistency and readability of the source code.
 
-While the bulk of code refactoring is mostly in place, we are still tweaking
-some of the finer details. After this Beta release we are not anticipating any
-further significant changes.
-
 ----
 
 New Tutorials
@@ -222,16 +218,10 @@ parties, the following changes have been implemented:
       from the averaging in 3.0 to allow proper decay of a semi-sharp edge
       to 0), all other deviations found have been identified as flaws in the
       implementation of 2.x (and are not easily corrected).
-      
-      We will review input from the community on this matter during the Beta
-      release cycle.
 
 In all cases, features in active use are not being removed but simply
 re-expressed in what is hoped to be a clearer interface.
 
-We will welcome feedback and constructive comments as we deploy these changes.
-We hope to converge toward a general consensus and lock these APIs by the end
-of Beta cycle.
 
 Face-varying Interpolation Rules
 ********************************
@@ -288,6 +278,18 @@ will consider re-implementing them in future releases, as time and resources
 allow.
 
 ----
+
+RC1 Release Notes
+==================
+
+We're nearing release for the 3.0 branch.  The APIs are now fully locked, and
+we only anticipate patching back bug fixes and documentation changes before 
+the final 3.0.0 release.  It's been a very active beta cycle and much of
+the API has changed, despite our best intentions, but we believe it's to
+the overall benefit of the library.  This unfortunately means that you may
+have to do some adapting of code that was written against the beta release.  
+We hope you agree it was worth the change and welcome feedback.
+
 
 Beta Release Notes
 ==================
