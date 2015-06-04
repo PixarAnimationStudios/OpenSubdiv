@@ -34,45 +34,63 @@
 Release 3.0
 ===========
 
-OpenSubdiv 3.0 represents a landmark release, with very profound changes to the
-core algorithms. While providing faster, more efficient, and more flexible
-subdivision code remains our principal goal, OpenSubdiv 3.0 introduces many
+OpenSubdiv 3.0 represents a landmark release, with profound changes to the core
+algorithms, simplified APIs, and streamlined GPU execution. Providing
+faster, more efficient, and more flexible subdivision code remains our
+principal goal, to achieve this goal, OpenSubdiv 3.0 introduces many
 improvements that constitute a fairly radical departure from our previous
 versions.
 
 ----
 
-Improved performance
+Improved Performance
 ********************
 
 Release 3.0.0 of OpenSubdiv introduces a new set of data structures and
 algorithms that greatly enhance performance over previous versions.
 
-This release focuses mostly on the CPU side, and  should provide
+**Faster Subdivision**
+
+A major focus of the 3.0 release is performance. It should provide
 "out-of-the-box" speed-ups close to an order of magnitude for topology
-refinement and analysis (both uniform and adaptive). Please note: a very large
-portion of the 2.x code base has been completely replaced or deprecated.
+refinement and analysis (both uniform and adaptive).
 
-On the GPU side, the replacement of subdivision tables with stencils allows
-us to remove several bottlenecks in the Compute area that can yield as much as
-4x faster interpolation on CUDA platforms. At the same time, stencils also
-reduce the dozens of kernel launches required per primitive to a single one (this
-was a known issue on certain mobile platforms). Compute calls batching is now
-trivial.
+**Faster GPU Kernels**
 
-We will continue releasing features and improvements throughout the release
-cycle, both to match the feature set of previous releases, and to further the
-general optimization strategy described above.
+On the GPU side, the replacement of subdivision tables with stencils greatly 
+bottlenecks in compute that can yield as much as 4x faster interpolation. At
+the same time, stencils reduce the complexity of interpolation to a single
+kernel launch per primitive, a critical improvement for mobile platforms.
+Compute batching is now trivial.
+
+**Unified Adaptive Shaders**
+
+Adaptive tessellation has been reduced to a single shader configuration in the
+best case and two shaders in the worst case, a massive improvement over the 2x
+code base.
+
+**New End-Cap Approximations**
+
+While "legacy" Gregory patch support is still available, we have introduced
+several end cap options: Legacy Gregory, fast Gregory Basis stencils, and
+BSpline patches. Gregory basis stencils provide the same high quality
+approximation of Legacy Gregory patches, but execute considerably faster with a
+simpler GPU representation. While BSpline patches are not as close an
+approximation as Gregory patches, they enable an entire adaptively refined
+mesh to be drawn with screen space tessellation via a single global shader 
+configuration (Gregory Basis end caps require one additional global shader 
+configuration).
 
 ----
 
-New topology entry-points
-*************************
+Simpler Topology Entry-Points
+*****************************
 
 OpenSubdiv 3.0 introduces several new entry-points for client topology. Previous
 releases forced client applications to define and populate instances of an Hbr
 half-edge topology representation. For many applications, this representation
-was both redundant and inefficient.
+was both redundant and inefficient. The new primary entry point is simpler, more
+flexible and more efficient.
 
 OpenSubdiv 3.0 introduces a new *intermediate* topological representation, named
 **Vtr** (Vectorized Topology Representation). The topological relationships
@@ -282,14 +300,23 @@ allow.
 RC1 Release Notes
 ==================
 
-We're nearing release for the 3.0 branch.  The APIs are now fully locked, and
-we only anticipate patching back bug fixes and documentation changes before 
-the final 3.0.0 release.  It's been a very active beta cycle and much of
-the API has changed, despite our best intentions, but we believe it's to
-the overall benefit of the library.  This unfortunately means that you may
-have to do some adapting of code that was written against the beta release.  
-We hope you agree it was worth the change and welcome feedback.
+Release Candidate 1 is a short-lived release intended for stabilization before
+the official 3.0 release.  The APIs are now locked restricted to bug fixes and
+documentation changes.
 
+It's been a very active beta cycle and we've received and incorporated great
+feedback. Large swaths of the API have changed since the beta release, to the
+overall benefit of the library. These changes lay a strong foundation for 
+future, stable 3.0 point releases.
+
+Notable changes in between 3.0-beta and 3.0-RC1 include:
+
+ * TopologyRefiner was split into several classes to simplify and clarify
+   the API.
+   
+ * The Osd layer was largely reworked, removing old designs that were
+   originally inteded to support large numbers of kernel and shader
+   configurations (thanks to stencils and unified shading)
 
 Beta Release Notes
 ==================
