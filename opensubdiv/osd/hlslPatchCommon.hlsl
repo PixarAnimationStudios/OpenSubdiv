@@ -476,6 +476,8 @@ OsdComputeBSplineBoundaryPoints(inout float3 cpt[16], int3 patchParam)
 // (0,0)                                         (1,0)
 //
 
+#define OSD_MAX_TESS_LEVEL 64
+
 float OsdComputePostProjectionSphereExtent(float3 center, float diameter)
 {
     float4 p = mul(OsdProjectionMatrix(), float4(center, 1.0));
@@ -492,15 +494,28 @@ float OsdComputeTessLevel(float3 p0, float3 p1)
     float3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
     float projLength = OsdComputePostProjectionSphereExtent(center, diameter);
-    return round(max(1.0, OsdTessLevel() * projLength));
+    float tessLevel = round(max(1.0, OsdTessLevel() * projLength));
+
+    // We restrict adaptive tessellation levels to half of the device
+    // supported maximum because transition edges are split into two
+    // halfs and the sum of the two corresponding levels must not exceed
+    // the device maximum. We impose this limit even for non-transition
+    // edges because a non-transition edge must be able to match up with
+    // one half of the transition edge of an adjacent transition patch.
+    return min(tessLevel, OSD_MAX_TESS_LEVEL / 2);
 }
 
 void
 OsdGetTessLevelsUniform(int3 patchParam,
                         out float4 tessOuterLo, out float4 tessOuterHi)
 {
+    // Uniform factors are simple powers of two for each level.
+    // The maximum here can be increased if we know the maximum
+    // refinement level of the mesh:
+    //     min(OSD_MAX_TESS_LEVEL, pow(2, MaximumRefinementLevel-1)
     int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
-    float tessLevel = OsdTessLevel() / pow(2, refinementLevel-1);
+    float tessLevel = min(OsdTessLevel(), OSD_MAX_TESS_LEVEL) /
+                        pow(2, refinementLevel-1);
 
     // tessLevels of transition edge should be clamped to 2.
     int transitionMask = OsdGetPatchTransitionMask(patchParam);
