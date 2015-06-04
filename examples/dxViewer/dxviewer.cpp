@@ -98,9 +98,7 @@ enum DisplayStyle { kDisplayStyleWire = 0,
 enum ShadingMode { kShadingMaterial,
                    kShadingPatchType,
                    kShadingPatchCoord,
-                   kShadingNormal,
-                   kShadingCurvature,
-                   kShadingAnalyticCurvature };
+                   kShadingNormal };
 
 enum EndCap      { kEndCapNone = 0,
                    kEndCapBSplineBasis,
@@ -555,13 +553,6 @@ public:
             break;
         case kShadingNormal:
             ss << "#define SHADING_NORMAL\n";
-            break;
-        case kShadingCurvature:
-            ss << "#define SHADING_CURVATURE\n";
-            break;
-        case kShadingAnalyticCurvature:
-            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
-            ss << "#define SHADING_ANALYTIC_CURVATURE\n";
             break;
         }
 
@@ -1212,12 +1203,6 @@ initHUD() {
     g_hud->AddPullDownButton(shading_pulldown, "Normal",
                             kShadingNormal,
                             g_shadingMode == kShadingNormal);
-    g_hud->AddPullDownButton(shading_pulldown, "Curvature",
-                            kShadingCurvature,
-                            g_shadingMode == kShadingCurvature);
-    g_hud->AddPullDownButton(shading_pulldown, "Analytic Curvature",
-                            kShadingAnalyticCurvature,
-                            g_shadingMode == kShadingAnalyticCurvature);
 
     g_hud->AddCheckBox("Patch CVs (L)",             false,                    10, 50,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_CVs, 'L');
     g_hud->AddCheckBox("Patch Color (P)",           true,                     10, 70,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'P');

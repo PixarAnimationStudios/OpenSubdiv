@@ -460,17 +460,10 @@ ps_main( in OutputVertex input,
 #endif
 
     float3 N = (isFrontFacing ? input.normal : -input.normal);
-    float3 Nobj = mul(ModelViewInverseMatrix, float4(input.normal, 0)).xyz;
     float4 Cf = lighting(color, input.position.xyz, N);
 
 #if defined(SHADING_NORMAL)
     Cf.rgb = N;
-#elif defined(SHADING_CURVATURE)
-    float3 pc = fwidth(input.position.xyz);
-    Cf.rgb = 0.1 * fwidth(Nobj) / length(pc);
-#elif defined(SHADING_ANALYTIC_CURVATURE)
-    int level = OsdGetPatchFaceLevel(OsdGetPatchParam(OsdGetPatchIndex(primitiveID)));
-    Cf.rgb = 0.1 * level *(abs(input.Nu) + abs(input.Nv));
 #endif
 
     colorOut = edgeColor(Cf, input.edgeDistance);
