@@ -82,20 +82,6 @@ Others exist to represent the following:
     * common low-level utilities, e.g. simple array classes
 
 
-.. container:: notebox
-
-    **Beta Issues**
-
-    Being intended for internal use, any changes to *Vtr* should not impact public
-    interfaces.  Regardless, its worth noting some of the work planned:
-
-        * improve non-manifold support to handle degenerate edges
-        * potential nesting of FVar classes within *Level* and *Refinement*
-        * potential specializations for regular *Levels* and *Refinements*
-
-    Priority will be given to satisfying functional needs.
-
-
 Vtr::Level
 ==========
 

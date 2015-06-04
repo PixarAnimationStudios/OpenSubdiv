@@ -41,6 +41,9 @@
                     <li><a href="roadmap.html">Roadmap</a></li>
                 </ul>
                 <p></p>
+            <li><a href="mod_notes.html">Modeling Tips</a>
+            </li>
+            <p></p>
             <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
                 <ul>
                     <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
@@ -60,8 +63,8 @@
                         <li><a href="far_overview.html">Far</a></li>
                         <ul>
                             <li><a href="far_overview.html#far-topologyrefiner">Topology Refiner</a></li>
-                            <li><a href="far_overview.html#far-patchtables">Patch Tables</a></li>
-                            <li><a href="far_overview.html#far-stenciltables">Stencil Tables</a></li>
+                            <li><a href="far_overview.html#far-patchtable">Patch Table</a></li>
+                            <li><a href="far_overview.html#far-stenciltable">Stencil Table</a></li>
                         </ul>
                         <li><a href="vtr_overview.html">Vtr</a></li>
                         <li><a href="sdc_overview.html">Sdc</a></li>
@@ -69,7 +72,6 @@
                     <p></p>
                     <li><a href="tutorials.html">Tutorials</a>
                     <li><a href="using_osd_compile.html#compiling-linking">Compiling & Linking</a></li>
-                    <li><a href="">Writing Shaders</a></li>
                     <li><a href="using_osd_textures.html">Textures</a></li>
                     <p></p>
                     <li><a href="hbr_overview.html">(Hbr)</a></li>

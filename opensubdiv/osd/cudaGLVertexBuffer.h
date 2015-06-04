@@ -23,14 +23,16 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CUDA_GL_VERTEX_BUFFER_H
-#define OSD_CUDA_GL_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_CUDA_GL_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_CUDA_GL_VERTEX_BUFFER_H
 
 #include "../version.h"
 
-#include "../osd/opengl.h"
-
+#include <cstddef>
 #include <cuda_runtime.h>
+
+#include "../osd/opengl.h"    // needed before cuda_gl_interop.h
+
 #include <cuda_gl_interop.h>
 
 namespace OpenSubdiv {
@@ -43,20 +45,22 @@ namespace Osd {
 /// CudaGLVertexBuffer implements CudaVertexBufferInterface and
 /// GLVertexBufferInterface.
 ///
-/// The buffer interop between Cuda and GL is handled automatically when a 
+/// The buffer interop between Cuda and GL is handled automatically when a
 /// client calls BindCudaBuffer and BindVBO methods.
 ///
 class CudaGLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static CudaGLVertexBuffer * Create(int numElements, int numVertices);
+    static CudaGLVertexBuffer * Create(int numElements, int numVertices,
+                                       void *deviceContext = NULL);
 
     /// Destructor.
     ~CudaGLVertexBuffer();
 
-    /// This method is meant to be used in client code in order to provide coarse
-    /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices);
+    /// This method is meant to be used in client code in order to provide
+    /// coarse vertices data to Osd.
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext = NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -70,7 +74,7 @@ public:
 
     /// Returns the GL buffer object. If the buffer is mapped as a cuda
     /// resource, it will be unmapped back to GL.
-    GLuint BindVBO();
+    GLuint BindVBO(void *deviceContext = NULL);
 
 protected:
     /// Constructor.
@@ -101,4 +105,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CUDA_GL_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_CUDA_GL_VERTEX_BUFFER_H

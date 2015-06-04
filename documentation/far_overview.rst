@@ -45,11 +45,11 @@ First, *Far* provides the tools to refine subdivision topology
 either uniform or sparse, where extraordinary features are automatically
 isolated (see `feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__).
 
-As a geometry representation, *Far* also provides a set of *"Tables"* classes.
+As a geometry representation, *Far* also provides a set of *"Table"* classes.
 These tables are designed to be static containers for the refined topology
 data, after it has been serialized and factorized. This representation is
-embodied in the `Far::PatchTables <#far-patchtables>`__  and the
-`Far::StencilTables <#far-patchtables>`__ classes.
+embodied in the `Far::PatchTable <#far-patchtable>`__  and the
+`Far::StencilTable <#far-patchtable>`__ classes.
 
 *Far* is also a fully featured API. Typically *Far* tabular data is targeted at
 *Osd*, where it can be processed by an implementation optimized for a specific
@@ -87,8 +87,8 @@ Far::TopologyRefiner
 TopologyRefiner is the building block for many other useful classes in
 OpenSubdiv, but its purpose is more specific.  It is intended to store the
 topology of an arbitrarily refined subdivision hierarchy to support the
-construction of `stencil tables <#patch-tables>`__, `patch tables
-<#patch-tables>`__,  etc.
+construction of `stencil table <#patch-table>`__, `patch table
+<#patch-table>`__,  etc.
 
 Aside from public access to topology, TopologyRefiner has public refinement
 methods (currently *RefineUniform()* and *RefineAdapative()*) where simple
@@ -122,7 +122,7 @@ Since a client' mesh representation knows best how to identify the topological
 neighborhoods required, no generic implementation would provide the most
 direct means of conversion possible, and so we rely on specialization.  For
 situations where mesh data is not defined in a boundary representation, a
-simple container for raw mesh data is provided (TopologyDescriptro) along
+simple container for raw mesh data is provided (TopologyDescriptor) along
 with a Factory specialized to construct TopologyRefiners from it.
 
 So there are two ways to create TopologyRefiners:
@@ -185,14 +185,14 @@ A common base class has been created for the factory class, i.e.:
 both to provide common code independent of <MESH> and also potentially to
 protect core code from unwanted specialization.
 
-Far::PatchTables
+Far::PatchTable
 ================
 
 
-The patch tables are a serialized topology representation. This container is
-generated using *Far::PatchTablesFactory* from an instance
+The patch table is a serialized topology representation. This container is
+generated using *Far::PatchTableFactory* from an instance
 *Far::TopologyRefiner* after a refinement has been applied. The
-FarPatchTablesFactory traverses the data-structures of the TopologyRefiner and
+FarPatchTableFactory traverses the data-structures of the TopologyRefiner and
 serializes the sub-faces into collections of bi-linear and bi-cubic patches, as
 dictated by the refinement mode (uniform or adaptive). The patches are then
 sorted into arrays based on their types.
@@ -216,13 +216,13 @@ description of the patches in the array. This includes the patches *type*,
 *pattern* and *rotation*.
 
 The PatchArray *ArrayRange* provides the indices necessary to track the records
-of individual patches in the tables.
+of individual patches in the table.
 
 Patch Types
 ***********
 
 The following are the different patch types that can be represented in the
-PatchTables:
+PatchTable:
 
 +-------------------------------------------------------------------------+
 |                                                                         |
@@ -274,9 +274,6 @@ with 16, 12, 9 and 4 control vertices respectively.
     that we can eventually get rid of the current re-ordering step applied
     to the control vertex indices.
 
-    We also intend to consolidate all bi-cubic patch types into using 16
-    control vertices, which will deprecate the *Boundary* and *Corner* types.
-
 Patch Transitions
 *****************
 
@@ -288,11 +285,11 @@ Patch Transitions
 .. include:: under_development.rst
 
 
-Far::StencilTables
+Far::StencilTable
 ==================
 
-The base container for stencil data is the StencilTables class. As with most
-other Far entities, it has an associated StencilTablesFactory that requires a
+The base container for stencil data is the StencilTable class. As with most
+other Far entities, it has an associated StencilTableFactory that requires a
 TopologyRefiner:
 
 Advantages
@@ -324,13 +321,13 @@ iteration interpolates the new vertices by applying polynomial weights to a
 
 The interpolation calculations for any given vertex can be broken down into
 sequences of multiply-add operations applied to the supporting vertices.
-Stencil tables encode a factorization of these weighted sums : each stencils is
+Stencil table encodes a factorization of these weighted sums : each stencils is
 created by combining the list of control vertices from the 1-ring.
 
 With iterative subdivision, each refinement step is dependent upon the previous
 subdivision step being completed, and a substantial number of steps may be
 required in order approximate the limit : each subdivision step incurs an
-O(4:superscript:`n`) growing amount of computations.
+O(4\ :superscript:`n`) growing amount of computations.
 
 Instead, once the weights of the contributing coarse control vertices for a
 given refined vertex have been factorized, it is possible to apply the stencil
@@ -380,7 +377,7 @@ derivatives, so limit stencils carry a set of weights for tangent vectors.
 .. image:: images/far_stencil0.png
    :align: center
 
-Once the stencil tables have been generated, limit stencils are the most direct
+Once the stencil table has been generated, limit stencils are the most direct
 and efficient method of evaluation of specific locations on the limit of a
 subdivision surface, starting from the coarse vertices of the control cage.
 

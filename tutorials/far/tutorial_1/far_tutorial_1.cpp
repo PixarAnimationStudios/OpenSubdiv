@@ -41,8 +41,10 @@
 // rebuilding them redundantly.
 //
 
-
 #include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
+
+#include <cstdio>
 
 //------------------------------------------------------------------------------
 
@@ -233,31 +235,31 @@ TopologyRefinerFactory<Converter>::resizeComponentTopology(
 
     // Faces and face-verts
     int nfaces = conv.GetNumFaces();
-    refiner.setNumBaseFaces(nfaces);
+    setNumBaseFaces(refiner, nfaces);
     for (int face=0; face<nfaces; ++face) {
 
         int nv = conv.GetNumFaceVerts(face);
-        refiner.setNumBaseFaceVertices(face, nv);
+        setNumBaseFaceVertices(refiner, face, nv);
     }
 
    // Edges and edge-faces
     int nedges = conv.GetNumEdges();
-    refiner.setNumBaseEdges(nedges);
+    setNumBaseEdges(refiner, nedges);
     for (int edge=0; edge<nedges; ++edge) {
 
         int nf = conv.GetNumEdgeFaces(edge);
-        refiner.setNumBaseEdgeFaces(edge, nf);
+        setNumBaseEdgeFaces(refiner, edge, nf);
     }
 
     // Vertices and vert-faces and vert-edges
     int nverts = conv.GetNumVertices();
-    refiner.setNumBaseVertices(nverts);
+    setNumBaseVertices(refiner, nverts);
     for (int vert=0; vert<nverts; ++vert) {
 
         int ne = conv.GetNumVertexEdges(vert),
             nf = conv.GetNumVertexFaces(vert);
-        refiner.setNumBaseVertexEdges(vert, ne);
-        refiner.setNumBaseVertexFaces(vert, nf);
+        setNumBaseVertexEdges(refiner, vert, ne);
+        setNumBaseVertexFaces(refiner, vert, nf);
     }
     return true;
 }
@@ -273,8 +275,8 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
         int nfaces = conv.GetNumFaces();
         for (int face=0; face<nfaces; ++face) {
 
-            IndexArray dstFaceVerts = refiner.setBaseFaceVertices(face);
-            IndexArray dstFaceEdges = refiner.setBaseFaceEdges(face);
+            IndexArray dstFaceVerts = getBaseFaceVertices(refiner, face);
+            IndexArray dstFaceEdges = getBaseFaceEdges(refiner, face);
 
             int const * faceverts = conv.GetFaceVerts(face);
             int const * faceedges = conv.GetFaceEdges(face);
@@ -296,12 +298,12 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
         for (int edge=0; edge<nedges; ++edge) {
 
             //  Edge-vertices:
-            IndexArray dstEdgeVerts = refiner.setBaseEdgeVertices(edge);
+            IndexArray dstEdgeVerts = getBaseEdgeVertices(refiner, edge);
             dstEdgeVerts[0] = conv.GetEdgeVertices(edge)[0];
             dstEdgeVerts[1] = conv.GetEdgeVertices(edge)[1];
 
             //  Edge-faces
-            IndexArray dstEdgeFaces = refiner.setBaseEdgeFaces(edge);
+            IndexArray dstEdgeFaces = getBaseEdgeFaces(refiner, edge);
             for (int face=0; face<conv.GetNumEdgeFaces(face); ++face) {
                 dstEdgeFaces[face] = conv.GetEdgeFaces(edge)[face];
             }
@@ -313,22 +315,22 @@ TopologyRefinerFactory<Converter>::assignComponentTopology(
         for (int vert=0; vert<nverts; ++vert) {
 
             //  Vert-Faces:
-            IndexArray vertFaces = refiner.setBaseVertexFaces(vert);
-            //LocalIndexArray vertInFaceIndices = refiner.setBaseVertexFaceLocalIndices(vert);
+            IndexArray vertFaces = getBaseVertexFaces(refiner, vert);
+            //LocalIndexArray vertInFaceIndices = getBaseVertexFaceLocalIndices(refiner, vert);
             for (int face=0; face<conv.GetNumVertexFaces(vert); ++face) {
                 vertFaces[face] = conv.GetVertexFaces(vert)[face];
             }
 
             //  Vert-Edges:
-            IndexArray vertEdges = refiner.setBaseVertexEdges(vert);
-            //LocalIndexArray vertInEdgeIndices = refiner.setBaseVertexEdgeLocalIndices(vert);
+            IndexArray vertEdges = getBaseVertexEdges(refiner, vert);
+            //LocalIndexArray vertInEdgeIndices = getBaseVertexEdgeLocalIndices(refiner, vert);
             for (int edge=0; edge<conv.GetNumVertexEdges(vert); ++edge) {
                 vertEdges[edge] = conv.GetVertexEdges(vert)[edge];
             }
         }
     }
 
-    refiner.populateBaseLocalIndices();
+    populateBaseLocalIndices(refiner);
 
     return true;
 };
@@ -340,7 +342,7 @@ TopologyRefinerFactory<Converter>::assignComponentTags(
 
     // arbitrarily sharpen the 4 bottom edges of the pyramid to 2.5f
     for (int edge=0; edge<conv.GetNumEdges(); ++edge) {
-        refiner.setBaseEdgeSharpness(edge, g_edgeCreases[edge]);
+        setBaseEdgeSharpness(refiner, edge, g_edgeCreases[edge]);
     }
     return true;
 }
@@ -388,7 +390,7 @@ struct Vertex {
     Vertex(Vertex const & src) {
         _position[0] = src._position[0];
         _position[1] = src._position[1];
-        _position[1] = src._position[1];
+        _position[2] = src._position[2];
     }
 
     void Clear( void * =0 ) {
@@ -448,29 +450,35 @@ int main(int, char **) {
 
 
     // Interpolate vertex primvar data
-    refiner->Interpolate(verts, verts + nCoarseVerts);
+    Far::PrimvarRefiner primvarRefiner(*refiner);
 
+    Vertex * src = verts;
+    for (int level = 1; level <= maxlevel; ++level) {
+        Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
+        primvarRefiner.Interpolate(level, src, dst);
+        src = dst;
+    }
 
 
     { // Output OBJ of the highest level refined -----------
 
-        // Print vertex positions
-        for (int level=0, firstVert=0; level<=maxlevel; ++level) {
+        Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
 
-            if (level==maxlevel) {
-                for (int vert=0; vert<refiner->GetNumVertices(maxlevel); ++vert) {
-                    float const * pos = verts[firstVert+vert].GetPosition();
-                    printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
-                }
-            } else {
-                firstVert += refiner->GetNumVertices(level);
-            }
+        int nverts = refLastLevel.GetNumVertices();
+        int nfaces = refLastLevel.GetNumFaces();
+
+        // Print vertex positions
+        int firstOfLastVerts = refiner->GetNumVerticesTotal() - nverts;
+
+        for (int vert = 0; vert < nverts; ++vert) {
+            float const * pos = verts[firstOfLastVerts + vert].GetPosition();
+            printf("v %f %f %f\n", pos[0], pos[1], pos[2]);
         }
 
         // Print faces
-        for (int face=0; face<refiner->GetNumFaces(maxlevel); ++face) {
+        for (int face = 0; face < nfaces; ++face) {
 
-            Far::ConstIndexArray fverts = refiner->GetFaceVertices(maxlevel, face);
+            Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4);

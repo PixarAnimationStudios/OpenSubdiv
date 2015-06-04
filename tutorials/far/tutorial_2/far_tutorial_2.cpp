@@ -27,72 +27,58 @@
 // Tutorial description:
 //
 // Building on tutorial 0, this example shows how to instantiate a simple mesh,
-// refine it uniformly and then interpolate both 'vertex' and 'varying' primvar
-// data.
+// refine it uniformly and then interpolate additional sets of primvar data.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyDescriptor.h>
+#include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
 
 //------------------------------------------------------------------------------
 // Vertex container implementation.
 //
-// We are adding a per-vertex color attribute to our Vertex interface. Unlike
-// the position attribute however, the new color attribute is interpolated using
-// the 'varying' mode of evaluation ('vertex' is bi-cubic, 'varying' is
-// bi-linear). We also implemented the 'AddVaryingWithWeight()' method, which
-// be performing the interpolation on the primvar data.
+// We are adding a per-vertex color attribute to our primvar data.  While they
+// are separate properties and exist in separate buffers (as when read from an
+// Alembic file) they are both of the form float[3] and so we can use the same
+// underlying type.
 //
-struct Vertex {
+// While color and position may be the same, we'll make the color a "varying"
+// primvar, e.g. it is constrained to being linearly interpolated between
+// vertices, rather than smoothly like position and other vertex data.
+//
+struct Point3 {
 
     // Minimal required interface ----------------------
-    Vertex() { }
+    Point3() { }
 
     void Clear( void * =0 ) {
-        _position[0]=_position[1]=_position[2]=0.0f;
-        _color[0]=_color[1]=_color[2]=0.0f;
+        _point[0]=_point[1]=_point[2]=0.0f;
     }
 
-    void AddWithWeight(Vertex const & src, float weight) {
-        _position[0]+=weight*src._position[0];
-        _position[1]+=weight*src._position[1];
-        _position[2]+=weight*src._position[2];
-    }
-
-    // The varying interpolation specialization must now be implemented.
-    // Just like 'vertex' interpolation, it is a simple multiply-add.
-    void AddVaryingWithWeight(Vertex const & src, float weight) {
-        _color[0]+=weight*src._color[0];
-        _color[1]+=weight*src._color[1];
-        _color[2]+=weight*src._color[2];
+    void AddWithWeight(Point3 const & src, float weight) {
+        _point[0]+=weight*src._point[0];
+        _point[1]+=weight*src._point[1];
+        _point[2]+=weight*src._point[2];
     }
 
     // Public interface ------------------------------------
-    void SetPosition(float x, float y, float z) {
-        _position[0]=x;
-        _position[1]=y;
-        _position[2]=z;
+    void SetPoint(float x, float y, float z) {
+        _point[0]=x;
+        _point[1]=y;
+        _point[2]=z;
     }
 
-    const float * GetPosition() const {
-        return _position;
-    }
-
-    void SetColor(float x, float y, float z) {
-        _color[0]=x;
-        _color[1]=y;
-        _color[2]=z;
-    }
-
-    const float * GetColor() const {
-        return _color;
+    const float * GetPoint() const {
+        return _point;
     }
 
 private:
-    float _position[3],
-          _color[3];
+    float _point[3];
 };
+
+typedef Point3 VertexPosition;
+typedef Point3 VertexColor;
 
 //------------------------------------------------------------------------------
 // Cube geometry from catmark_cube.h
@@ -141,42 +127,68 @@ int main(int, char **) {
     // Uniformly refine the topolgy up to 'maxlevel'
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
-    // Allocate a buffer for vertex primvar data. The buffer length is set to
-    // be the sum of all children vertices up to the highest level of refinement.
-    std::vector<Vertex> vbuffer(refiner->GetNumVerticesTotal());
-    Vertex * verts = &vbuffer[0];
-
-    // Initialize coarse mesh primvar data
+    // Allocate buffers for vertex primvar data.
+    //
+    // We assume we received the coarse data for the mesh in separate buffers
+    // from some other source, e.g. an Alembic file.  Meanwhile, we want buffers
+    // for the last/finest subdivision level to persist.  We have no interest
+    // in the intermediate levels.
+    //
+    // Determine the sizes for our needs:
     int nCoarseVerts = g_nverts;
-    for (int i=0; i<nCoarseVerts; ++i) {
+    int nFineVerts   = refiner->GetLevel(maxlevel).GetNumVertices();
+    int nTotalVerts  = refiner->GetNumVerticesTotal();
+    int nTempVerts   = nTotalVerts - nCoarseVerts - nFineVerts;
 
-        verts[i].SetPosition(g_verts[i][0], g_verts[i][1], g_verts[i][2]);
+    // Allocate and intialize the primvar data for the original coarse vertices:
+    std::vector<VertexPosition> coarsePosBuffer(nCoarseVerts);
+    std::vector<VertexColor>    coarseClrBuffer(nCoarseVerts);
 
-        verts[i].SetColor(g_colors[i][0], g_colors[i][1], g_colors[i][2]);
+    for (int i = 0; i < nCoarseVerts; ++i) {
+        coarsePosBuffer[i].SetPoint(g_verts[i][0], g_verts[i][1], g_verts[i][2]);
+        coarseClrBuffer[i].SetPoint(g_colors[i][0], g_colors[i][1], g_colors[i][2]);
     }
 
-    // Interpolate all primvar data - not that this will perform both 'vertex' and
-    // 'varying' interpolation at once by calling each specialized method in our
-    // Vertex class with the appropriate weights.
-    refiner->Interpolate(verts, verts + nCoarseVerts);
+    // Allocate intermediate and final storage to be populated:
+    std::vector<VertexPosition> tempPosBuffer(nTempVerts);
+    std::vector<VertexPosition> finePosBuffer(nFineVerts);
 
+    std::vector<VertexColor> tempClrBuffer(nTempVerts);
+    std::vector<VertexColor> fineClrBuffer(nFineVerts);
+
+    // Interpolate all primvar data -- separate buffers can be populated on
+    // separate threads if desired:
+    VertexPosition * srcPos = &coarsePosBuffer[0];
+    VertexPosition * dstPos = &tempPosBuffer[0];
+
+    VertexColor * srcClr = &coarseClrBuffer[0];
+    VertexColor * dstClr = &tempClrBuffer[0];
+
+    Far::PrimvarRefiner primvarRefiner(*refiner);
+
+    for (int level = 1; level < maxlevel; ++level) {
+        primvarRefiner.Interpolate(       level, srcPos, dstPos);
+        primvarRefiner.InterpolateVarying(level, srcClr, dstClr);
+
+        srcPos = dstPos, dstPos += refiner->GetLevel(level).GetNumVertices();
+        srcClr = dstClr, dstClr += refiner->GetLevel(level).GetNumVertices();
+    }
+
+    // Interpolate the last level into the separate buffers for our final data:
+    primvarRefiner.Interpolate(       maxlevel, srcPos, finePosBuffer);
+    primvarRefiner.InterpolateVarying(maxlevel, srcClr, fineClrBuffer);
 
 
     { // Visualization with Maya : print a MEL script that generates colored
       // particles at the location of the refined vertices (don't forget to
       // turn shading on in the viewport to see the colors)
 
-        int nverts = refiner->GetNumVertices(maxlevel);
-
-        // Position the 'verts' pointer to the first vertex of our 'maxlevel' level
-        for (int level=0; level<maxlevel; ++level) {
-            verts += refiner->GetNumVertices(level);
-        }
+        int nverts = nFineVerts;
 
         // Output particle positions
         printf("particle ");
-        for (int vert=0; vert<nverts; ++vert) {
-            float const * pos = verts[vert].GetPosition();
+        for (int vert = 0; vert < nverts; ++vert) {
+            float const * pos = finePosBuffer[vert].GetPoint();
             printf("-p %f %f %f\n", pos[0], pos[1], pos[2]);
         }
         printf(";\n");
@@ -187,10 +199,10 @@ int main(int, char **) {
         // Add per-particle color attribute ('rgbPP')
         printf("addAttr -ln \"rgbPP\" -dt vectorArray particleShape1;\n");
 
-        // Set per-particle color values from our 'varying' primvar data
+        // Set per-particle color values from our primvar data
         printf("setAttr \"particleShape1.rgbPP\" -type \"vectorArray\" %d ", nverts);
-        for (int vert=0; vert<nverts; ++vert) {
-            float const * color = verts[vert].GetColor();
+        for (int vert = 0; vert < nverts; ++vert) {
+            float const * color = fineClrBuffer[vert].GetPoint();
             printf("%f %f %f\n", color[0], color[1], color[2]);
         }
         printf(";\n");
@@ -207,7 +219,7 @@ createFarTopologyRefiner() {
 
     // Populate a topology descriptor with our raw data
 
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 

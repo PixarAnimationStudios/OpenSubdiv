@@ -60,12 +60,11 @@
 #endif
 
 // OpenSubdiv includes
-#include <far/topologyRefinerFactory.h>
-#include <far/stencilTablesFactory.h>
+#include <far/topologyDescriptor.h>
+#include <far/stencilTableFactory.h>
+#include <far/primvarRefiner.h>
 
 #include <osd/mesh.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
 #include <osd/cpuVertexBuffer.h>
 
 
@@ -190,7 +189,7 @@ createComp(MFnMeshData &dataCreator, MFn::Type compType, unsigned compId, MIntAr
 // OpenSubdiv Functions
 // ====================================
 
-typedef OpenSubdiv::Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+typedef OpenSubdiv::Far::TopologyDescriptor Descriptor;
 
 // Reference: OSD shape_utils.h:: applyTags() "crease"
 static float
@@ -498,7 +497,7 @@ struct Vertex {
     Vertex(Vertex const & src) {
         position[0] = src.position[0];
         position[1] = src.position[1];
-        position[1] = src.position[1];
+        position[2] = src.position[2];
     }
 
     void Clear( void * =0 ) {
@@ -525,8 +524,12 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
-    int maxlevel = refiner.GetMaxLevel(),
-        nfaces = refiner.GetNumFaces(maxlevel);
+    int maxlevel = refiner.GetMaxLevel();
+
+    OpenSubdiv::Far::TopologyLevel const & refLastLevel 
+                                                = refiner.GetLevel(maxlevel);
+
+    int nfaces = refLastLevel.GetNumFaces();
         
     // Init Maya Data
 
@@ -539,18 +542,18 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
     // -- Face Connects
     MIntArray faceConnects(nfaces*4);
     for (int face=0, idx=0; face < nfaces; ++face) {
-        IndexArray fverts = refiner.GetFaceVertices(maxlevel, face);
+        IndexArray fverts = refLastLevel.GetFaceVertices(face);
         for (int vert=0; vert < fverts.size(); ++vert) {
             faceConnects[idx++] = fverts[vert];
         }
     }
 
     // -- Points
-    MFloatPointArray points(refiner.GetNumVertices(maxlevel));
+    MFloatPointArray points(refLastLevel.GetNumVertices());
     Vertex const * v = &vertexBuffer.at(0);
 
     for (int level=1; level<=maxlevel; ++level) {
-        int nverts = refiner.GetNumVertices(level);
+        int nverts = refiner.GetLevel(level).GetNumVertices();
         if (level==maxlevel) {
             for (int vert=0; vert < nverts; ++vert, ++v) {
                 points.set(vert, v->position[0], v->position[1], v->position[2]);
@@ -654,9 +657,15 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
                 reinterpret_cast<Vertex const *>(inMeshFn.getRawPoints(&status));
 
             std::vector<Vertex> refinedVerts(
-                refiner->GetNumVerticesTotal() - refiner->GetNumVertices(0));
+                refiner->GetNumVerticesTotal() - refiner->GetLevel(0).GetNumVertices());
             
-            refiner->Interpolate(controlVerts, &refinedVerts.at(0));
+            Vertex const * srcVerts = controlVerts;
+            Vertex * dstVerts = &refinedVerts[0];
+            for (int level = 1; level <= subdivisionLevel; ++level) {
+                OpenSubdiv::Far::PrimvarRefiner(*refiner).Interpolate(level, srcVerts, dstVerts);
+                srcVerts = dstVerts;
+                dstVerts += refiner->GetLevel(level).GetNumVertices();
+            }
 
             // == Convert subdivided OpenSubdiv mesh to MFnMesh Data outputMesh =============
 
@@ -671,7 +680,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
 
             // Propagate objectGroups from inMesh to outMesh (for per-facet shading, etc)
             status = createSmoothMesh_objectGroups(inMeshFn, inMeshDat,
-                newMeshData, subdivisionLevel, refiner->GetNumFaces(subdivisionLevel));
+                newMeshData, subdivisionLevel, refiner->GetLevel(subdivisionLevel).GetNumFaces());
 
             // Write to output plug
             MDataHandle outMeshH = data.outputValue(a_output, &status);

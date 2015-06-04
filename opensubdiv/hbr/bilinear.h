@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRBILINEAR_H
-#define HBRBILINEAR_H
+#ifndef OPENSUBDIV3_HBRBILINEAR_H
+#define OPENSUBDIV3_HBRBILINEAR_H
 
 /*#define HBR_DEBUG */
 #include "../hbr/subdivision.h"
@@ -906,4 +906,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRBILINEAR_H */
+#endif /* OPENSUBDIV3_HBRBILINEAR_H */

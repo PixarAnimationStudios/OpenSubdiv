@@ -30,8 +30,6 @@ Roadmap
 
 ----
 
-.. include:: under_development.rst
-
 3.x Release Cycle
 =================
 
@@ -120,7 +118,7 @@ A means to control edge curvature
 ++++++++++++++++++++
 
   Implement Osd::Draw Context & Controllers for next-gen GPU APIs such as
-  Mantle, Metal, DX12, GL Next.
+  Mantle, Metal, DX12, Vulkan.
 
 Regression testing
 ++++++++++++++++++

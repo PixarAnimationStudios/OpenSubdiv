@@ -86,10 +86,7 @@ CLVertexBuffer::allocate(cl_context clContext) {
     int size = _numVertices * _numElements * sizeof(float);
     cl_int err;
 
-    // XXX: do we really need a dummy buffer?
-    float *ptr = new float[_numVertices * _numElements];
-    _clMemory = clCreateBuffer(clContext, CL_MEM_READ_WRITE, size, ptr, &err);
-    delete[] ptr;
+    _clMemory = clCreateBuffer(clContext, CL_MEM_READ_WRITE, size, NULL, &err);
 
     if (err != CL_SUCCESS) return false;
     return true;

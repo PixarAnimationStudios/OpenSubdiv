@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_OPENCL_H
-#define OSD_OPENCL_H
+#ifndef OPENSUBDIV3_OSD_OPENCL_H
+#define OPENSUBDIV3_OSD_OPENCL_H
 
 #if defined(OPENSUBDIV_HAS_CLEW)
 #  include <clew.h>
@@ -35,4 +35,4 @@
 #  endif
 #endif
 
-#endif  // OSD_CL_UTIL_H
+#endif  // OPENSUBDIV3_OSD_CL_UTIL_H

@@ -22,14 +22,6 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-# optional dependency - enables screenshots in some examples
-find_package(PNG)
-if (PNG_FOUND)
-    include_directories("${PNG_INCLUDE_DIRS}")
-    list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
-    add_definitions(-DOPENSUBDIV_HAS_PNG)
-endif()
-
 add_subdirectory(common)
 
 if (NOT NO_OPENGL)
@@ -40,12 +32,8 @@ if (NOT NO_OPENGL)
         add_subdirectory(glShareTopology)
         add_subdirectory(glFVarViewer)
         add_subdirectory(glStencilViewer)
-
-        if (CMAKE_COMPILER_IS_CLANGCC)
-            # This code is intended for debugging only
-            # and currently only compiles with Clang.
-            add_subdirectory(vtrViewer)
-        endif()
+        add_subdirectory(glImaging)
+        add_subdirectory(farViewer)
 
         if (OPENGL_4_3_FOUND AND (NOT APPLE))
             add_subdirectory(glPaintTest)
@@ -81,7 +69,7 @@ if (NOT NO_OPENGL)
     endif()
 endif()
 
-if (DXSDK_FOUND)
+if (DXSDK_FOUND AND NOT NO_DX)
 
    add_subdirectory(dxViewer)
 

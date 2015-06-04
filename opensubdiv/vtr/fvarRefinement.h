@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_FVAR_REFINEMENT_H
-#define VTR_FVAR_REFINEMENT_H
+#ifndef OPENSUBDIV3_VTR_FVAR_REFINEMENT_H
+#define OPENSUBDIV3_VTR_FVAR_REFINEMENT_H
 
 #include "../version.h"
 
@@ -40,12 +40,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//
-//  Forward declaration of friend classes:
-//
-namespace Far {
-    class TopologyRefiner;
-}
+namespace Vtr {
+namespace internal {
 
 //
 //  FVarRefinement:
@@ -60,14 +56,8 @@ namespace Far {
 //  the refinement between Levels serves most purposes and all that is required
 //  in addition is a mapping from values in the child FVarLevel to the parent.
 //
-namespace Vtr {
-
 class FVarRefinement {
-protected:
-    friend class Refinement;
-    friend class Far::TopologyRefiner;
-
-protected:
+public:
     FVarRefinement(Refinement const& refinement, FVarLevel& parent, FVarLevel& child);
     ~FVarRefinement();
 
@@ -96,7 +86,7 @@ protected:
     void propagateValueCreases();
     void reclassifySemisharpValues();
 
-protected:
+private:
     //
     //  Identify the Refinement, its Levels and assigned FVarLevels for more
     //  immediate access -- child FVarLevel is non-const as it is to be assigned:
@@ -117,10 +107,11 @@ protected:
     std::vector<LocalIndex> _childValueParentSource;
 };
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_FVAR_REFINEMENT_H */
+#endif /* OPENSUBDIV3_VTR_FVAR_REFINEMENT_H */

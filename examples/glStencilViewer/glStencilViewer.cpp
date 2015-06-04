@@ -22,39 +22,63 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_common.h"
-#include "../common/gl_hud.h"
+#include "../common/glHud.h"
+#include "../common/glControlMeshDisplay.h"
 
-#include <far/patchTablesFactory.h>
-#include <far/stencilTablesFactory.h>
+#include <far/patchTableFactory.h>
+#include <far/ptexIndices.h>
+#include <far/stencilTableFactory.h>
 
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/cpuVertexBuffer.h>
-#include <osd/cpuEvalStencilsContext.h>
-#include <osd/cpuEvalStencilsController.h>
+#include <osd/cpuEvaluator.h>
+
+#if defined(OPENSUBDIV_HAS_OPENMP)
+    #include <osd/ompEvaluator.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_TBB
+    #include <osd/tbbEvaluator.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+    #include <osd/cudaVertexBuffer.h>
+    #include <osd/cudaGLVertexBuffer.h>
+    #include <osd/cudaEvaluator.h>
+    #include "../common/cudaDeviceContext.h"
+
+    CudaDeviceContext g_cudaDeviceContext;
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    #include <osd/clVertexBuffer.h>
+    #include <osd/clGLVertexBuffer.h>
+    #include <osd/clEvaluator.h>
+    #include "../common/clDeviceContext.h"
+
+    CLDeviceContext g_clDeviceContext;
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    #include <osd/glXFBEvaluator.h>
+    #include <osd/glVertexBuffer.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    #include <osd/glComputeEvaluator.h>
+    #include <osd/glVertexBuffer.h>
+#endif
+
+#include <osd/mesh.h>
 
 #include <cfloat>
 #include <list>
@@ -64,16 +88,21 @@ GLFWmonitor* g_primary=0;
 #include <sstream>
 #include <stdlib.h>
 
-#ifdef OPENSUBDIV_HAS_OPENMP
-    #include <omp.h>
-#endif
-
 using namespace OpenSubdiv;
 
-enum KernelType { kCPU    = 0,
-                  kOPENMP = 1,
-                  kTBB    = 2 };
+enum KernelType { kCPU = 0,
+                  kOPENMP,
+                  kTBB,
+                  kCUDA,
+                  kCL,
+                  kGLXFB,
+                  kGLCompute };
 
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
+                   kHUD_CB_ANIMATE_VERTICES,
+                   kHUD_CB_FREEZE,
+                   kHUD_CB_BILINEAR };
 
 int g_kernel = kCPU,
     g_isolationLevel = 5; // max level of extraordinary feature isolation
@@ -82,8 +111,6 @@ int   g_running = 1,
       g_width = 1024,
       g_height = 1024,
       g_fullscreen = 0,
-      g_drawCageEdges = 1,
-      g_drawCageVertices = 1,
       g_prev_x = 0,
       g_prev_y = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -112,22 +139,15 @@ float g_evalTime = 0;
 Stopwatch g_fpsTimer;
 
 std::vector<float> g_orgPositions;
-
-std::vector<int>   g_coarseEdges;
-std::vector<float> g_coarseEdgeSharpness;
-std::vector<float> g_coarseVertexSharpness;
+std::vector<float> g_positions;
 
 int g_nsamples=2000,
     g_nsamplesDrawn=0;
 
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0,
-       g_stencilsVAO = 0;
+GLuint g_stencilsVAO = 0;
 
 GLhud g_hud;
-
+GLControlMeshDisplay g_controlMeshDisplay;
 
 //------------------------------------------------------------------------------
 
@@ -136,37 +156,94 @@ GLhud g_hud;
 int g_currentShape = 0;
 
 //------------------------------------------------------------------------------
-Far::LimitStencilTables const * g_controlStencils;
+Far::LimitStencilTable const * g_controlStencils;
 
-// Control vertex positions (P(xyz))
-Osd::CpuVertexBuffer * g_controlValues=0;
+class StencilOutputBase {
+public:
+    virtual ~StencilOutputBase() {}
+    virtual void UpdateData(const float *src, int startVertex, int numVertices) = 0;
+    virtual void EvalStencils() = 0;
+    virtual GLuint BindSrcBuffer() = 0;
+    virtual GLuint BindDstBuffer() = 0;
+    virtual int GetNumStencils() const = 0;
+};
 
-// Display VBO (collects outputs of updated stencils)
-Osd::CpuGLVertexBuffer * g_stencilValues=0;
+template<typename SRC_BUFFER, typename DST_BUFFER,
+         typename STENCIL_TABLE, typename EVALUATOR,
+         typename DEVICE_CONTEXT=void>
+class StencilOutput : public StencilOutputBase {
+public:
+    typedef OpenSubdiv::Osd::EvaluatorCacheT<EVALUATOR> EvaluatorCache;
 
-// Display 3 lines for each stencil sample (utan, vtan, normal)
-// 18 elements : [ P (xyz), P+dPdu (xyz),
-//                 P (xyz), P+dPdv (xyz),
-//                 P (xyz), P+N (xyz)    ]
-Osd::VertexBufferDescriptor g_controlDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 3 ),
-                            g_outputDataDesc( /*offset*/ 0, /*legnth*/ 3, /*stride*/ 18 ),
-                            g_outputDuDesc( /*offset*/ 3, /*legnth*/ 3, /*stride*/ 18 ),
-                            g_outputDvDesc( /*offset*/ 9, /*legnth*/ 3, /*stride*/ 18 );
+    StencilOutput(Far::LimitStencilTable const *limitStencils,
+                  int numSrcVerts,
+                  EvaluatorCache *evaluatorCache = NULL,
+                  DEVICE_CONTEXT *deviceContext = NULL)
+        : _srcDesc(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
+          _dstDesc(/*offset*/ 0, /*length*/ 3, /*stride*/ 9),
+          _duDesc( /*offset*/ 3, /*length*/ 3, /*stride*/ 9),
+          _dvDesc( /*offset*/ 6, /*length*/ 3, /*stride*/ 9),
+          _deviceContext(deviceContext) {
 
-Osd::CpuEvalStencilsContext * g_evalCtx=0;
+        // src buffer  [ P(xyz) ]
+        // dst buffer  [ P(xyz), du(xyz), dv(xyz) ]
 
-Osd::CpuEvalStencilsController g_evalCpuCtrl;
+        _numStencils = limitStencils->GetNumStencils();
 
-#if defined(OPENSUBDIV_HAS_OPENMP)
-    #include <osd/ompEvalStencilsController.h>
-    Osd::OmpEvalStencilsController g_evalOmpCtrl;
-#endif
+        _srcData = SRC_BUFFER::Create(3, numSrcVerts, _deviceContext);
+        _dstData = DST_BUFFER::Create(9, _numStencils, _deviceContext);
 
-#ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbEvalStencilsController.h>
-    Osd::TbbEvalStencilsController g_evalTbbCtrl;
-#endif
+        _stencils =
+            Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(
+                limitStencils, _deviceContext);
+        _evaluatorCache = evaluatorCache;
+    }
+    ~StencilOutput() {
+        delete _srcData;
+        delete _dstData;
+        delete _stencils;
+    }
+    virtual int GetNumStencils() const {
+        return _numStencils;
+    }
+    virtual void UpdateData(const float *src, int startVertex, int numVertices) {
+        _srcData->UpdateData(src, startVertex, numVertices, _deviceContext);
+    };
+    virtual void EvalStencils() {
+        EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcDesc, _dstDesc, _duDesc, _dvDesc, _deviceContext);
 
+        EVALUATOR::EvalStencils(_srcData, _srcDesc,
+                                _dstData, _dstDesc,
+                                _dstData, _duDesc,
+                                _dstData, _dvDesc,
+                                _stencils,
+                                evalInstance,
+                                _deviceContext);
+    }
+    virtual GLuint BindSrcBuffer() {
+        return _srcData->BindVBO();
+    }
+    virtual GLuint BindDstBuffer() {
+        return _dstData->BindVBO();
+    }
+
+private:
+    SRC_BUFFER *_srcData;
+    DST_BUFFER *_dstData;
+    Osd::BufferDescriptor _srcDesc;
+    Osd::BufferDescriptor _dstDesc;
+    Osd::BufferDescriptor _duDesc;
+    Osd::BufferDescriptor _dvDesc;
+
+    STENCIL_TABLE const *_stencils;
+    int _numStencils;
+
+    EvaluatorCache *_evaluatorCache;
+    DEVICE_CONTEXT *_deviceContext;
+};
+
+StencilOutputBase *g_stencilOutput = NULL;
 
 //------------------------------------------------------------------------------
 #define SCALE_TAN 0.02f
@@ -181,101 +258,30 @@ updateGeom() {
 
     float r = sin(g_frame*0.001f) * g_moveScale;
 
-    float * positions = g_controlValues->BindCpuBuffer();
+    g_positions.resize(nverts*3);
 
     for (int i = 0; i < nverts; ++i) {
         //float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
         float ct = cos(p[2] * r);
         float st = sin(p[2] * r);
-        positions[i*3+0] = p[0]*ct + p[1]*st;
-        positions[i*3+1] = -p[0]*st + p[1]*ct;
-        positions[i*3+2] = p[2];
+        g_positions[i*3+0] = p[0]*ct + p[1]*st;
+        g_positions[i*3+1] = -p[0]*st + p[1]*ct;
+        g_positions[i*3+2] = p[2];
         p+=3;
     }
 
     Stopwatch s;
     s.Start();
 
-    float * ptr = g_stencilValues->BindCpuBuffer();
-    memset(ptr, 0, g_controlStencils->GetNumStencils() * 18 * sizeof(float));
+    // update control points
+    g_stencilOutput->UpdateData(&g_positions[0], 0, nverts);
 
-    // Uppdate random points by applying point & tangent stencils
-    switch (g_kernel) {
-        case kCPU: {
-            g_evalCpuCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDataDesc, g_stencilValues );
+    // Update random points by applying point & tangent stencils
+    g_stencilOutput->EvalStencils();
 
-            g_evalCpuCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDuDesc, g_stencilValues,
-                g_outputDvDesc, g_stencilValues );
-        } break;
-
-#if defined(OPENSUBDIV_HAS_OPENMP)
-        case kOPENMP: {
-            g_evalOmpCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDataDesc, g_stencilValues );
-
-            g_evalOmpCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDuDesc, g_stencilValues,
-                g_outputDvDesc, g_stencilValues );
-        } break;
-#endif
-
-#if defined(OPENSUBDIV_HAS_TBB)
-        case kTBB: {
-            g_evalTbbCtrl.UpdateValues<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDataDesc, g_stencilValues );
-
-            g_evalTbbCtrl.UpdateDerivs<Osd::CpuVertexBuffer,Osd::CpuGLVertexBuffer>(
-                g_evalCtx,
-                g_controlDesc, g_controlValues,
-                g_outputDuDesc, g_stencilValues,
-                g_outputDvDesc, g_stencilValues );
-        } break;
-#endif
-        default:
-            return;
-     }
 
     s.Stop();
     g_evalTime = float(s.GetElapsed() * 1000.0f);
-
-    assert(g_controlStencils);
-
-    for (int i=0; i < g_controlStencils->GetNumStencils(); ++i, ptr+=18) {
-
-        float * p      = ptr,
-              * utan   = ptr + 3,
-              * vtan   = ptr + 9,
-              * normal = ptr + 15;
-
-        // copy P as starting point for each line
-        memcpy( ptr +  6, p, 3*sizeof(float) );
-        memcpy( ptr + 12, p, 3*sizeof(float) );
-
-        normalize( utan );
-        normalize( vtan );
-        cross( normal, utan, vtan );
-
-        normalize(normal);
-
-        // compute end point for each line (P + vec * scale)
-        for (int j=0; j<3; ++j) {
-            utan[j]= p[j] + utan[j]*SCALE_TAN;
-            vtan[j]= p[j] + vtan[j]*SCALE_TAN;
-            normal[j]= p[j] + normal[j]*SCALE_NORM;
-        }
-    }
 }
 
 //------------------------------------------------------------------------------
@@ -283,12 +289,11 @@ updateGeom() {
 static void
 createMesh(ShapeDesc const & shapeDesc, int level) {
 
-    typedef Far::ConstIndexArray IndexArray;
-    typedef Far::LimitStencilTablesFactory::LocationArray LocationArray;
+    typedef Far::LimitStencilTableFactory::LocationArray LocationArray;
 
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -297,25 +302,13 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    int nedges = refiner->GetNumEdges(0),
-        nverts = refiner->GetNumVertices(0);
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
 
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
+    g_controlMeshDisplay.SetTopology(refBaseLevel);
+    int nverts = refBaseLevel.GetNumVertices();
 
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refiner->GetEdgeSharpness(0, i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refiner->GetVertexSharpness(0, i);
-    }
-
-    g_orgPositions=shape->verts;
+    // save rest pose
+    g_orgPositions = shape->verts;
 
     if (g_bilinear) {
         Far::TopologyRefiner::UniformOptions options(level);
@@ -323,12 +316,12 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
         refiner->RefineUniform(options);
     } else {
         Far::TopologyRefiner::AdaptiveOptions options(level);
-        options.fullTopologyInLastLevel = false;
         options.useSingleCreasePatch = false;
         refiner->RefineAdaptive(options);
     }
 
-    int nfaces = refiner->GetNumPtexFaces();
+    Far::PtexIndices ptexIndices(*refiner);
+    int nfaces = ptexIndices.GetNumFaces();
 
     float * u = new float[g_nsamples*nfaces], * uPtr = u,
           * v = new float[g_nsamples*nfaces], * vPtr = v;
@@ -351,36 +344,82 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     }
 
     delete g_controlStencils;
-    g_controlStencils = Far::LimitStencilTablesFactory::Create(*refiner, locs);
+    g_controlStencils = Far::LimitStencilTableFactory::Create(*refiner, locs);
 
     delete [] u;
     delete [] v;
 
     g_nsamplesDrawn = g_controlStencils->GetNumStencils();
 
-    // Create control vertex buffer (layout: [ P(xyz) ] )
-    delete g_controlValues;
-    g_controlValues = Osd::CpuVertexBuffer::Create(3, nverts);
-
-    // Create eval context & data buffers
-    delete g_evalCtx;
-    g_evalCtx = Osd::CpuEvalStencilsContext::Create(g_controlStencils);
-
-    delete g_stencilValues;
-    g_stencilValues = Osd::CpuGLVertexBuffer::Create(3, g_controlStencils->GetNumStencils() * 6 );
-
     delete shape;
     delete refiner;
 
+    delete g_stencilOutput;
+    if (g_kernel == kCPU) {
+        g_stencilOutput = new StencilOutput<Osd::CpuGLVertexBuffer,
+                                            Osd::CpuGLVertexBuffer,
+                                            Far::LimitStencilTable,
+                                            Osd::CpuEvaluator>(
+                                                g_controlStencils, nverts);
+#ifdef OPENSUBDIV_HAS_OPENMP
+    } else if (g_kernel == kOPENMP) {
+        g_stencilOutput = new StencilOutput<Osd::CpuGLVertexBuffer,
+                                            Osd::CpuGLVertexBuffer,
+                                            Far::LimitStencilTable,
+                                            Osd::OmpEvaluator>(
+                                                g_controlStencils, nverts);
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+    } else if (g_kernel == kTBB) {
+        g_stencilOutput = new StencilOutput<Osd::CpuGLVertexBuffer,
+                                            Osd::CpuGLVertexBuffer,
+                                            Far::LimitStencilTable,
+                                            Osd::TbbEvaluator>(
+                                                g_controlStencils, nverts);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    } else if (g_kernel == kCUDA) {
+        g_stencilOutput = new StencilOutput<Osd::CudaGLVertexBuffer,
+                                            Osd::CudaGLVertexBuffer,
+                                            Osd::CudaStencilTable,
+                                            Osd::CudaEvaluator>(
+                                                g_controlStencils, nverts);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    } else if (g_kernel == kCL) {
+        static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
+        g_stencilOutput = new StencilOutput<Osd::CLGLVertexBuffer,
+                                            Osd::CLGLVertexBuffer,
+                                            Osd::CLStencilTable,
+                                            Osd::CLEvaluator,
+                                            CLDeviceContext>(
+                                                g_controlStencils, nverts,
+                                                &clEvaluatorCache,
+                                                &g_clDeviceContext);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    } else if (g_kernel == kGLXFB) {
+        static Osd::EvaluatorCacheT<Osd::GLXFBEvaluator> glXFBEvaluatorCache;
+        g_stencilOutput = new StencilOutput<Osd::GLVertexBuffer,
+                                            Osd::GLVertexBuffer,
+                                            Osd::GLStencilTableTBO,
+                                            Osd::GLXFBEvaluator>(
+                                                g_controlStencils, nverts,
+                                                 &glXFBEvaluatorCache);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    } else if (g_kernel == kGLCompute) {
+        static Osd::EvaluatorCacheT<Osd::GLComputeEvaluator> glComptueEvaluatorCache;
+        g_stencilOutput = new StencilOutput<Osd::GLVertexBuffer,
+                                            Osd::GLVertexBuffer,
+                                            Osd::GLStencilTableSSBO,
+                                            Osd::GLComputeEvaluator>(
+                                                g_controlStencils, nverts,
+                                                    &glComptueEvaluatorCache);
+#endif
+    }
+
     updateGeom();
-
-    // Bind g_stencilValues as GL_LINES VAO
-    glBindVertexArray(g_stencilsVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_stencilValues->BindVBO());
-
-    glBindVertexArray(0);
-
 }
 
 //------------------------------------------------------------------------------
@@ -396,6 +435,10 @@ public:
 
     void SetVertexShaderSource( char const * src ) {
         _vtxSrc = src;
+    }
+
+    void SetGeometryShaderSource( char const * src) {
+        _geomSrc = src;
     }
 
     void SetFragShaderSource( char const * src ) {
@@ -422,7 +465,15 @@ public:
             offset += sizeof(GLfloat) * i->size;
         }
     }
-
+    GLuint GetUniformScale() const {
+        return _uniformScale;
+    }
+    GLuint GetUniformProjectionMatrix() const {
+        return _uniformProjectionMatrix;
+    }
+    GLuint GetUniformModelViewMatrix() const {
+        return _uniformModelViewMatrix;
+    }
     GLuint GetUniformModelViewProjectionMatrix() const {
         return _uniformModelViewProjectionMatrix;
     }
@@ -434,11 +485,19 @@ public:
 
             _program = glCreateProgram();
 
-            GLuint vertexShader = compileShader(GL_VERTEX_SHADER, _vtxSrc);
-            GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, _frgSrc);
+            GLuint vertexShader =
+                GLUtils::CompileShader(GL_VERTEX_SHADER, _vtxSrc);
+            GLuint fragmentShader =
+                GLUtils::CompileShader(GL_FRAGMENT_SHADER, _frgSrc);
 
             glAttachShader(_program, vertexShader);
             glAttachShader(_program, fragmentShader);
+
+            GLuint geomShader = 0;
+            if (_geomSrc) {
+                geomShader = GLUtils::CompileShader(GL_GEOMETRY_SHADER, _geomSrc);
+                glAttachShader(_program, geomShader);
+            }
 
             _attrStride=0;
             int count=0;
@@ -463,6 +522,12 @@ public:
                 exit(1);
             }
 
+            _uniformScale =
+                glGetUniformLocation(_program, "scale");
+            _uniformModelViewMatrix =
+                glGetUniformLocation(_program, "ModelViewMatrix");
+            _uniformProjectionMatrix =
+                glGetUniformLocation(_program, "ProjectionMatrix");
             _uniformModelViewProjectionMatrix =
                 glGetUniformLocation(_program, "ModelViewProjectionMatrix");
 
@@ -477,9 +542,13 @@ public:
 private:
 
     GLuint _program;
+    GLuint _uniformScale;
+    GLuint _uniformModelViewMatrix;
+    GLuint _uniformProjectionMatrix;
     GLuint _uniformModelViewProjectionMatrix;
 
     char const * _vtxSrc,
+               * _geomSrc,
                * _frgSrc;
 
     typedef std::list<Attribute> AttrList;
@@ -488,8 +557,7 @@ private:
 
 };
 
-GLSLProgram g_cageProgram,
-            g_samplesProgram;
+GLSLProgram g_samplesProgram;
 
 
 //------------------------------------------------------------------------------
@@ -501,157 +569,85 @@ linkDefaultPrograms() {
 #else
     #define GLSL_VERSION_DEFINE "#version 150\n"
 #endif
-
-    {   // setup control cage program
-        static const char *vsSrc =
-            GLSL_VERSION_DEFINE
-            "in vec3 position;\n"
-            "in vec3 color;\n"
-            "out vec4 fragColor;\n"
-            "uniform mat4 ModelViewProjectionMatrix;\n"
-            "void main() {\n"
-            "  fragColor = vec4(color, 1);\n"
-            "  gl_Position = ModelViewProjectionMatrix * "
-            "                  vec4(position, 1);\n"
-            "}\n";
-
-        static const char *fsSrc =
-            GLSL_VERSION_DEFINE
-            "in vec4 fragColor;\n"
-            "out vec4 color;\n"
-            "void main() {\n"
-            "  color = fragColor;\n"
-            "}\n";
-
-        g_cageProgram.SetVertexShaderSource(vsSrc);
-        g_cageProgram.SetFragShaderSource(fsSrc);
-
-        g_cageProgram.AddAttribute( "position",3 );
-        g_cageProgram.AddAttribute( "color",3 );
-    }
-
     {   // setup samples program
+        //
+        // this shader takes position, uTangent and vTangent for each point
+        // then generates 3 lines in the geometry shader.
+        //
         static const char *vsSrc =
             GLSL_VERSION_DEFINE
             "in vec3 position;\n"
-            "uniform mat4 ModelViewProjectionMatrix;\n"
+            "in vec3 uTangent;\n"
+            "in vec3 vTangent;\n"
+            "out vec3 p;\n"
+            "out vec3 ut;\n"
+            "out vec3 vt;\n"
+            "uniform mat4 ModelViewMatrix;\n"
             "void main() {\n"
-            "  gl_Position = ModelViewProjectionMatrix * "
-            "                  vec4(position, 1);\n"
+            "  p =  (ModelViewMatrix * vec4(position, 1)).xyz;\n"
+            "  ut = (ModelViewMatrix * vec4(uTangent, 0)).xyz;\n"
+            "  vt = (ModelViewMatrix * vec4(vTangent, 0)).xyz;\n"
+            "}\n";
+
+        static const char *gsSrc =
+            GLSL_VERSION_DEFINE
+            "layout(points) in;\n"
+            "layout(line_strip, max_vertices = 6) out;\n"
+            "in vec3 p[];\n"
+            "in vec3 ut[];\n"
+            "in vec3 vt[];\n"
+            "out vec4 c;\n"
+            "uniform mat4 ProjectionMatrix;\n"
+            "uniform float scale;\n"
+            "void main() {\n"
+            "  vec3 pos = p[0]; \n"
+            "  c = vec4(1, 0, 0, 1);\n"
+            "  gl_Position = ProjectionMatrix * vec4(pos, 1);\n"
+            "  EmitVertex();\n"
+            "  \n"
+            "  pos = p[0] + ut[0] * scale; \n"
+            "  gl_Position = ProjectionMatrix * vec4(pos, 1);\n"
+            "  EmitVertex();\n"
+            "  EndPrimitive();\n"
+            "  \n"
+            "   pos = p[0]; \n"
+            "  c = vec4(0, 1, 0, 1);\n"
+            "  gl_Position = ProjectionMatrix * vec4(pos, 1);\n"
+            "  EmitVertex();\n"
+            "  \n"
+            "  pos = p[0] + vt[0] * scale; \n"
+            "  gl_Position = ProjectionMatrix * vec4(pos, 1);\n"
+            "  EmitVertex();\n"
+            "  EndPrimitive();\n"
+            "  \n"
+            "  pos = p[0]; \n"
+            "  c = vec4(0, 0, 1, 1);\n"
+            "  gl_Position = ProjectionMatrix * vec4(pos, 1);\n"
+            "  EmitVertex();\n"
+            "  \n"
+            "  pos = p[0] + cross(ut[0], vt[0]) * scale; \n"
+            "  gl_Position = ProjectionMatrix * vec4(pos, 1);\n"
+            "  EmitVertex();\n"
+            "  EndPrimitive();\n"
+            "  \n"
             "}\n";
 
         static const char *fsSrc =
             GLSL_VERSION_DEFINE
+            "in vec4 c;\n"
             "out vec4 color;\n"
-            "const vec4 colors[3] = vec4[3]( vec4(1.0,0.0,0.0,1.0),    \n"
-            "                                vec4(0.0,1.0,0.0,1.0),    \n"
-            "                                vec4(0.0,0.0,1.0,1.0)  ); \n"
             "void main() {\n"
-            "   color = colors[gl_PrimitiveID % 3];\n"
+            "   color = c;\n"
             "}\n";
 
         g_samplesProgram.SetVertexShaderSource(vsSrc);
+        g_samplesProgram.SetGeometryShaderSource(gsSrc);
         g_samplesProgram.SetFragShaderSource(fsSrc);
 
         g_samplesProgram.AddAttribute( "position",3 );
     }
 
     return true;
-}
-//------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-//------------------------------------------------------------------------------
-static void
-drawCageEdges() {
-
-    g_cageProgram.Use( );
-
-    glUniformMatrix4fv(g_cageProgram.GetUniformModelViewProjectionMatrix(),
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-
-    float * positions = g_controlValues->BindCpuBuffer();
-
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    g_cageProgram.EnableVertexAttributes();
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-//------------------------------------------------------------------------------
-static void
-drawCageVertices() {
-
-    g_cageProgram.Use( );
-
-    glUniformMatrix4fv(g_cageProgram.GetUniformModelViewProjectionMatrix(),
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = g_controlValues->GetNumVertices();
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-
-    float * positions = g_controlValues->BindCpuBuffer();
-
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-
-        vbo.push_back(positions[i*3+0]);
-        vbo.push_back(positions[i*3+1]);
-        vbo.push_back(positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    g_cageProgram.EnableVertexAttributes();
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
 }
 
 //------------------------------------------------------------------------------
@@ -660,20 +656,30 @@ drawStencils() {
 
     g_samplesProgram.Use( );
 
-    glUniformMatrix4fv(g_cageProgram.GetUniformModelViewProjectionMatrix(),
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
+    const float scale = 0.02f;
+
+    glUniform1f(g_samplesProgram.GetUniformScale(), scale);
+    glUniformMatrix4fv(g_samplesProgram.GetUniformModelViewMatrix(),
+                       1, GL_FALSE, g_transformData.ModelViewMatrix);
+    glUniformMatrix4fv(g_samplesProgram.GetUniformProjectionMatrix(),
+                       1, GL_FALSE, g_transformData.ProjectionMatrix);
 
     glBindVertexArray(g_stencilsVAO);
 
-    int numEdges = g_controlStencils->GetNumStencils() * 3;
+    glBindBuffer(GL_ARRAY_BUFFER, g_stencilOutput->BindDstBuffer());
 
-    g_samplesProgram.EnableVertexAttributes();
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*9, 0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*9, (void*)(sizeof(GLfloat)*3));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(GLfloat)*9, (void*)(sizeof(GLfloat)*6));
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_stencilValues->BindVBO());
+    glDrawArrays(GL_POINTS, 0, g_stencilOutput->GetNumStencils());
 
-    g_samplesProgram.EnableVertexAttributes();
-
-    glDrawArrays(GL_LINES, 0, numEdges*2);
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+    glDisableVertexAttribArray(2);
 
     glBindVertexArray(0);
     glUseProgram(0);
@@ -683,14 +689,12 @@ drawStencils() {
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     double aspect = g_width/(double)g_height;
     identity(g_transformData.ModelViewMatrix);
@@ -708,21 +712,18 @@ display() {
 
     glEnable(GL_DEPTH_TEST);
 
-    if (g_drawCageEdges)
-        drawCageEdges();
-
-    if (g_drawCageVertices)
-        drawCageVertices();
-
     drawStencils();
+
+    // draw the control mesh
+    g_controlMeshDisplay.Draw(g_stencilOutput->BindSrcBuffer(), 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
+
     s.Stop();
     float drawCpuTime = float(s.GetElapsed() * 1000.0f);
     s.Start();
     glFinish();
     s.Stop();
     float drawGpuTime = float(s.GetElapsed() * 1000.0f);
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
 
     if (g_hud.IsVisible()) {
         g_fpsTimer.Stop();
@@ -853,6 +854,25 @@ static void
 callbackKernel(int k) {
 
     g_kernel = k;
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+        if (g_clDeviceContext.Initialize() == false) {
+            printf("Error in initializing OpenCL\n");
+            exit(1);
+        }
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+        if (g_cudaDeviceContext.Initialize() == false) {
+            printf("Error in initializing Cuda\n");
+            exit(1);
+        }
+    }
+#endif
+
+    rebuildMesh();
 }
 
 static void
@@ -862,41 +882,6 @@ callbackLevel(int l) {
 
     rebuildMesh();
 }
-
-
-//------------------------------------------------------------------------------
-static void
-callbackAnimate(bool checked, int /* m */) {
-
-    g_moveScale = checked;
-}
-
-//------------------------------------------------------------------------------
-static void
-callbackFreeze(bool checked, int /* f */) {
-
-    g_freeze = checked;
-}
-
-//------------------------------------------------------------------------------
-static void
-callbackDisplayCageVertices(bool checked, int /* d */) {
-
-    g_drawCageVertices = checked;
-}
-
-//------------------------------------------------------------------------------
-static void
-callbackDisplayCageEdges(bool checked, int /* d */) {
-    g_drawCageEdges = checked;
-}
-
-static void
-callbackBilinear(bool checked, int /* a */) {
-    g_bilinear = checked;
-    rebuildMesh();
-}
-
 
 //------------------------------------------------------------------------------
 static void
@@ -915,6 +900,28 @@ callbackModel(int m) {
 
 //------------------------------------------------------------------------------
 static void
+callbackCheckBox(bool checked, int button) {
+    switch (button) {
+    case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
+        g_controlMeshDisplay.SetEdgesDisplay(checked);
+        break;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS:
+        g_controlMeshDisplay.SetVerticesDisplay(checked);
+        break;
+    case kHUD_CB_ANIMATE_VERTICES:
+        g_moveScale = checked;
+        break;
+    case kHUD_CB_FREEZE:
+        g_freeze = checked;
+        break;
+    case kHUD_CB_BILINEAR:
+        g_bilinear = checked;
+        rebuildMesh();
+    }
+}
+
+//------------------------------------------------------------------------------
+static void
 initHUD() {
 
     int windowWidth = g_width, windowHeight = g_height,
@@ -926,14 +933,20 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
-
-    g_hud.AddCheckBox("Cage Edges (H)", true, 10, 10, callbackDisplayCageEdges, 0, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", true, 10, 30, callbackDisplayCageVertices, 0, 'j');
-    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0, 10, 50, callbackAnimate, 0, 'm');
-    g_hud.AddCheckBox("Freeze (spc)", false, 10, 70, callbackFreeze, 0, ' ');
-
-    g_hud.AddCheckBox("Bilinear Stencils (`)", g_bilinear!=0, 10, 190, callbackBilinear, 0, '`');
+    g_hud.AddCheckBox("Control edges (H)",
+                      g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, 10, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    g_hud.AddCheckBox("Control vertices (J)",
+                      g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, 30, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
+    g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
+                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
+                      10, 70, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    g_hud.AddCheckBox("Bilinear Stencils (`)", g_bilinear != 0,
+                      10, 190, callbackCheckBox, kHUD_CB_BILINEAR, '`');
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 250, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
@@ -942,6 +955,22 @@ initHUD() {
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+    g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
+        g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    g_hud.AddPullDownButton(compute_pulldown, "GL XFB", kGLXFB);
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    if (GLUtils::GL_ARBComputeShaderOrGL_VERSION_4_3()) {
+        g_hud.AddPullDownButton(compute_pulldown, "GL Compute", kGLCompute);
+    }
 #endif
 
     for (int i = 1; i < 11; ++i) {
@@ -966,23 +995,12 @@ initGL() {
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
     glGenVertexArrays(1, &g_stencilsVAO);
-
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
 static void
 uninitGL() {
-
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
-
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
     glDeleteVertexArrays(1, &g_stencilsVAO);
 }
 
@@ -991,25 +1009,6 @@ static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char **argv) {
 
@@ -1043,10 +1042,7 @@ int main(int argc, char **argv) {
 
     static const char windowTitle[] = "OpenSubdiv glStencilViewer " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
 
@@ -1070,12 +1066,13 @@ int main(int argc, char **argv) {
     }
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+                           fullscreen and g_primary ? g_primary : NULL, NULL))) {
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);

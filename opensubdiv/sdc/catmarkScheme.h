@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_CATMARK_SCHEME_H
-#define SDC_CATMARK_SCHEME_H
+#ifndef OPENSUBDIV3_SDC_CATMARK_SCHEME_H
+#define OPENSUBDIV3_SDC_CATMARK_SCHEME_H
 
 #include "../version.h"
 
@@ -145,8 +145,8 @@ Scheme<SCHEME_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) co
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const {
-
+Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask,
+                                                  int const creaseEnds[2]) const {
     typedef typename MASK::Weight Weight;
 
     int valence = vertex.GetNumEdges();
@@ -160,25 +160,11 @@ Scheme<SCHEME_CATMARK>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& ma
     Weight eWeight = 0.125f;
 
     mask.VertexWeight(0) = vWeight;
-
-    //
-    //  NOTE -- at some point the sharpness vector was optional, and topology would be used
-    //  to identify a boundary crease.  We are currently no longer passing a null sharpness
-    //  vector and may not support it in future, in which case this test can be removed:
-    //
-    if (edgeSharpness != 0) {
-        //  Use the sharpness values to identify the crease edges:
-        for (int i = 0; i < valence; ++i) {
-            mask.EdgeWeight(i) = (edgeSharpness[i] > 0.0f) ? eWeight : 0.0f;
-        }
-    } else {
-        //  Use the boundary edges (first and last) as the crease edges:
-        mask.EdgeWeight(0) = eWeight;
-        for (int i = 1; i < (valence - 1); ++i) {
-            mask.EdgeWeight(i) = 0.0f;
-        }
-        mask.EdgeWeight(valence-1) = eWeight;
+    for (int i = 0; i < valence; ++i) {
+        mask.EdgeWeight(i) = 0.0f;
     }
+    mask.EdgeWeight(creaseEnds[0]) = eWeight;
+    mask.EdgeWeight(creaseEnds[1]) = eWeight;
 }
 
 template <>
@@ -189,18 +175,12 @@ Scheme<SCHEME_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& ma
     typedef typename MASK::Weight Weight;
 
     //
-    //  Remember that when the edge- and face-counts differ, we need to adjust this...
+    //  A Smooth vertex must be manifold and interior -- manifold boundary vertices will be
+    //  Creases and non-manifold vertices of any kind will be Corners or Creases.  If smooth
+    //  rules for non-manifold vertices are ever defined, this will need adjusting:
     //
-    //  Keep what's below for eCount == fCount and for the other cases -- which should
-    //  only occur for non-manifold vertices -- use the following formula that we've
-    //  adapted in MM:
-    //
-    //      v' = (F + 2*E + (n-3)*v) / n
-    //
-    //  where F is the average of the face points (fi) and E is the average of the edge
-    //  midpoints (ei).  The F term gives is the 1/(n*n) of below and we just need to
-    //  factor the E and v terms to account for the edge endpoints rather than midpoints.
-    //
+    assert(vertex.GetNumFaces() == vertex.GetNumEdges());
+
     int valence = vertex.GetNumFaces();
 
     mask.SetNumVertexWeights(1);
@@ -225,7 +205,21 @@ Scheme<SCHEME_CATMARK>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& ma
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignCornerLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
+
+    posMask.SetNumVertexWeights(1);
+    posMask.SetNumEdgeWeights(0);
+    posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
+
+    posMask.VertexWeight(0) = 1.0f;
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_CATMARK>::assignCreaseLimitMask(VERTEX const& vertex, MASK& posMask,
+                                              int const creaseEnds[2]) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -240,38 +234,58 @@ Scheme<SCHEME_CATMARK>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posM
     Weight eWeight = 1.0f / 6.0f;
 
     posMask.VertexWeight(0) = vWeight;
-    posMask.EdgeWeight(0) = eWeight;
-    for (int i = 1; i < valence - 1; ++i) {
+    for (int i = 0; i < valence; ++i) {
         posMask.EdgeWeight(i) = 0.0f;
     }
-    posMask.EdgeWeight(valence - 1) = eWeight;
+    posMask.EdgeWeight(creaseEnds[0]) = eWeight;
+    posMask.EdgeWeight(creaseEnds[1]) = eWeight;
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_CATMARK>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
     int valence = vertex.GetNumFaces();
-    assert(valence != 2);
+    if (valence == 2) {
+        assignCornerLimitMask(vertex, posMask);
+        return;
+    }
 
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(valence);
     posMask.SetNumFaceWeights(valence);
     posMask.SetFaceWeightsForFaceCenters(false);
 
-    //  Probably a good idea to test for and assign the regular case as a special case:
+    //  Specialize for the regular case:
+    if (valence == 4) {
+        Weight fWeight = 1.0f / 36.0f;
+        Weight eWeight = 1.0f /  9.0f;
+        Weight vWeight = 4.0f /  9.0f;
 
-    Weight fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
-    Weight eWeight = 4.0f * fWeight;
-    Weight vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
+        posMask.VertexWeight(0) = vWeight;
 
-    posMask.VertexWeight(0) = vWeight;
-    for (int i = 0; i < valence; ++i) {
-        posMask.EdgeWeight(i) = eWeight;
-        posMask.FaceWeight(i) = fWeight;
+        posMask.EdgeWeight(0) = eWeight;
+        posMask.EdgeWeight(1) = eWeight;
+        posMask.EdgeWeight(2) = eWeight;
+        posMask.EdgeWeight(3) = eWeight;
+
+        posMask.FaceWeight(0) = fWeight;
+        posMask.FaceWeight(1) = fWeight;
+        posMask.FaceWeight(2) = fWeight;
+        posMask.FaceWeight(3) = fWeight;
+    } else {
+        Weight fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
+        Weight eWeight = 4.0f * fWeight;
+        Weight vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
+
+        posMask.VertexWeight(0) = vWeight;
+        for (int i = 0; i < valence; ++i) {
+            posMask.EdgeWeight(i) = eWeight;
+            posMask.FaceWeight(i) = fWeight;
+        }
     }
 }
 
@@ -282,34 +296,11 @@ Scheme<SCHEME_CATMARK>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posM
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_CATMARK>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
+Scheme<SCHEME_CATMARK>::assignCornerLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
-    tan1Mask.SetNumVertexWeights(1);
-    tan1Mask.SetNumEdgeWeights(0);
-    tan1Mask.SetNumFaceWeights(0);
-    tan1Mask.SetFaceWeightsForFaceCenters(false);
-    tan1Mask.VertexWeight(0) = 0.0f;
+    int valence = vertex.GetNumEdges();
 
-    tan2Mask.SetNumVertexWeights(1);
-    tan2Mask.SetNumEdgeWeights(0);
-    tan2Mask.SetNumFaceWeights(0);
-    tan2Mask.SetFaceWeightsForFaceCenters(false);
-    tan2Mask.VertexWeight(0) = 0.0f;
-}
-
-template <>
-template <typename VERTEX, typename MASK>
-inline void
-Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
-        MASK& tan1Mask, MASK& tan2Mask) const {
-
-    typedef typename MASK::Weight Weight;
-
-    int valence = vertex.GetNumFaces();
-    assert(valence != 2);
-
-    //  Using the Loop tangent masks for now...
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(valence);
     tan1Mask.SetNumFaceWeights(0);
@@ -320,14 +311,217 @@ Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
     tan2Mask.SetNumFaceWeights(0);
     tan2Mask.SetFaceWeightsForFaceCenters(false);
 
-    tan1Mask.VertexWeight(0) = 0.0f;
-    tan2Mask.VertexWeight(0) = 0.0f;
+    //  Should be at least 2 edges -- be sure to clear weights for any more:
+    tan1Mask.VertexWeight(0) = -1.0f;
+    tan1Mask.EdgeWeight(0)   =  1.0f;
+    tan1Mask.EdgeWeight(1)   =  0.0f;
 
-    Weight alpha = (Weight) (2.0f * M_PI / valence);
-    for (int i = 0; i < valence; ++i) {
-        double alphaI = alpha * i;
-        tan1Mask.EdgeWeight(i) = cos(alphaI);
-        tan2Mask.EdgeWeight(i) = sin(alphaI);
+    tan2Mask.VertexWeight(0) = -1.0f;
+    tan2Mask.EdgeWeight(0)   =  0.0f;
+    tan2Mask.EdgeWeight(1)   =  1.0f;
+
+    for (int i = 2; i < valence; ++i) {
+        tan1Mask.EdgeWeight(i) = 0.0f;
+        tan2Mask.EdgeWeight(i) = 0.0f;
+    }
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_CATMARK>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
+        MASK& tan1Mask, MASK& tan2Mask, int const creaseEnds[2]) const {
+
+    typedef typename MASK::Weight Weight;
+
+    //
+    //  First, the tangent along the crease:
+    //      The first crease edge is considered the "leading" edge of the span
+    //  of surface for which we are evaluating tangents and the second edge the
+    //  "trailing edge".  By convention, the tangent along the crease is oriented
+    //  in the direction of the leading edge.
+    //
+    int numEdges = vertex.GetNumEdges();
+    int numFaces = vertex.GetNumFaces();
+
+    tan1Mask.SetNumVertexWeights(1);
+    tan1Mask.SetNumEdgeWeights(numEdges);
+    tan1Mask.SetNumFaceWeights(numFaces);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
+
+    tan1Mask.VertexWeight(0) = 0.0f;
+    for (int i = 0; i < numEdges; ++i) {
+        tan1Mask.EdgeWeight(i) = 0.0f;
+    }
+    for (int i = 0; i < numFaces; ++i) {
+        tan1Mask.FaceWeight(i) = 0.0f;
+    }
+
+    tan1Mask.EdgeWeight(creaseEnds[0]) =  0.5f;
+    tan1Mask.EdgeWeight(creaseEnds[1]) = -0.5f;
+
+    //
+    //  Second, the tangent across the interior faces:
+    //      Note this is ambigous for an interior vertex.  We currently return
+    //  the tangent for the surface in the counter-clockwise span between the
+    //  leading and trailing edges that form the crease.  Given the expected
+    //  computation of a surface normal as Tan1 X Tan2, this tangent should be
+    //  oriented "inward" from the crease/boundary -- across the surface rather
+    //  than outward and away from it.
+    //
+    tan2Mask.SetNumVertexWeights(1);
+    tan2Mask.SetNumEdgeWeights(numEdges);
+    tan2Mask.SetNumFaceWeights(numFaces);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
+
+    //  Prepend weights of 0 preceding the crease:
+    for (int i = 0; i < creaseEnds[0]; ++i) {
+        tan2Mask.EdgeWeight(i) = 0.0f;
+        tan2Mask.FaceWeight(i) = 0.0f;
+    }
+
+    //  Assign weights to crease edge and interior points:
+    int interiorEdgeCount = creaseEnds[1] - creaseEnds[0] - 1;
+    if (interiorEdgeCount == 1) {
+        //  The regular case -- uniform B-spline cross-tangent:
+
+        tan2Mask.VertexWeight(0) = -4.0f / 6.0f;
+
+        tan2Mask.EdgeWeight(creaseEnds[0])     = -1.0f / 6.0f;
+        tan2Mask.EdgeWeight(creaseEnds[0] + 1) =  4.0f / 6.0f;
+        tan2Mask.EdgeWeight(creaseEnds[1])     = -1.0f / 6.0f;
+
+        tan2Mask.FaceWeight(creaseEnds[0])     = 1.0f / 6.0f;
+        tan2Mask.FaceWeight(creaseEnds[0] + 1) = 1.0f / 6.0f;
+    } else if (interiorEdgeCount > 1) {
+        //  The irregular case -- formulae from Biermann et al:
+
+        double k     = (double) (interiorEdgeCount + 1);
+        double theta = M_PI / k;
+
+        double cosTheta = std::cos(theta);
+        double sinTheta = std::sin(theta);
+
+        //  Loop/Schaefer use a different divisor here (3*k + cos(theta)):
+        double commonDenom = 1.0f / (k * (3.0f + cosTheta));
+        double R = (cosTheta + 1.0f) / sinTheta;
+
+        double vertexWeight = 4.0f * R * (cosTheta - 1.0f);
+        double creaseWeight = -R * (1.0f + 2.0f * cosTheta);
+
+        tan2Mask.VertexWeight(0) = (Weight) (vertexWeight * commonDenom);
+
+        tan2Mask.EdgeWeight(creaseEnds[0]) = (Weight) (creaseWeight * commonDenom);
+        tan2Mask.EdgeWeight(creaseEnds[1]) = (Weight) (creaseWeight * commonDenom);
+
+        tan2Mask.FaceWeight(creaseEnds[0]) = (Weight) (sinTheta * commonDenom);
+
+        double sinThetaI      = 0.0f;
+        double sinThetaIplus1 = sinTheta;
+        for (int i = 1; i < k; ++i) {
+            sinThetaI      = sinThetaIplus1;
+            sinThetaIplus1 = std::sin((i+1)*theta);
+
+            tan2Mask.EdgeWeight(creaseEnds[0] + i) = (Weight) ((4.0f * sinThetaI) * commonDenom);
+            tan2Mask.FaceWeight(creaseEnds[0] + i) = (Weight) ((sinThetaI + sinThetaIplus1) * commonDenom);
+        }
+    } else {
+        //  Special case for a single face -- simple average of boundary edges:
+
+        tan2Mask.VertexWeight(0) = -6.0f;
+
+        tan2Mask.EdgeWeight(creaseEnds[0]) = 3.0f;
+        tan2Mask.EdgeWeight(creaseEnds[1]) = 3.0f;
+
+        tan2Mask.FaceWeight(creaseEnds[0]) = 0.0f;
+    }
+
+    //  Append weights of 0 following the crease:
+    for (int i = creaseEnds[1]; i < numFaces; ++i) {
+        tan2Mask.FaceWeight(i) = 0.0f;
+    }
+    for (int i = creaseEnds[1] + 1; i < numEdges; ++i) {
+        tan2Mask.EdgeWeight(i) = 0.0f;
+    }
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_CATMARK>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
+        MASK& tan1Mask, MASK& tan2Mask) const {
+
+    typedef typename MASK::Weight Weight;
+
+    int valence = vertex.GetNumFaces();
+    if (valence == 2) {
+        assignCornerLimitTangentMasks(vertex, tan1Mask, tan2Mask);
+        return;
+    }
+
+    //  Compute tan1 initially -- tan2 is simply a rotation:
+    tan1Mask.SetNumVertexWeights(1);
+    tan1Mask.SetNumEdgeWeights(valence);
+    tan1Mask.SetNumFaceWeights(valence);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
+
+    tan1Mask.VertexWeight(0) = 0.0f;
+
+    if (valence == 4) {
+        tan1Mask.EdgeWeight(0) =  4.0f;
+        tan1Mask.EdgeWeight(1) =  0.0f;
+        tan1Mask.EdgeWeight(2) = -4.0f;
+        tan1Mask.EdgeWeight(3) =  0.0f;
+
+        tan1Mask.FaceWeight(0) =  1.0f;
+        tan1Mask.FaceWeight(1) = -1.0f;
+        tan1Mask.FaceWeight(2) = -1.0f;
+        tan1Mask.FaceWeight(3) =  1.0f;
+    } else {
+        double theta = 2.0f * M_PI / (double)valence;
+
+        double cosTheta     = std::cos(theta);
+        double cosHalfTheta = std::cos(theta * 0.5f);
+
+        double lambda = (5.0f / 16.0f) + (1.0f / 16.0f) *
+                (cosTheta + cosHalfTheta * std::sqrt(2.0f * (9.0f + cosTheta)));
+
+        double edgeWeightScale = 4.0f;
+        double faceWeightScale = 1.0f / (4.0f * lambda - 1.0f);
+
+        for (int i = 0; i < valence; ++i) {
+            double cosThetaI      = std::cos(  i  * theta);
+            double cosThetaIplus1 = std::cos((i+1)* theta);
+
+            tan1Mask.EdgeWeight(i) = (Weight) (edgeWeightScale * cosThetaI);
+            tan1Mask.FaceWeight(i) = (Weight) (faceWeightScale * (cosThetaI + cosThetaIplus1));
+        }
+    }
+
+    //  Now rotate/copy tan1 weights to tan2:
+    tan2Mask.SetNumVertexWeights(1);
+    tan2Mask.SetNumEdgeWeights(valence);
+    tan2Mask.SetNumFaceWeights(valence);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
+
+    tan2Mask.VertexWeight(0) = 0.0f;
+    if (valence == 4) {
+        tan2Mask.EdgeWeight(0) =  0.0f;
+        tan2Mask.EdgeWeight(1) =  4.0f;
+        tan2Mask.EdgeWeight(2) =  0.0f;
+        tan2Mask.EdgeWeight(3) = -4.0f;
+
+        tan2Mask.FaceWeight(0) =  1.0f;
+        tan2Mask.FaceWeight(1) =  1.0f;
+        tan2Mask.FaceWeight(2) = -1.0f;
+        tan2Mask.FaceWeight(3) = -1.0f;
+    } else {
+        tan2Mask.EdgeWeight(0) = tan1Mask.EdgeWeight(valence-1);
+        tan2Mask.FaceWeight(0) = tan1Mask.FaceWeight(valence-1);
+        for (int i = 1; i < valence; ++i) {
+            tan2Mask.EdgeWeight(i) = tan1Mask.EdgeWeight(i-1);
+            tan2Mask.FaceWeight(i) = tan1Mask.FaceWeight(i-1);
+        }
     }
 }
 
@@ -337,4 +531,4 @@ Scheme<SCHEME_CATMARK>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_CATMARK_SCHEME_H */
+#endif /* OPENSUBDIV3_SDC_CATMARK_SCHEME_H */

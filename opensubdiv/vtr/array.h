@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_ARRAY_INTERFACE_H
-#define VTR_ARRAY_INTERFACE_H
+#ifndef OPENSUBDIV3_VTR_ARRAY_INTERFACE_H
+#define OPENSUBDIV3_VTR_ARRAY_INTERFACE_H
 
 #include "../version.h"
 
@@ -70,6 +70,8 @@ public:
         _begin(ptr), _size(size) { }
 
     size_type size() const { return _size; }
+
+    bool empty() const { return _size==0; }
 
     const_reference operator[](int index) const { return _begin[index]; }
     const_iterator  begin() const               { return _begin; }
@@ -143,4 +145,4 @@ public:
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_ARRAY_INTERFACE_H */
+#endif /* OPENSUBDIV3_VTR_ARRAY_INTERFACE_H */

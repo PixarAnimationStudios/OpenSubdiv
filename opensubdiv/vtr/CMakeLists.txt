@@ -36,20 +36,22 @@ set(SOURCE_FILES
      triRefinement.cpp
 )
 
+set(PRIVATE_HEADER_FILES
+     quadRefinement.h
+     triRefinement.h
+)
+
 set(PUBLIC_HEADER_FILES
      array.h
+     componentInterfaces.h
      fvarLevel.h
      fvarRefinement.h
      level.h
-     maskInterfaces.h
-     quadRefinement.h
      refinement.h
      sparseSelector.h
-     triRefinement.h
+     stackBuffer.h
      types.h
 )
-
-set(PRIVATE_HEADER_FILES )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 

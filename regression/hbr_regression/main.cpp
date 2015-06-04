@@ -129,7 +129,7 @@ static Shape * readShape( char const * fname, Scheme scheme ) {
 
     shapeStr[size]='\0';
 
-    return Shape::parseObj( shapeStr, scheme, 1 );
+    return Shape::parseObj( shapeStr, scheme, false /*isLeftHanded*/, 1 );
 }
 
 #define STR(x) x

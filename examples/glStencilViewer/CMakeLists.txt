@@ -30,8 +30,7 @@ list(APPEND PLATFORM_LIBRARIES
 )
 
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${PROJECT_SOURCE_DIR}/regression"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${GLFW_INCLUDE_DIR}"
 )
 
@@ -48,7 +47,7 @@ _add_glfw_executable(glStencilViewer
     glStencilViewer.cpp
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
-    $<TARGET_OBJECTS:regression_vtr_utils_obj>
+    $<TARGET_OBJECTS:regression_far_utils_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
 

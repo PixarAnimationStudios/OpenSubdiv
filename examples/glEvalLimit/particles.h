@@ -25,9 +25,9 @@
 #ifndef ST_PARTICLES_H
 #define ST_PARTICLES_H
 
-#include <osd/evalLimitContext.h>
 #include <far/topologyRefiner.h>
-
+#include <far/patchMap.h>
+#include <osd/types.h>
 #include <iostream>
 
 //
@@ -54,48 +54,24 @@
 class STParticles {
 
 public:
+    /// \brief Coordinates set on a limit surface
+    ///
+    struct Position {
+        Position() { }
 
-    typedef OpenSubdiv::Osd::LimitLocation Position;
-    typedef OpenSubdiv::Far::TopologyRefiner Refiner;
+        /// \brief Constructor
+        ///
+        /// @param f Ptex face id
+        ///
+        /// @param x parametric location on face
+        ///
+        /// @param y parametric location on face
+        ///
+        Position(int f, float x, float y) : ptexIndex(f), s(x), t(y) { }
 
-    STParticles(Refiner const & refiner, int nparticles, bool centered=false);
-
-    void Update(float deltaTime);
-
-    int GetNumParticles() const {
-        return (int)_positions.size();
-    }
-
-    void SetSpeed(float speed) {
-        _speed = std::max(-1.0f, std::min(1.0f, speed));
-    }
-    
-    float GetSpeed() const {
-        return _speed;
-    }
-    
-    std::vector<Position> & GetPositions() {
-        return _positions;
-    }
-
-    std::vector<float> & GetVelocities() {
-        return _velocities;
-    }
-
-    friend std::ostream & operator << (std::ostream & os, STParticles const & f);
-
-private:
-
-    //
-    // Particle "Dynamics"
-    //
-    std::vector<Position> _positions;
-
-    std::vector<float> _velocities;
-
-    float _speed;  // velocity multiplier
-
-private:
+        int ptexIndex;      ///< ptex face index
+        float s, t;         ///< parametric location on face
+    };
 
     //
     // Topology adjacency (borrowed from Ptexture.h)
@@ -136,11 +112,63 @@ private:
                  int adjfaces[4];
     };
 
-    void warpParticle(int edge, Position * p, float * dp);
+    typedef OpenSubdiv::Far::TopologyRefiner Refiner;
+    typedef OpenSubdiv::Far::PatchTable PatchTable;
+
+    STParticles(Refiner const & refiner, PatchTable const *patchTable,
+                int nparticles, bool centered=false);
+
+    ~STParticles();
+
+    void Update(float deltaTime);
+
+    int GetNumParticles() const {
+        return (int)_positions.size();
+    }
+
+    void SetSpeed(float speed) {
+        _speed = std::max(-1.0f, std::min(1.0f, speed));
+    }
+    
+    float GetSpeed() const {
+        return _speed;
+    }
+    
+    std::vector<Position> & GetPositions() {
+        return _positions;
+    }
+
+    std::vector<float> & GetVelocities() {
+        return _velocities;
+    }
+
+    std::vector<OpenSubdiv::Osd::PatchCoord> GetPatchCoords() const {
+        return _patchCoords;
+    }
+
+    friend std::ostream & operator << (std::ostream & os, STParticles const & f);
+
+    static void WarpParticle(std::vector<FaceInfo> const &adjacency,
+                             int edge, Position * p, float * dp);
+
+private:
+
+    //
+    // Particle "Dynamics"
+    //
+    std::vector<Position> _positions;
+
+    std::vector<float> _velocities;
+
+    std::vector<OpenSubdiv::Osd::PatchCoord> _patchCoords;
+
+    float _speed;  // velocity multiplier
 
     friend std::ostream & operator << (std::ostream & os, FaceInfo const & f);
 
+
     std::vector<FaceInfo> _adjacency;
+    OpenSubdiv::Far::PatchMap const *_patchMap;
 };
 
 #endif // ST_PARTICLES_H

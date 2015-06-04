@@ -22,25 +22,21 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-interface IComputeKernel {
-    void runKernel( uint3 ID );
-};
-IComputeKernel kernel;
-
 cbuffer KernelUniformArgs : register( b0 ) {
-    int batchStart,
-        batchEnd,
-        primvarOffset,
-        numCVs;
+    int batchStart;
+    int batchEnd;
+    int srcOffset;
+    int dstOffset;
 };
 
 RWBuffer<float> vertexBuffer  : register( u0 );
+RWBuffer<float> dstVertexBuffer  : register( u1 );
 Buffer<int>    sizes   : register( t1 );
-Buffer<int>    offsets : register( t2 );      
-Buffer<int>    indices : register( t3 );      
-Buffer<float>  weights : register( t4 );      
+Buffer<int>    offsets : register( t2 );
+Buffer<int>    indices : register( t3 );
+Buffer<float>  weights : register( t4 );
 
-//--------------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 
 struct Vertex {
     float vertexData[LENGTH];
@@ -54,7 +50,7 @@ void clear(out Vertex v) {
 
 Vertex readVertex(int index) {
     Vertex v;
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = srcOffset + index * SRC_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
         v.vertexData[i] = vertexBuffer[vertexIndex + i];
     }
@@ -62,9 +58,16 @@ Vertex readVertex(int index) {
 }
 
 void writeVertex(int index, Vertex v) {
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = dstOffset + index * DST_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
         vertexBuffer[vertexIndex + i] = v.vertexData[i];
+    }
+}
+
+void writeVertexSeparate(int index, Vertex v) {
+    int vertexIndex = dstOffset + index * DST_STRIDE;
+    for (int i = 0; i < LENGTH; ++i) {
+        dstVertexBuffer[vertexIndex + i] = v.vertexData[i];
     }
 }
 
@@ -74,18 +77,20 @@ void addWithWeight(inout Vertex v, const Vertex src, float weight) {
     }
 }
 
+// ---------------------------------------------------------------------------
 
-//--------------------------------------------------------------------------------
-// Stencil compute Kernel
-class ComputeStencil : IComputeKernel {
+interface IComputeKernel {
+    void runKernel( uint3 ID );
+};
+IComputeKernel kernel;
+
+class SingleBufferCompute : IComputeKernel {
 
     int placeholder;
-
-    void runKernel( uint3 ID ) {
-
+    void runKernel(uint3 ID) {
         int current = int(ID.x) + batchStart;
 
-        if (current>batchEnd) {
+        if (current>=batchEnd) {
             return;
         }
 
@@ -99,24 +104,43 @@ class ComputeStencil : IComputeKernel {
             addWithWeight(dst, readVertex( indices[offset+i] ), weights[offset+i]);
         }
 
-        // the vertex buffer contains our control vertices at the beginning: don't
-        // stomp on those !
-        writeVertex(numCVs+current, dst);
+        writeVertex(current, dst);
     }
 };
+class SeparateBufferCompute : IComputeKernel {
+
+    int placeholder;
+    void runKernel(uint3 ID) {
+        int current = int(ID.x) + batchStart;
+
+        if (current>=batchEnd) {
+            return;
+        }
+
+        Vertex dst;
+        clear(dst);
+
+        int offset = offsets[current],
+            size = sizes[current];
+
+        for (int i=0; i<size; ++i) {
+            addWithWeight(dst, readVertex( indices[offset+i] ), weights[offset+i]);
+        }
+
+        writeVertexSeparate(current, dst);
+    }
+};
+
+SingleBufferCompute singleBufferCompute;
+SeparateBufferCompute separateBufferCompute;
 
 // Add place-holder stencil kernel or D3D11ShaderReflection::GetInterfaceSlots()
 // returns 0
 class PlaceHolder : IComputeKernel {
     int placeholder;
-    
     void runKernel( uint3 ID ) {
     }
 };
-
-//--------------------------------------------------------------------------------
-
-ComputeStencil computeStencil;
 
 [numthreads(WORK_GROUP_SIZE, 1, 1)]
 void cs_main( uint3 ID : SV_DispatchThreadID )
@@ -125,4 +149,3 @@ void cs_main( uint3 ID : SV_DispatchThreadID )
     kernel.runKernel(ID);
 }
 
-//--------------------------------------------------------------------------------

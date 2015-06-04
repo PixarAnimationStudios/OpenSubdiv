@@ -62,5 +62,5 @@ Here are example commands for building an OpenSubdiv application on several arch
     **Note:**
     
     HBR uses the offsetof macro on a templated struct, which appears to spurriously set off a 
-    warning in both gccc and Clang. It is recommended to turn the warning off with the
+    warning in both gcc and Clang. It is recommended to turn the warning off with the
     *-Wno-invalid-offsetof* flag.

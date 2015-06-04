@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_LEVEL_H
-#define VTR_LEVEL_H
+#ifndef OPENSUBDIV3_VTR_LEVEL_H
+#define OPENSUBDIV3_VTR_LEVEL_H
 
 #include "../version.h"
 
@@ -40,19 +40,12 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//  Forward declarations for friends:
-namespace Far {
-    template <class MESH> class TopologyRefinerFactory;
-    class TopologyRefinerFactoryBase;
-    class TopologyRefiner;
-    class PatchTablesFactory;
-}
-
 namespace Vtr {
+namespace internal {
 
 class Refinement;
-class QuadRefinement;
 class TriRefinement;
+class QuadRefinement;
 class FVarRefinement;
 class FVarLevel;
 
@@ -63,13 +56,12 @@ class FVarLevel;
 //  level can be used as the base level of another subdivision hierarchy and can
 //  be considered a complete mesh independent of its ancestors.  It currently
 //  does contain a "depth" member -- as some inferences can then be made about
-//  the topology (i.e. all quads or all tris if not level 0) but that is still
-//  under consideration (e.g. a "regular" flag would serve the same purpose, and
-//  level 0 may even be regular).
+//  the topology (i.e. all quads or all tris if not level 0).
 //
-//  This class is intended for private use within the library.  So really its
-//  interface should be fully protected and only those library classes that need
-//  it will be declared as friends, e.g. Refinement.
+//  This class is intended for private use within the library.  There are still
+//  opportunities to specialize levels -- e.g. those supporing N-sided faces vs
+//  those are are purely quads or tris -- so we prefer to insulate it from public
+//  access.
 //
 //  The represenation of topology here is to store six topological relationships
 //  in tables of integers.  Each is stored in its own array(s) so the result is
@@ -87,38 +79,6 @@ class FVarLevel;
 //  the Far layer essentially store 5 of these 6 in a permuted form -- we add
 //  the face-edges here to simplify refinement.
 //
-//  Notes/limitations/stuff to do -- much of this code still reflects the early days
-//  when it was being prototyped and so it does not conform to OSD standards in many
-//  ways:
-//      - superficial stylistic issues:
-//          . replacing "m" prefix with "_" on member variables
-//              - done
-//          . replace "access" and "modify" prefixes on Array methods with "get"
-//              - done
-//          - replace use of "...Count" with "GetNum..."
-//          - use of Vertex vs Vert in non-local (or any?) methods
-//      - review public/protected/friend accessibility
-//
-//  Most are more relevant to the refinement, which used to be part of this class:
-//      - short cuts that need revisiting:
-//          - support for face-vert counts > 4
-//          - support for edge-face counts > 2
-//          - some neighborhood searches avoidable with more "local indexing"
-//      - identify (informally) where scheme-specific code will be needed, so far:
-//          - topological splitting and associated marking
-//              - really the only variable here is whether to generate tris or
-//                quads from non-quads
-//          - interpolation
-//              - potentially not part of the pre-processing required for FarMesh
-//        and where it appears *not* to be needed:
-//          - subdivision of sharpness values
-//          - classification of vertex type/mask
-//      - apply classification of vertices (computing Rules or masks)
-//          - apply to base/course level on conversion
-//          - apply to child level after subdivision of sharpness
-//      - keep in mind desired similarity with FarMesh tables for ease of transfer
-//        (contradicts previous point to some degree)
-//
 
 class Level {
 
@@ -135,17 +95,24 @@ public:
     //  level.
     //
     struct VTag {
-        typedef unsigned short VTagSize;
-
         VTag() { }
 
-        VTagSize _nonManifold  : 1;  // fixed
-        VTagSize _xordinary    : 1;  // fixed
-        VTagSize _boundary     : 1;  // fixed
-        VTagSize _infSharp     : 1;  // fixed
-        VTagSize _semiSharp    : 1;  // variable
-        VTagSize _rule         : 4;  // variable when _semiSharp
-        VTagSize _incomplete   : 1;  // variable for sparse refinement
+        //  When cleared, the VTag ALMOST represents a smooth, regular, interior
+        //  vertex -- the Type enum requires a bit be explicitly set for Smooth,
+        //  so that must be done explicitly if desired on initialization.
+        void clear() { std::memset(this, 0, sizeof(VTag)); }
+
+        typedef unsigned short VTagSize;
+
+        VTagSize _nonManifold     : 1;  // fixed
+        VTagSize _xordinary       : 1;  // fixed
+        VTagSize _boundary        : 1;  // fixed
+        VTagSize _corner          : 1;  // fixed
+        VTagSize _infSharp        : 1;  // fixed
+        VTagSize _semiSharp       : 1;  // variable
+        VTagSize _semiSharpEdges  : 1;  // variable
+        VTagSize _rule            : 4;  // variable when _semiSharp
+        VTagSize _incomplete      : 1;  // variable for sparse refinement
 
         //  On deck -- coming soon...
         //VTagSize _constSharp   : 1;  // variable when _semiSharp
@@ -153,9 +120,12 @@ public:
         //VTagSize _editsApplied : 1;  // variable
     };
     struct ETag {
-        typedef unsigned char ETagSize;
-
         ETag() { }
+
+        //  When cleared, the ETag represents a smooth, manifold, interior edge
+        void clear() { std::memset(this, 0, sizeof(ETag)); }
+
+        typedef unsigned char ETagSize;
 
         ETagSize _nonManifold  : 1;  // fixed
         ETagSize _boundary     : 1;  // fixed
@@ -163,9 +133,11 @@ public:
         ETagSize _semiSharp    : 1;  // variable
     };
     struct FTag {
-        typedef unsigned char FTagSize;
-
         FTag() { }
+
+        void clear() { std::memset(this, 0, sizeof(FTag)); }
+
+        typedef unsigned char FTagSize;
 
         FTagSize _hole  : 1;  // fixed
 
@@ -200,12 +172,14 @@ public:
     int getMaxEdgeFaces() const { return _maxEdgeFaces; }
 
     //  Methods to access the relation tables/indices -- note that for some relations
-    //  we store an additional "local index", e.g. for the case of vert-faces if one
-    //  of the faces F[i] is incident a vertex V, then L[i] is the "local index" in
-    //  F[i] of vertex V.  Once have only quads (or tris), this local index need only
-    //  occupy two bits and could conceivably be packed into the same integer as the
-    //  face index, but for now, given the need to support faces of potentially high
-    //  valence we'll us an 8- or 16-bit integer.
+    //  (i.e. those where a component is "contained by" a neighbor, or more generally
+    //  when the neighbor is a simplex of higher dimension) we store an additional
+    //  "local index", e.g. for the case of vert-faces if one of the faces F[i] is
+    //  incident a vertex V, then L[i] is the "local index" in F[i] of vertex V.
+    //  Once have only quads (or tris), this local index need only occupy two bits
+    //  and could conceivably be packed into the same integer as the face index, but
+    //  for now, given the need to support faces of potentially high valence we'll
+    //  us an 8- or 16-bit integer.
     //
     //  Methods to access the six topological relations:
     ConstIndexArray getFaceVertices(Index faceIndex) const;
@@ -215,6 +189,7 @@ public:
     ConstIndexArray getVertexFaces(Index vertIndex) const;
     ConstIndexArray getVertexEdges(Index vertIndex) const;
 
+    ConstLocalIndexArray getEdgeFaceLocalIndices(Index edgeIndex) const;
     ConstLocalIndexArray getVertexFaceLocalIndices(Index vertIndex) const;
     ConstLocalIndexArray getVertexEdgeLocalIndices(Index vertIndex) const;
 
@@ -226,8 +201,17 @@ public:
     Index findEdge(Index v0Index, Index v1Index) const;
 
     // Holes
-    void setHole(Index faceIndex, bool b);
-    bool isHole(Index faceIndex) const;
+    void setFaceHole(Index faceIndex, bool b);
+    bool isFaceHole(Index faceIndex) const;
+
+    // Face-varying
+    Sdc::Options getFVarOptions(int channel) const; 
+    int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
+    int getNumFVarValues(int channel) const;
+    ConstIndexArray getFaceFVarValues(Index faceIndex, int channel) const;
+
+    FVarLevel & getFVarLevel(int channel) { return *_fvarChannels[channel]; }
+    FVarLevel const & getFVarLevel(int channel) const { return *_fvarChannels[channel]; }
 
     //  Manifold/non-manifold tags:
     void setEdgeNonManifold(Index edgeIndex, bool b);
@@ -236,9 +220,18 @@ public:
     void setVertexNonManifold(Index vertIndex, bool b);
     bool isVertexNonManifold(Index vertIndex) const;
 
+    //  General access to all component tags:
+    VTag const & getVertexTag(Index vertIndex) const { return _vertTags[vertIndex]; }
+    ETag const & getEdgeTag(Index edgeIndex) const { return _edgeTags[edgeIndex]; }
+    FTag const & getFaceTag(Index faceIndex) const { return _faceTags[faceIndex]; }
+
+    VTag & getVertexTag(Index vertIndex) { return _vertTags[vertIndex]; }
+    ETag & getEdgeTag(Index edgeIndex) { return _edgeTags[edgeIndex]; }
+    FTag & getFaceTag(Index faceIndex) { return _faceTags[faceIndex]; }
+
 public:
 
-    //  Debugging aides -- unclear what will persist...
+    //  Debugging aides:
     enum TopologyError {
         TOPOLOGY_MISSING_EDGE_FACES=0,
         TOPOLOGY_MISSING_EDGE_VERTS,
@@ -271,36 +264,36 @@ public:
     void print(const Refinement* parentRefinement = 0) const;
 
 public:
-    //  High-level topology queries -- these are likely to be moved elsewhere, but here
-    //  is the best place for them for now...
-
-    int gatherManifoldVertexRingFromIncidentQuads(Index vIndex, int vOffset, int ringVerts[]) const;
-
-    int gatherQuadRegularInteriorPatchVertices(Index fIndex, Index patchVerts[], int rotation = 0) const;
-    int gatherQuadRegularBoundaryPatchVertices(Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
-    int gatherQuadRegularCornerPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
-
-    int gatherTriRegularInteriorPatchVertices(      Index fIndex, Index patchVerts[], int rotation = 0) const;
-    int gatherTriRegularBoundaryVertexPatchVertices(Index fIndex, Index patchVerts[], int boundaryVertInFace) const;
-    int gatherTriRegularBoundaryEdgePatchVertices(  Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
-    int gatherTriRegularCornerVertexPatchVertices(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
-    int gatherTriRegularCornerEdgePatchVertices(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
+    //  High-level topology queries -- these may be moved elsewhere:
 
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
-protected:
+    //
+    //  When gathering "patch points" we may want the indices of the vertices or the corresponding
+    //  FVar values for a particular channel.  Both are represented and equally accessible within
+    //  the faces, so we allow all to be returned through these methods.  Setting the optional FVar
+    //  channel to -1 will retrieve indices of vertices instead of FVar values:
+    //
+    int gatherQuadLinearPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
+                                                                       int fvarChannel = -1) const;
 
-    friend class Refinement;
-    friend class QuadRefinement;
-    friend class TriRefinement;
-    friend class FVarRefinement;
-    friend class FVarLevel;
+    int gatherQuadRegularInteriorPatchPoints(Index fIndex, Index patchPoints[], int rotation = 0,
+                                                                                int fvarChannel = -1) const;
+    int gatherQuadRegularBoundaryPatchPoints(Index fIndex, Index patchPoints[], int boundaryEdgeInFace,
+                                                                                int fvarChannel = -1) const;
+    int gatherQuadRegularCornerPatchPoints(  Index fIndex, Index patchPoints[], int cornerVertInFace,
+                                                                                int fvarChannel = -1) const;
 
-    template <class MESH> friend class Far::TopologyRefinerFactory;
-    friend class Far::TopologyRefinerFactoryBase;
-    friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactory;
+    int gatherQuadRegularRingAroundVertex(Index vIndex, Index ringPoints[], int fvarChannel = -1) const;
 
+    //  WIP -- for future use, need to extend for face-varying...
+    int gatherTriRegularInteriorPatchPoints(      Index fIndex, Index patchVerts[], int rotation = 0) const;
+    int gatherTriRegularBoundaryVertexPatchPoints(Index fIndex, Index patchVerts[], int boundaryVertInFace) const;
+    int gatherTriRegularBoundaryEdgePatchPoints(  Index fIndex, Index patchVerts[], int boundaryEdgeInFace) const;
+    int gatherTriRegularCornerVertexPatchPoints(  Index fIndex, Index patchVerts[], int cornerVertInFace) const;
+    int gatherTriRegularCornerEdgePatchPoints(    Index fIndex, Index patchVerts[], int cornerEdgeInFace) const;
+
+public:
     //  Sizing methods used to construct a level to populate:
     void resizeFaces(       int numFaces);
     void resizeFaceVertices(int numFaceVertsTotal);
@@ -314,14 +307,18 @@ protected:
     void resizeVertexFaces(int numVertexFacesTotal);
     void resizeVertexEdges(int numVertexEdgesTotal);
 
+    void setMaxValence(int maxValence);
+
     //  Modifiers to populate the relations for each component:
-    IndexArray      getFaceVertices(Index faceIndex);
-    IndexArray      getFaceEdges(Index faceIndex);
-    IndexArray      getEdgeVertices(Index edgeIndex);
-    IndexArray      getEdgeFaces(Index edgeIndex);
-    IndexArray      getVertexFaces(           Index vertIndex);
+    IndexArray getFaceVertices(Index faceIndex);
+    IndexArray getFaceEdges(Index faceIndex);
+    IndexArray getEdgeVertices(Index edgeIndex);
+    IndexArray getEdgeFaces(Index edgeIndex);
+    IndexArray getVertexFaces(Index vertIndex);
+    IndexArray getVertexEdges(Index vertIndex);
+
+    LocalIndexArray getEdgeFaceLocalIndices(Index edgeIndex);
     LocalIndexArray getVertexFaceLocalIndices(Index vertIndex);
-    IndexArray      getVertexEdges(           Index vertIndex);
     LocalIndexArray getVertexEdgeLocalIndices(Index vertIndex);
 
     //  Replace these with access to sharpness buffers/arrays rather than elements:
@@ -330,15 +327,11 @@ protected:
 
     //  Create, destroy and populate face-varying channels:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
-    void destroyFVarChannel(int channel = 0);
+    void destroyFVarChannel(int channel);
 
-    int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
-    int getNumFVarValues(int channel = 0) const;
+    IndexArray getFaceFVarValues(Index faceIndex, int channel);
 
-    ConstIndexArray  getFVarFaceValues(Index faceIndex, int channel = 0) const;
-    IndexArray       getFVarFaceValues(Index faceIndex, int channel = 0);
-
-    void completeFVarChannelTopology(int channel = 0);
+    void completeFVarChannelTopology(int channel, int regBoundaryValence);
 
     //  Counts and offsets for all relation types:
     //      - these may be unwarranted if we let Refinement access members directly...
@@ -360,6 +353,7 @@ protected:
     int getNumVertexEdges(     Index vertIndex) const { return _vertEdgeCountsAndOffsets[2*vertIndex]; }
     int getOffsetOfVertexEdges(Index vertIndex) const { return _vertEdgeCountsAndOffsets[2*vertIndex + 1]; }
 
+    ConstIndexArray getFaceVertices() const;
 
     //
     //  Note that for some relations, the size of the relations for a child component
@@ -381,15 +375,16 @@ protected:
     void resizeVertexEdges(Index vertIndex, int count);
     void trimVertexEdges(  Index vertIndex, int count);
 
-protected:
+public:
     //
-    //  Plans where to have a few specific friend classes properly construct the topology,
-    //  e.g. the Refinement class.  There is now clearly a need to have some class
-    //  construct full topology given only a simple face-vertex list.  That can be done
-    //  externally (either a Factory outside Vtr or another Vtr construction helper), but
-    //  until we decide where, the required implementation is defined here.
+    //  Initial plans were to have a few specific classes properly construct the
+    //  topology from scratch, e.g. the Refinement class and a Factory class for
+    //  the base level, by populating all topological relations.  The need to have
+    //  a class construct full topology given only a simple face-vertex list, made
+    //  it necessary to write code to define and orient all relations -- and most
+    //  of that seemed best placed here.
     //
-    void completeTopologyFromFaceVertices();
+    bool completeTopologyFromFaceVertices();
     Index findEdge(Index v0, Index v1, ConstIndexArray v0Edges) const;
 
     //  Methods supporting the above:
@@ -400,7 +395,12 @@ protected:
 
     IndexArray shareFaceVertCountsAndOffsets() const;
 
-protected:
+private:
+    //  Refinement classes (including all subclasses) build a Level:
+    friend class Refinement;
+    friend class TriRefinement;
+    friend class QuadRefinement;
+
     //
     //  A Level is independent of subdivision scheme or options.  While it may have been
     //  affected by them in its construction, they are not associated with it -- a Level
@@ -412,11 +412,14 @@ protected:
     int _edgeCount;
     int _vertCount;
 
-    //  TBD - "depth" is clearly useful in both the topological splitting and the
-    //  stencil queries so could be valuable in both.  As face-vert valence becomes
-    //  constant there is no need to store face-vert and face-edge counts so it has
-    //  value in Level, though perhaps specified as something other than "depth"
+    //  The "depth" member is clearly useful in both the topological splitting and the
+    //  stencil queries, but arguably it ties the Level to a hierarchy which counters
+    //  the idea if it being independent.
     int _depth;
+
+    //  Maxima to help clients manage sizing of data buffers.  Given "max valence",
+    //  the "max edge faces" is strictly redundant as it will always be less, but 
+    //  since it will typically be so much less (i.e. 2) it is kept for now.
     int _maxEdgeFaces;
     int _maxValence;
 
@@ -445,12 +448,13 @@ protected:
     std::vector<FTag>  _faceTags;                  // 1 per face:  includes "hole" tag
 
     //  Per-edge:
-    std::vector<Index> _edgeVertIndices;           // 2 per edge
-    std::vector<Index> _edgeFaceCountsAndOffsets;  // 2 per edge
-    std::vector<Index> _edgeFaceIndices;           // varies with faces per edge
+    std::vector<Index>      _edgeVertIndices;           // 2 per edge
+    std::vector<Index>      _edgeFaceCountsAndOffsets;  // 2 per edge
+    std::vector<Index>      _edgeFaceIndices;           // varies with faces per edge
+    std::vector<LocalIndex> _edgeFaceLocalIndices;      // varies with faces per edge
 
-    std::vector<float> _edgeSharpness;             // 1 per edge
-    std::vector<ETag>  _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
+    std::vector<float>      _edgeSharpness;             // 1 per edge
+    std::vector<ETag>       _edgeTags;                  // 1 per edge:  manifold, boundary, etc.
 
     //  Per-vertex:
     std::vector<Index>      _vertFaceCountsAndOffsets;  // 2 per vertex
@@ -484,7 +488,6 @@ Level::getFaceVertices(Index faceIndex) {
 
 inline void
 Level::resizeFaceVertices(Index faceIndex, int count) {
-    assert(count < 256);
 
     int* countOffsetPair = &_faceVertCountsAndOffsets[faceIndex*2];
 
@@ -492,6 +495,11 @@ Level::resizeFaceVertices(Index faceIndex, int count) {
     countOffsetPair[1] = (faceIndex == 0) ? 0 : (countOffsetPair[-2] + countOffsetPair[-1]);
 
     _maxValence = std::max(_maxValence, count);
+}
+
+inline ConstIndexArray
+Level::getFaceVertices() const {
+    return ConstIndexArray(&_faceVertIndices[0], (int)_faceVertIndices.size());
 }
 
 //
@@ -584,6 +592,11 @@ Level::trimVertexEdges(Index vertIndex, int count) {
     _vertEdgeCountsAndOffsets[vertIndex*2] = count;
 }
 
+inline void
+Level::setMaxValence(int valence) {
+    _maxValence = valence;
+}
+
 //
 //  Access/modify the vertices indicent a given edge:
 //
@@ -608,6 +621,17 @@ inline IndexArray
 Level::getEdgeFaces(Index edgeIndex) {
     return IndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
+}
+
+inline ConstLocalIndexArray
+Level::getEdgeFaceLocalIndices(Index edgeIndex) const {
+    return ConstLocalIndexArray(&_edgeFaceLocalIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+                               _edgeFaceCountsAndOffsets[edgeIndex*2]);
+}
+inline LocalIndexArray
+Level::getEdgeFaceLocalIndices(Index edgeIndex) {
+    return LocalIndexArray(&_edgeFaceLocalIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 
 inline void
@@ -654,11 +678,11 @@ Level::getVertexRule(Index vertIndex) const {
 //  Access/modify hole tag:
 //
 inline void
-Level::setHole(Index faceIndex, bool b) {
+Level::setFaceHole(Index faceIndex, bool b) {
     _faceTags[faceIndex]._hole = b;
 }
 inline bool
-Level::isHole(Index faceIndex) const {
+Level::isFaceHole(Index faceIndex) const {
     return _faceTags[faceIndex]._hole;
 }
 
@@ -725,6 +749,7 @@ inline void
 Level::resizeEdgeFaces(int totalEdgeFaceCount) {
 
     _edgeFaceIndices.resize(totalEdgeFaceCount);
+    _edgeFaceLocalIndices.resize(totalEdgeFaceCount);
 }
 
 inline void
@@ -759,10 +784,11 @@ Level::shareFaceVertCountsAndOffsets() const {
         (int)_faceVertCountsAndOffsets.size());
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_LEVEL_H */
+#endif /* OPENSUBDIV3_VTR_LEVEL_H */

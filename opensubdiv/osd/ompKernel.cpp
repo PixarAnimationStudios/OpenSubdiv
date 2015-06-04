@@ -23,7 +23,7 @@
 //
 
 #include "../osd/ompKernel.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -36,13 +36,13 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 template <class T> T *
-elementAtIndex(T * src, int index, VertexBufferDescriptor const &desc) {
+elementAtIndex(T * src, int index, BufferDescriptor const &desc) {
 
     return src + index * desc.stride;
 }
 
 static inline void
-clear(float *dst, VertexBufferDescriptor const &desc) {
+clear(float *dst, BufferDescriptor const &desc) {
 
     assert(dst);
     memset(dst, 0, desc.length*sizeof(float));
@@ -50,7 +50,7 @@ clear(float *dst, VertexBufferDescriptor const &desc) {
 
 static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
-              VertexBufferDescriptor const &desc) {
+              BufferDescriptor const &desc) {
 
     assert(src and dst);
     src = elementAtIndex(src, srcIndex, desc);
@@ -61,7 +61,7 @@ addWithWeight(float *dst, const float *src, int srcIndex, float weight,
 
 static inline void
 copy(float *dst, int dstIndex, const float *src,
-     VertexBufferDescriptor const &desc) {
+     BufferDescriptor const &desc) {
 
     assert(src and dst);
 
@@ -73,26 +73,30 @@ copy(float *dst, int dstIndex, const float *src,
 // XXXX manuelk this should be optimized further by using SIMD - considering
 //              OMP is somewhat obsolete - this is probably not worth it.
 void
-OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                      float const * vertexSrc,
-                      float * vertexDst,
-                      unsigned char const * sizes,
-                      int const * offsets,
-                      int const * indices,
-                      float const * weights,
-                      int start, int end) {
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+    }
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
 
-    assert(start>=0 and start<end);
+    int numThreads = omp_get_max_threads();
+    int n = end - start;
 
-    int numThreads = omp_get_max_threads(),
-        nstencils = end-start;
-
-    float * result = (float*)alloca(vertexDesc.length*numThreads*sizeof(float));
+    float * result = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
 
 #pragma omp parallel for
-    for (int i=0; i<nstencils; ++i) {
+    for (int i = 0; i < n; ++i) {
 
-        int index = i + (start>0 ? start : 0); // Stencil index
+        int index = i + (start > 0 ? start : 0); // Stencil index
 
         // Get thread-local pointers
         int const           * threadIndices = indices + offsets[index];
@@ -100,21 +104,89 @@ OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
 
         int threadId = omp_get_thread_num();
 
-        float * threadResult = result + threadId*vertexDesc.length;
+        float * threadResult = result + threadId*srcDesc.length;
 
-        clear(threadResult, vertexDesc);
+        clear(threadResult, dstDesc);
 
         for (int j=0; j<(int)sizes[index]; ++j) {
-            addWithWeight(threadResult, vertexSrc,
-                threadIndices[j], threadWeights[j], vertexDesc);
+            addWithWeight(threadResult, src,
+                threadIndices[j], threadWeights[j], srcDesc);
         }
 
-        copy(vertexDst, i, threadResult, vertexDesc);
+        copy(dst, i, threadResult, dstDesc);
+    }
+}
+
+void
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end) {
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+        duWeights += offsets[start];
+        dvWeights += offsets[start];
+    }
+
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
+    dstDu += dstDuDesc.offset;
+    dstDv += dstDvDesc.offset;
+
+    int numThreads = omp_get_max_threads();
+    int n = end - start;
+
+    float * result = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
+    float * resultDu = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
+    float * resultDv = (float*)alloca(srcDesc.length * numThreads * sizeof(float));
+
+#pragma omp parallel for
+    for (int i = 0; i < n; ++i) {
+
+        int index = i + (start > 0 ? start : 0); // Stencil index
+
+        // Get thread-local pointers
+        int const           * threadIndices = indices + offsets[index];
+        float const         * threadWeights = weights + offsets[index];
+        float const         * threadWeightsDu = duWeights + offsets[index];
+        float const         * threadWeightsDv = dvWeights + offsets[index];
+
+        int threadId = omp_get_thread_num();
+
+        float * threadResult = result + threadId*srcDesc.length;
+        float * threadResultDu = resultDu + threadId*srcDesc.length;
+        float * threadResultDv = resultDv + threadId*srcDesc.length;
+
+        clear(threadResult, dstDesc);
+        clear(threadResultDu, dstDuDesc);
+        clear(threadResultDv, dstDvDesc);
+
+        for (int j=0; j<(int)sizes[index]; ++j) {
+            addWithWeight(threadResult, src,
+                threadIndices[j], threadWeights[j], srcDesc);
+            addWithWeight(threadResultDu, src,
+                threadIndices[j], threadWeightsDu[j], srcDesc);
+            addWithWeight(threadResultDv, src,
+                threadIndices[j], threadWeightsDv[j], srcDesc);
+        }
+
+        copy(dst, i, threadResult, dstDesc);
+        copy(dstDu, i, threadResultDu, dstDuDesc);
+        copy(dstDv, i, threadResultDv, dstDvDesc);
     }
 
 }
 
-} // end namespace Osd
+}  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
 }  // end namespace OpenSubdiv

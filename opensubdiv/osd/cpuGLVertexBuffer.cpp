@@ -24,9 +24,9 @@
 
 #include "../osd/cpuGLVertexBuffer.h"
 
-#include "../osd/opengl.h"
-
 #include <string.h>
+
+#include "../osd/opengl.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -41,14 +41,14 @@ CpuGLVertexBuffer::CpuGLVertexBuffer(int numElements, int numVertices)
 CpuGLVertexBuffer::~CpuGLVertexBuffer() {
 
     delete[] _cpuBuffer;
-    
+
     if (_vbo) {
         glDeleteBuffers(1, &_vbo);
     }
 }
 
 CpuGLVertexBuffer *
-CpuGLVertexBuffer::Create(int numElements, int numVertices) {
+CpuGLVertexBuffer::Create(int numElements, int numVertices, void *) {
     CpuGLVertexBuffer *instance =
         new CpuGLVertexBuffer(numElements, numVertices);
     if (instance->allocate()) return instance;
@@ -57,9 +57,12 @@ CpuGLVertexBuffer::Create(int numElements, int numVertices) {
 }
 
 void
-CpuGLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CpuGLVertexBuffer::UpdateData(const float *src,
+                              int startVertex, int numVertices,
+                              void * /*deviceContext*/) {
 
-    memcpy(_cpuBuffer + startVertex * GetNumElements(), src, GetNumElements() * numVertices * sizeof(float));
+    memcpy(_cpuBuffer + startVertex * GetNumElements(), src,
+           GetNumElements() * numVertices * sizeof(float));
     _dataDirty = true;
 }
 
@@ -83,7 +86,7 @@ CpuGLVertexBuffer::BindCpuBuffer() {
 }
 
 GLuint
-CpuGLVertexBuffer::BindVBO() {
+CpuGLVertexBuffer::BindVBO(void * /*deviceContext*/) {
 
     if (not _dataDirty)
         return _vbo;

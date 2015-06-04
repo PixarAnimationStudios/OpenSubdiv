@@ -68,6 +68,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         api_overview.rst
         cmake_build.rst
         code_examples.rst
+        downloads.rst
         dxviewer.rst
         dxptexviewer.rst
         far_overview.rst
@@ -82,6 +83,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         hbr_overview.rst
         intro.rst
         license.rst
+        mod_notes.rst
         maya_osdpolysmooth.rst
         osd_overview.rst
         release_notes.rst

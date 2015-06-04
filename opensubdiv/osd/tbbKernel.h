@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_TBB_KERNEL_H
-#define OSD_TBB_KERNEL_H
+#ifndef OPENSUBDIV3_OSD_TBB_KERNEL_H
+#define OPENSUBDIV3_OSD_TBB_KERNEL_H
 
 #include "../version.h"
 
@@ -32,17 +32,43 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-struct VertexBufferDescriptor;
+struct PatchArray;
+struct PatchCoord;
+struct PatchParam;
+struct BufferDescriptor;
 
 void
-TbbComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                   float const * vertexSrc,
-                   float * vertexDst,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end);
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end);
+
+void
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end);
+
+void
+TbbEvalPatches(float const *src, BufferDescriptor const &srcDesc,
+               float *dst,       BufferDescriptor const &dstDesc,
+               float *dstDu,     BufferDescriptor const &dstDuDesc,
+               float *dstDv,     BufferDescriptor const &dstDvDesc,
+               int numPatchCoords,
+               const PatchCoord *patchCoords,
+               const PatchArray *patchArrayBuffer,
+               const int *patchIndexBuffer,
+               const PatchParam *patchParamBuffer);
 
 }  // end namespace Osd
 
@@ -51,4 +77,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_TBB_KERNEL_H
+#endif  // OPENSUBDIV3_OSD_TBB_KERNEL_H

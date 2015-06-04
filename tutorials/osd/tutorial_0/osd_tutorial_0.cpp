@@ -30,10 +30,9 @@
 // 'Controllers'.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
-#include <opensubdiv/far/stencilTablesFactory.h>
-#include <opensubdiv/osd/cpuComputeContext.h>
-#include <opensubdiv/osd/cpuComputeController.h>
+#include <opensubdiv/far/topologyDescriptor.h>
+#include <opensubdiv/far/stencilTableFactory.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
 #include <opensubdiv/osd/cpuVertexBuffer.h>
 
 #include <cstdio>
@@ -73,41 +72,27 @@ int main(int, char **) {
         nCoarseVerts=0,
         nRefinedVerts=0;
 
-    Osd::CpuComputeContext * context=0;
-
-    Far::KernelBatchVector batches;
-
     //
     // Setup phase
     //
+    Far::StencilTable const * stencilTable = NULL;
     { // Setup Context
         Far::TopologyRefiner const * refiner = createTopologyRefiner(maxlevel);
 
-        // Setup a factory to create FarStencilTables (for more details see
+        // Setup a factory to create FarStencilTable (for more details see
         // Far tutorials)
-        Far::StencilTablesFactory::Options options;
+        Far::StencilTableFactory::Options options;
         options.generateOffsets=true;
         options.generateIntermediateLevels=false;
 
-        Far::StencilTables const * stencilTables =
-            Far::StencilTablesFactory::Create(*refiner, options);
+        stencilTable = Far::StencilTableFactory::Create(*refiner, options);
 
-        // We need a kernel batch to dispatch Compute launches
-        batches.push_back(Far::StencilTablesFactory::Create(*stencilTables));
+        nCoarseVerts = refiner->GetLevel(0).GetNumVertices();
+        nRefinedVerts = stencilTable->GetNumStencils();
 
-        // Create an Osd Compute Context from the stencil tables
-        context = Osd::CpuComputeContext::Create(stencilTables);
-
-        nCoarseVerts = refiner->GetNumVertices(0);
-        nRefinedVerts = stencilTables->GetNumStencils();
-
-        // We are done with Far: cleanup tables
+        // We are done with Far: cleanup table
         delete refiner;
-        delete stencilTables;
     }
-
-    // Setup Controller
-    Osd::CpuComputeController controller;
 
     // Setup a buffer for vertex primvar data:
     Osd::CpuVertexBuffer * vbuffer =
@@ -121,8 +106,14 @@ int main(int, char **) {
         // and update every time control data changes
         vbuffer->UpdateData(g_verts, 0, nCoarseVerts);
 
+
+        Osd::BufferDescriptor srcDesc(0, 3, 3);
+        Osd::BufferDescriptor dstDesc(nCoarseVerts*3, 3, 3);
+
         // Launch the computation
-        controller.Compute(context, batches, vbuffer);
+        Osd::CpuEvaluator::EvalStencils(vbuffer, srcDesc,
+                                        vbuffer, dstDesc,
+                                        stencilTable);
     }
 
     { // Visualization with Maya : print a MEL script that generates particles
@@ -137,8 +128,8 @@ int main(int, char **) {
         printf("-c 1;\n");
     }
 
+    delete stencilTable;
     delete vbuffer;
-    delete context;
 }
 
 //------------------------------------------------------------------------------
@@ -147,7 +138,7 @@ createTopologyRefiner(int maxlevel) {
 
     // Populate a topology descriptor with our raw data
 
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 

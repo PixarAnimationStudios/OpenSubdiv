@@ -37,7 +37,7 @@
 #include <hbr/cornerEdit.h>
 #include <hbr/holeEdit.h>
 
-#include "../../regression/common/shape_utils.h"
+#include "shape_utils.h"
 
 #include <sstream>
 
@@ -624,5 +624,71 @@ simpleHbr(char const * Shapestr, Scheme scheme, std::vector<float> & verts, bool
 
     return mesh;
 }
+
+//------------------------------------------------------------------------------
+template <class T>
+OpenSubdiv::HbrMesh<T> *
+interpolateHbrVertexData(char const * Shapestr, Scheme scheme, int maxlevel) {
+
+    // Hbr interpolation
+    OpenSubdiv::HbrMesh<T> *hmesh = simpleHbr<T>(Shapestr, scheme,
+            /* verts vector */ 0, /* fvar */ false);
+    assert(hmesh);
+
+    for (int level=0, firstface=0; level<maxlevel; ++level ) {
+        int nfaces = hmesh->GetNumFaces();
+        for (int i=firstface; i<nfaces; ++i) {
+
+            OpenSubdiv::HbrFace<T> * f = hmesh->GetFace(i);
+            assert(f->GetDepth()==level);
+            if (not f->IsHole()) {
+                f->Refine();
+            }
+        }
+        // Hbr allocates faces sequentially, skip faces that have already been
+        // refined.
+        firstface = nfaces;
+    }
+
+    return hmesh;
+
+}
+
+//------------------------------------------------------------------------------
+// Returns true if a vertex or any of its parents is on a boundary
+template <class T>
+bool
+hbrVertexOnBoundary(const OpenSubdiv::HbrVertex<T> *v)
+{
+    if (not v)
+        return false;
+
+    if (v->OnBoundary())
+        return true;
+
+    OpenSubdiv::HbrVertex<T> const * pv = v->GetParentVertex();
+    if (pv)
+        return hbrVertexOnBoundary(pv);
+    else {
+        OpenSubdiv::HbrHalfedge<T> const * pe = v->GetParentEdge();
+        if (pe) {
+              return hbrVertexOnBoundary(pe->GetOrgVertex()) or
+                     hbrVertexOnBoundary(pe->GetDestVertex());
+        } else {
+            OpenSubdiv::HbrFace<T> const * pf = v->GetParentFace(), * rootf = pf;
+            while (pf) {
+                pf = pf->GetParent();
+                if (pf)
+                    rootf=pf;
+            }
+            if (rootf)
+                for (int i=0; i<rootf->GetNumVertices(); ++i)
+                    if (rootf->GetVertex(i)->OnBoundary())
+                        return true;
+        }
+    }
+    return false;
+}
+
 
 #endif /* HBR_UTILS_H */

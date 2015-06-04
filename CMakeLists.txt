@@ -181,11 +181,13 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
             find_library( ICC_${ICC_LIB}
                 NAMES
                     ${ICC_LIB}
+                HINTS
+                    ${ICC_LOCATION}
                 PATHS
-                    ${ICC_LOCATION}/lib
                     /opt/intel/lib/
                 PATH_SUFFIXES
                     ${ICC_LIB_ARCH}
+                    lib/${ICC_LIB_ARCH}
             )
 
             if (ICC_${ICC_LIB})
@@ -308,6 +310,9 @@ option(NO_CUDA "Disable CUDA backend" OFF)
 option(NO_OPENCL "Disable OpenCL backend" OFF)
 option(NO_CLEW "Disable CLEW wrapper library" OFF)
 option(NO_OPENGL "Disable OpenGL support")
+option(NO_DX "Disable DirectX support")
+option(NO_TESTS "Disable all tests")
+option(NO_GLTESTS "Disable GL tests")
 
 # Check for dependencies
 if(NOT NO_OMP)
@@ -340,6 +345,9 @@ if(NOT NO_PTEX)
    find_package(PTex 2.0)
 endif()
 if (OPENGL_FOUND AND NOT IOS)
+    add_definitions(
+        -DOPENSUBDIV_HAS_OPENGL
+    )
     if (APPLE)
         find_package(GLEW)
     else()
@@ -347,7 +355,7 @@ if (OPENGL_FOUND AND NOT IOS)
     endif()
 endif()
 
-if (WIN32)
+if (WIN32 AND NOT NO_DX)
    find_package(DXSDK)
 endif()
 
@@ -357,7 +365,7 @@ endif()
 
 if (NOT NO_DOC)
     find_package(Doxygen 1.8.4)
-    find_package(Docutils 0.6)
+    find_package(Docutils 0.9)
 else()
     set(DOXYGEN_EXECUTABLE )
 endif()
@@ -461,6 +469,23 @@ if(OPENCL_FOUND)
                 "will not be portable to systems without OpenCL installed.")
         endif()
     endif()
+
+    if (DXSDK_FOUND AND NOT NO_DX)
+        if (OPENCL_CL_D3D11_H_FOUND)
+            set(OPENCL_D3D11_INTEROP_FOUND "YES")
+            add_definitions(
+                -DOPENSUBDIV_HAS_OPENCL_DX_INTEROP
+                -DOPENSUBDIV_HAS_CL_D3D11_H
+            )
+        endif()
+        if (OPENCL_CL_D3D11_EXT_H_FOUND)
+            set(OPENCL_D3D11_INTEROP_FOUND "YES")
+            add_definitions(
+                -DOPENSUBDIV_HAS_OPENCL_DX_INTEROP
+                -DOPENSUBDIV_HAS_CL_D3D11_EXT_H
+            )
+        endif()
+    endif()
 else()
     if (NOT NO_OPENCL)
         message(WARNING
@@ -526,11 +551,11 @@ if (WIN32)
     # Windows until all the kinks can be worked out.
     set( OSD_LINK_TARGET osd_static_cpu osd_static_gpu )
 
-    if (DXSDK_FOUND)
+    if (DXSDK_FOUND AND NOT NO_DX)
         add_definitions(
             -DOPENSUBDIV_HAS_DX11SDK
         )
-    else()
+    elseif(NOT NO_DX)
         message(WARNING
             "DirectX11 SDK was not found. "
             "If you do have DXSDK installed and see this message, "
@@ -678,6 +703,21 @@ endmacro()
 
 #-------------------------------------------------------------------------------
 # Build targets
+
+
+# if you want to build examples against installed OpenSubdiv header files,
+# use OPENSUBDIV_INCLUDE_DIR.
+
+# example: if you have already installed opensubdiv libs in this cmake setup,
+# set (OPENSUBDIV_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/${CMAKE_INCDIR_BASE})
+
+if (NOT OPENSUBDIV_INCLUDE_DIR)
+    set(OPENSUBDIV_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/opensubdiv")
+endif()
+
+if (NOT NO_TESTS)
+    enable_testing()
+endif()
 
 add_subdirectory(opensubdiv)
 

@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_FVAR_LEVEL_H
-#define VTR_FVAR_LEVEL_H
+#ifndef OPENSUBDIV3_VTR_FVAR_LEVEL_H
+#define OPENSUBDIV3_VTR_FVAR_LEVEL_H
 
 #include "../version.h"
 
@@ -40,14 +40,8 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-//  Forward declaration of friend classes:
-namespace Far {
-    class TopologyRefiner;
-}
 namespace Vtr {
-    class Refinement;
-    class FVarRefinement;
-}
+namespace internal {
 
 //
 //  FVarLevel:
@@ -81,16 +75,8 @@ namespace Vtr {
 //      Everything is being declared public for now to facilitate access until its
 //  clearer how this functionality will be provided.
 //
-namespace Vtr {
-
 class FVarLevel {
-protected:
-    friend class Level;
-    friend class Refinement;
-    friend class FVarRefinement;
-    friend class Far::TopologyRefiner;
-
-protected:
+public:
     //
     //  Component tags -- trying to minimize the types needed here:
     //
@@ -106,9 +92,9 @@ protected:
         typedef unsigned char ETagSize;
 
         ETagSize _mismatch : 1;  // local FVar topology does not match
-        ETagSize _boundary : 1;  // not continuous at both ends
         ETagSize _disctsV0 : 1;  // discontinuous at vertex 0
         ETagSize _disctsV1 : 1;  // discontinuous at vertex 1
+        ETagSize _linear   : 1;  // linear boundary constraints
     };
 
     //
@@ -134,11 +120,22 @@ protected:
         ValueTagSize _mismatch  : 1;  // local FVar topology does not match
         ValueTagSize _crease    : 1;  // value is a crease, otherwise a corner
         ValueTagSize _semiSharp : 1;  // value is a corner decaying to crease
-        ValueTagSize _depSharp  : 1;  // value a corner by dependency on another
+        ValueTagSize _depSharp  : 1;  // value is a corner by dependency on another
+        ValueTagSize _xordinary : 1;  // value is an x-ordinary crease in the limit
     };
 
     typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
     typedef Vtr::Array<ValueTag> ValueTagArray;
+
+    ValueTag    getFaceCompositeValueTag(ConstIndexArray & faceValues,
+                                         ConstIndexArray & faceVerts) const;
+
+    Level::VTag getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
+                                             ConstIndexArray & faceVerts,
+                                             Level::VTag *     fvarVTags) const;
+
+    Level::ETag getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
+                                                Level::ETag *     fvarETags) const;
 
     //
     //  Simple struct containing the "end faces" of a crease, i.e. the faces which
@@ -158,7 +155,7 @@ protected:
     typedef ConstLocalIndexArray ConstSiblingArray;
     typedef LocalIndexArray SiblingArray;
 
-protected:
+public:
     FVarLevel(Level const& level);
     ~FVarLevel();
 
@@ -167,6 +164,12 @@ protected:
 
     int getNumValues() const          { return _valueCount; }
     int getNumFaceValuesTotal() const { return (int) _faceVertValues.size(); }
+
+    bool isLinear() const            { return _isLinear; }
+    bool hasLinearBoundaries() const { return _hasLinearBoundaries; }
+    bool hasSmoothBoundaries() const { return not _hasLinearBoundaries; }
+
+    Sdc::Options getOptions() const { return _options; }
 
     //  Queries per face:
     ConstIndexArray  getFaceValues(Index fIndex) const;
@@ -181,6 +184,8 @@ protected:
     Index getVertexValueOffset(Index v, Sibling i = 0) const { return _vertSiblingOffsets[v] + i; }
 
     Index getVertexValue(Index v, Sibling i = 0) const { return _vertValueIndices[getVertexValueOffset(v,i)]; }
+
+    Index findVertexValueIndex(Index vertexIndex, Index valueIndex) const;
 
     //  Methods to access/modify array properties per vertex:
     ConstIndexArray  getVertexValues(Index vIndex) const;
@@ -211,7 +216,7 @@ protected:
     void resizeComponents();
 
     //  Topological analysis methods -- tagging and face-value population:
-    void completeTopologyFromFaceValues();
+    void completeTopologyFromFaceValues(int regBoundaryValence);
     void initializeFaceValuesFromFaceVertices();
     void initializeFaceValuesFromVertexFaceSiblings();
 
@@ -229,14 +234,17 @@ protected:
     void print() const;
     void buildFaceVertexSiblingsFromVertexFaceSiblings(std::vector<Sibling>& fvSiblings) const;
 
-protected:
+private:
+    //  Just as Refinements build Levels, FVarRefinements build FVarLevels...
+    friend class FVarRefinement;
+
     Level const & _level;
 
-    //  Options vary between channels:
+    //  Linear interpolation options vary between channels:
     Sdc::Options _options;
 
     bool _isLinear;
-    bool _hasSmoothBoundaries;
+    bool _hasLinearBoundaries;
     bool _hasDependentSharpness;
     int  _valueCount;
 
@@ -274,30 +282,30 @@ protected:
 inline ConstIndexArray
 FVarLevel::getFaceValues(Index fIndex) const {
 
-    int vCount  = _level._faceVertCountsAndOffsets[fIndex*2];
-    int vOffset = _level._faceVertCountsAndOffsets[fIndex*2+1];
+    int vCount  = _level.getNumFaceVertices(fIndex);
+    int vOffset = _level.getOffsetOfFaceVertices(fIndex);
     return ConstIndexArray(&_faceVertValues[vOffset], vCount);
 }
 inline IndexArray
 FVarLevel::getFaceValues(Index fIndex) {
 
-    int vCount  = _level._faceVertCountsAndOffsets[fIndex*2];
-    int vOffset = _level._faceVertCountsAndOffsets[fIndex*2+1];
+    int vCount  = _level.getNumFaceVertices(fIndex);
+    int vOffset = _level.getOffsetOfFaceVertices(fIndex);
     return IndexArray(&_faceVertValues[vOffset], vCount);
 }
 
 inline FVarLevel::ConstSiblingArray
 FVarLevel::getVertexFaceSiblings(Index vIndex) const {
 
-    int vCount  = _level._vertFaceCountsAndOffsets[vIndex*2];
-    int vOffset = _level._vertFaceCountsAndOffsets[vIndex*2+1];
+    int vCount  = _level.getNumVertexFaces(vIndex);
+    int vOffset = _level.getOffsetOfVertexFaces(vIndex);
     return ConstSiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 inline FVarLevel::SiblingArray
 FVarLevel::getVertexFaceSiblings(Index vIndex) {
 
-    int vCount  = _level._vertFaceCountsAndOffsets[vIndex*2];
-    int vOffset = _level._vertFaceCountsAndOffsets[vIndex*2+1];
+    int vCount  = _level.getNumVertexFaces(vIndex);
+    int vOffset = _level.getOffsetOfVertexFaces(vIndex);
     return SiblingArray(&_vertFaceSiblings[vOffset], vCount);
 }
 
@@ -346,10 +354,23 @@ FVarLevel::getVertexValueCreaseEnds(Index vIndex)
     return CreaseEndPairArray(&_vertValueCreaseEnds[vOffset], vCount);
 }
 
+inline Index
+FVarLevel::findVertexValueIndex(Index vertexIndex, Index valueIndex) const {
+
+    if (_level.getDepth() > 0) return valueIndex;
+
+    Index vvIndex = getVertexValueOffset(vertexIndex);
+    while (_vertValueIndices[vvIndex] != valueIndex) {
+        ++ vvIndex;
+    }
+    return vvIndex;
+}
+
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_FVAR_LEVEL_H */
+#endif /* OPENSUBDIV3_VTR_FVAR_LEVEL_H */

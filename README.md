@@ -8,141 +8,23 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
-# 3.0 ALPHA Release
-
-The OpenSubdiv 3.0 release is still early in its development cycle. As such, all APIs, code examples and documentation are subject to change at any time, without notice or backward compatibility with existing code. Please consult the [release notes](http://graphics.pixar.com/opensubdiv/docs_3x_alpha/intro.html) for more details about the features and improvements contained in this new release.
-
-The 3.0 Beta release is tentatively scheduled for late Q4 2014.  
-
 ## Git Flow
 
 We have adopted the git flow branching model. It is not necessary to use the git-flow extensions, though you may find them useful! But it will be helpful to read about the git flow branching model in order to understand the organization of branches and tags that you will find in the repository.
 
+* [Getting Started](http://graphics.pixar.com/opensubdiv/docs/getting_started.html)
 * [git-flow extensions](https://github.com/nvie/gitflow) 
 
 ## Quickstart
 
-Basic instructions to get started with the code.
+ * Clone
+ * Make a subdirectory "build" and cd into it
+ * Run cmake .. followed up with your build tool of choice (make or an IDE).
 
-### Dependencies
+Additional detailed instructions can be found in the documentation:
 
-Cmake will adapt the build based on which dependencies have been successfully discovered and will disable certain features and code examples accordingly.
-
-Please refer to the documentation of each of the dependency packages for specific build and installation instructions.
-
-Required:
-* [cmake](http://www.cmake.org/cmake/resources/software.html)
-
-Optional:
-* [GLEW](http://sourceforge.net/projects/glew/) (Windows/Linux only)
-* [CUDA](http://developer.nvidia.com/category/zone/cuda-zone)
-* [TBB] (https://www.threadingbuildingblocks.org/)
-* [OpenCL](http://www.khronos.org/opencl/)
-* [GLFW](http://www.glfw.org/)
-* [Ptex](https://github.com/wdas/ptex)
-* [Zlib](http://www.zlib.net) (required for Ptex under Windows)
-* [Maya SDK](http://www.autodesk.com/maya/) (sample code for Maya viewport 2.0 primitive)
-* [DX11 SDK](http://www.microsoft.com/en-us/download/details.aspx?id=6812)
-* [Docutils](http://docutils.sourceforge.net/)
-* [Doxygen](file://www.doxygen.org/)
-
-### Useful cmake options and environment variables
-
-````
--DCMAKE_BUILD_TYPE=[Debug|Release]
-
--DCMAKE_INSTALL_PREFIX=[base path to install OpenSubdiv (default: Current directory)]
--DCMAKE_LIBDIR_BASE=[library directory basename (default: lib)]
-
--DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
--DPTEX_LOCATION=[path to Ptex]
--DGLEW_LOCATION=[path to GLEW]
--DGLFW_LOCATION=[path to GLFW]
--DMAYA_LOCATION=[path to Maya]
-
--DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)
--DNO_EXAMPLES=1   // disable examples build
--DNO_TUTORIALS=1  // disable tutorials build
--DNO_REGRESSION=1 // disable regression tests build
--DNO_MAYA=1       // disable Maya plugin build
--DNO_PTEX=1       // disable PTex support
--DNO_DOC=1        // disable documentation build
--DNO_OMP=1        // disable OpenMP
--DNO_TBB=1        // disable TBB
--DNO_CUDA=1       // disable CUDA
--DNO_OPENCL=1     // disable OpenCL
--DNO_OPENGL=1     // disable OpenGL
--DNO_CLEW=1       // disable CLEW wrapper library
-````
-
-The paths to Maya, Ptex, GLFW, and GLEW can also be specified through the
-following environment variables: `MAYA_LOCATION`, `PTEX_LOCATION`, `GLFW_LOCATION`,
-and `GLEW_LOCATION`.
-
-
-### Build instructions (Linux/OSX/Windows):
-
-__Clone the repository:__
-
-From the GitShell, Cygwin or the CLI :
-
-````
-git clone git://github.com/PixarAnimationStudios/OpenSubdiv.git
-````
-
-Alternatively, on Windows, GIT also provides a GUI to perform this operation.
-
-__Generate Makefiles:__
-
-Assuming that we want the binaries installed into a "build" directory at the root of the OpenSubdiv tree :
-````
-cd OpenSubdiv
-mkdir build
-cd build
-````
-
-Here is an example cmake configuration script for a full typical windows-based build that can be run in GitShell :
-
-````
-#/bin/tcsh
-
-# Replace the ".." with a full path to the root of the OpenSubdiv source tree if necessary
-"c:/Program Files (x86)/CMake 2.8/bin/cmake.exe" \
-    -G "Visual Studio 10 Win64" \
-    -D "GLEW_LOCATION:string=c:/Program Files/glew-1.9.0" \
-    -D "GLFW_LOCATION:string=c:/Program Files/glfw-2.7.7.bin.WIN64" \
-    -D "OPENCL_INCLUDE_DIRS:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/inc" \
-    -D "_OPENCL_CPP_INCLUDE_DIRS:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/inc" \
-    -D "OPENCL_LIBRARIES:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/lib/x64/OpenCL.lib" \
-    -D "MAYA_LOCATION:string=c:/Program Files/Autodesk/Maya2013.5" \
-    -D "PTEX_LOCATION:string=c:/Users/opensubdiv/demo/src/ptex/x64" \
-    ..
-
-# copy Ptex dependencies (Windows only)
-mkdir -p bin/{Debug,Release}
-\cp -f c:/Users/opensubdiv/demo/src/zlib-1.2.7/contrib/vstudio/vc10/x64/ZlibDllRelease/zlibwapi.dll bin/Debug/
-\cp -f c:/Users/opensubdiv/demo/src/zlib-1.2.7/contrib/vstudio/vc10/x64/ZlibDllRelease/zlibwapi.dll bin/Release/
-\cp -f c:/Users/opensubdiv/demo/src/ptex/x64/lib/Ptex.dll bin/Debug/
-\cp -f c:/Users/opensubdiv/demo/src/ptex/x64/lib/Ptex.dll bin/Release/
-````
-
-Alternatively, you can use the cmake GUI or run the commands from the CLI.
-
-Note : the OSX generator in cmake for Xcode is -G "Xcode". However we recommend against using it, as we have noticed problems with dependency tracking.
-
-__Build the project:__
-
-CMake provides a cross-platform command-line build:
-````
-cmake --build . --target install --config Release
-````
-
-Windows : launch VC++ with the solution generated by cmake in your build directory.
-
-OSX : with the Xcode generator, run xcodebuild in your build directory, otherwise make.
-
-*Nix : run make in your build directory
-
+ * [Getting Started](http://graphics.pixar.com/opensubdiv/docs/getting_started.html)
+ * [Building OpenSubdiv](http://graphics.pixar.com/opensubdiv/docs/cmake_build.html)
 
 ## Standalone viewers
 

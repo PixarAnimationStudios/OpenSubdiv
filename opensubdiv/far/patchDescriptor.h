@@ -22,11 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_DESCRIPTOR_H
-#define FAR_PATCH_DESCRIPTOR_H
+#ifndef OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
+#define OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H
 
 #include "../version.h"
 
+#include "../far/types.h"
 #include "../sdc/types.h"
 
 #include <vector>
@@ -44,17 +45,13 @@ namespace Far {
 ///   or TRIANGLES
 ///
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
-///   BOUNDARY, SINGLE_CREASE, CORNER, GREGORY, GREGORY_BOUNDARY, GREGOYR_BASIS.
-///   These bicubic patches are also further distinguished by a transition
-///   pattern as well as a rotational orientation.
+///   GREGORY, GREGORY_BOUNDARY, GREGORY_BASIS.
 ///
 /// Bitfield layout :
 ///
-///  Field      | Bits | Content
-///  -----------|:----:|------------------------------------------------------
-///  _type      | 4    | patch type
-///  _pattern   | 3    | patch transition pattern
-///  _rotation  | 2    | patch rotation
+///  Field       | Bits | Content
+///  ------------|:----:|------------------------------------------------------
+///  _type       | 4    | patch type
 ///
 class PatchDescriptor {
 
@@ -72,50 +69,38 @@ public:
         LOOP,              ///< Loop patch
 
         REGULAR,           ///< feature-adaptive bicubic patches
-        SINGLE_CREASE,
-        BOUNDARY,
-        CORNER,
         GREGORY,
         GREGORY_BOUNDARY,
         GREGORY_BASIS
-    };
-
-    enum TransitionPattern {
-        NON_TRANSITION = 0,
-        PATTERN0,
-        PATTERN1,
-        PATTERN2,
-        PATTERN3,
-        PATTERN4
     };
 
 public:
 
     /// \brief Default constructor.
     PatchDescriptor() :
-        _type(NON_PATCH), _pattern(NON_TRANSITION), _rotation(0) {}
+        _type(NON_PATCH) { }
 
     /// \brief Constructor
-    PatchDescriptor(int type, int pattern, unsigned char rotation) :
-        _type(type), _pattern(pattern), _rotation(rotation) { }
+    PatchDescriptor(int type) :
+        _type(type) { }
 
     /// \brief Copy Constructor
     PatchDescriptor( PatchDescriptor const & d ) :
-        _type(d.GetType()), _pattern(d.GetPattern()), _rotation(d.GetRotation()) { }
+        _type(d.GetType()) { }
 
     /// \brief Returns the type of the patch
     Type GetType() const {
         return (Type)_type;
     }
 
-    /// \brief Returns the transition pattern of the patch if any (5 types)
-    TransitionPattern GetPattern() const {
-        return (TransitionPattern)_pattern;
+    /// \brief Returns true if the type is an adaptive patch
+    static inline bool IsAdaptive(Type type) {
+        return (type>=LOOP and type<=GREGORY_BASIS);
     }
 
-    /// \brief Returns the rotation of the patch (4 rotations)
-    unsigned char GetRotation() const {
-        return (unsigned char)_rotation;
+    /// \brief Returns true if the type is an adaptive patch
+    bool IsAdaptive() const {
+        return IsAdaptive( this->GetType() );
     }
 
     /// \brief Returns the number of control vertices expected for a patch of the
@@ -139,12 +124,6 @@ public:
     /// \brief Number of control vertices of Regular Patches in table.
     static short GetRegularPatchSize() { return 16; }
 
-    /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetBoundaryPatchSize() { return 12; }
-
-    /// \brief Number of control vertices of Boundary Patches in table.
-    static short GetCornerPatchSize() { return 9; }
-
     /// \brief Number of control vertices of Gregory (and Gregory Boundary) Patches in table.
     static short GetGregoryPatchSize() { return 4; }
 
@@ -154,7 +133,7 @@ public:
 
     /// \brief Returns a vector of all the legal patch descriptors for the
     ///        given adaptive subdivision scheme
-    static std::vector<PatchDescriptor> const & GetAdaptivePatchDescriptors(Sdc::SchemeType type);
+    static Vtr::ConstArray<PatchDescriptor> GetAdaptivePatchDescriptors(Sdc::SchemeType type);
 
     /// \brief Allows ordering of patches by type
     inline bool operator < ( PatchDescriptor const other ) const;
@@ -162,28 +141,24 @@ public:
     /// \brief True if the descriptors are identical
     inline bool operator == ( PatchDescriptor const other ) const;
 
-private:
-    friend class PatchTablesFactory;
+    // debug helper
+    void print() const;
 
+private:
     unsigned int  _type:4;
-    unsigned int  _pattern:3;
-    unsigned int  _rotation:2;
 };
 
-typedef std::vector<PatchDescriptor> PatchDescriptorVector;
+typedef Vtr::ConstArray<PatchDescriptor> ConstPatchDescriptorArray;
 
 // Returns the number of control vertices expected for a patch of this type
 inline short
 PatchDescriptor::GetNumControlVertices( Type type ) {
     switch (type) {
         case REGULAR           : return GetRegularPatchSize();
-        case SINGLE_CREASE     : return GetRegularPatchSize();
         case QUADS             : return 4;
         case GREGORY           :
         case GREGORY_BOUNDARY  : return GetGregoryPatchSize();
         case GREGORY_BASIS     : return GetGregoryBasisPatchSize();
-        case BOUNDARY          : return GetBoundaryPatchSize();
-        case CORNER            : return GetCornerPatchSize();
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;
@@ -195,17 +170,14 @@ PatchDescriptor::GetNumControlVertices( Type type ) {
 inline short
 PatchDescriptor::GetNumFVarControlVertices( Type type ) {
     switch (type) {
-        case REGULAR           : // We only support bilinear interpolation for now,
-        case SINGLE_CREASE     :
-        case QUADS             : // so all these patches only carry 4 CVs.
-        case GREGORY           :
-        case GREGORY_BOUNDARY  :
-        case GREGORY_BASIS     :
-        case BOUNDARY          :
-        case CORNER            : return 4;
+        case REGULAR           : return GetRegularPatchSize();
+        case QUADS             : return 4;
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;
+        case GREGORY_BASIS     : assert(0); return GetGregoryBasisPatchSize();
+        case GREGORY           :
+        case GREGORY_BOUNDARY  : assert(0); // unsupported types
         default : return -1;
     }
 }
@@ -213,17 +185,13 @@ PatchDescriptor::GetNumFVarControlVertices( Type type ) {
 // Allows ordering of patches by type
 inline bool
 PatchDescriptor::operator < ( PatchDescriptor const other ) const {
-    return _pattern < other._pattern or ((_pattern == other._pattern) and
-          (_type < other._type or ((_type == other._type) and
-          (_rotation < other._rotation))));
+    return (_type < other._type);
 }
 
 // True if the descriptors are identical
 inline bool
 PatchDescriptor::operator == ( PatchDescriptor const other ) const {
-    return     _pattern == other._pattern    and
-                  _type == other._type       and
-              _rotation == other._rotation;
+    return _type == other._type;
 }
 
 
@@ -235,4 +203,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_DESCRIPTOR_H */
+#endif /* OPENSUBDIV3_FAR_PATCH_DESCRIPTOR_H */

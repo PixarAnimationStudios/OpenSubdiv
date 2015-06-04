@@ -26,9 +26,10 @@
 #define HUD_H
 
 #include <algorithm>
-#include <vector>
-#include <string>
 #include <cstdarg>
+#include <math.h>
+#include <string>
+#include <vector>
 
 #include "hud.h"
 
@@ -127,6 +128,10 @@ protected:
 
         void SetValue(float v) {
             value = std::max(std::min(v, max), min);
+            if (intStep) {
+                // MSVC 2010 does not have std::round() or roundf()
+                value = v>0.0f ? floor(v+0.5f) : ceil(v-0.5f);
+            }
         }
     };
 

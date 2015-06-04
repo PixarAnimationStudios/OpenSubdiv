@@ -23,8 +23,8 @@
 #
 
 set(EXAMPLES_COMMON_SHADER_FILES
-     framebuffer.glsl
-     ssao.glsl
+     glslPtexCommon.glsl
+     hlslPtexCommon.hlsl
 )
 
 set(EXAMPLES_COMMON_SOURCE_FILES
@@ -36,29 +36,31 @@ set(EXAMPLES_COMMON_SOURCE_FILES
 )
 
 set(EXAMPLES_COMMON_HEADER_FILES
-    clInit.h
-    cudaInit.h
     font_image.h
     hdr_reader.h
     hud.h
     objAnim.h
     patchColors.h
+    shaderCache.h
     simple_math.h
+    stb_image_write.h 
     stopwatch.h
 )
 
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-        gl_common.cpp
-        gl_framebuffer.cpp
-        gl_hud.cpp
+        glControlMeshDisplay.cpp
+        glHud.cpp
+        glUtils.cpp
+        glShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        gl_common.h
-        gl_framebuffer.h
-        gl_hud.h
+        glControlMeshDisplay.h
+        glHud.h
+        glUtils.h
+        glShaderCache.h
     )
 
     if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
@@ -69,29 +71,88 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         include_directories("${GLEW_INCLUDE_DIR}")
     endif()
 
+    if (GLFW_FOUND)
+        include_directories("${GLFW_INCLUDE_DIR}")
+    endif()
+
 endif()
 
 
 if(DXSDK_FOUND)
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
-        d3d11_hud.cpp
+        d3d11ControlMeshDisplay.cpp
+        d3d11Hud.cpp
+        d3d11Utils.cpp
+        d3d11ShaderCache.cpp
     )
 
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
-        d3d11_hud.h
+        d3d11ControlMeshDisplay.h
+        d3d11Hud.h
+        d3d11Utils.h
+        d3d11ShaderCache.h
     )
 
     include_directories("${DXSDK_INCLUDE_DIR}")
 
 endif()
 
-if( OPENCL_FOUND )
+if(OPENCL_FOUND)
     include_directories("${OPENCL_INCLUDE_DIRS}")
+
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        clDeviceContext.cpp
+    )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        clDeviceContext.h
+    )
 endif()
 
+if(CUDA_FOUND)
+    include_directories("${CUDA_INCLUDE_DIRS}")
+
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        cudaDeviceContext.cpp
+    )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        cudaDeviceContext.h
+    )
+endif()
+
+#-------------------------------------------------------------------------------
+if( PTEX_FOUND )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        ptexMipmapTextureLoader.h
+    )
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        ptexMipmapTextureLoader.cpp
+    )
+    if( OPENGL_FOUND )
+        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+            glPtexMipmapTexture.cpp
+        )
+        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+            glPtexMipmapTexture.h
+        )
+    endif()
+    if( DXSDK_FOUND )
+        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+            d3d11PtexMipmapTexture.cpp
+        )
+        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+            d3d11PtexMipmapTexture.h
+        )
+    endif()
+    include_directories( "${PTEX_INCLUDE_DIR}" )
+    list(APPEND PLATFORM_CPU_LIBRARIES
+        ${PTEX_LIBRARY}
+    )
+endif()
+#-------------------------------------------------------------------------------
+
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
@@ -106,6 +167,5 @@ add_library(examples_common_obj
     OBJECT
         ${EXAMPLES_COMMON_SOURCE_FILES}
         ${EXAMPLES_COMMON_HEADER_FILES}
-        ${INC_FILES}        
+        ${INC_FILES}
 )
-

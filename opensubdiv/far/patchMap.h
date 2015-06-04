@@ -22,12 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_MAP_H
-#define FAR_PATCH_MAP_H
+#ifndef OPENSUBDIV3_FAR_PATCH_MAP_H
+#define OPENSUBDIV3_FAR_PATCH_MAP_H
 
 #include "../version.h"
 
-#include "../far/patchTables.h"
+#include "../far/patchTable.h"
 
 #include <cassert>
 
@@ -38,7 +38,7 @@ namespace Far {
 
 /// \brief An quadtree-based map connecting coarse faces to their sub-patches
 ///
-/// PatchTables::PatchArrays contain lists of patches that represent the limit
+/// PatchTable::PatchArrays contain lists of patches that represent the limit
 /// surface of a mesh, sorted by their topological type. These arrays break the
 /// connection between coarse faces and their sub-patches.
 ///
@@ -49,13 +49,13 @@ namespace Far {
 class PatchMap {
 public:
 
-    typedef PatchTables::PatchHandle Handle;
+    typedef PatchTable::PatchHandle Handle;
 
     /// \brief Constructor
     ///
-    /// @param patchTables  A valid set of PatchTables
+    /// @param patchTable  A valid set of PatchTable
     ///
-    PatchMap( PatchTables const & patchTables );
+    PatchMap( PatchTable const & patchTable );
 
     /// \brief Returns a handle to the sub-patch of the face at the given (u,v).
     /// Note : the faceid corresponds to quadrangulated face indices (ie. quads
@@ -74,7 +74,7 @@ public:
 
 private:
 
-    inline void initialize( PatchTables const & patchTables );
+    inline void initialize( PatchTable const & patchTable );
 
     // Quadtree node with 4 children
     struct QuadNode {
@@ -182,7 +182,6 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     return 0;
 }
 
-// Constructor
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
@@ -190,4 +189,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_PARAM */
+#endif /* OPENSUBDIV3_FAR_PATCH_PARAM */

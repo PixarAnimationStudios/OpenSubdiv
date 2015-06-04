@@ -22,10 +22,13 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_GREGORY_BASIS_H
-#define FAR_GREGORY_BASIS_H
+#ifndef OPENSUBDIV3_FAR_GREGORY_BASIS_H
+#define OPENSUBDIV3_FAR_GREGORY_BASIS_H
 
-#include "../far/protoStencil.h"
+#include "../vtr/level.h"
+#include "../far/types.h"
+#include "../far/stencilTable.h"
+#include <cstring>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -35,6 +38,10 @@ namespace Far {
 class TopologyRefiner;
 
 /// \brief Container for gregory basis stencils
+///
+/// XXXtakahito: Currently these classes are being used by EndPatch factories.
+///              These classes will likely go away once we get limit masks
+///              from SchemeWorker.
 ///
 class GregoryBasis {
 
@@ -53,7 +60,7 @@ public:
     template <class T, class U>
     void Evaluate(T const & controlValues, U values[20]) const {
 
-        Index const * indices = &_indices.at(0);
+        Vtr::Index const * indices = &_indices.at(0);
         float const * weights = &_weights.at(0);
 
         for (int i=0; i<20; ++i) {
@@ -64,71 +71,188 @@ public:
         }
     }
 
+    //
+    // Basis point
+    //
+    // Implements arithmetic operators to manipulate the influence of the
+    // 1-ring control vertices supporting the patch basis
+    //
+    class Point {
+    public:
+        static const int RESERVED_ENTRY_SIZE = 64;
+
+        Point() : _size(0) {
+            _indices.reserve(RESERVED_ENTRY_SIZE);
+            _weights.reserve(RESERVED_ENTRY_SIZE);
+        }
+
+        Point(Vtr::Index idx, float weight = 1.0f) {
+            _indices.reserve(RESERVED_ENTRY_SIZE);
+            _weights.reserve(RESERVED_ENTRY_SIZE);
+            _size = 1;
+            _indices.push_back(idx);
+            _weights.push_back(weight);
+        }
+
+        Point(Point const & other) {
+            *this = other;
+        }
+
+        int GetSize() const {
+            return _size;
+        }
+
+        Vtr::Index const * GetIndices() const {
+            return &_indices[0];
+        }
+
+        float const * GetWeights() const {
+            return &_weights[0];
+        }
+
+        Point & operator = (Point const & other) {
+            _size = other._size;
+            _indices = other._indices;
+            _weights = other._weights;
+            return *this;
+        }
+
+        Point & operator += (Point const & other) {
+            for (int i=0; i<other._size; ++i) {
+                Vtr::Index idx = findIndex(other._indices[i]);
+                _weights[idx] += other._weights[i];
+            }
+            return *this;
+        }
+
+        Point & operator -= (Point const & other) {
+            for (int i=0; i<other._size; ++i) {
+                Vtr::Index idx = findIndex(other._indices[i]);
+                _weights[idx] -= other._weights[i];
+            }
+            return *this;
+        }
+
+        Point & operator *= (float f) {
+            for (int i=0; i<_size; ++i) {
+                _weights[i] *= f;
+            }
+            return *this;
+        }
+
+        Point & operator /= (float f) {
+            return (*this)*=(1.0f/f);
+        }
+
+        friend Point operator * (Point const & src, float f) {
+            Point p( src ); return p*=f;
+        }
+
+        friend Point operator / (Point const & src, float f) {
+            Point p( src ); return p*= (1.0f/f);
+        }
+
+        Point operator + (Point const & other) {
+            Point p(*this); return p+=other;
+        }
+
+        Point operator - (Point const & other) {
+            Point p(*this); return p-=other;
+        }
+
+        void OffsetIndices(Vtr::Index offset) {
+            for (int i=0; i<_size; ++i) {
+                _indices[i] += offset;
+            }
+        }
+
+        void Copy(int ** size, Vtr::Index ** indices, float ** weights) const {
+            memcpy(*indices, &_indices[0], _size*sizeof(Vtr::Index));
+            memcpy(*weights, &_weights[0], _size*sizeof(float));
+            **size = _size;
+            *indices += _size;
+            *weights += _size;
+            ++(*size);
+        }
+
+    private:
+
+        int findIndex(Vtr::Index idx) {
+            for (int i=0; i<_size; ++i) {
+                if (_indices[i]==idx) {
+                    return i;
+                }
+            }
+            _indices.push_back(idx);
+            _weights.push_back(0.0f);
+            ++_size;
+            return _size-1;
+        }
+
+        int _size;
+        std::vector<Vtr::Index> _indices;
+        std::vector<float> _weights;
+    };
+
+    //
+    // ProtoBasis
+    //
+    // Given a Vtr::Level and a face index, gathers all the influences of the
+    // 1-ring that supports the 20 CVs of a Gregory patch basis.
+    //
+    struct ProtoBasis {
+
+        ProtoBasis(Vtr::internal::Level const & level,
+                   Vtr::Index faceIndex,
+                   int levelVertOffset,
+                   int fvarChannel);
+
+        int GetNumElements() const;
+
+        void Copy(int * sizes, Vtr::Index * indices, float * weights) const;
+        void Copy(GregoryBasis* dest) const;
+
+        // Control Vertices based on :
+        // "Approximating Subdivision Surfaces with Gregory Patches for Hardware
+        // Tessellation" Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia
+        // 2009)
+        //
+        //  P3         e3-      e2+         P2
+        //     O--------O--------O--------O
+        //     |        |        |        |
+        //     |        |        |        |
+        //     |        | f3-    | f2+    |
+        //     |        O        O        |
+        // e3+ O------O            O------O e2-
+        //     |     f3+          f2-     |
+        //     |                          |
+        //     |                          |
+        //     |      f0-         f1+     |
+        // e0- O------O            O------O e1+
+        //     |        O        O        |
+        //     |        | f0+    | f1-    |
+        //     |        |        |        |
+        //     |        |        |        |
+        //     O--------O--------O--------O
+        //  P0         e0+      e1-         P1
+        //
+
+        Point P[4], Ep[4], Em[4], Fp[4], Fm[4];
+
+        // for varying interpolation
+        Point V[4];
+    };
+
+    typedef std::vector<GregoryBasis::Point> PointsVector;
+
+    static StencilTable *CreateStencilTable(PointsVector const &stencils);
+
 private:
 
-    friend class GregoryBasisFactory;
+    int _sizes[20];
 
-    int _sizes[20],
-        _offsets[20];
-
-    std::vector<Index> _indices;
+    std::vector<Vtr::Index> _indices;
     std::vector<float> _weights;
-};
-
-/// \brief A specialized factory to gather Gregory basis control vertices
-///
-class GregoryBasisFactory {
-
-public:
-
-    //
-    // Single patch GregoryBasis basis factory
-    //
-
-    /// \brief Instantiates a GregoryBasis from a TopologyRefiner that has been
-    ///        refined adaptively for a given face.
-    ///
-    /// @param refiner    The TopologyRefiner containing the topology
-    ///
-    /// @param faceIndex  The index of the face (level is assumed to be MaxLevel)
-    ///
-    static GregoryBasis const * Create(TopologyRefiner const & refiner, Index faceIndex);
-
-    /// \brief Returns the maximum valence of a vertex in the mesh that the
-    ///        Gregory patches can handle
-    static int GetMaxValence();
-
-public:
-
-    //
-    // Multi-patch Gregory stencils factory
-    //
-
-    // This factory accumulates Gregory patch basis into StencilTables
-    //
-    // Note: the TopologyRefiner and StencilTables references are held for the
-    //       lifespan of the factory - neither can be deleted or modified while
-    //       this factory is active.
-    //
-    GregoryBasisFactory(TopologyRefiner const & refiner,
-        StencilTables const & stencils, int numpatches, int maxvalence);
-
-    // Creates a basis for the face and adds it to the stencil pool allocator
-    bool AddPatchBasis(Index faceIndex);
-
-    // After all the patches have been collected, create the final table
-    StencilTables const * CreateStencilTables(int const permute[20]=0);
-
-private:
-
-    int _currentStencil;
-
-    TopologyRefiner const & _refiner; // XXXX these should be smart pointers !
-
-    Index _stencilsOffset;
-
-    StencilTables const & _stencils;
-    StencilAllocator _alloc;
 };
 
 } // end namespace Far
@@ -136,4 +260,4 @@ private:
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
 
-#endif /* FAR_GREGORY_BASIS_H */
+#endif /* OPENSUBDIV3_FAR_GREGORY_BASIS_H */

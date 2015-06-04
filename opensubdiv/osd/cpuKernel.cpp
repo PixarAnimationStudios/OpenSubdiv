@@ -23,7 +23,7 @@
 //
 
 #include "../osd/cpuKernel.h"
-#include "../osd/vertexDescriptor.h"
+#include "../osd/bufferDescriptor.h"
 
 #include <cassert>
 #include <cmath>
@@ -36,13 +36,13 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 template <class T> T *
-elementAtIndex(T * src, int index, VertexBufferDescriptor const &desc) {
+elementAtIndex(T * src, int index, BufferDescriptor const &desc) {
 
     return src + index * desc.stride;
 }
 
 static inline void
-clear(float *dst, VertexBufferDescriptor const &desc) {
+clear(float *dst, BufferDescriptor const &desc) {
 
     assert(dst);
     memset(dst, 0, desc.length*sizeof(float));
@@ -50,7 +50,7 @@ clear(float *dst, VertexBufferDescriptor const &desc) {
 
 static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
-              VertexBufferDescriptor const &desc) {
+              BufferDescriptor const &desc) {
 
     assert(src and dst);
     src = elementAtIndex(src, srcIndex, desc);
@@ -60,8 +60,7 @@ addWithWeight(float *dst, const float *src, int srcIndex, float weight,
 }
 
 static inline void
-copy(float *dst, int dstIndex, const float *src,
-     VertexBufferDescriptor const &desc) {
+copy(float *dst, int dstIndex, const float *src, BufferDescriptor const &desc) {
 
     assert(src and dst);
 
@@ -70,14 +69,13 @@ copy(float *dst, int dstIndex, const float *src,
 }
 
 void
-CpuComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                   float const * vertexSrc,
-                   float * vertexDst,
-                   unsigned char const * sizes,
-                   int const * offsets,
-                   int const * indices,
-                   float const * weights,
-                   int start, int end) {
+CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end) {
 
     assert(start>=0 and start<end);
 
@@ -87,34 +85,87 @@ CpuComputeStencils(VertexBufferDescriptor const &vertexDesc,
         weights += offsets[start];
     }
 
-    if (vertexDesc.length==4 and vertexDesc.stride==4) {
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
 
-        // SIMD fast path for aligned primvar data (8 floats)
-        ComputeStencilKernel<4>(vertexSrc, vertexDst,
+    if (srcDesc.length == 4 and dstDesc.length == 4 and
+        srcDesc.stride == 4 and dstDesc.stride == 4) {
+
+        // SIMD fast path for aligned primvar data (4 floats)
+        ComputeStencilKernel<4>(src, dst,
             sizes, indices, weights, start,  end);
 
-    } else if(vertexDesc.length==8 and vertexDesc.stride==8) {
+    } else if (srcDesc.length == 8 and dstDesc.length == 8 and
+               srcDesc.stride == 8 and dstDesc.stride == 8) {
 
         // SIMD fast path for aligned primvar data (8 floats)
-        ComputeStencilKernel<8>(vertexSrc, vertexDst,
+        ComputeStencilKernel<8>(src, dst,
             sizes, indices, weights, start,  end);
-    }
-    else {
+    } else {
 
         // Slow path for non-aligned data
-        float * result = (float*)alloca(vertexDesc.length * sizeof(float));
+
+        float * result = (float*)alloca(srcDesc.length * sizeof(float));
 
         int nstencils = end-start;
         for (int i=0; i<nstencils; ++i, ++sizes) {
 
-            clear(result, vertexDesc);
+            clear(result, srcDesc);
 
             for (int j=0; j<*sizes; ++j) {
-                addWithWeight(result, vertexSrc, *indices++, *weights++, vertexDesc);
+                addWithWeight(result, src, *indices++, *weights++, srcDesc);
             }
 
-            copy(vertexDst, i, result, vertexDesc);
+            copy(dst, i, result, dstDesc);
         }
+    }
+}
+
+void
+CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end) {
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+        duWeights += offsets[start];
+        dvWeights += offsets[start];
+    }
+
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
+    dstDu += dstDuDesc.offset;
+    dstDv += dstDvDesc.offset;
+
+    int nOutLength = dstDesc.length + dstDuDesc.length + dstDvDesc.length;
+    float * result   = (float*)alloca(nOutLength * sizeof(float));
+    float * resultDu = result + dstDesc.length;
+    float * resultDv = resultDu + dstDuDesc.length;
+
+    int nStencils = end - start;
+    for (int i = 0; i < nStencils; ++i, ++sizes) {
+
+        // clear
+        memset(result, 0, nOutLength * sizeof(float));
+
+        for (int j=0; j<*sizes; ++j) {
+            addWithWeight(result,   src, *indices, *weights++,   srcDesc);
+            addWithWeight(resultDu, src, *indices, *duWeights++, srcDesc);
+            addWithWeight(resultDv, src, *indices, *dvWeights++, srcDesc);
+            ++indices;
+        }
+        copy(dst,   i, result, dstDesc);
+        copy(dstDu, i, resultDu, dstDuDesc);
+        copy(dstDv, i, resultDv, dstDvDesc);
     }
 }
 

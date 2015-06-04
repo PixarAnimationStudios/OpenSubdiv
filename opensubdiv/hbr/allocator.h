@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRALLOCATOR_H
-#define HBRALLOCATOR_H
+#ifndef OPENSUBDIV3_HBRALLOCATOR_H
+#define OPENSUBDIV3_HBRALLOCATOR_H
 
 #include "../version.h"
 
@@ -169,4 +169,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRALLOCATOR_H */
+#endif /* OPENSUBDIV3_HBRALLOCATOR_H */

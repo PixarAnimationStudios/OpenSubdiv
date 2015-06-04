@@ -29,7 +29,7 @@
 #include "../vtr/refinement.h"
 #include "../vtr/fvarLevel.h"
 #include "../vtr/fvarRefinement.h"
-#include "../vtr/maskInterfaces.h"
+#include "../vtr/stackBuffer.h"
 
 #include <cassert>
 #include <cstdio>
@@ -40,6 +40,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple constructor, destructor and basic initializers:
@@ -49,6 +50,8 @@ Refinement::Refinement(Level const & parent, Level & child, Sdc::Options const& 
     _child(&child),
     _options(options),
     _regFaceSize(-1),
+    _uniform(false),
+    _faceVertsFirst(false),
     _childFaceFromFaceCount(0),
     _childEdgeFromFaceCount(0),
     _childEdgeFromEdgeCount(0),
@@ -116,7 +119,13 @@ Refinement::refine(Options refineOptions) {
     //  This will become redundant when/if assigned on construction:
     assert(_parent && _child);
 
-    _uniform = !refineOptions._sparse;
+    _uniform        = !refineOptions._sparse;
+    _faceVertsFirst =  refineOptions._faceVertsFirst;
+
+    //  We may soon have an option here to suppress refinement of FVar channels...
+    bool refineOptions_ignoreFVarChannels = false;
+
+    bool optionallyRefineFVar = (_parent->getNumFVarChannels() > 0) && !refineOptions_ignoreFVarChannels;
 
     //
     //  Initialize the parent-to-child and reverse child-to-parent mappings and propagate
@@ -131,15 +140,20 @@ Refinement::refine(Options refineOptions) {
     propagateComponentTags();
 
     //
-    //  Subdivide the topology -- populating only those of the 6 relations specified:
+    //  Subdivide the topology -- populating only those of the 6 relations specified
+    //  (though we do require the vertex-face relation for refining FVar channels):
     //
     Relations relationsToPopulate;
-    if (refineOptions._faceTopologyOnly) {
+    if (refineOptions._minimalTopology) {
         relationsToPopulate.setAll(false);
         relationsToPopulate._faceVertices = true;
     } else {
         relationsToPopulate.setAll(true);
     }
+    if (optionallyRefineFVar) {
+        relationsToPopulate._vertexFaces = true;
+    }
+
     subdivideTopology(relationsToPopulate);
 
     //
@@ -148,9 +162,7 @@ Refinement::refine(Options refineOptions) {
     //
     subdivideSharpnessValues();
 
-    //  We may have an option here to suppress face-varying channels...
-    bool refineOptions_faceVaryingChannels = true;
-    if (refineOptions_faceVaryingChannels) {
+    if (optionallyRefineFVar) {
         subdivideFVarChannels();
     }
 
@@ -214,18 +226,12 @@ void
 Refinement::populateParentChildIndices() {
 
     //
-    //  Two vertex orderings are under consideration -- the original mode orders
-    //  vertices originating from faces first (historically these were relied upon
-    //  to compute the rest of the vertices) while ordering vertices from vertices
-    //  first is being considered (advantageous as it preserves the index of a parent
-    //  vertex at all subsequent levels).
-    //
-    //  Other than defining the same ordering for refinement face-varying channels
-    //  (which can be inferred from settings here) the rest of the code should be
-    //  invariant to vertex ordering.
-    //
-    bool faceVertsFirst = false;
-
+    //  Two vertex orderings are currently supported -- ordering vertices refined
+    //  from vertices first, or those refined from faces first.  Its possible this
+    //  may be extended to more possibilities.  Once the ordering is defined here,
+    //  other than analogous initialization in FVarRefinement, the treatment of
+    //  vertices in blocks based on origin should make the rest of the code
+    //  invariant to ordering changes.
     //
     //  These two blocks now differ only in the utility function that assigns the
     //  sequential values to the index vectors -- so parameterization/simplification
@@ -244,7 +250,7 @@ Refinement::populateParentChildIndices() {
         _childEdgeFromEdgeCount = sequenceFullIndexVector(_edgeChildEdgeIndices, _firstChildEdgeFromEdge);
 
         //  child vertices:
-        if (faceVertsFirst) {
+        if (_faceVertsFirst) {
             _firstChildVertFromFace = 0;
             _childVertFromFaceCount = sequenceFullIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
 
@@ -276,7 +282,7 @@ Refinement::populateParentChildIndices() {
         _childEdgeFromEdgeCount = sequenceSparseIndexVector(_edgeChildEdgeIndices, _firstChildEdgeFromEdge);
 
         //  child vertices:
-        if (faceVertsFirst) {
+        if (_faceVertsFirst) {
             _firstChildVertFromFace = 0;
             _childVertFromFaceCount = sequenceSparseIndexVector(_faceChildVertIndex, _firstChildVertFromFace);
 
@@ -657,10 +663,7 @@ Refinement::populateEdgeTagsFromParentFaces() {
     //  Tags for edges originating from faces are all constant:
     //
     Level::ETag eTag;
-    eTag._nonManifold = 0;
-    eTag._boundary    = 0;
-    eTag._infSharp    = 0;
-    eTag._semiSharp   = 0;
+    eTag.clear();
 
     Index cEdge    = getFirstChildEdgeFromFaces();
     Index cEdgeEnd = cEdge + getNumChildEdgesFromFaces();
@@ -709,13 +712,8 @@ Refinement::populateVertexTagsFromParentFaces() {
     if (getNumChildVerticesFromFaces() == 0) return;
 
     Level::VTag vTag;
-    vTag._nonManifold = 0;
-    vTag._xordinary   = 0;
-    vTag._boundary    = 0;
-    vTag._infSharp    = 0;
-    vTag._semiSharp   = 0;
-    vTag._rule        = Sdc::Crease::RULE_SMOOTH;
-    vTag._incomplete  = 0;
+    vTag.clear();
+    vTag._rule = Sdc::Crease::RULE_SMOOTH;
 
     Index cVert    = getFirstChildVertexFromFaces();
     Index cVertEnd = cVert + getNumChildVerticesFromFaces();
@@ -741,22 +739,25 @@ Refinement::populateVertexTagsFromParentEdges() {
     //  Tags for vertices originating from edges are initialized according to the tags
     //  of the parent edge:
     //
+    Level::VTag vTag;
+    vTag.clear();
+
     for (Index pEdge = 0; pEdge < _parent->getNumEdges(); ++pEdge) {
         Index cVert = _edgeChildVertIndex[pEdge];
         if (!IndexIsValid(cVert)) continue;
 
+        //  From the cleared local VTag, we just need to assign properties dependent
+        //  on the parent edge:
         Level::ETag const& pEdgeTag = _parent->_edgeTags[pEdge];
-        Level::VTag&       cVertTag = _child->_vertTags[cVert];
 
-        cVertTag._nonManifold = pEdgeTag._nonManifold;
-        cVertTag._xordinary   = false;
-        cVertTag._boundary    = pEdgeTag._boundary;
-        cVertTag._infSharp    = false;
+        vTag._nonManifold    = pEdgeTag._nonManifold;
+        vTag._boundary       = pEdgeTag._boundary;
+        vTag._semiSharpEdges = pEdgeTag._semiSharp;
 
-        cVertTag._semiSharp = pEdgeTag._semiSharp;
-        cVertTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
+        vTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
                        ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
-        cVertTag._incomplete = 0;
+
+        _child->_vertTags[cVert] = vTag;
     }
 }
 void
@@ -843,9 +844,13 @@ Refinement::subdivideSharpnessValues() {
     //  process.  So for now we apply a post-process to explicitly handle all
     //  semi-sharp vertices.
     //
+
+    //  These methods will update sharpness tags local to the edges and vertices:
     subdivideEdgeSharpness();
     subdivideVertexSharpness();
 
+    //  This method uses local sharpness tags (set above) to update vertex tags that
+    //  reflect the neighborhood of the vertex (e.g. its rule):
     reclassifySemisharpVertices();
 }
 
@@ -872,9 +877,9 @@ Refinement::subdivideEdgeSharpness() {
     //  non-trivial creasing method like Chaikin is used.  This is not being
     //  done now but is worth considering...
     //
-    float * pVertEdgeSharpness = 0;
+    internal::StackBuffer<float,16> pVertEdgeSharpness;
     if (!creasing.IsUniform()) {
-        pVertEdgeSharpness = (float *)alloca(_parent->getMaxValence() * sizeof(float));
+        pVertEdgeSharpness.Reserve(_parent->getMaxValence());
     }
 
     Index cEdge    = getFirstChildEdgeFromEdges();
@@ -902,7 +907,9 @@ Refinement::subdivideEdgeSharpness() {
                 cSharpness = creasing.SubdivideEdgeSharpnessAtVertex(pSharpness, pVertEdges.size(),
                                                                          pVertEdgeSharpness);
             }
-            cEdgeTag._semiSharp = Sdc::Crease::IsSharp(cSharpness);
+            if (not Sdc::Crease::IsSharp(cSharpness)) {
+                cEdgeTag._semiSharp = false;
+            }
         }
     }
 }
@@ -934,11 +941,8 @@ Refinement::subdivideVertexSharpness() {
             float pSharpness = _parent->_vertSharpness[pVert];
 
             cSharpness = creasing.SubdivideVertexSharpness(pSharpness);
-
-            if (!Sdc::Crease::IsSharp(cSharpness)) {
-                //  Need to visit edge neighborhood to determine if still semisharp...
-                //      cVertTag._infSharp = ...?
-                //  See the "reclassify" method below...
+            if (not Sdc::Crease::IsSharp(cSharpness)) {
+                cVertTag._semiSharp = false;
             }
         }
     }
@@ -961,29 +965,29 @@ Refinement::reclassifySemisharpVertices() {
 
     for (Index cVert = vertFromEdgeBegin; cVert < vertFromEdgeEnd; ++cVert) {
         Level::VTag& cVertTag = _child->_vertTags[cVert];
-        if (!cVertTag._semiSharp) continue;
+        if (!cVertTag._semiSharpEdges) continue;
 
         Index pEdge = _childVertexParentIndex[cVert];
 
-        IndexArray const cEdges = getEdgeChildEdges(pEdge);
+        ConstIndexArray cEdges = getEdgeChildEdges(pEdge);
 
         if (_childVertexTag[cVert]._incomplete) {
             //  One child edge likely missing -- assume Crease if remaining edge semi-sharp:
-            cVertTag._semiSharp = (IndexIsValid(cEdges[0]) && _child->_edgeTags[cEdges[0]]._semiSharp) ||
-                                  (IndexIsValid(cEdges[1]) && _child->_edgeTags[cEdges[1]]._semiSharp);
-            cVertTag._rule      = (VTagSize)(cVertTag._semiSharp ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
+            cVertTag._semiSharpEdges = (IndexIsValid(cEdges[0]) && _child->_edgeTags[cEdges[0]]._semiSharp) ||
+                                       (IndexIsValid(cEdges[1]) && _child->_edgeTags[cEdges[1]]._semiSharp);
+            cVertTag._rule = (VTagSize)(cVertTag._semiSharpEdges ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
         } else {
             int sharpEdgeCount = _child->_edgeTags[cEdges[0]]._semiSharp + _child->_edgeTags[cEdges[1]]._semiSharp;
 
-            cVertTag._semiSharp = (sharpEdgeCount > 0);
-            cVertTag._rule      = (VTagSize)(creasing.DetermineVertexVertexRule(0.0, sharpEdgeCount));
+            cVertTag._semiSharpEdges = (sharpEdgeCount > 0);
+            cVertTag._rule = (VTagSize)(creasing.DetermineVertexVertexRule(0.0, sharpEdgeCount));
         }
     }
 
     //
     //  Inspect all vertices derived from vertices -- for those whose parent vertices were
-    //  semisharp, reset the semisharp tag and the associated Rule based on the neighborhood
-    //  of child edges around the child vertex.
+    //  semisharp (inherited in the child vert's tag), inspect and reset the semisharp tag
+    //  and the associated Rule (based on neighboring child edges around the child vertex).
     //
     //  We should never find such a vertex "incomplete" in a sparse refinement as a parent
     //  vertex is either selected or not, but never neighboring.  So the only complication
@@ -998,47 +1002,56 @@ Refinement::reclassifySemisharpVertices() {
     Index vertFromVertEnd   = vertFromVertBegin + getNumChildVerticesFromVertices();
 
     for (Index cVert = vertFromVertBegin; cVert < vertFromVertEnd; ++cVert) {
+        Index pVert = _childVertexParentIndex[cVert];
+        Level::VTag const& pVertTag = _parent->_vertTags[pVert];
+
+        //  Skip if parent not semi-sharp:
+        if (!pVertTag._semiSharp && !pVertTag._semiSharpEdges) continue;
+
+        //
+        //  We need to inspect the child neighborhood's sharpness when either semi-sharp
+        //  edges were present around the parent vertex, or the parent vertex sharpness
+        //  decayed:
+        //
         Level::VTag& cVertTag = _child->_vertTags[cVert];
-        if (!cVertTag._semiSharp) continue;
 
-        //  If the vertex is still sharp, it remains the semisharp Corner its parent was...
-        if (_child->_vertSharpness[cVert] > 0.0) continue;
+        bool sharpVertexDecayed = pVertTag._semiSharp && !cVertTag._semiSharp;
 
-        //
-        //  See if we can use the vert-edges of the child vertex:
-        //
-        int sharpEdgeCount = 0;
-        int semiSharpEdgeCount = 0;
+        if (pVertTag._semiSharpEdges || sharpVertexDecayed) {
+            int infSharpEdgeCount = 0;
+            int semiSharpEdgeCount = 0;
 
-        bool cVertEdgesPresent = (_child->getNumVertexEdgesTotal() > 0);
-        if (cVertEdgesPresent) {
-            IndexArray const cEdges = _child->getVertexEdges(cVert);
+            bool cVertEdgesPresent = (_child->getNumVertexEdgesTotal() > 0);
+            if (cVertEdgesPresent) {
+                ConstIndexArray cEdges = _child->getVertexEdges(cVert);
 
-            for (int i = 0; i < cEdges.size(); ++i) {
-                Level::ETag cEdgeTag = _child->_edgeTags[cEdges[i]];
+                for (int i = 0; i < cEdges.size(); ++i) {
+                    Level::ETag cEdgeTag = _child->_edgeTags[cEdges[i]];
 
-                sharpEdgeCount     += cEdgeTag._semiSharp || cEdgeTag._infSharp;
-                semiSharpEdgeCount += cEdgeTag._semiSharp;
+                    infSharpEdgeCount  += cEdgeTag._infSharp;
+                    semiSharpEdgeCount += cEdgeTag._semiSharp;
+                }
+            } else {
+                ConstIndexArray      pEdges      = _parent->getVertexEdges(pVert);
+                ConstLocalIndexArray pVertInEdge = _parent->getVertexEdgeLocalIndices(pVert);
+
+                for (int i = 0; i < pEdges.size(); ++i) {
+                    ConstIndexArray cEdgePair = getEdgeChildEdges(pEdges[i]);
+
+                    Index       cEdge    = cEdgePair[pVertInEdge[i]];
+                    Level::ETag cEdgeTag = _child->_edgeTags[cEdge];
+
+                    infSharpEdgeCount  += cEdgeTag._infSharp;
+                    semiSharpEdgeCount += cEdgeTag._semiSharp;
+                }
             }
-        } else {
-            Index pVert  = _childVertexParentIndex[cVert];
+            cVertTag._semiSharpEdges = (semiSharpEdgeCount > 0);
 
-            ConstIndexArray      pEdges      = _parent->getVertexEdges(pVert);
-            ConstLocalIndexArray pVertInEdge = _parent->getVertexEdgeLocalIndices(pVert);
-
-            for (int i = 0; i < pEdges.size(); ++i) {
-                ConstIndexArray cEdgePair = getEdgeChildEdges(pEdges[i]);
-
-                Index       cEdge    = cEdgePair[pVertInEdge[i]];
-                Level::ETag cEdgeTag = _child->_edgeTags[cEdge];
-
-                sharpEdgeCount     += cEdgeTag._semiSharp || cEdgeTag._infSharp;
-                semiSharpEdgeCount += cEdgeTag._semiSharp;
+            if (!cVertTag._semiSharp && !cVertTag._infSharp) {
+                cVertTag._rule = (VTagSize)(creasing.DetermineVertexVertexRule(0.0,
+                                        infSharpEdgeCount + semiSharpEdgeCount));
             }
         }
-
-        cVertTag._semiSharp = (semiSharpEdgeCount > 0);
-        cVertTag._rule      = (VTagSize)(creasing.DetermineVertexVertexRule(0.0, sharpEdgeCount));
     }
 }
 
@@ -1065,7 +1078,6 @@ Refinement::subdivideFVarChannels() {
         this->_fvarChannels.push_back(refineFVar);
     }
 }
-
 
 //
 //  Marking of sparse child components -- including those selected and those neighboring...
@@ -1224,6 +1236,7 @@ Refinement::markSparseEdgeChildren() {
     }
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

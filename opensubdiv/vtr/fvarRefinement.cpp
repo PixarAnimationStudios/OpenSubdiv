@@ -24,6 +24,7 @@
 #include "../sdc/types.h"
 #include "../sdc/crease.h"
 #include "../vtr/array.h"
+#include "../vtr/stackBuffer.h"
 #include "../vtr/refinement.h"
 #include "../vtr/fvarLevel.h"
 
@@ -44,6 +45,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr {
+namespace internal {
 
 //
 //  Simple (for now) constructor and destructor:
@@ -52,9 +54,9 @@ FVarRefinement::FVarRefinement(Refinement const& refinement,
                                FVarLevel&        parentFVarLevel,
                                FVarLevel&        childFVarLevel) :
     _refinement(refinement),
-    _parentLevel(*refinement._parent),
+    _parentLevel(refinement.parent()),
     _parentFVar(parentFVarLevel),
-    _childLevel(*refinement._child),
+    _childLevel(refinement.child()),
     _childFVar(childFVarLevel) {
 }
 
@@ -77,7 +79,7 @@ FVarRefinement::applyRefinement() {
     _childFVar._options = _parentFVar._options;
 
     _childFVar._isLinear              = _parentFVar._isLinear;
-    _childFVar._hasSmoothBoundaries   = _parentFVar._hasSmoothBoundaries;
+    _childFVar._hasLinearBoundaries   = _parentFVar._hasLinearBoundaries;
     _childFVar._hasDependentSharpness = _parentFVar._hasDependentSharpness;
 
     //
@@ -91,7 +93,7 @@ FVarRefinement::applyRefinement() {
 
     propagateEdgeTags();
     propagateValueTags();
-    if (_childFVar._hasSmoothBoundaries) {
+    if (_childFVar.hasSmoothBoundaries()) {
         propagateValueCreases();
         reclassifySemisharpValues();
     }
@@ -137,7 +139,7 @@ FVarRefinement::estimateAndAllocateChildValues() {
     cVert    = _refinement.getFirstChildVertexFromVertices();
     cVertEnd = cVert + _refinement.getNumChildVerticesFromVertices();
     for ( ; cVert < cVertEnd; ++cVert) {
-        assert(!_refinement._childVertexTag[cVert]._incomplete);
+        assert(_refinement.isChildVertexComplete(cVert));
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
 
         maxVertexValueCount += _parentFVar.getNumVertexValues(pVert);
@@ -163,7 +165,7 @@ void
 FVarRefinement::trimAndFinalizeChildValues() {
 
     _childFVar._vertValueTags.resize(_childFVar._valueCount);
-    if (_childFVar._hasSmoothBoundaries) {
+    if (_childFVar.hasSmoothBoundaries()) {
         _childFVar._vertValueCreaseEnds.resize(_childFVar._valueCount);
     }
 
@@ -179,47 +181,58 @@ FVarRefinement::trimAndFinalizeChildValues() {
 inline int
 FVarRefinement::populateChildValuesForEdgeVertex(Index cVert, Index pEdge) {
 
-    //  If we have a boundary edge with a mismatched end vertex, we only have one
-    //  value and such cases were already initialized on construction, so return:
+    //
+    //  Determine the number of sibling values for the child vertex of this discts
+    //  edge and populate their related topological data (e.g. source face).
+    //
+    //  This turns out to be very simple.  For FVar refinement to handle all cases
+    //  of non-manifold edges, when an edge is discts we generate a FVar value for
+    //  each face incident the edge.  So in the uniform refinement case we will
+    //  have as many child values as parent faces indicent the edge.  But even when
+    //  refinement is sparse, if this edge-vertex is not complete, we will still be
+    //  guaranteed that a child face exists for each parent face since one of the
+    //  edge's end vertices must be complete and therefore include all child faces.
     //
     ConstIndexArray  pEdgeFaces = _parentLevel.getEdgeFaces(pEdge);
-
-    if (pEdgeFaces.size() == 1) return 1;
-    assert(pEdgeFaces.size() == 2);
-
-    //  Determine the number of sibling values for the child vertex:
-    //
-    ConstIndexArray  cVertFaces = _childLevel.getVertexFaces(cVert);
-
-    int cValueCount = 1;
-    if (cVertFaces.size() > 2) {
-        cValueCount = 2;
-    } else if (cVertFaces.size() == 2) {
-        cValueCount = 1 + (cVertFaces[0] != cVertFaces[1]);
+    if (pEdgeFaces.size() == 1) {
+        //  No sibling so the first face (0) guaranteed to be a source and all
+        //  sibling indices per incident face will also be 0 -- all of which was
+        //  done on initialization, so nothing further to do.
+        return 1;
     }
 
     //
-    //  We may have no sibling values here when the edge was discts, but only in the
-    //  case where the refinement was sparse (and so the child vertex "incomplete").
-    //  In such a case the source of the single value needs to be identified:
+    //  Update the parent-source of all child values:
     //
-    Index cValueIndex = _childFVar.getVertexValueOffset(cVert);
+    int   cValueCount  = pEdgeFaces.size();
+    Index cValueOffset = _childFVar.getVertexValueOffset(cVert);
 
-    if (cValueCount == 1) {
-        _childValueParentSource[cValueIndex] = (cVertFaces[0] != pEdgeFaces[0]);
-    } else {
-        assert(cValueCount == 2);
+    for (int i = 0; i < cValueCount; ++i) {
+        _childValueParentSource[cValueOffset + i] = (LocalIndex) i;
+    }
 
-        //  Update the parent-source of any siblings (typically one):
-        for (int j = 1; j < cValueCount; ++j) {
-            _childValueParentSource[cValueIndex + j] = (LocalIndex) j;
-        }
+    //
+    //  Update the vertex-face siblings for the faces incident the child vertex:
+    //
+    ConstIndexArray         cVertFaces        = _childLevel.getVertexFaces(cVert);
+    FVarLevel::SiblingArray cVertFaceSiblings = _childFVar.getVertexFaceSiblings(cVert);
 
-        //  Update the vertex-face siblings:
-        FVarLevel::SiblingArray cVertFaceSiblings = _childFVar.getVertexFaceSiblings(cVert);
-        for (int j = 0; j < cVertFaceSiblings.size(); ++j) {
-            if (_refinement.getChildFaceParentFace(cVertFaces[j]) == pEdgeFaces[1]) {
-                cVertFaceSiblings[j] = 1;
+    assert(cVertFaces.size() == cVertFaceSiblings.size());
+    assert(cVertFaces.size() >= cValueCount);
+
+    for (int i = 0; i < cVertFaceSiblings.size(); ++i) {
+        Index pFaceI = _refinement.getChildFaceParentFace(cVertFaces[i]);
+        if (pEdgeFaces.size() == 2) {
+            //  Only two parent faces and all siblings previously initialized to 0:
+            if (pFaceI == pEdgeFaces[1]) {
+                cVertFaceSiblings[i] = (LocalIndex) 1;
+            }
+        } else {
+            //  Non-manifold case with > 2 parent faces -- match child faces to parent:
+            for (int j = 0; j < pEdgeFaces.size(); ++j) {
+                if (pFaceI == pEdgeFaces[j]) {
+                    cVertFaceSiblings[i] = (LocalIndex) j;
+                }
             }
         }
     }
@@ -235,7 +248,7 @@ FVarRefinement::populateChildValuesForVertexVertex(Index cVert, Index pVert) {
     //  This will get messy when we do (i.e. sparse refinement of Bilinear or more
     //  flexible and specific sparse refinement of Catmark) but for now assume 1-to-1.
     //
-    assert(!_refinement._childVertexTag[cVert]._incomplete);
+    assert(_refinement.isChildVertexComplete(cVert));
 
     //  Number of child values is same as number of parent values since complete:
     int cValueCount = _parentFVar.getNumVertexValues(pVert);
@@ -264,29 +277,17 @@ FVarRefinement::populateChildValues() {
     //
     //  Be sure to match the same vertex ordering as Refinement, i.e. face-vertices
     //  first vs vertex-vertices first, etc.  A few optimizations within the use of
-    //  face-varying data take advantage of this assumption.
-    //
-    //  Right now there are only two orderings under consideration, and its unclear
-    //  whether only one will be supported or both.  Until that's determined, assert
-    //  the conditions we expect for these two.
+    //  face-varying data take advantage of this assumption, and it just makes sense
+    //  to be consistent (e.g. if there is a 1-to-1 correspondence between vertices
+    //  and their FVar-values, their children will correspond).
     //
     _childFVar._valueCount = 0;
 
-    if (_refinement.getFirstChildVertexFromVertices() > 0) {
-        assert((_refinement.getFirstChildVertexFromFaces() <=
-                _refinement.getFirstChildVertexFromEdges()) &&
-               (_refinement.getFirstChildVertexFromEdges() <
-                _refinement.getFirstChildVertexFromVertices()));
-
+    if (_refinement.hasFaceVerticesFirst()) {
         populateChildValuesFromFaceVertices();
         populateChildValuesFromEdgeVertices();
         populateChildValuesFromVertexVertices();
     } else {
-        assert((_refinement.getFirstChildVertexFromVertices() <
-                _refinement.getFirstChildVertexFromFaces()) &&
-               (_refinement.getFirstChildVertexFromFaces() <=
-                _refinement.getFirstChildVertexFromEdges()));
-
         populateChildValuesFromVertexVertices();
         populateChildValuesFromFaceVertices();
         populateChildValuesFromEdgeVertices();
@@ -361,10 +362,10 @@ FVarRefinement::propagateEdgeTags() {
     eTagMatch.clear();
     eTagMatch._mismatch = false;
 
-    for (int eIndex = 0; eIndex < _refinement._childEdgeFromFaceCount; ++eIndex) {
+    for (int eIndex = 0; eIndex < _refinement.getNumChildEdgesFromFaces(); ++eIndex) {
         _childFVar._edgeTags[eIndex] = eTagMatch;
     }
-    for (int eIndex = _refinement._childEdgeFromFaceCount; eIndex < _childLevel.getNumEdges(); ++eIndex) {
+    for (int eIndex = _refinement.getNumChildEdgesFromFaces(); eIndex < _childLevel.getNumEdges(); ++eIndex) {
         Index pEdge = _refinement.getChildEdgeParentIndex(eIndex);
 
         _childFVar._edgeTags[eIndex] = _parentFVar._edgeTags[pEdge];
@@ -409,7 +410,7 @@ FVarRefinement::propagateValueTags() {
     FVarLevel::ValueTag valTagCrease = valTagMismatch;
     valTagCrease._crease = true;
 
-    FVarLevel::ValueTag& valTagSplitEdge = _parentFVar._hasSmoothBoundaries ? valTagCrease : valTagMismatch;
+    FVarLevel::ValueTag& valTagSplitEdge = _parentFVar.hasSmoothBoundaries() ? valTagCrease : valTagMismatch;
 
     cVert    = _refinement.getFirstChildVertexFromEdges();
     cVertEnd = cVert + _refinement.getNumChildVerticesFromEdges();
@@ -418,10 +419,11 @@ FVarRefinement::propagateValueTags() {
 
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
-        if (_parentFVar.edgeTopologyMatches(pEdge)) {
-            std::fill(cValueTags.begin(), cValueTags.end(), valTagMatch);
-        } else {
+        FVarLevel::ETag pEdgeTag = _parentFVar._edgeTags[pEdge];
+        if (pEdgeTag._mismatch || pEdgeTag._linear) {
             std::fill(cValueTags.begin(), cValueTags.end(), valTagSplitEdge);
+        } else {
+            std::fill(cValueTags.begin(), cValueTags.end(), valTagMatch);
         }
     }
 
@@ -433,7 +435,7 @@ FVarRefinement::propagateValueTags() {
     cVertEnd = cVert + _refinement.getNumChildVerticesFromVertices();
     for ( ; cVert < cVertEnd; ++cVert) {
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
-        assert(!_refinement._childVertexTag[cVert]._incomplete);
+        assert(_refinement.isChildVertexComplete(cVert));
 
         FVarLevel::ConstValueTagArray pValueTags = _parentFVar.getVertexValueTags(pVert);
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
@@ -446,7 +448,7 @@ FVarRefinement::propagateValueTags() {
 void
 FVarRefinement::propagateValueCreases() {
 
-    assert(_childFVar._hasSmoothBoundaries);
+    assert(_childFVar.hasSmoothBoundaries());
 
     //  Skip child vertices from faces:
 
@@ -458,16 +460,7 @@ FVarRefinement::propagateValueCreases() {
     //  child faces are incident the new child vertex for each face that becomes a crease,
     //  so identify constants to be used in each iteration first:
     //
-    LocalIndex crease0StartFace = 0;
-    LocalIndex crease0EndFace   = 1;
-    LocalIndex crease1StartFace = 2;
-    LocalIndex crease1EndFace   = 3;
-
-    if (_refinement._splitType == Sdc::SPLIT_TO_TRIS) {
-        crease0EndFace   = 2;
-        crease1StartFace = 3;
-        crease1EndFace   = 5;
-    }
+    int incChildFacesPerEdge = (_refinement.getRegularFaceSize() == 4) ? 2 : 3;
 
     Index cVert    = _refinement.getFirstChildVertexFromEdges();
     Index cVertEnd = cVert + _refinement.getNumChildVerticesFromEdges();
@@ -475,17 +468,20 @@ FVarRefinement::propagateValueCreases() {
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
         if (!cValueTags[0].isMismatch()) continue;
-        if (_refinement._childVertexTag[cVert]._incomplete) continue;
+        if (!_refinement.isChildVertexComplete(cVert)) continue;
 
         FVarLevel::CreaseEndPairArray cValueCreaseEnds = _childFVar.getVertexValueCreaseEnds(cVert);
 
-        if (!cValueTags[0].isInfSharp()) {
-            cValueCreaseEnds[0]._startFace = crease0StartFace;
-            cValueCreaseEnds[0]._endFace   = crease0EndFace;
-        }
-        if ((cValueTags.size() > 1) && !cValueTags[1].isInfSharp()) {
-            cValueCreaseEnds[1]._startFace = crease1StartFace;
-            cValueCreaseEnds[1]._endFace   = crease1EndFace;
+        int creaseStartFace = 0;
+        int creaseEndFace = creaseStartFace + incChildFacesPerEdge - 1;
+
+        for (int i = 0; i < cValueTags.size(); ++i) {
+            if (!cValueTags[i].isInfSharp()) {
+                cValueCreaseEnds[i]._startFace = (LocalIndex) creaseStartFace;
+                cValueCreaseEnds[i]._endFace   = (LocalIndex) creaseEndFace;
+            }
+            creaseStartFace += incChildFacesPerEdge;
+            creaseEndFace   += incChildFacesPerEdge;
         }
     }
 
@@ -500,7 +496,7 @@ FVarRefinement::propagateValueCreases() {
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
         if (!cValueTags[0].isMismatch()) continue;
-        if (_refinement._childVertexTag[cVert]._incomplete) continue;
+        if (!_refinement.isChildVertexComplete(cVert)) continue;
 
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
 
@@ -533,6 +529,8 @@ FVarRefinement::reclassifySemisharpValues() {
     //
     bool hasDependentSharpness = _parentFVar._hasDependentSharpness;
 
+    internal::StackBuffer<Index,16> cVertEdgeBuffer(_childLevel.getMaxValence());
+
     FVarLevel::ValueTag valTagCrease;
     valTagCrease.clear();
     valTagCrease._mismatch = true;
@@ -550,22 +548,28 @@ FVarRefinement::reclassifySemisharpValues() {
         FVarLevel::ValueTagArray cValueTags = _childFVar.getVertexValueTags(cVert);
 
         if (!cValueTags[0].isMismatch()) continue;
-        if (_refinement._childVertexTag[cVert]._incomplete) continue;
+        if (!_refinement.isChildVertexComplete(cVert)) continue;
 
         //  If the parent vertex wasn't semi-sharp, the child vertex and values can't be:
-        Index pVert = _refinement.getChildVertexParentIndex(cVert);
-        if (!_parentLevel._vertTags[pVert]._semiSharp) continue;
+        Index       pVert     = _refinement.getChildVertexParentIndex(cVert);
+        Level::VTag pVertTags = _parentLevel.getVertexTag(pVert);
+
+        if (!pVertTags._semiSharp && !pVertTags._semiSharpEdges) continue;
 
         //  If the child vertex is still sharp, all values remain unaffected:
-        if (!Sdc::Crease::IsSmooth(_childLevel._vertSharpness[cVert])) continue;
+        Level::VTag cVertTags = _childLevel.getVertexTag(cVert);
+
+        if (cVertTags._semiSharp || cVertTags._infSharp) continue;
 
         //  If the child is no longer semi-sharp, we can just clear those values marked
         //  (i.e. make them creases, others may remain corners) and continue:
         //
-        if (!_childLevel._vertTags[cVert]._semiSharp) {
+        if (!cVertTags._semiSharp && !cVertTags._semiSharpEdges) {
             for (int j = 0; j < cValueTags.size(); ++j) {
                 if (cValueTags[j]._semiSharp) {
+                    FVarLevel::ValueTag cValueTagOld = cValueTags[j];
                     cValueTags[j] = valTagCrease;
+                    cValueTags[j]._xordinary = cValueTagOld._xordinary;
                 }
             }
             continue;
@@ -576,7 +580,18 @@ FVarRefinement::reclassifySemisharpValues() {
         //
         FVarLevel::CreaseEndPairArray const cValueCreaseEnds = _childFVar.getVertexValueCreaseEnds(cVert);
 
-        ConstIndexArray  cVertEdges = _childLevel.getVertexEdges(cVert);
+        //  Beware accessing the child's vert-edges -- full topology may not be enabled:
+        ConstIndexArray cVertEdges;
+        if (_childLevel.getNumVertexEdgesTotal()) {
+            cVertEdges = _childLevel.getVertexEdges(cVert);
+        } else {
+            ConstIndexArray      pVertEdges  = _parentLevel.getVertexEdges(pVert);
+            ConstLocalIndexArray pVertInEdge = _parentLevel.getVertexEdgeLocalIndices(pVert);
+            for (int i = 0; i < pVertEdges.size(); ++i) {
+                cVertEdgeBuffer[i] = _refinement.getEdgeChildEdges(pVertEdges[i])[pVertInEdge[i]];
+            }
+            cVertEdges = IndexArray(cVertEdgeBuffer, pVertEdges.size());
+        }
 
         for (int j = 0; j < cValueTags.size(); ++j) {
             if (cValueTags[j]._semiSharp && !cValueTags[j]._depSharp) {
@@ -586,18 +601,20 @@ FVarRefinement::reclassifySemisharpValues() {
                 bool isStillSemiSharp = false;
                 if (vEndFace > vStartFace) {
                     for (int k = vStartFace + 1; !isStillSemiSharp && (k <= vEndFace); ++k) {
-                        isStillSemiSharp = _childLevel._edgeTags[cVertEdges[k]]._semiSharp;
+                        isStillSemiSharp = _childLevel.getEdgeTag(cVertEdges[k])._semiSharp;
                     }
                 } else if (vStartFace > vEndFace) {
                     for (int k = vStartFace + 1; !isStillSemiSharp && (k < cVertEdges.size()); ++k) {
-                        isStillSemiSharp = _childLevel._edgeTags[cVertEdges[k]]._semiSharp;
+                        isStillSemiSharp = _childLevel.getEdgeTag(cVertEdges[k])._semiSharp;
                     }
                     for (int k = 0; !isStillSemiSharp && (k <= vEndFace); ++k) {
-                        isStillSemiSharp = _childLevel._edgeTags[cVertEdges[k]]._semiSharp;
+                        isStillSemiSharp = _childLevel.getEdgeTag(cVertEdges[k])._semiSharp;
                     }
                 }
                 if (!isStillSemiSharp) {
+                    FVarLevel::ValueTag cValueTagOld = cValueTags[j];
                     cValueTags[j] = valTagCrease;
+                    cValueTags[j]._xordinary = cValueTagOld._xordinary;
                 }
             }
         }
@@ -621,11 +638,6 @@ float
 FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
                                     Index cVert, LocalIndex /* cSibling */) const {
 
-    //  Should only be called when the parent was semi-sharp but this child vertex
-    //  value (not necessarily the child vertex as a whole) is no longer semi-sharp:
-    assert(_parentLevel._vertTags[pVert]._semiSharp);
-    assert(!_childLevel._vertTags[cVert]._incomplete);
-
     //
     //  Need to identify sharpness values for edges within the spans for both the
     //  parent and child...
@@ -634,11 +646,27 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
     //  this method and re-using them for each sibling, i.e. passing them to this
     //  method somehow.  We may also need them there for mask-related purposes...
     //
-    ConstIndexArray  pVertEdges = _parentLevel.getVertexEdges(pVert);
-    ConstIndexArray  cVertEdges = _childLevel.getVertexEdges(cVert);
+    internal::StackBuffer<Index,16> cVertEdgeBuffer;
 
-    float * pEdgeSharpness = (float*) alloca(2 * pVertEdges.size() * sizeof(float));
-    float * cEdgeSharpness = pEdgeSharpness + pVertEdges.size();
+    ConstIndexArray pVertEdges = _parentLevel.getVertexEdges(pVert);
+    ConstIndexArray cVertEdges;
+
+    //  Beware accessing the child's vert-edges -- full topology may not be enabled:
+    if (_childLevel.getNumVertexEdgesTotal()) {
+        cVertEdges = _childLevel.getVertexEdges(cVert);
+    } else {
+        cVertEdgeBuffer.SetSize(pVertEdges.size());
+
+        ConstLocalIndexArray pVertInEdge = _parentLevel.getVertexEdgeLocalIndices(pVert);
+        for (int i = 0; i < pVertEdges.size(); ++i) {
+            cVertEdgeBuffer[i] = _refinement.getEdgeChildEdges(pVertEdges[i])[pVertInEdge[i]];
+        }
+        cVertEdges = IndexArray(cVertEdgeBuffer, pVertEdges.size());
+    }
+ 
+    internal::StackBuffer<float,32> sharpnessBuffer(2 * pVertEdges.size());
+    float * pEdgeSharpness = sharpnessBuffer;
+    float * cEdgeSharpness = sharpnessBuffer + pVertEdges.size();
 
     FVarLevel::CreaseEndPair pValueCreaseEnds = _parentFVar.getVertexValueCreaseEnds(pVert)[pSibling];
 
@@ -648,24 +676,25 @@ FVarRefinement::getFractionalWeight(Index pVert, LocalIndex pSibling,
     int interiorEdgeCount = 0;
     if (pEndFace > pStartFace) {
         for (int i = pStartFace + 1; i <= pEndFace; ++i, ++interiorEdgeCount) {
-            pEdgeSharpness[interiorEdgeCount] = _parentLevel._edgeSharpness[pVertEdges[i]];
-            cEdgeSharpness[interiorEdgeCount] = _childLevel._edgeSharpness[cVertEdges[i]];
+            pEdgeSharpness[interiorEdgeCount] = _parentLevel.getEdgeSharpness(pVertEdges[i]);
+            cEdgeSharpness[interiorEdgeCount] = _childLevel.getEdgeSharpness(cVertEdges[i]);
         }
     } else if (pStartFace > pEndFace) {
         for (int i = pStartFace + 1; i < pVertEdges.size(); ++i, ++interiorEdgeCount) {
-            pEdgeSharpness[interiorEdgeCount] = _parentLevel._edgeSharpness[pVertEdges[i]];
-            cEdgeSharpness[interiorEdgeCount] = _childLevel._edgeSharpness[cVertEdges[i]];
+            pEdgeSharpness[interiorEdgeCount] = _parentLevel.getEdgeSharpness(pVertEdges[i]);
+            cEdgeSharpness[interiorEdgeCount] = _childLevel.getEdgeSharpness(cVertEdges[i]);
         }
         for (int i = 0; i <= pEndFace; ++i, ++interiorEdgeCount) {
-            pEdgeSharpness[interiorEdgeCount] = _parentLevel._edgeSharpness[pVertEdges[i]];
-            cEdgeSharpness[interiorEdgeCount] = _childLevel._edgeSharpness[cVertEdges[i]];
+            pEdgeSharpness[interiorEdgeCount] = _parentLevel.getEdgeSharpness(pVertEdges[i]);
+            cEdgeSharpness[interiorEdgeCount] = _childLevel.getEdgeSharpness(cVertEdges[i]);
         }
     }
-    return Sdc::Crease(_refinement._options).ComputeFractionalWeightAtVertex(
-            _parentLevel._vertSharpness[pVert], _childLevel._vertSharpness[cVert],
+    return Sdc::Crease(_refinement.getOptions()).ComputeFractionalWeightAtVertex(
+            _parentLevel.getVertexSharpness(pVert), _childLevel.getVertexSharpness(cVert),
             interiorEdgeCount, pEdgeSharpness, cEdgeSharpness);
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION

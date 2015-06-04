@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CL_VERTEX_BUFFER_H
-#define OSD_CL_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_CL_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_CL_VERTEX_BUFFER_H
 
 #include "../version.h"
 #include "../osd/opencl.h"
@@ -37,7 +37,7 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for OpenCL subvision.
 ///
 /// CLVertexBuffer implements CLVertexBufferInterface. An instance of this
-/// buffer class can be passed to CLComputeController
+/// buffer class can be passed to CLEvaluator
 ///
 class CLVertexBuffer {
 
@@ -45,12 +45,24 @@ public:
     /// Creator. Returns NULL if error.
     static CLVertexBuffer * Create(int numElements, int numVertices, cl_context clContext);
 
+    template <typename DEVICE_CONTEXT>
+    static CLVertexBuffer * Create(int numElements, int numVertices,
+                                   DEVICE_CONTEXT context) {
+        return Create(numElements, numVertices, context->GetContext());
+    }
+
     /// Destructor.
     ~CLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
     void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
+
+    template<typename DEVICE_CONTEXT>
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    DEVICE_CONTEXT context) {
+        UpdateData(src, startVertex, numVertices, context->GetCommandQueue());
+    }
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -82,4 +94,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CL_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_CL_VERTEX_BUFFER_H

@@ -28,7 +28,6 @@ set(SHADER_FILES
      shader.glsl
      shader_gl3.glsl
      skyshader.glsl
-     imageshader.glsl
 )
 
 list(APPEND PLATFORM_LIBRARIES
@@ -38,13 +37,8 @@ list(APPEND PLATFORM_LIBRARIES
     "${PTEX_LIBRARY}"
 )
 
-if (APPLE)
-    list(APPEND PLATFORM_LIBRARIES -lz)
-endif()
-
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${PROJECT_SOURCE_DIR}/regression"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${GLFW_INCLUDE_DIR}"
     "${PTEX_INCLUDE_DIR}"
 )
@@ -56,14 +50,6 @@ endif()
 
 if( OPENCL_FOUND )
     include_directories("${OPENCL_INCLUDE_DIRS}")
-endif()
-
-# optional dependency - enables screenshots
-find_package(PNG)
-if (PNG_FOUND)
-    include_directories("${PNG_INCLUDE_DIRS}")
-    list(APPEND PLATFORM_LIBRARIES "${PNG_LIBRARIES}")
-    add_definitions(-DOPENSUBDIV_HAS_PNG)
 endif()
 
 #-------------------------------------------------------------------------------

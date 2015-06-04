@@ -61,7 +61,7 @@ std::string stringify( std::string const & line ) {
 int main(int argc, char **argv) {
 
     if (argc != 3) {
-        std::cerr << "Usage: quoter input-file output-file" << std::endl;
+        std::cerr << "Usage: stringify input-file output-file" << std::endl;
         return 1;
     }
 

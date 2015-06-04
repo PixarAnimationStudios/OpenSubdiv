@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_TYPES_H
-#define FAR_TYPES_H
+#ifndef OPENSUBDIV3_FAR_TYPES_H
+#define OPENSUBDIV3_FAR_TYPES_H
 
 #include "../version.h"
 
@@ -35,7 +35,8 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 //
-//  Typedef's for indices we want at the Far level -- need to go elsewhere eventually...
+//  Typedef's for indices that are inherited from the Vtr level -- eventually
+//  these primitive Vtr types may be declared at a lower, more public level.
 //
 typedef Vtr::Index       Index;
 typedef Vtr::LocalIndex  LocalIndex;
@@ -46,10 +47,15 @@ typedef Vtr::LocalIndexArray  LocalIndexArray;
 typedef Vtr::ConstIndexArray       ConstIndexArray;
 typedef Vtr::ConstLocalIndexArray  ConstLocalIndexArray;
 
+inline bool IndexIsValid(Index index) { return Vtr::IndexIsValid(index); }
+
+static const Index INDEX_INVALID = Vtr::INDEX_INVALID;
+static const int   VALENCE_LIMIT = Vtr::VALENCE_LIMIT;
+
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* FAR_TYPES_H */
+#endif /* OPENSUBDIV3_FAR_TYPES_H */

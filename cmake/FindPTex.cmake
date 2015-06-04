@@ -34,18 +34,20 @@ if (WIN32)
     find_path( PTEX_INCLUDE_DIR
         NAMES
             Ptexture.h
-        PATHS
+        HINTS
             "${PTEX_LOCATION}/include"
             "$ENV{PTEX_LOCATION}/include"
+        PATHS
             "$ENV{PROGRAMFILES}/Ptex/include"
             /usr/include
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
             Ptex32 Ptex32s Ptex
-        PATHS
+        HINTS
             "${PTEX_LOCATION}/lib"
             "$ENV{PTEX_LOCATION}/lib"
+        PATHS
             "$ENV{PROGRAMFILES}/Ptex/lib"
             /usr/lib
             /usr/lib/w32api
@@ -56,9 +58,10 @@ elseif (APPLE)
     find_path( PTEX_INCLUDE_DIR
         NAMES
             Ptexture.h
-        PATHS
+        HINTS
             "${PTEX_LOCATION}/include"
             "$ENV{PTEX_LOCATION}/include"
+        PATHS
             DOC "The directory where Ptexture.h resides")
     find_library( PTEX_LIBRARY
         NAMES
@@ -71,11 +74,12 @@ else ()
     find_path( PTEX_INCLUDE_DIR
         NAMES
             Ptexture.h
-        PATHS
+        HINTS
             "${PTEX_LOCATION}/include"
             "${PTEX_LOCATION}/include/wdas"
             "$ENV{PTEX_LOCATION}/include"
             "$ENV{PTEX_LOCATION}/include/wdas"
+        PATHS
             /usr/include
             /usr/local/include
             /usr/openwin/share/include
@@ -86,9 +90,10 @@ else ()
     find_library( PTEX_LIBRARY
         NAMES
             Ptex wdasPtex
-        PATHS
+        HINTS
             "${PTEX_LOCATION}/lib"
             "$ENV{PTEX_LOCATION}/lib"
+        PATHS
             /usr/lib
             /usr/local/lib
             /usr/openwin/lib

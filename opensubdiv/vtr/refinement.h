@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef VTR_REFINEMENT_H
-#define VTR_REFINEMENT_H
+#ifndef OPENSUBDIV3_VTR_REFINEMENT_H
+#define OPENSUBDIV3_VTR_REFINEMENT_H
 
 #include "../version.h"
 
@@ -39,14 +39,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
-namespace Far {
-    class TopologyRefiner;
-    class PatchTablesFactory;
-}
-
 namespace Vtr {
+namespace internal {
 
-class SparseSelector;
 class FVarRefinement;
 
 //
@@ -60,7 +55,7 @@ class FVarRefinement;
 //  of topological splits that the supported subdivisions schemes collectively require, i.e. those
 //  list in Sdc::SplitType.  Note the virtual requirements expected of the subclasses in the list
 //  of protected methods -- they differ mainly in the topology that is created in the child Level
-//  and not the propagation of tags through refinement, subdivision of sharpness values of the
+//  and not the propagation of tags through refinement, subdivision of sharpness values or the
 //  treatment of face-varying data.  The primary subclasses are QuadRefinement and TriRefinement.
 //
 //  At a high level, all that is necessary in terms of interface is to construct, initialize
@@ -81,44 +76,51 @@ public:
     Level const& child() const  { return *_child; }
     Level&       child()        { return *_child; }
 
+    Sdc::Split getSplitType() const { return _splitType; }
+    int getRegularFaceSize() const { return _regFaceSize; }
+    Sdc::Options getOptions() const { return _options; }
+
+    //  Face-varying:
+    int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
+
+    FVarRefinement const & getFVarRefinement(int c) const { return *_fvarChannels[c]; }
+
     //
-    //  Options associated with the actual refinement operation, which are going to get
-    //  quite involved to ensure that the refinement of data that is not of interest can
-    //  be suppressed.  For now we have:
+    //  Options associated with the actual refinement operation, which may end up
+    //  quite involved if we want to allow for the refinement of data that is not
+    //  of interest to be suppressed.  For now we have:
     //
     //      "sparse": the alternative to uniform refinement, which requires that
     //          components be previously selected/marked to be included.
     //
-    //      "face topology only": this is one that may get broken down into a finer
+    //      "minimal topology": this is one that may get broken down into a finer
     //          set of options.  It suppresses "full topology" in the child level
-    //          and only generates what is necessary to define the list of faces.
-    //          This is only one of the six possible topological relations that
-    //          can be generated -- we may eventually want a flag for each.
+    //          and only generates what is minimally necessary for interpolation --
+    //          which requires at least the face-vertices for faces, but also the
+    //          vertex-faces for any face-varying channels present.  So it will
+    //          generate one or two of the six possible topological relations.
     //
-    //      "compute masks": this is intended to be temporary, along with the data
-    //          members associated with it -- it will trigger the computation and
-    //          storage of mask weights for all child vertices.  This is naively
-    //          stored at this point and exists only for reference.
-    //
-    //  Its still up for debate as to how finely these should be controlled, e.g.
-    //  for sparse refinement, we likely want full topology at the finest level to
-    //  allow for subsequent patch construction...
+    //  These are strictly controlled right now, e.g. for sparse refinement, we
+    //  currently enforce full topology at the finest level to allow for subsequent
+    //  patch construction.
     //
     struct Options {
-        Options() : _sparse(0),
-                    _faceTopologyOnly(0)
+        Options() : _sparse(false),
+                    _faceVertsFirst(false),
+                    _minimalTopology(false)
                     { }
 
-        unsigned int _sparse           : 1;
-        unsigned int _faceTopologyOnly : 1;
+        unsigned int _sparse          : 1;
+        unsigned int _faceVertsFirst  : 1;
+        unsigned int _minimalTopology : 1;
 
-        //  Currently under consideration:
-        //unsigned int _childToParentMap    : 1;
-        //unsigned int _ancestorFacePerFace : 1;
-        //unsigned int _computeMasks        : 1;
+        //  Still under consideration:
+        //unsigned int _childToParentMap : 1;
     };
 
     void refine(Options options = Options());
+
+    bool hasFaceVerticesFirst() const { return _faceVertsFirst; }
 
 public:
     //
@@ -147,8 +149,9 @@ public:
     ConstIndexArray  getFaceChildEdges(Index parentFace) const;
     ConstIndexArray  getEdgeChildEdges(Index parentEdge) const;
 
-    //  Child-to-parent relationships (not yet complete -- unclear how we will define the
-    //  "type" of the parent component, e.g. vertex, edge or face):
+    //  Child-to-parent relationships
+    bool isChildVertexComplete(Index v) const       { return not _childVertexTag[v]._incomplete; }
+
     Index getChildFaceParentFace(Index f) const     { return _childFaceParentIndex[f]; }
     int   getChildFaceInParentFace(Index f) const   { return _childFaceTag[f]._indexInParent; }
 
@@ -157,22 +160,15 @@ public:
     Index getChildVertexParentIndex(Index v) const  { return _childVertexParentIndex[v]; }
 
 //
-//  Non-public methods:
+//  Modifiers intended for internal/protected use:
 //
-protected:
-
-    friend class FVarRefinement;
-    friend class SparseSelector;
-
-    friend class Far::TopologyRefiner;
-    friend class Far::PatchTablesFactory;
-
+public:
 
     IndexArray getFaceChildFaces(Index parentFace);
     IndexArray getFaceChildEdges(Index parentFace);
     IndexArray getEdgeChildEdges(Index parentEdge);
 
-protected:
+public:
     //
     //  Tags have now been added per-component in Level, but there is additional need to tag
     //  components within Refinement -- we can't tag the parent level components for any
@@ -205,10 +201,25 @@ protected:
         unsigned char _indexInParent : 2;  // index of child wrt parent:  0-3, or iterative if N > 4
     };
 
-//
-//  Remaining methods should remain protected -- for use by subclasses...
-//
-protected:
+    //  Methods to access and modify tags:
+    SparseTag const & getParentFaceSparseTag(  Index f) const { return _parentFaceTag[f]; }
+    SparseTag const & getParentEdgeSparseTag(  Index e) const { return _parentEdgeTag[e]; }
+    SparseTag const & getParentVertexSparseTag(Index v) const { return _parentVertexTag[v]; }
+
+    SparseTag & getParentFaceSparseTag(  Index f) { return _parentFaceTag[f]; }
+    SparseTag & getParentEdgeSparseTag(  Index e) { return _parentEdgeTag[e]; }
+    SparseTag & getParentVertexSparseTag(Index v) { return _parentVertexTag[v]; }
+
+    ChildTag const & getChildFaceTag(  Index f) const { return _childFaceTag[f]; }
+    ChildTag const & getChildEdgeTag(  Index e) const { return _childEdgeTag[e]; }
+    ChildTag const & getChildVertexTag(Index v) const { return _childVertexTag[v]; }
+
+    ChildTag & getChildFaceTag(  Index f) { return _childFaceTag[f]; }
+    ChildTag & getChildEdgeTag(  Index e) { return _childEdgeTag[e]; }
+    ChildTag & getChildVertexTag(Index v) { return _childVertexTag[v]; }
+
+//  Remaining methods should really be protected -- for use by subclasses...
+public:
     //
     //  Methods involved in constructing the parent-to-child mapping -- when the
     //  refinement is sparse, additional methods are needed to identify the selection:
@@ -309,11 +320,13 @@ protected:
     void subdivideFVarChannels();
 
 protected:
+    // A debug method of Level prints a Refinement (should really change this)
+    friend void Level::print(const Refinement *) const;
+
     //
     //  Data members -- the logical grouping of some of these (and methods that make use
     //  of them) may lead to grouping them into a few utility classes or structs...
     //
-    friend class Level;  //  Access for some debugging information
 
     //  Defined on construction:
     Level const * _parent;
@@ -326,6 +339,7 @@ protected:
 
     //  Determined by the refinement options:
     bool _uniform;
+    bool _faceVertsFirst;
 
     //
     //  Inventory and ordering of the types of child components:
@@ -432,10 +446,11 @@ Refinement::getEdgeChildEdges(Index parentEdge) {
     return IndexArray(&_edgeChildEdgeIndices[parentEdge*2], 2);
 }
 
+} // end namespace internal
 } // end namespace Vtr
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* VTR_REFINEMENT_H */
+#endif /* OPENSUBDIV3_VTR_REFINEMENT_H */

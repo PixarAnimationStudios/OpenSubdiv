@@ -27,15 +27,13 @@ set(REGRESSION_COMMON_SOURCE_FILES
 )
 
 set(REGRESSION_COMMON_HEADER_FILES
+    cmp_utils.h
     hbr_utils.h
     shape_utils.h
-    vtr_utils.h
+    far_utils.h
 )
 
-include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${CMAKE_CURRENT_BINARY_DIR}"
-)
+include_directories("${OPENSUBDIV_INCLUDE_DIR}")
 
 add_library(regression_common_obj
     OBJECT
@@ -43,9 +41,9 @@ add_library(regression_common_obj
         ${REGRESSION_COMMON_HEADER_FILES}
 )
 
-add_library(regression_vtr_utils_obj
+add_library(regression_far_utils_obj
     OBJECT
-        vtr_utils.cpp
-        vtr_utils.h
+        far_utils.cpp
+        far_utils.h
 )
 

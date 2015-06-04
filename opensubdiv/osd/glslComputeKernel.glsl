@@ -22,24 +22,67 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-subroutine void computeKernelType();
-subroutine uniform computeKernelType computeKernel;
-
 //------------------------------------------------------------------------------
+
+
+layout(local_size_x=WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+
+// source and destination buffers
+
+uniform int srcOffset = 0;
+uniform int dstOffset = 0;
+layout(binding=0) buffer src_buffer      { float    srcVertexBuffer[]; };
+layout(binding=1) buffer dst_buffer      { float    dstVertexBuffer[]; };
+
+// derivative buffers (if needed)
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+uniform ivec3 duDesc;
+uniform ivec3 dvDesc;
+layout(binding=2) buffer du_buffer   { float duBuffer[]; };
+layout(binding=3) buffer dv_buffer   { float dvBuffer[]; };
+#endif
+
+// stencil buffers
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
 
 uniform int batchStart = 0;
 uniform int batchEnd = 0;
+layout(binding=4) buffer stencilSizes    { int      _sizes[];   };
+layout(binding=5) buffer stencilOffsets  { int      _offsets[]; };
+layout(binding=6) buffer stencilIndices  { int      _indices[]; };
+layout(binding=7) buffer stencilWeights  { float    _weights[]; };
 
-uniform int primvarOffset = 0;
-uniform int numCVs = 0;
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+layout(binding=8) buffer stencilDuWeights { float  _duWeights[]; };
+layout(binding=9) buffer stencilDvWeights { float  _dvWeights[]; };
+#endif
 
-layout(binding=0) buffer vertex_buffer    { float         vertexBuffer[]; };
-layout(binding=1) buffer sterncilSizes    { unsigned char _sizes[];   };
-layout(binding=2) buffer sterncilOffsets  { int           _offsets[]; };
-layout(binding=3) buffer sterncilIndices  { int           _indices[]; };
-layout(binding=4) buffer sterncilWeights  { float         _weights[]; };
+#endif
 
-layout(local_size_x=WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+// patch buffers
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
+
+struct PatchCoord {
+   int arrayIndex;
+   int patchIndex;
+   int vertIndex;
+   float s;
+   float t;
+};
+struct PatchParam {
+    int faceIndex;
+    uint patchBits;
+    float sharpness;
+};
+uniform ivec4 patchArray[2];
+layout(binding=4) buffer patchCoord_buffer { PatchCoord patchCoords[]; };
+layout(binding=5) buffer patchIndex_buffer { int patchIndexBuffer[]; };
+layout(binding=6) buffer patchParam_buffer { PatchParam patchParamBuffer[]; };
+
+#endif
 
 //------------------------------------------------------------------------------
 
@@ -55,17 +98,17 @@ void clear(out Vertex v) {
 
 Vertex readVertex(int index) {
     Vertex v;
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = srcOffset + index * SRC_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
-        v.vertexData[i] = vertexBuffer[vertexIndex + i];
+        v.vertexData[i] = srcVertexBuffer[vertexIndex + i];
     }
     return v;
 }
 
 void writeVertex(int index, Vertex v) {
-    int vertexIndex = primvarOffset + index * STRIDE;
+    int vertexIndex = dstOffset + index * DST_STRIDE;
     for (int i = 0; i < LENGTH; ++i) {
-        vertexBuffer[vertexIndex + i] = v.vertexData[i];
+        dstVertexBuffer[vertexIndex + i] = v.vertexData[i];
     }
 }
 
@@ -75,13 +118,30 @@ void addWithWeight(inout Vertex v, const Vertex src, float weight) {
     }
 }
 
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+void writeDu(int index, Vertex du) {
+    int duIndex = duDesc.x + index * duDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        duBuffer[duIndex + i] = du.vertexData[i];
+    }
+}
+
+void writeDv(int index, Vertex dv) {
+    int dvIndex = dvDesc.x + index * dvDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        dvBuffer[dvIndex + i] = dv.vertexData[i];
+    }
+}
+#endif
+
 //------------------------------------------------------------------------------
-subroutine(computeKernelType)
-void computeStencil() {
+#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS)
+
+void main() {
 
     int current = int(gl_GlobalInvocationID.x) + batchStart;
 
-    if (current>batchEnd) {
+    if (current>=batchEnd) {
         return;
     }
 
@@ -89,23 +149,180 @@ void computeStencil() {
     clear(dst);
 
     int offset = _offsets[current],
-        size = int(_sizes[current]);
-    
-    for (int i=0; i<size; ++i) {
-        addWithWeight(dst, readVertex( _indices[offset+i] ), _weights[offset+i]);
+        size   = _sizes[current];
+
+    for (int stencil = 0; stencil < size; ++stencil) {
+        int vindex = offset + stencil;
+        addWithWeight(
+            dst, readVertex(_indices[vindex]), _weights[vindex]);
     }
 
-    // the vertex buffer contains our control vertices at the beginning: don't
-    // stomp on those !
-    writeVertex(numCVs+current, dst);
+    writeVertex(current, dst);
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+    Vertex du, dv;
+    clear(du);
+    clear(dv);
+    for (int i=0; i<size; ++i) {
+        // expects the compiler optimizes readVertex out here.
+        Vertex src = readVertex(_indices[offset+i]);
+        addWithWeight(du, src, _duWeights[offset+i]);
+        addWithWeight(dv, src, _dvWeights[offset+i]);
+    }
+
+    if (duDesc.y > 0) { // length
+        writeDu(current, du);
+    }
+    if (dvDesc.y > 0) {
+        writeDv(current, dv);
+    }
+#endif
 }
 
-//------------------------------------------------------------------------------
+#endif
 
-void main()
-{
-    // call subroutine
-    computeKernel();
+//------------------------------------------------------------------------------
+#if defined(OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES)
+
+// PERFORMANCE: stride could be constant, but not as significant as length
+
+//struct PatchArray {
+//    int patchType;
+//    int numPatches;
+//    int indexBase;        // an offset within the index buffer
+//    int primitiveIdBase;  // an offset within the patch param buffer
+//};
+// # of patcharrays is 1 or 2.
+
+void getBSplineWeights(float t, inout vec4 point, inout vec4 deriv) {
+    // The four uniform cubic B-Spline basis functions evaluated at t:
+    float one6th = 1.0f / 6.0f;
+
+    float t2 = t * t;
+    float t3 = t * t2;
+
+    point.x = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
+    point.y = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
+    point.z = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
+    point.w = one6th * (                                 t3);
+
+    // Derivatives of the above four basis functions at t:
+    deriv.x = -0.5f*t2 +      t - 0.5f;
+    deriv.y =  1.5f*t2 - 2.0f*t;
+    deriv.z = -1.5f*t2 +      t + 0.5f;
+    deriv.w =  0.5f*t2;
 }
 
-//------------------------------------------------------------------------------
+uint getDepth(uint patchBits) {
+    return (patchBits & 0x7);
+}
+
+float getParamFraction(uint patchBits) {
+    uint nonQuadRoot = (patchBits >> 3) & 0x1;
+    uint depth = getDepth(patchBits);
+    if (nonQuadRoot == 1) {
+        return 1.0f / float( 1 << (depth-1) );
+    } else {
+        return 1.0f / float( 1 << depth );
+    }
+}
+
+vec2 normalizePatchCoord(uint patchBits, vec2 uv) {
+    float frac = getParamFraction(patchBits);
+
+    uint iu = (patchBits >> 22) & 0x3ff;
+    uint iv = (patchBits >> 12) & 0x3ff;
+
+    // top left corner
+    float pu = float(iu*frac);
+    float pv = float(iv*frac);
+
+    // normalize u,v coordinates
+    return vec2((uv.x - pu) / frac, (uv.y - pv) / frac);
+}
+
+void adjustBoundaryWeights(uint bits, inout vec4 sWeights, inout vec4 tWeights) {
+    uint boundary = ((bits >> 4) & 0xf);
+
+    if ((boundary & 1) != 0) {
+        tWeights[2] -= tWeights[0];
+        tWeights[1] += 2*tWeights[0];
+        tWeights[0] = 0;
+    }
+    if ((boundary & 2) != 0) {
+        sWeights[1] -= sWeights[3];
+        sWeights[2] += 2*sWeights[3];
+        sWeights[3] = 0;
+    }
+    if ((boundary & 4) != 0) {
+        tWeights[1] -= tWeights[3];
+        tWeights[2] += 2*tWeights[3];
+        tWeights[3] = 0;
+    }
+    if ((boundary & 8) != 0) {
+        sWeights[2] -= sWeights[0];
+        sWeights[1] += 2*sWeights[0];
+        sWeights[0] = 0;
+    }
+}
+
+void main() {
+
+    int current = int(gl_GlobalInvocationID.x);
+
+    PatchCoord coord = patchCoords[current];
+    int patchIndex = coord.patchIndex;
+
+    ivec4 array = patchArray[coord.arrayIndex];
+    int patchType = 6; // array.x XXX: REGULAR only for now.
+    int numControlVertices = 16;
+
+    uint patchBits = patchParamBuffer[patchIndex].patchBits;
+    vec2 uv = normalizePatchCoord(patchBits, vec2(coord.s, coord.t));
+    float dScale = float(1 << getDepth(patchBits));
+
+    float wP[20], wDs[20], wDt[20];
+    if (patchType == 6) {  // REGULAR
+        vec4 sWeights, tWeights, dsWeights, dtWeights;
+        getBSplineWeights(uv.x, sWeights, dsWeights);
+        getBSplineWeights(uv.y, tWeights, dtWeights);
+
+        adjustBoundaryWeights(patchBits, sWeights, tWeights);
+        adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
+
+        for (int k = 0; k < 4; ++k) {
+            for (int l = 0; l < 4; ++l) {
+                wP[4*k+l]  = sWeights[l]  * tWeights[k];
+                wDs[4*k+l] = dsWeights[l] * tWeights[k]  * dScale;
+                wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
+            }
+        }
+    } else {
+        // TODO: GREGORY BASIS
+    }
+
+    Vertex dst, du, dv;
+    clear(dst);
+    clear(du);
+    clear(dv);
+
+    int indexBase = array.z + coord.vertIndex;
+    for (int cv = 0; cv < numControlVertices; ++cv) {
+        int index = patchIndexBuffer[indexBase + cv];
+        addWithWeight(dst, readVertex(index), wP[cv]);
+        addWithWeight(du, readVertex(index), wDs[cv]);
+        addWithWeight(dv, readVertex(index), wDt[cv]);
+    }
+    writeVertex(current, dst);
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+    if (duDesc.y > 0) { // length
+        writeDu(current, du);
+    }
+    if (dvDesc.y > 0) {
+        writeDv(current, dv);
+    }
+#endif
+}
+
+#endif

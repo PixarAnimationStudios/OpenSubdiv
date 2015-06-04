@@ -22,14 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef FAR_PATCH_PARAM_H
-#define FAR_PATCH_PARAM_H
+#ifndef OPENSUBDIV3_FAR_PATCH_PARAM_H
+#define OPENSUBDIV3_FAR_PATCH_PARAM_H
 
 #include "../version.h"
 
 #include "../far/types.h"
-
-#include <cassert>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -48,12 +46,12 @@ namespace Far {
 ///
 ///  Field      | Bits | Content
 ///  -----------|:----:|------------------------------------------------------
-///  level      | 4    | the subdivision level of the patch
+///  level      | 3    | the subdivision level of the patch
 ///  nonquad    | 1    | whether the patch is the child of a non-quad face
-///  rotation   | 2    | patch rotations necessary to match CCW face-winding
+///  boundary   | 4    | boundary edge mask encoding
+///  transition | 4    | transition edge mask encoding
 ///  v          | 10   | log2 value of u parameter at first patch corner
 ///  u          | 10   | log2 value of v parameter at first patch corner
-///  reserved1  | 5    | padding
 ///
 /// Note : the bitfield is not expanded in the struct due to differences in how
 ///        GPU & CPU compilers pack bit-fields and endian-ness.
@@ -73,28 +71,32 @@ struct PatchParam {
         /// @param depth subdivision level of the patch
         /// @param nonquad true if the root face is not a quad
         ///
-        void Set( short u, short v, unsigned char rots, unsigned char depth, bool nonquad );
+        void Set( short u, short v, unsigned char depth, bool nonquad,
+                  unsigned short boundary, unsigned short transition );
 
         /// \brief Returns the log2 value of the u parameter at the top left corner of
         /// the patch
-        unsigned short GetU() const { return (unsigned short)((field >> 17) & 0x3ff); }
+        unsigned short GetU() const { return (unsigned short)((field >> 22) & 0x3ff); }
 
         /// \brief Returns the log2 value of the v parameter at the top left corner of
         /// the patch
-        unsigned short GetV() const { return (unsigned short)((field >> 7) & 0x3ff); }
+        unsigned short GetV() const { return (unsigned short)((field >> 12) & 0x3ff); }
 
-        /// \brief Returns the rotation of the patch (the number of CCW parameter winding)
-        unsigned char GetRotation() const { return (unsigned char)((field >> 5) & 0x3); }
+        /// \brief Returns the transition edge encoding for the patch.
+        unsigned short GetTransition() const { return (unsigned short)((field >> 8) & 0xf); }
+
+        /// \brief Returns the boundary edge encoding for the patch.
+        unsigned short GetBoundary() const { return (unsigned short)((field >> 4) & 0xf); }
 
         /// \brief True if the parent coarse face is a non-quad
-        bool NonQuadRoot() const { return (field >> 4) & 0x1; }
+        bool NonQuadRoot() const { return (field >> 3) & 0x1; }
 
         /// \brief Returns the fratcion of normalized parametric space covered by the
         /// sub-patch.
         float GetParamFraction() const;
 
         /// \brief Returns the level of subdivision of the patch
-        unsigned char GetDepth() const { return  (unsigned char)(field & 0xf); }
+        unsigned char GetDepth() const { return  (unsigned char)(field & 0x7); }
 
         /// The (u,v) pair is normalized to this sub-parametric space.
         ///
@@ -102,14 +104,6 @@ struct PatchParam {
         /// @param v  v parameter
         ///
         void Normalize( float & u, float & v ) const;
-
-        /// \brief Rotate (u,v) pair to compensate for transition pattern and boundary
-        /// orientations.
-        ///
-        /// @param u  u parameter
-        /// @param v  v parameter
-        ///
-        void Rotate( float & u, float & v ) const;
 
         /// \brief Resets the values to 0
         void Clear() { field = 0; }
@@ -127,7 +121,8 @@ struct PatchParam {
     /// @param depth subdivision level of the patch
     /// @param nonquad true if the root face is not a quad
     ///
-    void Set( Index faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad );
+    void Set( Index faceid, short u, short v, unsigned char depth, bool nonquad ,
+              unsigned short boundary, unsigned short transition );
 
     /// \brief Resets everything to 0
     void Clear();
@@ -139,11 +134,13 @@ typedef Vtr::Array<PatchParam> PatchParamArray;
 typedef Vtr::ConstArray<PatchParam> ConstPatchParamArray;
 
 inline void
-PatchParam::BitField::Set( short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
-    field = (u << 17) |
-            (v << 7) |
-            (rots << 5) |
-            ((nonquad ? 1:0) << 4) |
+PatchParam::BitField::Set( short u, short v, unsigned char depth, bool nonquad,
+                           unsigned short boundary, unsigned short transition ) {
+    field = (u << 22) |
+            (v << 12) |
+            (transition << 8) |
+            (boundary << 4) |
+            ((nonquad ? 1:0) << 3) |
             (nonquad ? depth+1 : depth);
 }
 
@@ -172,21 +169,10 @@ PatchParam::BitField::Normalize( float & u, float & v ) const {
 }
 
 inline void
-PatchParam::BitField::Rotate( float & u, float & v ) const {
-    switch( GetRotation() ) {
-         case 0 : break;
-         case 1 : { float tmp=v; v=1.0f-u; u=tmp; } break;
-         case 2 : { u=1.0f-u; v=1.0f-v; } break;
-         case 3 : { float tmp=u; u=1.0f-v; v=tmp; } break;
-         default:
-             assert(0);
-    }
-}
-
-inline void
-PatchParam::Set( Index faceid, short u, short v, unsigned char rots, unsigned char depth, bool nonquad ) {
+PatchParam::Set( Index faceid, short u, short v, unsigned char depth, bool nonquad,
+                 unsigned short boundary, unsigned short transition ) {
     faceIndex = faceid;
-    bitField.Set(u,v,rots,depth,nonquad);
+    bitField.Set(u,v,depth,nonquad,boundary,transition);
 }
 
 inline void
@@ -202,4 +188,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* FAR_PATCH_PARAM */
+#endif /* OPENSUBDIV3_FAR_PATCH_PARAM */

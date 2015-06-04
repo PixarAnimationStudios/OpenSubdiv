@@ -26,38 +26,50 @@
 # source & headers
 set(SOURCE_FILES
     error.cpp
+    endCapBSplineBasisPatchFactory.cpp
+    endCapGregoryBasisPatchFactory.cpp
+    endCapLegacyGregoryPatchFactory.cpp
     gregoryBasis.cpp
+    patchBasis.cpp
     patchDescriptor.cpp
     patchMap.cpp
-    patchTables.cpp
-    patchTablesFactory.cpp
-    stencilTablesFactory.cpp
+    patchTable.cpp
+    patchTableFactory.cpp
+    ptexIndices.cpp
+    stencilTable.cpp
+    stencilTableFactory.cpp
+    stencilBuilder.cpp
+    topologyDescriptor.cpp
     topologyRefiner.cpp
     topologyRefinerFactory.cpp
 )
 
 set(PRIVATE_HEADER_FILES
-    protoStencil.h
+    gregoryBasis.h
+    endCapBSplineBasisPatchFactory.h
+    endCapGregoryBasisPatchFactory.h
+    endCapLegacyGregoryPatchFactory.h
+    patchBasis.h
+    stencilBuilder.h
 )
 
 set(PUBLIC_HEADER_FILES
     error.h
-    gregoryBasis.h
-    kernelBatch.h
-    kernelBatchDispatcher.h
     patchDescriptor.h
     patchParam.h
     patchMap.h
-    patchTables.h
-    patchTablesFactory.h
-    stencilTables.h
-    stencilTablesFactory.h
+    patchTable.h
+    patchTableFactory.h
+    primvarRefiner.h
+    ptexIndices.h
+    stencilTable.h
+    stencilTableFactory.h
+    topologyDescriptor.h
+    topologyLevel.h
     topologyRefiner.h
     topologyRefinerFactory.h
     types.h
 )
-
-set(PRIVATE_HEADER_FILES )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 

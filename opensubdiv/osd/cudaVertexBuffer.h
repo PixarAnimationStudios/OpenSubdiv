@@ -22,10 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_CUDA_VERTEX_BUFFER_H
-#define OSD_CUDA_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_CUDA_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_CUDA_VERTEX_BUFFER_H
 
 #include "../version.h"
+
+#include <cstddef>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -35,20 +37,22 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for Cuda subvision.
 ///
 /// CudaVertexBuffer implements CudaVertexBufferInterface.
-/// An instance of this buffer class can be passed to CudaComputeController
+/// An instance of this buffer class can be passed to CudaEvaluator
 ///
 class CudaVertexBuffer {
 
 public:
     /// Creator. Returns NULL if error.
-    static CudaVertexBuffer * Create(int numElements, int numVertices);
+    static CudaVertexBuffer * Create(int numElements, int numVertices,
+                                     void *deviceContext = NULL);
 
     /// Destructor.
     ~CudaVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext=NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -81,4 +85,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_CUDA_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_CUDA_VERTEX_BUFFER_H

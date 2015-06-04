@@ -22,7 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include <common/shape_utils.h>
+#include "../../regression/common/shape_utils.h"
+#include "../../regression/shapes/all.h"
 
 struct ShapeDesc {
 
@@ -36,50 +37,6 @@ struct ShapeDesc {
 
 static std::vector<ShapeDesc> g_defaultShapes;
 
-#include <shapes/catmark_bishop.h>
-#include <shapes/catmark_car.h>
-#include <shapes/catmark_chaikin0.h>
-#include <shapes/catmark_chaikin1.h>
-#include <shapes/catmark_chaikin2.h>
-#include <shapes/catmark_cube_corner0.h>
-#include <shapes/catmark_cube_corner1.h>
-#include <shapes/catmark_cube_corner2.h>
-#include <shapes/catmark_cube_corner3.h>
-#include <shapes/catmark_cube_corner4.h>
-#include <shapes/catmark_cube_creases0.h>
-#include <shapes/catmark_cube_creases1.h>
-#include <shapes/catmark_cube.h>
-#include <shapes/catmark_dart_edgecorner.h>
-#include <shapes/catmark_dart_edgeonly.h>
-#include <shapes/catmark_edgecorner.h>
-#include <shapes/catmark_edgeonly.h>
-#include <shapes/catmark_fan.h>
-#include <shapes/catmark_flap.h>
-#include <shapes/catmark_flap2.h>
-#include <shapes/catmark_gregory_test1.h>
-#include <shapes/catmark_gregory_test2.h>
-#include <shapes/catmark_gregory_test3.h>
-#include <shapes/catmark_gregory_test4.h>
-#include <shapes/catmark_gregory_test5.h>
-#include <shapes/catmark_gregory_test6.h>
-#include <shapes/catmark_gregory_test7.h>
-#include <shapes/catmark_helmet.h>
-#include <shapes/catmark_hole_test1.h>
-#include <shapes/catmark_hole_test2.h>
-#include <shapes/catmark_pawn.h>
-#include <shapes/catmark_pyramid_creases0.h>
-#include <shapes/catmark_pyramid_creases1.h>
-#include <shapes/catmark_pyramid.h>
-#include <shapes/catmark_rook.h>
-#include <shapes/catmark_square_hedit0.h>
-#include <shapes/catmark_square_hedit1.h>
-#include <shapes/catmark_square_hedit2.h>
-#include <shapes/catmark_square_hedit3.h>
-#include <shapes/catmark_tent_creases0.h>
-#include <shapes/catmark_tent_creases1.h>
-#include <shapes/catmark_tent.h>
-#include <shapes/catmark_torus.h>
-#include <shapes/catmark_torus_creases0.h>
 
 //------------------------------------------------------------------------------
 static void initShapes() {
@@ -103,6 +60,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_fan",              catmark_fan,              kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_flap",             catmark_flap,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_flap2",            catmark_flap2,            kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test0",    catmark_gregory_test0,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test1",    catmark_gregory_test1,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test2",    catmark_gregory_test2,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test3",    catmark_gregory_test3,    kCatmark ) );

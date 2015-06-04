@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-# *** glViewer ***
+# *** glEvalLimit ***
 
 list(APPEND PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
@@ -30,8 +30,7 @@ list(APPEND PLATFORM_LIBRARIES
 )
 
 include_directories(
-    "${PROJECT_SOURCE_DIR}/opensubdiv"
-    "${PROJECT_SOURCE_DIR}/regression"
+    "${OPENSUBDIV_INCLUDE_DIR}"
     "${GLFW_INCLUDE_DIR}"
 )
 
@@ -42,6 +41,13 @@ endif()
 
 if( OPENCL_FOUND )
     include_directories("${OPENCL_INCLUDE_DIRS}")
+endif()
+
+if( TBB_FOUND )
+    include_directories("${TBB_INCLUDE_DIR}")
+    list(APPEND PLATFORM_LIBRARIES
+        "${TBB_LIBRARIES}"
+    )
 endif()
 
 _add_glfw_executable(glEvalLimit

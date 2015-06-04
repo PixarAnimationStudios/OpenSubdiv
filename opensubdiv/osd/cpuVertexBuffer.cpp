@@ -45,13 +45,15 @@ CpuVertexBuffer::~CpuVertexBuffer() {
 }
 
 CpuVertexBuffer *
-CpuVertexBuffer::Create(int numElements, int numVertices) {
+CpuVertexBuffer::Create(int numElements, int numVertices,
+                        void * /*deviceContext*/) {
 
     return new CpuVertexBuffer(numElements, numVertices);
 }
 
 void
-CpuVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices) {
+CpuVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
+                            void * /*deviceContext*/) {
 
     memcpy(_cpuBuffer + startVertex * _numElements,
            src, GetNumElements() * numVertices * sizeof(float));

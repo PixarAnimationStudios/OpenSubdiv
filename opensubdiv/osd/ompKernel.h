@@ -22,29 +22,39 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_OMP_KERNEL_H
-#define OSD_OMP_KERNEL_H
+#ifndef OPENSUBDIV3_OSD_OMP_KERNEL_H
+#define OPENSUBDIV3_OSD_OMP_KERNEL_H
 
 #include "../version.h"
-
-#include "../osd/vertexDescriptor.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-struct VertexDescriptor;
+struct BufferDescriptor;
 
 void
-OmpComputeStencils(VertexBufferDescriptor const &vertexDesc,
-                      float const * vertexSrc,
-                      float * vertexDst,
-                      unsigned char const * sizes,
-                      int const * offsets,
-                      int const * indices,
-                      float const * weights,
-                      int start, int end);
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                int start, int end);
+
+void
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                int start, int end);
 
 } // end namespace Osd
 
@@ -53,4 +63,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_OMP_KERNEL_H
+#endif  // OPENSUBDIV3_OSD_OMP_KERNEL_H

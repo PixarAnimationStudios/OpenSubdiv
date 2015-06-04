@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_LOOP_SCHEME_H
-#define SDC_LOOP_SCHEME_H
+#ifndef OPENSUBDIV3_SDC_LOOP_SCHEME_H
+#define OPENSUBDIV3_SDC_LOOP_SCHEME_H
 
 #include "../version.h"
 
@@ -151,8 +151,8 @@ Scheme<SCHEME_LOOP>::assignCornerMaskForVertex(VERTEX const&, MASK& mask) const
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_LOOP>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask, float const edgeSharpness[]) const
-{
+Scheme<SCHEME_LOOP>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask,
+                                               int const creaseEnds[2]) const {
     typedef typename MASK::Weight Weight;
 
     int valence = vertex.GetNumEdges();
@@ -166,10 +166,11 @@ Scheme<SCHEME_LOOP>::assignCreaseMaskForVertex(VERTEX const& vertex, MASK& mask,
     Weight eWeight = 0.125f;
 
     mask.VertexWeight(0) = vWeight;
-
     for (int i = 0; i < valence; ++i) {
-        mask.EdgeWeight(i) = (edgeSharpness[i] > 0.0f) ? eWeight : 0.0f;
+        mask.EdgeWeight(i) = 0.0f;
     }
+    mask.EdgeWeight(creaseEnds[0]) = eWeight;
+    mask.EdgeWeight(creaseEnds[1]) = eWeight;
 }
 
 template <>
@@ -215,7 +216,21 @@ Scheme<SCHEME_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask)
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_LOOP>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_LOOP>::assignCornerLimitMask(VERTEX const& /* vertex */, MASK& posMask) const {
+
+    posMask.SetNumVertexWeights(1);
+    posMask.SetNumEdgeWeights(0);
+    posMask.SetNumFaceWeights(0);
+    posMask.SetFaceWeightsForFaceCenters(false);
+
+    posMask.VertexWeight(0) = 1.0f;
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_LOOP>::assignCreaseLimitMask(VERTEX const& vertex, MASK& posMask,
+                                           int const creaseEnds[2]) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -226,21 +241,32 @@ Scheme<SCHEME_LOOP>::assignBoundaryLimitMask(VERTEX const& vertex, MASK& posMask
     posMask.SetNumFaceWeights(0);
     posMask.SetFaceWeightsForFaceCenters(false);
 
+    //
+    //  The refinement mask for a crease vertex is (1/8, 3/4, 1/8) and for a crease
+    //  edge is (1/2, 1/2) -- producing a uniform B-spline curve along the crease
+    //  (boundary) whether the vertex or its crease is regular or not.  The limit
+    //  mask is therefore (1/6, 2/3, 1/6) for ALL cases.
+    //
+    //  An alternative limit mask (1/5, 3/5, 1/5) is often published for use either
+    //  for irregular crease vertices or for all crease/boundary vertices, but this
+    //  is based on an alternate refinement mask for the edge -- (3/8, 5/8) versus
+    //  the usual (1/2, 1/2) -- and will not produce the B-spline curve desired.
+    //
     Weight vWeight = 4.0f / 6.0f;
     Weight eWeight = 1.0f / 6.0f;
 
     posMask.VertexWeight(0) = vWeight;
-    posMask.EdgeWeight(0) = eWeight;
-    for (int i = 1; i < valence - 1; ++i) {
+    for (int i = 0; i < valence; ++i) {
         posMask.EdgeWeight(i) = 0.0f;
     }
-    posMask.EdgeWeight(valence - 1) = eWeight;
+    posMask.EdgeWeight(creaseEnds[0]) = eWeight;
+    posMask.EdgeWeight(creaseEnds[1]) = eWeight;
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask) const {
+Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) const {
 
     typedef typename MASK::Weight Weight;
 
@@ -253,53 +279,253 @@ Scheme<SCHEME_LOOP>::assignInteriorLimitMask(VERTEX const& vertex, MASK& posMask
     posMask.SetFaceWeightsForFaceCenters(false);
 
     //  Specialize for the regular case:  1/12 per edge-vert, 1/2 for the vert itself:
-    Weight eWeight = 1.0f / 12.0f;
-    Weight vWeight = 0.5f;
+    if (valence == 6) {
+        Weight eWeight = 1.0f / 12.0f;
+        Weight vWeight = 0.5f;
 
-    if (valence != 6) {
+        posMask.VertexWeight(0) = vWeight;
+
+        posMask.EdgeWeight(0) = eWeight;
+        posMask.EdgeWeight(1) = eWeight;
+        posMask.EdgeWeight(2) = eWeight;
+        posMask.EdgeWeight(3) = eWeight;
+        posMask.EdgeWeight(4) = eWeight;
+        posMask.EdgeWeight(5) = eWeight;
+
+    } else {
         Weight invValence = 1.0f / valence;
 
         Weight beta = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
         beta = (0.625f - (beta * beta)) * invValence;;
 
-        eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
-        vWeight = (Weight)(1.0f - (eWeight * valence));
-    }
+        Weight eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
+        Weight vWeight = (Weight)(1.0f - (eWeight * valence));
 
-    posMask.VertexWeight(0) = vWeight;
-    for (int i = 0; i < valence; ++i) {
-        posMask.EdgeWeight(i) = eWeight;
+        posMask.VertexWeight(0) = vWeight;
+        for (int i = 0; i < valence; ++i) {
+            posMask.EdgeWeight(i) = eWeight;
+        }
     }
 }
 
-//
+/*
 //  Limit masks for tangents:
 //
+//  A note on tangent magnitudes:
+//
+//  Several formulae exist for limit tangents at a vertex to accomodate the
+//  different topological configurations around the vertex.  While these produce
+//  the desired direction, there is inconsistency in the resulting magnitudes.
+//  Ideally a regular mesh of uniformly shaped triangles with similar edge lengths
+//  should produce tangents of similar magnitudes throughout -- including corners
+//  and boundaries.  So some of the common formulae for these are adjusted with
+//  scale factors.
+//
+//  For uses where magnitude does not matter, this scaling should be irrelevant.
+//  But just as with patches, where the magnitudes of partial derivates are
+//  consistent between similar patches, the magnitudes of limit tangents should
+//  also be similar.
+//
+//  The reference tangents, in terms of magnitudes, are those produced by the
+//  limit tangent mask for smooth interior vertices, for which well established
+//  sin/cos formulae apply -- these remain unscaled.  Formulae for the other
+//  crease/boundary, corner tangents and irregular cases are scaled to be more
+//  consistent with these.
+//
+//  The crease/boundary tangents for the regular case can be viewed as derived
+//  from the smooth interior masks with two "phantom" points extrapolated across
+//  the regular boundary:
+//
+//            v3           v2          
+//             X - - - - - X
+//           /   \       /   \
+//         /       \   /       \
+//   v4  X - - - - - X - - - - - X  v1
+//         .       . 0 .       .
+//           .   .       .   .
+//             .   .   .   .
+//           (v5)         (v6)
+//
+//  where v5 = v0 + (v4 - v3) and v6 = v0 + v1 - v2.
+//
+//  When the standard limit tangent mask is applied, the cosines of increments
+//  of pi/3 gives us coefficients that are mutliples of 1/2, leading to the first
+//  tangent T1 = 3/2 * (v1 - v4), rather than the widely used T1 = v1 - v4.  So
+//  this scale factor of 3/2 is applied to insure tangents along the boundaries
+//  are of similar magnitude as tangents in the immediate interior (which may be
+//  parallel).
+//
+//  Tangents at corners are essentially a form of boundary tangent, and so its
+//  simple difference formula is scaled to be consistent with adjoining boundary
+//  tangents -- not just with the 3/2 factor from above, but with an additional
+//  2.0 to compensate for the fact that the difference of only side of the vertex
+//  is considered here.  The resulting scale factor of 3.0 for the regular corner
+//  is what similarly arises by extrapolating an interior region around the
+//  vertex and using the interior mask for the first tangent.
+//
+//  The cross-tangent formula for the regular crease/boundary is similarly found
+//  from the above construction of the boundary, but the commonly used weights of
+//  +/- 1 and 2 result from omitting the common factor of sqrt(3)/2 (arising from
+//  the sines of increments of pi/3).  With that scale factor close to one, it has
+//  less impact than the irregular cases, which are analogous to corner tangents
+//  in that differences on only one side of the vertex are considered.  While a
+//  scaling of 3.0 is similarly understandable for the valence 2 and 3 cases, it is
+//  less obvious in the irregular formula for valence > 4, but similarly effective.
+//
+//  The end result of these adjustments should be a set of limit tangents that are
+//  of similar magnitude over a regular mesh including boundaries and corners.
+*/
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_LOOP>::assignBoundaryLimitTangentMasks(VERTEX const& /* vertex */,
+Scheme<SCHEME_LOOP>::assignCornerLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
-    //  Need to dig up formulae for this case...
+    int valence = vertex.GetNumEdges();
 
     tan1Mask.SetNumVertexWeights(1);
-    tan1Mask.SetNumEdgeWeights(0);
+    tan1Mask.SetNumEdgeWeights(valence);
     tan1Mask.SetNumFaceWeights(0);
     tan1Mask.SetFaceWeightsForFaceCenters(false);
-    tan1Mask.VertexWeight(0) = 0.0f;
 
     tan2Mask.SetNumVertexWeights(1);
-    tan2Mask.SetNumEdgeWeights(0);
+    tan2Mask.SetNumEdgeWeights(valence);
     tan2Mask.SetNumFaceWeights(0);
     tan2Mask.SetFaceWeightsForFaceCenters(false);
-    tan2Mask.VertexWeight(0) = 0.0f;
+
+    //  See note above regarding scale factor of 3.0:
+    tan1Mask.VertexWeight(0) = -3.0f;
+    tan1Mask.EdgeWeight(0)   =  3.0f;
+    tan1Mask.EdgeWeight(1)   =  0.0f;
+
+    tan2Mask.VertexWeight(0) = -3.0f;
+    tan2Mask.EdgeWeight(0)   =  0.0f;
+    tan2Mask.EdgeWeight(1)   =  3.0f;
+
+    //  Should be at least 2 edges -- be sure to clear weights for any more:
+    for (int i = 2; i < valence; ++i) {
+        tan1Mask.EdgeWeight(i) = 0.0f;
+        tan2Mask.EdgeWeight(i) = 0.0f;
+    }
 }
 
 template <>
 template <typename VERTEX, typename MASK>
 inline void
-Scheme<SCHEME_LOOP>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
+Scheme<SCHEME_LOOP>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
+        MASK& tan1Mask, MASK& tan2Mask, int const creaseEnds[2]) const {
+
+    typedef typename MASK::Weight Weight;
+
+    //
+    //  First, the tangent along the crease:
+    //      The first crease edge is considered the "leading" edge of the span
+    //  of surface for which we are evaluating tangents and the second edge the
+    //  "trailing edge".  By convention, the tangent along the crease is oriented
+    //  in the direction of the leading edge.
+    //
+    int valence = vertex.GetNumEdges();
+
+    tan1Mask.SetNumVertexWeights(1);
+    tan1Mask.SetNumEdgeWeights(valence);
+    tan1Mask.SetNumFaceWeights(0);
+    tan1Mask.SetFaceWeightsForFaceCenters(false);
+
+    tan1Mask.VertexWeight(0) = 0.0f;
+    for (int i = 0; i < valence; ++i) {
+        tan1Mask.EdgeWeight(i) = 0.0f;
+    }
+
+    //  See the note above regarding scale factor of 1.5:
+    tan1Mask.EdgeWeight(creaseEnds[0]) =  1.5f;
+    tan1Mask.EdgeWeight(creaseEnds[1]) = -1.5f;
+
+    //
+    //  Second, the tangent across the interior faces:
+    //      Note this is ambigous for an interior vertex.  We currently return
+    //  the tangent for the surface in the counter-clockwise span between the
+    //  leading and trailing edges that form the crease.  Given the expected
+    //  computation of a surface normal as Tan1 X Tan2, this tangent should be
+    //  oriented "inward" from the crease/boundary -- across the surface rather
+    //  than outward and away from it.
+    //
+    //  There is inconsistency in the orientation of this tangent in commonly
+    //  published results:  the general formula provided for arbitrary valence
+    //  has the tangent pointing across the crease and "outward" from the surface,
+    //  while the special cases for regular valence and lower have the tangent
+    //  pointing across the surface and "inward" from the crease.  So if we are
+    //  to consistently orient the first tangent along the crease, regardless of
+    //  the interior topology, we have to correct this.  With the first tangent
+    //  following the direction of the leading crease edge, we want the second
+    //  tangent pointing inward/across the surface -- so we flip the result of
+    //  the general formula.
+    //
+    tan2Mask.SetNumVertexWeights(1);
+    tan2Mask.SetNumEdgeWeights(valence);
+    tan2Mask.SetNumFaceWeights(0);
+    tan2Mask.SetFaceWeightsForFaceCenters(false);
+
+    for (int i = 0; i < creaseEnds[0]; ++i) {
+        tan2Mask.EdgeWeight(i) = 0.0f;
+    }
+    int interiorEdgeCount = creaseEnds[1] - creaseEnds[0] - 1;
+    if (interiorEdgeCount == 2) {
+        //  See note above regarding scale factor of (sin(60 degs) == sqrt(3)/2:
+
+        static Weight const Root3    = (Weight) 1.73205080756887729352f;
+        static Weight const Root3by2 = (Weight) (Root3 * 0.5);
+
+        tan2Mask.VertexWeight(0) = -Root3;
+
+        tan2Mask.EdgeWeight(creaseEnds[0]) = -Root3by2;
+        tan2Mask.EdgeWeight(creaseEnds[1]) = -Root3by2;
+
+        tan2Mask.EdgeWeight(creaseEnds[0] + 1) = Root3;
+        tan2Mask.EdgeWeight(creaseEnds[0] + 2) = Root3;
+    } else if (interiorEdgeCount > 2) {
+        //  See notes above regarding scale factor of -3.0 (-1 for orientation,
+        //  2.0 for considering the region as a half-disk, and 1.5 in keeping
+        //  with the crease tangent):
+
+        double theta = M_PI / (interiorEdgeCount + 1);
+
+        Weight cWeight      = -3.0f * std::sin(theta);
+        Weight eWeightCoeff = -3.0f * (2.0f * std::cos(theta) - 2.0f);
+
+        tan2Mask.VertexWeight(0) = 0.0f;
+
+        tan2Mask.EdgeWeight(creaseEnds[0]) = cWeight;
+        tan2Mask.EdgeWeight(creaseEnds[1]) = cWeight;
+
+        for (int i = 1; i <= interiorEdgeCount; ++i) {
+            tan2Mask.EdgeWeight(creaseEnds[0] + i) = eWeightCoeff * std::sin(i * theta);
+        }
+    } else if (interiorEdgeCount == 1) {
+        //  See notes above regarding scale factor of 3.0:
+
+        tan2Mask.VertexWeight(0) = -3.0f;
+
+        tan2Mask.EdgeWeight(creaseEnds[0]) = 0.0f;
+        tan2Mask.EdgeWeight(creaseEnds[1]) = 0.0f;
+
+        tan2Mask.EdgeWeight(creaseEnds[0] + 1) = 3.0f;
+    } else {
+        //  See notes above regarding scale factor of 3.0:
+
+        tan2Mask.VertexWeight(0) = -6.0f;
+
+        tan2Mask.EdgeWeight(creaseEnds[0]) = 3.0f;
+        tan2Mask.EdgeWeight(creaseEnds[1]) = 3.0f;
+    }
+    for (int i = creaseEnds[1] + 1; i < valence; ++i) {
+        tan2Mask.EdgeWeight(i) = 0.0f;
+    }
+}
+
+template <>
+template <typename VERTEX, typename MASK>
+inline void
+Scheme<SCHEME_LOOP>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
         MASK& tan1Mask, MASK& tan2Mask) const {
 
     typedef typename MASK::Weight Weight;
@@ -320,11 +546,29 @@ Scheme<SCHEME_LOOP>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
     tan1Mask.VertexWeight(0) = 0.0f;
     tan2Mask.VertexWeight(0) = 0.0f;
 
-    Weight alpha = (Weight) (2.0f * M_PI / valence);
-    for (int i = 0; i < valence; ++i) {
-        double alphaI = alpha * i;
-        tan1Mask.EdgeWeight(i) = cos(alphaI);
-        tan2Mask.EdgeWeight(i) = sin(alphaI);
+    if (valence == 6) {
+        static Weight const Root3by2 = (Weight)(0.5f * 1.73205080756887729352f);
+
+        tan1Mask.EdgeWeight(0) =  1.0f;
+        tan1Mask.EdgeWeight(1) =  0.5f;
+        tan1Mask.EdgeWeight(2) = -0.5f;
+        tan1Mask.EdgeWeight(3) = -1.0f;
+        tan1Mask.EdgeWeight(4) = -0.5f;
+        tan1Mask.EdgeWeight(5) =  0.5f;
+
+        tan2Mask.EdgeWeight(0) =  0.0f;
+        tan2Mask.EdgeWeight(1) =  Root3by2;
+        tan2Mask.EdgeWeight(2) =  Root3by2;
+        tan2Mask.EdgeWeight(3) =  0.0f;
+        tan2Mask.EdgeWeight(4) = -Root3by2;
+        tan2Mask.EdgeWeight(5) = -Root3by2;
+    } else {
+        Weight alpha = (Weight) (2.0f * M_PI / valence);
+        for (int i = 0; i < valence; ++i) {
+            double alphaI = alpha * i;
+            tan1Mask.EdgeWeight(i) = std::cos(alphaI);
+            tan2Mask.EdgeWeight(i) = std::sin(alphaI);
+        }
     }
 }
 
@@ -333,4 +577,4 @@ Scheme<SCHEME_LOOP>::assignInteriorLimitTangentMasks(VERTEX const& vertex,
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_LOOP_SCHEME_H */
+#endif /* OPENSUBDIV3_SDC_LOOP_SCHEME_H */

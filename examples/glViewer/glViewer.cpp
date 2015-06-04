@@ -22,103 +22,104 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
 #include <far/error.h>
-#include <osd/vertex.h>
-#include <osd/glDrawContext.h>
-#include <osd/glDrawRegistry.h>
 
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompComputeController.h>
-    OpenSubdiv::Osd::OmpComputeController *g_ompComputeController = NULL;
+    #include <osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbComputeController.h>
-    OpenSubdiv::Osd::TbbComputeController *g_tbbComputeController = NULL;
+    #include <osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
     #include <osd/clGLVertexBuffer.h>
-    #include <osd/clComputeContext.h>
-    #include <osd/clComputeController.h>
+    #include <osd/clEvaluator.h>
+    #include "../common/clDeviceContext.h"
 
-    #include "../common/clInit.h"
-
-    cl_context g_clContext;
-    cl_command_queue g_clQueue;
-    OpenSubdiv::Osd::CLComputeController *g_clComputeController = NULL;
+    CLDeviceContext g_clDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
     #include <osd/cudaGLVertexBuffer.h>
-    #include <osd/cudaComputeContext.h>
-    #include <osd/cudaComputeController.h>
+    #include <osd/cudaEvaluator.h>
+    #include "../common/cudaDeviceContext.h"
 
-    #include <cuda_runtime_api.h>
-    #include <cuda_gl_interop.h>
-
-    #include "../common/cudaInit.h"
-
-    bool g_cudaInitialized = false;
-    OpenSubdiv::Osd::CudaComputeController *g_cudaComputeController = NULL;
+    CudaDeviceContext g_cudaDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glslTransformFeedbackComputeContext.h>
-    #include <osd/glslTransformFeedbackComputeController.h>
+    #include <osd/glXFBEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLTransformFeedbackComputeController *g_glslTransformFeedbackComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glslComputeContext.h>
-    #include <osd/glslComputeController.h>
+    #include <osd/glComputeEvaluator.h>
     #include <osd/glVertexBuffer.h>
-    OpenSubdiv::Osd::GLSLComputeController *g_glslComputeController = NULL;
 #endif
 
 #include <osd/glMesh.h>
-OpenSubdiv::Osd::GLMeshInterface *g_mesh;
+#include <osd/glLegacyGregoryPatchTable.h>
+OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
+OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
-#include <common/vtr_utils.h>
-#include "../common/stopwatch.h"
-#include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../../regression/common/far_utils.h"
+#include "../common/glHud.h"
+#include "../common/glUtils.h"
+#include "../common/glControlMeshDisplay.h"
+#include "../common/glShaderCache.h"
 #include "../common/objAnim.h"
-#include "../common/patchColors.h"
+#include "../common/simple_math.h"
+#include "../common/stopwatch.h"
+#include <osd/glslPatchShaderSource.h>
 
-static const char *shaderSource =
+
+
+/* Function to get the correct shader file based on the opengl version.
+  The implentation varies depending if glew is available or not. In case
+  is available the capabilities are queried during execution and the correct
+  source is returned. If glew in not available during compile time the version
+  is determined*/
+static const char *shaderSource(){
+#if not defined(OSD_USES_GLEW)
+
+static const char *res =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #include "shader.gen.h"
+#include "shader.gen.h"
 #else
-    #include "shader_gl3.gen.h"
+#include "shader_gl3.gen.h"
 #endif
 ;
+#else
+        static const char *res = NULL;
+        if (!res){
+            static const char *gen =
+#include "shader.gen.h"
+                ;
+            static const char *gen3 =
+#include "shader_gl3.gen.h"
+                ;
+            //Determine the shader file to use. Since some opengl implementations
+            //define that an extension is available but not an implementation 
+            //for it you cannnot trust in the glew header definitions to know that is 
+            //available, but you need to query it during runtime.
+            if (GLUtils::SupportsAdaptiveTessellation())
+                res = gen;
+            else
+                res = gen3;
+        }
+#endif
+        return res;
+}
 
 #include <cfloat>
 #include <vector>
@@ -134,22 +135,34 @@ enum KernelType { kCPU = 0,
                   kGLSL = 5,
                   kGLSLCompute = 6 };
 
-enum DisplayStyle { kWire = 0,
-                    kShaded,
-                    kWireShaded,
-                    kVaryingColor,
-                    kInterleavedVaryingColor,
-                    kFaceVaryingColor };
+enum DisplayStyle { kDisplayStyleWire,
+                    kDisplayStyleShaded,
+                    kDisplayStyleWireOnShaded };
 
-enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
-                   kHUD_CB_DISPLAY_CAGE_VERTS,
+enum ShadingMode { kShadingMaterial,
+                   kShadingVaryingColor,
+                   kShadingInterleavedVaryingColor,
+                   kShadingFaceVaryingColor,
+                   kShadingPatchType,
+                   kShadingPatchCoord,
+                   kShadingNormal };
+
+enum EndCap      { kEndCapNone = 0,
+                   kEndCapBSplineBasis,
+                   kEndCapGregoryBasis,
+                   kEndCapLegacyGregory };
+
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR,
                    kHUD_CB_VIEW_LOD,
                    kHUD_CB_FRACTIONAL_SPACING,
                    kHUD_CB_PATCH_CULL,
                    kHUD_CB_FREEZE,
-                   kHUD_CB_DISPLAY_PATCH_COUNTS };
+                   kHUD_CB_DISPLAY_PATCH_COUNTS,
+                   kHUD_CB_ADAPTIVE,
+                   kHUD_CB_SINGLE_CREASE_PATCH };
 
 int g_currentShape = 0;
 
@@ -164,19 +177,18 @@ float g_animTime = 0;
 // GUI variables
 int   g_fullscreen = 0,
       g_freeze = 0,
-      g_displayStyle = kWireShaded,
+      g_shadingMode = kShadingPatchType,
+      g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
+      g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
-      g_drawCageEdges = 1,
-      g_drawCageVertices = 0,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
-int   g_displayPatchColor = 1,
-      g_screenSpaceTess = 1,
+int   g_screenSpaceTess = 1,
       g_fractionalSpacing = 1,
       g_patchCull = 0,
-      g_displayPatchCounts = 0;
+      g_displayPatchCounts = 1;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -191,6 +203,7 @@ int   g_width = 1024,
       g_height = 1024;
 
 GLhud g_hud;
+GLControlMeshDisplay g_controlMeshDisplay;
 
 // performance
 float g_cpuTime = 0;
@@ -198,10 +211,7 @@ float g_gpuTime = 0;
 Stopwatch g_fpsTimer;
 
 // geometry
-std::vector<float> g_orgPositions,
-                   g_positions;
-
-Scheme             g_scheme;
+std::vector<float> g_orgPositions;
 
 int g_level = 2;
 int g_tessLevel = 1;
@@ -214,114 +224,67 @@ GLuint g_queries[2] = {0, 0};
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
        g_tessellationUB = 0,
-       g_tessellationBinding = 0,
+       g_tessellationBinding = 1,
        g_lightingUB = 0,
-       g_lightingBinding = 0;
+       g_lightingBinding = 2;
 
 struct Transform {
     float ModelViewMatrix[16];
     float ProjectionMatrix[16];
     float ModelViewProjectionMatrix[16];
+    float ModelViewInverseMatrix[16];
 } g_transformData;
 
 GLuint g_vao = 0;
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0;
 
-std::vector<int> g_coarseEdges;
-std::vector<float> g_coarseEdgeSharpness;
-std::vector<float> g_coarseVertexSharpness;
-
-struct Program
+// XXX:
+// this struct meant to be used as a stopgap entity until we fully implement
+// face-varying stuffs into patch table.
+//
+struct FVarData
 {
-    GLuint program;
-    GLuint uniformModelViewProjectionMatrix;
-    GLuint attrPosition;
-    GLuint attrColor;
-} g_defaultProgram;
-
-static void
-checkGLErrors(std::string const & where = "")
-{
-    GLuint err;
-    while ((err = glGetError()) != GL_NO_ERROR) {
-        std::cerr << "GL error: "
-                  << (where.empty() ? "" : where + " ")
-                  << err << "\n";
+    FVarData() :
+        textureBuffer(0) {
     }
-}
-
-//------------------------------------------------------------------------------
-static GLuint
-compileShader(GLenum shaderType, const char *source)
-{
-    GLuint shader = glCreateShader(shaderType);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-    checkGLErrors("compileShader");
-    return shader;
-}
-
-static bool
-linkDefaultProgram() {
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    #define GLSL_VERSION_DEFINE "#version 400\n"
-#else
-    #define GLSL_VERSION_DEFINE "#version 150\n"
-#endif
-
-    static const char *vsSrc =
-        GLSL_VERSION_DEFINE
-        "in vec3 position;\n"
-        "in vec3 color;\n"
-        "out vec4 fragColor;\n"
-        "uniform mat4 ModelViewProjectionMatrix;\n"
-        "void main() {\n"
-        "  fragColor = vec4(color, 1);\n"
-        "  gl_Position = ModelViewProjectionMatrix * "
-        "                  vec4(position, 1);\n"
-        "}\n";
-
-    static const char *fsSrc =
-        GLSL_VERSION_DEFINE
-        "in vec4 fragColor;\n"
-        "out vec4 color;\n"
-        "void main() {\n"
-        "  color = fragColor;\n"
-        "}\n";
-
-    GLuint program = glCreateProgram();
-    GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vsSrc);
-    GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, fsSrc);
-
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-
-    glLinkProgram(program);
-
-    GLint status;
-    glGetProgramiv(program, GL_LINK_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint infoLogLength;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
-        char *infoLog = new char[infoLogLength];
-        glGetProgramInfoLog(program, infoLogLength, NULL, infoLog);
-        printf("%s\n", infoLog);
-        delete[] infoLog;
-        exit(1);
+    ~FVarData() {
+        Release();
     }
+    void Release() {
+        if (textureBuffer)
+            glDeleteTextures(1, &textureBuffer);
+        textureBuffer = 0;
+    }
+    void Create(OpenSubdiv::Far::PatchTable const *patchTable,
+                int fvarWidth, std::vector<float> const & fvarSrcData) {
+        Release();
+        OpenSubdiv::Far::ConstIndexArray indices = patchTable->GetFVarValues();
 
-    g_defaultProgram.program = program;
-    g_defaultProgram.uniformModelViewProjectionMatrix =
-        glGetUniformLocation(program, "ModelViewProjectionMatrix");
-    g_defaultProgram.attrPosition = glGetAttribLocation(program, "position");
-    g_defaultProgram.attrColor = glGetAttribLocation(program, "color");
+        // expand fvardata to per-patch array
+        std::vector<float> data;
+        data.reserve(indices.size() * fvarWidth);
 
-    return true;
-}
+        for (int fvert = 0; fvert < (int)indices.size(); ++fvert) {
+            int index = indices[fvert] * fvarWidth;
+            for (int i = 0; i < fvarWidth; ++i) {
+                data.push_back(fvarSrcData[index++]);
+            }
+        }
+        GLuint buffer;
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
+                     &data[0], GL_STATIC_DRAW);
+
+        glGenTextures(1, &textureBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glDeleteBuffers(1, &buffer);
+    }
+    GLuint textureBuffer;
+} g_fvarData;
 
 //------------------------------------------------------------------------------
 
@@ -333,7 +296,8 @@ updateGeom() {
 
     std::vector<float> vertex, varying;
 
-    int nverts=0, stride=g_displayStyle == kInterleavedVaryingColor ? 7 : 3;
+    int nverts = 0;
+    int stride = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
 
     if (g_objAnim and g_currentShape==0) {
 
@@ -341,28 +305,18 @@ updateGeom() {
 
         vertex.resize(nverts*stride);
 
-        if (g_displayStyle == kVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor) {
             varying.resize(nverts*4);
         }
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], stride);
 
-        if (g_drawCageEdges or g_drawCageVertices) {
-            g_positions.resize(nverts*3);
-            for (int i=0; i<nverts; ++i) {
-                int ofs = i * stride;
-                g_positions[i*3+0] = vertex[ofs+0];
-                g_positions[i*3+1] = vertex[ofs+1];
-                g_positions[i*3+2] = vertex[ofs+2];
-            }
-        }
-
-        if (g_displayStyle == kVaryingColor or
-            g_displayStyle == kInterleavedVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor or
+            g_shadingMode == kShadingInterleavedVaryingColor) {
 
             const float *p = &g_objAnim->GetShape()->verts[0];
             for (int i = 0; i < nverts; ++i) {
-                if (g_displayStyle == kInterleavedVaryingColor) {
+                if (g_shadingMode == kShadingInterleavedVaryingColor) {
                     int ofs = i * stride;
                     vertex[ofs + 0] = p[1];
                     vertex[ofs + 1] = p[2];
@@ -370,7 +324,7 @@ updateGeom() {
                     vertex[ofs + 3] = 0.0f;
                     p += 3;
                 }
-                if (g_displayStyle == kVaryingColor) {
+                if (g_shadingMode == kShadingVaryingColor) {
                     varying.push_back(p[2]);
                     varying.push_back(p[1]);
                     varying.push_back(p[0]);
@@ -385,63 +339,42 @@ updateGeom() {
 
         vertex.reserve(nverts*stride);
 
-        if (g_displayStyle == kVaryingColor) {
+        if (g_shadingMode == kShadingVaryingColor) {
             varying.reserve(nverts*4);
         }
 
         const float *p = &g_orgPositions[0];
-
         float r = sin(g_frame*0.001f) * g_moveScale;
         for (int i = 0; i < nverts; ++i) {
-            //float move = 0.05f*cosf(p[0]*20+g_frame*0.01f);
             float ct = cos(p[2] * r);
             float st = sin(p[2] * r);
-            g_positions[i*3+0] = p[0]*ct + p[1]*st;
-            g_positions[i*3+1] = -p[0]*st + p[1]*ct;
-            g_positions[i*3+2] = p[2];
-
-            p += 3;
-        }
-
-        p = &g_orgPositions[0];
-        const float *pp = &g_positions[0];
-        for (int i = 0; i < nverts; ++i) {
-            vertex.push_back(pp[0]);
-            vertex.push_back(pp[1]);
-            vertex.push_back(pp[2]);
-            if (g_displayStyle == kInterleavedVaryingColor) {
+            vertex.push_back( p[0]*ct + p[1]*st);
+            vertex.push_back(-p[0]*st + p[1]*ct);
+            vertex.push_back( p[2]);
+            if (g_shadingMode == kShadingInterleavedVaryingColor) {
                 vertex.push_back(p[1]);
                 vertex.push_back(p[2]);
                 vertex.push_back(p[0]);
                 vertex.push_back(1.0f);
-                p += 3;
-            }
-            if (g_displayStyle == kVaryingColor) {
+            } else if (g_shadingMode == kShadingVaryingColor) {
                 varying.push_back(p[2]);
                 varying.push_back(p[1]);
                 varying.push_back(p[0]);
                 varying.push_back(1);
-                p += 3;
             }
-            pp += 3;
+            p += 3;
         }
     }
 
     g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
-    if (g_displayStyle == kVaryingColor)
+    if (g_shadingMode == kShadingVaryingColor)
         g_mesh->UpdateVaryingBuffer(&varying[0], 0, nverts);
 
     Stopwatch s;
     s.Start();
 
-    if (g_displayStyle == kInterleavedVaryingColor) {
-        OpenSubdiv::Osd::VertexBufferDescriptor vertexDesc(0, 3, 7);
-        OpenSubdiv::Osd::VertexBufferDescriptor varyingDesc(3, 4, 7);
-        g_mesh->Refine(&vertexDesc, &varyingDesc, true);
-    } else {
-        g_mesh->Refine();
-    }
+    g_mesh->Refine();
 
     s.Stop();
     g_cpuTime = float(s.GetElapsed() * 1000.0f);
@@ -476,177 +409,165 @@ getKernelName(int kernel) {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=kCatmark) {
+rebuildMesh() {
+    using namespace OpenSubdiv;
 
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
-
+    ShapeDesc const &shapeDesc = g_defaultShapes[g_currentShape];
+    int level = g_level;
+    int kernel = g_kernel;
     bool doAnim = g_objAnim and g_currentShape==0;
+    Scheme scheme = shapeDesc.scheme;
 
     Shape const * shape = 0;
     if (doAnim) {
         shape = g_objAnim->GetShape();
     } else {
-        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme,
+                                shapeDesc.isLeftHanded);
     }
 
-    // create Vtr mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    // create Far mesh (topology)
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    int nedges = refiner->GetNumEdges(0),
-        nverts = refiner->GetNumVertices(0);
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refiner->GetEdgeSharpness(0, i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refiner->GetVertexSharpness(0, i);
-    }
-
-    g_orgPositions=shape->verts;
-
-    g_positions.resize(g_orgPositions.size(),0.0f);
+    g_orgPositions = shape->verts;
 
     delete g_mesh;
     g_mesh = NULL;
 
-    g_scheme = scheme;
-
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark),
-         interleaveVarying = g_displayStyle == kInterleavedVaryingColor,
-         doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark);
+    bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
+    bool doSingleCreasePatch = (g_singleCreasePatch!=0 and scheme==kCatmark);
 
-    OpenSubdiv::Osd::MeshBitset bits;
-    bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
-    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
-    bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, interleaveVarying);
-    bits.set(OpenSubdiv::Osd::MeshFVarData, g_displayStyle == kFaceVaryingColor);
+    Osd::MeshBitset bits;
+    bits.set(Osd::MeshAdaptive, doAdaptive);
+    bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
+    bits.set(Osd::MeshFVarData, g_shadingMode == kShadingFaceVaryingColor);
+    bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
+    bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
+    bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 3;
     int numVaryingElements =
-        (g_displayStyle == kVaryingColor or interleaveVarying) ? 4 : 0;
+        (g_shadingMode == kShadingVaryingColor or interleaveVarying) ? 4 : 0;
+
 
     if (kernel == kCPU) {
-        if (not g_cpuComputeController) {
-            g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::CpuComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_cpuComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
+                               Far::StencilTable,
+                               Osd::CpuEvaluator,
+                               Osd::GLPatchTable>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (kernel == kOPENMP) {
-        if (not g_ompComputeController) {
-            g_ompComputeController = new OpenSubdiv::Osd::OmpComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::OmpComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_ompComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
+                               Far::StencilTable,
+                               Osd::OmpEvaluator,
+                               Osd::GLPatchTable>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     } else if (kernel == kTBB) {
-        if (not g_tbbComputeController) {
-            g_tbbComputeController = new OpenSubdiv::Osd::TbbComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-                                         OpenSubdiv::Osd::TbbComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_tbbComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        g_mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer,
+                               Far::StencilTable,
+                               Osd::TbbEvaluator,
+                               Osd::GLPatchTable>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     } else if(kernel == kCL) {
-        if (not g_clComputeController) {
-            g_clComputeController = new OpenSubdiv::Osd::CLComputeController(g_clContext, g_clQueue);
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CLGLVertexBuffer,
-                                         OpenSubdiv::Osd::CLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_clComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits, g_clContext, g_clQueue);
+        // CLKernel
+        static Osd::EvaluatorCacheT<Osd::CLEvaluator> clEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::CLGLVertexBuffer,
+                               Osd::CLStencilTable,
+                               Osd::CLEvaluator,
+                               Osd::GLPatchTable,
+                               CLDeviceContext>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &clEvaluatorCache,
+                                   &g_clDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     } else if(kernel == kCUDA) {
-        if (not g_cudaComputeController) {
-            g_cudaComputeController = new OpenSubdiv::Osd::CudaComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CudaGLVertexBuffer,
-                                         OpenSubdiv::Osd::CudaComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                         g_cudaComputeController,
-                                         refiner,
-                                         numVertexElements,
-                                         numVaryingElements,
-                                         level, bits);
+        g_mesh = new Osd::Mesh<Osd::CudaGLVertexBuffer,
+                               Osd::CudaStencilTable,
+                               Osd::CudaEvaluator,
+                               Osd::GLPatchTable>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     } else if(kernel == kGLSL) {
-        if (not g_glslTransformFeedbackComputeController) {
-            g_glslTransformFeedbackComputeController = new OpenSubdiv::Osd::GLSLTransformFeedbackComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                         OpenSubdiv::Osd::GLSLTransformFeedbackComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                                g_glslTransformFeedbackComputeController,
-                                                refiner,
-                                                numVertexElements,
-                                                numVaryingElements,
-                                                level, bits);
+        static Osd::EvaluatorCacheT<Osd::GLXFBEvaluator> glXFBEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::GLVertexBuffer,
+                               Osd::GLStencilTableTBO,
+                               Osd::GLXFBEvaluator,
+                               Osd::GLPatchTable>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &glXFBEvaluatorCache);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if(kernel == kGLSLCompute) {
-        if (not g_glslComputeController) {
-            g_glslComputeController = new OpenSubdiv::Osd::GLSLComputeController();
-        }
-        g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::GLVertexBuffer,
-                                         OpenSubdiv::Osd::GLSLComputeController,
-                                         OpenSubdiv::Osd::GLDrawContext>(
-                                         g_glslComputeController,
-                                         refiner,
-                                         numVertexElements,
-                                         numVaryingElements,
-                                         level, bits);
+        static Osd::EvaluatorCacheT<Osd::GLComputeEvaluator> glComputeEvaluatorCache;
+        g_mesh = new Osd::Mesh<Osd::GLVertexBuffer,
+                               Osd::GLStencilTableSSBO,
+                               Osd::GLComputeEvaluator,
+                               Osd::GLPatchTable>(
+                                   refiner,
+                                   numVertexElements,
+                                   numVaryingElements,
+                                   level, bits,
+                                   &glComputeEvaluatorCache);
+
+
 #endif
     } else {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
 
-    if (g_displayStyle == kFaceVaryingColor and shape->HasUV()) {
+    if (g_shadingMode == kShadingFaceVaryingColor and shape->HasUV()) {
 
         std::vector<float> fvarData;
 
         InterpolateFVarData(*refiner, *shape, fvarData);
 
-        g_mesh->SetFVarDataChannel(shape->GetFVarWidth(), fvarData);
+        // set fvardata to texture buffer
+        g_fvarData.Create(g_mesh->GetFarPatchTable(),
+                          shape->GetFVarWidth(), fvarData);
+    }
+
+    // legacy gregory
+    delete g_legacyGregoryPatchTable;
+    g_legacyGregoryPatchTable = NULL;
+    if (g_endCap == kEndCapLegacyGregory) {
+        g_legacyGregoryPatchTable =
+            Osd::GLLegacyGregoryPatchTable::Create(g_mesh->GetFarPatchTable());
     }
 
     if (not doAnim) {
@@ -678,18 +599,17 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     // -------- VAO
     glBindVertexArray(g_vao);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
 
-
-    if (g_displayStyle == kVaryingColor) {
+    if (g_shadingMode == kShadingVaryingColor) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
         glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVaryingBuffer());
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 4, 0);
-    } else if (g_displayStyle == kInterleavedVaryingColor) {
+    } else if (g_shadingMode == kShadingInterleavedVaryingColor) {
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 7, 0);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 7, (void*)(sizeof (GLfloat) * 3));
@@ -711,113 +631,26 @@ fitFrame() {
 }
 
 //------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-static void
-drawCageEdges() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (void*)12);
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-static void
-drawCageVertices() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = (int)g_positions.size()/3;
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-        vbo.push_back(g_positions[i*3+0]);
-        vbo.push_back(g_positions[i*3+1]);
-        vbo.push_back(g_positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (void*)12);
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-//------------------------------------------------------------------------------
 
 union Effect {
-    Effect(int displayStyle_, int screenSpaceTess_, int fractionalSpacing_, int patchCull_) : value(0) {
+    Effect(int displayStyle_, int shadingMode_, int screenSpaceTess_,
+           int fractionalSpacing_, int patchCull_, int singleCreasePatch_)
+        : value(0) {
         displayStyle = displayStyle_;
+        shadingMode = shadingMode_;
         screenSpaceTess = screenSpaceTess_;
         fractionalSpacing = fractionalSpacing_;
         patchCull = patchCull_;
+        singleCreasePatch = singleCreasePatch_;
     }
 
     struct {
-        unsigned int displayStyle:3;
+        unsigned int displayStyle:2;
+        unsigned int shadingMode:4;
         unsigned int screenSpaceTess:1;
         unsigned int fractionalSpacing:1;
         unsigned int patchCull:1;
+        unsigned int singleCreasePatch:1;
     };
     int value;
 
@@ -826,198 +659,230 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
-
-class EffectDrawRegistry : public OpenSubdiv::Osd::GLDrawRegistry<EffectDesc> {
-
-protected:
-    virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
-
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
-};
-
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc)
-{
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-
-    Effect effect = desc.second;
-
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first);
-
-    assert(sconfig);
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
-#else
-    const char *glslVersion = "#version 330\n";
-#endif
-
-    if (desc.first.GetType() == Descriptor::QUADS or
-        desc.first.GetType() == Descriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
-    } else {
-        sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
-    }
-
-    sconfig->geometryShader.source = shaderSource;
-    sconfig->geometryShader.version = glslVersion;
-    sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
-
-    sconfig->fragmentShader.source = shaderSource;
-    sconfig->fragmentShader.version = glslVersion;
-    sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
-
-    if (desc.first.GetType() == Descriptor::QUADS) {
-        // uniform catmark, bilinear
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == Descriptor::TRIANGLES) {
-        // uniform loop
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->commonShader.AddDefine("LOOP");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else {
-        // adaptive
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
-
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-    }
-
-    if (effect.screenSpaceTess) {
-        sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
-    }
-    if (effect.fractionalSpacing) {
-        sconfig->commonShader.AddDefine("OSD_FRACTIONAL_ODD_SPACING");
-    }
-    if (effect.patchCull) {
-        sconfig->commonShader.AddDefine("OSD_ENABLE_PATCH_CULL");
-    }
-
-
-    switch (effect.displayStyle) {
-    case kWire:
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
-        break;
-    case kWireShaded:
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
-        break;
-    case kShaded:
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    case kVaryingColor:
-        sconfig->commonShader.AddDefine("VARYING_COLOR");
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    case kInterleavedVaryingColor:
-        sconfig->commonShader.AddDefine("VARYING_COLOR");
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    case kFaceVaryingColor:
-        sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
-        sconfig->commonShader.AddDefine("FACEVARYING_COLOR");
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
-        break;
-    }
-
-    return sconfig;
-}
-
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
-        SourceConfigType const * sconfig)
-{
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
-    assert(config);
-
-    GLuint uboIndex;
-
-    // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
-    g_transformBinding = 0;
-    uboIndex = glGetUniformBlockIndex(config->program, "Transform");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_transformBinding);
-
-    g_tessellationBinding = 1;
-    uboIndex = glGetUniformBlockIndex(config->program, "Tessellation");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_tessellationBinding);
-
-    g_lightingBinding = 2;
-    uboIndex = glGetUniformBlockIndex(config->program, "Lighting");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_lightingBinding);
-
-    GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glUniform1i(loc, 4); // GL_TEXTURE4
-    }
-#else
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0); // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1); // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2); // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3); // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4); // GL_TEXTURE4
-    }
-#endif
-
-    return config;
-}
-
-EffectDrawRegistry effectRegistry;
-
 static Effect
 GetEffect()
 {
-    return Effect(g_displayStyle, g_screenSpaceTess, g_fractionalSpacing, g_patchCull);
+    return Effect(g_displayStyle,
+                  g_shadingMode,
+                  g_screenSpaceTess,
+                  g_fractionalSpacing,
+                  g_patchCull,
+                  g_singleCreasePatch);
 }
 
+// ---------------------------------------------------------------------------
+
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
+
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return
+            (desc < e.desc || ((desc == e.desc &&
+            (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+            (numElements < e.numElements || ((numElements == e.numElements) &&
+            (effect < e.effect))))))));
+    }
+};
+
+// ---------------------------------------------------------------------------
+
+class ShaderCache : public GLShaderCache<EffectDesc> {
+public:
+    virtual GLDrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
+
+        using namespace OpenSubdiv;
+
+        // compile shader program
+
+        GLDrawConfig *config = new GLDrawConfig(GLUtils::GetShaderVersionInclude().c_str());
+
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
+
+        // common defines
+        std::stringstream ss;
+
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
+        }
+
+        // OSD tessellation controls
+        if (effectDesc.effect.screenSpaceTess) {
+            ss << "#define OSD_ENABLE_SCREENSPACE_TESSELLATION\n";
+        }
+        if (effectDesc.effect.fractionalSpacing) {
+            ss << "#define OSD_FRACTIONAL_ODD_SPACING\n";
+        }
+        if (effectDesc.effect.patchCull) {
+            ss << "#define OSD_ENABLE_PATCH_CULL\n";
+        }
+        if (effectDesc.effect.singleCreasePatch) {
+            ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
+        }
+        // for legacy gregory
+        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
+        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
+
+        // display styles
+        switch (effectDesc.effect.displayStyle) {
+        case kDisplayStyleWire:
+            ss << "#define GEOMETRY_OUT_WIRE\n";
+            break;
+        case kDisplayStyleWireOnShaded:
+            ss << "#define GEOMETRY_OUT_LINE\n";
+            break;
+        case kDisplayStyleShaded:
+            ss << "#define GEOMETRY_OUT_FILL\n";
+            break;
+        }
+
+        // shading mode
+        switch(effectDesc.effect.shadingMode) {
+        case kShadingMaterial:
+            ss << "#define SHADING_MATERIAL\n";
+            break;
+        case kShadingVaryingColor:
+            ss << "#define SHADING_VARYING_COLOR\n";
+            break;
+        case kShadingInterleavedVaryingColor:
+            ss << "#define SHADING_VARYING_COLOR\n";
+            break;
+        case kShadingFaceVaryingColor:
+            ss << "#define OSD_FVAR_WIDTH 2\n";
+            ss << "#define SHADING_FACEVARYING_COLOR\n";
+            if (not effectDesc.desc.IsAdaptive()) {
+                ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
+            }
+            break;
+        case kShadingPatchType:
+            ss << "#define SHADING_PATCH_TYPE\n";
+            break;
+        case kShadingPatchCoord:
+            ss << "#define SHADING_PATCH_COORD\n";
+            break;
+        case kShadingNormal:
+            ss << "#define SHADING_NORMAL\n";
+            break;
+        }
+
+        if (type == Far::PatchDescriptor::TRIANGLES) {
+            ss << "#define LOOP\n";
+        } else if (type == Far::PatchDescriptor::QUADS) {
+        } else {
+            ss << "#define SMOOTH_NORMALS\n";
+        }
+
+        // need for patch color-coding : we need these defines in the fragment shader
+        if (type == Far::PatchDescriptor::GREGORY) {
+            ss << "#define OSD_PATCH_GREGORY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+            ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
+            ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        }
+
+        // include osd PatchCommon
+        ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
+        ss.str("");
+
+        // vertex shader
+        ss << common
+            // enable local vertex shader
+           << (effectDesc.desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n")
+           << shaderSource()
+           << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
+        config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
+        ss.str("");
+
+        if (effectDesc.desc.IsAdaptive()) {
+            // tess control shader
+            ss << common
+                << shaderSource()
+               << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
+            ss.str("");
+
+            // tess eval shader
+            ss << common
+                << shaderSource()
+               << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
+            ss.str("");
+        }
+
+        // geometry shader
+        ss << common
+           << "#define GEOMETRY_SHADER\n"
+           << shaderSource();
+        config->CompileAndAttachShader(GL_GEOMETRY_SHADER, ss.str());
+        ss.str("");
+
+        // fragment shader
+        ss << common
+           << "#define FRAGMENT_SHADER\n"
+           << shaderSource();
+        config->CompileAndAttachShader(GL_FRAGMENT_SHADER, ss.str());
+        ss.str("");
+
+        if (!config->Link()) {
+            delete config;
+            return NULL;
+        }
+
+        // assign uniform locations
+        GLuint uboIndex;
+        GLuint program = config->GetProgram();
+        uboIndex = glGetUniformBlockIndex(program, "Transform");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_transformBinding);
+
+        uboIndex = glGetUniformBlockIndex(program, "Tessellation");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
+
+        uboIndex = glGetUniformBlockIndex(program, "Lighting");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_lightingBinding);
+
+        // assign texture locations
+        GLint loc;
+        glUseProgram(program);
+        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
+            glUniform1i(loc, 0); // GL_TEXTURE0
+        }
+        if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
+            glUniform1i(loc, 1); // GL_TEXTURE1
+        }
+        // for legacy gregory patches
+        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
+            glUniform1i(loc, 2); // GL_TEXTURE2
+        }
+        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
+            glUniform1i(loc, 3); // GL_TEXTURE3
+        }
+        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
+            glUniform1i(loc, 4); // GL_TEXTURE4
+        }
+        glUseProgram(0);
+
+        return config;
+    }
+};
+
+ShaderCache g_shaderCache;
+
 //------------------------------------------------------------------------------
-static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch)
-{
-    EffectDesc effectDesc(patch.GetDescriptor(), effect);
-    EffectDrawRegistry::ConfigType *
-        config = effectRegistry.GetDrawConfig(effectDesc);
-
-    GLuint program = config->program;
-
-    glUseProgram(program);
-
+static void
+updateUniformBlocks() {
     if (! g_transformUB) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
@@ -1082,51 +947,119 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_lightingBinding, g_lightingUB);
+}
 
-    if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
+static void
+bindTextures() {
+    // bind patch textures
+    if (g_mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetVertexTextureBuffer());
+            g_mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
-    if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
+
+    if (true) {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
+                      g_fvarData.textureBuffer);
     }
-    if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
+
+    // legacy gregory
+    if (g_legacyGregoryPatchTable) {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
+                      g_legacyGregoryPatchTable->GetVertexTextureBuffer());
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
+                      g_legacyGregoryPatchTable->GetVertexValenceTextureBuffer());
         glActiveTexture(GL_TEXTURE4);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetFvarDataTextureBuffer());
+                      g_legacyGregoryPatchTable->GetQuadOffsetsTextureBuffer());
+    }
+    glActiveTexture(GL_TEXTURE0);
+}
+
+static GLenum
+bindProgram(Effect effect,
+            OpenSubdiv::Osd::PatchArray const & patch) {
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
+
+    // only legacy gregory needs maxValence and numElements
+    // neither legacy gregory nor gregory basis need single crease
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
+        patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
+        int maxValence = g_mesh->GetMaxValence();
+        int numElements = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
+        effectDesc.maxValence = maxValence;
+        effectDesc.numElements = numElements;
+        effectDesc.effect.singleCreasePatch = 0;
+    }
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY_BASIS) {
+        effectDesc.effect.singleCreasePatch = 0;
     }
 
-    glActiveTexture(GL_TEXTURE0);
+    // lookup shader cache (compile the shader if needed)
+    GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
+    if (!config) return 0;
 
-    return program;
+    GLuint program = config->GetProgram();
+
+    glUseProgram(program);
+
+    // bind standalone uniforms
+    GLint uniformPrimitiveIdBase =
+        glGetUniformLocation(program, "PrimitiveIdBase");
+    if (uniformPrimitiveIdBase >=0)
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPrimitiveIdBase());
+
+    // legacy gregory
+    if (g_endCap == kEndCapLegacyGregory) {
+        GLint uniformGregoryQuadOffsetBase =
+            glGetUniformLocation(program, "GregoryQuadOffsetBase");
+        int quadOffsetBase =
+            g_legacyGregoryPatchTable->GetQuadOffsetsBase(patch.GetDescriptor().GetType());
+        if (uniformGregoryQuadOffsetBase >= 0)
+            glUniform1i(uniformGregoryQuadOffsetBase, quadOffsetBase);
+    }
+
+    // update uniform
+    GLint uniformDiffuseColor =
+        glGetUniformLocation(program, "diffuseColor");
+    if (uniformDiffuseColor >= 0)
+        glUniform4f(uniformDiffuseColor, 0.4f, 0.4f, 0.8f, 1);
+
+    // return primtype
+    GLenum primType;
+    switch(effectDesc.desc.GetType()) {
+    case Descriptor::QUADS:
+        primType = GL_LINES_ADJACENCY;
+        break;
+    case Descriptor::TRIANGLES:
+        primType = GL_TRIANGLES;
+        break;
+    default:
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        primType = GL_PATCHES;
+        glPatchParameteri(GL_PATCH_VERTICES, effectDesc.desc.GetNumControlVertices());
+#else
+        primType = GL_POINTS;
+#endif
+        break;
+    }
+
+    return primType;
 }
 
 //------------------------------------------------------------------------------
 static void
 display() {
-
-    SSAOGLFrameBuffer * fb = (SSAOGLFrameBuffer *)g_hud.GetFrameBuffer();
-    fb->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glViewport(0, 0, g_width, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = g_width/(double)g_height;
@@ -1138,26 +1071,43 @@ display() {
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
-                45.0f, (float)aspect, fb->IsActive() ? 1.0f : 0.0001f, 500.0f);
+                45.0f, (float)aspect, 0.1f, 500.0f);
     multMatrix(g_transformData.ModelViewProjectionMatrix,
                g_transformData.ModelViewMatrix,
                g_transformData.ProjectionMatrix);
+    inverseMatrix(g_transformData.ModelViewInverseMatrix,
+                  g_transformData.ModelViewMatrix);
 
     // make sure that the vertex buffer is interoped back as a GL resources.
-    g_mesh->BindVertexBuffer();
+    GLuint vbo = g_mesh->BindVertexBuffer();
 
-    if (g_displayStyle == kVaryingColor)
+    // vertex texture update for legacy gregory drawing
+    if (g_legacyGregoryPatchTable) {
+        glActiveTexture(GL_TEXTURE1);
+        g_legacyGregoryPatchTable->UpdateVertexBuffer(vbo);
+    }
+
+    if (g_shadingMode == kShadingVaryingColor)
         g_mesh->BindVaryingBuffer();
+
+    // update transform and lighting uniform blocks
+    updateUniformBlocks();
+
+    // also bind patch related textures
+    bindTextures();
+
+    if (g_displayStyle == kDisplayStyleWire)
+        glDisable(GL_CULL_FACE);
 
     glEnable(GL_DEPTH_TEST);
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
     // patch drawing
-    int patchCount[12][6][4]; // [Type][Pattern][Rotation] (see far/patchTables.h)
+    int patchCount[13]; // [Type] (see far/patchTable.h)
     int numTotalPatches = 0;
     int numDrawCalls = 0;
     memset(patchCount, 0, sizeof(patchCount));
@@ -1168,77 +1118,24 @@ display() {
     glBeginQuery(GL_TIME_ELAPSED, g_queries[1]);
 #endif
 
+    // core draw-calls
     for (int i=0; i<(int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
+        OpenSubdiv::Far::PatchDescriptor desc = patch.GetDescriptor();
         OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
-        int patchPattern = desc.GetPattern();
-        int patchRotation = desc.GetRotation();
-        int subPatch = desc.GetSubPatch();
 
-        if (subPatch == 0) {
-            patchCount[patchType][patchPattern][patchRotation] += patch.GetNumPatches();
-        }
+        patchCount[patchType] += patch.GetNumPatches();
         numTotalPatches += patch.GetNumPatches();
 
-        GLenum primType;
+        GLenum primType = bindProgram(GetEffect(), patch);
 
-        switch(patchType) {
-        case OpenSubdiv::Far::PatchDescriptor::QUADS:
-            primType = GL_LINES_ADJACENCY;
-            break;
-        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
-            primType = GL_TRIANGLES;
-            break;
-        default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
-        }
 
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(), patch);
-
-        GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
-
-        if (g_displayPatchColor and primType == GL_PATCHES) {
-            float const * color = getAdaptivePatchColor( desc );
-            glProgramUniform4f(program, diffuseColor, color[0], color[1], color[2], color[3]);
-        } else {
-            glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
-        }
-
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
-
-        if (g_displayStyle == kWire) {
-            glDisable(GL_CULL_FACE);
-        }
-
-        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        glDrawElements(primType,
+                       patch.GetNumPatches() * desc.GetNumControlVertices(),
+                       GL_UNSIGNED_INT,
+                       (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
         ++numDrawCalls;
-        if (g_displayStyle == kWire) {
-            glEnable(GL_CULL_FACE);
-        }
     }
 
     s.Stop();
@@ -1253,13 +1150,15 @@ display() {
 
     glUseProgram(0);
 
-    if (g_drawCageEdges)
-        drawCageEdges();
+    if (g_displayStyle == kDisplayStyleWire)
+        glEnable(GL_CULL_FACE);
 
-    if (g_drawCageVertices)
-        drawCageVertices();
+    // draw the control mesh
+    int stride = g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3;
+    g_controlMeshDisplay.Draw(vbo, stride*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
-    fb->ApplyImageShader();
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1285,48 +1184,17 @@ display() {
 
         if (g_displayPatchCounts) {
             int x = -280;
-            int y = -480;
+            int y = -180;
             g_hud.DrawString(x, y, "NonPatch         : %d",
-                             patchCount[Descriptor::QUADS][0][0]); y += 20;
+                             patchCount[Descriptor::QUADS]); y += 20;
             g_hud.DrawString(x, y, "Regular          : %d",
-                             patchCount[Descriptor::REGULAR][0][0]); y+= 20;
-            g_hud.DrawString(x, y, "Boundary         : %d",
-                             patchCount[Descriptor::BOUNDARY][0][0]); y+= 20;
-            g_hud.DrawString(x, y, "Corner           : %d",
-                             patchCount[Descriptor::CORNER][0][0]); y+= 20;
-            g_hud.DrawString(x, y, "Single Crease    : %d",
-                             patchCount[Descriptor::SINGLE_CREASE][0][0]); y+= 20;
+                             patchCount[Descriptor::REGULAR]); y+= 20;
             g_hud.DrawString(x, y, "Gregory          : %d",
-                             patchCount[Descriptor::GREGORY][0][0]); y+= 20;
+                             patchCount[Descriptor::GREGORY]); y+= 20;
             g_hud.DrawString(x, y, "Boundary Gregory : %d",
-                             patchCount[Descriptor::GREGORY_BOUNDARY][0][0]); y+= 20;
-            g_hud.DrawString(x, y, "Trans. Regular   : %d %d %d %d %d",
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN0][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN1][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN2][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN3][0],
-                             patchCount[Descriptor::REGULAR][Descriptor::PATTERN4][0]); y+= 20;
-            for (int i=0; i < 5; i++) {
-                g_hud.DrawString(x, y, "Trans. Boundary%d : %d %d %d %d", i,
-                                 patchCount[Descriptor::BOUNDARY][i+1][0],
-                                 patchCount[Descriptor::BOUNDARY][i+1][1],
-                                 patchCount[Descriptor::BOUNDARY][i+1][2],
-                                 patchCount[Descriptor::BOUNDARY][i+1][3]); y+= 20;
-            }
-            for (int i=0; i < 5; i++) {
-                g_hud.DrawString(x, y, "Trans. Corner%d  : %d %d %d %d", i,
-                                 patchCount[Descriptor::CORNER][i+1][0],
-                                 patchCount[Descriptor::CORNER][i+1][1],
-                                 patchCount[Descriptor::CORNER][i+1][2],
-                                 patchCount[Descriptor::CORNER][i+1][3]); y+= 20;
-            }
-            for (int i=0; i < 5; i++) {
-                g_hud.DrawString(x, y, "Trans. Single Crease%d : %d %d %d %d", i,
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][0],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][1],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][2],
-                                 patchCount[Descriptor::SINGLE_CREASE][i+1][3]); y+= 20;
-            }
+                             patchCount[Descriptor::GREGORY_BOUNDARY]); y+= 20;
+            g_hud.DrawString(x, y, "Gregory Basis    : %d",
+                             patchCount[Descriptor::GREGORY_BASIS]); y+= 20;
         }
 
         int y = -220;
@@ -1335,19 +1203,18 @@ display() {
         g_hud.DrawString(10, y, "Draw calls : %d", numDrawCalls); y+= 20;
         g_hud.DrawString(10, y, "Primitives : %d", numPrimsGenerated); y+= 20;
         g_hud.DrawString(10, y, "Vertices   : %d", g_mesh->GetNumVertices()); y+= 20;
-        g_hud.DrawString(10, y, "Scheme     : %s", g_scheme==kBilinear ? "BILINEAR" : (g_scheme == kLoop ? "LOOP" : "CATMARK")); y+= 20;
         g_hud.DrawString(10, y, "GPU Kernel : %.3f ms", g_gpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "CPU Kernel : %.3f ms", g_cpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "GPU Draw   : %.3f ms", drawGpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "CPU Draw   : %.3f ms", drawCpuTime); y+= 20;
-        g_hud.DrawString(10, y,  "FPS        : %3.1f", fps); y+= 20;
+        g_hud.DrawString(10, y, "CPU Kernel : %.3f ms", g_cpuTime); y+= 20;
+        g_hud.DrawString(10, y, "GPU Draw   : %.3f ms", drawGpuTime); y+= 20;
+        g_hud.DrawString(10, y, "CPU Draw   : %.3f ms", drawCpuTime); y+= 20;
+        g_hud.DrawString(10, y, "FPS        : %3.1f", fps); y+= 20;
 
         g_hud.Flush();
     }
 
     glFinish();
 
-    //checkGLErrors("display leave");
+    GLUtils::CheckGLErrors("display leave\n");
 }
 
 //------------------------------------------------------------------------------
@@ -1398,39 +1265,14 @@ static void
 uninitGL() {
 
     glDeleteQueries(2, g_queries);
-
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
     glDeleteVertexArrays(1, &g_vao);
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
 
     if (g_mesh)
         delete g_mesh;
 
-    delete g_cpuComputeController;
+    if (g_legacyGregoryPatchTable)
+        delete g_legacyGregoryPatchTable;
 
-#ifdef OPENSUBDIV_HAS_OPENMP
-    delete g_ompComputeController;
-#endif
-
-#ifdef OPENSUBDIV_HAS_TBB
-    delete g_tbbComputeController;
-#endif
-#ifdef OPENSUBDIV_HAS_OPENCL
-    delete g_clComputeController;
-    uninitCL(g_clContext, g_clQueue);
-#endif
-#ifdef OPENSUBDIV_HAS_CUDA
-    delete g_cudaComputeController;
-    cudaDeviceReset();
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    delete g_glslTransformFeedbackComputeController;
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    delete g_glslComputeController;
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1474,27 +1316,33 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
         case '=':  g_tessLevel++; break;
         case '-':  g_tessLevel = std::max(g_tessLevelMin, g_tessLevel-1); break;
         case GLFW_KEY_ESCAPE: g_hud.SetVisible(!g_hud.IsVisible()); break;
-        case 'X': g_hud.GetFrameBuffer()->Screenshot(); break;
+        case 'X': GLUtils::WriteScreenshot(g_width, g_height); break;
     }
 }
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh() {
-    createOsdMesh( g_defaultShapes[ g_currentShape ], g_level, g_kernel, g_defaultShapes[ g_currentShape ].scheme );
+callbackDisplayStyle(int b) {
+    g_displayStyle = b;
 }
 
 static void
-callbackDisplayStyle(int b) {
-    if (g_displayStyle == kVaryingColor or b == kVaryingColor or
-        g_displayStyle == kInterleavedVaryingColor or b == kInterleavedVaryingColor or
-        g_displayStyle == kFaceVaryingColor or b == kFaceVaryingColor) {
+callbackShadingMode(int b) {
+    if (g_shadingMode == kShadingVaryingColor or b == kShadingVaryingColor or
+        g_shadingMode == kShadingInterleavedVaryingColor or b == kShadingInterleavedVaryingColor or
+        g_shadingMode == kShadingFaceVaryingColor or b == kShadingFaceVaryingColor) {
         // need to rebuild for varying reconstruct
-        g_displayStyle = b;
-        rebuildOsdMesh();
+        g_shadingMode = b;
+        rebuildMesh();
         return;
     }
-    g_displayStyle = b;
+    g_shadingMode = b;
+}
+
+static void
+callbackEndCap(int endCap) {
+    g_endCap = endCap;
+    rebuildMesh();
 }
 
 static void
@@ -1502,27 +1350,29 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and g_clContext == NULL) {
-        if (initCL(&g_clContext, &g_clQueue) == false) {
+    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+        if (g_clDeviceContext.Initialize() == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
         }
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and g_cudaInitialized == false) {
-        g_cudaInitialized = true;
-        cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+        if (g_cudaDeviceContext.Initialize() == false) {
+            printf("Error in initializing Cuda\n");
+            exit(1);
+        }
     }
 #endif
 
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
 callbackLevel(int l) {
     g_level = l;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1534,39 +1384,36 @@ callbackModel(int m) {
         m = (int)g_defaultShapes.size() - 1;
 
     g_currentShape = m;
-    rebuildOsdMesh();
-}
-
-static void
-callbackAdaptive(bool checked, int /* a */) {
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
-        g_adaptive = checked;
-        rebuildOsdMesh();
-    }
-}
-
-static void
-callbackSingleCreasePatch(bool checked, int /* a */) {
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
-        g_singleCreasePatch = checked;
-        rebuildOsdMesh();
-    }
+    rebuildMesh();
 }
 
 static void
 callbackCheckBox(bool checked, int button) {
+
+    if (GLUtils::SupportsAdaptiveTessellation()) {
+        switch(button) {
+        case kHUD_CB_ADAPTIVE:
+            g_adaptive = checked;
+            rebuildMesh();
+            return;
+        case kHUD_CB_SINGLE_CREASE_PATCH:
+            g_singleCreasePatch = checked;
+            rebuildMesh();
+            return;
+        default:
+            break;
+        }
+    }
+
     switch (button) {
-    case kHUD_CB_DISPLAY_CAGE_EDGES:
-        g_drawCageEdges = checked;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
+        g_controlMeshDisplay.SetEdgesDisplay(checked);
         break;
-    case kHUD_CB_DISPLAY_CAGE_VERTS:
-        g_drawCageVertices = checked;
+    case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS:
+        g_controlMeshDisplay.SetVerticesDisplay(checked);
         break;
     case kHUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked;
-        break;
-    case kHUD_CB_DISPLAY_PATCH_COLOR:
-        g_displayPatchColor = checked;
         break;
     case kHUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
@@ -1597,32 +1444,65 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new SSAOGLFrameBuffer);
-
-    g_hud.AddCheckBox("Cage Edges (H)", g_drawCageEdges != 0,
-                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'h');
-    g_hud.AddCheckBox("Cage Verts (J)", g_drawCageVertices != 0,
-                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'j');
+    int y = 10;
+    g_hud.AddCheckBox("Control edges (H)",
+                      g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, y, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    y += 20;
+    g_hud.AddCheckBox("Control vertices (J)",
+                      g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, y, callbackCheckBox,
+                      kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
+    y += 20;
     g_hud.AddCheckBox("Animate vertices (M)", g_moveScale != 0,
-                      10, 50, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud.AddCheckBox("Patch Color (P)", g_displayPatchColor != 0,
-                      10, 70, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'p');
+                      10, y, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'm');
+    y += 20;
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess != 0,
-                      10, 90, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+                      10, y, callbackCheckBox, kHUD_CB_VIEW_LOD, 'v');
+    y += 20;
     g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing != 0,
-                      10, 110, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+                      10, y, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 't');
+    y += 20;
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull != 0,
-                      10, 130, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+                      10, y, callbackCheckBox, kHUD_CB_PATCH_CULL, 'b');
+    y += 20;
     g_hud.AddCheckBox("Freeze (spc)", g_freeze != 0,
-                      10, 150, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+                      10, y, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    y += 20;
 
-    int shading_pulldown = g_hud.AddPullDown("Shading (W)", 200, 10, 250, callbackDisplayStyle, 'w');
-    g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
-    g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color", kVaryingColor, g_displayStyle==kVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)", kInterleavedVaryingColor, g_displayStyle==kInterleavedVaryingColor);
-    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color", kFaceVaryingColor, g_displayStyle==kFaceVaryingColor);
+    int displaystyle_pulldown = g_hud.AddPullDown("DisplayStyle (W)", 200, 10, 250,
+                                                  callbackDisplayStyle, 'w');
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Wire", kDisplayStyleWire,
+                            g_displayStyle == kDisplayStyleWire);
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Shaded", kDisplayStyleShaded,
+                            g_displayStyle == kDisplayStyleShaded);
+    g_hud.AddPullDownButton(displaystyle_pulldown, "Wire+Shaded", kDisplayStyleWireOnShaded,
+                            g_displayStyle == kDisplayStyleWireOnShaded);
+
+    int shading_pulldown = g_hud.AddPullDown("Shading (C)", 200, 70, 250,
+                                             callbackShadingMode, 'c');
+    g_hud.AddPullDownButton(shading_pulldown, "Material",
+                            kShadingMaterial,
+                            g_shadingMode == kShadingMaterial);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color",
+                            kShadingVaryingColor,
+                            g_shadingMode == kShadingVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Varying Color (Interleaved)",
+                            kShadingInterleavedVaryingColor,
+                            g_shadingMode == kShadingInterleavedVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "FaceVarying Color",
+                            kShadingFaceVaryingColor,
+                            g_shadingMode == kShadingFaceVaryingColor);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Type",
+                            kShadingPatchType,
+                            g_shadingMode == kShadingPatchType);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Coord",
+                            kShadingPatchCoord,
+                            g_shadingMode == kShadingPatchCoord);
+    g_hud.AddPullDownButton(shading_pulldown, "Normal",
+                            kShadingNormal,
+                            g_shadingMode == kShadingNormal);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);
@@ -1636,7 +1516,7 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (HAS_CL_VERSION_1_1()) {
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
         g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
     }
 #endif
@@ -1644,20 +1524,36 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    // Must also check at run time for OpenGL 4.3
-    if (GLEW_VERSION_4_3) {
+    if (GLUtils::GL_ARBComputeShaderOrGL_VERSION_4_3()) {
         g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0, 10, 190, callbackAdaptive, 0, '`');
-        g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 's');
+    if (GLUtils::SupportsAdaptiveTessellation()) {
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0,
+                          10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
+        g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
+                          10, 210, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
+
+        int endcap_pulldown = g_hud.AddPullDown(
+            "End cap (E)", 10, 230, 200, callbackEndCap, 'e');
+        g_hud.AddPullDownButton(endcap_pulldown,"None",
+                                kEndCapNone,
+                                g_endCap == kEndCapNone);
+        g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+                                kEndCapBSplineBasis,
+                                g_endCap == kEndCapBSplineBasis);
+        g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+                                kEndCapGregoryBasis,
+                                g_endCap == kEndCapGregoryBasis);
+        g_hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
+                                kEndCapLegacyGregory,
+                                g_endCap == kEndCapLegacyGregory);
     }
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i==2, 10, 310+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
@@ -1673,7 +1569,7 @@ initHUD() {
 //------------------------------------------------------------------------------
 static void
 initGL() {
-    glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
@@ -1682,10 +1578,6 @@ initGL() {
     glGenQueries(2, g_queries);
 
     glGenVertexArrays(1, &g_vao);
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
@@ -1714,28 +1606,6 @@ callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
 }
 //------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 3);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
@@ -1746,15 +1616,20 @@ int main(int argc, char ** argv) {
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj")) {
             animobjs.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-axis")) {
+        }
+        else if (!strcmp(argv[i], "-axis")) {
             g_axis = false;
-        } else if (!strcmp(argv[i], "-d")) {
+        }
+        else if (!strcmp(argv[i], "-d")) {
             g_level = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-c")) {
+        }
+        else if (!strcmp(argv[i], "-c")) {
             g_repeatCount = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-f")) {
+        }
+        else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
-        } else {
+        }
+        else {
             std::ifstream ifs(argv[1]);
             if (ifs) {
                 std::stringstream ss;
@@ -1787,10 +1662,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glViewer " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion(argc, argv);
 
     if (fullscreen) {
 
@@ -1799,7 +1671,7 @@ int main(int argc, char ** argv) {
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
         // settle for the first one in the list
         if (not g_primary) {
-            int count=0;
+            int count = 0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
             if (count)
@@ -1813,13 +1685,17 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+    g_window = glfwCreateWindow(g_width, g_height, windowTitle,
+        fullscreen and g_primary ? g_primary : NULL, NULL);
+
+    if (not g_window) {
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommocate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
@@ -1846,15 +1722,14 @@ int main(int argc, char ** argv) {
 #endif
 
     // activate feature adaptive tessellation if OSD supports it
-    g_adaptive = OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation();
+    g_adaptive = GLUtils::SupportsAdaptiveTessellation();
 
     initGL();
-    linkDefaultProgram();
 
     glfwSwapInterval(0);
 
     initHUD();
-    rebuildOsdMesh();
+    rebuildMesh();
 
     while (g_running) {
         idle();

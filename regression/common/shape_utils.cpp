@@ -25,9 +25,11 @@
 
 #include "shape_utils.h"
 
+#include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <iterator>
+#include <fstream>
 #include <sstream>
 
 //------------------------------------------------------------------------------
@@ -53,65 +55,84 @@ static char const * sgets( char * s, int size, char ** stream ) {
 Shape::~Shape() {
     for (int i=0; i<(int)tags.size(); ++i)
         delete tags[i];
+
+    for (int i=0; i<(int)mtls.size(); ++i)
+        delete mtls[i];
 }
 
 //------------------------------------------------------------------------------
-Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme, int axis ) {
+Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
+                        bool isLeftHanded, int axis, bool parsemtl) {
 
     Shape * s = new Shape;
 
     s->scheme = shapescheme;
+    s->isLeftHanded = isLeftHanded;
 
-    char * str=const_cast<char *>(shapestr), line[256];
+    char * str=const_cast<char *>(shapestr), line[256], buf[256], usemtl=-1;
     bool done = false;
-    while( not done )
-    {   done = sgets(line, sizeof(line), &str)==0;
+    while (not done) {
+        done = sgets(line, sizeof(line), &str)==0;
         char* end = &line[strlen(line)-1];
         if (*end == '\n') *end = '\0'; // strip trailing nl
         float x, y, z, u, v;
         switch (line[0]) {
-            case 'v': switch (line[1])
-                      {       case ' ': if(sscanf(line, "v %f %f %f", &x, &y, &z) == 3) {
-                                             s->verts.push_back(x);
-                                             switch( axis ) {
-                                                 case 0 : s->verts.push_back(-z);
-                                                          s->verts.push_back(y); break;
-                                                 case 1 : s->verts.push_back(y);
-                                                          s->verts.push_back(z); break;
-                                             }
-                                        } break;
-                              case 't': if(sscanf(line, "vt %f %f", &u, &v) == 2) {
-                                            s->uvs.push_back(u);
-                                            s->uvs.push_back(v);
-                                        } break;
-                              case 'n' : if(sscanf(line, "vn %f %f %f", &x, &y, &z) == 3) {
-                                            s->normals.push_back(x);
-                                            s->normals.push_back(y);
-                                            s->normals.push_back(z);
+            case 'v': switch (line[1]) {
+                          case ' ': if (sscanf(line, "v %f %f %f", &x, &y, &z) == 3) {
+                                         s->verts.push_back(x);
+                                         switch( axis ) {
+                                             case 0 : s->verts.push_back(-z);
+                                                      s->verts.push_back(y); break;
+                                             case 1 : s->verts.push_back(y);
+                                                      s->verts.push_back(z); break;
                                          }
-                                         break; // skip normals for now
-                          }
-                          break;
-            case 'f': if(line[1] == ' ') {
-                              int vi, ti, ni;
-                              const char* cp = &line[2];
+                                    } break;
+                          case 't': if (sscanf(line, "vt %f %f", &u, &v) == 2) {
+                                        s->uvs.push_back(u);
+                                        s->uvs.push_back(v);
+                                    } break;
+                          case 'n' : if (sscanf(line, "vn %f %f %f", &x, &y, &z) == 3) {
+                                        s->normals.push_back(x);
+                                        s->normals.push_back(y);
+                                        s->normals.push_back(z);
+                                     } break; // skip normals for now
+                      } break;
+            case 'f': if (line[1] == ' ') {
+                          int vi, ti, ni;
+                          const char* cp = &line[2];
+                          while (*cp == ' ') cp++;
+                          int nverts = 0, nitems=0;
+                          while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
+                              nverts++;
+                              s->faceverts.push_back(vi-1);
+                              if(nitems > 1) s->faceuvs.push_back(ti-1);
+                              if(nitems > 2) s->facenormals.push_back(ni-1);
+                              while (*cp && *cp != ' ') cp++;
                               while (*cp == ' ') cp++;
-                              int nverts = 0, nitems=0;
-                              while( (nitems=sscanf(cp, "%d/%d/%d", &vi, &ti, &ni))>0) {
-                                  nverts++;
-                                  s->faceverts.push_back(vi-1);
-                                  if(nitems >= 1) s->faceuvs.push_back(ti-1);
-                                  if(nitems >= 2) s->facenormals.push_back(ni-1);
-                                  while (*cp && *cp != ' ') cp++;
-                                  while (*cp == ' ') cp++;
-                              }
-                              s->nvertsPerFace.push_back(nverts);
                           }
-                          break;
-            case 't' : if(line[1] == ' ') {
+                          s->nvertsPerFace.push_back(nverts);
+                          if (not s->mtls.empty()) {
+                              s->mtlbind.push_back(usemtl);
+                          }
+                      } break;
+            case 't' : if (line[1] == ' ') {
                            Shape::tag * t = tag::parseTag( line );
                            if (t)
                                s->tags.push_back(t);
+                       } break;
+            case 'u' : if (parsemtl and sscanf(line, "usemtl %s", buf)==1) {
+                           usemtl = s->FindMaterial(buf);
+                       } break;
+            case 'm' : if (parsemtl and sscanf(line, "mtllib %s", buf)==1) {
+                           std::ifstream ifs(buf);
+                           if (ifs) {
+                               std::stringstream ss;
+                               ss << ifs.rdbuf();
+                               ifs.close();
+                               std::string str = ss.str();
+                               s->parseMtllib(str.c_str());
+                               s->mtllib = buf;
+                           }
                        } break;
         }
     }
@@ -168,6 +189,68 @@ Shape::tag * Shape::tag::parseTag(char const * line) {
     t->stringargs = tstringargs;
 
     return t;
+}
+
+//------------------------------------------------------------------------------
+Shape::material::material() {
+    memset(ka, 0, sizeof(float)*3);
+    memset(kd, 0, sizeof(float)*3);
+    memset(ks, 0, sizeof(float)*3);
+    memset(tf, 0, sizeof(float)*3);
+    ns = ni = d = 0.0f;
+    illum=0;
+}
+
+//------------------------------------------------------------------------------
+void Shape::parseMtllib(char const * mtlstr) {
+
+    char * str=const_cast<char *>(mtlstr), line[256];
+
+    material * mtl=0;
+
+    bool done = false;
+    float r, g, b, a;
+    while (not done) {
+        done = sgets(line, sizeof(line), &str)==0;
+        char* end = &line[strlen(line)-1];
+        if (*end == '\n') *end = '\0'; // strip trailing nl
+        switch (line[0]) {
+            case 'n': char name[256];
+                      if (sscanf(line, "newmtl %s", name) == 1) {
+                          mtl = new material;
+                          mtl->name = name;
+                          mtls.push_back(mtl);
+                      } break;
+            case 'K': if (sscanf(line+2, " %f %f %f", &r, &g, &b) == 3) {
+                          switch (line[1]) {
+                              case 'a': mtl->ka[0]=r; mtl->ka[1]=g; mtl->ka[2]=b; break;
+                              case 'd': mtl->kd[0]=r; mtl->kd[1]=g; mtl->kd[2]=b; break;
+                              case 's': mtl->ks[0]=r; mtl->ks[1]=g; mtl->ks[2]=b; break;
+                          }
+                      } break;
+            case 'N': if (sscanf(line+2, " %f", &a) == 1) {
+                          switch (line[1]) {
+                              case 's' : mtl->ns = a; break;
+                              case 'i' : mtl->ni = a; break;
+                          }
+                      } break;
+            case 'd': if (sscanf(line, "d %f", &a) == 1) {
+                          mtl->d = a;
+                      } break;
+            case 'T': if (line[1]=='f') {
+                         if (sscanf(line, "Tf %f %f %f", &r, &g, &b) == 3) {
+                             mtl->tf[0]=r; mtl->tf[1]=g; mtl->tf[2]=b;
+                         } break;
+                      } break;
+            case 'i': int illum;
+                      if (sscanf(line, "illum %d", &illum) == 1) {
+                          mtl->illum = illum;
+                      } break;
+            case 's': if (sscanf(line, "sharpness %f", &a) == 1) {
+                          mtl->sharpness = a;
+                      } break;
+        }
+    }
 }
 
 //------------------------------------------------------------------------------

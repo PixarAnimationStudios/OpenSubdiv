@@ -22,44 +22,26 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "../common/glUtils.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window = 0;
 GLFWmonitor* g_primary = 0;
 
-#include <osd/vertex.h>
-#include <osd/glDrawContext.h>
-#include <osd/glDrawRegistry.h>
 #include <far/error.h>
-
+#include <osd/cpuEvaluator.h>
 #include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuComputeContext.h>
-#include <osd/cpuComputeController.h>
-OpenSubdiv::Osd::CpuComputeController *g_cpuComputeController = NULL;
-
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 
-#include <common/vtr_utils.h>
+#include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
-#include "../common/gl_hud.h"
+#include "../common/glControlMeshDisplay.h"
+#include "../common/glHud.h"
+#include "../common/glShaderCache.h"
 
+#include <osd/glslPatchShaderSource.h>
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     #include "shader.gen.h"
@@ -114,6 +96,7 @@ int   g_width = 1600,
       g_height = 800;
 
 GLhud g_hud;
+GLControlMeshDisplay g_controlMeshDisplay;
 
 // geometry
 std::vector<float> g_orgPositions,
@@ -140,10 +123,6 @@ struct Transform {
 } g_transformData;
 
 GLuint g_vao = 0;
-GLuint g_cageEdgeVAO = 0,
-       g_cageEdgeVBO = 0,
-       g_cageVertexVAO = 0,
-       g_cageVertexVBO = 0;
 
 std::vector<int> g_coarseEdges;
 std::vector<float> g_coarseEdgeSharpness;
@@ -155,6 +134,51 @@ struct Program {
     GLuint attrPosition;
     GLuint attrColor;
 } g_defaultProgram;
+
+struct FVarData
+{
+    FVarData() :
+        textureBuffer(0) {
+    }
+    ~FVarData() {
+        Release();
+    }
+    void Release() {
+        if (textureBuffer)
+            glDeleteTextures(1, &textureBuffer);
+        textureBuffer = 0;
+    }
+    void Create(OpenSubdiv::Far::PatchTable const *patchTable,
+                int fvarWidth, std::vector<float> const & fvarSrcData) {
+        Release();
+        OpenSubdiv::Far::ConstIndexArray indices = patchTable->GetFVarValues();
+
+        // expand fvardata to per-patch array
+        std::vector<float> data;
+        data.reserve(indices.size() * fvarWidth);
+
+        for (int fvert = 0; fvert < (int)indices.size(); ++fvert) {
+            int index = indices[fvert] * fvarWidth;
+            for (int i = 0; i < fvarWidth; ++i) {
+                data.push_back(fvarSrcData[index++]);
+            }
+        }
+        GLuint buffer;
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
+                     &data[0], GL_STATIC_DRAW);
+
+        glGenTextures(1, &textureBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindTexture(GL_ARRAY_BUFFER, 0);
+
+        glDeleteBuffers(1, &buffer);
+    }
+    GLuint textureBuffer;
+} g_fvarData;
 
 //------------------------------------------------------------------------------
 static GLuint
@@ -237,13 +261,15 @@ calcNormals(OpenSubdiv::Far::TopologyRefiner const & refiner,
 
     typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
 
+    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
+
     // calc normal vectors
     int nverts = (int)pos.size()/3;
 
-    int nfaces = refiner.GetNumFaces(0);
+    int nfaces = refBaseLevel.GetNumFaces();
     for (int face = 0; face < nfaces; ++face) {
 
-        IndexArray fverts = refiner.GetFaceVertices(0, face);
+        IndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
         assert(fverts.size()>=2);
 
@@ -306,13 +332,14 @@ updateGeom() {
 
 //------------------------------------------------------------------------------
 static void
-createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) {
-
-    typedef OpenSubdiv::Far::ConstIndexArray IndexArray;
+rebuildMesh() {
+    ShapeDesc const &shapeDesc = g_defaultShapes[g_currentShape];
+    int level = g_level;
+    Scheme scheme = g_defaultShapes[g_currentShape].scheme;
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
-    // create Vtr mesh (topology)
+    // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
@@ -323,23 +350,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
             OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    int nedges = refiner->GetNumEdges(0),
-        nverts = refiner->GetNumVertices(0);
-
-    g_coarseEdges.resize(nedges*2);
-    g_coarseEdgeSharpness.resize(nedges);
-    g_coarseVertexSharpness.resize(nverts);
-
-    for(int i=0; i<nedges; ++i) {
-        IndexArray verts = refiner->GetEdgeVertices(0, i);
-        g_coarseEdges[i*2  ]=verts[0];
-        g_coarseEdges[i*2+1]=verts[1];
-        g_coarseEdgeSharpness[i]=refiner->GetEdgeSharpness(0, i);
-    }
-
-    for(int i=0; i<nverts; ++i) {
-        g_coarseVertexSharpness[i]=refiner->GetVertexSharpness(0, i);
-    }
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
     g_orgPositions=shape->verts;
     g_normals.resize(g_orgPositions.size(), 0.0f);
@@ -359,26 +370,23 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     int numVertexElements = 3;
     int numVaryingElements = 0;
 
-    if (not g_cpuComputeController) {
-        g_cpuComputeController = new OpenSubdiv::Osd::CpuComputeController();
-    }
-
     delete g_mesh;
-
     g_mesh = new OpenSubdiv::Osd::Mesh<OpenSubdiv::Osd::CpuGLVertexBuffer,
-        OpenSubdiv::Osd::CpuComputeController,
-        OpenSubdiv::Osd::GLDrawContext>(
-            g_cpuComputeController,
-            refiner,
-            numVertexElements,
-            numVaryingElements,
-            level, bits);
+                                       OpenSubdiv::Far::StencilTable,
+                                       OpenSubdiv::Osd::CpuEvaluator,
+                                       OpenSubdiv::Osd::GLPatchTable>(
+                                           refiner,
+                                           numVertexElements,
+                                           numVaryingElements,
+                                           level, bits);
 
     std::vector<float> fvarData;
 
     InterpolateFVarData(*refiner, *shape, fvarData);
 
-    g_mesh->SetFVarDataChannel(shape->GetFVarWidth(), fvarData);
+    // set fvardata to texture buffer
+    g_fvarData.Create(g_mesh->GetFarPatchTable(),
+                      shape->GetFVarWidth(), fvarData);
 
     delete shape;
 
@@ -403,7 +411,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, Scheme scheme = kCatmark) 
     // -------- VAO
     glBindVertexArray(g_vao);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetDrawContext()->GetPatchIndexBuffer());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_mesh->GetPatchTable()->GetPatchIndexBuffer());
     glBindBuffer(GL_ARRAY_BUFFER, g_mesh->BindVertexBuffer());
 
     glEnableVertexAttribArray(0);
@@ -421,100 +429,6 @@ fitFrame() {
     g_dolly = g_size;
     g_uvPan[0] = g_uvPan[1] = 0;
     g_uvScale = 1.0;
-}
-
-//------------------------------------------------------------------------------
-static inline void
-setSharpnessColor(float s, float *r, float *g, float *b) {
-
-    //  0.0       2.0       4.0
-    // green --- yellow --- red
-    *r = std::min(1.0f, s * 0.5f);
-    *g = std::min(1.0f, 2.0f - s*0.5f);
-    *b = 0;
-}
-
-static void
-drawCageEdges() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    std::vector<float> vbo;
-    vbo.reserve(g_coarseEdges.size() * 6);
-    float r, g, b;
-    for (int i = 0; i < (int)g_coarseEdges.size(); i+=2) {
-        setSharpnessColor(g_coarseEdgeSharpness[i/2], &r, &g, &b);
-        for (int j = 0; j < 2; ++j) {
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+1]);
-            vbo.push_back(g_positions[g_coarseEdges[i+j]*3+2]);
-            vbo.push_back(r);
-            vbo.push_back(g);
-            vbo.push_back(b);
-        }
-    }
-
-    glBindVertexArray(g_cageEdgeVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageEdgeVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (void*)12);
-
-    glDrawArrays(GL_LINES, 0, (int)g_coarseEdges.size());
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
-
-static void
-drawCageVertices() {
-
-    glUseProgram(g_defaultProgram.program);
-    glUniformMatrix4fv(g_defaultProgram.uniformModelViewProjectionMatrix,
-                       1, GL_FALSE, g_transformData.ModelViewProjectionMatrix);
-
-    int numPoints = (int)g_positions.size()/3;
-    std::vector<float> vbo;
-    vbo.reserve(numPoints*6);
-    float r, g, b;
-    for (int i = 0; i < numPoints; ++i) {
-        setSharpnessColor(g_coarseVertexSharpness[i], &r, &g, &b);
-        vbo.push_back(g_positions[i*3+0]);
-        vbo.push_back(g_positions[i*3+1]);
-        vbo.push_back(g_positions[i*3+2]);
-        vbo.push_back(r);
-        vbo.push_back(g);
-        vbo.push_back(b);
-    }
-
-    glBindVertexArray(g_cageVertexVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, g_cageVertexVBO);
-    glBufferData(GL_ARRAY_BUFFER, (int)vbo.size() * sizeof(float), &vbo[0],
-                 GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glVertexAttribPointer(g_defaultProgram.attrPosition,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, 0);
-    glVertexAttribPointer(g_defaultProgram.attrColor,
-                          3, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 6, (void*)12);
-
-    glPointSize(10.0f);
-    glDrawArrays(GL_POINTS, 0, numPoints);
-    glPointSize(1.0f);
-
-    glBindVertexArray(0);
-    glUseProgram(0);
 }
 
 //------------------------------------------------------------------------------
@@ -537,177 +451,170 @@ union Effect {
     }
 };
 
-typedef std::pair<OpenSubdiv::Osd::DrawContext::PatchDescriptor, Effect> EffectDesc;
-
-class EffectDrawRegistry : public OpenSubdiv::Osd::GLDrawRegistry<EffectDesc> {
-
-  protected:
-    virtual ConfigType *
-    _CreateDrawConfig(DescType const & desc, SourceConfigType const * sconfig);
-
-    virtual SourceConfigType *
-    _CreateDrawSourceConfig(DescType const & desc);
-};
-
-EffectDrawRegistry::SourceConfigType *
-EffectDrawRegistry::_CreateDrawSourceConfig(DescType const & desc) {
-
-    Effect effect = desc.second;
-
-    SourceConfigType * sconfig =
-        BaseRegistry::_CreateDrawSourceConfig(desc.first);
-
-    assert(sconfig);
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-    const char *glslVersion = "#version 400\n";
-#else
-    const char *glslVersion = "#version 330\n";
-#endif
-
-    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-
-    if (desc.first.GetType() == Descriptor::QUADS or
-        desc.first.GetType() == Descriptor::TRIANGLES) {
-        sconfig->vertexShader.source = shaderSource;
-        sconfig->vertexShader.version = glslVersion;
-        sconfig->vertexShader.AddDefine("VERTEX_SHADER");
-    } else {
-        sconfig->geometryShader.AddDefine("SMOOTH_NORMALS");
-    }
-
-    sconfig->geometryShader.source = shaderSource;
-    sconfig->geometryShader.version = glslVersion;
-    sconfig->geometryShader.AddDefine("GEOMETRY_SHADER");
-
-    sconfig->fragmentShader.source = shaderSource;
-    sconfig->fragmentShader.version = glslVersion;
-    sconfig->fragmentShader.AddDefine("FRAGMENT_SHADER");
-
-    sconfig->commonShader.AddDefine("OSD_FVAR_WIDTH", "2");
-
-
-    if (desc.first.GetType() == Descriptor::QUADS) {
-        // uniform catmark, bilinear
-        sconfig->geometryShader.AddDefine("PRIM_QUAD");
-        sconfig->fragmentShader.AddDefine("PRIM_QUAD");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else if (desc.first.GetType() == Descriptor::TRIANGLES) {
-        // uniform loop
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-        sconfig->commonShader.AddDefine("LOOP");
-        sconfig->commonShader.AddDefine("UNIFORM_SUBDIVISION");
-    } else {
-        // adaptive
-        sconfig->vertexShader.source = shaderSource + sconfig->vertexShader.source;
-        sconfig->tessControlShader.source = shaderSource + sconfig->tessControlShader.source;
-        sconfig->tessEvalShader.source = shaderSource + sconfig->tessEvalShader.source;
-
-        sconfig->geometryShader.AddDefine("PRIM_TRI");
-        sconfig->fragmentShader.AddDefine("PRIM_TRI");
-    }
-
-    if (effect.uvDraw) {
-        sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
-        sconfig->commonShader.AddDefine("GEOMETRY_UV_VIEW");
-    } else {
-        switch (effect.displayStyle) {
-        case kWire:
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_WIRE");
-            break;
-        case kWireShaded:
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_LINE");
-            break;
-        case kShaded:
-            sconfig->commonShader.AddDefine("GEOMETRY_OUT_FILL");
-            break;
-        }
-    }
-
-    return sconfig;
-}
-
-EffectDrawRegistry::ConfigType *
-EffectDrawRegistry::_CreateDrawConfig(
-        DescType const & desc,
-        SourceConfigType const * sconfig) {
-
-    ConfigType * config = BaseRegistry::_CreateDrawConfig(desc.first, sconfig);
-    assert(config);
-
-    GLuint uboIndex;
-
-    // XXXdyu can use layout(binding=) with GLSL 4.20 and beyond
-    g_transformBinding = 0;
-    uboIndex = glGetUniformBlockIndex(config->program, "Transform");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_transformBinding);
-
-    g_tessellationBinding = 1;
-    uboIndex = glGetUniformBlockIndex(config->program, "Tessellation");
-    if (uboIndex != GL_INVALID_INDEX)
-        glUniformBlockBinding(config->program, uboIndex, g_tessellationBinding);
-
-    GLint loc;
-#if not defined(GL_ARB_separate_shader_objects) || defined(GL_VERSION_4_1)
-    glUseProgram(config->program);
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glUniform1i(loc, 0);  // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glUniform1i(loc, 1);  // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glUniform1i(loc, 2);  // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glUniform1i(loc, 3);  // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glUniform1i(loc, 4);  // GL_TEXTURE4
-    }
-#else
-    if ((loc = glGetUniformLocation(config->program, "OsdVertexBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 0);  // GL_TEXTURE0
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdValenceBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 1);  // GL_TEXTURE1
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdQuadOffsetBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 2);  // GL_TEXTURE2
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdPatchParamBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 3);  // GL_TEXTURE3
-    }
-    if ((loc = glGetUniformLocation(config->program, "OsdFVarDataBuffer")) != -1) {
-        glProgramUniform1i(config->program, loc, 4);  // GL_TEXTURE4
-    }
-#endif
-
-    return config;
-}
-
-EffectDrawRegistry effectRegistry;
-
 static Effect
 GetEffect(bool uvDraw = false) {
 
     return Effect(g_displayStyle, uvDraw);
 }
 
+// ---------------------------------------------------------------------------
+
+struct EffectDesc {
+    EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
+               Effect effect) : desc(desc), effect(effect),
+                                maxValence(0), numElements(0) { }
+
+    OpenSubdiv::Far::PatchDescriptor desc;
+    Effect effect;
+    int maxValence;
+    int numElements;
+
+    bool operator < (const EffectDesc &e) const {
+        return
+            (desc < e.desc || ((desc == e.desc &&
+            (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
+            (numElements < e.numElements || ((numElements == e.numElements) &&
+            (effect < e.effect))))))));
+    }
+};
+
+// ---------------------------------------------------------------------------
+
+class ShaderCache : public GLShaderCache<EffectDesc> {
+public:
+    virtual GLDrawConfig *CreateDrawConfig(EffectDesc const &effectDesc) {
+
+        using namespace OpenSubdiv;
+
+        // compile shader program
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        const char *glslVersion = "#version 400\n";
+#else
+        const char *glslVersion = "#version 330\n";
+#endif
+        GLDrawConfig *config = new GLDrawConfig(glslVersion);
+
+        Far::PatchDescriptor::Type type = effectDesc.desc.GetType();
+
+        // common defines
+        std::stringstream ss;
+
+        if (type == Far::PatchDescriptor::QUADS) {
+            ss << "#define PRIM_QUAD\n";
+        } else {
+            ss << "#define PRIM_TRI\n";
+        }
+
+        if (effectDesc.effect.uvDraw) {
+            ss << "#define GEOMETRY_OUT_FILL\n";
+            ss << "#define GEOMETRY_UV_VIEW\n";
+        } else {
+            switch (effectDesc.effect.displayStyle) {
+            case kWire:
+                ss << "#define GEOMETRY_OUT_WIRE\n";
+                break;
+            case kWireShaded:
+                ss << "#define GEOMETRY_OUT_LINE\n";
+                break;
+            case kShaded:
+                ss << "#define GEOMETRY_OUT_FILL\n";
+                break;
+            }
+        }
+
+        // for legacy gregory
+        ss << "#define OSD_MAX_VALENCE " << effectDesc.maxValence << "\n";
+        ss << "#define OSD_NUM_ELEMENTS " << effectDesc.numElements << "\n";
+
+        // face varying width
+        ss << "#define OSD_FVAR_WIDTH 2\n";
+
+        if (not effectDesc.desc.IsAdaptive()) {
+            ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
+        }
+
+        // include osd PatchCommon
+        ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
+        std::string common = ss.str();
+        ss.str("");
+
+        // vertex shader
+        ss << common
+            // enable local vertex shader
+           << (effectDesc.desc.IsAdaptive() ? "" : "#define VERTEX_SHADER\n")
+           << shaderSource
+           << Osd::GLSLPatchShaderSource::GetVertexShaderSource(type);
+        config->CompileAndAttachShader(GL_VERTEX_SHADER, ss.str());
+        ss.str("");
+
+        if (effectDesc.desc.IsAdaptive()) {
+            // tess control shader
+            ss << common
+               << shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessControlShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_CONTROL_SHADER, ss.str());
+            ss.str("");
+
+            // tess eval shader
+            ss << common
+               << shaderSource
+               << Osd::GLSLPatchShaderSource::GetTessEvalShaderSource(type);
+            config->CompileAndAttachShader(GL_TESS_EVALUATION_SHADER, ss.str());
+            ss.str("");
+        }
+
+        // geometry shader
+        ss << common
+           << "#define GEOMETRY_SHADER\n"
+           << shaderSource;
+        config->CompileAndAttachShader(GL_GEOMETRY_SHADER, ss.str());
+        ss.str("");
+
+        // fragment shader
+        ss << common
+           << "#define FRAGMENT_SHADER\n"
+           << shaderSource;
+        config->CompileAndAttachShader(GL_FRAGMENT_SHADER, ss.str());
+        ss.str("");
+
+        if (!config->Link()) {
+            delete config;
+            return NULL;
+        }
+
+        // assign uniform locations
+        GLuint uboIndex;
+        GLuint program = config->GetProgram();
+        g_transformBinding = 0;
+        uboIndex = glGetUniformBlockIndex(program, "Transform");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_transformBinding);
+
+        g_tessellationBinding = 1;
+        uboIndex = glGetUniformBlockIndex(program, "Tessellation");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
+
+        // assign texture locations
+        GLint loc;
+        glUseProgram(program);
+        if ((loc = glGetUniformLocation(program, "OsdPatchParamBuffer")) != -1) {
+            glUniform1i(loc, 0); // GL_TEXTURE0
+        }
+        if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
+            glUniform1i(loc, 1); // GL_TEXTURE1
+        }
+
+
+        return config;
+    }
+};
+
+ShaderCache g_shaderCache;
+
 //------------------------------------------------------------------------------
-static GLuint
-bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patch) {
-
-    EffectDesc effectDesc(patch.GetDescriptor(), effect);
-    EffectDrawRegistry::ConfigType *
-        config = effectRegistry.GetDrawConfig(effectDesc);
-
-    GLuint program = config->program;
-
-    glUseProgram(program);
-
+static void
+updateUniformBlocks() {
     if (!g_transformUB) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
@@ -740,51 +647,74 @@ bindProgram(Effect effect, OpenSubdiv::Osd::DrawContext::PatchArray const & patc
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_tessellationBinding, g_tessellationUB);
+}
 
-    if (g_mesh->GetDrawContext()->GetVertexTextureBuffer()) {
+static void
+bindTextures() {
+    if (g_mesh->GetPatchTable()->GetPatchParamTextureBuffer()) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetVertexTextureBuffer());
+            g_mesh->GetPatchTable()->GetPatchParamTextureBuffer());
     }
-    if (g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetVertexValenceTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetQuadOffsetsTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetPatchParamTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetPatchParamTextureBuffer());
-    }
-    if (g_mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
-        glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_BUFFER,
-            g_mesh->GetDrawContext()->GetFvarDataTextureBuffer());
-    }
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureBuffer);
 
     glActiveTexture(GL_TEXTURE0);
+}
 
-    return program;
+static GLenum
+bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
+
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
+
+    typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
+
+    // lookup shader cache (compile the shader if needed)
+    GLDrawConfig *config = g_shaderCache.GetDrawConfig(effectDesc);
+    if (!config) return 0;
+
+    GLuint program = config->GetProgram();
+
+    glUseProgram(program);
+
+    // bind standalone uniforms
+    GLint uniformPrimitiveIdBase =
+        glGetUniformLocation(program, "PrimitiveIdBase");
+    if (uniformPrimitiveIdBase >=0)
+        glUniform1i(uniformPrimitiveIdBase, patch.GetPrimitiveIdBase());
+
+    // return primtype
+    GLenum primType;
+    switch(effectDesc.desc.GetType()) {
+    case Descriptor::QUADS:
+        primType = GL_LINES_ADJACENCY;
+        break;
+    case Descriptor::TRIANGLES:
+        primType = GL_TRIANGLES;
+        break;
+    default:
+#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+        primType = GL_PATCHES;
+        glPatchParameteri(GL_PATCH_VERTICES, effectDesc.desc.GetNumControlVertices());
+#else
+        primType = GL_POINTS;
+#endif
+        break;
+    }
+
+    return primType;
 }
 
 //------------------------------------------------------------------------------
 static void
 display() {
 
-    g_hud.GetFrameBuffer()->Bind();
-
     Stopwatch s;
     s.Start();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    // ---------------------------------------------
     glViewport(0, 0, g_width/2, g_height);
+    g_hud.FillBackground();
 
     // prepare view matrix
     double aspect = (g_width/2)/(double)g_height;
@@ -808,62 +738,30 @@ display() {
     glEnable(GL_DEPTH_TEST);
 
     // make sure that the vertex buffer is interoped back as a GL resources.
-    g_mesh->BindVertexBuffer();
+    GLuint vbo = g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Osd::DrawContext::PatchArrayVector const & patches =
-        g_mesh->GetDrawContext()->GetPatchArrays();
+    OpenSubdiv::Osd::PatchArrayVector const & patches =
+        g_mesh->GetPatchTable()->GetPatchArrays();
 
     if (g_displayStyle == kWire)
         glDisable(GL_CULL_FACE);
 
+    updateUniformBlocks();
+    bindTextures();
+
     // patch drawing
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
+        GLenum primType = bindProgram(GetEffect(), patch);
 
-        GLenum primType;
-
-        switch (patchType) {
-        case OpenSubdiv::Far::PatchDescriptor::QUADS:
-            primType = GL_LINES_ADJACENCY;
-            break;
-        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
-            primType = GL_TRIANGLES;
-            break;
-        default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
-        }
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(), patch);
-
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
-        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        glDrawElements(
+            primType,
+            patch.GetNumPatches()*patch.GetDescriptor().GetNumControlVertices(),
+            GL_UNSIGNED_INT,
+            (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
     if (g_displayStyle == kWire)
         glEnable(GL_CULL_FACE);
@@ -871,10 +769,9 @@ display() {
     glBindVertexArray(0);
     glUseProgram(0);
 
-    drawCageEdges();
-    drawCageVertices();
-
-    g_hud.GetFrameBuffer()->ApplyImageShader();
+    // draw the control mesh
+    g_controlMeshDisplay.Draw(vbo, 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
     // ---------------------------------------------
     // uv viewport
@@ -887,50 +784,15 @@ display() {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
     for (int i = 0; i < (int)patches.size(); ++i) {
-        OpenSubdiv::Osd::DrawContext::PatchArray const & patch = patches[i];
+        OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        OpenSubdiv::Osd::DrawContext::PatchDescriptor desc = patch.GetDescriptor();
-        OpenSubdiv::Far::PatchDescriptor::Type patchType = desc.GetType();
+        GLenum primType = bindProgram(GetEffect(/*uvDraw=*/ true), patch);
 
-        GLenum primType;
-
-        switch (patchType) {
-        case OpenSubdiv::Far::PatchDescriptor::QUADS:
-            primType = GL_LINES_ADJACENCY;
-            break;
-        case OpenSubdiv::Far::PatchDescriptor::TRIANGLES:
-            primType = GL_TRIANGLES;
-            break;
-        default:
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-            primType = GL_PATCHES;
-            glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
-#else
-            primType = GL_POINTS;
-#endif
-        }
-
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        GLuint program = bindProgram(GetEffect(/*uvDraw=*/ true), patch);
-
-        GLuint uniformGregoryQuadOffsetBase =
-          glGetUniformLocation(program, "GregoryQuadOffsetBase");
-        GLuint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-
-        glProgramUniform1i(program, uniformGregoryQuadOffsetBase,
-                           patch.GetQuadOffsetIndex());
-        glProgramUniform1i(program, uniformPrimitiveIdBase,
-                           patch.GetPatchIndex());
-#else
-        GLuint program = bindProgram(GetEffect(/*uvDraw=*/ true), patch);
-        GLint uniformPrimitiveIdBase =
-          glGetUniformLocation(program, "PrimitiveIdBase");
-        if (uniformPrimitiveIdBase != -1)
-            glUniform1i(uniformPrimitiveIdBase, patch.GetPatchIndex());
-#endif
-        glDrawElements(primType, patch.GetNumIndices(), GL_UNSIGNED_INT,
-                       (void *)(patch.GetVertIndex() * sizeof(unsigned int)));
+        glDrawElements(
+            primType,
+            patch.GetNumPatches()*patch.GetDescriptor().GetNumControlVertices(),
+            GL_UNSIGNED_INT,
+            (void *)(patch.GetIndexBase() * sizeof(unsigned int)));
     }
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -994,23 +856,20 @@ mouse(GLFWwindow *, int button, int state, int /* mods */) {
         g_mbutton[button] = (state == GLFW_PRESS);
     }
 
-    g_mouseUvView = (g_prev_x > g_width/2);
+    // window size might not match framebuffer size on a high DPI display
+    int windowWidth = g_width, windowHeight = g_height;
+    glfwGetWindowSize(g_window, &windowWidth, &windowHeight);
+
+    g_mouseUvView = (g_prev_x > windowWidth/2);
 }
 
 //------------------------------------------------------------------------------
 static void
 uninitGL() {
 
-    glDeleteBuffers(1, &g_cageVertexVBO);
-    glDeleteBuffers(1, &g_cageEdgeVBO);
     glDeleteVertexArrays(1, &g_vao);
-    glDeleteVertexArrays(1, &g_cageVertexVAO);
-    glDeleteVertexArrays(1, &g_cageEdgeVAO);
-
     if (g_mesh)
         delete g_mesh;
-
-    delete g_cpuComputeController;
 }
 
 //------------------------------------------------------------------------------
@@ -1060,14 +919,6 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
 //------------------------------------------------------------------------------
 static void
-rebuildOsdMesh() {
-
-    createOsdMesh(g_defaultShapes[g_currentShape],
-                  g_level,
-                  g_defaultShapes[g_currentShape].scheme);
-}
-
-static void
 callbackDisplayStyle(int b) {
 
     g_displayStyle = b;
@@ -1077,7 +928,7 @@ static void
 callbackLevel(int l) {
 
     g_level = l;
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1085,15 +936,15 @@ callbackModel(int m) {
 
     int maxShapes = static_cast<int>(g_defaultShapes.size());
     g_currentShape = std::max(0, std::min(m, maxShapes-1));
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
 callbackAdaptive(bool checked, int /* a */) {
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation()) {
+    if (GLUtils::SupportsAdaptiveTessellation()) {
         g_adaptive = checked;
-        rebuildOsdMesh();
+        rebuildMesh();
     }
 }
 
@@ -1123,7 +974,7 @@ callbackBoundary(int b) {
             g_fvarBoundary = SdcOptions::FVAR_LINEAR_ALL; break;
 
     }
-    rebuildOsdMesh();
+    rebuildMesh();
 }
 
 static void
@@ -1137,14 +988,12 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.SetFrameBuffer(new GLFrameBuffer);
-
     int shading_pulldown = g_hud.AddPullDown("Shading (W)", 375, 10, 250, callbackDisplayStyle, 'w');
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
 
-    if (OpenSubdiv::Osd::GLDrawContext::SupportsAdaptiveTessellation())
+    if (GLUtils::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 250, callbackAdaptive, 0, '`');
 
     for (int i = 1; i < 11; ++i) {
@@ -1188,10 +1037,6 @@ initGL() {
     glEnable(GL_CULL_FACE);
 
     glGenVertexArrays(1, &g_vao);
-    glGenVertexArrays(1, &g_cageVertexVAO);
-    glGenVertexArrays(1, &g_cageEdgeVAO);
-    glGenBuffers(1, &g_cageVertexVBO);
-    glGenBuffers(1, &g_cageEdgeVBO);
 }
 
 //------------------------------------------------------------------------------
@@ -1218,24 +1063,6 @@ callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 static void
 callbackErrorGLFW(int error, const char* description) {
     fprintf(stderr, "GLFW Error (%d) : %s\n", error, description);
-}
-//------------------------------------------------------------------------------
-static void
-setGLCoreProfile() {
-
-    #define glfwOpenWindowHint glfwWindowHint
-    #define GLFW_OPENGL_VERSION_MAJOR GLFW_CONTEXT_VERSION_MAJOR
-    #define GLFW_OPENGL_VERSION_MINOR GLFW_CONTEXT_VERSION_MINOR
-
-    glfwOpenWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#if not defined(__APPLE__)
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 4);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#else
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MAJOR, 3);
-    glfwOpenWindowHint(GLFW_OPENGL_VERSION_MINOR, 2);
-#endif
-    glfwOpenWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 }
 
 //------------------------------------------------------------------------------
@@ -1274,10 +1101,7 @@ int main(int argc, char ** argv) {
 
     static const char windowTitle[] = "OpenSubdiv glFVarViewer " OPENSUBDIV_VERSION_STRING;
 
-#define CORE_PROFILE
-#ifdef CORE_PROFILE
-    setGLCoreProfile();
-#endif
+    GLUtils::SetMinimumGLVersion();
 
     if (fullscreen) {
         g_primary = glfwGetPrimaryMonitor();
@@ -1301,11 +1125,13 @@ int main(int argc, char ** argv) {
 
     if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
                                        fullscreen and g_primary ? g_primary : NULL, NULL))) {
-        printf("Failed to open window.\n");
+        std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
     }
+
     glfwMakeContextCurrent(g_window);
+    GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
@@ -1338,7 +1164,7 @@ int main(int argc, char ** argv) {
     glfwSwapInterval(0);
 
     initHUD();
-    rebuildOsdMesh();
+    rebuildMesh();
 
     while (g_running) {
         idle();

@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef HBRCATMARK_H
-#define HBRCATMARK_H
+#ifndef OPENSUBDIV3_HBRCATMARK_H
+#define OPENSUBDIV3_HBRCATMARK_H
 
 /*#define HBR_DEBUG */
 #include "../hbr/subdivision.h"
@@ -1128,4 +1128,4 @@ using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
-#endif /* HBRCATMARK_H */
+#endif /* OPENSUBDIV3_HBRCATMARK_H */

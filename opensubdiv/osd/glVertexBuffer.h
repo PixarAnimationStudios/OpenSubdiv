@@ -22,12 +22,13 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OSD_GL_VERTEX_BUFFER_H
-#define OSD_GL_VERTEX_BUFFER_H
+#ifndef OPENSUBDIV3_OSD_GL_VERTEX_BUFFER_H
+#define OPENSUBDIV3_OSD_GL_VERTEX_BUFFER_H
 
 #include "../version.h"
 
 #include "../osd/opengl.h"
+#include <cstddef>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -38,20 +39,21 @@ namespace Osd {
 /// \brief Concrete vertex buffer class for GLSL subvision and OpenGL drawing.
 ///
 /// GLVertexBuffer implements GLVertexBufferInterface. An instance
-/// of this buffer class can be passed to OsdGLComputeController
-/// and OsdGLDrawController
+/// of this buffer class can be passed to OsdGLComputeEvaluator.
 ///
 class GLVertexBuffer {
 public:
     /// Creator. Returns NULL if error.
-    static GLVertexBuffer * Create(int numElements, int numVertices);
+    static GLVertexBuffer * Create(int numElements, int numVertices,
+                                   void *deviceContext = NULL);
 
     /// Destructor.
     ~GLVertexBuffer();
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices);
+    void UpdateData(const float *src, int startVertex, int numVertices,
+                    void *deviceContext = NULL);
 
     /// Returns how many elements defined in this vertex buffer.
     int GetNumElements() const;
@@ -60,7 +62,7 @@ public:
     int GetNumVertices() const;
 
     /// Returns the GL buffer object.
-    GLuint BindVBO();
+    GLuint BindVBO(void *deviceContext = NULL);
 
 protected:
     /// Constructor.
@@ -83,4 +85,4 @@ using namespace OPENSUBDIV_VERSION;
 
 }  // end namespace OpenSubdiv
 
-#endif  // OSD_GL_VERTEX_BUFFER_H
+#endif  // OPENSUBDIV3_OSD_GL_VERTEX_BUFFER_H

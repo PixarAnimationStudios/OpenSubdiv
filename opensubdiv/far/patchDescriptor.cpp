@@ -25,6 +25,7 @@
 #include "../far/patchDescriptor.h"
 
 #include <cassert>
+#include <cstdio>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -32,78 +33,51 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 
+
 //
-// Lists of patch Descriptors for each subdivision scheme
+// Lists of valid patch Descriptors for each subdivision scheme
 //
 
-static PatchDescriptorVector const &
-getAdaptiveCatmarkDescriptors() {
-
-    static PatchDescriptorVector _descriptors;
-
-    if (_descriptors.empty()) {
-
-        _descriptors.reserve(72);
-
-        // non-transition patches : 7
-        for (int i=PatchDescriptor::REGULAR;
-            i<=PatchDescriptor::GREGORY_BASIS; ++i) {
-
-            _descriptors.push_back(
-                PatchDescriptor(i, PatchDescriptor::NON_TRANSITION, 0));
-        }
-
-        // transition patches (1 + 4 * 3) * 5 = 65
-        for (int i=PatchDescriptor::PATTERN0; i<=PatchDescriptor::PATTERN4; ++i) {
-
-            _descriptors.push_back(
-                PatchDescriptor(PatchDescriptor::REGULAR, i, 0) );
-
-            // 4 rotations for single-crease, boundary and corner patches
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back(
-                    PatchDescriptor(PatchDescriptor::SINGLE_CREASE, i, j));
-            }
-
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back(
-                    PatchDescriptor(PatchDescriptor::BOUNDARY, i, j));
-            }
-
-            for (int j=0; j<4; ++j) {
-                _descriptors.push_back(
-                   PatchDescriptor(PatchDescriptor::CORNER, i, j));
-            }
-        }
-    }
-    return _descriptors;
-}
-static PatchDescriptorVector const &
-getAdaptiveLoopDescriptors() {
-
-    static PatchDescriptorVector _descriptors;
-
-    if (_descriptors.empty()) {
-        _descriptors.reserve(1);
-        _descriptors.push_back(
-            PatchDescriptor(PatchDescriptor::LOOP, PatchDescriptor::NON_TRANSITION, 0) );
-    }
-    return _descriptors;
-}
-PatchDescriptorVector const &
+ConstPatchDescriptorArray
 PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
 
-    static PatchDescriptorVector _empty;
+    static PatchDescriptor _loopDescriptors[] = {
+        // XXXX work in progress !
+        PatchDescriptor(LOOP),
+    };
+
+    static PatchDescriptor _catmarkDescriptors[] = {
+        PatchDescriptor(REGULAR),
+        PatchDescriptor(GREGORY),
+        PatchDescriptor(GREGORY_BOUNDARY),
+        PatchDescriptor(GREGORY_BASIS),
+    };
 
     switch (type) {
-        case Sdc::SCHEME_BILINEAR : return _empty;
-        case Sdc::SCHEME_CATMARK  : return getAdaptiveCatmarkDescriptors();
-        case Sdc::SCHEME_LOOP     : return getAdaptiveLoopDescriptors();
+        case Sdc::SCHEME_BILINEAR :
+            return ConstPatchDescriptorArray(0, 0);
+        case Sdc::SCHEME_CATMARK :
+            return ConstPatchDescriptorArray(_catmarkDescriptors,
+                (int)(sizeof(_catmarkDescriptors)/sizeof(PatchDescriptor)));
+        case Sdc::SCHEME_LOOP :
+            return ConstPatchDescriptorArray(_loopDescriptors,
+                (int)(sizeof(_loopDescriptors)/sizeof(PatchDescriptor)));
         default:
           assert(0);
     }
-    return _empty;
+    return ConstPatchDescriptorArray(0, 0);;
 }
+
+void
+PatchDescriptor::print() const {
+    static char const * types[13] = {
+        "NON_PATCH", "POINTS", "LINES", "QUADS", "TRIANGLES", "LOOP",
+            "REGULAR", "GREGORY", "GREGORY_BOUNDARY", "GREGORY_BASIS" };
+
+    printf("    type %s\n",
+        types[_type]);
+}
+
 
 
 } // end namespace Far

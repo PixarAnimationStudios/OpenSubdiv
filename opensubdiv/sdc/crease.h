@@ -21,8 +21,8 @@
 //   KIND, either express or implied. See the Apache License for the specific
 //   language governing permissions and limitations under the Apache License.
 //
-#ifndef SDC_CREASE_H
-#define SDC_CREASE_H
+#ifndef OPENSUBDIV3_SDC_CREASE_H
+#define OPENSUBDIV3_SDC_CREASE_H
 
 #include "../version.h"
 
@@ -165,6 +165,10 @@ public:
                                           float const* incidentEdgeSharpness,
                                           float const* childEdgesSharpness) const;
 
+    void GetSharpEdgePairOfCrease(float const * incidentEdgeSharpness,
+                                  int           incidentEdgeCount,
+                                  int           sharpEdgePair[2]) const;
+
     //  Would these really help?  Maybe only need Rules for the vertex-vertex case...
     //
     //  Rule DetermineEdgeVertexRule(float parentEdgeSharpness) const;
@@ -220,10 +224,24 @@ Crease::SubdivideVertexSharpness(float vertexSharpness) const {
     return decrementSharpness(vertexSharpness);
 }
 
+inline void
+Crease::GetSharpEdgePairOfCrease(float const * incidentEdgeSharpness, int incidentEdgeCount,
+                                 int sharpEdgePair[2]) const {
+
+    //  Only to be called when a crease is present at a vertex -- exactly two sharp
+    //  edges are expected here:
+    //
+    sharpEdgePair[0] = 0;
+    while (IsSmooth(incidentEdgeSharpness[sharpEdgePair[0]])) ++ sharpEdgePair[0];
+
+    sharpEdgePair[1] = incidentEdgeCount - 1;
+    while (IsSmooth(incidentEdgeSharpness[sharpEdgePair[1]])) -- sharpEdgePair[1];
+}
+
 } // end namespace sdc
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 } // end namespace OpenSubdiv
 
-#endif /* SDC_CREASE_H */
+#endif /* OPENSUBDIV3_SDC_CREASE_H */
