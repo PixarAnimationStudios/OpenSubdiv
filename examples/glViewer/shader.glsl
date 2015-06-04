@@ -177,16 +177,8 @@ void emit(int index, vec3 normal)
     outpt.v.patchCoord = inpt[index].v.patchCoord;
 #ifdef SMOOTH_NORMALS
     outpt.v.normal = inpt[index].v.normal;
-#if defined(SHADING_ANALYTIC_CURVATURE)
-    outpt.v.Nu = inpt[index].v.Nu;
-    outpt.v.Nv = inpt[index].v.Nv;
-#endif
 #else
     outpt.v.normal = normal;
-#if defined(SHADING_ANALYTIC_CURVATURE)
-    outpt.v.Nu = vec3(0);
-    outpt.v.Nv = vec3(0);
-#endif
 #endif
 
 #ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
@@ -486,7 +478,6 @@ getAdaptivePatchColor(ivec3 patchParam)
 void
 main()
 {
-    vec3 Nobj = (ModelViewInverseMatrix * vec4(inpt.v.normal, 0)).xyz;
     vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
 
 #if defined(SHADING_VARYING_COLOR)
@@ -509,15 +500,7 @@ main()
 
 #if defined(SHADING_NORMAL)
     Cf.rgb = N;
-#elif defined(SHADING_CURVATURE)
-    vec3 pc = fwidth(inpt.v.position.xyz);
-    Cf.rgb = 0.1 * fwidth(Nobj) / length(pc);
-#elif defined(SHADING_ANALYTIC_CURVATURE)
-    // XXX: why need to scale by level?
-    int level = OsdGetPatchFaceLevel(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID)));
-    Cf.rgb = 0.1 * level *(abs(inpt.v.Nu) + abs(inpt.v.Nv));
 #endif
-
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     Cf = edgeColor(Cf, inpt.edgeDistance);
