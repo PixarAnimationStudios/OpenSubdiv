@@ -37,8 +37,8 @@ Release 3.0
 OpenSubdiv 3.0 represents a landmark release, with profound changes to the core
 algorithms, simplified APIs, and streamlined GPU execution. Providing
 faster, more efficient, and more flexible subdivision code remains our
-principal goal, to achieve this goal, OpenSubdiv 3.0 introduces many
-improvements that constitute a fairly radical departure from our previous
+principal goal. To achieve this, OpenSubdiv 3.0 introduces many
+improvements that constitute a fairly radical departure from previous
 versions.
 
 ----
@@ -55,24 +55,31 @@ A major focus of the 3.0 release is performance. It should provide
 "out-of-the-box" speed-ups close to an order of magnitude for topology
 refinement and analysis (both uniform and adaptive).
 
-**Faster GPU Kernels**
+**Faster, Simpler GPU Kernels**
 
 On the GPU side, the replacement of subdivision tables with stencils greatly 
-bottlenecks in compute that can yield as much as 4x faster interpolation. At
-the same time, stencils reduce the complexity of interpolation to a single
+reduces bottlenecks in compute, yielding as much as a 4x interpolation speed-up. 
+At the same time, stencils reduce the complexity of interpolation to a single 
 kernel launch per primitive, a critical improvement for mobile platforms.
-Compute batching is now trivial.
+
+As a result of these changes, compute batching is now trivial, which in turn
+enabled API simplifications in the Osd layer.
 
 **Unified Adaptive Shaders**
 
-Adaptive tessellation has been reduced to a single shader configuration in the
-best case and two shaders in the worst case, a massive improvement over the 2x
-code base.
+Adaptive tessellation shader configurations have been greatly simplified. The 
+number of shader configurations has been reduced from a combinatorial per-patch 
+explosion down to a constant two global configurations. This massive improvement 
+over the 2.x code base results in significantly faster load times and a reduced
+per-frame cost for adaptive drawing.
+
+Similar to compute kernel simplification, this shader simplification has resulted
+in additional simplifications in the Osd layer.
 
 **New End-Cap Approximations**
 
 While "legacy" Gregory patch support is still available, we have introduced
-several end cap options: Legacy Gregory, fast Gregory Basis stencils, and
+several new end cap options: Legacy Gregory, fast Gregory Basis stencils, and
 BSpline patches. Gregory basis stencils provide the same high quality
 approximation of Legacy Gregory patches, but execute considerably faster with a
 simpler GPU representation. While BSpline patches are not as close an
@@ -309,14 +316,21 @@ feedback. Large swaths of the API have changed since the beta release, to the
 overall benefit of the library. These changes lay a strong foundation for 
 future, stable 3.0 point releases.
 
-Notable changes in between 3.0-beta and 3.0-RC1 include:
+Notable API changes in between 3.0-beta and 3.0-RC1 include:
 
- * TopologyRefiner was split into several classes to simplify and clarify
-   the API.
+ * TopologyRefiner was split into several classes to clarify and focus
+   the API. Specifically, Far::TopologyLevel and all level-specific API was moved
+   from Far::TopologyRefiner to this new class. Similarly, Far::PrimvarInterpolator
+   is the new home for Interpolate() and Limit(). 
    
- * The Osd layer was largely reworked, removing old designs that were
-   originally inteded to support large numbers of kernel and shader
-   configurations (thanks to stencils and unified shading)
+ * Interpolation of Vertex and Varying primvars in a single pass is no longer 
+   supported. As a result, AddVaryingWithWeight() is no longer required and 
+   InterpolateVarying() must be called explicitly, which calls AddWithWeight(),
+   instead of AddVaryingWithWeight().
+   
+ * The Osd layer was largely refactored to remove old designs that were
+   originally required to support large numbers of kernel and shader
+   configurations (thanks to stencils and unified shading).
 
 Beta Release Notes
 ==================
