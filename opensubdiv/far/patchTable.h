@@ -352,22 +352,22 @@ private:
     struct FVarPatchChannel;
     typedef std::vector<FVarPatchChannel> FVarPatchChannelVector;
 
-    FVarPatchChannel & getFVarPatchChannel(int channel = 0);
-    FVarPatchChannel const & getFVarPatchChannel(int channel = 0) const;
+    FVarPatchChannel & getFVarPatchChannel(int channel);
+    FVarPatchChannel const & getFVarPatchChannel(int channel) const;
 
     void allocateFVarPatchChannels(int numChannels);
     void allocateFVarPatchChannelValues(
-        int numPatches, int numVerticesTotal, int channel = 0);
+        int numPatches, int numVerticesTotal, int channel);
 
     void setFVarPatchChannelLinearInterpolation(
-        Sdc::Options::FVarLinearInterpolation interpolation, int channel = 0);
+        Sdc::Options::FVarLinearInterpolation interpolation, int channel);
 
 
-    PatchDescriptor::Type getFVarPatchType(int patch, int channel = 0) const;
-    Vtr::Array<PatchDescriptor::Type> getFVarPatchTypes(int channel = 0);
+    PatchDescriptor::Type getFVarPatchType(int patch, int channel) const;
+    Vtr::Array<PatchDescriptor::Type> getFVarPatchTypes(int channel);
 
-    IndexArray getFVarValues(int channel = 0);
-    ConstIndexArray getPatchFVarValues(int patch, int channel = 0) const;
+    IndexArray getFVarValues(int channel);
+    ConstIndexArray getPatchFVarValues(int patch, int channel) const;
 
 
 private:
