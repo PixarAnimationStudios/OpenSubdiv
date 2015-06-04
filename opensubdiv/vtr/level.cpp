@@ -948,10 +948,10 @@ Level::gatherQuadRegularCornerPatchPoints(
         intFacePoints  = level.getFaceVertices(intFace);
         nextFacePoints = level.getFaceVertices(nextFace);
     } else {
-        thisFacePoints = level.getFaceFVarValues(face);
-        prevFacePoints = level.getFaceFVarValues(prevFace);
-        intFacePoints  = level.getFaceFVarValues(intFace);
-        nextFacePoints = level.getFaceFVarValues(nextFace);
+        thisFacePoints = level.getFaceFVarValues(face, fvarChannel);
+        prevFacePoints = level.getFaceFVarValues(prevFace, fvarChannel);
+        intFacePoints  = level.getFaceFVarValues(intFace, fvarChannel);
+        nextFacePoints = level.getFaceFVarValues(nextFace, fvarChannel);
     }
 
     patchPoints[0] = thisFacePoints[         cornerVertInFace];
