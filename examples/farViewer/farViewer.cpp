@@ -783,6 +783,22 @@ createFarGLMesh(Shape * shape, int maxlevel) {
                  GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+    // compute model bounds
+    float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
+    float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (size_t i=0; i <vertexBuffer.size(); ++i) {
+        for(int j=0; j<3; ++j) {
+            float v = vertexBuffer[i].GetPos()[j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
+    }
+    for (int j=0; j<3; ++j) {
+        g_center[j] = (min[j] + max[j]) * 0.5f;
+        g_size += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    g_size = sqrtf(g_size);
+
     delete refiner;
     delete patchTable;
 }
@@ -1219,13 +1235,13 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.AddCheckBox("Control Edges (e)", g_controlMeshDisplay.GetEdgesDisplay(),
-                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'e');
-    g_hud.AddCheckBox("Control Verts (r)", g_controlMeshDisplay.GetVerticesDisplay(),
-                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'r');
+    g_hud.AddCheckBox("Control edges (H)", g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    g_hud.AddCheckBox("Control vertices (J)", g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
 
 
-    int pulldown = g_hud.AddPullDown("Far Draw Mode (f)", 10, 195, 250, callbackFarDrawMode, 'f');
+    int pulldown = g_hud.AddPullDown("Far Draw Mode (W)", 10, 195, 250, callbackFarDrawMode, 'w');
     g_hud.AddPullDownButton(pulldown, "Vertices",  0, g_FarDrawMode==kDRAW_VERTICES);
     g_hud.AddPullDownButton(pulldown, "Wireframe", 1, g_FarDrawMode==kDRAW_WIREFRAME);
     g_hud.AddPullDownButton(pulldown, "Faces",     2, g_FarDrawMode==kDRAW_FACES);
@@ -1237,7 +1253,7 @@ initHUD() {
     g_hud.AddCheckBox("Edge Sharp", g_FarDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 4);
     g_hud.AddCheckBox("Gregory Basis", g_FarDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 5);
 
-    g_hud.AddCheckBox("Use Stencils (s)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
+    g_hud.AddCheckBox("Use Stencils (S)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
     g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 370, callbackAdaptive, 0, '`');
 
 
