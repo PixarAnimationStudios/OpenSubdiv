@@ -76,6 +76,16 @@ per-frame cost for adaptive drawing.
 Similar to compute kernel simplification, this shader simplification has resulted
 in additional simplifications in the Osd layer.
 
+**Single Crease Patch**
+
+OpenSubdiv 3.0 newly implements efficient evaluation of semi-smooth
+creases(*) using single crease patches. With this optimization,
+high-order edge sharpness tags can be handled very efficiently for both
+computation time and memory consumption.
+
+(*) Niessner et al., Efficient Evaluation of Semi-Smooth Creases in
+Catmull-Clark Subdivision Surfaces. Eurographics (Short Papers). 2012.
+
 **New End-Cap Approximations**
 
 While "legacy" Gregory patch support is still available, we have introduced
@@ -87,6 +97,10 @@ approximation as Gregory patches, they enable an entire adaptively refined
 mesh to be drawn with screen space tessellation via a single global shader 
 configuration (Gregory Basis end caps require one additional global shader 
 configuration).
+
+The new implementations of GregoryBasis and BSpline endcaps relax the previous
+max valence limit. Users are still encouraged to use models with vertices of
+low valence for improved performance.
 
 ----
 
