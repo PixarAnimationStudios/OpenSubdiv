@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0.0.Beta Release Notes
+3.0.0 Release Notes
 ------------------------
 
 .. contents::
@@ -34,45 +34,70 @@
 Release 3.0
 ===========
 
-OpenSubdiv 3.0 represents a landmark release, with very profound changes to the
-core algorithms. While providing faster, more efficient, and more flexible
-subdivision code remains our principal goal, OpenSubdiv 3.0 introduces many
-improvements that constitute a fairly radical departure from our previous
+OpenSubdiv 3.0 represents a landmark release, with profound changes to the core
+algorithms, simplified APIs, and streamlined GPU execution. Providing
+faster, more efficient, and more flexible subdivision code remains our
+principal goal. To achieve this, OpenSubdiv 3.0 introduces many
+improvements that constitute a fairly radical departure from previous
 versions.
 
 ----
 
-Improved performance
+Improved Performance
 ********************
 
 Release 3.0.0 of OpenSubdiv introduces a new set of data structures and
 algorithms that greatly enhance performance over previous versions.
 
-This release focuses mostly on the CPU side, and  should provide
+**Faster Subdivision**
+
+A major focus of the 3.0 release is performance. It should provide
 "out-of-the-box" speed-ups close to an order of magnitude for topology
-refinement and analysis (both uniform and adaptive). Please note: a very large
-portion of the 2.x code base has been completely replaced or deprecated.
+refinement and analysis (both uniform and adaptive).
 
-On the GPU side, the replacement of subdivision tables with stencils allows
-us to remove several bottlenecks in the Compute area that can yield as much as
-4x faster interpolation on CUDA platforms. At the same time, stencils also
-reduce the dozens of kernel launches required per primitive to a single one (this
-was a known issue on certain mobile platforms). Compute calls batching is now
-trivial.
+**Faster, Simpler GPU Kernels**
 
-We will continue releasing features and improvements throughout the release
-cycle, both to match the feature set of previous releases, and to further the
-general optimization strategy described above.
+On the GPU side, the replacement of subdivision tables with stencils greatly 
+reduces bottlenecks in compute, yielding as much as a 4x interpolation speed-up. 
+At the same time, stencils reduce the complexity of interpolation to a single 
+kernel launch per primitive, a critical improvement for mobile platforms.
+
+As a result of these changes, compute batching is now trivial, which in turn
+enabled API simplifications in the Osd layer.
+
+**Unified Adaptive Shaders**
+
+Adaptive tessellation shader configurations have been greatly simplified. The 
+number of shader configurations has been reduced from a combinatorial per-patch 
+explosion down to a constant two global configurations. This massive improvement 
+over the 2.x code base results in significantly faster load times and a reduced
+per-frame cost for adaptive drawing.
+
+Similar to compute kernel simplification, this shader simplification has resulted
+in additional simplifications in the Osd layer.
+
+**New End-Cap Approximations**
+
+While "legacy" Gregory patch support is still available, we have introduced
+several new end cap options: Legacy Gregory, fast Gregory Basis stencils, and
+BSpline patches. Gregory basis stencils provide the same high quality
+approximation of Legacy Gregory patches, but execute considerably faster with a
+simpler GPU representation. While BSpline patches are not as close an
+approximation as Gregory patches, they enable an entire adaptively refined
+mesh to be drawn with screen space tessellation via a single global shader 
+configuration (Gregory Basis end caps require one additional global shader 
+configuration).
 
 ----
 
-New topology entry-points
-*************************
+Simpler Topology Entry-Points
+*****************************
 
 OpenSubdiv 3.0 introduces several new entry-points for client topology. Previous
 releases forced client applications to define and populate instances of an Hbr
 half-edge topology representation. For many applications, this representation
-was both redundant and inefficient.
+was both redundant and inefficient. The new primary entry point is simpler, more
+flexible and more efficient.
 
 OpenSubdiv 3.0 introduces a new *intermediate* topological representation, named
 **Vtr** (Vectorized Topology Representation). The topological relationships
@@ -167,10 +192,6 @@ some much needed updates to our code-style guidelines and general conventions,
 throughout the entire OpenSubdiv code-base. We are hoping to drastically
 improve the quality, consistency and readability of the source code.
 
-While the bulk of code refactoring is mostly in place, we are still tweaking
-some of the finer details. After this Beta release we are not anticipating any
-further significant changes.
-
 ----
 
 New Tutorials
@@ -222,16 +243,10 @@ parties, the following changes have been implemented:
       from the averaging in 3.0 to allow proper decay of a semi-sharp edge
       to 0), all other deviations found have been identified as flaws in the
       implementation of 2.x (and are not easily corrected).
-      
-      We will review input from the community on this matter during the Beta
-      release cycle.
 
 In all cases, features in active use are not being removed but simply
 re-expressed in what is hoped to be a clearer interface.
 
-We will welcome feedback and constructive comments as we deploy these changes.
-We hope to converge toward a general consensus and lock these APIs by the end
-of Beta cycle.
 
 Face-varying Interpolation Rules
 ********************************
@@ -288,6 +303,34 @@ will consider re-implementing them in future releases, as time and resources
 allow.
 
 ----
+
+RC1 Release Notes
+==================
+
+Release Candidate 1 is a short-lived release intended for stabilization before
+the official 3.0 release.  The APIs are now locked restricted to bug fixes and
+documentation changes.
+
+It's been a very active beta cycle and we've received and incorporated great
+feedback. Large swaths of the API have changed since the beta release, to the
+overall benefit of the library. These changes lay a strong foundation for 
+future, stable 3.0 point releases.
+
+Notable API changes in between 3.0-beta and 3.0-RC1 include:
+
+ * TopologyRefiner was split into several classes to clarify and focus
+   the API. Specifically, Far::TopologyLevel and all level-specific API was moved
+   from Far::TopologyRefiner to this new class. Similarly, Far::PrimvarInterpolator
+   is the new home for Interpolate() and Limit(). 
+   
+ * Interpolation of Vertex and Varying primvars in a single pass is no longer 
+   supported. As a result, AddVaryingWithWeight() is no longer required and 
+   InterpolateVarying() must be called explicitly, which calls AddWithWeight(),
+   instead of AddVaryingWithWeight().
+   
+ * The Osd layer was largely refactored to remove old designs that were
+   originally required to support large numbers of kernel and shader
+   configurations (thanks to stencils and unified shading).
 
 Beta Release Notes
 ==================

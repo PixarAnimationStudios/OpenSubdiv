@@ -40,7 +40,13 @@
 
 #if defined(OPENSUBDIV_HAS_DX11SDK)
 #include <D3D11.h>
+
+#if defined(OPENSUBDIV_HAS_CL_D3D11_H)
 #include <CL/cl_d3d11.h>
+#elif defined(OPENSUBDIV_HAS_CL_D3D11_EXT_H)
+#include <CL/cl_d3d11_ext.h>
+#endif
+
 #endif
 
 
@@ -272,7 +278,9 @@ CLDeviceContext::Initialize() {
 bool
 CLD3D11DeviceContext::Initialize(ID3D11DeviceContext *d3dDeviceContext) {
 
-#if defined(OPENSUBDIV_HAS_DX11SDK)
+#if defined(OPENSUBDIV_HAS_DX11SDK) && \
+    (defined(OPENSUBDIV_HAS_CL_D3D11_H) || defined(OPENSUBDIV_HAS_CL_D3D11_EXT_H))
+
     _d3dDeviceContext = d3dDeviceContext;
 
     cl_int ciErrNum;
@@ -281,11 +289,19 @@ CLD3D11DeviceContext::Initialize(ID3D11DeviceContext *d3dDeviceContext) {
     ID3D11Device *device;
     d3dDeviceContext->GetDevice(&device);
 
+#if defined(OPENSUBDIV_HAS_CL_D3D11_H)
     cl_context_properties props[] = {
         CL_CONTEXT_D3D11_DEVICE_KHR, (cl_context_properties)device,
         CL_CONTEXT_PLATFORM, (cl_context_properties)cpPlatform,
         0
     };
+#elif defined(OPENSUBDIV_HAS_CL_D3D11_EXT_H)
+    cl_context_properties props[] = {
+        CL_CONTEXT_D3D11_DEVICE_NV, (cl_context_properties)device,
+        CL_CONTEXT_PLATFORM, (cl_context_properties)cpPlatform,
+        0
+    };
+#endif
 
     // get the number of GPU devices available to the platform
     cl_uint numDevices = 0;

@@ -71,6 +71,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test5",    catmark_gregory_test5,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test6",    catmark_gregory_test6,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test7",    catmark_gregory_test7,    kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test8",    catmark_gregory_test8,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_hole_test1",       catmark_hole_test1,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_hole_test2",       catmark_hole_test2,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_hole_test3",       catmark_hole_test3,       kCatmark ) );

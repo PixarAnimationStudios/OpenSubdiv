@@ -457,7 +457,8 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
 
         // default to solid color
 
-        float const * color=0;
+        static float quadColor[3] = { 1.0f, 1.0f, 0.0f };
+        float const * color = quadColor;
 
         // wireframe indices
         int * basisedges = (int *)alloca(2*nedgesperpatch*sizeof(int)),
@@ -480,23 +481,8 @@ GLMesh::InitializeFVar(Options options, TopologyRefiner const & refiner,
             *ptr++ = tessFactor * (tessFactor-1) + i+1;
         }
 
-        OpenSubdiv::Far::PatchTable::PatchHandle handle;
         for (int patch=0, offset=0; patch<npatches; ++patch) {
 
-            if (options.edgeColorMode==EDGECOLOR_BY_PATCHTYPE) {
-
-                handle.patchIndex = patch;
-                OpenSubdiv::Far::PatchDescriptor::Type type =
-                    patchTable->GetFVarPatchType(channel, handle);
-
-                if (OpenSubdiv::Far::PatchDescriptor::IsAdaptive(type)) {
-                    color = getAdaptivePatchColor(
-                        OpenSubdiv::Far::PatchDescriptor(type));
-                } else {
-                    static float quadColor[3] = { 1.0f, 1.0f, 0.0f };
-                    color = quadColor;
-                }
-            }
             assert(color);
 
             for (int edge=0; edge<nedgesperpatch; ++edge) {

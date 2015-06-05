@@ -205,13 +205,13 @@ public:
     bool isFaceHole(Index faceIndex) const;
 
     // Face-varying
-    Sdc::Options getFVarOptions(int channel = 0) const; 
+    Sdc::Options getFVarOptions(int channel) const; 
     int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
-    int getNumFVarValues(int channel = 0) const;
-    ConstIndexArray getFVarFaceValues(Index faceIndex, int channel = 0) const;
+    int getNumFVarValues(int channel) const;
+    ConstIndexArray getFaceFVarValues(Index faceIndex, int channel) const;
 
-    FVarLevel & getFVarLevel(int channel = 0) { return *_fvarChannels[channel]; }
-    FVarLevel const & getFVarLevel(int channel = 0) const { return *_fvarChannels[channel]; }
+    FVarLevel & getFVarLevel(int channel) { return *_fvarChannels[channel]; }
+    FVarLevel const & getFVarLevel(int channel) const { return *_fvarChannels[channel]; }
 
     //  Manifold/non-manifold tags:
     void setEdgeNonManifold(Index edgeIndex, bool b);
@@ -327,9 +327,9 @@ public:
 
     //  Create, destroy and populate face-varying channels:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
-    void destroyFVarChannel(int channel = 0);
+    void destroyFVarChannel(int channel);
 
-    IndexArray getFVarFaceValues(Index faceIndex, int channel = 0);
+    IndexArray getFaceFVarValues(Index faceIndex, int channel);
 
     void completeFVarChannelTopology(int channel, int regBoundaryValence);
 

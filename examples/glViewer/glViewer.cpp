@@ -145,9 +145,7 @@ enum ShadingMode { kShadingMaterial,
                    kShadingFaceVaryingColor,
                    kShadingPatchType,
                    kShadingPatchCoord,
-                   kShadingNormal,
-                   kShadingCurvature,
-                   kShadingAnalyticCurvature };
+                   kShadingNormal };
 
 enum EndCap      { kEndCapNone = 0,
                    kEndCapBSplineBasis,
@@ -259,8 +257,7 @@ struct FVarData
     void Create(OpenSubdiv::Far::PatchTable const *patchTable,
                 int fvarWidth, std::vector<float> const & fvarSrcData) {
         Release();
-        OpenSubdiv::Far::ConstIndexArray indices =
-            patchTable->GetFVarPatchesValues(0);
+        OpenSubdiv::Far::ConstIndexArray indices = patchTable->GetFVarValues();
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -761,6 +758,9 @@ public:
         case kShadingFaceVaryingColor:
             ss << "#define OSD_FVAR_WIDTH 2\n";
             ss << "#define SHADING_FACEVARYING_COLOR\n";
+            if (not effectDesc.desc.IsAdaptive()) {
+                ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
+            }
             break;
         case kShadingPatchType:
             ss << "#define SHADING_PATCH_TYPE\n";
@@ -770,13 +770,6 @@ public:
             break;
         case kShadingNormal:
             ss << "#define SHADING_NORMAL\n";
-            break;
-        case kShadingCurvature:
-            ss << "#define SHADING_CURVATURE\n";
-            break;
-        case kShadingAnalyticCurvature:
-            ss << "#define OSD_COMPUTE_NORMAL_DERIVATIVES\n";
-            ss << "#define SHADING_ANALYTIC_CURVATURE\n";
             break;
         }
 
@@ -1510,12 +1503,6 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Normal",
                             kShadingNormal,
                             g_shadingMode == kShadingNormal);
-    g_hud.AddPullDownButton(shading_pulldown, "Curvature",
-                            kShadingCurvature,
-                            g_shadingMode == kShadingCurvature);
-    g_hud.AddPullDownButton(shading_pulldown, "Analytic Curvature",
-                            kShadingAnalyticCurvature,
-                            g_shadingMode == kShadingAnalyticCurvature);
 
     int compute_pulldown = g_hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud.AddPullDownButton(compute_pulldown, "CPU", kCPU);

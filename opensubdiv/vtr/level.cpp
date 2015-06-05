@@ -627,7 +627,7 @@ Level::gatherQuadRegularRingAroundVertex(
         //
         ConstIndexArray fPoints = (fvarChannel < 0)
                                 ? level.getFaceVertices(vFaces[i])
-                                : level.getFVarFaceValues(vFaces[i], fvarChannel);
+                                : level.getFaceFVarValues(vFaces[i], fvarChannel);
 
         int vInThisFace = vInFaces[i];
 
@@ -663,7 +663,7 @@ Level::gatherQuadLinearPatchPoints(
 
     ConstIndexArray facePoints = (fvarChannel < 0) ?
                                  level.getFaceVertices(thisFace) :
-                                 level.getFVarFaceValues(thisFace, fvarChannel);
+                                 level.getFaceFVarValues(thisFace, fvarChannel);
 
     patchPoints[0] = facePoints[rotatedVerts[0]];
     patchPoints[1] = facePoints[rotatedVerts[1]];
@@ -713,7 +713,7 @@ Level::gatherQuadRegularInteriorPatchPoints(
     ConstIndexArray thisFaceVerts = level.getFaceVertices(thisFace);
 
     ConstIndexArray facePoints = (fvarChannel < 0) ? thisFaceVerts :
-                                 level.getFVarFaceValues(thisFace, fvarChannel);
+                                 level.getFaceFVarValues(thisFace, fvarChannel);
 
     patchPoints[0] = facePoints[rotatedVerts[0]];
     patchPoints[1] = facePoints[rotatedVerts[1]];
@@ -739,7 +739,7 @@ Level::gatherQuadRegularInteriorPatchPoints(
         int   vInIntFace = vInFaces[intFaceInVFaces];
 
         facePoints = (fvarChannel < 0) ? level.getFaceVertices(intFace) :
-                     level.getFVarFaceValues(intFace, fvarChannel);
+                     level.getFaceFVarValues(intFace, fvarChannel);
 
         patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 1)];
         patchPoints[pointIndex++] = facePoints[fastMod4(vInIntFace + 2)];
@@ -844,11 +844,11 @@ Level::gatherQuadRegularBoundaryPatchPoints(
         intV1FacePoints = level.getFaceVertices(intV1Face);
         nextFacePoints  = level.getFaceVertices(nextFace);
     } else {
-        thisFacePoints  = level.getFVarFaceValues(face, fvarChannel);
-        prevFacePoints  = level.getFVarFaceValues(prevFace, fvarChannel);
-        intV0FacePoints = level.getFVarFaceValues(intV0Face, fvarChannel);
-        intV1FacePoints = level.getFVarFaceValues(intV1Face, fvarChannel);
-        nextFacePoints  = level.getFVarFaceValues(nextFace, fvarChannel);
+        thisFacePoints  = level.getFaceFVarValues(face, fvarChannel);
+        prevFacePoints  = level.getFaceFVarValues(prevFace, fvarChannel);
+        intV0FacePoints = level.getFaceFVarValues(intV0Face, fvarChannel);
+        intV1FacePoints = level.getFaceFVarValues(intV1Face, fvarChannel);
+        nextFacePoints  = level.getFaceFVarValues(nextFace, fvarChannel);
     }
 
     patchPoints[0] = thisFacePoints[fastMod4(boundaryEdgeInFace + 1)];
@@ -948,10 +948,10 @@ Level::gatherQuadRegularCornerPatchPoints(
         intFacePoints  = level.getFaceVertices(intFace);
         nextFacePoints = level.getFaceVertices(nextFace);
     } else {
-        thisFacePoints = level.getFVarFaceValues(face);
-        prevFacePoints = level.getFVarFaceValues(prevFace);
-        intFacePoints  = level.getFVarFaceValues(intFace);
-        nextFacePoints = level.getFVarFaceValues(nextFace);
+        thisFacePoints = level.getFaceFVarValues(face, fvarChannel);
+        prevFacePoints = level.getFaceFVarValues(prevFace, fvarChannel);
+        intFacePoints  = level.getFaceFVarValues(intFace, fvarChannel);
+        nextFacePoints = level.getFaceFVarValues(nextFace, fvarChannel);
     }
 
     patchPoints[0] = thisFacePoints[         cornerVertInFace];
@@ -1951,12 +1951,12 @@ Level::getFVarOptions(int channel) const {
 }
 
 ConstIndexArray
-Level::getFVarFaceValues(Index faceIndex, int channel) const {
+Level::getFaceFVarValues(Index faceIndex, int channel) const {
     return _fvarChannels[channel]->getFaceValues(faceIndex);
 }
 
 IndexArray
-Level::getFVarFaceValues(Index faceIndex, int channel) {
+Level::getFaceFVarValues(Index faceIndex, int channel) {
     return _fvarChannels[channel]->getFaceValues(faceIndex);
 }
 

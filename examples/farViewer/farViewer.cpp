@@ -393,14 +393,13 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
         handle.patchIndex = patch;
 
         OpenSubdiv::Far::ConstIndexArray const cvs =
-            patchTable.GetFVarPatchValues(channel, handle);
+            patchTable.GetPatchFVarValues(handle, channel);
 
         for (int i=0; i<cvs.size(); ++i) {
             snprintf(buf, 16, "%d", i);
             g_font->Print3D(fvarBuffer[cvs[i]].GetPos(), buf, 2);
         }
 
-        g_currentFVarPatchType = patchTable.GetFVarPatchType(channel, handle);
     }
 }
 
@@ -440,6 +439,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
         std::vector<Vertex> verts(nverts);
         memset(&verts[0], 0, verts.size()*sizeof(Vertex));
 
+        /*
         OpenSubdiv::Far::PatchTable::PatchHandle handle;
 
         Vertex * vert = &verts[0];
@@ -452,6 +452,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
                 }
             }
         }
+        */
 
         GLMesh::Options options;
         options.edgeColorMode = GLMesh::EDGECOLOR_BY_PATCHTYPE;
@@ -632,10 +633,6 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         if (createFVarWire) {
 
             // interpolate fvar values
-
-            //Far::FVarPatchTable const * fvarTable =
-            //    patchTable->GetFVarPatchTable();
-            //assert(fvarTable);
 
             int channel = 0;
 

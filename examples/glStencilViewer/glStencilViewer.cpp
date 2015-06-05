@@ -960,7 +960,9 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
-    g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
+        g_hud.AddPullDownButton(compute_pulldown, "OpenCL", kCL);
+    }
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     g_hud.AddPullDownButton(compute_pulldown, "GL XFB", kGLXFB);
