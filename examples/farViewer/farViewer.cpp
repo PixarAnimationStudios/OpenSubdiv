@@ -57,6 +57,7 @@ GLFWmonitor* g_primary=0;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glUtils.h"
+#include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
 
 #include "init_shapes.h"
@@ -74,8 +75,8 @@ GLFWmonitor* g_primary=0;
 int g_level = 3,
     g_currentShape = 7;
 
-enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
-                   kHUD_CB_DISPLAY_CAGE_VERTS,
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR };
 
@@ -93,8 +94,6 @@ int   g_fullscreen = 0,
       g_running = 1;
 
 int   g_displayPatchColor    = 1,               
-      g_drawCageEdges        = 1,               
-      g_drawCageVertices     = 0,               
       g_FarDrawMode          = kDRAW_FACES,      
       g_FarDrawVertIDs       = false,           
       g_FarDrawEdgeIDs       = false,           
@@ -151,8 +150,10 @@ struct Transform {
     float ModelViewProjectionMatrix[16];
 } g_transformData;
 
-static GLMesh g_base_glmesh,
-              g_far_glmesh;
+static GLMesh g_far_glmesh;
+
+static GLControlMeshDisplay g_controlMeshDisplay;
+static GLuint g_controlMeshDisplayVBO = 0;
 
 
 //------------------------------------------------------------------------------
@@ -769,6 +770,19 @@ createFarGLMesh(Shape * shape, int maxlevel) {
 
     g_far_glmesh.InitializeDeviceBuffers();
 
+    // save coarse topology (used for control mesh display)
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
+
+    // save coarse points in a GPU buffer (used for control mesh display)
+    if (not g_controlMeshDisplayVBO) {
+        glGenBuffers(1, &g_controlMeshDisplayVBO);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, g_controlMeshDisplayVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 3*sizeof(float)*vertexBuffer.size(), (GLfloat*)&vertexBuffer[0],
+                 GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     delete refiner;
     delete patchTable;
 }
@@ -878,14 +892,9 @@ display() {
 
     // Draw stuff ------------------------------------------
 
-    // control cage edges & verts
-    if (g_drawCageVertices) {
-        g_base_glmesh.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
-    }
-
-    if (g_drawCageEdges) {
-        g_base_glmesh.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
-    }
+    // control mesh edges & verts
+    g_controlMeshDisplay.Draw(g_controlMeshDisplayVBO, 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
     // Far mesh
     GLMesh::Component comp=GLMesh::COMP_VERT;
@@ -1113,9 +1122,15 @@ static void
 callbackCheckBox(bool checked, int button) {
 
     switch (button) {
-        case kHUD_CB_DISPLAY_CAGE_EDGES : g_drawCageEdges = checked; break;
-        case kHUD_CB_DISPLAY_CAGE_VERTS : g_drawCageVertices = checked; break;
-        case kHUD_CB_DISPLAY_PATCH_COLOR: g_displayPatchColor = checked; break;
+        case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES :
+            g_controlMeshDisplay.SetEdgesDisplay(checked);
+            break;
+        case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS :
+            g_controlMeshDisplay.SetVerticesDisplay(checked);
+            break;
+        case kHUD_CB_DISPLAY_PATCH_COLOR:
+            g_displayPatchColor = checked;
+            break;
     }
 }
 
@@ -1199,10 +1214,10 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.AddCheckBox("Cage Edges (e)", g_drawCageEdges != 0,
-                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'e');
-    g_hud.AddCheckBox("Cage Verts (r)", g_drawCageVertices != 0,
-                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'r');
+    g_hud.AddCheckBox("Control Edges (e)", g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'e');
+    g_hud.AddCheckBox("Control Verts (r)", g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'r');
 
 
     int pulldown = g_hud.AddPullDown("Far Draw Mode (f)", 10, 195, 250, callbackFarDrawMode, 'f');
