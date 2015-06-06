@@ -1634,7 +1634,7 @@ int main(int argc, char ** argv) {
             fullscreen = true;
 		}
 
-		else if (strcmp(argv[i], "-disable_glew_experimental") == 0){
+		else if (strcmp(argv[i], "-x") == 0){
 			//disable it at runtime for certain buggy drivers
 			disable_glew_experimental = true;
 		}
