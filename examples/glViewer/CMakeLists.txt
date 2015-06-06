@@ -68,6 +68,4 @@ target_link_libraries(glViewer
 
 install(TARGETS glViewer DESTINATION "${CMAKE_BINDIR_BASE}")
 
-if( "${DISABLE_GLEW_EXPERIMENTAL}" STREQUAL "TRUE")
-	add_definitions(-DDISABLE_GLEW_EXPERIMENTAL)
-endif()
+
