@@ -26,7 +26,13 @@
 
 #include <cassert>
 #include <D3D11.h>
+#if defined(OPENSUBDIV_HAS_CL_D3D11_H)
 #include <CL/cl_d3d11.h>
+#elif defined(OPENSUBDIV_HAS_CL_D3D11_EXT_H)
+#include <CL/cl_d3d11_ext.h>
+#else
+#error "d3d11.h or d3d11_ext.h must be found in cmake"
+#endif
 
 #include "../far/error.h"
 
@@ -35,9 +41,19 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-static clCreateFromD3D11BufferKHR_fn clCreateFromD3D11Buffer = NULL;
-static clEnqueueAcquireD3D11ObjectsKHR_fn clEnqueueAcquireD3D11Objects = NULL;
-static clEnqueueReleaseD3D11ObjectsKHR_fn clEnqueueReleaseD3D11Objects = NULL;
+#if defined(OPENSUBDIV_HAS_CL_D3D11_H)
+typedef clCreateFromD3D11BufferKHR_fn clCreateFromD3D11Buffer_fn;
+typedef clEnqueueAcquireD3D11ObjectsKHR_fn clEnqueueAcquireD3D11Objects_fn;
+typedef clEnqueueReleaseD3D11ObjectsKHR_fn clEnqueueReleaseD3D11Objects_fn;
+#else
+typedef clCreateFromD3D11BufferNV_fn clCreateFromD3D11Buffer_fn;
+typedef clEnqueueAcquireD3D11ObjectsNV_fn clEnqueueAcquireD3D11Objects_fn;
+typedef clEnqueueReleaseD3D11ObjectsNV_fn clEnqueueReleaseD3D11Objects_fn;
+#endif
+
+static clCreateFromD3D11Buffer_fn clCreateFromD3D11Buffer = NULL;
+static clEnqueueAcquireD3D11Objects_fn clEnqueueAcquireD3D11Objects = NULL;
+static clEnqueueReleaseD3D11Objects_fn clEnqueueReleaseD3D11Objects = NULL;
 
 // XXX: clGetExtensionFunctionAddress is marked as deprecated and
 //      clGetExtensionFunctionAddressForPlatform should be used,
@@ -52,30 +68,30 @@ static void resolveInteropFunctions() {
 
     if (not clCreateFromD3D11Buffer) {
         clCreateFromD3D11Buffer =
-            (clCreateFromD3D11BufferKHR_fn)
+            (clCreateFromD3D11Buffer_fn)
             clGetExtensionFunctionAddress("clCreateFromD3D11BufferKHR");
     }
     if (not clCreateFromD3D11Buffer) {
         clCreateFromD3D11Buffer =
-            (clCreateFromD3D11BufferKHR_fn)
+            (clCreateFromD3D11Buffer_fn)
             clGetExtensionFunctionAddress("clCreateFromD3D11BufferNV");
     }
 
     if (not clEnqueueAcquireD3D11Objects) {
-        clEnqueueAcquireD3D11Objects = (clEnqueueAcquireD3D11ObjectsKHR_fn)
+        clEnqueueAcquireD3D11Objects = (clEnqueueAcquireD3D11Objects_fn)
             clGetExtensionFunctionAddress("clEnqueueAcquireD3D11ObjectsKHR");
     }
     if (not clEnqueueAcquireD3D11Objects) {
-        clEnqueueAcquireD3D11Objects = (clEnqueueAcquireD3D11ObjectsKHR_fn)
+        clEnqueueAcquireD3D11Objects = (clEnqueueAcquireD3D11Objects_fn)
             clGetExtensionFunctionAddress("clEnqueueAcquireD3D11ObjectsNV");
     }
 
     if (not clEnqueueReleaseD3D11Objects) {
-        clEnqueueReleaseD3D11Objects = (clEnqueueReleaseD3D11ObjectsKHR_fn)
+        clEnqueueReleaseD3D11Objects = (clEnqueueReleaseD3D11Objects_fn)
             clGetExtensionFunctionAddress("clEnqueueReleaseD3D11ObjectsKHR");
     }
     if (not clEnqueueReleaseD3D11Objects) {
-        clEnqueueReleaseD3D11Objects = (clEnqueueReleaseD3D11ObjectsKHR_fn)
+        clEnqueueReleaseD3D11Objects = (clEnqueueReleaseD3D11Objects_fn)
             clGetExtensionFunctionAddress("clEnqueueReleaseD3D11ObjectsNV");
     }
 }

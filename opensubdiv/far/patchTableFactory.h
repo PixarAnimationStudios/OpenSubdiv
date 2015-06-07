@@ -94,7 +94,9 @@ public:
              endCapType(ENDCAP_GREGORY_BASIS),
              shareEndCapPatchPoints(true),
              generateFVarTables(false),
+#ifdef FAR_FVAR_SMOOTH_PATCH
              useFVarQuadEndCaps(true), // XXXX change to false when FVar Gregory is ready
+#endif
              numFVarChannels(-1),
              fvarChannelIndices(0)
         { }
@@ -116,8 +118,10 @@ public:
                                                   ///< currently only work with GregoryBasis.
 
                      // face-varying
-                     generateFVarTables   : 1, ///< Generate face-varying patch tables
-                     useFVarQuadEndCaps   : 1; ///< Use bilinear quads as end-caps around extraordinary vertices
+                     generateFVarTables   : 1;///< Generate face-varying patch tables
+#ifdef FAR_FVAR_SMOOTH_PATCH
+        unsigned int useFVarQuadEndCaps   : 1; ///< Use bilinear quads as end-caps around extraordinary vertices
+#endif
 
         int          numFVarChannels;          ///< Number of channel indices and interpolation modes passed
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory

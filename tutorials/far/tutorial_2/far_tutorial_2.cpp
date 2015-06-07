@@ -30,7 +30,7 @@
 // refine it uniformly and then interpolate additional sets of primvar data.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyDescriptor.h>
 #include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
@@ -219,7 +219,7 @@ createFarTopologyRefiner() {
 
     // Populate a topology descriptor with our raw data
 
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 

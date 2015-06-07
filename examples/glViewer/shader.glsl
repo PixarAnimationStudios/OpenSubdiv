@@ -177,10 +177,6 @@ void emit(int index, vec3 normal)
     outpt.v.patchCoord = inpt[index].v.patchCoord;
 #ifdef SMOOTH_NORMALS
     outpt.v.normal = inpt[index].v.normal;
-#if defined(SHADING_ANALYTIC_CURVATURE)
-    outpt.v.Nu = inpt[index].v.Nu;
-    outpt.v.Nv = inpt[index].v.Nv;
-#endif
 #else
     outpt.v.normal = normal;
 #endif
@@ -200,7 +196,7 @@ void emit(int index, vec3 normal)
 
 #else        // ----- scheme : CATMARK / BILINEAR
 
-#ifdef UNIFORM_SUBDIVISION
+#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
     vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
     vec2 st = quadst[index];
 #else
@@ -326,7 +322,6 @@ in block {
 } inpt;
 
 out vec4 outColor;
-out vec3 outNormal;
 
 #define NUM_LIGHTS 2
 
@@ -452,7 +447,17 @@ getAdaptivePatchColor(ivec3 patchParam)
     );
 
     int patchType = 0;
+
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount == 2) {
+        patchType = 3; // CORNER
+    }
+
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // check this after boundary/corner since single crease patch also has edgeCount.
     if (inpt.vSegments.y > 0) {
         patchType = 1;
     }
@@ -464,14 +469,6 @@ getAdaptivePatchColor(ivec3 patchParam)
     patchType = 6;
 #endif
 
-    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
-    if (edgeCount == 1) {
-        patchType = 2; // BOUNDARY
-    }
-    if (edgeCount == 2) {
-        patchType = 3; // CORNER
-    }
-
     int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
 
     return patchColors[6*patchType + pattern];
@@ -481,7 +478,6 @@ getAdaptivePatchColor(ivec3 patchParam)
 void
 main()
 {
-    vec3 Nobj = (ModelViewInverseMatrix * vec4(inpt.v.normal, 0)).xyz;
     vec3 N = (gl_FrontFacing ? inpt.v.normal : -inpt.v.normal);
 
 #if defined(SHADING_VARYING_COLOR)
@@ -504,22 +500,13 @@ main()
 
 #if defined(SHADING_NORMAL)
     Cf.rgb = N;
-#elif defined(SHADING_CURVATURE)
-    vec3 pc = fwidth(inpt.v.position.xyz);
-    Cf.rgb = 0.1 * fwidth(Nobj) / length(pc);
-#elif defined(SHADING_ANALYTIC_CURVATURE)
-    // XXX: why need to scale by level?
-    int level = OsdGetPatchFaceLevel(OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID)));
-    Cf.rgb = 0.1 * level *(abs(inpt.v.Nu) + abs(inpt.v.Nv));
 #endif
-
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
     Cf = edgeColor(Cf, inpt.edgeDistance);
 #endif
 
     outColor = Cf;
-    outNormal = N;
 }
 #endif
 

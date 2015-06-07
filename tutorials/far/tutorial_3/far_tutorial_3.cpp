@@ -33,7 +33,7 @@
 // 'face-varying' data recorded in the uv texture layout.
 //
 
-#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyDescriptor.h>
 #include <opensubdiv/far/primvarRefiner.h>
 
 #include <cstdio>
@@ -62,8 +62,6 @@ struct Vertex {
         _position[1]+=weight*src._position[1];
         _position[2]+=weight*src._position[2];
     }
-
-    void AddVaryingWithWeight(Vertex const &, float) { }
 
     // Public interface ------------------------------------
     void SetPosition(float x, float y, float z) {
@@ -163,7 +161,7 @@ int main(int, char **) {
 
     int maxlevel = 3;
 
-    typedef Far::TopologyRefinerFactoryBase::TopologyDescriptor Descriptor;
+    typedef Far::TopologyDescriptor Descriptor;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
@@ -268,7 +266,7 @@ int main(int, char **) {
         for (int face = 0; face < nfaces; ++face) {
 
             Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
-            Far::ConstIndexArray fuvs   = refLastLevel.GetFVarFaceValues(face, channel);
+            Far::ConstIndexArray fuvs   = refLastLevel.GetFaceFVarValues(face, channel);
 
             // all refined Catmark faces should be quads
             assert(fverts.size()==4 and fuvs.size()==4);

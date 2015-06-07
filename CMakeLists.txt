@@ -469,6 +469,23 @@ if(OPENCL_FOUND)
                 "will not be portable to systems without OpenCL installed.")
         endif()
     endif()
+
+    if (DXSDK_FOUND AND NOT NO_DX)
+        if (OPENCL_CL_D3D11_H_FOUND)
+            set(OPENCL_D3D11_INTEROP_FOUND "YES")
+            add_definitions(
+                -DOPENSUBDIV_HAS_OPENCL_DX_INTEROP
+                -DOPENSUBDIV_HAS_CL_D3D11_H
+            )
+        endif()
+        if (OPENCL_CL_D3D11_EXT_H_FOUND)
+            set(OPENCL_D3D11_INTEROP_FOUND "YES")
+            add_definitions(
+                -DOPENSUBDIV_HAS_OPENCL_DX_INTEROP
+                -DOPENSUBDIV_HAS_CL_D3D11_EXT_H
+            )
+        endif()
+    endif()
 else()
     if (NOT NO_OPENCL)
         message(WARNING

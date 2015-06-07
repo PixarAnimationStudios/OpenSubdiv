@@ -165,6 +165,22 @@ float OsdGetPatchSharpness(int3 patchParam)
     return asfloat(patchParam.z);
 }
 
+float OsdGetPatchSingleCreaseSegmentParameter(int3 patchParam, float2 uv)
+{
+    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+    float s = 0;
+    if ((boundaryMask & 1) != 0) {
+        s = 1 - uv.y;
+    } else if ((boundaryMask & 2) != 0) {
+        s = uv.x;
+    } else if ((boundaryMask & 4) != 0) {
+        s = uv.y;
+    } else if ((boundaryMask & 8) != 0) {
+        s = 1 - uv.x;
+    }
+    return s;
+}
+
 int4 OsdGetPatchCoord(int3 patchParam)
 {
     int faceId = OsdGetPatchFaceId(patchParam);
@@ -323,23 +339,24 @@ OsdEvalBezier(float3 cp[16], float2 uv)
 //   +------------------+-------------------+------------------+
 //
 float3
-OsdEvalBezier(OsdPerPatchVertexBezier cp[16], float2 uv)
+OsdEvalBezier(OsdPerPatchVertexBezier cp[16], int3 patchParam, float2 uv)
 {
     float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
 
     float B[4], D[4];
+    float s = OsdGetPatchSingleCreaseSegmentParameter(patchParam, uv);
 
     OsdUnivar4x4(uv.x, B, D);
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     float2 vSegments = cp[0].vSegments;
-    if (uv.y < vSegments.x) {
+    if (s <= vSegments.x) {
         for (int i=0; i<4; ++i) {
             for (int j=0; j<4; ++j) {
                 float3 A = cp[4*i + j].P;
                 BUCP[i] += A * B[j];
             }
         }
-    } else if (uv.y < vSegments.y) {
+    } else if (s <= vSegments.y) {
         for (int i=0; i<4; ++i) {
             for (int j=0; j<4; ++j) {
                 float3 A = cp[4*i + j].P1;
@@ -459,6 +476,8 @@ OsdComputeBSplineBoundaryPoints(inout float3 cpt[16], int3 patchParam)
 // (0,0)                                         (1,0)
 //
 
+#define OSD_MAX_TESS_LEVEL 64
+
 float OsdComputePostProjectionSphereExtent(float3 center, float diameter)
 {
     float4 p = mul(OsdProjectionMatrix(), float4(center, 1.0));
@@ -475,17 +494,39 @@ float OsdComputeTessLevel(float3 p0, float3 p1)
     float3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
     float projLength = OsdComputePostProjectionSphereExtent(center, diameter);
-    return round(max(1.0, OsdTessLevel() * projLength));
+    float tessLevel = round(max(1.0, OsdTessLevel() * projLength));
+
+    // We restrict adaptive tessellation levels to half of the device
+    // supported maximum because transition edges are split into two
+    // halfs and the sum of the two corresponding levels must not exceed
+    // the device maximum. We impose this limit even for non-transition
+    // edges because a non-transition edge must be able to match up with
+    // one half of the transition edge of an adjacent transition patch.
+    return min(tessLevel, OSD_MAX_TESS_LEVEL / 2);
 }
 
 void
 OsdGetTessLevelsUniform(int3 patchParam,
                         out float4 tessOuterLo, out float4 tessOuterHi)
 {
+    // Uniform factors are simple powers of two for each level.
+    // The maximum here can be increased if we know the maximum
+    // refinement level of the mesh:
+    //     min(OSD_MAX_TESS_LEVEL, pow(2, MaximumRefinementLevel-1)
     int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
-    float tessLevel = OsdTessLevel() / pow(2, refinementLevel-1);
+    float tessLevel = min(OsdTessLevel(), OSD_MAX_TESS_LEVEL) /
+                        pow(2, refinementLevel-1);
 
-    tessOuterLo = float4(tessLevel,tessLevel,tessLevel,tessLevel);
+    // tessLevels of transition edge should be clamped to 2.
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+    float4 tessLevelMin = float4(1,1,1,1)
+        + float4(((transitionMask & 8) >> 3),
+                 ((transitionMask & 1) >> 0),
+                 ((transitionMask & 2) >> 1),
+                 ((transitionMask & 4) >> 2));
+
+    tessOuterLo = max(float4(tessLevel,tessLevel,tessLevel,tessLevel),
+                      tessLevelMin);
     tessOuterHi = float4(0,0,0,0);
 }
 
@@ -568,58 +609,63 @@ OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
     int transitionMask = OsdGetPatchTransitionMask(patchParam);
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    // PERFOMANCE: we just need to pick the correct corner points from P, P1, P2
+    float3 p0 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.0));
+    float3 p3 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.0));
+    float3 p12 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 1.0));
+    float3 p15 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 1.0));
     if ((transitionMask & 8) != 0) {
-        float3 ev03 = OsdEvalBezier(cpBezier, float2(0.0, 0.5));
-        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, ev03);
-        tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12].P2, ev03);
+        float3 ev03 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.5));
+        tessOuterLo[0] = OsdComputeTessLevel(p0, ev03);
+        tessOuterHi[0] = OsdComputeTessLevel(p12, ev03);
     } else {
-        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[12].P2);
+        tessOuterLo[0] = OsdComputeTessLevel(p0, p12);
     }
     if ((transitionMask & 1) != 0) {
-        float3 ev01 = OsdEvalBezier(cpBezier, float2(0.5, 0.0));
-        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, ev01);
-        tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3].P, ev01);
+        float3 ev01 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 0.0));
+        tessOuterLo[1] = OsdComputeTessLevel(p0, ev01);
+        tessOuterHi[1] = OsdComputeTessLevel(p3, ev01);
     } else {
-        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[3].P);
+        tessOuterLo[1] = OsdComputeTessLevel(p0, p3);
     }
     if ((transitionMask & 2) != 0) {
-        float3 ev12 = OsdEvalBezier(cpBezier, float2(1.0, 0.5));
-        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, ev12);
-        tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15].P2, ev12);
+        float3 ev12 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.5));
+        tessOuterLo[2] = OsdComputeTessLevel(p3, ev12);
+        tessOuterHi[2] = OsdComputeTessLevel(p15, ev12);
     } else {
-        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, cpBezier[15].P2);
+        tessOuterLo[2] = OsdComputeTessLevel(p3, p15);
     }
     if ((transitionMask & 4) != 0) {
-        float3 ev23 = OsdEvalBezier(cpBezier, float2(0.5, 1.0));
-        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P2, ev23);
-        tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15].P2, ev23);
+        float3 ev23 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 1.0));
+        tessOuterLo[3] = OsdComputeTessLevel(p12, ev23);
+        tessOuterHi[3] = OsdComputeTessLevel(p15, ev23);
     } else {
-        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P2, cpBezier[15].P2);
+        tessOuterLo[3] = OsdComputeTessLevel(p12, p15);
     }
 #else
     if ((transitionMask & 8) != 0) {
-        float3 ev03 = OsdEvalBezier(cpBezier, float2(0.0, 0.5));
+        float3 ev03 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.5));
         tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, ev03);
         tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12].P, ev03);
     } else {
         tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[12].P);
     }
     if ((transitionMask & 1) != 0) {
-        float3 ev01 = OsdEvalBezier(cpBezier, float2(0.5, 0.0));
+        float3 ev01 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 0.0));
         tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, ev01);
         tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3].P, ev01);
     } else {
         tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[3].P);
     }
     if ((transitionMask & 2) != 0) {
-        float3 ev12 = OsdEvalBezier(cpBezier, float2(1.0, 0.5));
+        float3 ev12 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.5));
         tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, ev12);
         tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15].P, ev12);
     } else {
         tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, cpBezier[15].P);
     }
     if ((transitionMask & 4) != 0) {
-        float3 ev23 = OsdEvalBezier(cpBezier, float2(0.5, 1.0));
+        float3 ev23 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 1.0));
         tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P, ev23);
         tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15].P, ev23);
     } else {
@@ -759,6 +805,16 @@ OsdComputeMs(float sharpness)
     return m;
 }
 
+// flip matrix orientation
+float4x4
+OsdFlipMatrix(float4x4 m)
+{
+    return float4x4(m[3][3], m[3][2], m[3][1], m[3][0],
+                    m[2][3], m[2][2], m[2][1], m[2][0],
+                    m[1][3], m[1][2], m[1][1], m[1][0],
+                    m[0][3], m[0][2], m[0][1], m[0][0]);
+}
+
 // convert BSpline cv to Bezier cv
 void
 OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
@@ -774,10 +830,84 @@ OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
 
     result.patchParam = patchParam;
 
-    OsdComputeBSplineBoundaryPoints(cv, patchParam);
-
     int i = ID%4;
     int j = ID/4;
+
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+
+    // Infinitely Sharp (boundary)
+    float4x4 Mi = {
+        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+        0.f,     4.f/6.f, 2.f/6.f, 0.f,
+        0.f,     2.f/6.f, 4.f/6.f, 0.f,
+        0.f,     0.f,     1.f,     0.f
+    };
+
+    float4x4 Mj, Ms;
+    float sharpness = OsdGetPatchSharpness(patchParam);
+    if (sharpness > 0) {
+        float Sf = floor(sharpness);
+        float Sc = ceil(sharpness);
+        float Sr = frac(sharpness);
+        float4x4 Mf = OsdComputeMs(Sf);
+        float4x4 Mc = OsdComputeMs(Sc);
+        Mj = (1-Sr) * Mf + Sr * Mi;
+        Ms = (1-Sr) * Mf + Sr * Mc;
+        float s0 = 1 - pow(2, -floor(sharpness));
+        float s1 = 1 - pow(2, -ceil(sharpness));
+        result.vSegments = float2(s0, s1);
+
+    } else {
+        Mj = Ms = Mi;
+        result.vSegments = float2(0, 0);
+    }
+    result.P  = float3(0,0,0); // 0 to 1-2^(-Sf)
+    result.P1 = float3(0,0,0); // 1-2^(-Sf) to 1-2^(-Sc)
+    result.P2 = float3(0,0,0); // 1-2^(-Sc) to 1
+
+    float4x4 MUi, MUj, MUs;
+    float4x4 MVi, MVj, MVs;
+    MUi = MUj = MUs = Q;
+    MVi = MVj = MVs = Q;
+
+    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+    if ((boundaryMask & 1) != 0) {
+        MVi = OsdFlipMatrix(Mi);
+        MVj = OsdFlipMatrix(Mj);
+        MVs = OsdFlipMatrix(Ms);
+    }
+    if ((boundaryMask & 2) != 0) {
+        MUi = Mi;
+        MUj = Mj;
+        MUs = Ms;
+    }
+    if ((boundaryMask & 4) != 0) {
+        MVi = Mi;
+        MVj = Mj;
+        MVs = Ms;
+    }
+    if ((boundaryMask & 8) != 0) {
+        MUi = OsdFlipMatrix(Mi);
+        MUj = OsdFlipMatrix(Mj);
+        MUs = OsdFlipMatrix(Ms);
+    }
+
+    float3 Hi[4], Hj[4], Hs[4];
+    for (int l=0; l<4; ++l) {
+        Hi[l] = Hj[l] = Hs[l] = float3(0,0,0);
+        for (int k=0; k<4; ++k) {
+            Hi[l] += MUi[i][k] * cv[l*4 + k];
+            Hj[l] += MUj[i][k] * cv[l*4 + k];
+            Hs[l] += MUs[i][k] * cv[l*4 + k];
+        }
+    }
+    for (int k=0; k<4; ++k) {
+        result.P  += MVi[j][k]*Hi[k];
+        result.P1 += MVj[j][k]*Hj[k];
+        result.P2 += MVs[j][k]*Hs[k];
+    }
+#else
+    OsdComputeBSplineBoundaryPoints(cv, patchParam);
 
     float3 H[4];
     for (int l=0; l<4; ++l) {
@@ -787,45 +917,6 @@ OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
         }
     }
 
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    // Infinitely Sharp (boundary)
-    float4x4 Mi = {
-        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-        0.f,     4.f/6.f, 2.f/6.f, 0.f,
-        0.f,     2.f/6.f, 4.f/6.f, 0.f,
-        0.f,     0.f,     1.f,     0.f
-    };
-
-    float sharpness = OsdGetPatchSharpness(patchParam);
-    if (sharpness > 0) {
-        float Sf = floor(sharpness);
-        float Sc = ceil(sharpness);
-        float Sr = frac(sharpness);
-        float4x4 Mf = OsdComputeMs(Sf);
-        float4x4 Mc = OsdComputeMs(Sc);
-        float4x4 Mj = (1-Sr) * Mf + Sr * Mi;
-        float4x4 Ms = (1-Sr) * Mf + Sr * Mc;
-        float s0 = 1 - pow(2, -floor(sharpness));
-        float s1 = 1 - pow(2, -ceil(sharpness));
-        result.P  = float3(0,0,0);
-        result.P1 = float3(0,0,0);
-        result.P2 = float3(0,0,0);
-        result.vSegments = float2(s0, s1);
-        for (int k=0; k<4; ++k) {
-            result.P  += Mi[j][k]*H[k]; // 0 to 1-2^(-Sf)
-            result.P1 += Mj[j][k]*H[k]; // 1-2^(-Sf) to 1-2^(-Sc)
-            result.P2 += Ms[j][k]*H[k]; // 1-2^(-Sc) to 1
-        }
-    } else {
-        result.P  = float3(0,0,0);
-        for (int k=0; k<4; ++k){
-            result.P += Q[j][k]*H[k];
-        }
-        result.P1 = result.P;
-        result.P2 = result.P;
-        result.vSegments = float2(0,0);
-    }
-#else
     {
         result.P = float3(0,0,0);
         for (int k=0; k<4; ++k){
@@ -857,10 +948,11 @@ OsdEvalPatchBezier(int3 patchParam, float2 UV,
     // ----------------------------------------------------------------
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     float2 vSegments = cv[0].vSegments;
+    float s = OsdGetPatchSingleCreaseSegmentParameter(patchParam, UV);
+
     for (int i=0; i<4; ++i) {
         for (int j=0; j<4; ++j) {
             int k = 4*i + j;
-            float s = UV.y;
 
             float3 A = (s <= vSegments.x) ? cv[k].P
                   :   ((s <= vSegments.y) ? cv[k].P1
@@ -975,17 +1067,38 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     float u = UV.x, v = UV.y;
     float U = 1-u, V = 1-v;
 
-    float d11 = u+v; if(u+v==0.0f) d11 = 1.0f;
-    float d12 = U+v; if(U+v==0.0f) d12 = 1.0f;
-    float d21 = u+V; if(u+V==0.0f) d21 = 1.0f;
-    float d22 = U+V; if(U+V==0.0f) d22 = 1.0f;
+    //(0,1)                              (1,1)
+    //   P3         e3-      e2+         E2
+    //      15------17-------11-------10
+    //      |        |        |        |
+    //      |        |        |        |
+    //      |        | f3-    | f2+    |
+    //      |       19       13        |
+    //  e3+ 16-----18          14-----12 e2-
+    //      |     f3+          f2-     |
+    //      |                          |
+    //      |                          |
+    //      |     f0-         f1+      |
+    //  e0- 2------4            8------6 e1+
+    //      |        3 f0+    9        |
+    //      |        |        | f1-    |
+    //      |        |        |        |
+    //      |        |        |        |
+    //      0--------1--------7--------5
+    //    P0        e0+      e1-         E1
+    //(0,0)                               (1,0)
+
+    float d11 = u+v;
+    float d12 = U+v;
+    float d21 = u+V;
+    float d22 = U+V;
 
     float3 q[16];
 
-    q[ 5] = (u*cv[3] + v*cv[4])/d11;
-    q[ 6] = (U*cv[9] + v*cv[8])/d12;
-    q[ 9] = (u*cv[19] + V*cv[18])/d21;
-    q[10] = (U*cv[13] + V*cv[14])/d22;
+    q[ 5] = (d11 == 0.0) ? cv[3]  : (u*cv[3] + v*cv[4])/d11;
+    q[ 6] = (d12 == 0.0) ? cv[8]  : (U*cv[9] + v*cv[8])/d12;
+    q[ 9] = (d21 == 0.0) ? cv[18] : (u*cv[19] + V*cv[18])/d21;
+    q[10] = (d22 == 0.0) ? cv[13] : (U*cv[13] + V*cv[14])/d22;
 
     q[ 0] = cv[0];
     q[ 1] = cv[1];
@@ -1043,7 +1156,7 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     dUV *= 9 * level;
 
     float3 n = cross(dPu, dPv);
-    float3 N = normalize(n);
+    N = normalize(n);
 
     float E = dot(dPu, dPu);
     float F = dot(dPu, dPv);

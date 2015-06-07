@@ -78,6 +78,7 @@ public:
 
     Sdc::Split getSplitType() const { return _splitType; }
     int getRegularFaceSize() const { return _regFaceSize; }
+    Sdc::Options getOptions() const { return _options; }
 
     //  Face-varying:
     int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
@@ -119,6 +120,8 @@ public:
 
     void refine(Options options = Options());
 
+    bool hasFaceVerticesFirst() const { return _faceVertsFirst; }
+
 public:
     //
     //  Access to members -- some testing classes (involving vertex interpolation)
@@ -146,8 +149,9 @@ public:
     ConstIndexArray  getFaceChildEdges(Index parentFace) const;
     ConstIndexArray  getEdgeChildEdges(Index parentEdge) const;
 
-    //  Child-to-parent relationships (not yet complete -- unclear how we will define the
-    //  "type" of the parent component, e.g. vertex, edge or face):
+    //  Child-to-parent relationships
+    bool isChildVertexComplete(Index v) const       { return not _childVertexTag[v]._incomplete; }
+
     Index getChildFaceParentFace(Index f) const     { return _childFaceParentIndex[f]; }
     int   getChildFaceInParentFace(Index f) const   { return _childFaceTag[f]._indexInParent; }
 
@@ -205,6 +209,14 @@ public:
     SparseTag & getParentFaceSparseTag(  Index f) { return _parentFaceTag[f]; }
     SparseTag & getParentEdgeSparseTag(  Index e) { return _parentEdgeTag[e]; }
     SparseTag & getParentVertexSparseTag(Index v) { return _parentVertexTag[v]; }
+
+    ChildTag const & getChildFaceTag(  Index f) const { return _childFaceTag[f]; }
+    ChildTag const & getChildEdgeTag(  Index e) const { return _childEdgeTag[e]; }
+    ChildTag const & getChildVertexTag(Index v) const { return _childVertexTag[v]; }
+
+    ChildTag & getChildFaceTag(  Index f) { return _childFaceTag[f]; }
+    ChildTag & getChildEdgeTag(  Index e) { return _childEdgeTag[e]; }
+    ChildTag & getChildVertexTag(Index v) { return _childVertexTag[v]; }
 
 //  Remaining methods should really be protected -- for use by subclasses...
 public:
@@ -307,8 +319,10 @@ public:
     //
     void subdivideFVarChannels();
 
-//  Members temporarily public pending re-assessment of friends:
-public:
+protected:
+    // A debug method of Level prints a Refinement (should really change this)
+    friend void Level::print(const Refinement *) const;
+
     //
     //  Data members -- the logical grouping of some of these (and methods that make use
     //  of them) may lead to grouping them into a few utility classes or structs...

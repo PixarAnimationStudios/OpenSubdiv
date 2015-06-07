@@ -93,6 +93,39 @@ elseif (WIN32)
             ENV OpenCL_INCPATH
     )
 
+    # AMD APP SDK
+    find_file(_OPENCL_DX_INTEROP_CL_D3D11_H
+        NAMES
+            CL/cl_d3d11.h
+        PATHS
+            "${_OPENCL_INC_CAND}"
+            "${OPENCL_INCLUDE_DIRS}"
+            ENV OpenCL_INCPATH
+    )
+    if (_OPENCL_DX_INTEROP_CL_D3D11_H)
+        set(OPENCL_CL_D3D11_H_FOUND "YES")
+        message("OpenCL DX11 interop found ${_OPENCL_DX_INTEROP_CL_D3D11_H}")
+    endif()
+
+    # NVIDIA GPU Computing ToolKit
+    find_file(_OPENCL_DX_INTEROP_CL_D3D11_EXT_H
+        NAMES
+            CL/cl_d3d11_ext.h
+        PATHS
+            "${_OPENCL_INC_CAND}"
+            "${OPENCL_INCLUDE_DIRS}"
+            ENV OpenCL_INCPATH
+    )
+
+    if (_OPENCL_DX_INTEROP_CL_D3D11_EXT_H)
+        set(OPENCL_CL_D3D11_EXT_H_FOUND "YES")
+        message("OpenCL DX11 interop found ${_OPENCL_DX_INTEROP_CL_D3D11_EXT_H}")
+    endif()
+
+    if (NOT _OPENCL_DX_INTEROP_CL_D3D11_H AND NOT _OPENCL_DX_INTEROP_CL_D3D11_EXT_H)
+        message("OpenCL DX11 interop not found")
+    endif()
+
 elseif (UNIX)
 
     find_library( OPENCL_LIBRARIES

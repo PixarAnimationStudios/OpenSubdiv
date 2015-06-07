@@ -44,6 +44,9 @@ namespace Vtr {
 namespace internal {
 
 class Refinement;
+class TriRefinement;
+class QuadRefinement;
+class FVarRefinement;
 class FVarLevel;
 
 //
@@ -202,13 +205,13 @@ public:
     bool isFaceHole(Index faceIndex) const;
 
     // Face-varying
-    Sdc::Options getFVarOptions(int channel = 0) const; 
+    Sdc::Options getFVarOptions(int channel) const; 
     int getNumFVarChannels() const { return (int) _fvarChannels.size(); }
-    int getNumFVarValues(int channel = 0) const;
-    ConstIndexArray getFVarFaceValues(Index faceIndex, int channel = 0) const;
+    int getNumFVarValues(int channel) const;
+    ConstIndexArray getFaceFVarValues(Index faceIndex, int channel) const;
 
-    FVarLevel & getFVarLevel(int channel = 0) { return *_fvarChannels[channel]; }
-    FVarLevel const & getFVarLevel(int channel = 0) const { return *_fvarChannels[channel]; }
+    FVarLevel & getFVarLevel(int channel) { return *_fvarChannels[channel]; }
+    FVarLevel const & getFVarLevel(int channel) const { return *_fvarChannels[channel]; }
 
     //  Manifold/non-manifold tags:
     void setEdgeNonManifold(Index edgeIndex, bool b);
@@ -324,9 +327,9 @@ public:
 
     //  Create, destroy and populate face-varying channels:
     int  createFVarChannel(int fvarValueCount, Sdc::Options const& options);
-    void destroyFVarChannel(int channel = 0);
+    void destroyFVarChannel(int channel);
 
-    IndexArray getFVarFaceValues(Index faceIndex, int channel = 0);
+    IndexArray getFaceFVarValues(Index faceIndex, int channel);
 
     void completeFVarChannelTopology(int channel, int regBoundaryValence);
 
@@ -350,6 +353,7 @@ public:
     int getNumVertexEdges(     Index vertIndex) const { return _vertEdgeCountsAndOffsets[2*vertIndex]; }
     int getOffsetOfVertexEdges(Index vertIndex) const { return _vertEdgeCountsAndOffsets[2*vertIndex + 1]; }
 
+    ConstIndexArray getFaceVertices() const;
 
     //
     //  Note that for some relations, the size of the relations for a child component
@@ -391,8 +395,12 @@ public:
 
     IndexArray shareFaceVertCountsAndOffsets() const;
 
-//  Members temporarily public pending re-assessment of friends:
-public:
+private:
+    //  Refinement classes (including all subclasses) build a Level:
+    friend class Refinement;
+    friend class TriRefinement;
+    friend class QuadRefinement;
+
     //
     //  A Level is independent of subdivision scheme or options.  While it may have been
     //  affected by them in its construction, they are not associated with it -- a Level
@@ -487,6 +495,11 @@ Level::resizeFaceVertices(Index faceIndex, int count) {
     countOffsetPair[1] = (faceIndex == 0) ? 0 : (countOffsetPair[-2] + countOffsetPair[-1]);
 
     _maxValence = std::max(_maxValence, count);
+}
+
+inline ConstIndexArray
+Level::getFaceVertices() const {
+    return ConstIndexArray(&_faceVertIndices[0], (int)_faceVertIndices.size());
 }
 
 //

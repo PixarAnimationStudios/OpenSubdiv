@@ -56,6 +56,7 @@
 #include "catmark_gregory_test5.h"
 #include "catmark_gregory_test6.h"
 #include "catmark_gregory_test7.h"
+#include "catmark_gregory_test8.h"
 #include "catmark_helmet.h"
 #include "catmark_hole_test1.h"
 #include "catmark_hole_test2.h"

@@ -209,7 +209,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     _isUniform = true;
     _maxLevel = options.refinementLevel;
 
-    Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
+    Sdc::Split splitType = Sdc::SchemeTypeTraits::GetTopologicalSplitType(_subdivType);
 
     //
     //  Initialize refinement options for Vtr -- adjusting full-topology for the last level:
@@ -253,6 +253,11 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
             "Cannot apply adaptive refinement -- previous refinements already applied.");
         return;
     }
+    if (_subdivType != Sdc::SCHEME_CATMARK) {
+        Error(FAR_RUNTIME_ERROR,
+            "Cannot apply adaptive refinement -- currently only supported for scheme Catmark.");
+        return;
+    }
 
     //
     //  Allocate the stack of levels and the refinements between them:
@@ -272,7 +277,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     refineOptions._minimalTopology = false;
     refineOptions._faceVertsFirst  = options.orderVerticesFromFacesFirst;
 
-    Sdc::Split splitType = (_subdivType == Sdc::SCHEME_LOOP) ? Sdc::SPLIT_TO_TRIS : Sdc::SPLIT_TO_QUADS;
+    Sdc::Split splitType = Sdc::SchemeTypeTraits::GetTopologicalSplitType(_subdivType);
 
     for (int i = 1; i <= (int)options.isolationLevel; ++i) {
 
