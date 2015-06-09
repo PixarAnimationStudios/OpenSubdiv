@@ -262,28 +262,6 @@ with 16, 12, 9 and 4 control vertices respectively.
    :align: center
    :target: images/far_patchtypes.png
 
-.. container:: notebox
-
-    **Beta Issues**
-
-    The current ordering of control vertices for *Regular*, *Boundary* and
-    *Corner* patches is based on inconsistent legacy implementation of GPU
-    shaders.
-
-    We intend to consolidate the code gathering the 0-Ring and the 1-Ring, so
-    that we can eventually get rid of the current re-ordering step applied
-    to the control vertex indices.
-
-Patch Transitions
-*****************
-
-.. image:: images/far_patchtransitions.png
-   :align: center
-   :target: images/far_patchtransitions.png
-
-
-.. include:: under_development.rst
-
 
 Far::StencilTable
 ==================
