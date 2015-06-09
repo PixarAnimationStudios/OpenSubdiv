@@ -86,13 +86,16 @@ connectivity.
 
 ----
 
-Manifold Geometry
-*****************
+Manifold vs Non-Manifold Geometry
+*********************************
 
-Continuous limit surfaces require that the topology be a two-dimensional
-manifold. It is therefore possible to model non-manifold geometry that cannot
-be represented with a smooth C2 continuous limit. The following examples show
-typical cases of non-manifold topological configurations.
+Continuous limit surfaces generally require that the topology be a
+two-dimensional manifold for the limit surface to be unambiguous.  It is
+possible (and sometimes useful, if only temporarily) to model non-manifold
+geometry and so create surfaces whose limit is not as well-defined.
+
+The following examples show typical cases of non-manifold topological
+configurations.
 
 ----
 
@@ -106,10 +109,16 @@ This "fan" configuration shows an edge shared by 3 distinct faces.
    :target: images/nonmanifold_fan.png
 
 With this configuration, it is unclear which face should contribute to the
-limit surface, as three of them share the same edge (which incidentally breaks
-half-edge cycles in said data-structures). Fan configurations are not limited
-to three incident faces: any configuration where an edge is shared by more than
-two faces incurs the same problem.
+limit surface (assuming it is singular) as three of them share the same edge.
+Fan configurations are not limited to three incident faces: any configuration
+where an edge is shared by more than two faces incurs the same problem.
+
+These and other regions involving non-manifold edges are dealt with by
+considering regions that are "locally manifold".  Rather than a single limit
+surface through this problematic edge with its many incident faces, the edge
+locally partitions a single limit surface into more than one.  So each of the
+three faces here will have their own (locally manifold) limit surface -- all
+of which meet at the shared edge.
 
 ----
 
@@ -122,22 +131,15 @@ A vertex is disconnected from any edge and face.
    :align: center
    :target: images/nonmanifold_vert.png
 
-This case is fairly trivial: there is no possible way to exact a limit surface
-here, so the vertex simply has to be flagged as non-contributing, or discarded
-gracefully.
+This case is fairly trivial: there is a very clear limit surface for the four
+vertices and the face they define, but no possible way to exact a limit surface
+from the disconnected vertex.
 
-.. container:: notebox
-
-    **Beta Issues**
-
-    As of 3.0.0 Beta release, most non-manifold configurations (with the 
-    exception of degenerate edges) are supported for refinement and subdivision.
-    The interpolation associated with non-manifold features currently treats 
-    them as infinitely sharp features -- smooth rules are possible but exactly
-    what they should be is unclear.  We intend to fully specify and implement a
-    set of interpolation rules in a future release of OpenSubdiv.  Until then 
-    the results should be considered undefined.
-
+While the vertex does not contribute to any
+limit surface, it may not be completely irrelevant though.  Such vertices may
+be worth retaining during subdivision (if for no other reason than to preserve
+certain vertex ordering) and simply ignored when it comes time to consider
+the limit surface.
 
 ----
 

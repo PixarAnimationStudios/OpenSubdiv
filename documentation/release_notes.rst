@@ -86,29 +86,29 @@ computation time and memory consumption.
 (*) Niessner et al., Efficient Evaluation of Semi-Smooth Creases in
 Catmull-Clark Subdivision Surfaces. Eurographics (Short Papers). 2012.
 
-**New End-Cap Approximations**
+**New Irregular Patch Approximations**
 
 While "legacy" Gregory patch support is still available, we have introduced
-several new end cap options: Legacy Gregory, fast Gregory Basis stencils, and
-BSpline patches. Gregory basis stencils provide the same high quality
+several new options for irregular: Legacy Gregory, fast Gregory Basis stencils,
+and BSpline patches. Gregory basis stencils provide the same high quality
 approximation of Legacy Gregory patches, but execute considerably faster with a
 simpler GPU representation. While BSpline patches are not as close an
 approximation as Gregory patches, they enable an entire adaptively refined
 mesh to be drawn with screen space tessellation via a single global shader 
-configuration (Gregory Basis end caps require one additional global shader 
+configuration (Gregory Basis patches require one additional global shader 
 configuration).
 
-The new implementations of GregoryBasis and BSpline endcaps relax the previous
-max valence limit. Users are still encouraged to use models with vertices of
-low valence for improved performance.
+The new implementations of the GregoryBasis and BSpline approximations relax
+the previous max valence limit. Users are still encouraged to use models with
+vertices of low valence for both improved model quality and performance.
 
 ----
 
-Simpler Topology Entry-Points
-*****************************
+Simpler and More Flexible Topology Conversion
+*********************************************
 
 OpenSubdiv 3.0 introduces several new entry-points for client topology. Previous
-releases forced client applications to define and populate instances of an Hbr
+releases required client applications to define and populate instances of an Hbr
 half-edge topology representation. For many applications, this representation
 was both redundant and inefficient. The new primary entry point is simpler, more
 flexible and more efficient.
@@ -125,11 +125,13 @@ As a result, Hbr is no longer a core API of OpenSubdiv. While the code is marked
 as deprecated, it will remain in the source distribution for legacy and
 regression purposes.
 
-The documentation for Vtr can be found `here <vtr_overview.html>`__
+Though Vtr is insulated from public access by a topology container in Far (the
+Far::TopologyRefiner) -- allowing it to be enhanced in future independent of the
+public API -- documentation for Vtr can be found `here <vtr_overview.html>`__
 
 ----
 
-New treatment of face-varying data
+New Treatment of Face-Varying Data
 **********************************
 
 With Hbr no longer being the entry point for client-code, OpenSubdiv 3.0 has to
@@ -158,12 +160,12 @@ of distinct face-varying values versus the number of vertices).
 Subdivision Core (Sdc)
 **********************
 
-In consideration of the existing representations (Hbr and Vtr), all low-level
-details fundamental to subdivision and the specific subdivision schemes have
-been factored into a new low-level layer (the lowest) called Sdc. This layer
-encapsulates the full set of applicable options, the formulae required to
-support semi-sharp creasing, the formulae for the refinement masks of each
-subdivision scheme, etc.
+In consideration of the past (Hbr), present (Vtr) and future representations,
+all low-level details fundamental to subdivision and the specific subdivision
+schemes have been factored into a new low-level layer (the lowest) called Sdc.
+This layer encapsulates the full set of applicable options, the formulae
+required to support semi-sharp creasing, the formulae for the refinement masks
+of each subdivision scheme, etc.
 
 Sdc provides the low-level nuts and bolts to provide a subdivision
 implementation consistent with OpenSubdiv. It is used internally by Vtr and
@@ -326,16 +328,18 @@ the official 3.0 release.  The APIs are now locked restricted to bug fixes and
 documentation changes.
 
 It's been a very active beta cycle and we've received and incorporated great
-feedback. Large swaths of the API have changed since the beta release, to the
-overall benefit of the library. These changes lay a strong foundation for 
-future, stable 3.0 point releases.
+feedback. A larger than expected subset of the API has changed since the beta
+release, to the overall benefit of the library. These changes lay a strong
+foundation for future, stable 3.0 point releases.
 
 Notable API changes in between 3.0-beta and 3.0-RC1 include:
 
- * TopologyRefiner was split into several classes to clarify and focus
-   the API. Specifically, Far::TopologyLevel and all level-specific API was moved
-   from Far::TopologyRefiner to this new class. Similarly, Far::PrimvarInterpolator
-   is the new home for Interpolate() and Limit(). 
+ * Far::TopologyRefiner was split into several classes to clarify and focus
+   the API.  Specifically, all level-related methods were moved to a new
+   class Far::TopologyLevel for inspection of a level in the hierarchy.
+   Similarly, all methods related to client "primvar" data, i.e. the suite
+   of Interpolate<T>() and Limit<T>() methods, were moved to a new class
+   Far::PrimvarRefiner.
    
  * Interpolation of Vertex and Varying primvars in a single pass is no longer 
    supported. As a result, AddVaryingWithWeight() is no longer required and 
@@ -363,29 +367,6 @@ Within 'Master' releases, we expect APIs to be backward compatible so that
 existing client code can seamlessly build against newer releases. Changes
 may include bug fixes as well as new features.
 
-.. container:: notebox
-
-    **Beta Features**
-
-    The following is a short list of features that hopefully will land before
-    the master release:
-
-        #. Non-linear Face-varying Patches:
-           While the fundamental refinement and interpolation of face-varying
-           data is correct, it has been and remains linearly approximated in
-           the patches created in Far that are most used for evaluation and
-           display.  We want to update the patch tables to support non-linear
-           patches for the face-varying data.
-
-        #. Improved Robustness with Non-Manifold Topology:
-           With the replacement of Hbr with Vtr in 3.0, many non-manifold
-           topologies can be represented and effectively subdivided.  One
-           situation that was deferred is that of a "degenerate edge", i.e an
-           edge that has the same vertex at both ends.  Plans are to update
-           the refinement code within Vtr to do something reasonable in these
-           cases.
-
-
 ----
 
 3.x Release Cycle RoadMap
@@ -395,6 +376,22 @@ Within the 3.x release cycle we would like to continue to address many of the
 issues related to scaling the application of subdivision surfaces to large amounts
 of primitives within typical graphics pipelines, as well as complete other
 functionality that has long been missing from evaluation and display.
+
+Support for smooth face-varying (UV) data with patches is one feature that was
+targeted for 3.0 but unfortunately was not completed in time.  While the fundamental
+refinement and interpolation of face-varying data is correct, it has been and remains
+linearly approximated in the patches created in Far that are most used for evaluation
+and display.  We want to update the patch tables to support non-linear patches for
+the face-varying data.
+
+As the potential standard for evaluation and display
+of subdivision surfaces, OpenSubdiv is still lacking in its support of subdivision
+schemes other than Catmark -- specifically Loop.  Ultimately the same level of
+performance and functionality achieved with Catmark should be available for Loop,
+which is more effective in dealing with triangle-based meshes.  With the refactoring
+of the core refinement code in 3.0, much more of the supporting code for the schemes
+can be shared so we have already reduced the effort to bring Loop up to par with
+Catmark.  We hope to take steps in this direction in an upcoming 3.x release.
 
 Enabling workflows at larger scales will require improvements on several fronts:
 
@@ -409,15 +406,6 @@ Enabling workflows at larger scales will require improvements on several fronts:
 * Handle more semi-sharp creases: feature isolation needs to become much more
   efficient to allow for complete creative freedom in using the feature.
 * Faster topology analysis
-
-As the potential standard for evaluation and display
-of subdivision surfaces, OpenSubdiv is still lacking in its support of subdivision
-schemes other than Catmark -- specifically Loop.  Ultimately the same level of
-performance and functionality achieved with Catmark should be available for Loop,
-which is more effective in dealing with triangle-based meshes.  With the refactoring
-of the core refinement code in 3.0, much more of the supporting code for the schemes
-can be shared so we have already reduced the effort to bring Loop up to par with
-Catmark.  We hope to take steps in this direction in an upcoming 3.x release.
 
 
 Release 2.x
