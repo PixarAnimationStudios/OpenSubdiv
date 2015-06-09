@@ -200,8 +200,8 @@ foreach(MAYA_LIB
     Foundation
     IMFbase
     tbb
-    cg
-    cgGL)
+    Cg
+    CgGL)
 
     find_library(MAYA_${MAYA_LIB}_LIBRARY
             ${MAYA_LIB}
