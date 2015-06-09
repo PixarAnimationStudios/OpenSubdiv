@@ -116,10 +116,11 @@ a series of regression tests that compare the methods to each other.
 
 .. container:: impnotip
 
-   * **Beta Issues**
+   * **Release Notes (3.0.0)**
 
       Face-varying smooth data interpolation is currently only supported in 
       **Osd** through refinement and limit points but not in the PatchTable.
+      A more complete implementation is currently slated for a 3.1 release.
 
 ----
 
