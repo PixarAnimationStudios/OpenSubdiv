@@ -67,7 +67,7 @@ find_library(CLEW_LIBRARY
   PATHS
     ${_clew_SEARCH_DIRS}
   PATH_SUFFIXES
-    lib lib64
+    lib lib64 lib/static
   NO_DEFAULT_PATH
   DOC "The CLEW library")
 
