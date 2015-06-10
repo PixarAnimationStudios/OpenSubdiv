@@ -46,40 +46,63 @@ For more details, please see the `Release Notes <release_notes.html>`_.
 3.0 Master Release (Q2 2015)
 
     * freeze subdivision 'specification' (enforce backward compatibility)
-    * add support for bi-cubic face-varying interpolation (discrete & limit)
     * add support for Loop limit evaluation & draw
 
+3.1 Supplemental Release (Q3/Q4 2015)
 
-To Infinity & Beyond
-====================
+    * include any noteworthy omissions arising from 3.0
+    * add support for bi-cubic face-varying limit patches
+    * add support for higher order differentiation of limit patches
 
-The following is a list of pending projects and future directions for
-OpenSubdiv.
+3.2 Future Release (2016)
 
-Optimize Draw
-+++++++++++++
-  OSD specializes topological patch configurations by configuring GPU shader
-  source code. This causes back-end APIs to have to bind many shaders and
-  burdens the drivers with many "draw" calls for each primitive, which does
-  not scale well. Our goal is to ultimately try to reduce this burden back to
-  a single shader bind operation per primitive.
+    * TBD
 
-    - Reduce GPU shader variants:
 
-        + Merge regular / boundary / corner cases with vertex mirroring
-        + Merge transition cases with degenerate patches
-        + Merge rotations cases with run-time conditionals
+Near Term
+=========
 
-  Note: this project has been started at Pixar.
+The following is a short list of topics already expressed as priorities and
+receiving ongoing attention -- some being actively prototyped to varying
+degrees.
+
+Feature parity for Loop subdivision
++++++++++++++++++++++++++++++++++++
+
+  The more popular Catmark scheme has long received more attention and effort
+  than the Loop scheme.  Given OpenSubdiv claims to support both, additional
+  effort is required to bring Loop to the same level of functionality as
+  Catmark.  With the feature-adaptive analysis now scheme-independent, the
+  addition of triangular patches to the PatchTables will go a long way towards
+  that goal.  Prototype patch gathering and evaluation methods have already
+  been tested within the existing code base and discussions on extending the
+  internal patch infra-structure are underway.
+
+Improved support for infinitely sharp features
+++++++++++++++++++++++++++++++++++++++++++++++
+
+  The current implementation of adaptive feature isolation requires infinitely
+  sharp creases to be pushed to the highest level of isolation -- eventually
+  representing the result with a regular patch. The surface is therefore both
+  inefficient and incorrect. Patches with a single infinitely sharp edge can be
+  represented exactly with regular boundary patches and could be isolated at a
+  much higher level.  Continuity with dart patches is necessary in such cases,
+  and approximating more sharp irregular regions with alternate patch types
+  (e.g. Gregory or Bezier) will help this goal and others.
 
 Dynamic feature adaptive isolation (DFAS)
 +++++++++++++++++++++++++++++++++++++++++
 
   Adaptive feature isolation can produce a large number of patches, especially
   when the model contains a lot of semi-sharp creases. We need a LOD solution
-  that can dynamically isolate features based on distance to view-point.
+  that can dynamically isolate features based on distance to view-point.  (Note:
+  paper from Matthias Niessner & Henry Schafer)
 
-  Note: paper from Matthias Niessner & Henry Schafer
+Longer Term
+===========
+
+The following is a list of pending projects and future directions for
+OpenSubdiv.
 
 Implement a "high-level" API layer
 ++++++++++++++++++++++++++++++++++
@@ -95,14 +118,11 @@ Implement a "high-level" API layer
 
   Note: this document drafting has been started at Pixar with partners.
 
-Support for infinitely sharp creases
-++++++++++++++++++++++++++++++++++++
+"Next-gen" back-ends
+++++++++++++++++++++
 
-  The current implementation of adaptive feature isolation requires infinitely
-  sharp creases to be pushed to the highest level of isolation. The resulting
-  surface is both incorrect and inefficient. We want to correctly support
-  infinitely sharp creases with discontinuous patches that do not require to
-  be isolated to the highest level of subdivision.
+  Implement Osd::Draw Context & Controllers for next-gen GPU APIs such as
+  Mantle, Metal, DX12, Vulkan.
 
 A means to control edge curvature
 +++++++++++++++++++++++++++++++++
@@ -114,11 +134,12 @@ A means to control edge curvature
   This will likely require the introduction of non-uniform rational splines
   (NURCCS ?) in OpenSubdiv.
 
-"Next-gen" back-ends
-++++++++++++++++++++
 
-  Implement Osd::Draw Context & Controllers for next-gen GPU APIs such as
-  Mantle, Metal, DX12, Vulkan.
+Always in Need of Improvement
+=============================
+
+And finally, a few topics that always benefit fron continual improvement.
+Any and all contributions in this area are greatly appreciated.
 
 Regression testing
 ++++++++++++++++++

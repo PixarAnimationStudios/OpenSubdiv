@@ -51,109 +51,145 @@ algorithms that greatly enhance performance over previous versions.
 
 **Faster Subdivision**
 
-A major focus of the 3.0 release is performance. It should provide
-"out-of-the-box" speed-ups close to an order of magnitude for topology
-refinement and analysis (both uniform and adaptive).
+ A major focus of the 3.0 release is performance. It should provide
+ "out-of-the-box" speed-ups close to an order of magnitude for topology refinement
+ and analysis (both uniform and adaptive).
+
+**Introducing Stencil Tables**
+
+ OpenSubdiv 3.0 replaces the serialized subdivision tables with factorized
+ stencil tables. Subdivision tables as implemented in 2.x releases still contain
+ a fairly large amount of data inter-dependencies, which incur penalties from
+ fences or force additional kernel launches. Most of these dependencies have now
+ been factorized away in the pre-computation stage, yielding *stencil tables*
+ instead.
+
+ Stencils remove all data dependencies and simplify all the computations into a
+ single trivial kernel. This simplification results in a faster pre-computation
+ stage, faster execution on GPU, with less driver overhead. The new stencil
+ tables Compute back-end is supported on all the same platforms as previous
+ releases (except GCD).
 
 **Faster, Simpler GPU Kernels**
 
-On the GPU side, the replacement of subdivision tables with stencils greatly 
-reduces bottlenecks in compute, yielding as much as a 4x interpolation speed-up. 
-At the same time, stencils reduce the complexity of interpolation to a single 
-kernel launch per primitive, a critical improvement for mobile platforms.
+ On the GPU side, the replacement of subdivision tables with stencils greatly 
+ reduces bottlenecks in compute, yielding as much as a 4x interpolation speed-up. 
+ At the same time, stencils reduce the complexity of interpolation to a single 
+ kernel launch per primitive, a critical improvement for mobile platforms.
 
-As a result of these changes, compute batching is now trivial, which in turn
-enabled API simplifications in the Osd layer.
+ As a result of these changes, compute batching is now trivial, which in turn
+ enabled API simplifications in the Osd layer.
 
 **Unified Adaptive Shaders**
 
-Adaptive tessellation shader configurations have been greatly simplified. The 
-number of shader configurations has been reduced from a combinatorial per-patch 
-explosion down to a constant two global configurations. This massive improvement 
-over the 2.x code base results in significantly faster load times and a reduced
-per-frame cost for adaptive drawing.
+ Adaptive tessellation shader configurations have been greatly simplified. The 
+ number of shader configurations has been reduced from a combinatorial per-patch 
+ explosion down to a constant two global configurations. This massive improvement 
+ over the 2.x code base results in significantly faster load times and a reduced
+ per-frame cost for adaptive drawing.
 
-Similar to compute kernel simplification, this shader simplification has resulted
-in additional simplifications in the Osd layer.
+ Similar to compute kernel simplification, this shader simplification has resulted
+ in additional simplifications in the Osd layer.
 
 **Single Crease Patch**
 
-OpenSubdiv 3.0 newly implements efficient evaluation of semi-smooth
-creases(*) using single crease patches. With this optimization,
-high-order edge sharpness tags can be handled very efficiently for both
-computation time and memory consumption.
+ OpenSubdiv 3.0 newly implements efficient evaluation of semi-smooth
+ creases(*) using single crease patches. With this optimization,
+ high-order edge sharpness tags can be handled very efficiently for both
+ computation time and memory consumption.
 
-(*) Niessner et al., Efficient Evaluation of Semi-Smooth Creases in
-Catmull-Clark Subdivision Surfaces. Eurographics (Short Papers). 2012.
+ (*) Niessner et al., Efficient Evaluation of Semi-Smooth Creases in
+ Catmull-Clark Subdivision Surfaces. Eurographics (Short Papers). 2012.
 
 **New Irregular Patch Approximations**
 
-While "legacy" Gregory patch support is still available, we have introduced
-several new options for irregular: Legacy Gregory, fast Gregory Basis stencils,
-and BSpline patches. Gregory basis stencils provide the same high quality
-approximation of Legacy Gregory patches, but execute considerably faster with a
-simpler GPU representation. While BSpline patches are not as close an
-approximation as Gregory patches, they enable an entire adaptively refined
-mesh to be drawn with screen space tessellation via a single global shader 
-configuration (Gregory Basis patches require one additional global shader 
-configuration).
+ While "legacy" Gregory patch support is still available, we have introduced
+ several new options for representing irregular patches: Legacy Gregory, fast
+ Gregory Basis stencils, and BSpline patches. Gregory basis stencils provide
+ the same high quality approximation of Legacy Gregory patches, but execute
+ considerably faster with a simpler GPU representation. While BSpline patches
+ are not as close an approximation as Gregory patches, they enable an entire
+ adaptively refined mesh to be drawn with screen space tessellation via a
+ single global shader configuration (Gregory Basis patches require one
+ additional global shader configuration).
 
-The new implementations of the GregoryBasis and BSpline approximations relax
-the previous max valence limit. Users are still encouraged to use models with
-vertices of low valence for both improved model quality and performance.
+ The new implementations of the GregoryBasis and BSpline approximations relax
+ the previous max valence limit. Users are still encouraged to use models with
+ vertices of low valence for both improved model quality and performance.
 
 ----
 
-Simpler and More Flexible Topology Conversion
-*********************************************
+Topological Flexibility
+***********************
 
-OpenSubdiv 3.0 introduces several new entry-points for client topology. Previous
-releases required client applications to define and populate instances of an Hbr
-half-edge topology representation. For many applications, this representation
-was both redundant and inefficient. The new primary entry point is simpler, more
-flexible and more efficient.
-
-OpenSubdiv 3.0 introduces a new *intermediate* topological representation, named
-**Vtr** (Vectorized Topology Representation). The topological relationships
-held by Vtr can be populated using either a high-level interface where simplicity
-has been emphasized, or a lower-level interface for enhanced efficiency. Vtr is
-much more efficient for the kinds of topological analysis required by Far and
-additionally is more flexible in that it supports the specification of
-non-manifold topology.
-
-As a result, Hbr is no longer a core API of OpenSubdiv. While the code is marked
-as deprecated, it will remain in the source distribution for legacy and
-regression purposes.
+Given repeated limitations experienced with Hbr as the primary topological
+entry point, OpenSubdiv 3.0 introduces a new *intermediate* topological
+representation, named **Vtr** (Vectorized Topology Representation).  Vtr is
+much more efficient for the kinds of topological analysis required by Far
+and additionally is more flexible.  As a result, Hbr is no longer a core API
+of OpenSubdiv. While the code is marked as deprecated, it will remain in the
+source distribution for legacy and regression purposes.
 
 Though Vtr is insulated from public access by a topology container in Far (the
 Far::TopologyRefiner) -- allowing it to be enhanced in future independent of the
 public API -- documentation for Vtr can be found `here <vtr_overview.html>`__
 
-----
+**Now Supporting Non-manifold Topology**
 
-New Treatment of Face-Varying Data
-**********************************
+ With topology conversion no longer constrained by Hbr, OpenSubdiv is no
+ longer restricted to meshes of manifold topology.  With one exception
+ (non-triangles with Loop subdivision), any set of faces and vertices that can
+ be represented in common container formats such as Obj or Alembic can be
+ represented and subdivided.  With future efforts to bring the functionality
+ for the Loop scheme up to par with Catmark, that last remaining topological
+ restriction will hopefully be removed.
 
-With Hbr no longer being the entry point for client-code, OpenSubdiv 3.0 has to
-provide a new interface for face-varying data. Previous versions required
-face-varying data to be assigned by value to the vertex for each face, and
-whether or not the set of values around a vertex was continuous was determined
-by comparing these values later. In some cases this could result in two values
-that were not meant to be shared being "welded" together.
+**Simpler Conversion of Topology**
 
-Face-varying data is now specified topologically. Just as the vertex topology
-is defined from a set of vertices and integer references to these vertices for
-the vertex of each face, face-varying topology is defined from a set of values
-and integer references to these values for the vertex of each face. So if
-values are to be considered distinct around a vertex, they are given distinct
-indices and no comparison of values is ever performed.
+ Several entry-points are now available for client topology, rather than the
+ single incremental assembly of an HbrMesh that previously existed.  The new
+ topological relationships can be populated using either a high-level interface
+ where simplicity has been emphasized, or a more complex lower-level interface
+ for enhanced efficiency.
 
-This ensures that OpenSubdiv's face-varying topology matches what is specified
-in common geometry container formats like Obj or Alembic. It also allows for
-more efficient processing of face-varying values during refinement, and so the
-cost of interpolating a set of face-varying data should now be little more than
-the cost of interpolating a similar set of vertex data (depending on the number
-of distinct face-varying values versus the number of vertices).
+**Face Varying Topology**
+
+ Previously, face-varying data had to be assigned by value to the vertex for
+ each face, and whether or not the set of values around a vertex was
+ continuous was determined by comparing these values later. In some cases this
+ could result in two values that were not meant to be shared being "welded"
+ together.
+
+ Face-varying data is now specified topologically. Just as the vertex topology
+ is defined from a set of **vertices** and integer references (indices) to
+ these **vertices** for the corner of each face, face-varying topology is
+ defined from a set of **values** and integer references (indices) to these 
+ **values** for the corner of each face. So if values are to be considered
+ distinct around a vertex, they are given distinct indices and no comparison
+ of values is ever performed.  Note that the number of **vertices** and
+ **values** will typically differ, but since indices are assigned to the
+ corners of all faces for both, the total number of indices assigned to all
+ faces will be the same.
+ 
+ This ensures that OpenSubdiv's face-varying topology matches what is specified
+ in common geometry container formats like Obj or Alembic. It also allows for
+ more efficient processing of face-varying values during refinement, and so the
+ cost of interpolating a set of face-varying data should now be little more than
+ the cost of interpolating a similar set of vertex data (depending on the number
+ of distinct face-varying values versus the number of vertices).
+
+**No more fixed valence tables**
+
+ All tables that restricted the valence of a vertex to some relatively small
+ table size have now been removed.  Limit properties of extra-ordinary vertices
+ are computed for arbitrary valence and new patch types no longer rely on small
+ table sizes.
+ 
+ The only restriction on valence that exists is within the new topology
+ representation, which restricts it to the size of an unsigned 16-bit integer
+ (65,535).  This limit could also be removed, by recompiling with a certain
+ size changed from 16- to 32-bits, but doing so would increase the memory cost
+ for all common cases.  We feel the 16-bit limit was a reasonable compromise.
 
 ----
 
@@ -173,24 +209,6 @@ Far but can also provide client-code with an existing implementation of their
 own with the details to make that implementation consistent with OpenSubdiv.
 
 The documentation for Sdc can be found `here <sdc_overview.html>`__
-
-----
-
-Introducing Stencil Tables
-**************************
-
-OpenSubdiv 3.0 replaces the serialized subdivision tables with factorized
-stencil tables. Subdivision tables as implemented in 2.x releases still contain
-a fairly large amount of data inter-dependencies, which incur penalties from
-fences or force additional kernel launches. Most of these dependencies have now
-been factorized away in the pre-computation stage, yielding *stencil tables*
-instead.
-
-Stencils remove all data dependencies and simplify all the computations into a
-single trivial kernel. This simplification results in a faster pre-computation
-stage, faster execution on GPU, with less driver overhead. The new stencil
-tables Compute back-end is supported on all the same platforms as previous
-releases (except GCD).
 
 ----
 
