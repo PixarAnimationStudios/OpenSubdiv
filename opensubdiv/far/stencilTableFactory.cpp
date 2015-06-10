@@ -453,8 +453,6 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     //
     // Copy the proto-stencils into the limit stencil table
     //
-    size_t firstOffset = refiner.GetLevel(0).GetNumVertices();
-
     LimitStencilTable * result = new LimitStencilTable(
                                           refiner.GetLevel(0).GetNumVertices(),
                                           builder.GetStencilOffsets(),
@@ -464,7 +462,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
                                           builder.GetStencilDuWeights(),
                                           builder.GetStencilDvWeights(),
                                           /*ctrlVerts*/false,
-                                          firstOffset);
+                                          /*fristOffset*/0);
     return result;
 }
 
