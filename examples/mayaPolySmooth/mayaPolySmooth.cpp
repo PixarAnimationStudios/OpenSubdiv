@@ -312,7 +312,7 @@ gatherTopology( MFnMesh & inMeshFn,
                 MItMeshPolygon & inMeshItPolygon,
                 OpenSubdiv::Sdc::SchemeType type,
                 OpenSubdiv::Sdc::Options options,
-                bool & hasUVs, bool & hasColors,
+                bool * hasUVs, bool * hasColors,
                 std::vector<MFloatArray> & uvSet_uCoords,
                 std::vector<MFloatArray> & uvSet_vCoords,
                 std::vector<MColorArray> & colorSet_colors,
@@ -365,11 +365,11 @@ gatherTopology( MFnMesh & inMeshFn,
 
     // Add Face-Varying data to the descriptor
     Descriptor::FVarChannel * channels = NULL;
-    hasUVs = uvSet_uCoords.size() > 0 && uvSet_vCoords.size() > 0;
-    hasColors = colorSet_colors.size() > 0;
+    *hasUVs = uvSet_uCoords.size() > 0 && uvSet_vCoords.size() > 0;
+    *hasColors = colorSet_colors.size() > 0;
 
     // Note : Only supports 1 channel of UVs and 1 channel of color
-    if (hasUVs || hasColors) {
+    if (*hasUVs || *hasColors) {
 
         // Create 2 face-varying channel descriptor that will hold UVs and color
         desc.numFVarChannels = 2;
@@ -377,28 +377,26 @@ gatherTopology( MFnMesh & inMeshFn,
         desc.fvarChannels = channels;
 
         int * uvIndices = new int[numFaceVertices];
-        int * pUVIndex = uvIndices;
         channels[CHANNELUV].valueIndices = uvIndices;
         channels[CHANNELUV].numValues = 0;
 
         int * colorIndices = new int[numFaceVertices];
-        int * pColorIndex = colorIndices;
         channels[CHANNELCOLOR].valueIndices = colorIndices;
         channels[CHANNELCOLOR].numValues = 0;
 
         // Obtain UV information
-        if (hasUVs) {
+        if (*hasUVs) {
             inMeshFn.getUVs(uvSet_uCoords[0], uvSet_vCoords[0], &uvSetNames[0]);
             assert( uvSet_uCoords[0].length() == uvSet_vCoords[0].length() );
 
-            int uvId = 0;
+            int uvId = 0, nUVs = 0;
             for (int faceIndex = 0; faceIndex < inMeshFn.numPolygons(); ++faceIndex)
             {
                 int numVertices = inMeshFn.polygonVertexCount(faceIndex);
                 for (int v = 0; v < numVertices; v++)
                 {
                     inMeshFn.getPolygonUVid(faceIndex, v, uvId, &uvSetNames[0]);
-                    *pUVIndex ++ = uvId;
+                    uvIndices[nUVs++] = uvId;
                 }
             }
 
@@ -406,10 +404,10 @@ gatherTopology( MFnMesh & inMeshFn,
         }
 
         // Obtain color information
-        if (hasColors) {  
+        if (*hasColors) {  
             inMeshFn.getColors(colorSet_colors[0], &colorSetNames[0]);
 
-            int colorId = 0;
+            int colorId = 0, nColors = 0;
             bool addDefaultColor = true;
             for (int faceIndex = 0; faceIndex < inMeshFn.numPolygons(); ++faceIndex)
             {
@@ -426,7 +424,7 @@ gatherTopology( MFnMesh & inMeshFn,
                         }
                         colorId = colorSet_colors[0].length() - 1;
                     }
-                    *pColorIndex ++ = colorId;
+                    colorIndices[nColors ++] = colorId;
                 }
             }
             
@@ -449,7 +447,7 @@ gatherTopology( MFnMesh & inMeshFn,
     delete [] desc.cornerVertexIndices;
     delete [] desc.cornerWeights;
 
-    if (hasUVs || hasColors) {
+    if (*hasUVs || *hasColors) {
         for(int i = 0 ; i < desc.numFVarChannels ; i ++) {
             delete [] channels[i].valueIndices;
         }
@@ -665,17 +663,15 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
     }
 
     // Points
-    MFloatPointArray points(refLastLevel.GetNumVertices());
-    Vertex const * v = &refinedVerts.at(0);
-    for (int level=1; level<=maxlevel; ++level) {
-        int nverts = refiner.GetLevel(level).GetNumVertices();
-        if (level==maxlevel) {
-            for (int vert=0; vert < nverts; ++vert, ++v) {
-                points.set(vert, v->position[0], v->position[1], v->position[2]);
-            }
-        } else {
-            v += nverts;
-        }
+    int nverts = refLastLevel.GetNumVertices();
+    int firstOfLastVert = refiner.GetNumVerticesTotal() 
+                        - nverts 
+                        - refiner.GetLevel(0).GetNumVertices();
+
+    MFloatPointArray points(nverts);
+    for (int vIt = 0; vIt < nverts; ++vIt) {
+        Vertex const & v = refinedVerts[firstOfLastVert + vIt];
+        points.set(vIt, v.position[0], v.position[1], v.position[2]);
     }
 
     // Create New Mesh from MFnMesh
@@ -701,25 +697,20 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
         for (int f = 0; f < refLastLevel.GetNumFaces(); ++f) {
             IndexArray faceIndices = refLastLevel.GetFaceFVarValues(f, CHANNELUV);
             for (int index = 0 ; index < faceIndices.size() ; ++index) {
-                fvarConnects[count] = faceIndices[index];
-                count++;
+                fvarConnects[count++] = faceIndices[index];
             }
         }
 
-        MFloatArray uCoord(refLastLevel.GetNumFVarValues(CHANNELUV));
-        MFloatArray vCoord(refLastLevel.GetNumFVarValues(CHANNELUV));
-        FVarVertexUV const * uv = &refinedUVs.at(0);
+        int nuvs = refLastLevel.GetNumFVarValues(CHANNELUV);
+        int firstOfLastUvs = refiner.GetNumFVarValuesTotal(CHANNELUV) 
+                             - nuvs
+                             - refiner.GetLevel(0).GetNumFVarValues(CHANNELUV);
 
-        for (int level=1; level<=maxlevel; ++level) {
-            int nuvs = refiner.GetLevel(level).GetNumFVarValues(CHANNELUV);
-            if (level==maxlevel) {
-                for (int uvIt=0; uvIt<nuvs; ++uvIt, ++uv) {
-                    uCoord[uvIt] = uv->u;
-                    vCoord[uvIt] = uv->v;
-                }
-            } else {
-                uv += nuvs;
-            }
+        MFloatArray uCoord(nuvs), vCoord(nuvs);
+        for (int uvIt = 0; uvIt < nuvs; ++uvIt) {
+            FVarVertexUV const & uv = refinedUVs[firstOfLastUvs + uvIt];
+            uCoord[uvIt] = uv.u;
+            vCoord[uvIt] = uv.v;
         }
 
         // Currently, the plugin only supports one UV set
@@ -733,6 +724,7 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
             &defaultUVName : &uvSetNames[uvSetIndex];
         status = newMeshFn.setUVs(uCoord, vCoord, uvname);                  
         MCHECKERR(status, "Cannot set UVs for set : "+*uvname);
+
         status = newMeshFn.assignUVs(faceCounts, fvarConnects, uvname);     
         MCHECKERR(status, "Cannot assign UVs");
     }
@@ -745,28 +737,26 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
         for (int f = 0 ; f < refLastLevel.GetNumFaces(); ++f) {
             IndexArray faceIndices = refLastLevel.GetFaceFVarValues(f, CHANNELCOLOR);
             for (int index = 0 ; index < faceIndices.size() ; ++index) {
-                fvarConnects2[count] = faceIndices[index];
-                count++;
+                fvarConnects2[count++] = faceIndices[index];
             }
         }
   
-        MColorArray colorArray(refLastLevel.GetNumFVarValues(CHANNELCOLOR));
-        FVarVertexColor const * c = &refinedColors.at(0);
-        for (int level=1; level<=maxlevel; ++level) {
-            int ncolors = refiner.GetLevel(level).GetNumFVarValues(CHANNELCOLOR);
-            if (level==maxlevel) {
-                for (int colorIt=0; colorIt<ncolors; ++colorIt, ++c) {
-                    colorArray.set(colorIt, c->r, c->g, c->b, c->a);
-                }
-            } else {
-                c += ncolors;
-            }
+        int ncols = refLastLevel.GetNumFVarValues(CHANNELCOLOR);
+        int firstOfLastCols = refiner.GetNumFVarValuesTotal(CHANNELCOLOR) 
+                              - ncols
+                              - refiner.GetLevel(0).GetNumFVarValues(CHANNELCOLOR);
+
+        MColorArray colorArray(ncols);
+        for (int colIt = 0; colIt < ncols; ++colIt) {
+            FVarVertexColor const & c = refinedColors[firstOfLastCols + colIt];
+            colorArray.set(colIt, c.r, c.g, c.b, c.a);
         }
 
         // Currently, the plugin only supports one color sets
         int colorSetIndex = 0;
 
         // Assign color buffer and map the ids for each face-vertex
+        // API Limitation: Cannot set MColorRepresentation here
         status = newMeshFn.createColorSetDataMesh(
             colorSetNames[colorSetIndex]);                                
         MCHECKERR(status, "Cannot create ColorSet");
@@ -847,7 +837,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
             bool hasUVs = false, hasColors = false;
             float maxCreaseSharpness=0.0f;
             OpenSubdiv::Far::TopologyRefiner * refiner = gatherTopology(
-                inMeshFn, inMeshItPolygon, type, options, hasUVs, hasColors,
+                inMeshFn, inMeshItPolygon, type, options, &hasUVs, &hasColors,
                 uvSet_uCoords, uvSet_vCoords, colorSet_colors, &maxCreaseSharpness);
 
             assert(refiner);
