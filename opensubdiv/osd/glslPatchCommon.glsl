@@ -155,27 +155,27 @@ ivec3 OsdGetPatchParam(int patchIndex)
 
 int OsdGetPatchFaceId(ivec3 patchParam)
 {
-    return patchParam.x;
+    return (patchParam.x & 0xfffffff);
 }
 
 int OsdGetPatchFaceLevel(ivec3 patchParam)
 {
-    return (1 << ((patchParam.y & 0x7) - ((patchParam.y >> 3) & 1)));
+    return (1 << ((patchParam.y & 0xf) - ((patchParam.y >> 4) & 1)));
 }
 
 int OsdGetPatchRefinementLevel(ivec3 patchParam)
 {
-    return (patchParam.y & 0x7);
+    return (patchParam.y & 0xf);
 }
 
 int OsdGetPatchBoundaryMask(ivec3 patchParam)
 {
-    return ((patchParam.y >> 4) & 0xf);
+    return ((patchParam.y >> 8) & 0xf);
 }
 
 int OsdGetPatchTransitionMask(ivec3 patchParam)
 {
-    return ((patchParam.y >> 8) & 0xf);
+    return ((patchParam.x >> 28) & 0xf);
 }
 
 ivec2 OsdGetPatchFaceUV(ivec3 patchParam)

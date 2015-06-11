@@ -571,7 +571,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
                 center.AddWithWeight(vertexBuffer[cvs[remap[k]]], 0.25f);
             }
 
-            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).faceIndex);
+            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).GetFaceId());
             g_font->Print3D(center.GetPos(), buf, 1);
         }
     }

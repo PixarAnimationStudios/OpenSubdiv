@@ -69,8 +69,8 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
             farPatchTable->GetPatchParams(j);
         for (int k = 0; k < patchParams.size(); ++k) {
             float sharpness = 0.0;
-            _patchParamBuffer.push_back(patchParams[k].faceIndex);
-            _patchParamBuffer.push_back(patchParams[k].bitField.field);
+            _patchParamBuffer.push_back(patchParams[k].field0);
+            _patchParamBuffer.push_back(patchParams[k].field1);
             _patchParamBuffer.push_back(*((unsigned int *)&sharpness));
         }
 #else
@@ -90,8 +90,8 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
             }
             PatchParam param;
             //param.patchParam = patchParamTable[patchIndex];
-            param.faceIndex = patchParamTable[patchIndex].faceIndex;
-            param.patchBits = patchParamTable[patchIndex].bitField.field;
+            param.field0 = patchParamTable[patchIndex].field0;
+            param.field1 = patchParamTable[patchIndex].field1;
             param.sharpness = sharpness;
             _patchParamBuffer.push_back(param);
         }

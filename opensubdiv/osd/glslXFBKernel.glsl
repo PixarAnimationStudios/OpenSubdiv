@@ -173,11 +173,11 @@ void getBSplineWeights(float t, inout vec4 point, inout vec4 deriv) {
 }
 
 uint getDepth(uint patchBits) {
-    return (patchBits & 0x7U);
+    return (patchBits & 0xfU);
 }
 
 float getParamFraction(uint patchBits) {
-    uint nonQuadRoot = (patchBits >> 3) & 0x1U;
+    uint nonQuadRoot = (patchBits >> 4) & 0x1U;
     uint depth = getDepth(patchBits);
     if (nonQuadRoot == 1) {
         return 1.0f / float( 1 << (depth-1) );
@@ -201,7 +201,7 @@ vec2 normalizePatchCoord(uint patchBits, vec2 uv) {
 }
 
 void adjustBoundaryWeights(uint bits, inout vec4 sWeights, inout vec4 tWeights) {
-    uint boundary = ((bits >> 4) & 0xfU);
+    uint boundary = ((bits >> 8) & 0xfU);
 
     if ((boundary & 1U) != 0) {
         tWeights[2] -= tWeights[0];

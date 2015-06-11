@@ -73,8 +73,8 @@ struct PatchCoord {
    float t;
 };
 struct PatchParam {
-    int faceIndex;
-    uint patchBits;
+    uint field0;
+    uint field1;
     float sharpness;
 };
 uniform ivec4 patchArray[2];
@@ -214,11 +214,11 @@ void getBSplineWeights(float t, inout vec4 point, inout vec4 deriv) {
 }
 
 uint getDepth(uint patchBits) {
-    return (patchBits & 0x7);
+    return (patchBits & 0xf);
 }
 
 float getParamFraction(uint patchBits) {
-    uint nonQuadRoot = (patchBits >> 3) & 0x1;
+    uint nonQuadRoot = (patchBits >> 4) & 0x1;
     uint depth = getDepth(patchBits);
     if (nonQuadRoot == 1) {
         return 1.0f / float( 1 << (depth-1) );
@@ -242,7 +242,7 @@ vec2 normalizePatchCoord(uint patchBits, vec2 uv) {
 }
 
 void adjustBoundaryWeights(uint bits, inout vec4 sWeights, inout vec4 tWeights) {
-    uint boundary = ((bits >> 4) & 0xf);
+    uint boundary = ((bits >> 8) & 0xf);
 
     if ((boundary & 1) != 0) {
         tWeights[2] -= tWeights[0];
@@ -277,7 +277,7 @@ void main() {
     int patchType = 6; // array.x XXX: REGULAR only for now.
     int numControlVertices = 16;
 
-    uint patchBits = patchParamBuffer[patchIndex].patchBits;
+    uint patchBits = patchParamBuffer[patchIndex].field1;
     vec2 uv = normalizePatchCoord(patchBits, vec2(coord.s, coord.t));
     float dScale = float(1 << getDepth(patchBits));
 

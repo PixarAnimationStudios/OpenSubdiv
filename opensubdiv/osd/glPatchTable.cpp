@@ -66,8 +66,7 @@ GLPatchTable::allocate(Far::PatchTable const *farPatchTable) {
     GLsizei patchParamSize = (GLsizei)patchTable.GetPatchParamSize();
 
     // copy patch array
-    _patchArrays.insert(_patchArrays.end(),
-                        patchTable.GetPatchArrayBuffer(),
+    _patchArrays.assign(patchTable.GetPatchArrayBuffer(),
                         patchTable.GetPatchArrayBuffer() + numPatchArrays);
 
     // copy index buffer
