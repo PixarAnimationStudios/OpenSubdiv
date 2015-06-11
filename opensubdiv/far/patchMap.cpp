@@ -91,7 +91,7 @@ PatchMap::initialize( PatchTable const & patchTable ) {
             h.patchIndex = current;
             h.vertIndex  = j * ringsize;
 
-            nfaces = std::max(nfaces, (int)params[j].faceIndex);
+            nfaces = std::max(nfaces, (int)params[j].GetFaceId());
 
             ++current;
         }
@@ -113,21 +113,21 @@ PatchMap::initialize( PatchTable const & patchTable ) {
 
         for (int i=0; i < patchTable.GetNumPatches(parray); ++i, ++handleIndex) {
 
-            PatchParam::BitField bits = params[i].bitField;
+            PatchParam const & param = params[i];
 
-            unsigned char depth = bits.GetDepth();
+            unsigned short depth = param.GetDepth();
 
-            QuadNode * node = &quadtree[ params[i].faceIndex ];
+            QuadNode * node = &quadtree[ params[i].GetFaceId() ];
 
-            if (depth==(bits.NonQuadRoot() ? 1 : 0)) {
+            if (depth==(param.NonQuadRoot() ? 1 : 0)) {
                 // special case : regular BSpline face w/ no sub-patches
                 node->SetChild( handleIndex );
                 continue;
             }
 
-            int u = bits.GetU(),
-                v = bits.GetV(),
-                pdepth = bits.NonQuadRoot() ? depth-2 : depth-1,
+            int u = param.GetU(),
+                v = param.GetV(),
+                pdepth = param.NonQuadRoot() ? depth-2 : depth-1,
                 half = 1 << pdepth;
 
             for (unsigned char j=0; j<depth; ++j) {

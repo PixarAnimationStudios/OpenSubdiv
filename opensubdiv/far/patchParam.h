@@ -44,12 +44,17 @@ namespace Far {
 ///
 /// Bitfield layout :
 ///
-///  Field      | Bits | Content
+///  Field0     | Bits | Content
 ///  -----------|:----:|------------------------------------------------------
-///  level      | 3    | the subdivision level of the patch
-///  nonquad    | 1    | whether the patch is the child of a non-quad face
-///  boundary   | 4    | boundary edge mask encoding
+///  faceId     | 28   | the faceId of the patch
 ///  transition | 4    | transition edge mask encoding
+///
+///  Field1     | Bits | Content
+///  -----------|:----:|------------------------------------------------------
+///  level      | 4    | the subdivision level of the patch
+///  nonquad    | 1    | whether the patch is the child of a non-quad face
+///  unused     | 3    | transition edge mask encoding
+///  boundary   | 4    | boundary edge mask encoding
 ///  v          | 10   | log2 value of u parameter at first patch corner
 ///  u          | 10   | log2 value of v parameter at first patch corner
 ///
@@ -57,62 +62,9 @@ namespace Far {
 ///        GPU & CPU compilers pack bit-fields and endian-ness.
 ///
 struct PatchParam {
-    Index faceIndex:32; // Ptex face index
-
-    struct BitField {
-        unsigned int field:32;
-
-        /// \brief Sets the values of the bit fields
-        ///
-        /// @param u value of the u parameter for the first corner of the face
-        /// @param v value of the v parameter for the first corner of the face
-        ///
-        /// @param rots rotations required to reproduce CCW face-winding
-        /// @param depth subdivision level of the patch
-        /// @param nonquad true if the root face is not a quad
-        ///
-        void Set( short u, short v, unsigned char depth, bool nonquad,
-                  unsigned short boundary, unsigned short transition );
-
-        /// \brief Returns the log2 value of the u parameter at the top left corner of
-        /// the patch
-        unsigned short GetU() const { return (unsigned short)((field >> 22) & 0x3ff); }
-
-        /// \brief Returns the log2 value of the v parameter at the top left corner of
-        /// the patch
-        unsigned short GetV() const { return (unsigned short)((field >> 12) & 0x3ff); }
-
-        /// \brief Returns the transition edge encoding for the patch.
-        unsigned short GetTransition() const { return (unsigned short)((field >> 8) & 0xf); }
-
-        /// \brief Returns the boundary edge encoding for the patch.
-        unsigned short GetBoundary() const { return (unsigned short)((field >> 4) & 0xf); }
-
-        /// \brief True if the parent coarse face is a non-quad
-        bool NonQuadRoot() const { return (field >> 3) & 0x1; }
-
-        /// \brief Returns the fratcion of normalized parametric space covered by the
-        /// sub-patch.
-        float GetParamFraction() const;
-
-        /// \brief Returns the level of subdivision of the patch
-        unsigned char GetDepth() const { return  (unsigned char)(field & 0x7); }
-
-        /// The (u,v) pair is normalized to this sub-parametric space.
-        ///
-        /// @param u  u parameter
-        /// @param v  v parameter
-        ///
-        void Normalize( float & u, float & v ) const;
-
-        /// \brief Resets the values to 0
-        void Clear() { field = 0; }
-
-    } bitField;
-
     /// \brief Sets the values of the bit fields
     ///
-    /// @param faceid ptex face index
+    /// @param faceid face index
     ///
     /// @param u value of the u parameter for the first corner of the face
     /// @param v value of the v parameter for the first corner of the face
@@ -121,11 +73,49 @@ struct PatchParam {
     /// @param depth subdivision level of the patch
     /// @param nonquad true if the root face is not a quad
     ///
-    void Set( Index faceid, short u, short v, unsigned char depth, bool nonquad ,
+    void Set( Index faceid, short u, short v,
+              unsigned short depth, bool nonquad ,
               unsigned short boundary, unsigned short transition );
 
     /// \brief Resets everything to 0
-    void Clear();
+    void Clear() { field0 = field1 = 0; }
+
+    /// \brief Retuns the faceid
+    Index GetFaceId() const { return Index(field0 & 0xfffffff); }
+
+    /// \brief Returns the log2 value of the u parameter at the top left corner of
+    /// the patch
+    unsigned short GetU() const { return (unsigned short)((field1 >> 22) & 0x3ff); }
+
+    /// \brief Returns the log2 value of the v parameter at the top left corner of
+    /// the patch
+    unsigned short GetV() const { return (unsigned short)((field1 >> 12) & 0x3ff); }
+
+    /// \brief Returns the transition edge encoding for the patch.
+    unsigned short GetTransition() const { return (unsigned short)((field0 >> 28) & 0xf); }
+
+    /// \brief Returns the boundary edge encoding for the patch.
+    unsigned short GetBoundary() const { return (unsigned short)((field1 >> 8) & 0xf); }
+
+    /// \brief True if the parent coarse face is a non-quad
+    bool NonQuadRoot() const { return (field1 >> 4) & 0x1; }
+
+    /// \brief Returns the fraction of normalized parametric space covered by the
+    /// sub-patch.
+    float GetParamFraction() const;
+
+    /// \brief Returns the level of subdivision of the patch
+    unsigned short GetDepth() const { return  (unsigned short)(field1 & 0xf); }
+
+    /// The (u,v) pair is normalized to this sub-parametric space.
+    ///
+    /// @param u  u parameter
+    /// @param v  v parameter
+    ///
+    void Normalize( float & u, float & v ) const;
+
+    unsigned int field0:32;
+    unsigned int field1:32;
 };
 
 typedef std::vector<PatchParam> PatchParamTable;
@@ -134,19 +124,20 @@ typedef Vtr::Array<PatchParam> PatchParamArray;
 typedef Vtr::ConstArray<PatchParam> ConstPatchParamArray;
 
 inline void
-PatchParam::BitField::Set( short u, short v, unsigned char depth, bool nonquad,
-                           unsigned short boundary, unsigned short transition ) {
-    field = (u << 22) |
-            (v << 12) |
-            (transition << 8) |
-            (boundary << 4) |
-            ((nonquad ? 1:0) << 3) |
-            (nonquad ? depth+1 : depth);
+PatchParam::Set( Index faceid, short u, short v,
+                 unsigned short depth, bool nonquad,
+                 unsigned short boundary, unsigned short transition ) {
+    field0 = (unsigned int(faceid) & 0xfffffff) |
+             ((transition & 0xf) << 28);
+    field1 = ((u & 0x3ff) << 22) |
+             ((v & 0x3ff) << 12) |
+             ((boundary & 0xf) << 8) |
+             ((nonquad ? 1:0) << 4) |
+             (nonquad ? depth+1 : depth);
 }
 
-
 inline float
-PatchParam::BitField::GetParamFraction( ) const {
+PatchParam::GetParamFraction( ) const {
     if (NonQuadRoot()) {
         return 1.0f / float( 1 << (GetDepth()-1) );
     } else {
@@ -155,7 +146,7 @@ PatchParam::BitField::GetParamFraction( ) const {
 }
 
 inline void
-PatchParam::BitField::Normalize( float & u, float & v ) const {
+PatchParam::Normalize( float & u, float & v ) const {
 
     float frac = GetParamFraction();
 
@@ -166,19 +157,6 @@ PatchParam::BitField::Normalize( float & u, float & v ) const {
     // normalize u,v coordinates
     u = (u - pu) / frac,
     v = (v - pv) / frac;
-}
-
-inline void
-PatchParam::Set( Index faceid, short u, short v, unsigned char depth, bool nonquad,
-                 unsigned short boundary, unsigned short transition ) {
-    faceIndex = faceid;
-    bitField.Set(u,v,depth,nonquad,boundary,transition);
-}
-
-inline void
-PatchParam::Clear() {
-    faceIndex = 0;
-    bitField.Clear();
 }
 
 } // end namespace Far
