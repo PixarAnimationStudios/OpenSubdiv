@@ -26,6 +26,7 @@
 
 #include <D3D11.h>
 #include "../far/patchTable.h"
+#include "../osd/cpuPatchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -59,64 +60,20 @@ D3D11PatchTable::allocate(Far::PatchTable const *farPatchTable,
     pd3d11DeviceContext->GetDevice(&pd3d11Device);
     assert(pd3d11Device);
 
-    std::vector<int> buffer;
-    std::vector<unsigned int> ppBuffer;
+    CpuPatchTable patchTable(farPatchTable);
 
-    // needs reserve?
-    int nPatchArrays = farPatchTable->GetNumPatchArrays();
+    size_t numPatchArrays = patchTable.GetNumPatchArrays();
+    size_t indexSize = patchTable.GetPatchIndexSize();
+    size_t patchParamSize = patchTable.GetPatchParamSize();
 
-    // for each patchArray
-    for (int j = 0; j < nPatchArrays; ++j) {
-        PatchArray patchArray(farPatchTable->GetPatchArrayDescriptor(j),
-                              farPatchTable->GetNumPatches(j),
-                              (int)buffer.size(),
-                              (int)ppBuffer.size()/3);
-        _patchArrays.push_back(patchArray);
-
-        // indices
-        Far::ConstIndexArray indices = farPatchTable->GetPatchArrayVertices(j);
-        for (int k = 0; k < indices.size(); ++k) {
-            buffer.push_back(indices[k]);
-        }
-
-        // patchParams
-#if 0
-        // XXX: we need sharpness interface for patcharray or put sharpness
-        //      into patchParam.
-        Far::ConstPatchParamArray patchParams =
-            farPatchTable->GetPatchParams(j);
-        for (int k = 0; k < patchParams.size(); ++k) {
-            float sharpness = 0.0;
-            ppBuffer.push_back(patchParams[k].faceIndex);
-            ppBuffer.push_back(patchParams[k].bitField.field);
-            ppBuffer.push_back(*((unsigned int *)&sharpness));
-        }
-#else
-        // XXX: workaround. GetPatchParamTable() will be deprecated though.
-        Far::PatchParamTable const & patchParamTable =
-            farPatchTable->GetPatchParamTable();
-        std::vector<Far::Index> const &sharpnessIndexTable =
-            farPatchTable->GetSharpnessIndexTable();
-        int numPatches = farPatchTable->GetNumPatches(j);
-        for (int k = 0; k < numPatches; ++k) {
-            float sharpness = 0.0;
-            int patchIndex = (int)ppBuffer.size()/3;
-            if (patchIndex < (int)sharpnessIndexTable.size()) {
-                int sharpnessIndex = sharpnessIndexTable[patchIndex];
-                if (sharpnessIndex >= 0)
-                    sharpness = farPatchTable->GetSharpnessValues()[sharpnessIndex];
-            }
-            ppBuffer.push_back(patchParamTable[patchIndex].faceIndex);
-            ppBuffer.push_back(patchParamTable[patchIndex].bitField.field);
-            ppBuffer.push_back(*((unsigned int *)&sharpness));
-        }
-#endif
-    }
+    // copy patch array
+    _patchArrays.assign(patchTable.GetPatchArrayBuffer(),
+                        patchTable.GetPatchArrayBuffer() + numPatchArrays);
 
     // index buffer
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
-    bd.ByteWidth = (int)buffer.size() * sizeof(int);
+    bd.ByteWidth = (int)indexSize * sizeof(int);
     bd.Usage = D3D11_USAGE_DYNAMIC;
     bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -134,18 +91,20 @@ D3D11PatchTable::allocate(Far::PatchTable const *farPatchTable,
         return false;
     }
     unsigned int * indexBuffer = (unsigned int *) mappedResource.pData;
-    memcpy(indexBuffer, &buffer[0], buffer.size() * sizeof(unsigned int));
+    memcpy(indexBuffer,
+           patchTable.GetPatchIndexBuffer(),
+           indexSize * sizeof(unsigned int));
 
     pd3d11DeviceContext->Unmap(_indexBuffer, 0);
 
     // patchparam buffer
     ZeroMemory(&bd, sizeof(bd));
-    bd.ByteWidth = (int)ppBuffer.size() * sizeof(int);
+    bd.ByteWidth = (int)patchParamSize * sizeof(PatchParam);
     bd.Usage = D3D11_USAGE_DYNAMIC;
     bd.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     bd.MiscFlags = 0;
-    bd.StructureByteStride = sizeof(unsigned int);
+    bd.StructureByteStride = sizeof(PatchParam);
     hr = pd3d11Device->CreateBuffer(&bd, NULL, &_patchParamBuffer);
     if (FAILED(hr)) {
         return false;
@@ -156,7 +115,7 @@ D3D11PatchTable::allocate(Far::PatchTable const *farPatchTable,
     srvd.Format = DXGI_FORMAT_R32G32B32_UINT;
     srvd.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
     srvd.Buffer.FirstElement = 0;
-    srvd.Buffer.NumElements = (int)ppBuffer.size()/3;
+    srvd.Buffer.NumElements = (int)patchParamSize;
     hr = pd3d11Device->CreateShaderResourceView(
         _patchParamBuffer, &srvd, &_patchParamBufferSRV);
     if (FAILED(hr)) {
@@ -168,7 +127,10 @@ D3D11PatchTable::allocate(Far::PatchTable const *farPatchTable,
         return false;
     }
     unsigned int *dst = (unsigned int *) mappedResource.pData;
-    memcpy(dst, &ppBuffer[0], ppBuffer.size() * sizeof(int));
+    memcpy(dst,
+           patchTable.GetPatchParamBuffer(),
+           patchParamSize * sizeof(PatchParam));
+
     pd3d11DeviceContext->Unmap(_patchParamBuffer, 0);
 
     return true;

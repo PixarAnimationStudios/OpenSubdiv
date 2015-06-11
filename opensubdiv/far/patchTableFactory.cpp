@@ -440,16 +440,16 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
 }
 
 //
-//  Populates the face-varying data buffer 'coord' for the given face, returning
-//  a pointer to the next descriptor
+//  Populates the PatchParam for the given face, returning
+//  a pointer to the next entry
 //
 PatchParam *
 PatchTableFactory::computePatchParam(
     TopologyRefiner const & refiner, PtexIndices const &ptexIndices,
     int depth, Vtr::Index faceIndex, int boundaryMask, 
-    int transitionMask, PatchParam *coord) {
+    int transitionMask, PatchParam *param) {
 
-    if (coord == NULL) return NULL;
+    if (param == NULL) return NULL;
 
     // Move up the hierarchy accumulating u,v indices to the coarse level:
     int childIndexInParent = 0,
@@ -497,10 +497,10 @@ PatchTableFactory::computePatchParam(
         --depth;
     }
 
-    coord->Set(ptexIndex, (short)u, (short)v, (unsigned char) depth, nonquad,
+    param->Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
                (unsigned short) boundaryMask, (unsigned short) transitionMask);
 
-    return ++coord;
+    return ++param;
 }
 
 

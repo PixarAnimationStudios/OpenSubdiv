@@ -242,8 +242,8 @@ SceneBase::CreateIndexBuffer() {
             // XXX: needs sharpness interface for patcharray or put sharpness into patchParam.
             for (int k = 0; k < patchParams.size(); ++k) {
                 float sharpness = 0.0;
-                ppBuffer.push_back(patchParams[k].faceIndex);
-                ppBuffer.push_back(patchParams[k].bitField.field);
+                ppBuffer.push_back(patchParams[k].field0);
+                ppBuffer.push_back(patchParams[k].field1);
                 ppBuffer.push_back(*((unsigned int *)&sharpness));
             }
         }
