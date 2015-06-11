@@ -52,11 +52,11 @@ public:
     static void GetWeights(float v, float w, float point[]);
 
     // patch weights
-    static void GetPatchWeights(PatchParam::BitField bits,
+    static void GetPatchWeights(PatchParam const & param,
         float s, float t, float point[], float deriv1[], float deriv2[]);
 
     // adjust patch weights for boundary (and corner) edges
-    static void AdjustBoundaryWeights(PatchParam::BitField bits,
+    static void AdjustBoundaryWeights(PatchParam const & param,
         float sWeights[4], float tWeights[4]);
 };
 
@@ -164,10 +164,10 @@ inline void Spline<BASIS_BOX_SPLINE>::GetWeights(
 }
 
 template <>
-inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam::BitField bits,
+inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam const & param,
     float s, float t, float point[4], float derivS[4], float derivT[4]) {
 
-    bits.Normalize(s,t);
+    param.Normalize(s,t);
 
     float sC = 1.0f - s,
           tC = 1.0f - t;
@@ -180,7 +180,7 @@ inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam::BitField bits,
     }
     
     if (derivS and derivT) {
-        float dScale = (float)(1 << bits.GetDepth());
+        float dScale = (float)(1 << param.GetDepth());
 
         derivS[0] = -tC * dScale;
         derivS[1] =  tC * dScale;
@@ -195,10 +195,10 @@ inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam::BitField bits,
 }
 
 template <SplineBasis BASIS>
-void Spline<BASIS>::AdjustBoundaryWeights(PatchParam::BitField bits,
+void Spline<BASIS>::AdjustBoundaryWeights(PatchParam const & param,
     float sWeights[4], float tWeights[4]) {
 
-    int boundary = bits.GetBoundary();
+    int boundary = param.GetBoundary();
 
     if (boundary & 1) {
         tWeights[2] -= tWeights[0];
@@ -223,12 +223,12 @@ void Spline<BASIS>::AdjustBoundaryWeights(PatchParam::BitField bits,
 }
 
 template <SplineBasis BASIS>
-void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
+void Spline<BASIS>::GetPatchWeights(PatchParam const & param,
     float s, float t, float point[16], float derivS[16], float derivT[16]) {
 
     float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
 
-    bits.Normalize(s,t);
+    param.Normalize(s,t);
 
     Spline<BASIS>::GetWeights(s, point ? sWeights : 0, derivS ? dsWeights : 0);
     Spline<BASIS>::GetWeights(t, point ? tWeights : 0, derivT ? dtWeights : 0);
@@ -237,7 +237,7 @@ void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
         // Compute the tensor product weight of the (s,t) basis function
         // corresponding to each control vertex:
 
-        AdjustBoundaryWeights(bits, sWeights, tWeights);
+        AdjustBoundaryWeights(param, sWeights, tWeights);
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -250,9 +250,9 @@ void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
         // Compute the tensor product weight of the differentiated (s,t) basis
         // function corresponding to each control vertex (scaled accordingly):
 
-        float dScale = (float)(1 << bits.GetDepth());
+        float dScale = (float)(1 << param.GetDepth());
 
-        AdjustBoundaryWeights(bits, dsWeights, dtWeights);
+        AdjustBoundaryWeights(param, dsWeights, dtWeights);
 
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
@@ -263,25 +263,25 @@ void Spline<BASIS>::GetPatchWeights(PatchParam::BitField bits,
     }
 }
 
-void GetBilinearWeights(PatchParam::BitField bits,
+void GetBilinearWeights(PatchParam const & param,
     float s, float t, float point[4], float deriv1[4], float deriv2[4]) {
 
-    Spline<BASIS_BILINEAR>::GetPatchWeights(bits, s, t, point, deriv1, deriv2);
+    Spline<BASIS_BILINEAR>::GetPatchWeights(param, s, t, point, deriv1, deriv2);
 }
 
-void GetBezierWeights(PatchParam::BitField bits,
+void GetBezierWeights(PatchParam const param,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
 
-    Spline<BASIS_BEZIER>::GetPatchWeights(bits, s, t, point, deriv1, deriv2);
+    Spline<BASIS_BEZIER>::GetPatchWeights(param, s, t, point, deriv1, deriv2);
 }
 
-void GetBSplineWeights(PatchParam::BitField bits,
+void GetBSplineWeights(PatchParam const & param,
     float s, float t, float point[16], float deriv1[16], float deriv2[16]) {
 
-    Spline<BASIS_BSPLINE>::GetPatchWeights(bits, s, t, point, deriv1, deriv2);
+    Spline<BASIS_BSPLINE>::GetPatchWeights(param, s, t, point, deriv1, deriv2);
 }
 
-void GetGregoryWeights(PatchParam::BitField bits,
+void GetGregoryWeights(PatchParam const & param,
     float s, float t, float point[20], float deriv1[20], float deriv2[20]) {
 
     //
@@ -324,7 +324,7 @@ void GetGregoryWeights(PatchParam::BitField bits,
     float Bs[4], Bds[4];
     float Bt[4], Bdt[4];
 
-    bits.Normalize(s,t);
+    param.Normalize(s,t);
 
     Spline<BASIS_BEZIER>::GetWeights(s, Bs, deriv1 ? Bds : 0);
     Spline<BASIS_BEZIER>::GetWeights(t, Bt, deriv2 ? Bdt : 0);
@@ -362,7 +362,7 @@ void GetGregoryWeights(PatchParam::BitField bits,
     //
     if (deriv1 and deriv2) {
         //  Remember to include derivative scaling in all assignments below:
-        float dScale = (float)(1 << bits.GetDepth());
+        float dScale = (float)(1 << param.GetDepth());
 
         //  Combined weights for boundary points -- simple (scaled) tensor products:
         for (int i = 0; i < 12; ++i) {

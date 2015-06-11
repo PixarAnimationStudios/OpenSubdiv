@@ -90,10 +90,8 @@ struct PatchArray {
     int primitiveIdBase;  // an offset within the patch param buffer
 };
 
-struct PatchParam {
+struct PatchParam : public Far::PatchParam {
     // int3 struct.
-    int faceIndex;
-    unsigned int patchBits;
     float sharpness;
 };
 

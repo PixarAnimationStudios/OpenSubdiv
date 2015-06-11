@@ -45,16 +45,16 @@ namespace internal {
 // So this interface will be changing in future.
 //
 
-void GetBilinearWeights(PatchParam::BitField bits,
+void GetBilinearWeights(PatchParam const & patchParam,
     float s, float t, float wP[4], float wDs[4], float wDt[4]);
 
-void GetBezierWeights(PatchParam::BitField bits,
+void GetBezierWeights(PatchParam const & patchParam,
     float s, float t, float wP[16], float wDs[16], float wDt[16]);
 
-void GetBSplineWeights(PatchParam::BitField bits,
+void GetBSplineWeights(PatchParam const & patchParam,
     float s, float t, float wP[16], float wDs[16], float wDt[16]);
 
-void GetGregoryWeights(PatchParam::BitField bits,
+void GetGregoryWeights(PatchParam const & patchParam,
     float s, float t, float wP[20], float wDs[20], float wDt[20]);
 
 
