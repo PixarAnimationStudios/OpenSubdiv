@@ -353,7 +353,10 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         cvstencils = StencilTableFactory::Create(refiner, options);
     } else {
         // Sanity checks
-        if (cvstencils->GetNumStencils() != (uniform ?
+        //
+        // Note that the input cvStencils could be larger than the number of
+        // refiner's vertices, due to the existence of the end cap stencils.
+        if (cvstencils->GetNumStencils() < (uniform ?
             refiner.GetLevel(maxlevel).GetNumVertices() :
                 refiner.GetNumVerticesTotal())) {
                 return 0;
