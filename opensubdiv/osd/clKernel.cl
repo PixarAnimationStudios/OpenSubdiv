@@ -157,8 +157,8 @@ struct PatchCoord {
 };
 
 struct PatchParam {
-    int faceIndex;
-    uint patchBits;
+    uint field0;
+    uint field1;
     float sharpness;
 };
 
@@ -182,7 +182,7 @@ static void getBSplineWeights(float t, float *point, float *deriv) {
 }
 
 static void adjustBoundaryWeights(uint bits, float *sWeights, float *tWeights) {
-    int boundary = ((bits >> 4) & 0xf);
+    int boundary = ((bits >> 8) & 0xf);
 
     if (boundary & 1) {
         tWeights[2] -= tWeights[0];
@@ -207,11 +207,11 @@ static void adjustBoundaryWeights(uint bits, float *sWeights, float *tWeights) {
 }
 
 static int getDepth(uint patchBits) {
-    return (patchBits & 0x7);
+    return (patchBits & 0xf);
 }
 
 static float getParamFraction(uint patchBits) {
-    bool nonQuadRoot = (patchBits >> 3) & 0x1;
+    bool nonQuadRoot = (patchBits >> 4) & 0x1;
     int depth = getDepth(patchBits);
     if (nonQuadRoot) {
         return 1.0f / (float)( 1 << (depth-1) );
@@ -255,7 +255,7 @@ __kernel void computePatches(__global float *src, int srcOffset,
 
     int patchType = 6; // array.patchType XXX: REGULAR only for now.
     int numControlVertices = 16;
-    uint patchBits = patchParamBuffer[coord.patchIndex].patchBits;
+    uint patchBits = patchParamBuffer[coord.patchIndex].field1;
 
     float uv[2] = {coord.s, coord.t};
     normalizePatchCoord(patchBits, uv);

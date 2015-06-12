@@ -25,7 +25,7 @@
 #ifndef OPENSUBDIV3_VERSION_H
 #define OPENSUBDIV3_VERSION_H
 
-#define OPENSUBDIV_VERSION v3_0_0_RC1
+#define OPENSUBDIV_VERSION v3_0_0_RC2
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

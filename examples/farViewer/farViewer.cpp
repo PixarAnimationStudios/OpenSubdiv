@@ -57,6 +57,7 @@ GLFWmonitor* g_primary=0;
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glUtils.h"
+#include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
 
 #include "init_shapes.h"
@@ -74,8 +75,8 @@ GLFWmonitor* g_primary=0;
 int g_level = 3,
     g_currentShape = 7;
 
-enum HudCheckBox { kHUD_CB_DISPLAY_CAGE_EDGES,
-                   kHUD_CB_DISPLAY_CAGE_VERTS,
+enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
+                   kHUD_CB_DISPLAY_CONTROL_MESH_VERTS,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_DISPLAY_PATCH_COLOR };
 
@@ -93,8 +94,6 @@ int   g_fullscreen = 0,
       g_running = 1;
 
 int   g_displayPatchColor    = 1,               
-      g_drawCageEdges        = 1,               
-      g_drawCageVertices     = 0,               
       g_FarDrawMode          = kDRAW_FACES,      
       g_FarDrawVertIDs       = false,           
       g_FarDrawEdgeIDs       = false,           
@@ -151,8 +150,10 @@ struct Transform {
     float ModelViewProjectionMatrix[16];
 } g_transformData;
 
-static GLMesh g_base_glmesh,
-              g_far_glmesh;
+static GLMesh g_far_glmesh;
+
+static GLControlMeshDisplay g_controlMeshDisplay;
+static GLuint g_controlMeshDisplayVBO = 0;
 
 
 //------------------------------------------------------------------------------
@@ -570,7 +571,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
                 center.AddWithWeight(vertexBuffer[cvs[remap[k]]], 0.25f);
             }
 
-            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).faceIndex);
+            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).GetFaceId());
             g_font->Print3D(center.GetPos(), buf, 1);
         }
     }
@@ -769,6 +770,35 @@ createFarGLMesh(Shape * shape, int maxlevel) {
 
     g_far_glmesh.InitializeDeviceBuffers();
 
+    // save coarse topology (used for control mesh display)
+    g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
+
+    // save coarse points in a GPU buffer (used for control mesh display)
+    if (not g_controlMeshDisplayVBO) {
+        glGenBuffers(1, &g_controlMeshDisplayVBO);
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, g_controlMeshDisplayVBO);
+    glBufferData(GL_ARRAY_BUFFER,
+                 3*sizeof(float)*vertexBuffer.size(), (GLfloat*)&vertexBuffer[0],
+                 GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // compute model bounds
+    float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
+    float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (size_t i=0; i <vertexBuffer.size(); ++i) {
+        for(int j=0; j<3; ++j) {
+            float v = vertexBuffer[i].GetPos()[j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
+    }
+    for (int j=0; j<3; ++j) {
+        g_center[j] = (min[j] + max[j]) * 0.5f;
+        g_size += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    g_size = sqrtf(g_size);
+
     delete refiner;
     delete patchTable;
 }
@@ -878,14 +908,9 @@ display() {
 
     // Draw stuff ------------------------------------------
 
-    // control cage edges & verts
-    if (g_drawCageVertices) {
-        g_base_glmesh.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
-    }
-
-    if (g_drawCageEdges) {
-        g_base_glmesh.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
-    }
+    // control mesh edges & verts
+    g_controlMeshDisplay.Draw(g_controlMeshDisplayVBO, 3*sizeof(float),
+                              g_transformData.ModelViewProjectionMatrix);
 
     // Far mesh
     GLMesh::Component comp=GLMesh::COMP_VERT;
@@ -914,6 +939,11 @@ display() {
     g_font->Draw(g_transformUB);
 
     // -----------------------------------------------------
+
+    glEndQuery(GL_PRIMITIVES_GENERATED);
+#if defined(GL_VERSION_3_3)
+    glEndQuery(GL_TIME_ELAPSED);
+#endif
 
     GLuint numPrimsGenerated = 0;
     GLuint timeElapsed = 0;
@@ -1113,9 +1143,15 @@ static void
 callbackCheckBox(bool checked, int button) {
 
     switch (button) {
-        case kHUD_CB_DISPLAY_CAGE_EDGES : g_drawCageEdges = checked; break;
-        case kHUD_CB_DISPLAY_CAGE_VERTS : g_drawCageVertices = checked; break;
-        case kHUD_CB_DISPLAY_PATCH_COLOR: g_displayPatchColor = checked; break;
+        case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES :
+            g_controlMeshDisplay.SetEdgesDisplay(checked);
+            break;
+        case kHUD_CB_DISPLAY_CONTROL_MESH_VERTS :
+            g_controlMeshDisplay.SetVerticesDisplay(checked);
+            break;
+        case kHUD_CB_DISPLAY_PATCH_COLOR:
+            g_displayPatchColor = checked;
+            break;
     }
 }
 
@@ -1199,13 +1235,13 @@ initHUD() {
 
     g_hud.Init(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 
-    g_hud.AddCheckBox("Cage Edges (e)", g_drawCageEdges != 0,
-                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_EDGES, 'e');
-    g_hud.AddCheckBox("Cage Verts (r)", g_drawCageVertices != 0,
-                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CAGE_VERTS, 'r');
+    g_hud.AddCheckBox("Control edges (H)", g_controlMeshDisplay.GetEdgesDisplay(),
+                      10, 10, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'h');
+    g_hud.AddCheckBox("Control vertices (J)", g_controlMeshDisplay.GetVerticesDisplay(),
+                      10, 30, callbackCheckBox, kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'j');
 
 
-    int pulldown = g_hud.AddPullDown("Far Draw Mode (f)", 10, 195, 250, callbackFarDrawMode, 'f');
+    int pulldown = g_hud.AddPullDown("Far Draw Mode (W)", 10, 195, 250, callbackFarDrawMode, 'w');
     g_hud.AddPullDownButton(pulldown, "Vertices",  0, g_FarDrawMode==kDRAW_VERTICES);
     g_hud.AddPullDownButton(pulldown, "Wireframe", 1, g_FarDrawMode==kDRAW_WIREFRAME);
     g_hud.AddPullDownButton(pulldown, "Faces",     2, g_FarDrawMode==kDRAW_FACES);
@@ -1217,7 +1253,7 @@ initHUD() {
     g_hud.AddCheckBox("Edge Sharp", g_FarDrawEdgeSharpness!=0, 10, 295, callbackDrawIDs, 4);
     g_hud.AddCheckBox("Gregory Basis", g_FarDrawGregogyBasis!=0, 10, 315, callbackDrawIDs, 5);
 
-    g_hud.AddCheckBox("Use Stencils (s)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
+    g_hud.AddCheckBox("Use Stencils (S)", g_useStencils!=0, 10, 350, callbackUseStencils, 0, 's');
     g_hud.AddCheckBox("Adaptive (`)", g_Adaptive!=0, 10, 370, callbackAdaptive, 0, '`');
 
 
