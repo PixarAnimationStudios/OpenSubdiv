@@ -113,6 +113,8 @@ public:
     static TopologyRefiner* Create(MESH const& mesh, Options options = Options());
 
 protected:
+    typedef Vtr::internal::Level::TopologyError TopologyError;
+
     //@{
     ///  @name  Methods to be provided to complete assembly of the TopologyRefiner
     ///
@@ -142,8 +144,6 @@ protected:
 
     /// \brief  (Optional) Specify face-varying data per face
     static bool assignFaceVaryingTopology(TopologyRefiner& newRefiner, MESH const& mesh);
-
-    typedef Vtr::internal::Level::TopologyError TopologyError;
 
     /// \brief  (Optional) Control run-time topology validation and error reporting
     static void reportInvalidTopology(TopologyError errCode, char const * msg, MESH const& mesh);
@@ -324,7 +324,9 @@ TopologyRefinerFactory<MESH>::Create(MESH const& mesh, Options options) {
         return 0;
     }
 
-    // XXXX -- any state in the TopologyRefiner to update after the base level is complete?
+    //  Eventually want to move the Refiner's inventory initialization here.  Currently it
+    //  is handled after topology assignment, but if the inventory is to include additional
+    //  features (e.g. holes, etc.) it is better off deferred to here.
 
     return refiner;
 }
