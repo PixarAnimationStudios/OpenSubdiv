@@ -338,6 +338,35 @@ allow.
 
 ----
 
+RC2 Release Notes
+==================
+
+Release Candidate 2 includes following bug fixes and updates.
+
+ * Documentation updates
+
+ * API fixes
+
+     * Fixed a LimitStencilTableFactory bug, which returns an invalid table
+
+     * PatchParam encoding changed to support refinement levels up to 10
+
+ * Build issue fixes
+
+     * Added Xinerama link dependency
+
+     * Fixed MSVC 32bit build problem
+
+     * Fixed minor cmake issues
+
+ * Examples/Tutorials fixes and updates
+
+     * Fixed glViewer/farViewer stability bugs
+
+     * far_tutorial_3 updates for the multiple face-varying channels
+
+     * maya example plugin interpolates a UV channel and a vertex color channel
+
 RC1 Release Notes
 ==================
 
