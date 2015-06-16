@@ -68,6 +68,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         api_overview.rst
         cmake_build.rst
         code_examples.rst
+        compatibility.rst
         downloads.rst
         dxviewer.rst
         dxptexviewer.rst
