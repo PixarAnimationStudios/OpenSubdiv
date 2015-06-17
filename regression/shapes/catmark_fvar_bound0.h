@@ -71,7 +71,7 @@ static const std::string catmark_fvar_bound0 =
 "vt 1.00 0.60\n"
 "vt 0.00 0.80\n"
 "vt 0.25 0.80\n"
-"vt 0.50 0.80\n"
+"vt 0.50 0.65\n"
 "vt 0.75 0.80\n"
 "vt 1.00 0.80\n"
 "vt 0.00 1.00\n"
