@@ -146,7 +146,7 @@ that of the vertices.  The presence of sharp features of the mesh created by
 sharpness values, boundary interpolation rules, or the subdivision scheme itself
 (e.g. Bilinear) take precedence.
 
-Unwrapped cube example:
+Face-varying interpolation using the catmark_fvar_bound1 regression shape:
 
 .. image:: images/fvar_boundaries.png
    :align: center
