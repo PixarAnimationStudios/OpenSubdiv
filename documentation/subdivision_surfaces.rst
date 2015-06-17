@@ -124,7 +124,7 @@ Face-Varying Interpolation Rules
 
 Face-varying data can follow the same interpolation behavior as vertex data, or it
 can be constrained to interpolate linearly around selective features from corners,
-boundaries to the entire interior of the mesh.
+boundaries, or the entire interior of the mesh.
 
 The following rules can be applied to face-varying data interpolation:
 
