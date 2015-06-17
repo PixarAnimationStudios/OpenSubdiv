@@ -1068,7 +1068,7 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     float U = 1-u, V = 1-v;
 
     //(0,1)                              (1,1)
-    //   P3         e3-      e2+         E2
+    //   P3         e3-      e2+         P2
     //      15------17-------11-------10
     //      |        |        |        |
     //      |        |        |        |
@@ -1085,7 +1085,7 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     //      |        |        |        |
     //      |        |        |        |
     //      0--------1--------7--------5
-    //    P0        e0+      e1-         E1
+    //    P0        e0+      e1-         P1
     //(0,0)                               (1,0)
 
     float d11 = u+v;
@@ -1461,7 +1461,7 @@ OsdComputePerPatchVertexGregory(int3 patchParam, int ID, int primitiveID,
     //  for Hardware Tessellation"
     // Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia 2009)
     //
-    //  P3         e3-      e2+         E2
+    //  P3         e3-      e2+         P2
     //     O--------O--------O--------O
     //     |        |        |        |
     //     |        |        |        |
@@ -1478,7 +1478,7 @@ OsdComputePerPatchVertexGregory(int3 patchParam, int ID, int primitiveID,
     //     |        |        |        |
     //     |        |        |        |
     //     O--------O--------O--------O
-    //  P0         e0+      e1-         E1
+    //  P0         e0+      e1-         P1
     //
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY
