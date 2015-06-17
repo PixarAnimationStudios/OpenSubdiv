@@ -96,8 +96,11 @@ The following rule sets can be applied to vertex data interpolation:
 +----------------------------------+----------------------------------------------------------+
 | Mode                             | Behavior                                                 |
 +==================================+==========================================================+
-| **VTX_BOUNDARY_NONE**            | No boundary interpolation behavior should occur          |
-|                                  | (debug mode - boundaries are undefined)                  |
+| **VTX_BOUNDARY_NONE**            | No boundary edge interpolation should occur; instead     |
+|                                  | boundary faces are tagged as holes so that the boundary  |
+|                                  | edge-chain continues to support the adjacent interior    |
+|                                  | faces but is not considered to be part of the refined    |
+|                                  | surface                                                  |
 +----------------------------------+----------------------------------------------------------+
 | **VTX_BOUNDARY_EDGE_ONLY**       | All the boundary edge-chains are sharp creases; boundary |
 |                                  | vertices are not affected                                |
@@ -121,7 +124,7 @@ Face-Varying Interpolation Rules
 
 Face-varying data can follow the same interpolation behavior as vertex data, or it
 can be constrained to interpolate linearly around selective features from corners,
-boundaries to the entire interior of the mesh.
+boundaries, or the entire interior of the mesh.
 
 The following rules can be applied to face-varying data interpolation:
 
@@ -146,7 +149,7 @@ that of the vertices.  The presence of sharp features of the mesh created by
 sharpness values, boundary interpolation rules, or the subdivision scheme itself
 (e.g. Bilinear) take precedence.
 
-Unwrapped cube example:
+Face-varying interpolation using the catmark_fvar_bound1 regression shape:
 
 .. image:: images/fvar_boundaries.png
    :align: center
