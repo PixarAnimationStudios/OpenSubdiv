@@ -96,8 +96,11 @@ The following rule sets can be applied to vertex data interpolation:
 +----------------------------------+----------------------------------------------------------+
 | Mode                             | Behavior                                                 |
 +==================================+==========================================================+
-| **VTX_BOUNDARY_NONE**            | No boundary interpolation behavior should occur          |
-|                                  | (debug mode - boundaries are undefined)                  |
+| **VTX_BOUNDARY_NONE**            | No boundary edge interpolation should occur; instead     |
+|                                  | boundary faces are tagged as holes so that the boundary  |
+|                                  | edge-chain continues to support the adjacent interior    |
+|                                  | faces but is not considered to be part of the refined    |
+|                                  | surface                                                  |
 +----------------------------------+----------------------------------------------------------+
 | **VTX_BOUNDARY_EDGE_ONLY**       | All the boundary edge-chains are sharp creases; boundary |
 |                                  | vertices are not affected                                |
