@@ -175,7 +175,7 @@ Using the Right Tools
 
 OpenSubdiv's tiered interface offers a lot flexibility to make your application
 both fast and robust. Because navigating through the large collection of classes and
-features can be challenging, here is a flow-chart that should help sketch
+features can be challenging, here are use cases that should help sketch
 the broad lines of going about using subdivisions in your application.
 
 General client application requirements:
@@ -206,10 +206,3 @@ General client application requirements:
 |                      | back-ends provide full support for programmable       |
 |                      | shading.                                              |
 +----------------------+-------------------------------------------------------+
-
-Flow-chart:
-
-.. image:: images/osd_flow.png
-   :align: center
-   :target: images/osd_flow.png 
-
