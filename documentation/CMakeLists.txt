@@ -87,6 +87,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         mod_notes.rst
         maya_osdpolysmooth.rst
         osd_overview.rst
+        osd_shader_interface.rst
         porting.rst
         release_notes.rst
         release_notes_2x.rst

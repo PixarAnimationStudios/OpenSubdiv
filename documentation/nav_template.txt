@@ -66,6 +66,9 @@
                 <ul>
                     <li><a href="api_overview.html">API Overview</a>
                         <li><a href="osd_overview.html">Osd</a></li>
+                        <ul>
+                            <li><a href="osd_shader_interface.html">Shader Interface</a></li>
+                        </ul>
                         <li><a href="far_overview.html">Far</a></li>
                         <ul>
                             <li><a href="far_overview.html#far-topologyrefiner">Topology Refiner</a></li>
