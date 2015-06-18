@@ -48,9 +48,6 @@
                     <li><a href="compatibility.html">Subdivision Compatibility</a></li>
                 </ul>
             <p></p>
-            <li><a href="mod_notes.html">Modeling Tips</a>
-            </li>
-            <p></p>
             <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
                 <ul>
                     <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
@@ -60,6 +57,7 @@
                     <li><a href="subdivision_surfaces.html#hierarchical-edits">Hierarchical Edits</a></li>
                     <li><a href="subdivision_surfaces.html#uniform-subdivision">Uniform</a></li>
                     <li><a href="subdivision_surfaces.html#feature-adaptive-subdivision">Feature Adaptive</a></li>
+                    <li><a href="mod_notes.html">Modeling Tips</a></li>
                 </ul>
             </li>
             <p></p>
