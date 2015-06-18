@@ -193,30 +193,42 @@ The patch table is a serialized topology representation. This container is
 generated using *Far::PatchTableFactory* from an instance
 *Far::TopologyRefiner* after a refinement has been applied. The
 FarPatchTableFactory traverses the data-structures of the TopologyRefiner and
-serializes the sub-faces into collections of bi-linear and bi-cubic patches, as
+serializes the sub-faces into collections of bi-linear and bi-cubic patches as
 dictated by the refinement mode (uniform or adaptive). The patches are then
 sorted into arrays based on their types.
 
-PatchArray
-**********
+.. container:: impnotip
+
+   **Release Notes (3.0.0)**
+
+      The organization and API of Far::PatchTable is likely to change
+      in the 3.1 release to accommodate additional functionality including:
+      smooth face-varying interpolation on patches, and dynamic feature
+      adaptive isolation (DFAS), and patch evaluation of Loop subdivision
+      surfaces.
+
+Patch Arrays
+************
 
 The patch table is a collection of control vertex indices. Meshes are decomposed
-into a collection of sub-patches, which can be of different types. Each type
+into a collection of patches, which can be of different types. Each type
 has different requirements for the internal organization of its
-control-vertices. a PatchArray contains a sequence of multiple patches that
+control-vertices. A PatchArray contains a sequence of multiple patches that
 share a common set of attributes.
+
+While all patches in a PatchArray will have the same type, each patch in the
+array is associated with a distinct *PatchParam* which specifies additional
+information about the individual patch.
+
+Each PatchArray contains a patch *Descriptor* that provides the fundamental
+description of the patches in the array.
+
+The PatchArray *ArrayRange* provides the indices necessary to track the records
+of individual patches in the table.
 
 .. image:: images/far_patchtables.png
    :align: center
    :target: images/far_patchtables.png
-
-
-Each PatchArray contains a patch *Descriptor* that provides the fundamental
-description of the patches in the array. This includes the patches *type*,
-*pattern* and *rotation*.
-
-The PatchArray *ArrayRange* provides the indices necessary to track the records
-of individual patches in the table.
 
 Patch Types
 ***********
@@ -224,44 +236,145 @@ Patch Types
 The following are the different patch types that can be represented in the
 PatchTable:
 
-+-------------------------------------------------------------------------+
-|                                                                         |
-+=====================+===================================================+
-| NON_PATCH           | *"Undefined"* patch type                          |
-+---------------------+---------------------------------------------------+
-|  POINTS             | Points : useful for cage drawing                  |
-+---------------------+---------------------------------------------------+
-|  LINES              | Lines : useful for cage drawing                   |
-+---------------------+---------------------------------------------------+
-| QUADS               | Bi-linear quads-only patches                      |
-+---------------------+---------------------------------------------------+
-| TRIANGLES           | Bi-linear triangles-only mesh                     |
-+---------------------+---------------------------------------------------+
-|  LOOP               | Loop patch (currently unsupported)                |
-+---------------------+---------------------------------------------------+
-|  REGULAR            | Feature-adaptive bi-cubic patches                 |
-+---------------------+                                                   |
-|  SINGLE_CREASE      |                                                   |
-+---------------------+                                                   |
-|  BOUNDARY           |                                                   |
-+---------------------+                                                   |
-|  CORNER             |                                                   |
-+---------------------+                                                   |
-|  GREGORY            |                                                   |
-+---------------------+                                                   |
-|  GREGORY_BOUNDARY   |                                                   |
-+---------------------+                                                   |
-|  GREGORY_BASIS      |                                                   |
-+---------------------+---------------------------------------------------+
++---------------------+------+---------------------------------------------+
+| Patch Type          | #CVs | Description                                 |
++=====================+======+=============================================+
+| NON_PATCH           | n/a  | *"Undefined"* patch type                    |
++---------------------+------+---------------------------------------------+
+| POINTS              | 1    | Points : useful for cage drawing            |
++---------------------+------+---------------------------------------------+
+| LINES               | 2    | Lines : useful for cage drawing             |
++---------------------+------+---------------------------------------------+
+| QUADS               | 4    | Bi-linear quads-only patches                |
++---------------------+------+---------------------------------------------+
+| TRIANGLES           | 3    | Bi-linear triangles-only mesh               |
++---------------------+------+---------------------------------------------+
+| LOOP                | n/a  | Loop patch (currently unsupported)          |
++---------------------+------+---------------------------------------------+
+| REGULAR             | 16   | B-spline Basis patches                      |
++---------------------+------+---------------------------------------------+
+| GREGORY             | 4    | Legacy Gregory patches                      |
++---------------------+------+---------------------------------------------+
+| GREGORY_BOUNDARY    | 4    | Legacy Gregory Boundary patches             |
++---------------------+------+---------------------------------------------+
+| GREGORY_BASIS       | 20   | Gregory Basis patches                       |
++---------------------+------+---------------------------------------------+
+
 
 The type of a patch dictates the number of control vertices expected in the
-table. The main types are *Regular*, *Boundary*, *Corner* and *Gregory* patches,
-with 16, 12, 9 and 4 control vertices respectively.
+table as well as the method used to evaluate values.
 
-.. image:: images/far_patchtypes.png
+Patch Parameterization
+**********************
+
+Each patch represents a specific portion of the parametric space of the
+coarse topological face identified by the PatchParam FaceId. As topological
+refinement progresses through successive levels, each resulting patch
+corresponds to a smaller and smaller subdomain of the face.
+The PatchParam UV origin describes the mapping from the uv domain of the
+patch to the uv subdomain of the topological face. We encode this uv
+origin using log2 integer values for compactness and efficiency.
+
+It is important to note that this uv parameterization is the intrinsic
+parameterization within a given patch or coarse face and is distinct
+from any client specified face-varying channel data.
+
+Patches which result from irregular coarse faces (non-quad faces in the
+Catmark scheme, or non-trianglular faces in the Loop scheme) are offset
+by the one additional level needed to "quadrangulate" or "triangulate"
+the irregular face.
+
+.. image:: images/far_patchUV.png
    :align: center
-   :target: images/far_patchtypes.png
+   :target: images/far_patchUV.png
 
+A patch along an interpolated boundary edge is supported by an incomplete
+sets of control vertices. For consistency, patches in the PatchTable always
+have a full set of control vertex indices and the PatchParam Boundary bitmask
+identifies which control vertices are incomplete (the incomplete control
+vertex indices are assigned values which duplicate the first valid index).
+Each bit in the boundary bitmask corresponds to one edge of the patch
+starting from the edge from the first vertex and continuing around the
+patch.  With feature adaptive refinement, regular B-spline basis patches
+along interpolated boundaries will fall into one of the eight cases
+(four boundary and four corner) illustrated below:
+
+.. image:: images/far_patchBoundary.png
+   :align: center
+   :target: images/far_patchBoundary.png
+
+Transition edges occur during feature adaptive refinement where a patch
+at one level of refinement is adjacent to pairs of patches at the next
+level of refinement. These T-junctions do not pose a problem when evaluating
+primvar data on patches, but they must be taken into consideration when
+tessellating patches (e.g. while drawing) in order to avoid cracks.
+The PatchParam Transition bitmask identifies the transition edges of
+a patch.  Each bit in the bitmask corresponds to one edge of the patch
+just like the encoding of boundary edges.
+
+After refining an arbitrary mesh, any of the 16 possible transition edge
+configurations might occur. The method of handling transition edges is
+delegated to patch drawing code.
+
+.. image:: images/far_patchTransition.png
+   :align: center
+   :target: images/far_patchTransition.png
+
+Single-Crease Patches
+**************************
+
+Using single-crease patches allows a mesh with creases to be represented
+with many fewer patches than would be needed otherwise. A single-crease
+patch is a variation of a regular BSpline patch with one additional crease
+sharpness parameter.
+
+.. container:: impnotip
+
+   **Release Notes (3.0.0)**
+
+      Currently, the crease sharpness parameter is encoded as a separate
+      PatchArray within the PatchTable. This parameter may be combined
+      with the other PatchParam values in future releases.  Also, evaluation
+      of single-crease patches is currently only implemented for OSD patch
+      drawing, but we expect to implement support in all of the evaluation
+      code paths for future releases.
+
+Local Points
+************
+
+The control vertices represented by a PatchTable are primarily refined points,
+i.e. points which result from applying the subdivision scheme uniformly or
+adaptively to the points of the coarse mesh. However, the final patches
+generated from irregular faces, e.g. patches incident on an extraordinary
+vertex might have a representation which requires additional local points.
+
+.. container:: impnotip
+
+   **Release Notes (3.0.0)**
+
+      Currently, representations which require local points also require
+      the use of a StencilTable to compute the values of local points.
+      This requirement, as well as the rest of the API related to local
+      points may change in future releases.
+
+Legacy Gregory Patches
+**********************
+
+Using Gregory patches to approximate the surface at the final patches
+generated from irregular faces is an alternative representation which does
+not require any additional local points to be computed. Instead, when
+Legacy Gregory patches are used, the PatchTable must also have an alternative
+representation of the mesh topology encoded as a vertex valence table
+and a quad offsets table.
+
+.. container:: impnotip
+
+   **Release Notes (3.0.0)**
+
+      The encoding and support for Legacy Gregory patches may change
+      in future releases. The current encoding of the vertex valence
+      and quad offsets tables may be prohibitively expensive for some
+      use cases.
 
 Far::StencilTable
 ==================
@@ -410,11 +523,11 @@ series of coarse control vertices:
                              utan,
                              vtan;
 
-    // Uppdate points by applying stencils
+    // Update points by applying stencils
     controlStencils.UpdateValues<StencilType>( reinterpret_cast<StencilType const *>(
         &controlPoints[0]), &points[0] );
 
-    // Uppdate tangents by applying derivative stencils
+    // Update tangents by applying derivative stencils
     controlStencils.UpdateDerivs<StencilType>( reinterpret_cast<StencilType const *>(
         &controlPoints[0]), &utan[0], &vtan[0] );
 

@@ -112,7 +112,7 @@ Implement a "high-level" API layer
 "Next-gen" back-ends
 ++++++++++++++++++++
 
-  Implement Osd::Draw Context & Controllers for next-gen GPU APIs such as
+  Implement Osd Evaluator and Patch Drawing for next-gen GPU APIs such as
   Mantle, Metal, DX12, Vulkan.
 
 A means to control edge curvature
