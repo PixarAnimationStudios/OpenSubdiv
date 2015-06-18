@@ -83,6 +83,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         glviewer.rst
         hbr_overview.rst
         intro.rst
+        intro_30.rst
         license.rst
         mod_notes.rst
         maya_osdpolysmooth.rst
