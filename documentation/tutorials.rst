@@ -114,8 +114,8 @@ or in your local ``<repository root>/turorials``.
    :widths: 50 50
 
    * - | **Tutorial 0**
-       | This tutorial demonstrates the manipulation of Osd 'Compute' 'Contexts' and
-         'Controllers'.  `[code] <osd_tutorial_0.html>`__
+       | This tutorial demonstrates the manipulation of Osd Evaluator and BufferDescriptor.
+         `[code] <osd_tutorial_0.html>`__
        |
      - |
 

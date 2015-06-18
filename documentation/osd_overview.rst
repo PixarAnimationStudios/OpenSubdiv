@@ -36,91 +36,195 @@ OSD Overview
 OpenSubdiv (Osd)
 ================
 
-**Osd** contains client-level code that uses *Far* to create concrete instances of
-meshes. These meshes use precomputed tables from *Far* to perform table-driven
-subdivision steps with a variety of massively parallel computational backend
-technologies. **Osd** supports both `uniform subdivision <subdivision_surfaces.html#uniform-subdivision>`__
-and `adaptive refinement <subdivision_surfaces.html#feature-adaptive-subdivision>`__
-with cubic patches.
+**Osd** contains device dependent code that reflects *Far* structure to be
+available on various backends such as TBB, CUDA, OpenCL, GLSL etc.
+The main roles of **Osd** are:
 
-----
+Refinement
+    Compute stencil-based uniform/adaptive subdivision on CPU/GPU backends
+Limit Stencil Evaluation
+    Compute limit surfaces by limit stencils on CPU/GPU backends
+Limit Evaluation with PatchTable
+    Compute limit surfaces by patch evaluation on CPU/GPU backends
+OpenGL/DX11 Drawing with hardware tessellation
+    Provide GLSL/HLSL tessellation functions for patch table
+Interleaved/Batched buffer configuration
+    Provide consistent buffer descriptor to deal with arbitrary buffer layout.
+Cross-Platform Implementation
+    Provide convenient classes to interop between compute and draw APIs
 
-Modular Architecture
-====================
-
-With uniform subdivision the computational backend code performs Catmull-Clark
-splitting and averaging on each face.
-
-With adaptive subdivision, the Catmull/Clark steps are used to compute the CVs
-of cubic Bezier patches. On modern GPU architectures, bicubic patches can be
-drawn directly on screen at very high resolution using optimized tessellation
-shader paths.
-
-.. image:: images/osd_layers.png
-
-Finally, the general manipulation of high-order surfaces also requires functionality
-outside of the scope of pure drawing.
-
-Following this pattern of general use, **Osd** can be broken down into 3 main
-modules : **Compute**, **Draw** and **Eval**.
-
-.. image:: images/osd_modules.png
-   :align: center
-
-The modules are designed so that the data being manipulated can be shared and
-interoperated between modules (although not all paths are possible).
-
-These modules are identified by their name spaces (**Compute**, **Draw**,
-**Eval**) and encapsulate atomic functationality. The vertex data is carried
-in interoperable buffers that can be exchanged between modules.
-
-The typical use pattern is to pose the coarse vertices of a mesh for a given frame.
-The buffer is submitted to the **Refine** module which applies the subdivision rules
-and produces refined control vertices. This new buffer can be passed to the **Draw**
-module which will draw them on screen.
-
-However, the same buffer of refined control vertices could be passed instead to
-the **Eval** module (and be projected onto another surface for instance) before
-being sent for display to the **Draw** module.
-
-----
-
-OsdCompute
-**********
-
-The Compute module contains the code paths that manage the application of the
-subdivision rules to the vertex data. This module is sufficient for uniform
-subdivision applications.
-
-----
-
-OsdDraw
-*******
-
-The Draw module manages interactions with discrete display devices and provide
-support for interactive drawing of the subdivision surfaces.
-
-----
-
-OsdEval
-*******
-
-The Eval module provides computational APIs for the evaluation of vertex data at
-the limit, ray intersection and point projection.
-
+They are independently used by client. For example, a client can use only
+the stencil table evaluation. A client can call **Osd** compute functions
+on its own vertex buffers.
 
 OpenSubdiv enforces the same results for the different computation backends with
 a series of regression tests that compare the methods to each other.
 
+----
 
+Refinement
+==========
+
+**Osd** supports both `uniform subdivision <subdivision_surfaces.html#uniform-subdivision>`__
+and `adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__.
+
+
+.. image:: images/osd_refinement.png
+   :align: center
+
+Once clients create a Far::StencilTable for the topology, then convert it into
+device-specific stencil tables if necessary. The following table shows which evaluator
+classes and stencil table interfaces can be used together. Note that while **Osd**
+provides these stencil tables classes which can be easily constructed from Far::StencilTable,
+clients aren't required to use these table classes. Clients may have their own entities
+as a stencil table as long as Evaluator::EvalStencils() can access necessary interfaces.
+
++-----------------------------+-----------------------+-------------------------+
+| Backend                     | Evaluator class       | compatible stencil table|
++=============================+=======================+=========================+
+| CPU (CPU single-threaded)   | CpuEvaluator          | Far::StencilTable       |
++-----------------------------+-----------------------+-------------------------+
+| TBB (CPU multi-threaded)    | TbbEvaluator          | Far::StencilTable       |
++-----------------------------+-----------------------+-------------------------+
+| OpenMP (CPU multi-threaded) | OmpEvaluator          | Far::StencilTable       |
++-----------------------------+-----------------------+-------------------------+
+| CUDA (GPU)                  | CudaEvaluator         | CudaStencilTable        |
++-----------------------------+-----------------------+-------------------------+
+| OpenCL (CPU/GPU)            | CLEvaluator           | CLStencilTable          |
++-----------------------------+-----------------------+-------------------------+
+| GL ComputeShader (GPU)      | GLComputeEvaluator    | GLStencilTableSSBO      |
++-----------------------------+-----------------------+-------------------------+
+| GL Transform Feedback (GPU) | GLXFBEvaluator        | GLStencilTableTBO       |
++-----------------------------+-----------------------+-------------------------+
+| DX11 ComputeShader (GPU)    | D3D11ComputeEvaluator | D3D11StencilTable       |
++-----------------------------+-----------------------+-------------------------+
+
+
+Limit Stencil Evaluation
+========================
+
+Limit stencil evaluation is quite similar to refinement in **Osd**. Clients
+create Far::LimitStencilTable for the locations need to evaluate. Then create
+an evaluator compatible stencil table and call Evaluator::EvalStencils().
+
+.. image:: images/osd_limitstencil.png
+   :align: center
+
+Limit Evaluation with PatchTable
+================================
+
+In **Osd**, the limit surfaces can also be evaluated by PatchTable once all
+control vertices and local points are resolved by the stencil evaluation.
+
+.. image:: images/osd_limiteval.png
+   :align: center
+
++-----------------------------+-------------------------+-------------------------+
+| Backend                     | Evaluator class         | compatible patch   table|
++=============================+=========================+=========================+
+| CPU (CPU single-threaded)   | CpuEvaluator            | CpuPatchTable           |
++-----------------------------+-------------------------+-------------------------+
+| TBB (CPU multi-threaded)    | TbbEvaluator            | CpuPatchTable           |
++-----------------------------+-------------------------+-------------------------+
+| OpenMP (CPU multi-threaded) | OmpEvaluator            | CpuPatchTable           |
++-----------------------------+-------------------------+-------------------------+
+| CUDA (GPU)                  | CudaEvaluator           | CudaPatchTable          |
++-----------------------------+-------------------------+-------------------------+
+| OpenCL (CPU/GPU)            | CLEvaluator             | CLPatchTable            |
++-----------------------------+-------------------------+-------------------------+
+| GL ComputeShader (GPU)      | GLComputeEvaluator      | GLPatchTable            |
++-----------------------------+-------------------------+-------------------------+
+| GL Transform Feedback (GPU) | GLXFBEvaluator          | GLPatchTable            |
++-----------------------------+-------------------------+-------------------------+
+| DX11 ComputeShader (GPU)    | | D3D11ComputeEvaluator | D3D11PatchTable         |
+|                             | | (*)not yet supported  |                         |
++-----------------------------+-------------------------+-------------------------+
 
 .. container:: impnotip
 
-   * **Release Notes (3.0.0)**
+ **Release Notes (3.0.0)**
 
-      Face-varying smooth data interpolation is currently only supported in 
-      **Osd** through refinement and limit points but not in the PatchTable.
-      A more complete implementation is currently slated for a 3.1 release.
+ * GPU limit evaluation backends (Evaluator::EvalPatches()) only supports
+   BSpline patches. Clients need to specify BSpline approximation for endcap
+   when creating a patch table. See `end capping <far_overview.html#endcap>`__.
+
+OpenGL/DX11 Drawing with hardware tessellation
+==============================================
+
+One of the most interesting use cases of **Osd** layer is realtime drawing of
+subdivision surfaces using hardware tessellation. This is somewhat similar to
+limit evaluation with PatchTable described above. Drawing differs from limit
+evaluation in that **Osd** provides shader snippets for patch evaluation and
+clients will inject them into their own shader source.
+
+.. image:: images/osd_draw.png
+   :align: center
+
+see `shader interface <osd_shader_interface.html>`__ for more detail of shader interface.
+
+----
+
+Interleaved/Batched buffer configuration
+========================================
+
+All **Osd** layer APIs assume that each primitive variables to be computed
+(points, colors, uvs ...) are contiguous array of 32bit floating point values.
+**Osd** API refers this array as "buffer". Buffer can exist on CPU memory or
+GPU memory. **Osd** Evaluators typically take one source buffer and one destination
+buffer, or three destination buffers if derivatives are being computed.
+**Osd** Evaluators also take BufferDescriptors,
+which is used to specify the layout of the source and destination buffers.
+BufferDescriptor is 3 integers struct which consists of offset, length and stride.
+
+For example:
+
+ +-----------+-----------+-----------+
+ | Vertex 0  |  Vertex 1 | ...       |
+ +---+---+---+---+---+---+-----------+
+ | X | Y | Z | X | Y | Z | ...       |
+ +---+---+---+---+---+---+-----------+
+
+The layout of this buffer can be described as
+
+.. code:: c++
+
+  Osd::BufferDescriptor desc(/*offset = */ 0, /*length = */ 3, /*stride = */ 3);
+
+BufferDescriptor can be used for interleaved buffer too.
+
+ +---------------------------+---------------------------+-------+
+ | Vertex 0                  | Vertex 1                  | ...   |
+ +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-------+
+ | X | Y | Z | R | G | B | A | X | Y | Z | R | G | B | A | ...   |
+ +---+---+---+---+---+---+---+---+---+---+---+---+---+---+-------+
+
+.. code:: c++
+
+  Osd::BufferDescriptor xyzDesc(0, 3, 7);
+  Osd::BufferDescriptor rgbaDesc(3, 4, 7);
+
+Although the source and the destination buffer don't have to be a same buffer for
+EvalStencils(), adaptive patch tables are constructed to index the coarse vertices
+first and immediately followed by the refined vertices. In this case, the
+BufferDescriptor for the destination should include the offset as the number of coarse
+vertices to be skipped.
+
+ +-----------------------------------+-----------------------------------+
+ |  Coarse vertices (n) : Src        |  Refined vertices : Dst           |
+ +-----------+-----------+-----------+-----------+-----------+-----------+
+ | Vertex 0  | Vertex 1  | ...       | Vertex n  | Vertex n+1|           |
+ +---+---+---+---+---+---+-----------+---+---+---+---+---+---+-----------+
+ | X | Y | Z | X | Y | Z | ...       | X | Y | Z | X | Y | Z | ...       |
+ +---+---+---+---+---+---+-----------+---+---+---+---+---+---+-----------+
+
+.. code:: c++
+
+  Osd::BufferDescriptor srcDesc(0, 3, 3);
+  Osd::BufferDescriptor dstDesc(n*3, 3, 3);
+
+Also note that the source descriptor doesn't have to start from offset = 0.
+This is useful when a client has a big buffer multiple objects batched together.
+
 
 ----
 
@@ -130,79 +234,41 @@ Cross-Platform Implementation
 One of the key goals of OpenSubdiv is to achieve as much cross-platform flexibility
 as possible and leverage all optimized hardware paths where available. This can
 be very challenging however, as there is a very large variety of plaftorms and
-matching APIs available, with very distinct capabilities. The following chart
-illustrates the matrix of back-end APIs supported for each module.
+matching APIs available, with very distinct capabilities.
 
-.. image:: images/osd_backends.png
-   :align: center
+In **Osd**, Evaluators don't care about interops between those APIs. All Evaluators
+have two kinds of APIs for both EvalStencils() and EvalPatches().
 
-Since the **Compute** module performs mostly specialized interpolation
-computations, most GP-GPU and multi-core APIs can be deployed. If the end-goal
-is to draw the surface on screen, it can be very beneficial to move as much of
-these computations to the same GPU device in order to minimize data transfers.
+ - Explicit signatures which directly take device-specific buffer representation
+   (i.e. pointer for CpuEvaluator, GLuint buffer for GLComputeEvaluator)
+ - Generic signatures which take arbitrary buffer classes. The buffer class
+   is required to have a certain method to return the device-specific buffer representation.
 
-For instance: pairing a CUDA **Compute** back-end to an OpenGL **Draw** backend
-could be a good choice on hardware and OS that supports both. Similarly, a DX11
-HLSL-Compute **Compute** back-end can be paired effectively with a DX11
-HLSL-Shading **Draw** back-end. Some pairings however are not possible, as
-there may be no data inter-operation paths available (ex: transferring DX11
-compute SRVs to GL texture buffers).
+The later interface is useful if the client supports multiple backends at the same time.
+The methods needs to be implemented for each Evaluators are:
 
-----
++-----------------------+------------------------+------------------+
+| Evaluator class       | object                 | method           |
++=======================+========================+==================+
+| | CpuEvaluator        | pointer to cpu memory  | BindCpuBuffer()  |
+| | TbbEvaluator        |                        |                  |
+| | OmpEvaluator        |                        |                  |
++-----------------------+------------------------+------------------+
+| CudaEvaluator         | pointer to cuda memory | BindCudaBuffer() |
++-----------------------+------------------------+------------------+
+| CLEvaluator           | cl_mem                 | BindCLBuffer()   |
++-----------------------+------------------------+------------------+
+| | GLComputeEvaluator  | GL buffer object       | BindVBO()        |
+| | GLXFBEvaluator      |                        |                  |
++-----------------------+------------------------+------------------+
+| D3D11ComputeEvaluator | D3D11 UAV              | BindD3D11UAV()   |
++-----------------------+------------------------+------------------+
 
-Contexts & Controllers
-======================
-
-At the core of **Osd** modularization is the need for inter-operating vertex buffer
-data between different APIs. This is achieved through a *"binding"* mechanism.
-
-Binding Vertex Buffers
-**********************
-
-Each back-end manages data of 2 types: specific to each primitive manipulated
-(topology, vertex data...), and general state data that is shared by all the
-primitives (compute kernels, device ID...). The first type is contained in a
-"Context" object, the latter manipulated through a singleton "Controller".
-
-.. image:: images/osd_context_controller.png
-   :align: center
-
-The Context itself holds the data that is specific to both the primitive and
-the operation that needs to be appled (ex: *"drawing"*). It also owns multiple
-buffers of vertex data. Contexts and Controller each have a specific back-end
-API, so only matching back-ends can be paired (ex: an OpenCL Context cannot be
-paired with a CUDA Controller).
-
-Vertex Buffer Inter-Op
-**********************
-
-When a Controller needs to perform an operation, it *"binds"* the Context, which
-is the trigger to move the vertex data into the appropriate device memory pool
-(CPU to GPU, GPU to GPU...).
-
-.. image:: images/osd_controllers.png
-   :align: center
+The buffers can use these methods as a trigger of interop. **Osd** provides default
+implementation of interop buffer for the most of combination of backends.
+For example, if the client wants to use cuda as computation backend and use OpenGL
+as drawing APIs, Osd::CudaGLVertexBuffer fits the case since it implements
+BindCudaBuffer() and BindVBO(). Again, clients can implement their own buffer
+class and pass it to Evaluators.
 
 
-In practice, a given application will maintain singletons of the controllers for
-each of the modules that it uses, and pair them with the Contexts associated with
-each primitive. A given primitive will use one Context for each of the modules that
-it uses.
-
-Example
-*******
-
-Here is an example of client code implementation for drawing surfaces using a
-CUDA **Compute** module and an OpenGL **Draw** module.
-
-.. image:: images/osd_controllers_example1.png
-   :align: center
-
-The client code will construct a CudaComputeController and CudaComputeContext
-for the **Compute** stage, along with an GLDrawController and a GLDrawContext.
-
-The critical components are the vertex buffers, which must be of type
-CudaGLVertexBuffer. The Contexts and Controllers classes all are
-specializations of a templated *"Bind"* function which will leverage API
-specific code responsible for the inter-operation of the data between the
-API-specific back-ends.
