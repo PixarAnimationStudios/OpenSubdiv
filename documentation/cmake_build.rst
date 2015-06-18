@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-Building with Cmake
+Building with CMake
 -------------------
 
 .. contents::
@@ -309,3 +309,40 @@ useful target names:
       | Builds Doxygen documentation
       |
 
+
+----
+
+Compiling & Linking an OpenSubdiv Application
+=============================================
+
+Here are example commands for building an OpenSubdiv application on several architectures:
+
+**Linux**
+:: 
+  
+  g++ -I$OPENSUBDIV/include -c myapp.cpp
+  g++ myapp.o -L$OPENSUBDIV/lib -losdCPU -losdGPU -o myapp
+
+**Mac OS-X**   
+::
+  
+  g++ -I$OPENSUBDIV/include -c myapp.cpp
+  g++ myapp.o -L$OPENSUBDIV/lib -losdCPU -losdGPU -o myapp
+  install_name_tool -add_rpath $OPENSUBDIV/lib myapp
+
+(On 64-bit OS-X: add ``-m64`` after each ``g++``.)
+
+**Windows**
+::
+  
+  cl /nologo /MT /TP /DWIN32 /I"%OPENSUBDIV%\include" -c myapp.cpp
+  link /nologo /out:myapp.exe /LIBPATH:"%OPENSUBDIV%\lib" libosdCPU.lib libosdGPU.lib myapp.obj 
+
+
+.. container:: impnotip
+
+    **Note:**
+    
+    HBR uses the offsetof macro on a templated struct, which appears to spurriously set off a 
+    warning in both gcc and Clang. It is recommended to turn the warning off with the
+    *-Wno-invalid-offsetof* flag.
