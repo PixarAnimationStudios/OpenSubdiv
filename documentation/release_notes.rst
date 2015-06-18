@@ -72,38 +72,10 @@ Release 3.0.0 RC1
 
 **Changes**
     - Far::TopologyRefiner was split into several classes to clarify and focus
-      the API.  Specifically, all level-related methods were moved to a new
-      class Far::TopologyLevel for inspection of a level in the hierarchy.
-      Similarly, all methods related to client "primvar" data, i.e. the suite
-      of Interpolate<T>() and Limit<T>() methods, were moved to a new class
-      Far::PrimvarRefiner.
-    
+      the API.
     - Interpolation of Vertex and Varying primvars in a single pass is no longer
-      supported. As a result, AddVaryingWithWeight() is no longer required and 
-      InterpolateVarying() must be called explicitly, which calls 
-      AddWithWeight(), instead of AddVaryingWithWeight().
-   
-    - The Osd layer was largely refactored to remove old designs that were
-      originally required to support large numbers of kernel and shader
-      configurations (thanks to stencils and unified shading).
-
-
-Release 3.0.0 Beta 
-==================
-
-Our intentions as open-source developers is to give as much access to our code,
-as early as possible, because we value and welcome the feedback from the
-community.
-
-With the 'Beta' release cycle, we hope to give stake-holders a time-window to
-provide feedback on decisions made and changes in the code that may impact
-them. Our Beta code is likely not feature-complete yet, but the general
-structure and architectures will be sufficiently locked in place for early
-adopters to start building upon these releases.
-
-Within 'Master' releases, we expect APIs to be backward compatible so that
-existing client code can seamlessly build against newer releases. Changes
-may include bug fixes as well as new features.
+      supported.
+    - The Osd layer was largely refactored.
 
 Previous 2.x Release Notes
 ==========================
