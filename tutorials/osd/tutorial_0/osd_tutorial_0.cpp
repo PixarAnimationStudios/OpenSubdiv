@@ -26,8 +26,8 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// This tutorial demonstrates the manipulation of Osd 'Compute' 'Contexts' and
-// 'Controllers'.
+// This tutorial demonstrates the manipulation of Osd Evaluator and
+// BufferDescriptor.
 //
 
 #include <opensubdiv/far/topologyDescriptor.h>
@@ -76,7 +76,7 @@ int main(int, char **) {
     // Setup phase
     //
     Far::StencilTable const * stencilTable = NULL;
-    { // Setup Context
+    { // Setup Far::StencilTable
         Far::TopologyRefiner const * refiner = createTopologyRefiner(maxlevel);
 
         // Setup a factory to create FarStencilTable (for more details see
