@@ -40,17 +40,17 @@ OpenSubdiv (Osd)
 available on various backends such as TBB, CUDA, OpenCL, GLSL etc.
 The main roles of **Osd** are:
 
-Refinement
+ - **Refinement**
     Compute stencil-based uniform/adaptive subdivision on CPU/GPU backends
-Limit Stencil Evaluation
+ - **Limit Stencil Evaluation**
     Compute limit surfaces by limit stencils on CPU/GPU backends
-Limit Evaluation with PatchTable
+ - **Limit Evaluation with PatchTable**
     Compute limit surfaces by patch evaluation on CPU/GPU backends
-OpenGL/DX11 Drawing with hardware tessellation
+ - **OpenGL/DX11 Drawing with hardware tessellation**
     Provide GLSL/HLSL tessellation functions for patch table
-Interleaved/Batched buffer configuration
+ - **Interleaved/Batched buffer configuration**
     Provide consistent buffer descriptor to deal with arbitrary buffer layout.
-Cross-Platform Implementation
+ - **Cross-Platform Implementation**
     Provide convenient classes to interop between compute and draw APIs
 
 They are independently used by client. For example, a client can use only
