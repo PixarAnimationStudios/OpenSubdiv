@@ -59,12 +59,12 @@ API Layers
 From a top-down point of view, OpenSubdiv is comprised of several layers, some
 public, and some private.
 
-Layers list in descending order:
+Layers list:
 
-  * **Osd** (OpenSubdiv)
-  * **Far** (Feature Adaptive Representation)
-  * **Vtr** (Vectorized Topological Representation)
   * **Sdc** (Subdivision Core)
+  * **Vtr** (Vectorized Topological Representation)
+  * **Far** (Feature Adaptive Representation)
+  * **Osd** (OpenSubdiv cross platform)
 
 Client mesh data enters the API through the Far layer. Typically, results will
 be collected from the Osd layer. However, it is possible to use
@@ -78,34 +78,6 @@ See `Using the Right Tools`_ for more in-depth coverage.
 
 .. image:: images/api_layers_3_0.png
    :align: center
-
-----
-
-Representation vs. Implementation Layers
-========================================
-
-One of the core performance goals of our subdivision algorithms is to leverage
-interactive performance out of massively parallel code execution wherever 
-possible. In order to support a large diversity of compute architectures
-it is critical to stream the geometric data to the compute kernels in the
-most optimal way.
-
-Data structures that are efficient for topology analysis during the pre-computation
-stage are not very good candidates for parallel processing. Our layered structure
-reflects this requirement: topology analysis and other pre-computation tasks are
-delegated to "representation" layers, while the actual execution of computations
-has been moved to an "implementation" layer.
-
-.. image:: images/api_representations.png
-
-**Representation** layers are for general purpose algorithms and differentiated by
-the requirements placed on data represenation. See `Multiple Representations`_ for
-more details.
-
-The **Implementation** layer contains hardware and API-specific implementations.
-In order to minimize code redundancy and bugs, we strive to reduce device-specific
-computation logic to the most simplistic expression possible (in many cases as
-simple as series of multiply-ads).
 
 ----
 
