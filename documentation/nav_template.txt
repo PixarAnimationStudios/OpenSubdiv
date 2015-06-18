@@ -82,7 +82,6 @@
                     <p></p>
                     <li><a href="tutorials.html">Tutorials</a>
                     <li><a href="using_osd_compile.html#compiling-linking">Compiling & Linking</a></li>
-                    <li><a href="using_osd_textures.html">Textures</a></li>
                     <p></p>
                     <li><a href="hbr_overview.html">(Hbr)</a></li>
                     <ul>
