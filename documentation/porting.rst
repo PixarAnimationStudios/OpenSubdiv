@@ -414,19 +414,24 @@ See Osd::GLLegacyGregoryPatchTable for additional details.
 Changes to Subdivision 
 ======================
 
-The refactoring of OpenSubdiv 3.0 data representations presents a unique
+The refactoring of OpenSubdiv 3.0 data representations presented a unique
 opportunity to revisit some corners of the subdivision specification and
-remove or update some legacy features.  Below are some of the changes made that
-affect compatibility with other software and previous versions of OpenSubdiv.
-For more details please see the Subdivition Compatibility Guide<compatibility.html>.
+remove or update some legacy features -- none of which was taken lightly.
+More details are provided in
+`Subdivision Compatibility Guide <compatibility.html>`__, while the
+following offers a quick overview:
 
-* Vertex Interpolation Options changed.
-  * Legacy modes of the *"smoothtriangle"* triangle have been removed.
+* All face-varying interpolation options have been combined into a single enum.
+
+* Vertex interpolation options have been renamed or removed:
+
   * The naming of the standard creasing method has changed from *Normal* to *Uniform*.
 
-* Face-varying Interopation options have changed.
+  * Unused legacy modes of the *"smoothtriangle"* option have been removed.
 
-* Hierarchical Edits support has been removed.
+* The averaging of Chaikin creasing with infinitely sharp edges has changed.
+
+* Support for Hierarchical Edits has been removed.
 
 
 Build Support for Combining 2.x and 3.0

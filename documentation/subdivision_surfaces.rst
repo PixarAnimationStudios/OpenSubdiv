@@ -122,34 +122,40 @@ On a quad example:
 Face-Varying Interpolation Rules
 ================================
 
+Face-varying data is used when discontinuities are required in the data over the 
+surface -- mostly commonly the seams between disjoint UV regions.
 Face-varying data can follow the same interpolation behavior as vertex data, or it
 can be constrained to interpolate linearly around selective features from corners,
 boundaries, or the entire interior of the mesh.
 
-The following rules can be applied to face-varying data interpolation:
+The following rules can be applied to face-varying data interpolation -- the
+ordering here applying progressively more linear constraints:
 
-+--------------------------------+-----------------------------------------------+
-| Mode                           | Behavior                                      |
-+================================+===============================================+
-| **FVAR_LINEAR_NONE**           | smooth everywhere the mesh is smooth          |
-+--------------------------------+-----------------------------------------------+
-| **FVAR_LINEAR_CORNERS_ONLY**   | sharpen corners only                          |
-+--------------------------------+-----------------------------------------------+
-| **FVAR_LINEAR_CORNERS_PLUS1**  | sharpen corners plus some junctions           |
-+--------------------------------+-----------------------------------------------+
-| **FVAR_LINEAR_CORNERS_PLUS2**  | sharpen corners plus more junctions and darts |
-+--------------------------------+-----------------------------------------------+
-| **FVAR_LINEAR_BOUNDARIES**     | piecewise linear boundary edges and corners   |
-+--------------------------------+-----------------------------------------------+
-| **FVAR_LINEAR_ALL**            | linear interpolation everywhere               |
-+--------------------------------+-----------------------------------------------+
++--------------------------------+-------------------------------------------------------------+
+| Mode                           | Behavior                                                    |
++================================+=============================================================+
+| **FVAR_LINEAR_NONE**           | smooth everywhere the mesh is smooth                        |
++--------------------------------+-------------------------------------------------------------+
+| **FVAR_LINEAR_CORNERS_ONLY**   | sharpen (linearly interpolate) corners only                 |
++--------------------------------+-------------------------------------------------------------+
+| **FVAR_LINEAR_CORNERS_PLUS1**  | CORNERS_ONLY + sharpening of junctions of 3 or more regions |
++--------------------------------+-------------------------------------------------------------+
+| **FVAR_LINEAR_CORNERS_PLUS2**  | CORNERS_PLUS1 + sharpening of darts and concave corners     |
++--------------------------------+-------------------------------------------------------------+
+| **FVAR_LINEAR_BOUNDARIES**     | linear interpolation along all boundary edges and corners   |
++--------------------------------+-------------------------------------------------------------+
+| **FVAR_LINEAR_ALL**            | linear interpolation everywhere (boundaries and interior)   |
++--------------------------------+-------------------------------------------------------------+
 
 These rules cannot make the interpolation of the face-varying data smoother than
 that of the vertices.  The presence of sharp features of the mesh created by
 sharpness values, boundary interpolation rules, or the subdivision scheme itself
 (e.g. Bilinear) take precedence.
 
-Face-varying interpolation using the catmark_fvar_bound1 regression shape:
+All face-varying interpolation modes illustrated in UV space using the
+catmark_fvar_bound1 regression shape -- a simple 4x4 grid of quads segmented
+into three UV regions (their control point locations implied by interpolation
+in the FVAR_LINEAR_ALL case):
 
 .. image:: images/fvar_boundaries.png
    :align: center

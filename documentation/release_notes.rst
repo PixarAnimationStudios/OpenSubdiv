@@ -34,20 +34,22 @@
 Release 3.0.0
 =============
 
+Release 3.0.0 is a major release with many significant improvements and
+changes.  For more information on the following, please see
+`Introduction to 3.0 <intro_30.html>`__
+
 **New Features**
+    - Updated coding style with namespaces
     - Faster subdivision using less memory
-    - Introduction of Stencil Tables
-    - Faster, simple GPU kernels
-    - Unified adaptive shaders
-    - Single Crease Patch
-    - New Irregular Patch approximations
     - Support for non-manifold topology
-    - Simpler conversion of topology
-    - Face-Varying topology
+    - Face-Varying data specified topologically
+    - Introduction of Stencil Tables
+    - Single Crease Patch
+    - Irregular Patch approximations
     - Elmination of fixed valence tables
-    - New coding style
+    - Faster, simpler GPU kernels
+    - Unified adaptive shaders
     - More documentation and tutorials
-    - For more, information please see `Introduction to 3.0 <intro_30.html>`__
 
 
 Release 3.0.0 RC2
