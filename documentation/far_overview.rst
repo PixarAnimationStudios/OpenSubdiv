@@ -197,7 +197,7 @@ serializes the sub-faces into collections of bi-linear and bi-cubic patches as
 dictated by the refinement mode (uniform or adaptive). The patches are then
 sorted into arrays based on their types.
 
-.. container:: impnotip
+.. container:: notebox
 
    **Release Notes (3.0.0)**
 
@@ -328,7 +328,7 @@ with many fewer patches than would be needed otherwise. A single-crease
 patch is a variation of a regular BSpline patch with one additional crease
 sharpness parameter.
 
-.. container:: impnotip
+.. container:: notebox
 
    **Release Notes (3.0.0)**
 
@@ -348,7 +348,7 @@ adaptively to the points of the coarse mesh. However, the final patches
 generated from irregular faces, e.g. patches incident on an extraordinary
 vertex might have a representation which requires additional local points.
 
-.. container:: impnotip
+.. container:: notebox
 
    **Release Notes (3.0.0)**
 
@@ -367,7 +367,7 @@ Legacy Gregory patches are used, the PatchTable must also have an alternative
 representation of the mesh topology encoded as a vertex valence table
 and a quad offsets table.
 
-.. container:: impnotip
+.. container:: notebox
 
    **Release Notes (3.0.0)**
 

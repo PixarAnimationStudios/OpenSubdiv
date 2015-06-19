@@ -49,7 +49,7 @@ shapes. Multiple controls are available to experiment with the algorithms.
    :align: center
    :target: images/dxviewer.png 
 
-.. container:: impnotip
+.. container:: notebox
 
    * **Note:** 
      
