@@ -45,8 +45,7 @@ OpenSubdiv.
 
 Face-varying interpolation options have been consolidated into a single enum
 with one additional choice new to 3.0.  No functionality from 2.x has been
-removed -- just re-expressed in what we hope is a simpler and more
-comprehensible form.
+removed -- just re-expressed in a simpler and more comprehensible form.
 
 Face-varying interpolation was previously defined by a "boundary interpolation"
 enum with four modes and an additional boolean "propagate corners" option,
@@ -159,11 +158,11 @@ and support for them and they have therefore been removed from the 3.0 release
 of OpenSubdiv. Dropping support for Hierarchical Edits allows for significant
 simplifications of many areas of the subdivision algorithms.
 
-While the 3.0 release does not offer direct support for Hierarchical Edits, it
-is hoped that the architectural changes and direction of 3.0 will facilitate
-their application for those wishing to use them -- though not always in the
-same optimized context.  As with many other features, consideration for
-increased support will be considered based on demand and resources.
+While the 3.0 release does not offer direct support for Hierarchical Edits,
+the architectural changes and direction of 3.0 still facilitate the application
+of the most common value edits for those wishing to use them -- though not
+always in the same optimized context.  Of course, support for Hierarchical
+Edits in the future will be considered based on demand and resources.
 
 **Non-Manifold Topology**
 

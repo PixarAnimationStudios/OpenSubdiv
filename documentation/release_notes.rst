@@ -39,17 +39,20 @@ changes.  For more information on the following, please see
 `Introduction to 3.0 <intro_30.html>`__
 
 **New Features**
-    - Updated coding style with namespaces
     - Faster subdivision using less memory
     - Support for non-manifold topology
     - Face-Varying data specified topologically
+    - Elimination of fixed valence tables
+    - Single-crease patch for semi-sharp edges
+    - Additional irregular patch approximations
     - Introduction of Stencil Tables
-    - Single Crease Patch
-    - Irregular Patch approximations
-    - Elmination of fixed valence tables
     - Faster, simpler GPU kernels
     - Unified adaptive shaders
+    - Updated coding style with namespaces
     - More documentation and tutorials
+
+**Bug Fixes**
+    - Smooth Face-Varying interpolation around creases
 
 
 Release 3.0.0 RC2
