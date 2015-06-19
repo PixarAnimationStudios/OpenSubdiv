@@ -228,16 +228,14 @@ improve the quality, consistency and readability of the source code.
 
 ----
 
-New Tutorials
-*************
+Documentation and Tutorials
+***************************
 
-Documentation has been re-organized and fleshed out (although there is still a
-lot of work remaining). Because the "code examples" have been generally overly
-complicated, with this release we are introducing a number of new `tutorials
-<tutorials.html>`__. We are trying to keep these tutorials as simple as
-possible, with no external dependencies (although some of them generate OBJ or
-Maya MEL scripts as a way of visualizing the output). We are planning on releasing
-more tutorials as time and resources allow.
+The documentation has been re-organized and fleshed out.  This release 
+introduces a number of new `tutorials <tutorials.html>`__.  The tutorials 
+provide an easier entry point for learning the API than do the programs 
+provided in examples.  The examples provide more fleshed out solutions and are
+a good next step after the tutorials are mastered.
 
 ----
 
