@@ -133,14 +133,14 @@ public:
     ///        transparently from OsdMesh template interface.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindCLBuffer() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for read
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindCLBuffer() method returning a
-    ///                       float pointer for write
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for results to be written
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
@@ -193,16 +193,28 @@ public:
     ///        transparently from OsdMesh template interface.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindCLBuffer() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for read
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindCLBuffer() method returning a
-    ///                       float pointer for write
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for results to be written
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer       Output U-derivative buffer
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for du results to be written
+    ///
+    /// @param duDesc         vertex buffer descriptor for the du output buffer
+    ///
+    /// @param dvBuffer       Output V-derivative buffer
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for dv results to be written
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the dv output buffer
     ///
     /// @param stencilTable   stencil table to be applied. The table must have
     ///                       SSBO interfaces.

@@ -193,11 +193,13 @@ public:
     ///                       must have BindVBO() method returning a
     ///                       float pointer for write
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the du output buffer
     ///
     /// @param dvBuffer       Output V-derivative buffer
     ///                       must have BindVBO() method returning a
     ///                       float pointer for write
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the dv output buffer
     ///
     /// @param stencilTable   stencil table to be applied. The table must have
     ///                       Texture Buffer Object interfaces.
@@ -293,6 +295,14 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
+    /// @param duBuffer       GL buffer of output U-derivatives.
+    ///
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dvBuffer       GL buffer of output V-derivatives.
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
+    ///
     /// @param stencilTable   stencil table to be applied.
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
@@ -320,33 +330,37 @@ public:
     /// \brief dispatch eval stencils function with derivatives.
     ///        dispatch the GLSL XFB kernel on on GPU asynchronously.
     ///
-    /// @param srcBuffer      GL buffer of input primvars.
+    /// @param srcBuffer       GL buffer of input primvars.
     ///
-    /// @param srcDesc        vertex buffer descriptor for the srcBuffer
+    /// @param srcDesc         vertex buffer descriptor for the srcBuffer
     ///
-    /// @param dstBuffer      GL buffer of output primvars.
+    /// @param dstBuffer       GL buffer of output primvars.
     ///
-    /// @param dstDesc        vertex buffer descriptor for the dstBuffer
+    /// @param dstDesc         vertex buffer descriptor for the dstBuffer
     ///
-    /// @param duBuffer       GL buffer of output U-derivatives.
+    /// @param duBuffer        GL buffer of output U-derivatives.
     ///
-    /// @param duDesc         vertex buffer descriptor for the duBuffer
+    /// @param duDesc          vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       GL buffer of output V-derivatives.
+    /// @param dvBuffer        GL buffer of output V-derivatives.
     ///
-    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
+    /// @param dvDesc          vertex buffer descriptor for the dvBuffer
     ///
-    /// @param sizesBuffer    GL buffer of the sizes in the stencil table
+    /// @param sizesBuffer     GL buffer of the sizes in the stencil table
     ///
-    /// @param offsetsBuffer  GL buffer of the offsets in the stencil table
+    /// @param offsetsBuffer   GL buffer of the offsets in the stencil table
     ///
-    /// @param indicesBuffer  GL buffer of the indices in the stencil table
+    /// @param indicesBuffer   GL buffer of the indices in the stencil table
     ///
-    /// @param weightsBuffer  GL buffer of the weifgrs in the stencil table
+    /// @param weightsBuffer   GL buffer of the weights in the stencil table
     ///
-    /// @param start          start index of stencil table
+    /// @param duWeightsBuffer GL buffer of the du weights in the stencil table
     ///
-    /// @param end            end index of stencil table
+    /// @param dvWeightsBuffer GL buffer of the dv weights in the stencil table
+    ///
+    /// @param start           start index of stencil table
+    ///
+    /// @param end             end index of stencil table
     ///
     bool EvalStencils(GLuint srcBuffer, BufferDescriptor const &srcDesc,
                       GLuint dstBuffer, BufferDescriptor const &dstDesc,
