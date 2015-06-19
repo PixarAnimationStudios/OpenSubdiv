@@ -97,7 +97,6 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         subdivision_surfaces.rst
         tutorials.rst
         using_osd.rst
-        using_osd_compile.rst
         using_osd_hbr.rst
         using_osd_textures.rst
         vtr_overview.rst
