@@ -140,7 +140,7 @@ control vertices and local points are resolved by the stencil evaluation.
 |                             | | (*)not yet supported  |                         |
 +-----------------------------+-------------------------+-------------------------+
 
-.. container:: impnotip
+.. container:: notebox
 
  **Release Notes (3.0.0)**
 

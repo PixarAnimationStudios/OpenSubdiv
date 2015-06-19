@@ -234,7 +234,7 @@ See osd/glslPatchBSpline.glsl for more detail.
                                            out vec4 tessLevelOuter, out vec2 tessLevelInner,
                                            out vec4 tessOuterLo, out vec4 tessOuterHi)
 
-.. container:: impnotip
+.. container:: notebox
 
  **Release Notes (3.0.0)**
 
