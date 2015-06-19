@@ -54,7 +54,6 @@
                     <li><a href="subdivision_surfaces.html#arbitrary-topology">Topology</a></li>
                     <li><a href="subdivision_surfaces.html#boundary-interpolation-rules">Boundary Interpolation</a></li>
                     <li><a href="subdivision_surfaces.html#semi-sharp-creases">Semi-Sharp Creases</a></li>
-                    <li><a href="subdivision_surfaces.html#hierarchical-edits">Hierarchical Edits</a></li>
                     <li><a href="subdivision_surfaces.html#uniform-subdivision">Uniform</a></li>
                     <li><a href="subdivision_surfaces.html#feature-adaptive-subdivision">Feature Adaptive</a></li>
                     <li><a href="mod_notes.html">Modeling Tips</a></li>
