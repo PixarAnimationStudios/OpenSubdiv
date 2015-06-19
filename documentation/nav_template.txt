@@ -60,7 +60,7 @@
                 </ul>
             </li>
             <p></p>
-            <li><a href="using_osd.html">OpenSubdiv</a>
+            <li><a href="api_overview.html">OpenSubdiv</a>
                 <ul>
                     <li><a href="api_overview.html">API Overview</a>
                         <li><a href="sdc_overview.html">Sdc</a></li>
