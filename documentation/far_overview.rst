@@ -37,8 +37,8 @@ Feature Adaptive Representation (Far)
 =====================================
 
 The *Far* API layer is the central interface that processes client-supplied
-geometry and turns it into a `serialized data representation
-<api_overview.html#multiple-representations>`__ ready for parallel processing.
+geometry and turns it into a serialized data representation ready for parallel
+processing.
 
 First, *Far* provides the tools to refine subdivision topology
 (`Far::TopologyRefiner <#far-topologyrefiner>`__). Topology refinement can be
