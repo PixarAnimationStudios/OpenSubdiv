@@ -36,79 +36,94 @@ FAR Overview
 Feature Adaptive Representation (Far)
 =====================================
 
-The *Far* API layer is the central interface that processes client-supplied
-geometry and turns it into a serialized data representation ready for parallel
-processing.
+*Far* is the primary API layer for processing client-supplied mesh data
+into subdivided surfaces.
 
-First, *Far* provides the tools to refine subdivision topology
-(`Far::TopologyRefiner <#far-topologyrefiner>`__). Topology refinement can be
-either uniform or sparse, where extraordinary features are automatically
-isolated (see `feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__).
+The *Far* interface may be used directly and also may be used to prepare
+mesh data for further processing by `Osd <osd_overview.html#Osd>`__.
 
-As a geometry representation, *Far* also provides a set of *"Table"* classes.
-These tables are designed to be static containers for the refined topology
-data, after it has been serialized and factorized. This representation is
-embodied in the `Far::PatchTable <#far-patchtable>`__  and the
-`Far::StencilTable <#far-patchtable>`__ classes.
+The two main aspects of the subdivision process are *Topology Refinement*
+and *Primvar Refinement*.
 
-*Far* is also a fully featured API. Typically *Far* tabular data is targeted at
-*Osd*, where it can be processed by an implementation optimized for a specific
-hardware. However, for client-code that does not require a dedicated
-implementation, *Far* itself provides a fully-featured single-threaded
-implementation of subdivision interpolation algorithms, both discrete and at
-the limit.
+Topology Refinement
+*******************
 
-Refining Topology
-=================
+Topology refinement is the process of splitting the mesh topology
+according to the specified subdivison rules to generate new topological
+vertices, edges, and faces. This process is purely topological and does
+not depend on the speciific values of any primvar data (point positions, etc).
+
+Topology refinement can be either uniform or adaptive, where extraordinary
+features are automatically isolated (see `feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__).
 
 The *Far* topology classes present a public interface for the refinement
-functionality provided in *Vtr*, either directly within Far or indirectly
-eventually though *Osd*. The two main topology refinement classes are as
-follows:
+functionality provided in `Vtr <vtr_overview.html#Vtr>`__,
 
-+-------------------------------+---------------------------------------------------+
-| TopologyRefiner               | A class encapsulating the topology of a refined   |
-|                               | mesh.                                             |
-+-------------------------------+---------------------------------------------------+
-| TopologyRefinerFactory<MESH>  | A factory class template specialized by users (in |
-|                               | terms of their mesh class) to construct           |
-|                               | TopologyRefiner as quickly as possible.           |
-+-------------------------------+---------------------------------------------------+
+The main classes in *Far* related to topology refinement are:
 
-These classes are the least well defined of the API, but given they provide the
-public interface to all of the improvements proposed, they potentially warrant
-the most attention. Far::TopologyRefiner is purely topological and it is the
-backbone used to construct or be associated with the other table classes in Far.
++-------------------------------+---------------------------------------------+
+| TopologyRefiner               | A class encapsulating mesh refinement.      |
++-------------------------------+---------------------------------------------+
+| TopologyLevel                 | A class representing one level of           |
+|                               | refinement within a TopologyRefiner.        |
++-------------------------------+---------------------------------------------+
+| TopologyRefinerFactory<MESH>  | A factory class template specialized in     |
+|                               | terms of the application's mesh             |
+|                               | representation used to construct            |
+|                               | TopologyRefiner instances.                  |
++-------------------------------+---------------------------------------------+
 
+Primvar Refinement
+******************
+
+Primvar refinement is the process of computing values for primvar data (points,
+colors, normals, texture coordinates, etc) by applying weights determined by
+the specified subdivision rules.  There are many advantages gained by
+distinguishing between topology refinement and primvar interpolation
+including the ability to apply a single static topological refinement to
+multiple primvar instances or to different animated primvar time samples.
+
+*Far* supports methods to refine primvar data at the locations of topological
+vertices and at arbitrary locations on the subdivision limit surface.
+
+The main classes in *Far* related to primvar refinement are:
+
++-----------------------+--------------------------------------------------+
+| PrimvarRefiner        | A class implementing refinement of primvar data  |
+|                       | at the locations of topological vertices.        |
++-----------------------+--------------------------------------------------+
+| PatchTable            | A representation of the refined surface topology |
+|                       | that can be used for efficient evaluation of     |
+|                       | primvar data at arbitrary locations.             |
++-----------------------+--------------------------------------------------+
+| StencilTable          | A representation of refinement weights suitable  |
+|                       | for efficient parallel processing of primvar     |
+|                       | refinement.                                      |
++-----------------------+--------------------------------------------------+
+| LimitStencilTable     | A representation of refinement weights suitable  |
+|                       | for efficient parallel processing of primvar     |
+|                       | refinement at arbitrary limit surface locations. |
++-----------------------+--------------------------------------------------+
 
 Far::TopologyRefiner
-********************
+====================
 
 TopologyRefiner is the building block for many other useful classes in
-OpenSubdiv, but its purpose is more specific.  It is intended to store the
-topology of an arbitrarily refined subdivision hierarchy to support the
-construction of `stencil table <#patch-table>`__, `patch table
-<#patch-table>`__,  etc.
+*Far*. It performs refinement of an arbitrary mesh and provides access to
+the refined mesh topology. It can be used for primvar refinement directly
+using PrimvarRefiner or indirectly by being used to create
+`stencil table <#patch-table>`__, `patch table <#patch-table>`__,  etc.
 
-Aside from public access to topology, TopologyRefiner has public refinement
-methods (currently *RefineUniform()* and *RefineAdapative()*) where simple
-specifications of refinement will be translated into refinement operations
-within Vtr.  Feature-adaptive refinement is a special case of *"sparse"* or
-*"selective"* refinement, and so the feature-adaptive logic exists internal
-to TopologyRefiner and translates the feature-analysis into a simpler
-topological specification of refinement to Vtr.
+TopologyRefiner has public the refinement methods
+*RefineUniform()* and *RefineAdapative()* which perform refinement
+operations using Vtr and provides access to the refined topology via
+TopologyLevel instances.
 
 .. image:: images/topology_refiner.png
    :align: center
 
-The longer term intent is that the public Refine...(...) operations eventually
-be overloaded to allow clients more selective control of refinement. While
-TopologyRefiner is a purely topological class, and so free of any definitions
-of vertex data, the public interface has been extended to include templated
-methods that allow clients to interpolate primitive variable data.
-
 Far::TopologyRefinerFactory
-***************************
+===========================
 
 Consistent with other classes in Far, instances of TopologyRefiner are created
 by a factory class -- in this case Far::TopologyRefinerFactory.  This class
@@ -185,9 +200,46 @@ A common base class has been created for the factory class, i.e.:
 both to provide common code independent of <MESH> and also potentially to
 protect core code from unwanted specialization.
 
+Far::PrimvarRefiner
+===================
+
+PrimvarRefiner supports refinement of arbitrary primvar data at the locations
+of topological vertices. A PrimvarRefiner accesses topology data directly
+from a TopologyRefiner.
+
+Different methods are provided to support three different classes of primvar
+interpolation. These methods may be used to refine primvar data to a specified
+refinement level.
+
++-------------------------------+-------------------------------------------+
+| Interpolate(...)              | Interpolate using vertex weights          |
++-------------------------------+-------------------------------------------+
+| InterpolateVarying(...)       | Interpolate using linear weights          |
++-------------------------------+-------------------------------------------+
+| InterpolateFaceVarying(...)   | Interpolate using face-varying weights    |
++-------------------------------+-------------------------------------------+
+
+Additional methods allow primvar data to be interpolated to the final limit
+surface including the calculation of first derivative tangents.
+
++-------------------------------+-------------------------------------------+
+| Limit(dst)                    | Interpolate to the limit surface using    |
+|                               | vertex weights                            |
++-------------------------------+-------------------------------------------+
+| Limit(dst, dstTan1, dstTan2)  | Interpolate including first derivatives   |
+|                               | to the limit surface using vertex weights |
++-------------------------------+-------------------------------------------+
+| LimitFaceVarying(...)         | Interpolate to the limit surface using    |
+|                               | face-varying weights                      |
++-------------------------------+-------------------------------------------+
+
+PrimarRefiner provides a straightforward interface for refining primvar data,
+but depending on the application use case, it can be more efficient to create
+and use a `StencilTable <#patch-table>`__, or `PatchTable <#patch-table>`__,
+to refine primvar data.
+
 Far::PatchTable
 ================
-
 
 The patch table is a serialized topology representation. This container is
 generated using *Far::PatchTableFactory* from an instance
@@ -459,7 +511,7 @@ face.
 
 The weight accumulation process is similar : the control cage is adaptively
 subdivided around extraordinary locations. A stencil is then generated for each
-limit location simply by  factorizing the bi-cubic Bspline patch weights over
+limit location simply by factorizing the bi-cubic Bspline patch weights over
 those of the contributing basis of control-vertices.
 
 The use of bi-cubic patches also allows the accumulation of analytical
