@@ -43,20 +43,21 @@ namespace Osd {
 ///
 ///        * Note that each element has the same data type (float)
 ///
-///  example:
-///       n
-///  -----+----------------------------------------+-------------------------
-///       |               vertex  0                |
-///  -----+----------------------------------------+-------------------------
-///       |  X  Y  Z  R  G  B  A Xu Yu Zu Xv Yv Zv |
-///  -----+----------------------------------------+-------------------------
-///       <------------- stride = 13 -------------->
-///
-///     - XYZ      (offset = n+0,  length = 3, stride = 13)
-///     - RGBA     (offset = n+3,  length = 4, stride = 13)
-///     - uTangent (offset = n+7,  length = 3, stride = 13)
-///     - vTangent (offset = n+10, length = 3, stride = 13)
-///
+
+//  example:
+//       n
+//  -----+----------------------------------------+-------------------------
+//       |               vertex  0                |
+//  -----+----------------------------------------+-------------------------
+//       |  X  Y  Z  R  G  B  A Xu Yu Zu Xv Yv Zv |
+//  -----+----------------------------------------+-------------------------
+//       <------------- stride = 13 -------------->
+//
+//     - XYZ      (offset = n+0,  length = 3, stride = 13)
+//     - RGBA     (offset = n+3,  length = 4, stride = 13)
+//     - uTangent (offset = n+7,  length = 3, stride = 13)
+//     - vTangent (offset = n+10, length = 3, stride = 13)
+//
 struct BufferDescriptor {
 
     /// Default Constructor
@@ -93,9 +94,12 @@ struct BufferDescriptor {
         return !(this->operator==(other));
     }
 
-    int offset;  // offset to desired element data
-    int length;  // number or length of the data
-    int stride;  // stride to the next element
+    /// offset to desired element data
+    int offset;
+    /// number or length of the data
+    int length;
+    /// stride to the next element
+    int stride;
 };
 
 } // end namespace Osd

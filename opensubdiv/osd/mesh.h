@@ -233,6 +233,7 @@ private:
     Evaluators _evaluators;
 };
 
+/// @cond INTERNAL
 
 // template helpers to see if the evaluator is instantiatable or not.
 template <typename EVALUATOR>
@@ -248,6 +249,8 @@ template <bool C, typename T=void>
 struct enable_if { typedef T type; };
 template <typename T>
 struct enable_if<false, T> { };
+
+/// @endcond
 
 // extract a kernel from cache if available
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
