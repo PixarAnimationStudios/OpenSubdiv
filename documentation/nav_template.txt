@@ -43,7 +43,7 @@
             <p></p>
             <li><a href="intro_30.html">Introduction to 3.0</a></li>
                 <ul>
-                    <li><a href="intro_30.html">Major Changes in 3.0</a></li>
+                    <li><a href="intro_30.html">Release 3.0</a></li>
                     <li><a href="porting.html">Porting Guide: 2.0 to 3.0</a></li>
                     <li><a href="compatibility.html">Subdivision Compatibility</a></li>
                 </ul>
