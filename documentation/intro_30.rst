@@ -40,6 +40,9 @@ more efficient, and more flexible subdivision code remains our principal goal.
 To achieve this, OpenSubdiv 3.0 introduces many improvements that constitute
 a fairly radical departure from previous versions.
 
+This document highlights some of the major changes that have gone in to the 3.0
+release.
+
 ----
 
 Subdivision Core (Sdc)
@@ -54,22 +57,22 @@ for the refinement masks of each subdivision scheme, etc.  As initially
 conceived, its goal was often expressed as "separating the math from the mesh".
 
 Sdc provides the low-level nuts and bolts to provide a subdivision
-implementation consistent with OpenSubdiv. It is used internally by Vtr and
-Far layers but may also able to provide an existing client's implementation
-with the details necessary to make that implementation consistent with
-OpenSubdiv (though not without considerably more understanding and effort).
+implementation consistent with OpenSubdiv. It is used by OpenSubdiv's 
+libraries and may also be useful in providing an existing client's 
+implementation with the details necessary to make that implementation 
+consistent with OpenSubdiv (though not without considerably more understanding
+and effort).
 
 ----
 
 Topology and Refinement
 ***********************
 
-Given repeated limitations experienced with Hbr as the primary topological
-entry point, OpenSubdiv 3.0 introduces a new *intermediate* internal
-topological representation named **Vtr** (Vectorized Topology Representation).
-Vtr is much more efficient for the kinds of topological analysis required by
-Far and additionally is more flexible.  As a result, Hbr is no longer a core
-API of OpenSubdiv. While the code is marked as deprecated, it will remain in
+OpenSubdiv 3.0 introduces a new *intermediate* internal topological 
+representation named **Vtr** (Vectorized Topology Representation).
+Compared to the Hbr library used in previous versions, Vtr is much more 
+efficient for the kinds of topological analysis required by Far and is more
+flexible.  While Hbr is no longer used by OpenSubdiv, it will remain in
 the source distribution for legacy and regression purposes.
 
 **Faster Subdivision**
@@ -130,7 +133,7 @@ properties (positions and tangents) at discrete points in the subdivision
 hierarchy, as well as to the representations of patches used for the
 continuous limit surface between them.
 
-**No more fixed valence tables**
+**Removed Fixed Valence Tables**
 
  Limit properties of extra-ordinary vertices are computed for arbitrary
  valence and new patch types no longer rely on small table sizes.  All tables
@@ -141,7 +144,7 @@ continuous limit surface between them.
  representation, which restricts it to the size of an unsigned 16-bit integer
  (65,535).  This limit could also be removed, by recompiling with a certain
  size changed from 16- to 32-bits, but doing so would increase the memory cost
- for all common cases.  We feel the 16-bit limit was a reasonable compromise.
+ for all common cases.  We feel the 16-bit limit is a reasonable compromise.
 
 **Single Crease Patch**
 
@@ -232,8 +235,8 @@ improve the quality, consistency and readability of the source code.
 
 ----
 
-New Tutorials
-*************
+Documentation and Tutorials
+***************************
 
 The documentation has been re-organized and fleshed out. This release
 introduces a number of new `tutorials <tutorials.html>`__. The tutorials
@@ -249,7 +252,7 @@ Additional Resources
 Porting Guide
 *************
 
-Please see the `Porting Guide <porting.html>`__. for help on how to port 
+Please see the `Porting Guide <porting.html>`__ for help on how to port 
 existing code written for OpenSubdiv 2.x to the new 3.0 release.
 
 ----
