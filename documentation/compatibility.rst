@@ -63,7 +63,7 @@ and undesirable behavior in some common cases -- to an extent that could not
 simply be changed -- and so an additional mode was added to avoid such behavior.
 
 All choices are now provided through a single "linear interpolation" enum,
-desribed and illustrated in more detail in the overview of
+described and illustrated in more detail in the overview of
 `Face-Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation-rules>`__.
 The use of "boundary" in the name of the enum was intentionally removed
 as the choice also affects interior interpolation.  The new use of "linear"
@@ -183,7 +183,7 @@ Since RenderMan and OpenSubdiv versions prior to 3.0 share a common library
 section of compatibility with OpenSubdiv 2.x.
 
 In addition to some features between RenderMan and OpenSubdiv that are not
-compatibile, there are also other differences that may be present due to
+compatible, there are also other differences that may be present due to
 differences in the implementations of similar features.  
 
 For most use cases, OpenSubdiv 3.0 is largely compatible with RenderMan, there
@@ -216,7 +216,7 @@ Other Differences
 **Smooth Face-Varying Interpolation with Creasing**
 
 There have been two discrepancies noted in the way that face-varying data is
-interpolated smoothly in the presense of creases:
+interpolated smoothly in the presence of creases:
 
 * Interpolation around a dart vertex
 
