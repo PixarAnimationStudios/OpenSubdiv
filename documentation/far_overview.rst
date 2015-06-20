@@ -140,16 +140,32 @@ situations where mesh data is not defined in a boundary representation, a
 simple container for raw mesh data is provided (TopologyDescriptor) along
 with a Factory specialized to construct TopologyRefiners from it.
 
-So there are two ways to create TopologyRefiners:
+There are three ways to create TopologyRefiners:
 
     * use the existing TopologyRefinerFactory<TopologyDescriptor> with a
       populated instance of TopologyDescriptor
     * specialize TopologyRefinerFactory<class MESH> for more efficient
+      conversion, using only face-vertex information
+    * fully specialize TopologyRefinerFactor<class MESH> for most control over
       conversion
 
-TopologyDescriptor is a simple struct with pointers to raw mesh data in a
-form common to mesh constructors.  Topologically, the minimal requirement
-consists of:
+These approaches are detailed below:
+
+Factories to Build Far::TopologyRefiners
+****************************************
+
+Here we outline the three approaches for converting mesh topology into the
+required Far::TopologyRefiner.  Additional documentation is provided with
+the Far::TopologyRefinerFactory<MESH> class template used by all, and each
+has a concrete example provided in one of the tutorials or in the Far code
+itself.  
+
+**Use the Far::TopologyDescriptor**
+
+Far::TopologyDescriptor is a simple struct that can be initialized to refer
+to raw mesh topology information -- primarily a face-vertex list -- and then
+passed to a provided factory class to create a TopologyRefiner from each.
+Topologically, the minimal requirement consists of:
 
     * the number of vertices and faces of the mesh
     * an array containing the number of vertices per face
@@ -161,34 +177,90 @@ Additional members are available to assign sharpness values per edge and/or
 vertex, hole tags to faces, or to define multiple sets (channels) of
 face-varying data.
 
+Almost all of the Far tutorials (i.e. tutorials/far/tutorial_*) illustrate
+use of the TopologyDescriptor and its factory for creating TopologyRefiners,
+i.e. TopologyRefinerFactory<TopologyDescriptor>.
+
+For situations when users have raw mesh data and have not yet constructed a
+boundary representation of their own, it is hoped that this will suffice.
+Options have even been provided to indicate that raw topology information
+has been defined in a left-hand winding order and the factory will handle
+the conversion to right-hand (counter-clockwise) winding on-the-fly to avoid
+unnecessary data duplication.
+
+**Custom Factory for Face Vertices**
+
+If the nature of the TopologyDescriptor's data expectations is not helpful,
+and so conversion to large temporary arrays would be necessary to properly
+make use of it, it may be worth writing a custom factory.
+
 Specialization of TopologyRefinerFactory<class MESH> should be done with care
 as the goal here is to maximize the performance of the conversion and so
 minimize overhead due to runtime validation.  The template provides the
 high-level construction of the required topology vectors of the underlying
-Vtr.  It requires the specification/specialization of two methods with the
-following purpose:
+Vtr.  
+ 
+There are two ways to write such a factory:  provide only the face-vertex
+information for topology and let the factory infer all edges and other
+relationships, or provide the complete edge list and all other topological
+relationships directly.  The latter is considerably more involved and
+described in a following section.
+
+The definition of TopologyRefinerFactory<TopologyDescriptor> provides a clear
+and complete example of constructing a TopologyRefiner with minimal topology
+information, i.e. the face-vertex list.  The class template
+TopologyRefinerFactory<MESH> documents the needs here and the
+TopologyDescriptor instantiation and specialization should illustrate that.
+
+
+**Custom Factory for Direct Conversion**
+
+Fully specializing a factory for direct conversion is needed only for
+those requiring ultimate control and is not generally recommended.  
+It is recommended that one of the previous two methods initially be used to 
+convert your mesh topology into a TopologyRefiner.  If the conversion 
+performance is critical, or significant enough to warrant improvement, then 
+it is worth writing a factory for full topological conversion.
+
+Writing a custom factory requires the specification/specialization of two 
+methods with the following purpose:
 
     * specify the sizes of topological data so that vectors can be pre-allocated
     * assign the topological data to the newly allocated vectors
 
-As noted above, the assumption here is that the client's boundary-rep knows best
-how to retrieve the data that we require most efficiently. After the factory class
-gathers sizing information and allocates appropriate memory, the factory provides
-the client with locations of the appropriate tables to be populated (using the
-same `Array <vtr_overview.html#arry-type>`__ classes and interface used to access
-the tables).  The client is expected to load a complete topological description
-along with additional optional data, i.e.:
+As noted above, the assumption here is that the client's boundary-rep knows 
+best how to retrieve the data that we require most efficiently. After the 
+factory class gathers sizing information and allocates appropriate memory, the
+factory provides the client with locations of the appropriate tables to be 
+populated (using the same `Array <vtr_overview.html#arry-type>`__ classes and 
+interface used to access the tables).  The client is expected to load a 
+complete topological description along with additional optional data, i.e.:
 
     * the six topological relations required by Vtr, oriented when manifold
     * sharpness values for edges and/or vertices (optional)
     * additional tags related to the components, e.g. holes (optional)
     * values-per-face for face-varying channels (optional)
 
+This approach requires dealing directly with edges, unlike the other two.  In
+order to convert edges into a TopologyRefiner's representation, the edges need
+to be expressed as a collection of known size N -- each of which is referred to
+directly by indices [0,N-1].  This can be awkward for representations such as
+half-edge or quad-edge that do not treat the instance of an edge uniquely.
+
+Particular care is also necessary when representing non-manifold features.  The
+previous two approaches will construct non-manifold features as required from
+the face-vertex list -- dealing with degenerate edges and other non-manifold
+features as encountered.  When directly translating full topology it is
+necessary to tag non-manifold features, and also to ensure that certain
+edge relationships are satisfied in their presence.  More details are
+available with the assembly methods of the factory class template.
+
 While there is plenty of opportunity for user error here, that is no different
 from any other conversion process.  Given that Far controls the construction
 process through the Factory class, we do have ample opportunity to insert
 runtime validation, and to vary that level of validation at any time on an
-instance of the Factory.
+instance of the Factory.  The factory does provide run-time validation on the
+topology constructed that can be used for debugging purposes.
 
 A common base class has been created for the factory class, i.e.:
 
