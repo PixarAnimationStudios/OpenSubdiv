@@ -179,5 +179,3 @@ Modifiable properties include:
    :align: center
    :height: 300
    :target: images/hedit_example5.png
-
-----

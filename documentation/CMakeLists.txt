@@ -81,6 +81,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         glsharetopology.rst
         glstencilviewer.rst
         glviewer.rst
+        hedits.rst
         hbr_overview.rst
         intro.rst
         intro_30.rst
