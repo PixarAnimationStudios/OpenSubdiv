@@ -39,11 +39,11 @@ Overview
 
 Assuming that you have `cloned <getting_started.html>`__ the source repository
 and selected an appropriate release branch, the following instructions will
-walk you through the Cmake and configuration and build process.
+walk you through the CMake and configuration and build process.
 
-Cmake is a cross-platform, open-source build system. Cmake controls the compilation
+CMake is a cross-platform, open-source build system. CMake controls the compilation
 process using platform independent configuration files in order to generate
-makefiles and workspaces that are native to the platform of choice.
+Makefiles and workspaces that are native to the platform of choice.
 
 The process involves the following steps:
 
@@ -56,7 +56,7 @@ The process involves the following steps:
 Step 1: Dependencies
 ====================
 
-Cmake will adapt the build based on which dependencies have been successfully
+CMake will adapt the build based on which dependencies have been successfully
 discovered and will disable certain features and code examples accordingly.
 
 Please refer to the documentation of each of the dependency packages for specific

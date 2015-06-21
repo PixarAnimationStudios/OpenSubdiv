@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-Hierarhical Edits
+Hierarchical Edits
 -----------------
 
 .. contents::

@@ -48,7 +48,7 @@ Hbr is also the lowest-level subdivision library in Pixar's `Photorealistic Rend
        As of OpenSubdiv 3.0, all **Hbr** dependencies have been removed from the
        core APIs (**Sdc**, **Vtr**, **Far**, **Osd**). The legacy source code of
        **Hbr** is provided purely for regression and legacy purposes. If your code
-       is currently depending on Hbr functionaliy, we recommend migrating to the
+       is currently depending on Hbr functionality, we recommend migrating to the
        newer APIs as we cannot guarantee that this code will be maintained in
        future releases.
        For more information see the `3.0 release notes <release_notes.html>`_
@@ -77,7 +77,7 @@ edge can only access a single neighboring edge cycle.
 
 This is a fundamental limitation of the half-edge data structure, in that it
 cannot represent non-manifold geometry, in particular fan-type topologies. A
-different approach to topology will probably be necessary in order to accomodate
+different approach to topology will probably be necessary in order to accommodate
 non-manifold geometry.
 
 ----

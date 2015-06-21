@@ -63,7 +63,7 @@ OPTIONS
   useful when trying to load large pieces of geometry.
 
 **-c** *animation frequency*
-  Number of repetitions of the animtion loop (default=0 is infinite)
+  Number of repetitions of the animation loop (default=0 is infinite)
 
 
 

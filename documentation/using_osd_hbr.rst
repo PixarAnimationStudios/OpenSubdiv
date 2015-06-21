@@ -39,7 +39,7 @@ Using Hbr
        As of OpenSubdiv 3.0, all **Hbr** dependencies have been removed from the
        core APIs (**Sdc**, **Vtr**, **Far**, **Osd**). The legacy source code of
        **Hbr** is provided purely for regression and legacy purposes. If your code
-       is currently depending on Hbr functionaliy, we recommend migrating to the
+       is currently depending on Hbr functionality, we recommend migrating to the
        newer APIs as we cannot guarantee that this code will be maintained in
        future releases.
        For more information see the `3.0 release notes <release_notes.html>`_
