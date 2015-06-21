@@ -41,12 +41,11 @@ Introduction
 OpenSubdiv is a set of open source libraries that implement high performance 
 subdivision surface (subdiv) evaluation on massively parallel CPU and GPU 
 architectures. This code path is optimized for drawing deforming surfaces with 
-static topology at interactive framerates. The resulting limit surfaces are a match
-for Pixar's Renderman specification within numerical precision limits.
+static topology at interactive framerates. 
 
-OpenSubdiv is a code API which we hope to integrate into 3rd. party digital
-content creation tools. It is **not** an application, nor a tool that can be used
-directly to create digital assets.
+OpenSubdiv is a code API which we hope to integrate into 3rd party digital
+content creation tools. It is **not** an application, nor a tool that can be 
+used directly to create digital assets.
 
 ----
 
