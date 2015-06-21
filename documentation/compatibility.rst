@@ -28,18 +28,19 @@ Subdivision Compatibility
    :local:
    :backlinks: none
 
-This document highlights areas of compatibility with other software that deals
-with subdivision surfaces (including older versions of OpenSubdiv).
 
-
-Compatibility with OpenSubdiv 2.x
-=================================
+Subdivision Compatibility
+=========================
 
 The refactoring of OpenSubdiv 3.0 data representations presented a unique
 opportunity to revisit some corners of the subdivision specification and
 remove or update some legacy features.  Below are some of the changes made that
-may affect compatibility with other software and previous versions of
+may affect compatibility with other software including previous versions of
 OpenSubdiv.
+
+
+Compatibility with OpenSubdiv 2.x
+=================================
 
 **Face-varying Interpolation Options**
 
@@ -62,7 +63,7 @@ and undesirable behavior in some common cases -- to an extent that could not
 simply be changed -- and so an additional mode was added to avoid such behavior.
 
 All choices are now provided through a single "linear interpolation" enum,
-desribed and illustrated in more detail in the overview of
+described and illustrated in more detail in the overview of
 `Face-Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation-rules>`__.
 The use of "boundary" in the name of the enum was intentionally removed
 as the choice also affects interior interpolation.  The new use of "linear"
@@ -140,8 +141,8 @@ Previously the inclusion of the infinite sharpness values in the averaging
 of sharpness values that takes place around a vertex would prevent a
 semi-sharp edge from decaying to zero.  Infinitely sharp edges are now
 excluded from the Chaikin (non-uniform) averaging yielding a much more
-predictable and desirable result, e.g. where the sharpness assignment is
-actually uniform at such a vertex, the result will now behave the same as
+predictable and desirable result.  For example, where the sharpness assignment
+is actually uniform at such a vertex, the result will now behave the same as
 the Uniform method.
 
 Since this feature has received little use (only recently activated in
@@ -170,41 +171,43 @@ OpenSubdiv 2.x and earlier was limited to dealing with meshes whose topology
 was manifold -- a limitation imposed by the use of Hbr.  With 3.0 no longer
 using Hbr, the manifold restriction has also been removed.
 
-So 3.0 will support a superset of the meshes supported by 2.x.  Non-manifold
-meshes that are acceptible to 3.0 however will likely not work with 2.x or
-earlier.
+OpenSubdiv 3.0, therefore, supports a superset of the meshes supported by 2.x
+and earlier versions.  
 
 
 Compatibility with RenderMan
 ============================
 
 Since RenderMan and OpenSubdiv versions prior to 3.0 share a common library
-(Hbr), some differences between RenderMan and OpenSubdiv are covered in the
+(Hbr), some differences between RenderMan and OpenSubdiv 3.0 are covered in the
 section of compatibility with OpenSubdiv 2.x.
 
-While there are features between RenderMan and OpenSubdiv that are not
-compatibile, there are also other differences that may be presence due to
-differences in the implementations of similar features.  Given the common
-past between RenderMan and OpenSubdiv (and potential expectations arising
-from it), mention of both is warranted here.
+In addition to some features between RenderMan and OpenSubdiv that are not
+compatible, there are also other differences that may be present due to
+differences in the implementations of similar features.  
+
+For most use cases, OpenSubdiv 3.0 is largely compatible with RenderMan, there
+are however some cases where some differences can be expected.  These are 
+highlighted below for completeness.
+
 
 Incompatibilities
 +++++++++++++++++
 
 OpenSubdiv and RenderMan will be incompatible when certain features are used
-that are not common to both.  While described in the 2.x compatibility 
-section, they are listed briefly here.
+that are not common to both.  They are fully described in the 2.x compatibility 
+section, and are listed briefly here.
 
-**OpenSubdiv Features Not Supported by RenderMan**
+**OpenSubdiv 3.0 Features Not Supported by RenderMan**
 
-* non-manifold meshes
+* Non-manifold meshes
 
-* choice of the "corners only" face varying interpolation option
+* Choice of the "corners only" face varying interpolation option
 
 
-**RenderMan Features Not Supported by OpenSubdiv**
+**RenderMan Features Not Supported by OpenSubdiv 3.0**
 
-* hierarchical edits (as of 3.0, may be subsequently re-introduced)
+* Hierarchical Edits
 
 
 Other Differences
@@ -213,19 +216,19 @@ Other Differences
 **Smooth Face-Varying Interpolation with Creasing**
 
 There have been two discrepancies noted in the way that face-varying data is
-interpolated smoothly in the presense of creases:
+interpolated smoothly in the presence of creases:
 
-* interpolation around a dart vertex
+* Interpolation around a dart vertex
 
-* lack of blending for fractional sharpness, i.e. only integer sharpness
+* Lack of blending for fractional sharpness, i.e. only integer sharpness
 
 **The Chaikin Creasing Method**
 
-* use of Chaikin creasing with boundaries or infinitely sharp edges
+* Use of Chaikin creasing with boundaries or infinitely sharp edges
 
-* subtle shape differences due to Hbr's use of "predictive sharpness"
+* Subtle shape differences due to Hbr's use of "predictive sharpness"
 
 **Numerical Precision**
 
-* improved with OSD's ordering of weight application (most prevalent with
+* Improved with OpenSubdiv's ordering of weight application (most prevalent with
   high-valence vertices)
