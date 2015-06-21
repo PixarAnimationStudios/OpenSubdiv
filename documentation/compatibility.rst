@@ -32,15 +32,34 @@ Subdivision Compatibility
 Subdivision Compatibility
 =========================
 
-The refactoring of OpenSubdiv 3.0 data representations presented a unique
-opportunity to revisit some corners of the subdivision specification and
-remove or update some legacy features.  Below are some of the changes made that
-may affect compatibility with other software including previous versions of
-OpenSubdiv.
+This document highlights areas of compatibility with other software that makes
+use of subdivision surfaces, including previous versions of OpenSubdiv.
+
+The "compatibility" here refers to the choice of subdivision rules that define
+the shape of the resulting surfaces.  Different subdivision rules will lead to
+different shapes.  Choices affecting shape include:
+
+* the types of subdivision schemes supported (e.g. Catmull-Clark, Loop, etc.)
+
+* the basic rules applied for these schemes
+
+* any extended rules to affect sharpness or creasing
+
+* rules applied separately to face-varying data
+
+Ensuring all of these rules are consistent provides the basis for consistent
+shapes, but further approximations to the limit surface create the potential
+for subtle deviations.  Even within OpenSubdiv, multiple approximations are
+possible and vary.  For now we focus on the compatibility of subdivision rules
+and deal with the limit approximations only when noteworthy.
 
 
 Compatibility with OpenSubdiv 2.x
 =================================
+
+The refactoring of OpenSubdiv 3.0 data representations presented a unique
+opportunity to revisit some corners of the subdivision specification and
+remove or update some legacy features.
 
 **Face-varying Interpolation Options**
 
@@ -172,24 +191,63 @@ was manifold -- a limitation imposed by the use of Hbr.  With 3.0 no longer
 using Hbr, the manifold restriction has also been removed.
 
 OpenSubdiv 3.0, therefore, supports a superset of the meshes supported by 2.x
-and earlier versions.  
+and earlier versions (with one known exception noted below).
+
+Non-manifold meshes that are acceptible to 3.0 however will likely not work
+with 2.x or earlier.
+
+The one known case that 3.0 will not represent the same as 2.x is ironically
+a case that is non-manifold, and for which Hbr did make special accomodation.
+
+That case occurs at a non-manifold vertex where two or more faces meet
+at a common vertex, but do not share a common edge, *and* when the boundary
+interpolation mode is set for smooth corners (i.e. "edge only"), as
+illustrated below:
+
+.. image:: images/bowtie_vertex.png
+   :align: center
+   :width: 80%
+   :target: images/bowtie_vertex.png
+
+The cage is in the middle.  On either side is the subdivided mesh at level
+2 with boundary interpolation set to sharp corners and smooth corners on
+the left and right, respectively.
+
+When Hbr encounters such vertices, regardless of the boundary mode it "splits"
+the vertex -- creating a separate instance of it for each face.  So when
+building an HbrMesh, after "finalizing" the mesh, it will result in having
+more vertices than were originally defined (termed "split vertices").
+
+OpenSubdiv 2.x (and earlier) successfully hid the presence of these extra
+vertices from users.
+
+This case behaves in such a way that violates certain properties of the
+surface that 3.0 has attempted to emphasize.  One of these relates to the
+nature of the limit surface (and becomes more significant in the context of
+face varying):  if the cage is connected then so too is its limit surface,
+or similarly, if the cage consists of *N* connected regions then the limit
+surface similarly consists of *N* connected regions.  Another undesirable
+property here is that the vertex *V* at which these faces meet must have
+more than one child vertex *V'*.  This makes it difficult to "hide" split
+vertices -- OpenSubdiv 2.x tables had an extra level of indirection that
+made it possible to do this relatively easily, but 3.0 had dispensed with
+such indirection where possible to streamline performance.
 
 
 Compatibility with RenderMan
 ============================
 
 Since RenderMan and OpenSubdiv versions prior to 3.0 share a common library
-(Hbr), some differences between RenderMan and OpenSubdiv 3.0 are covered in the
-section of compatibility with OpenSubdiv 2.x.
+(Hbr), most differences between RenderMan and OpenSubdiv 3.0 are covered in the
+preceding section of compatibility with OpenSubdiv 2.x.
 
 In addition to some features between RenderMan and OpenSubdiv that are not
 compatible, there are also other differences that may be present due to
-differences in the implementations of similar features.  
+differences in the implementations of similar features.
 
-For most use cases, OpenSubdiv 3.0 is largely compatible with RenderMan, there
-are however some cases where some differences can be expected.  These are 
+For most use cases, OpenSubdiv 3.0 is largely compatible with RenderMan.  There
+are however some cases where some differences can be expected.  These are
 highlighted below for completeness.
-
 
 Incompatibilities
 +++++++++++++++++
