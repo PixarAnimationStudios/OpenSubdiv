@@ -23,7 +23,7 @@
 
 
 Hierarchical Edits
------------------
+------------------
 
 .. contents::
    :local:
