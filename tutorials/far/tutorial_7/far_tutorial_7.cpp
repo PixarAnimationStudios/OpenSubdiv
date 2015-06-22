@@ -160,7 +160,7 @@ int main(int, char **) {
         start = end;
         end += nverts;
 
-        stencilTable->UpdateValues(srcVerts, destVerts, start, end);
+        stencilTable->Evaluate(srcVerts, destVerts, start, end);
         
         // apply 2 hierarchical edits on level 1 vertices
         if (level==1) {

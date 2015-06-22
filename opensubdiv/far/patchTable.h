@@ -414,7 +414,7 @@ template <class T>
 inline void
 PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
     if (_localPointStencils) {
-        _localPointStencils->UpdateValues(src, dst);
+        _localPointStencils->Evaluate(src, dst);
     }
 };
 
