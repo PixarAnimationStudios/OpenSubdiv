@@ -103,7 +103,7 @@ Edge-Loop Transitions
 +++++++++++++++++++++
 
 It is often necessary to vary the density of control vertices over the surface
-mesh: areas around the fingers of a hand require more CVs than the comparitively
+mesh: areas around the fingers of a hand require more CVs than the comparatively
 simpler region around the palm. It is important to handle the topology around
 these transitions efficiently.
 

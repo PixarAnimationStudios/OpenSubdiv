@@ -70,7 +70,7 @@ Common Keyboard Controls
       Middle mouse button drag : pan camera
       Right mouse button       : dolly camera
       n, p                     : next/prev model
-      1, 2, 3, ..., 9, 0       : specify adaptive isolation or uniform refinment level
+      1, 2, 3, ..., 9, 0       : specify adaptive isolation or uniform refinement level
       +, -                     : increase / decrease tessellation
       Tab                      : toggle full-screen
       Esc                      : turn on / off the HUD
