@@ -54,11 +54,15 @@ The main roles of **Osd** are:
     Provide convenient classes to interop between compute and draw APIs
 
 These are independently used by clients. For example, a client can use only
-the stencil table evaluation. A client can call **Osd** compute functions
-on its own vertex buffers.
+the limit stencil evaluation, or a client can refine subdivision surfaces
+and draw them with the PatchTable and **Osd** tessellation shaders.
+All device specific evaluation kernels are implemented in the Evaluator classes.
+Since Evaluators don't own vertex buffers, clients should provide their own
+buffers as a source and destination. There are some interop classes defined
+in **Osd** for convenience.
 
-OpenSubdiv enforces the same results for the different computation backends with
-a series of regression tests that compare the methods to each other.
+OpenSubdiv utilizes a series of regression tests to compare and enforce
+identical results across different computational devices.
 
 ----
 
@@ -103,9 +107,10 @@ as a stencil tables as long as Evaluator::EvalStencils() can access the necessar
 Limit Stencil Evaluation
 ========================
 
-Limit stencil evaluation is quite similar to refinement in **Osd**. Clients
-create Far::LimitStencilTable for the locations need to evaluate. Then create
-an evaluator compatible stencil table and call Evaluator::EvalStencils().
+Limit stencil evaluation is quite similar to refinement in **Osd**. At first
+clients create Far::LimitStencilTable for the locations to evaluate the limit
+surfaces, then convert it into an evaluator compatible stencil table and call
+Evaluator::EvalStencils().
 
 .. image:: images/osd_limitstencil.png
    :align: center
@@ -113,8 +118,9 @@ an evaluator compatible stencil table and call Evaluator::EvalStencils().
 Limit Evaluation with PatchTable
 ================================
 
-In **Osd**, the limit surfaces can also be evaluated by PatchTable once all
-control vertices and local points are resolved by the stencil evaluation.
+Another way to evaluate the limit surfaces is to use the PatchTable.
+Once all control vertices and local points are resolved by the stencil evaluation,
+**Osd** can evaluate the limit surfaces through the PatchTable.
 
 .. image:: images/osd_limiteval.png
    :align: center
@@ -203,9 +209,9 @@ BufferDescriptor can be used for an interleaved buffer too.
   Osd::BufferDescriptor xyzDesc(0, 3, 7);
   Osd::BufferDescriptor rgbaDesc(3, 4, 7);
 
-Although the source and the destination buffer don't have to be a same buffer for
-EvalStencils(), adaptive patch tables are constructed to index the coarse vertices
-first and immediately followed by the refined vertices. In this case, the
+Although the source and destination buffers don't need to be the same buffer for
+EvalStencils(), adaptive patch tables are constructed to first index the coarse
+vertices and the refined vertices immediately afterward. In this case, the
 BufferDescriptor for the destination should include the offset as the number of coarse
 vertices to be skipped.
 
