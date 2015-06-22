@@ -36,8 +36,8 @@ OSD Overview
 OpenSubdiv (Osd)
 ================
 
-**Osd** contains device dependent code that reflects *Far* structure to be
-available on various backends such as TBB, CUDA, OpenCL, GLSL etc.
+**Osd** contains device dependent code that makes *Far* structures 
+available on various backends such as TBB, CUDA, OpenCL, GLSL, etc.
 The main roles of **Osd** are:
 
  - **Refinement**
@@ -53,7 +53,7 @@ The main roles of **Osd** are:
  - **Cross-Platform Implementation**
     Provide convenient classes to interop between compute and draw APIs
 
-They are independently used by client. For example, a client can use only
+These are independently used by clients. For example, a client can use only
 the stencil table evaluation. A client can call **Osd** compute functions
 on its own vertex buffers.
 
@@ -72,12 +72,12 @@ and `adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivisio
 .. image:: images/osd_refinement.png
    :align: center
 
-Once clients create a Far::StencilTable for the topology, then convert it into
+Once clients create a Far::StencilTable for the topology, they can convert it into
 device-specific stencil tables if necessary. The following table shows which evaluator
 classes and stencil table interfaces can be used together. Note that while **Osd**
-provides these stencil tables classes which can be easily constructed from Far::StencilTable,
+provides these stencil table classes which can be easily constructed from Far::StencilTable,
 clients aren't required to use these table classes. Clients may have their own entities
-as a stencil table as long as Evaluator::EvalStencils() can access necessary interfaces.
+as a stencil tables as long as Evaluator::EvalStencils() can access the necessary interfaces.
 
 +-----------------------------+-----------------------+-------------------------+
 | Backend                     | Evaluator class       | compatible stencil table|
@@ -144,15 +144,15 @@ control vertices and local points are resolved by the stencil evaluation.
 
  **Release Notes (3.0.0)**
 
- * GPU limit evaluation backends (Evaluator::EvalPatches()) only supports
+ * GPU limit evaluation backends (Evaluator::EvalPatches()) only support
    BSpline patches. Clients need to specify BSpline approximation for endcap
    when creating a patch table. See `end capping <far_overview.html#endcap>`__.
 
-OpenGL/DX11 Drawing with hardware tessellation
+OpenGL/DX11 Drawing with Hardware Tessellation
 ==============================================
 
-One of the most interesting use cases of **Osd** layer is realtime drawing of
-subdivision surfaces using hardware tessellation. This is somewhat similar to
+One of the most interesting use cases of the **Osd** layer is realtime drawing
+of subdivision surfaces using hardware tessellation. This is somewhat similar to
 limit evaluation with PatchTable described above. Drawing differs from limit
 evaluation in that **Osd** provides shader snippets for patch evaluation and
 clients will inject them into their own shader source.
@@ -160,21 +160,21 @@ clients will inject them into their own shader source.
 .. image:: images/osd_draw.png
    :align: center
 
-see `shader interface <osd_shader_interface.html>`__ for more detail of shader interface.
+See `shader interface <osd_shader_interface.html>`__ for a more detailed discussion of the shader interface.
 
 ----
 
-Interleaved/Batched buffer configuration
+Interleaved/Batched Buffer Configuration
 ========================================
 
 All **Osd** layer APIs assume that each primitive variables to be computed
-(points, colors, uvs ...) are contiguous array of 32bit floating point values.
-**Osd** API refers this array as "buffer". Buffer can exist on CPU memory or
+(points, colors, uvs ...) are contiguous arrays of 32bit floating point values.
+The **Osd** API refers to such an array as a "buffer". A buffer can exist on CPU memory or
 GPU memory. **Osd** Evaluators typically take one source buffer and one destination
 buffer, or three destination buffers if derivatives are being computed.
 **Osd** Evaluators also take BufferDescriptors,
-which is used to specify the layout of the source and destination buffers.
-BufferDescriptor is 3 integers struct which consists of offset, length and stride.
+that are used to specify the layout of the source and destination buffers.
+A BufferDescriptor is a struct of 3 integers which specify an offset, length and stride.
 
 For example:
 
@@ -190,7 +190,7 @@ The layout of this buffer can be described as
 
   Osd::BufferDescriptor desc(/*offset = */ 0, /*length = */ 3, /*stride = */ 3);
 
-BufferDescriptor can be used for interleaved buffer too.
+BufferDescriptor can be used for an interleaved buffer too.
 
  +---------------------------+---------------------------+-------+
  | Vertex 0                  | Vertex 1                  | ...   |
@@ -222,8 +222,8 @@ vertices to be skipped.
   Osd::BufferDescriptor srcDesc(0, 3, 3);
   Osd::BufferDescriptor dstDesc(n*3, 3, 3);
 
-Also note that the source descriptor doesn't have to start from offset = 0.
-This is useful when a client has a big buffer multiple objects batched together.
+Also note that the source descriptor doesn't have to start with offset = 0.
+This is useful when a client has a big buffer with multiple objects batched together.
 
 
 ----
@@ -233,19 +233,19 @@ Cross-Platform Implementation
 
 One of the key goals of OpenSubdiv is to achieve as much cross-platform flexibility
 as possible and leverage all optimized hardware paths where available. This can
-be very challenging however, as there is a very large variety of plaftorms and
-matching APIs available, with very distinct capabilities.
+be very challenging as there is a very large variety of plaftorms and APIs 
+available, with very distinct capabilities.
 
 In **Osd**, Evaluators don't care about interops between those APIs. All Evaluators
 have two kinds of APIs for both EvalStencils() and EvalPatches().
 
  - Explicit signatures which directly take device-specific buffer representation
-   (i.e. pointer for CpuEvaluator, GLuint buffer for GLComputeEvaluator)
+   (e.g., pointer for CpuEvaluator, GLuint buffer for GLComputeEvaluator, etc.)
  - Generic signatures which take arbitrary buffer classes. The buffer class
    is required to have a certain method to return the device-specific buffer representation.
 
 The later interface is useful if the client supports multiple backends at the same time.
-The methods needs to be implemented for each Evaluators are:
+The methods that need to be implemented for the Evaluators are:
 
 +-----------------------+------------------------+------------------+
 | Evaluator class       | object                 | method           |
@@ -264,11 +264,9 @@ The methods needs to be implemented for each Evaluators are:
 | D3D11ComputeEvaluator | D3D11 UAV              | BindD3D11UAV()   |
 +-----------------------+------------------------+------------------+
 
-The buffers can use these methods as a trigger of interop. **Osd** provides default
-implementation of interop buffer for the most of combination of backends.
-For example, if the client wants to use cuda as computation backend and use OpenGL
-as drawing APIs, Osd::CudaGLVertexBuffer fits the case since it implements
+The buffers can use these methods as a trigger of interop. **Osd** provides a default
+implementation of interop buffer for most of the backend combinations.
+For example, if the client wants to use CUDA as a computation backend and use OpenGL
+as the drawing API, Osd::CudaGLVertexBuffer fits the case since it implements
 BindCudaBuffer() and BindVBO(). Again, clients can implement their own buffer
-class and pass it to Evaluators.
-
-
+class and pass it to the Evaluators.
