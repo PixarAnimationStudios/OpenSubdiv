@@ -190,8 +190,8 @@ In the process of re-implementing the Chaikin creasing method, observations
 lead to a conscious choice to change the behavior of Chaikin creasing in the
 presence of infinitely sharp edges (most noticeable at boundaries).
 
-Previously the inclusion of the infinite sharpness values in the averaging
-of sharpness values that takes place around a vertex would prevent a
+Previously, the inclusion of infinite sharpness values in the Chaikin method's
+computation of edge sharpness around a vertex would prevent a
 semi-sharp edge from decaying to zero.  Infinitely sharp edges are now
 excluded from the Chaikin (non-uniform) averaging yielding a much more
 predictable and desirable result.  For example, where the sharpness assignment
@@ -199,7 +199,7 @@ is actually uniform at such a vertex, the result will now behave the same as
 the Uniform method.
 
 Since this feature has received little use (only recently activated in
-RenderMan) now seemed the best time to make the change before more widespread
+RenderMan), now seemed the best time to make the change before more widespread
 adoption.
 
 **Hierarchical Edits**
@@ -208,7 +208,7 @@ While extremely powerful, Hierarchical Edits come with additional maintenance
 and implementation complexity.  Support for them in popular interchange formats
 and major DCC applications has either been dropped or was never implemented.
 As a result, the need for Hierarchical Edits is too limited to justify the cost
-and support for them and they have therefore been removed from the 3.0 release
+and support for them, and they have therefore been removed from the 3.0 release
 of OpenSubdiv. Dropping support for Hierarchical Edits allows for significant
 simplifications of many areas of the subdivision algorithms.
 
@@ -267,7 +267,7 @@ surface similarly consists of *N* connected regions.  Another undesirable
 property here is that the vertex *V* at which these faces meet must have
 more than one child vertex *V'*.  This makes it difficult to "hide" split
 vertices -- OpenSubdiv 2.x tables had an extra level of indirection that
-made it possible to do this relatively easily, but 3.0 had dispensed with
+made it possible to do this relatively easily, but 3.0 has dispensed with
 such indirection where possible to streamline performance.
 
 
@@ -291,7 +291,7 @@ Incompatibilities
 
 OpenSubdiv and RenderMan will be incompatible when certain features are used
 that are not common to both.  They are fully described in the 2.x compatibility 
-section, and are listed briefly here.
+section and are listed briefly here.
 
 **OpenSubdiv 3.0 Features Not Supported by RenderMan**
 
@@ -366,7 +366,7 @@ three distinct interpolation results.  On the far right the interpolation from
 Hbr displays the same three cases, but only two are visibly distinct -- the
 sharpness of 0.5 being treated the same as if it were 0.0.
 
-Both of these cases are corrected in OpenSubdiv 3.0.  So smooth face-varying
+Both of these cases are corrected in OpenSubdiv 3.0.  Smooth face-varying
 interpolation in the presence of creasing should match the expected behavior
 of the vertex interpolation, except where the face-varying topology is
 explicitly made to differ.
@@ -380,10 +380,10 @@ Hbr in RenderMan and OpenSubdiv 3.0:
 
 * Subtle shape differences due to Hbr's use of "predictive sharpness"
 
-Fortunately this feature was only recently added to Hbr and RenderMan and is
+Fortunately, this feature was only recently added to Hbr and RenderMan and is
 little used, so it is expected these differences will have little impact.
 
-The first of these is mentioned briefly in the previous section on
+The first discrepancy is mentioned briefly in the previous section on
 compatibility between OpenSubdiv 2.x and 3.0.  A conscious decision was
 made to change the averaging of sharpness values involving infinitely
 sharp edges in order to make results more predictable and favorable.
@@ -404,7 +404,7 @@ Hbr "predicts" it by simply subtracting 1.0 from it, as is done with the
 uniform creasing method, and it bases decisions on that predicted result.
 This does not work for Chaikin though.  A sharpness value less than 1.0
 may not decay to 0 if it is averaged with neighboring sharpness values
-greater than 1.0.  So this sharpness prediction can result in the wrong
+greater than 1.0, so this sharpness prediction can result in the wrong
 rule being chosen for the next level.
 
 A typical case would have the subdivision rules for Chaikin creasing
@@ -446,6 +446,6 @@ high valence vertices, a difference in magnitude between the most and least
 significant coefficients of several orders of magnitude is likely, and that
 has a significant impact on the single-precision floating point computations.
 
-So the improved accuracy of OpenSubdiv 3.0 can reach a magnitude that will
+The improved accuracy of OpenSubdiv 3.0 can reach a magnitude that will
 not go undetected.  Whether or not this can lead to visual artifacts is
 unclear.
