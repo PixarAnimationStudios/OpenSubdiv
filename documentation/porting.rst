@@ -124,8 +124,6 @@ HbrMesh<T>::SetFVarInterpolateBoundaryMethod()   Sdc::Options::SetFVarLinearInte
 HbrSubdivision<T>::SetCreaseSubdivisionMethod()  Sdc::Options::SetCreasingMethod()
 ===============================================  ===========================================
 
-Regardless of the three construction choices outlined below, the specification
-of both the scheme and all options related to it is the same.
 
 Building Far::TopologyRefiners
 ++++++++++++++++++++++++++++++
