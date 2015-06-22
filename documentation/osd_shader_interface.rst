@@ -32,9 +32,9 @@ OSD Tessellation shader Interface
 Basic
 =====
 
-From 3.0, **Osd** tessellation shaders can be used as a set of functions from
+Starting with 3.0, **Osd** tessellation shaders can be used as a set of functions from
 client shader code. In order to tessellate **Osd** patches, client shader
-code should perform following processes (regular B-spline patch case):
+code should perform the following steps (regular B-spline patch case):
 
 * In a tessellation control shader
     1. fetch a PatchParam for the current patch
@@ -43,14 +43,14 @@ code should perform following processes (regular B-spline patch case):
        two vec4 parameters (tessOuterHi, tessOuterLo) will be needed in addition to built-in gl_TessLevelInner/Outers.
 
 * In a tessellation evaluation shader
-    1. call OsdGetTessParameterization() to remap gl_TessCoord to a patch parameter to evaluated at.
+    1. call OsdGetTessParameterization() to remap gl_TessCoord to a patch parameter at which to evaluate.
     2. call OsdEvalPatchBezier()/OsdEvalPatchGregory() to evaluate the current patch.
 
 The following is a minimal example of GLSL code explaining how client shader code
-uses OpenSubdiv shader function to tessellate patches of patch table.
+uses OpenSubdiv shader functions to tessellate patches of a patch table.
 
 
-Tessellation Control Shader example (for BSpline patches)
+Tessellation Control Shader Example (for BSpline patches)
 *********************************************************
 
 .. code:: glsl
@@ -88,7 +88,7 @@ Tessellation Control Shader example (for BSpline patches)
 
 
 
-Tessellation Evaluation Shader example (for BSpline patches)
+Tessellation Evaluation Shader Example (for BSpline patches)
 ************************************************************
 
 .. code:: glsl
@@ -117,15 +117,15 @@ Tessellation Evaluation Shader example (for BSpline patches)
 Basis Conversion
 ================
 
-B-spline patch
+B-spline Patch
 **************
 
-The following diagram shows how **Osd** shader processes b-spline patches.
+The following diagram shows how the **Osd** shaders process b-spline patches.
 
 .. image:: images/osd_shader_bspline.png
 
 While regular patches are expressed as b-spline patches in Far::PatchTable,
-**Osd** shader converts them into Bezier basis patches, for simplicity and efficiency.
+the **Osd** shader converts them into Bezier basis patches for simplicity and efficiency.
 This conversion is performed in the tessellation control stage. The boundary edge evaluation
 and single crease matrix evaluation are also resolved during this conversion.
 OsdComputePerPatchVertexBSpline() can be used for this process.
@@ -137,7 +137,7 @@ The resulting Bezier control vertices are stored in OsdPerPatchVertexBezier stru
       ivec3 patchParam, int ID, vec3 cv[16], out OsdPerPatchVertexBezier result);
 
 The tessellation evaluation shader takes an array of OsdPerPatchVertexBezier struct,
-and then evaluates the patch using OsdEvalPatchBezier() function.
+and then evaluates the patch using the OsdEvalPatchBezier() function.
 
 .. code:: glsl
 
@@ -147,16 +147,16 @@ and then evaluates the patch using OsdEvalPatchBezier() function.
                           out vec3 N, out vec3 dNu, out vec3 dNv)
 
 
-Gregory Basis patch
+Gregory Basis Patch
 *******************
 
-In a similar way, gregory basis patches are processed as follows:
+In a similar way, Gregory basis patches are processed as follows:
 
 .. image:: images/osd_shader_gregory.png
 
-OsdComputePerPatchVertexGregoryBasis() can be used for the gregory patches
-(although no basis conversion involved for the gregory patches) and the resulting vertices
-are stored in OsdPerPatchVertexGreogryBasis struct.
+OsdComputePerPatchVertexGregoryBasis() can be used for the Gregory patches
+(although no basis conversion involved for the Gregory patches) and the resulting vertices
+are stored in a OsdPerPatchVertexGreogryBasis struct.
 
 .. code:: glsl
 
@@ -164,7 +164,7 @@ are stored in OsdPerPatchVertexGreogryBasis struct.
       ivec3 patchParam, int ID, vec3 cv, out OsdPerPatchVertexGregoryBasis result)
 
 The tessellation evaluation shader takes an array of OsdPerPatchVertexGregoryBasis struct,
-and then evaluates the patch using OsdEvalPatchGregory() function.
+and then evaluates the patch using the OsdEvalPatchGregory() function.
 
 .. code:: glsl
 
@@ -174,11 +174,11 @@ and then evaluates the patch using OsdEvalPatchGregory() function.
                       out vec3 N, out vec3 dNu, out vec3 dNv)
 
 
-Legacy Gregory patch (2.x compatibility)
+Legacy Gregory Patch (2.x compatibility)
 ****************************************
 
-OpenSubdiv 3.0 also supports 2.x style gregory patch evaluation (see far_overview).
-In order to evaluate a legacy gregory patch, client needs to bind extra buffers and
+OpenSubdiv 3.0 also supports 2.x style Gregory patch evaluation (see far_overview).
+In order to evaluate a legacy Gregory patch, client needs to bind extra buffers and
 to perform extra steps in the vertex shader as shown in the following diagram:
 
 .. image:: images/osd_shader_legacy_gregory.png
@@ -197,16 +197,16 @@ Screen-space adaptive tessellation
   OsdGetTessLevelsAdaptiveLimitPoints()
 
 Because of the nature of `feature adaptive subdivision <far_overview.html>`__,
-we need to pay extra attention for patch's outer tessellation level for the screen-space
-adaptive case so that cracks won't appear.
+we need to pay extra attention for a patch's outer tessellation level for the screen-space
+adaptive case so that cracks don't appear.
 
 An edge of the patch marked as a transition edge is split into two segments (Hi and Lo).
 
 .. image:: images/osd_shader_patch.png
 
-**Osd** shader uses these two segment to ensure the same tessellation along the
+The **Osd** shaders uses these two segments to ensure the same tessellation along the
 edge between different levels of subdivision. In the following example, suppose the left hand side
-patch has determined the tessellation level of its right edge to 5. gl_TessLevelOuter is set to
+patch has determined the tessellation level of its right edge to be 5. gl_TessLevelOuter is set to
 5 for the edge, and at the same time we also pass 2 and 3 to the tessellation evaluation shader
 as separate levels for the two segments of the edge split at the middle.
 
@@ -225,7 +225,7 @@ across adjacent patches.
 These tessellation levels can be computed by OsdGetTessLevelsAdaptiveLimitPoints()
 in the tessellation control shader. Note that this function requires all 16 bezier control
 points, you need to call barrier() to ensure the conversion is done for all invocations.
-See osd/glslPatchBSpline.glsl for more detail.
+See osd/glslPatchBSpline.glsl for more details.
 
 .. code:: glsl
 
@@ -239,5 +239,4 @@ See osd/glslPatchBSpline.glsl for more detail.
  **Release Notes (3.0.0)**
 
  * Currently OsdGetTessParameterization doesn't support fraction spacing.
-   It will be fixed in the future release.
-
+   It will be fixed in a future release.
