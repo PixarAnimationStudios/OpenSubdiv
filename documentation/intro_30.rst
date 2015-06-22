@@ -22,8 +22,8 @@
      language governing permissions and limitations under the Apache License.
 
 
-Introduction to the 3.0 Release
--------------------------------
+Overview of Release 3.0
+-----------------------
 
 .. contents::
    :local:
@@ -60,8 +60,7 @@ Sdc provides the low-level nuts and bolts to provide a subdivision
 implementation consistent with OpenSubdiv. It is used by OpenSubdiv's 
 libraries and may also be useful in providing an existing client's 
 implementation with the details necessary to make that implementation 
-consistent with OpenSubdiv (though not without considerably more understanding
-and effort).
+consistent with OpenSubdiv.
 
 ----
 
@@ -79,7 +78,7 @@ the source distribution for legacy and regression purposes.
 
  A major focus of the 3.0 release is performance, and the improvement to
  the initial refinement of a mesh required for topological analysis is close
- to an order magnitude (often much more for uniform but less for adaptive).
+ to an order magnitude; often much more for uniform, but less for adaptive.
 
 **Supporting for Non-manifold Topology**
 
@@ -89,7 +88,7 @@ the source distribution for legacy and regression purposes.
  be represented in common container formats such as Obj or Alembic can be
  represented and subdivided.  With future efforts to bring the functionality
  for the Loop scheme up to par with Catmark, that last remaining topological
- restriction will hopefully soon be removed.
+ restriction will be removed.
 
 **Simpler Conversion of Topology**
 
@@ -118,9 +117,9 @@ the source distribution for legacy and regression purposes.
  faces will be the same.
  
  This ensures that OpenSubdiv's face-varying topology matches what is often
- specified in common geometry container formats like Obj or Alembic.  Multiple
- "channels" of face-varying data can be defined and each is topologically
- independent of the others.
+ specified in common geometry container formats like Obj, Alembic and USD.
+ Multiple "channels" of face-varying data can be defined and each is
+ topologically independent of the others.
 
 ----
 
@@ -155,6 +154,7 @@ continuous limit surface between them.
 
  (*) Niessner et al., Efficient Evaluation of Semi-Smooth Creases in
  Catmull-Clark Subdivision Surfaces. Eurographics (Short Papers). 2012.
+ `<http://research.microsoft.com/en-us/um/people/cloop/EG2012.pdf>`_
 
 **New Irregular Patch Approximations**
 
@@ -172,6 +172,7 @@ continuous limit surface between them.
  the previous max valence limit. Legacy Gregory patch still has a limitation
  of max valence (typically 24, depending on the hardware capability of
  GL_MAX_VARYING_VECTORS).
+
  Users are still encouraged to use models with vertices of low valence for
  both improved model quality and performance.
 
@@ -217,8 +218,8 @@ CPU and GPU.
  over the 2.x code base results in significantly faster load times and a reduced
  per-frame cost for adaptive drawing.
 
- Similar to compute kernel simplification, this shader simplification has resulted
- in additional simplifications in the Osd layer.
+ Similar to compute kernel simplification, this shader simplification has
+ resulted in additional simplifications in the Osd layer.
 
 ----
 
@@ -241,7 +242,7 @@ improve the quality, consistency and readability of the source code.
 Documentation and Tutorials
 ***************************
 
-The documentation has been re-organized and fleshed out. This release
+The documentation has been reorganized and fleshed out. This release
 introduces a number of new `tutorials <tutorials.html>`__. The tutorials
 provide an easier entry point for learning the API than do the programs
 provided in examples. The examples provide more fleshed out solutions and are
