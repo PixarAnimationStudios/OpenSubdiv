@@ -84,13 +84,11 @@ directly into the TopologyRefiners representation.  While this is now possible,
 this also represents the most complex construction process and is only
 recommended for usage where this conversion process is critical.
 
-There are three ways to construct a TopologyRefiner -- ranging from the very
-simple but less optimal to the more complex just noted.  The first involves
-use of a predefined factory class provided in Far, while the others require
-writing custom factories, i.e. Far::TopologyRefinerFactory<MESH>.  These are
-typically stateless factories with a static Create() method that will be used
-to instantiate a new TopologyRefiner.  All three are illustrated in either
-tutorials or examples as noted in the subsections that follow.
+Details on how to construct a TopologyRefiner can be found in the 
+`Far overview <far_overview.html#far-topologyrefinerfactory>`__ documentation.
+Additionally, documentation for Far::TopologyRefinerFactory<MESH> outlines the
+requirements and a Far tutorial (tutorials/far/tutorial_1) provides an example
+of a factory for directly converting HbrMeshes to TopologyRefiners.
 
 Its worth a reminder here that Far::TopologyRefiner contains only topological
 information (which does include sharpness, since that is considered relating
@@ -103,11 +101,10 @@ data specification at all.
 Subdivision Schemes and Options in Sdc
 ++++++++++++++++++++++++++++++++++++++
 
-Before detailing the topology conversion, the creation of a new
-TopologyRefiner requires specification of a subdivision scheme and a set of
-options that are applicable to all schemes.  With HbrMesh, the scheme was
-specified by declaring a static instance of a specific subclass of a
-subdivision object, and the options were specified with a number of
+The creation of a new TopologyRefiner requires specification of a subdivision 
+scheme and a set of options that are applicable to all schemes.  With HbrMesh, 
+the scheme was specified by declaring a static instance of a specific subclass
+of a subdivision object, and the options were specified with a number of
 methods on the different classes.
 
 Such general information about the schemes has now been encapsulated in the
@@ -123,16 +120,6 @@ HbrMesh<T>::SetInterpolateBoundaryMethod()       Sdc::Options::SetVtxBoundaryInt
 HbrMesh<T>::SetFVarInterpolateBoundaryMethod()   Sdc::Options::SetFVarLinearInterpolation()
 HbrSubdivision<T>::SetCreaseSubdivisionMethod()  Sdc::Options::SetCreasingMethod()
 ===============================================  ===========================================
-
-
-Building Far::TopologyRefiners
-++++++++++++++++++++++++++++++
-
-Please refer to the `Far overview <far_overview.html#far-topologyrefinerfactory>`__ documentation for details on how to construct Far::TopologyRefiners. 
-
-Additionally, documentation for Far::TopologyRefinerFactory<MESH> outlines the
-requirements and a Far tutorial (tutorials/far/tutorial_1) provides an example
-of a factory for directly converting HbrMeshes to TopologyRefiners.
 
 
 Specifying Face Varying Topology and Options
