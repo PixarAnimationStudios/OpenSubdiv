@@ -68,6 +68,7 @@
                         <li><a href="far_overview.html">Far</a></li>
                         <ul>
                             <li><a href="far_overview.html#far-topologyrefiner">Topology Refiner</a></li>
+                            <li><a href="far_overview.html#far-topologyrefinerfactory">Topology Refiner Factory</a></li>
                             <li><a href="far_overview.html#far-primvarrefiner">Primvar Refiner</a></li>
                             <li><a href="far_overview.html#far-patchtable">Patch Table</a></li>
                             <li><a href="far_overview.html#far-stenciltable">Stencil Table</a></li>

@@ -28,6 +28,10 @@ Porting Guide: 2.x to 3.0
    :local:
    :backlinks: none
 
+
+Porting Guide: 2.x to 3.0
+=========================
+
 This document is a high-level description of how to port exiting OpenSubdiv 2.x
 code to use OpenSubdiv 3.0.
 
@@ -39,7 +43,7 @@ Source Code Organization
 ========================
 
 Given the scale of functional changes that were being made to the public
-interface, we took the oppoortunity in 3.0 to update the coding style and
+interface, we took the opportunity in 3.0 to update the coding style and
 organization -- most notably making use of namespaces for each library.
 
 ================= ==================== ===============================================
@@ -56,9 +60,8 @@ osd/              Osd                  Revised, similar functionality with new A
 Hbr Layer Translation
 =====================
 
-With HbrMesh having been the source of a number of functional and performance
-issues, client mesh topology is now translated into an instance of the new
-TopologyRefiner class in the Far level.
+Client mesh topology is now translated into an instance of Far::TopologyRefiner
+instead of HbrMesh.
 
 ================= ====================
 OpenSubdiv 2.x    OpenSubdiv 3.0
@@ -81,13 +84,11 @@ directly into the TopologyRefiners representation.  While this is now possible,
 this also represents the most complex construction process and is only
 recommended for usage where this conversion process is critical.
 
-There are three ways to construct a TopologyRefiner -- ranging from the very
-simple but less optimal to the more complex just noted.  The first involves
-use of a predefined factory class provided in Far, while the others require
-writing custom factories, i.e. Far::TopologyRefinerFactory<MESH>.  These are
-typically stateless factories with a static Create() method that will be used
-to instantiate a new TopologyRefiner.  All three are illustrated in either
-tutorials or examples as noted in the subsections that follow.
+Details on how to construct a TopologyRefiner can be found in the 
+`Far overview <far_overview.html#far-topologyrefinerfactory>`__ documentation.
+Additionally, documentation for Far::TopologyRefinerFactory<MESH> outlines the
+requirements and a Far tutorial (tutorials/far/tutorial_1) provides an example
+of a factory for directly converting HbrMeshes to TopologyRefiners.
 
 Its worth a reminder here that Far::TopologyRefiner contains only topological
 information (which does include sharpness, since that is considered relating
@@ -100,11 +101,10 @@ data specification at all.
 Subdivision Schemes and Options in Sdc
 ++++++++++++++++++++++++++++++++++++++
 
-Before detailing the topology conversion, since the creation of a new
-TopologyRefiner requires specification of a subdivision scheme and a set of
-options that are applicable to all schemes.  With HbrMesh, the scheme was
-specified by declaring a static instance of a specific subclass of a
-subdivision object, while the options were specified with a number of
+The creation of a new TopologyRefiner requires specification of a subdivision 
+scheme and a set of options that are applicable to all schemes.  With HbrMesh, 
+the scheme was specified by declaring a static instance of a specific subclass
+of a subdivision object, and the options were specified with a number of
 methods on the different classes.
 
 Such general information about the schemes has now been encapsulated in the
@@ -121,85 +121,6 @@ HbrMesh<T>::SetFVarInterpolateBoundaryMethod()   Sdc::Options::SetFVarLinearInte
 HbrSubdivision<T>::SetCreaseSubdivisionMethod()  Sdc::Options::SetCreasingMethod()
 ===============================================  ===========================================
 
-Regardless of the three construction choices outlined below, the specification
-of both the scheme and all options related to it is the same.
-
-Factories to Build Far::TopologyRefiners
-++++++++++++++++++++++++++++++++++++++++
-
-Here we outline the three approaches for converting mesh topology into the
-required Far::TopologyRefiner.  Additional documentation is provided with
-the Far::TopologyRefinerFactory<MESH> class template used by all, and each
-has a concrete example provided in one of the tutorials or in the Far code
-itself.  Please contact the OpenSubdiv forum if questions are not answered
-here or in the other documentation and examples cited.
-
-**Use the Far::TopologyDescriptor**
-
- Far::TopologyDescriptor is a simple struct that can be initialized to refer
- to raw mesh topology information -- primarily a face-vertex list -- and then
- passed to a provided factory class to create a TopologyRefiner from each.
- The minimum information required is typical of what many mesh construction
- tools require:  the number of vertices and faces, the number of vertices per
- face, and the complete set of face-vertices for all faces.
-
- Almost all of the Far tutorials (i.e. tutorials/far/tutorial_*) illustrate
- use of the TopologyDescriptor and its factory for creating TopologyRefiners,
- i.e. TopologyRefinerFactory<TopologyDescriptor>.
-
- For situations when users have raw mesh data and have not yet constructed a
- boundary representation of their own, it is hoped that this will suffice.
- Options have even been provided to indicate that raw topology information
- has been defined in a left-hand winding order and the factory will handle
- the conversion to right-hand (counter-clockwise) winding on-the-fly to avoid
- unnecessary data duplication.
-
-**Custom Factory for Face Vertices**
-
- If the nature of the TopologyDescriptor's data expectations is not helpful,
- and so conversion to large temporary arrays would be necessary to properly
- make use of it, it may be worth writing a custom factory.
-
- There are two ways to write such a factory:  provide only the face-vertex
- information for topology and let the factory infer all edges and other
- relationships, or provide the complete edge list and all other topological
- relationships directly.  The latter is considerably more involved and
- described in a following section.
-
- The definition of TopologyRefinerFactory<TopologyDescriptor> provides a clear
- and complete example of constructing a TopologyRefiner with minimal topology
- information, i.e. the face-vertex list.  The class template
- TopologyRefinerFactory<MESH> documents the needs here and the
- TopologyDescriptor instantiation and specialization should illustrate that.
-
-**Custom Factory for Direct Conversion**
-
- This is not recommended as an introduction to 3.0.  It is recommended that
- one of the previous two methods initially be used to convert your mesh
- topology into a TopologyRefiner and get other aspects of 3.0 working first.
- If the conversion performance is critical, or significant enough to warrant
- improvement, then its worth writing a factory for full topological conversion.
-
- Documentation for Far::TopologyRefinerFactory<MESH> outlines the requirements
- and a Far tutorial (tutorials/far/tutorial_1) provides an example of a factory
- for directly converting HbrMeshes to TopologyRefiners.
-
- This approach requires dealing directly with edges, unlike the other two.  In
- order to convert edges into a TopologyRefiner's representation, the edges need
- to be expressed as a collection of known size N -- each of which is referred to
- directly by indices [0,N-1].  This can be awkward for representations such as
- half-edge or quad-edge that do not treat the instance of an edge uniquely.
-
- Particular care is also necessary when representing non-manifold features.  The
- previous two approaches will construct non-manifold features as required from
- the face-vertex list -- dealing with degenerate edges and other non-manifold
- features as encountered.  When directly translating full topology it is
- necessary to tag non-manifold features, and also to ensure that certain
- edge relationships are satisfied in their presence.  More details are
- available with the assembly methods of the factory class template.
-
- The factory does provide run-time validation on the topology constructed that
- can be used for debugging purposes.
 
 Specifying Face Varying Topology and Options
 ++++++++++++++++++++++++++++++++++++++++++++
@@ -249,7 +170,7 @@ The FarMesh was previously responsible for refining an HbrMesh -- generating
 new vertices and faces in successive levels of refinement in the
 FarSubdivisionTables.  Vertices were grouped and reordered from the native
 ordering of HbrMesh so that vertices requiring similar processing were
-consecutive.  Such grouping alleviated most of the idiosyncracies of
+consecutive.  Such grouping alleviated most of the idiosyncrasies of
 HbrMesh's native ordering but not all.
 
 Far::ToplogyRefiner is inherently a collection of refinement levels, and
@@ -265,7 +186,7 @@ still grouped for the same reasons.  There are two issues here though:
 Vertices in a refined level are grouped according the type of component in
 the parent level from which they originated, i.e. some vertices originate
 from the center of a face (face-vertices), some from an edge (edge-vertices)
-and some from a vertex (vertex-vertices).  (Note that there is a confict in
+and some from a vertex (vertex-vertices).  (Note that there is a conflict in
 terminology here -- face-vertices and edge-vertices most often refer to
 vertices incident a face or edge -- but for the sake of this discussion, we
 use them to refer to the component from which a child vertex originates.)
@@ -297,7 +218,7 @@ first as it depended on the order in which HbrMesh traversed the parent faces
 and generated them, and given one face, HbrMesh would often visit neighboring
 faces first before moving to the next intended face.
 
-The ordering with Far::TopologyRefiner is much clearer and predictible.  Using
+The ordering with Far::TopologyRefiner is much clearer and predictable.  Using
 the face-vertices as an example, the order of the face-vertices in level *N+1*
 is identical to the order of the parent faces in level *N* from which they
 originated.  So if we have face-vertices *V'i*, *V'j* and *V'k* at some level,
