@@ -98,7 +98,7 @@ public:
     ///
     /// @param numTables Number of input StencilTables
     ///
-    /// @param table     Array of input StencilTables
+    /// @param tables    Array of input StencilTables
     ///
     static StencilTable const * Create(int numTables, StencilTable const ** tables);
 
