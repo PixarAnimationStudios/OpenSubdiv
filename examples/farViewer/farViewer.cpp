@@ -698,7 +698,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         //
         // apply stencils
         //
-        stencilTable->UpdateValues(verts, verts + ncoarseverts);
+        stencilTable->Evaluate(verts, verts + ncoarseverts);
 
         delete stencilTable;
     } else {

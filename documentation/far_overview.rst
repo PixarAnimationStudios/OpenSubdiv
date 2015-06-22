@@ -647,11 +647,9 @@ series of coarse control vertices:
                              utan,
                              vtan;
 
-    // Update points by applying stencils
-    controlStencils.UpdateValues<StencilType>( reinterpret_cast<StencilType const *>(
-        &controlPoints[0]), &points[0] );
+    // Evaluate points by applying stencils
+    stencils.Evaluate( &controlPoints[0], &points[0] );
 
-    // Update tangents by applying derivative stencils
-    controlStencils.UpdateDerivs<StencilType>( reinterpret_cast<StencilType const *>(
-        &controlPoints[0]), &utan[0], &vtan[0] );
+    // Evaluate points and tangents by applying stencils
+    limitStencils.Evaluate( &controlPoints[0], &points[0], &utan[0], &vtan[0] );
 

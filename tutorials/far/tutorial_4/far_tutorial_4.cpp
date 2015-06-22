@@ -141,7 +141,7 @@ int main(int, char **) {
 
         // Apply stencils on the control vertex data to update the primvar data
         // of the refined vertices.
-        stencilTable->UpdateValues(controlValues, &vertexBuffer[0]);
+        stencilTable->Evaluate(controlValues, &vertexBuffer[0]);
     }
 
     { // Visualization with Maya : print a MEL script that generates particles

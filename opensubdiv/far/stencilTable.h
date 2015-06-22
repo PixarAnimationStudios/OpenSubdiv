@@ -169,7 +169,7 @@ public:
     /// \brief Returns the stencil at index i in the table
     Stencil operator[] (Index index) const;
 
-    /// \brief Updates point values based on the control values
+    /// \brief Evaluates primvar values.
     ///
     /// \note The destination buffers are assumed to have allocated at least
     ///       \c GetNumStencils() elements.
@@ -184,7 +184,7 @@ public:
     /// @param end            Index of last value to update
     ///
     template <class T>
-    void UpdateValues(T const *controlValues, T *values, Index start=-1, Index end=-1) const {
+    void Evaluate(T const *controlValues, T *values, Index start=-1, Index end=-1) const {
         update(controlValues, values, _weights, start, end);
     }
 
@@ -305,12 +305,15 @@ public:
         return _dvWeights;
     }
 
-    /// \brief Updates derivative values based on the control values
+    /// \brief Evaluates limit surface primvar values and first derivatives.
     ///
     /// \note The destination buffers ('uderivs' & 'vderivs') are assumed to
     ///       have allocated at least \c GetNumStencils() elements.
     ///
     /// @param controlValues  Buffer with primvar data for the control vertices
+    ///
+    /// @param values         Destination buffer for the interpolated primvar
+    ///                       data
     ///
     /// @param uderivs        Destination buffer for the interpolated 'u'
     ///                       derivative primvar data
@@ -323,9 +326,10 @@ public:
     /// @param end            Index of last value to update
     ///
     template <class T>
-    void UpdateDerivs(T const *controlValues, T *uderivs, T *vderivs,
+    void Evaluate(T const *controlValues, T *values, T *uderivs, T *vderivs,
         int start=-1, int end=-1) const {
 
+        update(controlValues, values, _weights, start, end);
         update(controlValues, uderivs, _duWeights, start, end);
         update(controlValues, vderivs, _dvWeights, start, end);
     }
