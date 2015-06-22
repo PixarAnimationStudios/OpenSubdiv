@@ -69,9 +69,11 @@ struct PatchParam {
     /// @param u value of the u parameter for the first corner of the face
     /// @param v value of the v parameter for the first corner of the face
     ///
-    /// @param rots rotations required to reproduce CCW face-winding
     /// @param depth subdivision level of the patch
     /// @param nonquad true if the root face is not a quad
+    //
+    /// @param boundary 4-bits identifying boundary edges
+    /// @param transition 4-bits identifying transition edges
     ///
     void Set( Index faceid, short u, short v,
               unsigned short depth, bool nonquad ,

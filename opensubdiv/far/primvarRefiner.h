@@ -168,9 +168,9 @@ public:
     /// must allocate an array for all vertices at the last refinement level,
     /// i.e. at least refiner.GetLevel(refiner.GetMaxLevel()).GetNumVertices()
     ///
-    /// @param src  Source primvar buffer (refined data) for last level
+    /// @param src     Source primvar buffer (refined data) for last level
     ///
-    /// @param dst  Destination primvar buffer (data at the limit)
+    /// @param dstPos  Destination primvar buffer (data at the limit)
     ///
     template <class T, class U> void Limit(T const & src, U & dstPos) const;
 

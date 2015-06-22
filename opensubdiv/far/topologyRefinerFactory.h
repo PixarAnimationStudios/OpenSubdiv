@@ -40,7 +40,7 @@ namespace Far {
 ///
 /// TopologyRefinerFactoryBase is the base class for subclasses that are intended to
 /// construct TopologyRefiners directly from meshes in their native representations.
-/// The subclasses are parameterized by the mesh type <class MESH> and are expected
+/// The subclasses are parameterized by the mesh type \<class MESH\> and are expected
 /// to inherit the details related to assembly and validation provided here that are
 /// independent of the subclass' mesh type.
 //
