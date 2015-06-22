@@ -142,7 +142,9 @@ The following example shows the most simple case to get your mesh refined unifor
         float x, y, z;
     };
 
-2. Instantiate a Far::TopologyRefiner from the Far::TopologyDescriptor.
+2. Instantiate a `Far::TopologyRefiner <far_overview.html#far-topologyrefiner>`_
+from the `Far::TopologyDescriptor <far_overview.html#far-topologyrefinerfactory>`_.
+
 
 .. code:: c++
 
@@ -160,7 +162,8 @@ The following example shows the most simple case to get your mesh refined unifor
 
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
-4. Interpolate vertex primvar data at 'level' using Far::PrimvarRefiner
+4. Interpolate vertex primvar data at 'level' using
+`Far::PrimvarRefiner <far_overview.html#far-primvarrefiner>`_
 
 .. code:: c++
 
@@ -203,7 +206,8 @@ independently.
 .. image:: images/usecase2.png
    :align: center
 
-1. Instantiate a Far::TopologyRefiner from the Far::TopologyDescriptor, same as usecase 1.
+1. Instantiate a `Far::TopologyRefiner <far_overview.html#far-topologyrefiner>`_ from the
+`Far::TopologyDescriptor <far_overview.html#far-topologyrefinerfactory>`_, same as usecase 1.
 
 2. Setup Osd::Mesh. In this example we use b-spline endcap.
 
@@ -219,7 +223,8 @@ independently.
                                                Osd::CpuEvaluator, Osd::GLPatchTable>
                                         (refiner, numVertexElements, 0, level, bits);
 
-3. Update coarse vertices and refine (Osd::Mesh::Refine() calls Osd::CpuEvaluator::EvalStencils())
+3. Update coarse vertices and refine (Osd::Mesh::Refine() calls
+`Osd::CpuEvaluator::EvalStencils() <osd_overview.html#refinement>`_)
 
 .. code:: c++
 
