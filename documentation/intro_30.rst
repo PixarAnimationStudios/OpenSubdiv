@@ -169,8 +169,11 @@ continuous limit surface between them.
  additional global shader configuration).
 
  The new implementations of the GregoryBasis and BSpline approximations relax
- the previous max valence limit. Users are still encouraged to use models with
- vertices of low valence for both improved model quality and performance.
+ the previous max valence limit. Legacy Gregory patch still has a limitation
+ of max valence (typically 24, depending on the hardware capability of
+ GL_MAX_VARYING_VECTORS).
+ Users are still encouraged to use models with vertices of low valence for
+ both improved model quality and performance.
 
 ----
 
