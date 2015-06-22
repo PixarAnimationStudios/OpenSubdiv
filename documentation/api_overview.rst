@@ -47,8 +47,8 @@ Layers list:
 
 +-----------------------------------------+--------------------------------------------------------------------------------+
 | | **Sdc**                               |The lowest level layer, implements the core subdivision details                 |
-| | Subdivision Core                      |to facilitate the generation of consistent results.                             |
-| | `Sdc Overview <sdc_overview.html>`__  |                                                                                |
+| | Subdivision Core                      |to facilitate the generation of consistent results. Most cases will only        |
+| | `Sdc Overview <sdc_overview.html>`__  |require the use of simple public types and constants from Sdc.                  |
 +-----------------------------------------+--------------------------------------------------------------------------------+
 | | **Vtr**                               | A suite of classes to provide an intermediate                                  |
 | | Vectorized Topological Representation | representation of topology that supports efficient refinement.                 |
