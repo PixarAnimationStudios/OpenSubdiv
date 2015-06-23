@@ -29,10 +29,6 @@ Vtr Overview
    :local:
    :backlinks: none
 
-.. image:: images/api_layers_3_0.png
-   :width: 100px
-   :target: images/api_layers_3_0.png
-
 Vectorized Topology Representation (Vtr)
 ========================================
 
