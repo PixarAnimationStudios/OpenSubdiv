@@ -166,7 +166,3 @@ The OpenSubdiv code base contains the following main areas:
 |                      | our APIs. If GPU SDKs are detected, some tests will attempt to run computations       |
 |                      | on those GPUs.                                                                        |
 +----------------------+---------------------------------------------------------------------------------------+
-
-----
-
-Next : `Building OpenSubdiv <cmake_build.html>`__
