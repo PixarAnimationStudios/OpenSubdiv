@@ -18,7 +18,7 @@
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied. See the Apache License for the specific
+     KIND, either express or implied.  See the Apache License for the specific
      language governing permissions and limitations under the Apache License.
 
 Porting Guide: 2.x to 3.0
@@ -87,7 +87,7 @@ recommended for usage where this conversion process is critical.
 Details on how to construct a TopologyRefiner can be found in the 
 `Far overview <far_overview.html#far-topologyrefinerfactory>`__ documentation.
 Additionally, documentation for Far::TopologyRefinerFactory<MESH> outlines the
-requirements and a Far tutorial (tutorials/far/tutorial_1) provides an example
+requirements, and a Far tutorial (tutorials/far/tutorial_1) provides an example
 of a factory for directly converting HbrMeshes to TopologyRefiners.
 
 Its worth a reminder here that Far::TopologyRefiner contains only topological
@@ -183,7 +183,7 @@ still grouped for the same reasons.  There are two issues here though:
 * the ordering of components within these groups is not guaranteed to have
   been preserved
 
-Vertices in a refined level are grouped according the type of component in
+Vertices in a refined level are grouped according to the type of component in
 the parent level from which they originated, i.e. some vertices originate
 from the center of a face (face-vertices), some from an edge (edge-vertices)
 and some from a vertex (vertex-vertices).  (Note that there is a conflict in
@@ -204,10 +204,10 @@ Version and option                           Vertex group ordering
 3.0 orderVerticesFromFacesFirst = true       face-vertices, edge-vertices, vertex-vertices
 ============================================ =============================================
 
-The decision to change the default ordering was based on common feedback,
-and the rationale being that it allows a trivial mapping from vertices in
-the cage to their descendants at all refinement levels.  While the grouping
-is fundamental to the refinement process, the ordering of the groups is
+The decision to change the default ordering was based on common feedback;
+the rationale was to allow a trivial mapping from vertices in the cage to
+their descendants at all refinement levels.  While the grouping is 
+fundamental to the refinement process, the ordering of the groups is
 internally flexible, and the full set of possible orderings can be made
 publicly available in future if there is demand for such flexibility.
 
@@ -215,7 +215,7 @@ The ordering of vertices within these groups was never clearly defined given
 the way that HbrMesh applied its refinement.  For example, for the
 face-vertices in a level, it was never clear which face-vertices would be
 first as it depended on the order in which HbrMesh traversed the parent faces
-and generated them, and given one face, HbrMesh would often visit neighboring
+and generated them. Given one face, HbrMesh would often visit neighboring
 faces first before moving to the next intended face.
 
 The ordering with Far::TopologyRefiner is much clearer and predictable.  Using
@@ -234,10 +234,10 @@ and also for other components in refined levels, i.e. the child faces and
 edges.  
 
 For child faces and edges, more than one will originate from the same parent
-face or edge.  So in addition to the overall ordering based on the order of
-the parent faces or edges, an additional ordering is imposed on multiple 
-children originating from the same face or edge.  They will be ordered based
-on the corner- or end-vertex with which they are associated.
+face or edge.  In addition to the overall ordering based on the parent faces
+or edges, another ordering is imposed on multiple children originating from 
+the same face or edge.  They will be ordered based on the corner or 
+end-vertex with which they are associated.
 
 In the case of refined faces, another way to view the ordering is to consider
 the way that faces are originally defined -- by specifying the set of vertices
@@ -295,8 +295,8 @@ OsdVertexBufferDescriptor               Osd::BufferDescriptor
 ComputeContext, DrawContext
 +++++++++++++++++++++++++++
 
-Essentially replaced with API-specific StencilTable and PatchTable objects, for
-example Osd::GLStencilTableSSBO.
+ComputeContext and DrawContext have been replaced with API-specific StencilTable
+and PatchTable objects, for example Osd::GLStencilTableSSBO.
 
 ======================================= ========================================
 OpenSubdiv 2.x                          OpenSubdiv 3.0
@@ -346,8 +346,8 @@ Feature Adaptive Shader Changes
 ===============================
 
 In 3.0, the feature adaptive screen-space tessellation shaders have been
-dramatically simplified and the client-facing API has changed dramatically as
-well. The primary shift is to reduce the total number of shader combinations and
+dramatically simplified, and the client-facing API has changed dramatically as
+well. The primary shift is to reduce the total number of shader combinations, and
 as a result, some of the complexity management mechanisms are no longer
 necessary.
 
