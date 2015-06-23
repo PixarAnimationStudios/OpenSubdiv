@@ -150,17 +150,8 @@ your product.
 Contributing
 ============
 
-In order for us to accept code submissions (merge git pull-requests), contributors 
-need to sign the Contributor License Agreement (CLA). There are two CLAs, one for 
-individuals and one for corporations. As for the end-user license, both are based 
-on Apache. They are found in the code repository (`individual form 
-<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_individual.pdf>`__,
-`corporate form <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_corporate.pdf>`__). 
-Please email the signed CLA to opensubdiv-cla@pixar.com.
-
-
-For more details about OpenSubdiv and other Pixar projects, see
-`Pixar Graphics Technologies <http://graphics.pixar.com>`__.
+For details on how to contribute to OpenSubdiv, see the page on 
+`Contributing <contributing.html>`_
 
 ----
 
@@ -173,7 +164,4 @@ Microsoft Research:
 
 Pixar Research:
     `Pixar R&D Portal <http://graphics.pixar.com/research/>`__
-
-
-
 
