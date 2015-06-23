@@ -442,7 +442,7 @@ ________________________*/
 div.homeRenderManLink {
         float: left;
         height: 45px;
-        margin: 0 0px 0 5px;
+        margin: -4px 0 0 5px;
         width: 300px;
         color: #999;
         font-size: 32px;
