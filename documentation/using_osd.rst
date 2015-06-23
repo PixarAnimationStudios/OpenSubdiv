@@ -41,11 +41,10 @@ OpenSubdiv APIs
    :widths: 50 50
    
    * - | `Overview <api_overview.html>`_
-     - | `Osd API <osd_overview.html>`_
-       | `Far API <far_overview.html>`_
+     - | `Sdc API <sdc_overview.html>`_
        | `Vtr API <vtr_overview.html>`_
-       | `Sdc API <sdc_overview.html>`_
-       | 
+       | `Far API <far_overview.html>`_
+       | `Osd API <osd_overview.html>`_
 
 
 

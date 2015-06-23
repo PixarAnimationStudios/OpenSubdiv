@@ -83,8 +83,11 @@ struct TopologyDescriptor {
 
 
 //
-//  Declaration of factory method specializations (provided internally):
+//  Forward declarations of required TopologyRefinerFactory<TopologyDescriptor>
+//  specializations (defined internally):
 //
+// @cond EXCLUDE_DOXYGEN
+
 template <>
 bool
 TopologyRefinerFactory<TopologyDescriptor>::resizeComponentTopology(
@@ -108,8 +111,9 @@ TopologyRefinerFactory<TopologyDescriptor>::assignFaceVaryingTopology(
 template <>
 void
 TopologyRefinerFactory<TopologyDescriptor>::reportInvalidTopology(
-    TopologyError errCode, char const * msg, TopologyDescriptor const& /* mesh */);
+    TopologyError errCode, char const * msg, TopologyDescriptor const & desc);
 
+// @endcond
 
 } // end namespace Far
 

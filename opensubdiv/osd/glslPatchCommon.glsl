@@ -1192,7 +1192,7 @@ OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
     float U = 1-u, V = 1-v;
 
     //(0,1)                              (1,1)
-    //   P3         e3-      e2+         E2
+    //   P3         e3-      e2+         P2
     //      15------17-------11-------10
     //      |        |        |        |
     //      |        |        |        |
@@ -1209,7 +1209,7 @@ OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
     //      |        |        |        |
     //      |        |        |        |
     //      0--------1--------7--------5
-    //    P0        e0+      e1-         E1
+    //    P0        e0+      e1-         P1
     //(0,0)                               (1,0)
 
     float d11 = u+v;
@@ -1331,22 +1331,33 @@ OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
 // ----------------------------------------------------------------------------
 #if defined(OSD_PATCH_GREGORY) || defined(OSD_PATCH_GREGORY_BOUNDARY)
 
-#if OSD_MAX_VALENCE<=10
-uniform float ef[7] = float[](
-    0.813008, 0.500000, 0.363636, 0.287505,
-    0.238692, 0.204549, 0.179211
-);
-#else
-uniform float ef[27] = float[](
-    0.812816, 0.500000, 0.363644, 0.287514,
+// precomputed catmark coefficient table up to valence 29
+uniform float OsdCatmarkCoefficient[30] = float[](
+    0, 0, 0, 0.812816, 0.500000, 0.363644, 0.287514,
     0.238688, 0.204544, 0.179229, 0.159657,
     0.144042, 0.131276, 0.120632, 0.111614,
     0.103872, 0.09715, 0.0912559, 0.0860444,
     0.0814022, 0.0772401, 0.0734867, 0.0700842,
     0.0669851, 0.0641504, 0.0615475, 0.0591488,
     0.0569311, 0.0548745, 0.0529621
-);
+    );
+
+float
+OsdComputeCatmarkCoefficient(int valence)
+{
+#if OSD_MAX_VALENCE < 30
+    return OsdCatmarkCoefficient[valence];
+#else
+    if (valence < 30) {
+        return OsdCatmarkCoefficient[valence];
+    } else {
+        float t = 2.0f * float(M_PI) / float(valence);
+        return 1.0f / (valence * (cos(t) + 5.0f +
+                                  sqrt((cos(t) + 9) * (cos(t) + 1)))/16.0f);
+    }
 #endif
+}
+
 
 float cosfn(int n, int j) {
     return cos((2.0f * M_PI * j)/float(n));
@@ -1502,8 +1513,9 @@ OsdComputePerVertexGregory(int vID, vec3 P, out OsdPerVertexGregory v)
         v.e0 += cosfn(valence, i)*e;
         v.e1 += sinfn(valence, i)*e;
     }
-    v.e0 *= ef[valence - 3];
-    v.e1 *= ef[valence - 3];
+    float ef = OsdComputeCatmarkCoefficient(valence);
+    v.e0 *= ef;
+    v.e1 *= ef;
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY
     v.zerothNeighbor = zerothNeighbor;
@@ -1585,7 +1597,7 @@ OsdComputePerPatchVertexGregory(ivec3 patchParam, int ID, int primitiveID,
     //  for Hardware Tessellation"
     // Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia 2009)
     //
-    //  P3         e3-      e2+         E2
+    //  P3         e3-      e2+         P2
     //     O--------O--------O--------O
     //     |        |        |        |
     //     |        |        |        |
@@ -1602,7 +1614,7 @@ OsdComputePerPatchVertexGregory(ivec3 patchParam, int ID, int primitiveID,
     //     |        |        |        |
     //     |        |        |        |
     //     O--------O--------O--------O
-    //  P0         e0+      e1-         E1
+    //  P0         e0+      e1-         P1
     //
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY

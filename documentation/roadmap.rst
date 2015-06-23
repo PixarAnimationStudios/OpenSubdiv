@@ -35,18 +35,9 @@ Roadmap
 
 For more details, please see the `Release Notes <release_notes.html>`_.
 
-3.0 Alpha Releases (Q4 2014):
-
-    * nearing feature complete : code is ready for early evaluation
-
-3.0 Beta Releases (Q1 2015):
-
-    * subdivision 'specification' evaluation from users & community
-
 3.0 Master Release (Q2 2015)
 
     * freeze subdivision 'specification' (enforce backward compatibility)
-    * add support for Loop limit evaluation & draw
 
 3.1 Supplemental Release (Q3/Q4 2015)
 
@@ -121,7 +112,7 @@ Implement a "high-level" API layer
 "Next-gen" back-ends
 ++++++++++++++++++++
 
-  Implement Osd::Draw Context & Controllers for next-gen GPU APIs such as
+  Implement Osd Evaluator and Patch Drawing for next-gen GPU APIs such as
   Mantle, Metal, DX12, Vulkan.
 
 A means to control edge curvature
@@ -138,20 +129,20 @@ A means to control edge curvature
 Always in Need of Improvement
 =============================
 
-And finally, a few topics that always benefit fron continual improvement.
+And finally, a few topics that always benefit from continual improvement.
 Any and all contributions in this area are greatly appreciated.
 
 Regression testing
 ++++++++++++++++++
 
-  OpenSubdiv currently ships with some ad-hoc regression code that unfortunately
-  does not cover much of the code base: we need to implement a more rigorous QA
-  process. We will probably want to leverage the CMake built-in functionalities
-  of CTest in order to publish a build & test dashboard.
+  OpenSubdiv currently ships with some regression testing code which can be
+  run using CTest.  It's always great to have more regression testing that
+  covers more of the code base.
 
     * Implement a robust regression harness for numerical correctness
     * Implement a cross-platform regression harness for GPU drawing correctness
     * Implement a cross-platform regression harness for performance (speed & memory)
+    * Implement code coverage analysis
 
 Documentation
 +++++++++++++

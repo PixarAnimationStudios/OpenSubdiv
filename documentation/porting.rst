@@ -18,15 +18,19 @@
      Unless required by applicable law or agreed to in writing, software
      distributed under the Apache License with the above modification is
      distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied. See the Apache License for the specific
+     KIND, either express or implied.  See the Apache License for the specific
      language governing permissions and limitations under the Apache License.
 
-Compatibility and Porting Guide
--------------------------------
+Porting Guide: 2.x to 3.0
+-------------------------
 
 .. contents::
    :local:
    :backlinks: none
+
+
+Porting Guide: 2.x to 3.0
+=========================
 
 This document is a high-level description of how to port exiting OpenSubdiv 2.x
 code to use OpenSubdiv 3.0.
@@ -35,12 +39,29 @@ code to use OpenSubdiv 3.0.
 OpenSubdiv forum and we will be happy to help!
 
 
+Source Code Organization
+========================
+
+Given the scale of functional changes that were being made to the public
+interface, we took the opportunity in 3.0 to update the coding style and
+organization -- most notably making use of namespaces for each library.
+
+================= ==================== ===============================================
+Subdirectory      Namespace            Relevance
+================= ==================== ===============================================
+hbr/              N/A                  Historical, no longer used
+sdc/              Sdc                  New, low-level, public options, constants, etc.
+vtr/              Vtr                  New, internal use, topology representation
+far/              Far                  Revised, similar functionality with new API
+osd/              Osd                  Revised, similar functionality with new API
+================= ==================== ===============================================
+
+
 Hbr Layer Translation
 =====================
 
-With HbrMesh having been the source of a number of functional and performance
-issues, client mesh topology is now translated into an instance of the new
-TopologyRefiner class in the Far level.
+Client mesh topology is now translated into an instance of Far::TopologyRefiner
+instead of HbrMesh.
 
 ================= ====================
 OpenSubdiv 2.x    OpenSubdiv 3.0
@@ -63,13 +84,11 @@ directly into the TopologyRefiners representation.  While this is now possible,
 this also represents the most complex construction process and is only
 recommended for usage where this conversion process is critical.
 
-There are three ways to construct a TopologyRefiner -- ranging from the very
-simple but less optimal to the more complex just noted.  The first involves
-use of a predefined factory class provided in Far, while the others require
-writing custom factories, i.e. Far::TopologyRefinerFactory<MESH>.  These are
-typically stateless factories with a static Create() method that will be used
-to instantiate a new TopologyRefiner.  All three are illustrated in either
-tutorials or examples as noted in the subsections that follow.
+Details on how to construct a TopologyRefiner can be found in the 
+`Far overview <far_overview.html#far-topologyrefinerfactory>`__ documentation.
+Additionally, documentation for Far::TopologyRefinerFactory<MESH> outlines the
+requirements, and a Far tutorial (tutorials/far/tutorial_1) provides an example
+of a factory for directly converting HbrMeshes to TopologyRefiners.
 
 Its worth a reminder here that Far::TopologyRefiner contains only topological
 information (which does include sharpness, since that is considered relating
@@ -79,14 +98,13 @@ dimensions of face-varying data, TopologyRefiner is more clearly separated
 from the data.  So the construction of the TopologyRefiner does not involve
 data specification at all.
 
-Subdivision Schemes and Options
-+++++++++++++++++++++++++++++++
+Subdivision Schemes and Options in Sdc
+++++++++++++++++++++++++++++++++++++++
 
-Before detailing the topology conversion, since the creation of a new
-TopologyRefiner requires specification of a subdivision scheme and a set of
-options that are applicable to all schemes.  With HbrMesh, the scheme was
-specified by declaring a static instance of a specific subclass of a
-subdivision object, while the options were specified with a number of
+The creation of a new TopologyRefiner requires specification of a subdivision 
+scheme and a set of options that are applicable to all schemes.  With HbrMesh, 
+the scheme was specified by declaring a static instance of a specific subclass
+of a subdivision object, and the options were specified with a number of
 methods on the different classes.
 
 Such general information about the schemes has now been encapsulated in the
@@ -103,99 +121,35 @@ HbrMesh<T>::SetFVarInterpolateBoundaryMethod()   Sdc::Options::SetFVarLinearInte
 HbrSubdivision<T>::SetCreaseSubdivisionMethod()  Sdc::Options::SetCreasingMethod()
 ===============================================  ===========================================
 
-Regardless of the three construction choices outlined below, the specification
-of both the scheme and all options related to it is the same.
 
-Specifying Face Varying Topology
-++++++++++++++++++++++++++++++++
+Specifying Face Varying Topology and Options
+++++++++++++++++++++++++++++++++++++++++++++
 
-(Just a place holder for now -- more to come...)
+Both the way in which face varying data is associated with a mesh and the
+options used to control its interpolation have changed.  The documentation on
+`Compatibility with OpenSubdiv 2.x <compatibility.html#compatibility-with-opensubdiv-2.x>`__
+details the equivalence of interpolation options between Hbr and the new
+*Sdc::Options::FVarLinearInterpolation* enum, while the section on
+`Face Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation-rules>`__
+illustrates their effects.
 
-Factories to Build Far::TopologyRefiners
-++++++++++++++++++++++++++++++++++++++++
+Face varying data is now specified by index rather than by value, or as often
+stated, it is specified topologically.  Just as vertices for faces are specified
+by indices into a potential buffer of positions, face varying values are
+specified by indices into a potential buffer of values.  Both vertices and
+face varying values (frequently referred to as *FVarValues* in the API) are
+assigned and associated with the corners of all faces.
 
-Here we outline the three approaches for converting mesh topology into the
-required Far::TopologyRefiner.  Additional documentation is provided with
-the Far::TopologyRefinerFactory<MESH> class template used by all, and each
-has a concrete example provided in one of the tutorials or in the Far code
-itself.  Please contact the OpenSubdiv forum if questions are not answered
-here or in the other documentation and examples cited.
-
-1)  Use the Far::TopologyDescriptor
-***********************************
-
-Far::TopologyDescriptor is a simple struct that can be initialized to refer
-to raw mesh topology information -- primarily a face-vertex list -- and then
-passed to a provided factory class to create a TopologyRefiner from each.
-The minimum information required is typical of what many mesh construction
-tools require:  the number of vertices and faces, the number of vertices per
-face, and the complete set of face-vertices for all faces.
-
-Almost all of the Far tutorials (i.e. tutorials/far/tutorial_*) illustrate
-use of the TopologyDescriptor and its factory for creating TopologyRefiners,
-i.e. TopologyRefinerFactory<TopologyDescriptor>.
-
-For situations when users have raw mesh data and have not yet constructed a
-boundary representation of their own, it is hoped that this will suffice.
-Options have even been provided to indicate that raw topology information
-has been defined in a left-hand winding order and the factory will handle
-the conversion to right-hand (counter-clockwise) winding on-the-fly to avoid
-unnecessary data duplication.
-
-2)  Custom Factory for Face Vertices
-************************************
-
-If the nature of the TopologyDescriptor's data expectations is not helpful,
-and so conversion to large temporary arrays would be necessary to properly
-make use of it, it may be worth writing a custom factory.
-
-There are two ways to write such a factory:  provide only the face-vertex
-information for topology and let the factory infer all edges and other
-relationships, or provide the complete edge list and all other topological
-relationships directly.  The latter is considerably more involved and
-described in a following section.
-
-The definition of TopologyRefinerFactory<TopologyDescriptor> provides a clear
-and complete example of constructing a TopologyRefiner with minimal topology
-information, i.e. the face-vertex list.  The class template
-TopologyRefinerFactory<MESH> documents the needs here and the
-TopologyDescriptor instantiation and specialization should illustrate that.
-
-3)  Custom Factory for Direct Conversion
-****************************************
-
-This is not recommended as an introduction to 3.0.  It is recommended that
-one of the previous two methods initially be used to convert your mesh
-topology into a TopologyRefiner and get other aspects of 3.0 working first.
-If the conversion performance is critical, or significant enough to warrant
-improvement, then its worth writing a factory for full topological conversion.
-
-Documentation for Far::TopologyRefinerFactory<MESH> outlines the requirements
-and a Far tutorial (tutorials/far/tutorial_1) provides an example of a factory
-for directly converting HbrMeshes to TopologyRefiners.
-
-This approach requires dealing directly with edges, unlike the other two.  In
-order to convert edges into a TopologyRefiner's representation, the edges need
-to be expressed as a collection of some size N -- each of which is referred to
-directly by indices [0,N-1].  This can be awkward for representations such as
-half-edge or quad-edge that do not treat the instance of an edge uniquely.
-
-Particular care is also necessary when representing non-manifold features.  The
-previous two approaches will construct non-manifold features as required from
-the face-vertex list -- dealing with degenerate edges and other non-manifold
-features as encountered.  When directly translating full topology it is
-necessary to tag non-manifold features, and also to ensure that certain
-edge relationships are satisfied in their presence.  More details are
-available with the assembly methods of the factory class template.
-
-The factory does provide run-time validation on the topology constructed that
-can be used for debugging purposes.
+In many cases this will simplify representation as many common geometry
+container formats such as Obj or Alembic specify texture coordinates the same
+way.  For other cases, where a value per face-corner is provided with no
+indication of which values incident each vertex should be considered shared,
+it will be necessary to determine shared indices for values at each vertex if
+any non-linear interpolation is desired.
 
 
 Far Layer Translation
 =====================
-
-(More to be said here -- a place holder for now...)
 
 While TopologyRefiner was introduced into Far as the new intermediate
 topology representation, several other changes were made to classes in Far
@@ -208,6 +162,88 @@ FarMesh<U>            N/A, no longer needed
 FarSubdivisionTables  Far::StencilTable
 FarPatchTables        Far::PatchTable
 ===================== =====================
+
+Ordering of Refined Vertices
+++++++++++++++++++++++++++++
+
+The FarMesh was previously responsible for refining an HbrMesh -- generating
+new vertices and faces in successive levels of refinement in the
+FarSubdivisionTables.  Vertices were grouped and reordered from the native
+ordering of HbrMesh so that vertices requiring similar processing were
+consecutive.  Such grouping alleviated most of the idiosyncrasies of
+HbrMesh's native ordering but not all.
+
+Far::ToplogyRefiner is inherently a collection of refinement levels, and
+within each refined level (so excluding the base level), all components are
+still grouped for the same reasons.  There are two issues here though:
+
+* the ordering of these groups has changed (though an option exists to
+  preserve it)
+
+* the ordering of components within these groups is not guaranteed to have
+  been preserved
+
+Vertices in a refined level are grouped according to the type of component in
+the parent level from which they originated, i.e. some vertices originate
+from the center of a face (face-vertices), some from an edge (edge-vertices)
+and some from a vertex (vertex-vertices).  (Note that there is a conflict in
+terminology here -- face-vertices and edge-vertices most often refer to
+vertices incident a face or edge -- but for the sake of this discussion, we
+use them to refer to the component from which a child vertex originates.)
+
+The following table shows the ordering of these groups in 2.x and the two
+choices available in 3.0.  The option is the *orderVerticesFromFacesFirst*
+flag that can be set in the Option structs passed to the uniform and adaptive
+refinement methods of TopologyRefiner:
+
+============================================ =============================================
+Version and option                           Vertex group ordering
+============================================ =============================================
+2.x                                          face-vertices, edge-vertices, vertex-vertices
+3.0 default                                  vertex-vertices, face-vertices, edge-vertices
+3.0 orderVerticesFromFacesFirst = true       face-vertices, edge-vertices, vertex-vertices
+============================================ =============================================
+
+The decision to change the default ordering was based on common feedback;
+the rationale was to allow a trivial mapping from vertices in the cage to
+their descendants at all refinement levels.  While the grouping is
+fundamental to the refinement process, the ordering of the groups is
+internally flexible, and the full set of possible orderings can be made
+publicly available in future if there is demand for such flexibility.
+
+The ordering of vertices within these groups was never clearly defined given
+the way that HbrMesh applied its refinement.  For example, for the
+face-vertices in a level, it was never clear which face-vertices would be
+first as it depended on the order in which HbrMesh traversed the parent faces
+and generated them. Given one face, HbrMesh would often visit neighboring
+faces first before moving to the next intended face.
+
+The ordering with Far::TopologyRefiner is much clearer and predictable.  Using
+the face-vertices as an example, the order of the face-vertices in level *N+1*
+is identical to the order of the parent faces in level *N* from which they
+originated.  So if we have face-vertices *V'i*, *V'j* and *V'k* at some level,
+originating from faces *Fi*, *Fj* and *Fk* in the previous level, they will
+be ordered in increasing order of *i*, *j* and *k*.  For uniform refinement
+the ordering of face vertices *V'i* will therefore exactly match the ordering
+of the parent faces *Fi*.  For adaptive or otherwise sparse refinement, the
+subset of *Vi* will be ordered similarly, just with components missing from
+those not refined.
+
+The same is true of all vertices, i.e. edge-vertices and vertex-vertices,
+and also for other components in refined levels, i.e. the child faces and
+edges.  
+
+For child faces and edges, more than one will originate from the same parent
+face or edge.  In addition to the overall ordering based on the parent faces
+or edges, another ordering is imposed on multiple children originating from 
+the same face or edge.  They will be ordered based on the corner or
+end-vertex with which they are associated.
+
+In the case of refined faces, another way to view the ordering is to consider
+the way that faces are originally defined -- by specifying the set of vertices
+for the corners of each face, often aggregated into a single large array.  The
+ordering of the set of refined faces for each level will correspond directly
+to such an array of vertices per face in the previous level.
 
 
 Osd Layer Translation
@@ -259,8 +295,8 @@ OsdVertexBufferDescriptor               Osd::BufferDescriptor
 ComputeContext, DrawContext
 +++++++++++++++++++++++++++
 
-Essentially replaced with API-specific StencilTable and PatchTable objects, for
-example Osd::GLStencilTableSSBO.
+ComputeContext and DrawContext have been replaced with API-specific StencilTable
+and PatchTable objects, for example Osd::GLStencilTableSSBO.
 
 ======================================= ========================================
 OpenSubdiv 2.x                          OpenSubdiv 3.0
@@ -310,8 +346,8 @@ Feature Adaptive Shader Changes
 ===============================
 
 In 3.0, the feature adaptive screen-space tessellation shaders have been
-dramatically simplified and the client-facing API has changed dramatically as
-well. The primary shift is to reduce the total number of shader combinations and
+dramatically simplified, and the client-facing API has changed dramatically as
+well. The primary shift is to reduce the total number of shader combinations, and
 as a result, some of the complexity management mechanisms are no longer
 necessary.
 
@@ -388,14 +424,31 @@ splicing isn't needed, however clients must still bind additional buffers
 
 See Osd::GLLegacyGregoryPatchTable for additional details. 
 
-Changes to Subdiv Specification
-===============================
+Changes to Subdivision 
+======================
 
-RenderMan Compatibility Notes
-=============================
+The refactoring of OpenSubdiv 3.0 data representations presented a unique
+opportunity to revisit some corners of the subdivision specification and
+remove or update some legacy features -- none of which was taken lightly.
+More details are provided in
+`Subdivision Compatibility <compatibility.html>`__, while the
+following offers a quick overview:
 
-Build Support for 2.x and 3.0
-=============================
+* All face-varying interpolation options have been combined into a single enum.
+
+* Vertex interpolation options have been renamed or removed:
+
+  * The naming of the standard creasing method has changed from *Normal* to *Uniform*.
+
+  * Unused legacy modes of the *"smoothtriangle"* option have been removed.
+
+* The averaging of Chaikin creasing with infinitely sharp edges has changed.
+
+* Support for Hierarchical Edits has been removed.
+
+
+Build Support for Combining 2.x and 3.0
+=======================================
 
 Running OpenSubdiv 2.0 and 3.0 in a single process is supported, however some
 special care must be taken to avoid namespace collisions, both in terms of

@@ -152,7 +152,7 @@ Level::getTopologyErrorString(TopologyError errCode) {
     if (callback) { \
         char const * errStr = getTopologyErrorString(code); \
         char msg[1024]; \
-        snprintf(msg, 1024, "%s - "format, errStr, ##__VA_ARGS__); \
+        snprintf(msg, 1024, "%s - " format, errStr, ##__VA_ARGS__); \
         callback(code, msg, clientData); \
     }
 

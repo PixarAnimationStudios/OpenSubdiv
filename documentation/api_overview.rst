@@ -29,42 +29,43 @@ API Overview
    :local:
    :backlinks: none
 
+.. image:: images/osd_splash.png 
+   :align: center
+   :target: images/osd_splash.png 
 
-Architecture Overview
-=====================
-
-Because the OpenSubdiv software is intended to run on a variety of computing
-resources, the API architecture has to accomodate a fairly complex matrix of
-interoperations. In order to achieve the requisite flexibility, the code structure
-is both layered and modular.
-
-----
-
-Opt-In Features
-===============
-
-One of the fundamental requirement of all our API's design patterns is the opt-in
-implementation of features. Because most of the algorithms are used within the
-constraints of interactive applications, we want to provide optimal code paths
-wherever possible. 
-
-Therefore, client-code should always have the option to opt-out of the memory and
-processing costs of any given feature that is not used.
-
-----
 
 API Layers
 ==========
 
-From a top-down point of view, OpenSubdiv is comprised of several layers, some
-public, and some private.
+OpenSubdiv is structured as a set of layered libraries.  This structure facilitates
+operation on a variety of computing resources, and allows developers to only opt-in
+to the layers and feature sets that they require.
+From a top-down point of view, OpenSubdiv is comprised of several layers,
+some public, and some private.
 
-Layers list in descending order:
+Layers list:
 
-  * **Osd** (OpenSubdiv)
-  * **Far** (Feature Adaptive Representation)
-  * **Vtr** (Vectorized Topological Representation)
-  * **Sdc** (Subdivision Core)
++-----------------------------------------+--------------------------------------------------------------------------------+
+| | **Sdc**                               |The lowest level layer, implements the core subdivision details                 |
+| | Subdivision Core                      |to facilitate the generation of consistent results. Most cases will only        |
+| | `Sdc Overview <sdc_overview.html>`__  |require the use of simple public types and constants from Sdc.                  |
++-----------------------------------------+--------------------------------------------------------------------------------+
+| | **Vtr**                               | A suite of classes to provide an intermediate                                  |
+| | Vectorized Topological Representation | representation of topology that supports efficient refinement.                 |
+| | `Vtr Overview <vtr_overview.html>`__  | *Vtr* is intended for internal use only.                                       |
++-----------------------------------------+--------------------------------------------------------------------------------+
+| | **Far**                               |                                                                                |
+| | Feature Adaptive Representation       | The central interface that processes client-supplied                           |
+| | `Far Overview <far_overview.html>`__  | geometry and turns it into a serialized data                                   |
+|                                         | representation ready for parallel processing in *Osd*.                         |
+|                                         | *Far* also provides a fully-featured single-threaded                           |
+|                                         | implementation of subdivision interpolation algorithms.                        |
++-----------------------------------------+--------------------------------------------------------------------------------+
+| | **Osd**                               |                                                                                |
+| | OpenSubdiv cross platform             | A suite of classes to provide parallel subdivision                             |
+| | `Osd Overview <osd_overview.html>`__  | kernels and drawing utilities on a variety of platforms                        |
+|                                         | such as TBB, CUDA, OpenCL, GLSL and DirectX.                                   |
++-----------------------------------------+--------------------------------------------------------------------------------+
 
 Client mesh data enters the API through the Far layer. Typically, results will
 be collected from the Osd layer. However, it is possible to use
@@ -74,108 +75,15 @@ Although there are several entry-points to provide topology and primitive variab
 data to OpenSubdiv, eventually everything must pass through the private Vtr and Sdc
 representations for topological analysis.
 
-See `Using the Right Tools`_ for more in-depth coverage.
-
 .. image:: images/api_layers_3_0.png
    :align: center
-
-----
-
-Representation vs. Implementation Layers
-========================================
-
-One of the core performance goals of our subdivision algorithms is to leverage
-interactive performance out of massively parallel code execution wherever 
-possible. In order to support a large diversity of compute architectures
-it is critical to stream the geometric data to the compute kernels in the
-most optimal way.
-
-Data structures that are efficient for topology analysis during the pre-computation
-stage are not very good candidates for parallel processing. Our layered structure
-reflects this requirement: topology analysis and other pre-computation tasks are
-delegated to "representation" layers, while the actual execution of computations
-has been moved to an "implementation" layer.
-
-.. image:: images/api_representations.png
-
-**Representation** layers are for general purpose algorithms and differentiated by
-the requirements placed on data represenation. See `Multiple Representations`_ for
-more details.
-
-The **Implementation** layer contains hardware and API-specific implementations.
-In order to minimize code redundancy and bugs, we strive to reduce device-specific
-computation logic to the most simplistic expression possible (in many cases as
-simple as series of multiply-ads).
-
-----
-
-Multiple Representations
-========================
-
-The coarse mesh of a subdivision surface is represented by a collection of 
-components that maintain relationships to each other. 
-
-.. image:: images/api_mesh_data.png
-   :align: center
-
-For instance:
-  - vertex to incident edge
-  - edge to origin and destination vertex
-  - face to edges
-
-This allows authoring applications to easily access "neighboring" components 
-in order to make topology edits or manipulate properties of the components 
-themselves. The key to achieving efficient many-core processing is to reduce data
-interdependencies. However, by definition, the bulk of topological mesh data is 
-the very description of these connections (dependencies) between vertices. 
-
-.. image:: images/api_serialized_data.png
-   :align: center
-
-This is why OpenSubdiv provides specific representations for mesh data: 
-  - Vtr is a vectorized topology-only representation
-  - Far is a feature adaptive serialized representation
-
-A typical workflow would be to manipulate the topology in authoring applications,
-maybe using Hbr or a similar relational representation for common editing operations.
-Once the topology of the mesh has stabilized, it is processed into a serialized form
-that can then be evaluated at interactive framerates. The serialized form is 
-embodied by Far, which can then be migrated by device-specific functions in Osd.
-
-.. image:: images/api_workflows.png
-   :align: center
-
-----
-
-Feature Adaptive Subdivision
-============================
-
-Because of the high-performance apsects, one of the main goals of the OpenSubdiv 
-set of APIs is to compartmentalize subdivision rules from interpolation 
-computations, which can then be dispatched to discrete compute devices, including
-a variety of GPUs.
-
-The data paths for the feature adaptive algorithm layered over the OpenSubdiv
-architecture:
-
-.. image:: images/osd_layers.png
-
-Vtr serves both as a private, efficient, intermediate topological description and
-as the custodian of the Catmull-Clark (and Loop) subdivision rules. Far is used to
-leverage these rules in order to produce serialized topological tables. 
-
-The remaining computations have been reduced to extremely simple forms of 
-interpolation, which can be dispatched to a variety of discrete computation 
-platforms.
-
-----
 
 Using the Right Tools
 =====================
 
 OpenSubdiv's tiered interface offers a lot flexibility to make your application
 both fast and robust. Because navigating through the large collection of classes and
-features can be challenging, here is a flow-chart that should help sketch
+features can be challenging, here are use cases that should help sketch
 the broad lines of going about using subdivisions in your application.
 
 General client application requirements:
@@ -207,9 +115,158 @@ General client application requirements:
 |                      | shading.                                              |
 +----------------------+-------------------------------------------------------+
 
-Flow-chart:
 
-.. image:: images/osd_flow.png
+
+Use case 1: Simple refinement
+=============================
+
+The following example shows the most simple case to get your mesh refined uniformly.
+
+.. image:: images/usecase1_image.png
+
+.. image:: images/usecase1.png
    :align: center
-   :target: images/osd_flow.png 
+
+1. Define a class for the primvar you want to refine.
+   It's required to have Clear() and AddWithWeight() functions.
+
+.. code:: c++
+
+    struct Vertex {
+        void Clear() { x = y = z = 0; }
+        void AddWithWeight(Vertex const &src, float weight) {
+            x += weight * src.x;
+            y += weight * src.y;
+            z += weight * src.z;
+        }
+        float x, y, z;
+    };
+
+2. Instantiate a `Far::TopologyRefiner <far_overview.html#far-topologyrefiner>`_
+from the `Far::TopologyDescriptor <far_overview.html#far-topologyrefinerfactory>`_.
+
+
+.. code:: c++
+
+    Far::TopologyDescriptor desc;
+    desc.numVertices         = <the number of vertices>
+    desc.numFaces            = <the number of faces>
+    desc.numVertsPerFace     = <array of the number of verts per face>
+    desc.vertIndicesPerFace  = <array of vert indices>
+
+    Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Descriptor>::Create(desc);
+
+3. Call RefineUniform() to refine the topology up to 'maxlevel'.
+
+.. code:: c++
+
+    refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
+
+4. Interpolate vertex primvar data at 'level' using
+`Far::PrimvarRefiner <far_overview.html#far-primvarrefiner>`_
+
+.. code:: c++
+
+    Far::PrimvarRefiner primvarRefiner(*refiner);
+
+    Vertex const *src = <coarse vertices>
+    Vertex *dst       = <refined vertices>
+
+    primvarRefiner.Interpolate(level, src, dst);
+
+5. The topology at the refined level can be obtained from Far::TopologyLevel
+
+.. code:: c++
+
+    Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
+
+    int nverts = refLastLevel.GetNumVertices();
+    int nfaces = refLastLevel.GetNumFaces();
+
+    for (int face = 0; face < nfaces; ++face) {
+        Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
+
+        // do something with dst and fverts
+    }
+
+6. Done! See `far_tutorial_0 <far_tutorial_0.html>`__ for the complete code example.
+
+Use case 2: GL adaptive tessellation drawing of animating mesh
+==============================================================
+
+The next example is showing how to draw adaptive tessellated patches in GL using OpenSubdiv.
+The osd layer helps you to interact with GL and other device specific APIs. Also for an
+efficient refinement of animating mesh on a static topology, we create a stencil table to
+refine the positions changing over time.
+
+The following example code uses an Osd::GLMesh utility class which composites a stencil
+table, patch table, vertex buffer and evaluator in osd layer. You can also use those classes
+independently.
+
+.. image:: images/usecase2.png
+   :align: center
+
+1. Instantiate a `Far::TopologyRefiner <far_overview.html#far-topologyrefiner>`_ from the
+`Far::TopologyDescriptor <far_overview.html#far-topologyrefinerfactory>`_, same as usecase 1.
+
+2. Setup Osd::Mesh. In this example we use b-spline endcap.
+
+.. code:: c++
+
+    int numVertexElements = 3; // x, y, z
+
+    Osd::MeshBitset bits;
+    bits.set(Osd::MeshAdaptive, true);           // set adaptive
+    bits.set(Osd::MeshEndCapBSplineBasis, true); // use b-spline basis patch for endcap.
+
+    Osd::GLMeshInterface *mesh = new Osd::Mesh<Osd::CpuGLVertexBuffer, Far::StencilTable,
+                                               Osd::CpuEvaluator, Osd::GLPatchTable>
+                                        (refiner, numVertexElements, 0, level, bits);
+
+3. Update coarse vertices and refine (Osd::Mesh::Refine() calls
+`Osd::CpuEvaluator::EvalStencils() <osd_overview.html#refinement>`_)
+
+.. code:: c++
+
+    mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
+    mesh->Refine();
+
+4. Bind index buffer, PatchParamBuffer and vertex buffer
+
+.. code:: c++
+
+    // index buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->GetPatchTable()->GetPatchIndexBuffer());
+
+    // vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, mesh->BindVertexBuffer());
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, numVertexElements, GL_FLOAT, GL_FALSE,
+                          numVertexElements*sizeof(float), 0);
+
+    // patch param buffer
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_BUFFER, mesh->GetPatchTable()->GetPatchParamTextureBuffer());
+
+5. Draw. Since we use b-spline endcaps in this example, there is only one PatchArray in the patch table. You may need to iterate patch arrays as you use other type of endcap. To configure GLSL program for each patch type, see `osd shader interface <osd_shader_interface.html>`__ for more details.
+
+.. code:: c++
+
+    Osd::PatchArray const & patch = mesh->GetPatchTable()->GetPatchArrays()[0];
+    Far::PatchDescriptor desc = patch.GetDescriptor();
+
+    int numVertsPerPatch = desc.GetNumControlVertices();  // 16 for B-spline patches
+    glUseProgram(BSplinePatchProgram);
+    glPatchParameteri(GL_PATCH_VERTICES, numVertsPerPatch);
+    glDrawElements(GL_PATCHES, patch.GetNumPatches() * numVertsPerPatch,
+                   GL_UNSIGNED_INT, 0);
+
+6. As the mesh animates, repeat from step 3 to update positions, refine, and draw.
+   See `glViewer <glviewer.html>`__ and other examples for more complete usage.
+
+Tutorials and Examples
+======================
+
+For more use cases, please see `Tutorials <tutorials.html>`_ and `Examples <code_examples.html>`_
+
 
