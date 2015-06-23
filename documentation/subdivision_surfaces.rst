@@ -179,7 +179,7 @@ The following rule sets can be applied to vertex data interpolation:
 |                                  | sharp corners                                            |
 +----------------------------------+----------------------------------------------------------+
 
-On a quad example:
+On a grid example:
 
 .. image:: images/vertex_boundary.png
    :align: center
