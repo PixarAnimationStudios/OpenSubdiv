@@ -108,12 +108,13 @@ TopologyRefiner is the building block for many other useful classes in
 *Far*. It performs refinement of an arbitrary mesh and provides access to
 the refined mesh topology. It can be used for primvar refinement directly
 using PrimvarRefiner or indirectly by being used to create
-`stencil table <#patch-table>`__, `patch table <#patch-table>`__,  etc.
+a `stencil table <#patch-table>`__, or a `patch table <#patch-table>`__,
+etc.
 
-TopologyRefiner has public the refinement methods
+TopologyRefiner provides the public refinement methods
 *RefineUniform()* and *RefineAdapative()* which perform refinement
-operations using Vtr and provides access to the refined topology via
-TopologyLevel instances.
+operations using Vtr. TopologyRefiner provides access to the refined
+topology via TopologyLevel instances.
 
 .. image:: images/topology_refiner.png
    :align: center
@@ -122,21 +123,15 @@ Far::TopologyRefinerFactory
 ===========================
 
 Consistent with other classes in Far, instances of TopologyRefiner are created
-by a factory class -- in this case Far::TopologyRefinerFactory.  This class
-is an important entry point for clients its task is to map/convert data in a
-client's mesh into the internal `Vtr <vtr_overview.html>`__ representation as
-quickly as possible.
+by a factory class -- in this case Far::TopologyRefinerFactory.
 
-The TopologyRefinerFactory class is a class template parameterized by and
-specialized for the client's mesh class, i.e. TopologyRefinerFactory<MESH>.
-Since a client' mesh representation knows best how to identify the topological
-neighborhoods required, no generic implementation would provide the most
-direct means of conversion possible, and so we rely on specialization.  For
-situations where mesh data is not defined in a boundary representation, a
-simple container for raw mesh data is provided (TopologyDescriptor) along
-with a Factory specialized to construct TopologyRefiners from it.
+Here we outline several approaches for converting mesh topology into the
+required Far::TopologyRefiner.  Additional documentation is provided with
+the Far::TopologyRefinerFactory<MESH> class template used by all, and each
+has a concrete example provided in one of the tutorials or in the Far code
+itself.
 
-There are three ways to create TopologyRefiners:
+There are three ways to create TopologyRefiners
 
     * use the existing TopologyRefinerFactory<TopologyDescriptor> with a
       populated instance of TopologyDescriptor
@@ -144,17 +139,6 @@ There are three ways to create TopologyRefiners:
       conversion, using only face-vertex information
     * fully specialize TopologyRefinerFactor<class MESH> for most control over
       conversion
-
-These approaches are detailed below:
-
-Factories to Build Far::TopologyRefiners
-****************************************
-
-Here we outline the three approaches for converting mesh topology into the
-required Far::TopologyRefiner.  Additional documentation is provided with
-the Far::TopologyRefinerFactory<MESH> class template used by all, and each
-has a concrete example provided in one of the tutorials or in the Far code
-itself.  
 
 **Use the Far::TopologyDescriptor**
 
@@ -516,8 +500,8 @@ Factorizing the subdivision weights also allows to express each subdivided
 vertex as a weighted sum of vertices from the control cage. This step effectively
 removes any data inter-dependency between subdivided vertices : the computations
 of subdivision interpolation can be applied to each vertex in parallel without
-any barriers or constraint. The Osd::Compute module leverages these properties
-on massively parallel GPU architectures to great effect.
+any barriers or constraint. The `Osd <osd_overview.html#Osd>`__ classes leverage
+these properties by exploiting CPU and GPU parallelism.
 
 .. image:: images/far_stencil5.png
    :align: center
@@ -644,10 +628,8 @@ series of coarse control vertices:
                              vtan;
 
     // Update points by applying stencils
-    controlStencils.UpdateValues<StencilType>( reinterpret_cast<StencilType const *>(
-        &controlPoints[0]), &points[0] );
+    controlStencils.UpdateValues<StencilType>( &controlPoints[0], &points[0] );
 
     // Update tangents by applying derivative stencils
-    controlStencils.UpdateDerivs<StencilType>( reinterpret_cast<StencilType const *>(
-        &controlPoints[0]), &utan[0], &vtan[0] );
+    controlStencils.UpdateDerivs<StencilType>( &controlPoints[0], &utan[0], &vtan[0] );
 
