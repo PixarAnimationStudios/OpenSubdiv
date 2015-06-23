@@ -25,7 +25,7 @@
 Introduction
 ------------
 
-.. image:: images/geri.jpg 
+.. image:: images/insideout.png
    :width: 100%
    :align: center
 
