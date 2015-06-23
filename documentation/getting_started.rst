@@ -30,9 +30,6 @@ Getting Started
    :backlinks: none
 
 
-Getting started with Git and accessing the source code.
-
-
 Downloading the code
 ====================
 
