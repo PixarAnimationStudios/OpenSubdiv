@@ -43,7 +43,7 @@ subdivision surface (subdiv) evaluation on massively parallel CPU and GPU
 architectures. This code path is optimized for drawing deforming surfaces with 
 static topology at interactive framerates. 
 
-OpenSubdiv is a code API which we hope to integrate into 3rd party digital
+OpenSubdiv is an API ready to be integrated into 3rd party digital
 content creation tools. It is **not** an application, nor a tool that can be 
 used directly to create digital assets.
 

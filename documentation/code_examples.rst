@@ -56,7 +56,7 @@ of the software.
    :class: quickref
    :widths: 50
 
-   * - | `osdPolySmooth <maya_osdpolysmooth.html>`_
+   * - | `Maya osdPolySmooth <maya_osdpolysmooth.html>`_
 
 
 ----

@@ -40,7 +40,7 @@ You can access the OpenSubdiv Git repository at https://github.com/PixarAnimatio
 
 From there, there are several ways of downloading the OpenSubdiv source code.
 
-    - Zip archive : downloaded from `here <https://github.com/PixarAnimationStudios/OpenSubdiv/archive/dev.zip>`__
+    - Zip archive : downloaded from `here <https://github.com/PixarAnimationStudios/OpenSubdiv/archive/master.zip>`__
 
     - Using a GUI client : you can find a list `here <http://git-scm.com/downloads/guis>`__
       Please refer to the documentation of your preferred application.
