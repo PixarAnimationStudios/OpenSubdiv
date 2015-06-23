@@ -29,10 +29,6 @@ FAR Overview
    :local:
    :backlinks: none
 
-.. image:: images/api_layers_3_0.png
-   :width: 100px
-   :target: images/api_layers_3_0.png
-
 Feature Adaptive Representation (Far)
 =====================================
 
