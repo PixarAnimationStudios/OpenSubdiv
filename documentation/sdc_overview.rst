@@ -39,13 +39,20 @@ Subdivision Core (Sdc)
 Sdc is the lowest level layer in OpenSubdiv.  Its intent is to separate
 the core subdivision details from any particular representation of a mesh
 (it was previously bound to Hbr) to facilitate the generation of consistent
-results to other mesh representations, both internal and external to OpenSubdiv.
+results with other mesh representations, both internal and external to
+OpenSubdiv.
 
 The functionality can be divided roughly into three sections:
 
     * types, traits and options for the supported subdivision schemes
     * computations required to support semi-sharp creasing
     * computations for mask weights of subdivided vertices for all schemes
+
+For most common usage, familiarity with only the first of these is necessary --
+primarily the use of public types and constants for the choice of subdivision
+scheme and its associated options.  The latter two provide the basis for a
+more comprehensive implementation of subdivision, which requires considerably
+more understanding and effort.
 
 Overall the approach taken was to extract the functionality at as low a
 level as possible.  In some cases they are not far from being simple global
