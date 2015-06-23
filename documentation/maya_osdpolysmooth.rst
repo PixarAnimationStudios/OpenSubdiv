@@ -22,8 +22,8 @@
      language governing permissions and limitations under the Apache License.
 
 
-osdPolySmooth
--------------
+Maya osdPolySmooth
+------------------
 
 .. contents::
    :local:
@@ -33,7 +33,7 @@ osdPolySmooth
 DESCRIPTION
 ===========
 
-The OsdPolySmooth node takes a base mesh and generates an OpenSubdiv subdivided mesh.
+The Maya OsdPolySmooth node takes a base mesh and generates an OpenSubdiv subdivided mesh.
 
 .. image:: images/osdpolysmooth.png 
    :width: 400px
