@@ -86,6 +86,75 @@ connectivity.
 
 ----
 
+Uniform Subdivision
+===================
+
+Applies a uniform refinement scheme to the coarse faces of a mesh.
+The mesh converges closer to the limit surface with each iteration of the algorithm.
+
+.. image:: images/uniform.gif
+   :align: center
+   :width: 300
+   :target: images/uniform.gif
+
+----
+
+Feature Adaptive Subdivision
+============================
+
+Applies a progressive refinement strategy to isolate irregular features.
+The resulting vertices can be assembled into bi-cubic patches defining the limit surface.
+
+.. image:: images/adaptive.gif
+   :align: center
+   :width: 300
+   :target: images/adaptive.gif
+
+----
+
+Uniform or Adaptive ?
+=====================
+
+Feature adaptive refinement can be much more economical in terms of time and memory use,
+but the best method to use depends on application needs.
+
+The following table identifies several factors to consider:
+
++-------------------------------------------------------+--------------------------------------------------------+
+| Uniform                                               | Feature Adaptive                                       |
++=======================================================+========================================================+
+|                                                       |                                                        |
+| * Exponential geometry growth                         | * Geometry growth close to linear and occuring only in |
+|                                                       |   the neighborhood of isolated topological features    |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+|                                                       |                                                        |
+| * Current implementation only produces bi-linear      | * Current implementation only produces bi-cubic        |
+|   patches for uniform refinement                      |   patches for feature adaptive refinement              |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+|                                                       |                                                        |
+| * All face-varying interpolation rules supported at   | * Currently, only bi-linear face-varying interpolation |
+|   refined vertex locations                            |   is supported for bi-cubic patches                    |
+|                                                       |                                                        |
++-------------------------------------------------------+--------------------------------------------------------+
+
+|
+|
+|
+
+.. container:: notebox
+
+   **Release Notes (3.0.0)**
+
+   * Full support for bi-cubic face-varying interpolation is a significant
+     feature which will be supported in future releases.
+
+   * Feature adaptive refinement for the Loop subdivision scheme is
+     expected to be supported in future releases.
+
+----
+
 Boundary Interpolation Rules
 ============================
 
@@ -298,65 +367,4 @@ limit surface, it may not be completely irrelevant though.  Such vertices may
 be worth retaining during subdivision (if for no other reason than to preserve
 certain vertex ordering) and simply ignored when it comes time to consider
 the limit surface.
-
-----
-
-Uniform Subdivision
-===================
-
-Applies a uniform refinement scheme to the coarse faces of a mesh. This is the most
-common solution employed to apply subdivision schemes to a control cage. The mesh
-converges closer to the limit surface with each iteration of the algorithm.
-
-.. image:: images/uniform.gif
-   :align: center
-   :width: 300
-   :target: images/uniform.gif
-
-----
-
-Feature Adaptive Subdivision
-============================
-
-Generates bi-cubic patches on the limit surface and applies a progressive refinement
-scheme in order to isolate non-C2 continuous extraordinary features.
-
-.. image:: images/adaptive.gif
-   :align: center
-   :width: 300
-   :target: images/adaptive.gif
-
-----
-
-Uniform or Adaptive ?
-=====================
-
-Main features comparison:
-
-+-------------------------------------------------------+--------------------------------------------------------+
-| Uniform                                               | Feature Adaptive                                       |
-+=======================================================+========================================================+
-|                                                       |                                                        |
-| * Bi-linear approximation                             | * Bi-cubic limit patches                               |
-|     * No tangents / no normals                        |     * Analytical tangents / normals                    |
-|     * No smooth shading around creases                |                                                        |
-|     * No animated displacements                       |                                                        |
-|                                                       |                                                        |
-+-------------------------------------------------------+--------------------------------------------------------+
-| * Exponential geometry Growth                         | * Feature isolation growth close to linear             |
-|                                                       |                                                        |
-+-------------------------------------------------------+--------------------------------------------------------+
-| * Boundary interpolation rules supported:             | * Boundary interpolation rules supported:              |
-|     * All vertex & varying rules supported dynamically|     * All vertex & varying rules supported dynamically |
-|     * All face-varying rules supported \              |     * Bilinear face-varying interpolation \            |
-|       statically at vertex locations (there is no \   |       supported statically                             |
-|       surface limit)                                  |     * Bi-cubic face-varying interpolation \            |
-|                                                       |       currently not supported                          |
-|                                                       |                                                        |
-+-------------------------------------------------------+--------------------------------------------------------+
-| * No GPU shading implications                         | * Requires GPU composable shading                      |
-|                                                       |                                                        |
-+-------------------------------------------------------+--------------------------------------------------------+
-
-
 
