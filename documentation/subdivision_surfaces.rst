@@ -77,10 +77,10 @@ connectivity.
 
     <center>
       <p align="center">
-        <IMG src="images/tetra.0.jpg" style="width: 20%;">
-        <IMG src="images/tetra.1.jpg" style="width: 20%;">
-        <IMG src="images/tetra.2.jpg" style="width: 20%;">
-        <IMG src="images/tetra.3.jpg" style="width: 20%;">
+        <IMG src="images/tetra.0.png" style="width: 20%;">
+        <IMG src="images/tetra.1.png" style="width: 20%;">
+        <IMG src="images/tetra.2.png" style="width: 20%;">
+        <IMG src="images/tetra.3.png" style="width: 20%;">
       </p>
     </center>
 
@@ -255,10 +255,10 @@ discontinuous there. Therefore, displacing along the normal will likely tear
 apart the surface along the crease. If you really want to displace a surface at
 a crease, it may be better to make the crease semi-sharp.
 
-.. image:: images/gtruck.jpg
+.. image:: images/gtruck.png
    :align: center
    :height: 300
-   :target: images/gtruck.jpg
+   :target: images/gtruck.png
 
 ----
 
