@@ -24,6 +24,11 @@
 Contributing to OpenSubdiv
 --------------------------
 
+.. contents::
+   :local:
+   :backlinks: none
+
+
 ----
 
 Contributor License Agreement
