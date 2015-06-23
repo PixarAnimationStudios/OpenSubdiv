@@ -80,9 +80,9 @@ Our active development branch is named *dev* : all new features and bug fixes sh
 be submitted to this branch. The changes submitted to the dev branch are periodically
 patched to the 'master' branch as new versions are released.
 
-.. image:: images/gitflow.jpg
+.. image:: images/git_flow.png
    :align: center
-   :target: images/gitflow.jpg
+   :target: images/git_flow.png
 
 
 Checking out branches
