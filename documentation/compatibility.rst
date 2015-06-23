@@ -308,13 +308,9 @@ section and are listed briefly here.
 Other Differences
 +++++++++++++++++
 
-Additional differences can occur due to the differing implementations of the
-feature sets.  While RenderMan and OpenSubdiv may have shared the Hbr
-implementation at one point, even if OpenSubdiv were to make corrections to
-Hbr, they would not necessarily be picked up in RenderMan until it adopted
-the same version.  Some issues discovered in Hbr are not easily fixed, and
-so while OpenSubdiv 3.0 corrects those issues in its new implementation, it
-does not correct the Hbr implementation.
+Some differences can occur due to the differing implementations of the
+feature sets.  Additionally, OpenSubdiv 3.0's implementation fixes some
+issues discovered in Hbr.
 
 **Smooth Face-Varying Interpolation with Creasing**
 
