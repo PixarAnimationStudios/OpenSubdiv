@@ -568,8 +568,6 @@ struct Vertex {
         position[2]+=weight*src.position[2];
     }
 
-    void AddVaryingWithWeight(Vertex const &, float) { }
-
     float position[3];
 };
 
