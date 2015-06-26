@@ -214,7 +214,12 @@ private:
         typedef float Weight;  //  Also part of the expected interface
 
     public:
-        Mask(Weight* v, Weight* e, Weight* f) : _vertWeights(v), _edgeWeights(e), _faceWeights(f) { }
+        Mask(Weight* v, Weight* e, Weight* f) : 
+            _vertWeights(v), _edgeWeights(e), _faceWeights(f),
+            _vertCount(0), _edgeCount(0), _faceCount(0), 
+            _faceWeightsForFaceCenters(false)
+        { }
+
         ~Mask() { }
 
     public:  //  Generic interface expected of <typename MASK>:
