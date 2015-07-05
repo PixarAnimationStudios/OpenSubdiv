@@ -80,11 +80,8 @@ OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
                 int const * indices,
                 float const * weights,
                 int start, int end) {
-    if (start > 0) {
-        sizes += start;
-        indices += offsets[start];
-        weights += offsets[start];
-    }
+    start = (start > 0 ? start : 0);
+    
     src += srcDesc.offset;
     dst += dstDesc.offset;
 
@@ -96,7 +93,7 @@ OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
 #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
 
-        int index = i + (start > 0 ? start : 0); // Stencil index
+        int index = i + start; // Stencil index
 
         // Get thread-local pointers
         int const           * threadIndices = indices + offsets[index];
@@ -129,13 +126,7 @@ OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
                 float const * duWeights,
                 float const * dvWeights,
                 int start, int end) {
-    if (start > 0) {
-        sizes += start;
-        indices += offsets[start];
-        weights += offsets[start];
-        duWeights += offsets[start];
-        dvWeights += offsets[start];
-    }
+    start = (start > 0 ? start : 0);
 
     src += srcDesc.offset;
     dst += dstDesc.offset;
@@ -152,7 +143,7 @@ OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
 #pragma omp parallel for
     for (int i = 0; i < n; ++i) {
 
-        int index = i + (start > 0 ? start : 0); // Stencil index
+        int index = i + start; // Stencil index
 
         // Get thread-local pointers
         int const           * threadIndices = indices + offsets[index];
