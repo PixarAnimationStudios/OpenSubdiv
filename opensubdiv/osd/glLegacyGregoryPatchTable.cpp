@@ -57,27 +57,33 @@ GLLegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable) {
     Far::PatchTable::QuadOffsetsTable const &
         quadOffsetsTable = farPatchTable->GetQuadOffsetsTable();
 
-    GLuint buffers[2];
-    glGenBuffers(2, buffers);
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
-    glBufferData(GL_ARRAY_BUFFER, valenceTable.size() * sizeof(int),
-                 &valenceTable[0], GL_STATIC_DRAW);
+    if (not valenceTable.empty()) {
+        GLuint buffer;
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, valenceTable.size() * sizeof(int),
+                     &valenceTable[0], GL_STATIC_DRAW);
 
-    glBindTexture(GL_TEXTURE_BUFFER, result->_vertexValenceTextureBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffers[0]);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindTexture(GL_TEXTURE_BUFFER, result->_vertexValenceTextureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &buffer);
+    }
 
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
-    glBufferData(GL_ARRAY_BUFFER, quadOffsetsTable.size() * sizeof(int),
-                 &quadOffsetsTable[0], GL_STATIC_DRAW);
+    if (not quadOffsetsTable.empty()) {
+        GLuint buffer;
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, quadOffsetsTable.size() * sizeof(int),
+                     &quadOffsetsTable[0], GL_STATIC_DRAW);
 
-    glBindTexture(GL_TEXTURE_BUFFER, result->_quadOffsetsTextureBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffers[1]);
-    glBindTexture(GL_TEXTURE_BUFFER, 0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glDeleteBuffers(2, buffers);
+        glBindTexture(GL_TEXTURE_BUFFER, result->_quadOffsetsTextureBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &buffer);
+    }
 
     result->_quadOffsetsBase[0] = 0;
     result->_quadOffsetsBase[1] = 0;

@@ -29,19 +29,18 @@ Vtr Overview
    :local:
    :backlinks: none
 
-.. image:: images/api_layers_3_0.png
-   :width: 100px
-   :target: images/api_layers_3_0.png
-
 Vectorized Topology Representation (Vtr)
 ========================================
 
 *Vtr* consists of a suite of classes that collectively provide an intermediate
-representation of topology that supports efficient refinement. *Vtr* is
-intended for internal use only and is currently accessed through the *Far*
-layer by the `Far::TopologyRefiner <far_overview.html>`__, which assembles
+representation of topology that supports efficient refinement.
+
+*Vtr* is intended for internal use only and is currently accessed through the
+*Far* layer by the `Far::TopologyRefiner <far_overview.html>`__, which assembles
 these *Vtr* classes to meet the topological and refinement needs of the *Far*
-layer.
+layer.  What follows is therefore more intended to provide insite into the
+underlying architecture than to describe particular usage.  For documentation
+more relevant to direct usage, proceed to the *Far* section previously noted.
 
 *Vtr* is vectorized in that its topological data is stored more as a collection of
 vectors of primitive elements rather than as the faces, vertices and edges that

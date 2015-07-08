@@ -25,7 +25,7 @@
 Introduction
 ------------
 
-.. image:: images/geri.jpg 
+.. image:: images/insideout.png
    :width: 100%
    :align: center
 
@@ -41,12 +41,11 @@ Introduction
 OpenSubdiv is a set of open source libraries that implement high performance 
 subdivision surface (subdiv) evaluation on massively parallel CPU and GPU 
 architectures. This code path is optimized for drawing deforming surfaces with 
-static topology at interactive framerates. The resulting limit surfaces are a match
-for Pixar's Renderman specification within numerical precision limits.
+static topology at interactive framerates. 
 
-OpenSubdiv is a code API which we hope to integrate into 3rd. party digital
-content creation tools. It is **not** an application, nor a tool that can be used
-directly to create digital assets.
+OpenSubdiv is an API ready to be integrated into 3rd party digital
+content creation tools. It is **not** an application, nor a tool that can be 
+used directly to create digital assets.
 
 ----
 
@@ -151,17 +150,8 @@ your product.
 Contributing
 ============
 
-In order for us to accept code submissions (merge git pull-requests), contributors 
-need to sign the Contributor License Agreement (CLA). There are two CLAs, one for 
-individuals and one for corporations. As for the end-user license, both are based 
-on Apache. They are found in the code repository (`individual form 
-<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_individual.pdf>`__,
-`corporate form <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_corporate.pdf>`__). 
-Please email the signed CLA to opensubdiv-cla@pixar.com.
-
-
-For more details about OpenSubdiv and other Pixar projects, see
-`Pixar Graphics Technologies <http://graphics.pixar.com>`__.
+For details on how to contribute to OpenSubdiv, see the page on 
+`Contributing <contributing.html>`_
 
 ----
 
@@ -174,7 +164,4 @@ Microsoft Research:
 
 Pixar Research:
     `Pixar R&D Portal <http://graphics.pixar.com/research/>`__
-
-
-
 

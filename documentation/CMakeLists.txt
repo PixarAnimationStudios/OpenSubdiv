@@ -68,6 +68,8 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         api_overview.rst
         cmake_build.rst
         code_examples.rst
+        compatibility.rst
+        contributing.rst
         downloads.rst
         dxviewer.rst
         dxptexviewer.rst
@@ -80,12 +82,16 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         glsharetopology.rst
         glstencilviewer.rst
         glviewer.rst
+        hedits.rst
         hbr_overview.rst
         intro.rst
+        intro_30.rst
         license.rst
         mod_notes.rst
         maya_osdpolysmooth.rst
         osd_overview.rst
+        osd_shader_interface.rst
+        porting.rst
         release_notes.rst
         release_notes_2x.rst
         roadmap.rst
@@ -93,7 +99,6 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         subdivision_surfaces.rst
         tutorials.rst
         using_osd.rst
-        using_osd_compile.rst
         using_osd_hbr.rst
         using_osd_textures.rst
         vtr_overview.rst

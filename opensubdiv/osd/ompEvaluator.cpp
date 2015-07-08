@@ -142,20 +142,20 @@ OmpEvaluator::EvalPatches(
         // XXX: patchIndex is absolute. not sure it's consistent.
         //      (should be offsetted by array.primitiveIdBase?)
         //    patchParamBuffer[array.primitiveIdBase + coord.handle.patchIndex]
-        Far::PatchParam::BitField patchBits = *(Far::PatchParam::BitField*)
-            &patchParamBuffer[coord.handle.patchIndex].patchBits;
+        Far::PatchParam const & param =
+            patchParamBuffer[coord.handle.patchIndex];
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
-            Far::internal::GetBSplineWeights(patchBits,
+            Far::internal::GetBSplineWeights(param,
                                              coord.s, coord.t, wP, wDs, wDt);
             numControlVertices = 16;
         } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-            Far::internal::GetGregoryWeights(patchBits,
+            Far::internal::GetGregoryWeights(param,
                                              coord.s, coord.t, wP, wDs, wDt);
             numControlVertices = 20;
         } else if (patchType == Far::PatchDescriptor::QUADS) {
-            Far::internal::GetBilinearWeights(patchBits,
+            Far::internal::GetBilinearWeights(param,
                                               coord.s, coord.t, wP, wDs, wDt);
             numControlVertices = 4;
         } else {
@@ -203,20 +203,20 @@ OmpEvaluator::EvalPatches(
         PatchArray const &array = patchArrays[coord.handle.arrayIndex];
 
         int patchType = array.GetPatchType();
-        Far::PatchParam::BitField patchBits = *(Far::PatchParam::BitField*)
-            &patchParamBuffer[coord.handle.patchIndex].patchBits;
+        Far::PatchParam const & param =
+            patchParamBuffer[coord.handle.patchIndex];
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
-            Far::internal::GetBSplineWeights(patchBits,
+            Far::internal::GetBSplineWeights(param,
                                              coord.s, coord.t, wP, wDs, wDt);
             numControlVertices = 16;
         } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-            Far::internal::GetGregoryWeights(patchBits,
+            Far::internal::GetGregoryWeights(param,
                                              coord.s, coord.t, wP, wDs, wDt);
             numControlVertices = 20;
         } else if (patchType == Far::PatchDescriptor::QUADS) {
-            Far::internal::GetBilinearWeights(patchBits,
+            Far::internal::GetBilinearWeights(param,
                                               coord.s, coord.t, wP, wDs, wDt);
             numControlVertices = 4;
         } else {

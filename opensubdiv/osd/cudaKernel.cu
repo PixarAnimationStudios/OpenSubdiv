@@ -253,8 +253,8 @@ struct PatchArray {
     int primitiveIdBase;  // offset in the patch param buffer
 };
 struct PatchParam {
-    int faceIndex;
-    unsigned int bitField;
+    unsigned int field0;
+    unsigned int field1;
     float sharpness;
 };
 
@@ -282,7 +282,7 @@ getBSplineWeights(float t, float point[4], float deriv[4]) {
 
 __device__ void
 adjustBoundaryWeights(unsigned int bits, float sWeights[4], float tWeights[4]) {
-    int boundary = ((bits >> 4) & 0xf);  // far/patchParam.h
+    int boundary = ((bits >> 8) & 0xf);  // far/patchParam.h
 
     if (boundary & 1) {
         tWeights[2] -= tWeights[0];
@@ -308,12 +308,12 @@ adjustBoundaryWeights(unsigned int bits, float sWeights[4], float tWeights[4]) {
 
 __device__
 int getDepth(unsigned int patchBits) {
-    return (patchBits & 0x7);
+    return (patchBits & 0xf);
 }
 
 __device__
 float getParamFraction(unsigned int patchBits) {
-    bool nonQuadRoot = (patchBits >> 3) & 0x1;
+    bool nonQuadRoot = (patchBits >> 4) & 0x1;
     int depth = getDepth(patchBits);
     if (nonQuadRoot) {
         return 1.0f / float( 1 << (depth-1) );
@@ -360,7 +360,7 @@ computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
         int patchType = 6; // array.patchType XXX: REGULAR only for now.
         int numControlVertices = 16;
         // note: patchIndex is absolute.
-        unsigned int patchBits = patchParamBuffer[coord.patchIndex].bitField;
+        unsigned int patchBits = patchParamBuffer[coord.patchIndex].field1;
 
         // normalize
         float s = coord.s;

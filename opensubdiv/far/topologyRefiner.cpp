@@ -220,7 +220,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
 
     for (int i = 1; i <= (int)options.refinementLevel; ++i) {
         refineOptions._minimalTopology =
-            options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
+            options.fullTopologyInLastLevel ? false : (i == (int)options.refinementLevel);
 
         Vtr::internal::Level& parentLevel = getLevel(i-1);
         Vtr::internal::Level& childLevel  = *(new Vtr::internal::Level);

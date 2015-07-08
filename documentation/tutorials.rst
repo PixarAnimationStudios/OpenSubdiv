@@ -64,7 +64,7 @@ or in your local ``<repository root>/turorials``.
    :widths: 50 50
 
    * - | **Tutorial 0**
-       | This tutorial presents in a very succint way the requisite steps to
+       | This tutorial presents in a very succinct way the requisite steps to
          instantiate a Far mesh from simple topological data. `[code] <far_tutorial_0.html>`__
        | |far_tut_0|
        |
@@ -114,8 +114,8 @@ or in your local ``<repository root>/turorials``.
    :widths: 50 50
 
    * - | **Tutorial 0**
-       | This tutorial demonstrates the manipulation of Osd 'Compute' 'Contexts' and
-         'Controllers'.  `[code] <osd_tutorial_0.html>`__
+       | This tutorial demonstrates the manipulation of Osd Evaluator and BufferDescriptor.
+         `[code] <osd_tutorial_0.html>`__
        |
      - |
 
@@ -128,19 +128,19 @@ or in your local ``<repository root>/turorials``.
    :widths: 50 50
 
    * - | **Tutorial 0**
-       | This tutorial presents, in a very succint way, the requisite steps to
+       | This tutorial presents, in a very succinct way, the requisite steps to
          instantiate an Hbr mesh from simple topological data. `[code] <hbr_tutorial_0.html>`__
        |
        | **Tutorial 1**
        | This tutorial shows how to safely create Hbr meshes from arbitrary topology.
-         Because Hbr is a half-edge data structure, it cannot represeent non-manifold
+         Because Hbr is a half-edge data structure, it cannot represent non-manifold
          topology. Ensuring that the geometry used is manifold is a requirement to use
          Hbr safely. This tutorial presents some simple tests to detect inappropriate
          topology. `[code] <hbr_tutorial_1.html>`__
        |
      - | **Tutorial 2**
        | This tutorial shows how to subdivide uniformly a simple Hbr mesh. We are
-         building upon previous turtorials and assuming a fully instantiated mesh:
+         building upon previous tutorials and assuming a fully instantiated mesh:
          we start with an HbrMesh pointer initialized from the same pyramid shape
          used in hbr_tutorial_0. We then apply the Refine() function sequentially
          to all the faces in the mesh to generate several levels of uniform

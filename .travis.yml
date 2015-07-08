@@ -25,6 +25,7 @@ language: cpp
 
 branches:
   only:
+   - master
    - dev
 
 # build environment

@@ -188,8 +188,6 @@ struct Vertex {
         _pos[2]+=weight*src._pos[2];
     }
 
-    void AddVaryingWithWeight(Vertex const & , float) { }
-
     void Clear( void * =0 ) { _pos[0]=_pos[1]=_pos[2]=0.0f; }
 
     void SetPosition(float x, float y, float z) { _pos[0]=x; _pos[1]=y; _pos[2]=z; }
@@ -571,7 +569,7 @@ createPtexNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
                 center.AddWithWeight(vertexBuffer[cvs[remap[k]]], 0.25f);
             }
 
-            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).faceIndex);
+            snprintf(buf, 16, "%d", patchTable.GetPatchParam(array, patch).GetFaceId());
             g_font->Print3D(center.GetPos(), buf, 1);
         }
     }

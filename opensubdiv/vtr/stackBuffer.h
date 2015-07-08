@@ -59,8 +59,10 @@ public:
     ~StackBuffer();
 
 public:
-    TYPE &       operator[](size_type index)        { return _data[index]; }
-    TYPE const & operator[](size_type index) const  { return _data[index]; }
+    //  Note the reliance on implicit casting so that it can be used similar to
+    //  a VLA.  This removes the need for operator[] as the resulting TYPE* will
+    //  natively support [].  (The presence of both TYPE* and operator[] also
+    //  causes an ambiguous overloading error with 32-bit MSVC builds.)
 
     operator TYPE const * () const { return _data; }
     operator TYPE *       ()       { return _data; }

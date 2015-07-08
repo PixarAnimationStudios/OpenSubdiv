@@ -168,9 +168,9 @@ public:
     /// must allocate an array for all vertices at the last refinement level,
     /// i.e. at least refiner.GetLevel(refiner.GetMaxLevel()).GetNumVertices()
     ///
-    /// @param src  Source primvar buffer (refined data) for last level
+    /// @param src     Source primvar buffer (refined data) for last level
     ///
-    /// @param dst  Destination primvar buffer (data at the limit)
+    /// @param dstPos  Destination primvar buffer (data at the limit)
     ///
     template <class T, class U> void Limit(T const & src, U & dstPos) const;
 
@@ -214,7 +214,12 @@ private:
         typedef float Weight;  //  Also part of the expected interface
 
     public:
-        Mask(Weight* v, Weight* e, Weight* f) : _vertWeights(v), _edgeWeights(e), _faceWeights(f) { }
+        Mask(Weight* v, Weight* e, Weight* f) : 
+            _vertWeights(v), _edgeWeights(e), _faceWeights(f),
+            _vertCount(0), _edgeCount(0), _faceCount(0), 
+            _faceWeightsForFaceCenters(false)
+        { }
+
         ~Mask() { }
 
     public:  //  Generic interface expected of <typename MASK>:
