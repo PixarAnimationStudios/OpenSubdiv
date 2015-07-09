@@ -40,6 +40,8 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
+#pragma warning disable 1572 // floating-point equality and inequality comparisons are unreliable
+
 //------------------------------------------------------------------------------
 
 void

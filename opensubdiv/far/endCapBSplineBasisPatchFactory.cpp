@@ -32,6 +32,8 @@
 #include <cmath>
 #include <cstring>
 
+#pragma warning disable 1572 //floating-point equality and inequality comparisons are unreliable
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

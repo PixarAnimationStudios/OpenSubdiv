@@ -112,7 +112,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     size_t numTotalGregoryPatches = 
         numGregoryPatches + numGregoryBoundaryPatches;
 
-    Vtr::internal::Level const &level = _refiner.getLevel(_refiner.GetMaxLevel());
+    Vtr::internal::Level const &maxLevel = _refiner.getLevel(_refiner.GetMaxLevel());
 
     quadOffsetsTable->resize(numTotalGregoryPatches*4);
 
@@ -120,11 +120,11 @@ EndCapLegacyGregoryPatchFactory::Finalize(
         PatchTable::QuadOffsetsTable::value_type *p = 
             &((*quadOffsetsTable)[0]);
         for (size_t i = 0; i < numGregoryPatches; ++i) {
-            getQuadOffsets(level, _gregoryFaceIndices[i], p);
+            getQuadOffsets(maxLevel, _gregoryFaceIndices[i], p);
             p += 4;
         }
         for (size_t i = 0; i < numGregoryBoundaryPatches; ++i) {
-            getQuadOffsets(level, _gregoryBoundaryFaceIndices[i], p);
+            getQuadOffsets(maxLevel, _gregoryBoundaryFaceIndices[i], p);
             p += 4;
         }
     }

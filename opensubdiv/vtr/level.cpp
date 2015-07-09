@@ -36,6 +36,8 @@
 #include <vector>
 #include <map>
 
+#pragma warning disable 1572 // floating-point equality and inequality comparisons are unreliable
+
 #ifdef _MSC_VER
     #define snprintf _snprintf
 #endif
