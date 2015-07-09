@@ -39,6 +39,9 @@
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
+#pragma warning disable 1572  // floating-point equality and inequality comparisons are unreliable
+#pragma warning disable 177   // getNumArrays is never referenced
+
 namespace {
 //
 //  A convenience container for the different types of feature adaptive patches
@@ -1163,7 +1166,7 @@ PatchTableFactory::populateAdaptivePatches(
                     permutation = permuteCorner[bIndex];
                     level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
                 } else {
-                    assert(patchTag._boundaryCount >=0 && patchTag._boundaryCount <= 2);
+                    assert(patchTag._boundaryCount >0 && patchTag._boundaryCount <= 2);
                 }
 
                 offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);

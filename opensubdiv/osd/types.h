@@ -63,10 +63,10 @@ struct PatchCoord {
 
 struct PatchArray {
     // 4-ints struct.
-    PatchArray(Far::PatchDescriptor desc, int numPatches,
-               int indexBase, int primitiveIdBase) :
-        desc(desc), numPatches(numPatches), indexBase(indexBase),
-        primitiveIdBase(primitiveIdBase) {}
+    PatchArray(Far::PatchDescriptor desc_in, int numPatches_in,
+               int indexBase_in, int primitiveIdBase_in) :
+        desc(desc_in), numPatches(numPatches_in), indexBase(indexBase_in),
+        primitiveIdBase(primitiveIdBase_in) {}
 
     Far::PatchDescriptor const &GetDescriptor() const {
         return desc;
