@@ -411,6 +411,8 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         ConstIndexArray       vFaces  = _level.getVertexFaces(vIndex);
         ConstLocalIndexArray  vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
+        if ( vFaces.empty() || vInFace.empty() )
+            continue;
         //
         //  First step is to assign the values associated with the faces by retrieving them
         //  from the faces.  If the face-varying topology around this vertex matches the vertex
