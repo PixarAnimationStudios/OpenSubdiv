@@ -40,6 +40,9 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace {
+
+#pragma warning disable 177 //function getNumPatchArrays was declared but never referenced
+
 //
 //  A convenience container for the different types of feature adaptive patches
 //
