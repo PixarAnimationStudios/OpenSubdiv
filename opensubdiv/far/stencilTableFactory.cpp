@@ -40,8 +40,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-#pragma warning disable 1572 // floating-point equality and inequality comparisons are unreliable
-
 //------------------------------------------------------------------------------
 
 void
@@ -260,7 +258,10 @@ StencilTableFactory::AppendLocalPointStencilTable(
         for (int j = 0; j < src.GetSize(); ++j) {
             Index index = src.GetVertexIndices()[j];
             float weight = src.GetWeights()[j];
-            if (weight == 0.0) continue;
+#pragma warning (push)
+#pragma warning disable 1572 //floating-point equality and inequality comparisons are unreliable            
+            if (weight == 0.0f) continue;
+#pragma warning (pop)            
 
             if (factorize) {
                 dst.AddWithWeight(
