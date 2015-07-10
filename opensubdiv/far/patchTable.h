@@ -416,7 +416,7 @@ PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
     if (_localPointStencils) {
         _localPointStencils->UpdateValues(src, dst);
     }
-};
+}
 
 
 } // end namespace Far

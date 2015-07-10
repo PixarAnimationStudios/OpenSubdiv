@@ -35,9 +35,7 @@
 #include <algorithm>
 #include <vector>
 #include <map>
-
-#pragma warning disable 1572 // floating-point equality and inequality comparisons are unreliable
-
+   
 #ifdef _MSC_VER
     #define snprintf _snprintf
 #endif
@@ -1298,10 +1296,13 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
             }
         }
         // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
+#pragma warning (push)
+#pragma warning disable 1572 //floating-point equality and inequality comparisons are unreliable         
         if (sharpnesses[0] != sharpnesses[2] or
             sharpnesses[1] != sharpnesses[3]) {
             return false;
         }
+#pragma warning (pop)        
     }
     // check the edges around v[2], v[3]
     for (int i = 2; i < 4; ++i) {
