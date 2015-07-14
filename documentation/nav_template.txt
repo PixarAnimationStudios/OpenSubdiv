@@ -40,6 +40,7 @@
                     <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
                     <li><a href="code_examples.html">Code Examples</a></li>
                     <li><a href="roadmap.html">Roadmap</a></li>
+                    <li><a href="references.html">References</a></li>
                 </ul>
             <p></p>
             <li><a href="intro_30.html">Release 3.0</a></li>
@@ -101,7 +102,7 @@
                     <li><a href="additional_resources.html#videos">Videos</a>
                 </ul>
             <p></p>
-            <li><a href="release_notes.html">Release Notes</a>
+            <li><a href="release_notes.html">Release Notes</a></li>
             <p></p>
             <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
         </ul>

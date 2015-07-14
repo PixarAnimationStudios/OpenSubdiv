@@ -94,7 +94,7 @@ between Pixar and Microsoft.
     |
     | *Analytic Displacement Mapping using Hardware Tessellation*
     | Matthias Niessner, Charles Loop
-    | ACM Transactions on Graphics, To appear 2013
+    | ACM Transactions on Graphics, Vol. 32 No. 3 Article 26 June 2013
     | `<http://research.microsoft.com/en-us/um/people/cloop/TOG2013.pdf>`_
     
 ----
