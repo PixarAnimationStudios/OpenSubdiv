@@ -186,7 +186,7 @@ public:
 
     int const * GetFaceVerts(int face) const { return g_faceverts+getCompOffset(g_facenverts, face); }
 
-    int const * GetFaceEdges(int edge) const { return g_faceedges+getCompOffset(g_facenverts, edge); }
+    int const * GetFaceEdges(int face) const { return g_faceedges+getCompOffset(g_facenverts, face); }
 
 
     //
