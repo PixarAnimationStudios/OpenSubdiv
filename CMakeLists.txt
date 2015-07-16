@@ -314,6 +314,8 @@ option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
 
+set(OSD_GPU FALSE)
+
 # Check for dependencies
 if(NOT NO_OMP)
     find_package(OpenMP)
@@ -338,7 +340,7 @@ endif()
 if(NOT NO_CUDA)
     find_package(CUDA 4.0)
 endif()
-if(NOT ANDROID AND NOT IOS)
+if(NOT NO_OPENGL AND NOT ANDROID AND NOT IOS)
     find_package(GLFW 3.0.0)
 endif()
 if(NOT NO_PTEX)
@@ -406,6 +408,10 @@ else()
     endif()
 endif()
 
+if( OPENGL_FOUND AND NOT NO_OPENGL)
+    set(OSD_GPU TRUE)
+endif()
+
 if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATER 3.0))
     add_definitions( -DGLFW_VERSION_3 )
 endif()
@@ -449,6 +455,7 @@ if(OPENGLES_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENGLES
     )
+    set(OSD_GPU TRUE)
 endif()
 
 if(OPENCL_FOUND)
@@ -486,6 +493,7 @@ if(OPENCL_FOUND)
             )
         endif()
     endif()
+    set(OSD_GPU TRUE)
 else()
     if (NOT NO_OPENCL)
         message(WARNING
@@ -499,6 +507,7 @@ if(CUDA_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
     )
+    set(OSD_GPU TRUE)
 else()
     if (NOT NO_CUDA)
         message(WARNING
@@ -540,21 +549,23 @@ if (NOT NO_MAYA)
 endif()
 
 # Link examples & regressions dynamically against Osd
-set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
+if( OSD_GPU )
+    set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
+else()
+    set( OSD_LINK_TARGET osd_dynamic_cpu )
+endif()
 
 if (WIN32)
     add_definitions(
         # Link against the static version of GLEW.
         -DGLEW_STATIC
     )
-    # Link examples & regressions statically against Osd for
-    # Windows until all the kinks can be worked out.
-    set( OSD_LINK_TARGET osd_static_cpu osd_static_gpu )
 
     if (DXSDK_FOUND AND NOT NO_DX)
         add_definitions(
             -DOPENSUBDIV_HAS_DX11SDK
         )
+        set(OSD_GPU TRUE)
     elseif(NOT NO_DX)
         message(WARNING
             "DirectX11 SDK was not found. "
@@ -565,6 +576,15 @@ if (WIN32)
             "environment variable."
         )
     endif()
+    
+    # Link examples & regressions statically against Osd for
+    # Windows until all the kinks can be worked out.
+    if( OSD_GPU )
+        set( OSD_LINK_TARGET osd_static_cpu osd_static_gpu )
+    else()
+        set( OSD_LINK_TARGET osd_static_cpu )
+    endif()
+    
 endif()
 
 
