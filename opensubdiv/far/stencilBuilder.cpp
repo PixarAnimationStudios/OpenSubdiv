@@ -24,7 +24,7 @@
 
 #include "../far/stencilBuilder.h"
 #include "../far/topologyRefiner.h"
-
+ 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -363,11 +363,14 @@ StencilBuilder::GetStencilDvWeights() const {
     return _weightTable->GetDvWeights();
 }
 
+#pragma warning (push)
+#pragma warning disable 1572 //floating-point equality and inequality comparisons are unreliable
+
 void
 StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 {
     // Ignore no-op weights.
-    if (weight == 0)
+    if (weight == 0.0f)
         return;
     _owner->_weightTable->AddWithWeight(src._index, _index, weight,
                                 _owner->_weightTable->GetScalarAccumulator());
@@ -395,7 +398,7 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
         float wgt = weight * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                             _owner->_weightTable->GetScalarAccumulator());
-    }
+    }  
 }
 
 void
@@ -423,6 +426,8 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
                            _owner->_weightTable->GetPointDerivAccumulator());
     }
 }
+
+#pragma warning (pop)  
 
 } // end namespace internal
 } // end namespace Far

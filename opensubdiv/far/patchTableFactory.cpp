@@ -40,6 +40,9 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace {
+
+#pragma warning disable 177 //function getNumPatchArrays was declared but never referenced
+
 //
 //  A convenience container for the different types of feature adaptive patches
 //
@@ -510,12 +513,16 @@ PatchTableFactory::computePatchParam(
 inline int
 assignSharpnessIndex(float sharpness, std::vector<float> & sharpnessValues) {
 
+#pragma warning (push)
+#pragma warning disable 1572  // floating-point equality and inequality comparisons are unreliable
     // linear search
     for (int i=0; i<(int)sharpnessValues.size(); ++i) {
         if (sharpnessValues[i] == sharpness) {
             return i;
         }
     }
+#pragma warning (pop)
+    
     sharpnessValues.push_back(sharpness);
     return (int)sharpnessValues.size()-1;
 }
@@ -1163,7 +1170,7 @@ PatchTableFactory::populateAdaptivePatches(
                     permutation = permuteCorner[bIndex];
                     level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
                 } else {
-                    assert(patchTag._boundaryCount >=0 && patchTag._boundaryCount <= 2);
+                    assert(patchTag._boundaryCount >0 && patchTag._boundaryCount <= 2);
                 }
 
                 offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);

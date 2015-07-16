@@ -232,7 +232,7 @@ private:
     std::vector<Vtr::internal::Level *>      _levels;
     std::vector<Vtr::internal::Refinement *> _refinements;
 
-    std::vector<TopologyLevel> _farLevels;;
+    std::vector<TopologyLevel> _farLevels;
 };
 
 

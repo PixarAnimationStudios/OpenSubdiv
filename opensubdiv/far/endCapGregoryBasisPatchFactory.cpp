@@ -133,11 +133,11 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
 
             { // Gather adjacent faces
                 ConstIndexArray adjfaces = level->getEdgeFaces(edge);
-                for (int i=0; i<adjfaces.size(); ++i) {
-                    if (adjfaces[i]==faceIndex) {
+                for (int j=0; j<adjfaces.size(); ++j) {
+                    if (adjfaces[j]==faceIndex) {
                         // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
                         // next face in the list of adjacent faces
-                        adjface = (adjfaces[(i+1)%adjfaces.size()]);
+                        adjface = (adjfaces[(j+1)%adjfaces.size()]);
                         break;
                     }
                 }
@@ -156,7 +156,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 // Find index of basis in the list of basis already generated
                 struct compare {
                     static int op(void const * a, void const * b) {
-                        return *(Index *)a - *(Index *)b;
+                        return *(Index const*)a - *(Index const*)b;
                     }
                 };
 
