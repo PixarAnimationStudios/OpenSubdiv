@@ -26,6 +26,7 @@
 
 #-------------------------------------------------------------------------------
 # source & headers
+
 set(CPU_SOURCE_FILES
     cpuEvaluator.cpp
     cpuKernel.cpp
@@ -33,8 +34,12 @@ set(CPU_SOURCE_FILES
     cpuVertexBuffer.cpp
 )
 
-set(GPU_SOURCE_FILES )
+if( ISPC_FOUND) 
+    list(APPEND CPU_SOURCE_FILES ispcEvaluator.cpp)  
+endif()
 
+set(GPU_SOURCE_FILES )
+set(ISPC_SOURCE_FILES )
 set(INC_FILES )
 
 set(PRIVATE_HEADER_FILES
@@ -294,6 +299,17 @@ if( CUDA_FOUND )
     if (UNIX)
         list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
     endif()
+endif()
+
+if( ISPC_FOUND) 
+    list(APPEND ISPC_SOURCE_FILES
+         ispcEvalLimitKernel.ispc
+    ) 
+    
+    # Compile ISPC code to objs
+    ispc_compile(${ISPC_SOURCE_FILES})
+    ADD_LIBRARY(osd_ispc_obj STATIC ${ISPC_OBJECTS})   
+    SET_TARGET_PROPERTIES(osd_ispc_obj PROPERTIES LINKER_LANGUAGE C)    
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})

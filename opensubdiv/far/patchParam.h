@@ -116,6 +116,15 @@ struct PatchParam {
     ///
     void Normalize( float & u, float & v ) const;
 
+    /// This function is the reverse operation of function Normalize()
+    /// The (u,v) pair is converted from patch sub-parametric space to control
+    /// face parametric space.
+    ///
+    /// @param u  u parameter
+    /// @param v  v parameter
+    ///        
+    void Denormalize( float & u, float & v) const;
+    
     unsigned int field0:32;
     unsigned int field1:32;
 };
@@ -159,6 +168,20 @@ PatchParam::Normalize( float & u, float & v ) const {
     // normalize u,v coordinates
     u = (u - pu) / frac,
     v = (v - pv) / frac;
+}
+
+inline void
+PatchParam::Denormalize( float & u, float & v ) const {
+
+    float frac = GetParamFraction();
+
+    // top left corner
+    float pu = (float)GetU()*frac;
+    float pv = (float)GetV()*frac;
+
+    // normalize u,v coordinates
+    u = u * frac + pu;
+    v = v * frac + pv;    
 }
 
 } // end namespace Far
