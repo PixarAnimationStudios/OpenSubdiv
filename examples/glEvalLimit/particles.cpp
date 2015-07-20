@@ -32,17 +32,17 @@
 #ifdef OPENSUBDIV_HAS_TBB
 #include <tbb/parallel_for.h>
 #include <tbb/atomic.h>
-tbb::atomic<int> g_tbbCounter;
+
 class TbbUpdateKernel {
 public:
     TbbUpdateKernel(float speed,
                     STParticles::Position *positions,
                     float *velocities,
                     std::vector<STParticles::FaceInfo> const &adjacency,
-                    OpenSubdiv::Osd::PatchCoord *patchCoords,
+                    PatchHandleMap *patchHandleMap,
                     OpenSubdiv::Far::PatchMap const *patchMap) :
         _speed(speed), _positions(positions), _velocities(velocities),
-        _adjacency(adjacency), _patchCoords(patchCoords), _patchMap(patchMap) {
+        _adjacency(adjacency), _patchHandleMap(patchHandleMap), _patchMap(patchMap) {
     }
 
     void operator () (tbb::blocked_range<int> const &r) const {
@@ -76,9 +76,13 @@ public:
             OpenSubdiv::Far::PatchTable::PatchHandle const *handle =
                 _patchMap->FindPatch(p->ptexIndex, p->s, p->t);
             if (handle) {
-                int index = g_tbbCounter.fetch_and_add(1);
-                _patchCoords[index] =
-                    OpenSubdiv::Osd::PatchCoord(*handle, p->s, p->t);
+                PatchHandleMap::accessor a;
+                if( !_patchHandleMap->find(a, handle)) {  
+                    _patchHandleMap->insert(a, handle);               
+                }
+                std::vector<float> &st = a->second;
+                st.push_back(p->s);
+                st.push_back(p->t);  
             }
         }
     }
@@ -87,7 +91,7 @@ private:
     STParticles::Position *_positions;
     float *_velocities;
     std::vector<STParticles::FaceInfo> const &_adjacency;
-    OpenSubdiv::Osd::PatchCoord *_patchCoords;
+    PatchHandleMap *_patchHandleMap;
     OpenSubdiv::Far::PatchMap const *_patchMap;
 };
 #endif
@@ -276,18 +280,36 @@ STParticles::Update(float deltaTime) {
     if (deltaTime == 0) return;
     float speed = GetSpeed() * std::max(0.001f, std::min(deltaTime, 0.5f));
 
-    _patchCoords.clear();
-
     // XXX: this process should be parallelized.
 #ifdef OPENSUBDIV_HAS_TBB
-
-    _patchCoords.resize((int)GetNumParticles());
+    _patchHandleMap.clear();
+    
     TbbUpdateKernel kernel(speed, &_positions[0], &_velocities[0],
-                           _adjacency, &_patchCoords[0], _patchMap);;
-    g_tbbCounter = 0;
+                           _adjacency, &_patchHandleMap, _patchMap);;
     tbb::blocked_range<int> range(0, GetNumParticles(), 256);
     tbb::parallel_for(range, kernel);
-    _patchCoords.resize(g_tbbCounter);
+    
+
+    int nCoord = 0;
+    for(PatchHandleMap::iterator i  = _patchHandleMap.begin();
+                                 i != _patchHandleMap.end();
+                                 i ++) {
+        nCoord += (i->second.size() / 2);
+    }
+    
+    _patchCoords.resize(nCoord);
+    
+    int index = 0;
+    for(PatchHandleMap::iterator i  = _patchHandleMap.begin();
+                                 i != _patchHandleMap.end();
+                                 i ++) {
+        for(int j = 0; j < i->second.size(); j += 2) {
+            _patchCoords[index].handle = *(i->first);
+            _patchCoords[index].s      = i->second[j];
+            _patchCoords[index].t      = i->second[j+1];
+            index ++;
+        }
+    }     
 #else
     Position *  p = &_positions[0];
     float    * dp = &_velocities[0];
@@ -323,7 +345,7 @@ STParticles::Update(float deltaTime) {
                 OpenSubdiv::Osd::PatchCoord(*handle, p->s, p->t));
         }
     }
-#endif
+#endif   
 }
 
 // Dump adjacency info

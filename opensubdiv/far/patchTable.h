@@ -68,6 +68,12 @@ public:
         Index arrayIndex, // Array index of the patch
               patchIndex, // Absolute Index of the patch
               vertIndex;  // Relative offset to the first CV of the patch in array
+              
+        bool isEqual(const PatchHandle &other) {
+            return other.arrayIndex == arrayIndex &&
+                   other.patchIndex == patchIndex &&
+                   other.vertIndex  == vertIndex;
+        }
     };
 
 public:

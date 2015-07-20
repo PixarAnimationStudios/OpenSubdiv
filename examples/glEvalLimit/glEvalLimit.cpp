@@ -34,6 +34,10 @@ GLFWmonitor* g_primary=0;
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/mesh.h>
 
+#ifdef OPENSUBDIV_HAS_ISPC
+    #include <osd/ispcEvaluator.h>
+#endif    
+    
 #ifdef OPENSUBDIV_HAS_TBB
     #include <osd/tbbEvaluator.h>
 #endif
@@ -104,7 +108,8 @@ enum KernelType { kCPU = 0,
                   kCUDA = 3,
                   kCL = 4,
                   kGLXFB = 5,
-                  kGLCompute = 6 };
+                  kGLCompute = 6,
+                  kISPC = 7 };
 
 enum EndCap      { kEndCapBSplineBasis,
                    kEndCapGregoryBasis };
@@ -169,10 +174,10 @@ float g_currentTime = 0;
 Stopwatch g_fpsTimer;
 
 //------------------------------------------------------------------------------
-int g_nParticles = 65536;
+int g_nParticles = 655360;
 
 bool g_randomStart = true;//false;
-bool g_animParticles = true;
+bool g_animParticles = false;
 
 GLuint g_samplesVAO=0;
 
@@ -439,7 +444,9 @@ updateGeom() {
     assert(g_particles);
 
     float elapsed = g_currentTime - g_prevTime;
-    g_particles->Update(elapsed);
+    if(elapsed != 0.0f) {
+        g_particles->Update(elapsed);
+    }
     g_prevTime = g_currentTime;
 
     std::vector<OpenSubdiv::Osd::PatchCoord> const &patchCoords
@@ -464,7 +471,7 @@ updateGeom() {
     }
 
     s.Stop();
-
+        
     g_evalTime = float(s.GetElapsed());
 }
 
@@ -648,8 +655,20 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
             (vertexStencils, varyingStencils,
              nCoarseVertices, nverts, g_nParticles, g_patchTable,
              &glComputeEvaluatorCache);
+
+    }             
 #endif
-    }
+#if  defined(OPENSUBDIV_HAS_ISPC) && defined(OPENSUBDIV_HAS_TBB)
+    else if(g_kernel == kISPC) {
+        g_evalOutput = new EvalOutput<Osd::CpuGLVertexBuffer,
+                                      Osd::CpuGLVertexBuffer,
+                                      Far::StencilTable,
+                                      Osd::CpuPatchTable,
+                                      Osd::IspcEvaluator>
+            (vertexStencils, varyingStencils,
+             nCoarseVertices, nverts, g_nParticles, g_patchTable);    
+    }    
+#endif    
 
     // Create the 'uv particles' manager - this class manages the limit
     // location samples (ptex face index, (s,t) and updates them between frames.
@@ -875,7 +894,7 @@ display() {
         }
 
         if (g_endCap != kEndCapBSplineBasis &&
-            (g_kernel != kCPU && g_kernel != kOPENMP && g_kernel != kTBB)) {
+            (g_kernel != kCPU && g_kernel != kOPENMP && g_kernel != kTBB && g_kernel != kISPC)) {
             static char msg[] =
                 "ERROR: This kernel only supports BSpline basis patches.";
             g_hud.DrawString(g_width/4, g_height/4+20, 1, 0, 0, msg);
@@ -1128,6 +1147,9 @@ initHUD() {
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
     g_hud.AddPullDownButton(compute_pulldown, "TBB", kTBB);
+#endif
+#if  defined(OPENSUBDIV_HAS_ISPC) && defined(OPENSUBDIV_HAS_TBB)
+    g_hud.AddPullDownButton(compute_pulldown, "ISPC", kISPC);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
     g_hud.AddPullDownButton(compute_pulldown, "CUDA", kCUDA);

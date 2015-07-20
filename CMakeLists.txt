@@ -197,6 +197,8 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
             endif()
 
         endforeach()
+
+        list(APPEND OSD_COMPILER_FLAGS -std=c++11)
     endif()
 
 elseif(MSVC)
@@ -320,6 +322,9 @@ if(NOT NO_OMP)
 endif()
 if(NOT NO_TBB)
     find_package(TBB 4.0)
+endif()
+if(NOT NO_ISPC)
+    find_package(ISPC 1.6)
 endif()
 if (NOT NO_OPENGL)
     find_package(OpenGL)
@@ -537,6 +542,12 @@ if (NOT NO_MAYA)
             "cmake command line argument or environment variable."
         )
     endif()
+endif()
+
+if(ISPC_FOUND)
+    add_definitions(
+        -DOPENSUBDIV_HAS_ISPC
+    )
 endif()
 
 # Link examples & regressions dynamically against Osd
