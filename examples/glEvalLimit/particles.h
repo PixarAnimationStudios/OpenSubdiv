@@ -30,11 +30,6 @@
 #include <osd/types.h>
 #include <iostream>
 
-#ifdef OPENSUBDIV_HAS_TBB
-#include <tbb/concurrent_hash_map.h>
-typedef tbb::concurrent_hash_map< OpenSubdiv::Far::PatchTable::PatchHandle const*, std::vector<float> > PatchHandleMap;
-#endif
-   
 //
 // In order to emphasize the dynamic nature of the EvalLimit API, where the
 // locations can be arbitrarily updated before each evaluation, the glEvalLimit
@@ -147,7 +142,7 @@ public:
         return _velocities;
     }
 
-    std::vector<OpenSubdiv::Osd::PatchCoord> const &GetPatchCoords() const {
+    std::vector<OpenSubdiv::Osd::PatchCoord> GetPatchCoords() const {
         return _patchCoords;
     }
 
@@ -164,10 +159,6 @@ private:
     std::vector<Position> _positions;
 
     std::vector<float> _velocities;
-    
-#ifdef OPENSUBDIV_HAS_TBB    
-    PatchHandleMap  _patchHandleMap;
-#endif
 
     std::vector<OpenSubdiv::Osd::PatchCoord> _patchCoords;
 
