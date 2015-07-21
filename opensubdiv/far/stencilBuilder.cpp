@@ -31,6 +31,19 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 namespace internal {
 
+namespace {
+#ifdef __INTEL_COMPILER
+#pragma warning (push)
+#pragma warning disable 1572
+#endif
+
+    inline bool isWeightZero(float w) { return (w == 0.0f); }
+
+#ifdef __INTEL_COMPILER
+#pragma warning (pop)
+#endif
+}
+
 struct PointDerivWeight {
     float p;
     float du;
@@ -363,15 +376,13 @@ StencilBuilder::GetStencilDvWeights() const {
     return _weightTable->GetDvWeights();
 }
 
-#pragma warning (push)
-#pragma warning disable 1572 //floating-point equality and inequality comparisons are unreliable
-
 void
 StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 {
     // Ignore no-op weights.
-    if (weight == 0.0f)
+    if (isWeightZero(weight)) {
         return;
+    }
     _owner->_weightTable->AddWithWeight(src._index, _index, weight,
                                 _owner->_weightTable->GetScalarAccumulator());
 }
@@ -379,7 +390,7 @@ StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 void
 StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 {
-    if(weight == 0.0f) {
+    if (isWeightZero(weight)) {
         return;
     }
 
@@ -389,7 +400,7 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 
     for (int i = 0; i < srcSize; ++i) {
         float w = srcWeights[i];
-        if (w == 0.0f) {
+        if (isWeightZero(w)) {
             continue;
         }
 
@@ -405,7 +416,7 @@ void
 StencilBuilder::Index::AddWithWeight(Stencil const& src,
                                      float weight, float du, float dv)
 {
-    if(weight == 0.0f and du == 0.0f and dv == 0.0f) {
+    if (isWeightZero(weight) and isWeightZero(du) and isWeightZero(dv)) {
         return;
     }
 
@@ -415,7 +426,7 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
 
     for (int i = 0; i < srcSize; ++i) {
         float w = srcWeights[i];
-        if (w == 0.0f) {
+        if (isWeightZero(w)) {
             continue;
         }
 
@@ -426,8 +437,6 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
                            _owner->_weightTable->GetPointDerivAccumulator());
     }
 }
-
-#pragma warning (pop)  
 
 } // end namespace internal
 } // end namespace Far

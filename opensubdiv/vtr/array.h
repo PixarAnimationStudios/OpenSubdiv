@@ -66,8 +66,8 @@ public:
 
     ConstArray() : _begin(0), _size(0) { }
 
-    ConstArray(value_type const * ptr, size_type size) :
-        _begin(ptr), _size(size) { }
+    ConstArray(value_type const * ptr, size_type sizeArg) :
+        _begin(ptr), _size(sizeArg) { }
 
     size_type size() const { return _size; }
 
@@ -117,7 +117,7 @@ public:
 
     Array() : ConstArray<TYPE>() { }
     
-    Array(value_type * ptr, size_type size) : ConstArray<TYPE>(ptr, size) { }
+    Array(value_type * ptr, size_type sizeArg) : ConstArray<TYPE>(ptr, sizeArg) { }
 
 public:
 
