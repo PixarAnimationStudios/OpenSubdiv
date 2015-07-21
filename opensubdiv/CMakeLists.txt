@@ -147,16 +147,9 @@ if (NOT NO_LIB)
     )
     set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
 
-    if( ISPC_FOUND)
-        target_link_libraries(osd_static_cpu
-            osd_ispc_obj
-            ${PLATFORM_CPU_LIBRARIES}
-        )
-    else()
-        target_link_libraries(osd_static_cpu
-            ${PLATFORM_CPU_LIBRARIES}
-        )    
-    endif()
+    target_link_libraries(osd_static_cpu
+        ${PLATFORM_CPU_LIBRARIES}
+    )
 
     install( TARGETS osd_static_cpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
@@ -207,16 +200,9 @@ if (NOT NO_LIB)
                 )
         endif()
 
-        if ( ISPC_FOUND)
-            target_link_libraries(osd_dynamic_cpu
-                osd_ispc_obj
-                ${PLATFORM_CPU_LIBRARIES}
-            )
-        else()
-            target_link_libraries(osd_dynamic_cpu
-                ${PLATFORM_CPU_LIBRARIES}
-            )        
-        endif()
+        target_link_libraries(osd_dynamic_cpu
+            ${PLATFORM_CPU_LIBRARIES}
+        )
 
         install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
