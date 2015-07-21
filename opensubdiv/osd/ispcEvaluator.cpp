@@ -115,6 +115,238 @@ struct BufferAdapter {
     int _stride;
 };
 
+class ISPCEvalPatchNoDerivativeKernel {
+
+    const float            *_src;
+    BufferDescriptor        _srcDesc;
+    float                  *_dst;   
+    BufferDescriptor        _dstDesc;
+    const PatchCoord       *_patchCoords;
+    const PatchArray       *_patchArrays;
+    const int              *_patchIndexBuffer;
+    const PatchParam       *_patchParamBuffer;
+
+public:
+    ISPCEvalPatchNoDerivativeKernel
+          (const float            *src, 
+           BufferDescriptor        srcDesc,
+           float                  *dst,       
+           BufferDescriptor        dstDesc,
+           const PatchCoord       *patchCoords,
+           const PatchArray       *patchArrays,
+           const int              *patchIndexBuffer,
+           const PatchParam       *patchParamBuffer) :
+                _src(src), 
+                _srcDesc(srcDesc),
+                _dst(dst),       
+                _dstDesc(dstDesc),
+                _patchCoords(patchCoords),
+                _patchArrays(patchArrays),
+                _patchIndexBuffer(patchIndexBuffer),
+                _patchParamBuffer(patchParamBuffer)                       
+          { }
+
+    ISPCEvalPatchNoDerivativeKernel(ISPCEvalPatchNoDerivativeKernel const & other) {
+                _src              = other._src;
+                _srcDesc          = other._srcDesc;
+                _dst              = other._dst;
+                _dstDesc          = other._dstDesc;
+                _patchCoords      = other._patchCoords;
+                _patchArrays      = other._patchArrays;
+                _patchIndexBuffer = other._patchIndexBuffer;
+                _patchParamBuffer = other._patchParamBuffer; 
+    }
+
+    void operator() (tbb::blocked_range<int> const &r) const {
+        // Copy BufferDescriptor to ispc version
+        // Since memory alignment in ISPC may be different from C++,
+        // we use the assignment for each field instead of the assignment for 
+        // the whole struct
+        ispc::BufferDescriptor ispcSrcDesc;
+        ispcSrcDesc.offset = _srcDesc.offset;
+        ispcSrcDesc.length = _srcDesc.length;
+        ispcSrcDesc.stride = _srcDesc.stride;                                           
+                          
+        uint i = r.begin();
+        
+        ispc::BufferDescriptor ispcDstDesc;
+        ispcDstDesc.offset = _dstDesc.offset + _dstDesc.offset + i * _dstDesc.stride;
+        ispcDstDesc.length = _dstDesc.length;
+        ispcDstDesc.stride = _dstDesc.stride;
+    
+        while (i < r.end()) {
+            // the patch coordinates are sorted by patch handle
+            // the following code searches the coordinates that
+            // belongs to the same patch so that they can be evalauated 
+            // with ISPC
+            int nCoord = 1;
+            Far::PatchTable::PatchHandle handle = _patchCoords[i].handle;
+            while(i + nCoord < r.end() && 
+                  handle == _patchCoords[i + nCoord].handle )
+                  nCoord ++;
+              
+            PatchArray const &array = _patchArrays[handle.arrayIndex];
+            int patchType = array.GetPatchType();
+            Far::PatchParam const & param = _patchParamBuffer[handle.patchIndex];
+
+            unsigned int bitField = param.field1;
+
+            const int *cvs = &_patchIndexBuffer[array.indexBase + handle.vertIndex];
+
+            __declspec( align(64) ) float u[nCoord];
+            __declspec( align(64) ) float v[nCoord];        
+        
+            for(int n=0; n<nCoord; n++) {
+                u[n] = _patchCoords[i + n].s;
+                v[n] = _patchCoords[i + n].t;            
+            }
+        
+            if (patchType == Far::PatchDescriptor::REGULAR) {
+                ispc::evalBSplineNoDerivative(bitField, nCoord, u, v, cvs, ispcSrcDesc, _src, 
+                              ispcDstDesc, _dst);
+            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
+                ispc::evalGregoryNoDerivative(bitField, nCoord, u, v, cvs, ispcSrcDesc, _src, 
+                              ispcDstDesc, _dst);        
+            } else if (patchType == Far::PatchDescriptor::QUADS) {
+                ispc::evalBilinearNoDerivative(bitField, nCoord, u, v, cvs, ispcSrcDesc, _src, 
+                               ispcDstDesc, _dst);           
+            } else {
+                assert(0);
+            }
+        
+            i += nCoord;
+            ispcDstDesc.offset = _dstDesc.offset + i * _dstDesc.stride;                                                  
+        }
+    }
+};
+
+class ISPCEvalPatchKernel {
+
+    const float            *_src;
+    BufferDescriptor        _srcDesc;
+    float                  *_dst;   
+    BufferDescriptor        _dstDesc;
+    float                  *_du;
+    BufferDescriptor        _duDesc;
+    float                  *_dv;    
+    BufferDescriptor        _dvDesc;
+    const PatchCoord       *_patchCoords;
+    const PatchArray       *_patchArrays;
+    const int              *_patchIndexBuffer;
+    const PatchParam       *_patchParamBuffer;
+
+public:
+    ISPCEvalPatchKernel(const float            *src, 
+                        BufferDescriptor        srcDesc,
+                        float                  *dst,       
+                        BufferDescriptor        dstDesc,
+                        float                  *du,     
+                        BufferDescriptor        duDesc,
+                        float                  *dv,        
+                        BufferDescriptor        dvDesc,                        
+                        const PatchCoord       *patchCoords,
+                        const PatchArray       *patchArrays,
+                        const int              *patchIndexBuffer,
+                        const PatchParam       *patchParamBuffer) :
+                _src(src), 
+                _srcDesc(srcDesc),
+                _dst(dst),       
+                _dstDesc(dstDesc),
+                _du(du),       
+                _duDesc(duDesc),
+                _dv(dv),       
+                _dvDesc(dvDesc),                                
+                _patchCoords(patchCoords),
+                _patchArrays(patchArrays),
+                _patchIndexBuffer(patchIndexBuffer),
+                _patchParamBuffer(patchParamBuffer)                       
+          { }
+
+    ISPCEvalPatchKernel(ISPCEvalPatchKernel const & other) {
+                _src              = other._src;
+                _srcDesc          = other._srcDesc;
+                _dst              = other._dst;
+                _dstDesc          = other._dstDesc;
+                _du               = other._du;       
+                _duDesc           = other._duDesc;
+                _dv               = other._dv;       
+                _dvDesc           = other._dvDesc;
+                _patchCoords      = other._patchCoords;
+                _patchArrays      = other._patchArrays;
+                _patchIndexBuffer = other._patchIndexBuffer;
+                _patchParamBuffer = other._patchParamBuffer; 
+    }
+
+    void operator() (tbb::blocked_range<int> const &r) const {
+        // Copy BufferDescriptor to ispc version
+        // Since memory alignment in ISPC may be different from C++,
+        // we use the assignment for each field instead of the assignment for 
+        // the whole struct
+        ispc::BufferDescriptor ispcSrcDesc, ispcDstDesc, ispcDuDesc, ispcDvDesc;
+        ispcSrcDesc.offset = _srcDesc.offset;
+        ispcSrcDesc.length = _srcDesc.length;
+        ispcSrcDesc.stride = _srcDesc.stride;                                           
+                          
+        uint i = r.begin();
+                                       
+        ispcDstDesc.offset = _dstDesc.offset + _dstDesc.offset + i * _dstDesc.stride;
+        ispcDstDesc.length = _dstDesc.length;
+        ispcDstDesc.stride = _dstDesc.stride;
+    
+        ispcDuDesc.offset  = _duDesc.offset  + i * _duDesc.stride;
+        ispcDuDesc.length  = _duDesc.length;
+        ispcDuDesc.stride  = _duDesc.stride;
+    
+        ispcDvDesc.offset  = _dvDesc.offset  + i * _dvDesc.stride;
+        ispcDvDesc.length  = _dvDesc.length;
+        ispcDvDesc.stride  = _dvDesc.stride;
+    
+        while (i < r.end()) {
+            // the patch coordinates are sorted by patch handle
+            // the following code searches the coordinates that
+            // belongs to the same patch so that they can be evalauated 
+            // with ISPC
+            int nCoord = 1;
+            Far::PatchTable::PatchHandle handle = _patchCoords[i].handle;
+            while(i + nCoord < r.end() && 
+                  handle == _patchCoords[i + nCoord].handle )
+                  nCoord ++;
+              
+            PatchArray const &array = _patchArrays[handle.arrayIndex];
+            int patchType = array.GetPatchType();
+            Far::PatchParam const & param = _patchParamBuffer[handle.patchIndex];
+
+            unsigned int bitField = param.field1;
+
+            const int *cvs = &_patchIndexBuffer[array.indexBase + handle.vertIndex];
+
+            __declspec( align(64) ) float u[nCoord];
+            __declspec( align(64) ) float v[nCoord];        
+        
+            for(int n=0; n<nCoord; n++) {
+                u[n] = _patchCoords[i + n].s;
+                v[n] = _patchCoords[i + n].t;            
+            }
+        
+            if (patchType == Far::PatchDescriptor::REGULAR) {
+                ispc::evalBSpline(bitField, nCoord, u, v, cvs, ispcSrcDesc, _src, 
+                              ispcDstDesc, _dst, ispcDuDesc, _du, ispcDvDesc, _dv);
+            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
+                ispc::evalGregory(bitField, nCoord, u, v, cvs, ispcSrcDesc, _src, 
+                              ispcDstDesc, _dst, ispcDuDesc, _du, ispcDvDesc, _dv);        
+            } else if (patchType == Far::PatchDescriptor::QUADS) {
+                ispc::evalBilinear(bitField, nCoord, u, v, cvs, ispcSrcDesc, _src, 
+                               ispcDstDesc, _dst, ispcDuDesc, _du, ispcDvDesc, _dv);           
+            } else {
+                assert(0);
+            }
+        
+            i += nCoord;
+            ispcDstDesc.offset = _dstDesc.offset + i * _dstDesc.stride;                                                  
+        }
+    }
+};
+
 /* static */
 bool
 IspcEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
@@ -124,72 +356,18 @@ IspcEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
                            const PatchArray *patchArrays,
                            const int *patchIndexBuffer,
                            const PatchParam *patchParamBuffer) { 
-    if (srcDesc.length != dstDesc.length) return false;
-        
-    // Copy BufferDescriptor to ispc version
-    // Since memory alignment in ISPC may be different from C++,
-    // we use the assignment for each field instead of the assignment for 
-    // the whole struct
-    ispc::BufferDescriptor ispcSrcDesc;
-    ispcSrcDesc.offset = srcDesc.offset;
-    ispcSrcDesc.length = srcDesc.length;
-    ispcSrcDesc.stride = srcDesc.stride;                                           
+    if (srcDesc.length != dstDesc.length) return false;                                         
+                          
+    ISPCEvalPatchNoDerivativeKernel kernel(src, srcDesc,
+                                           dst, dstDesc,
+                                           patchCoords,
+                                           patchArrays,
+                                           patchIndexBuffer,
+                                           patchParamBuffer);
                           
     tbb::blocked_range<int> range = tbb::blocked_range<int>(0, numPatchCoords, grain_size);
-    tbb::parallel_for(range, [&](const tbb::blocked_range<int> &r)
-    {    
-    uint i = r.begin();
-        
-    ispc::BufferDescriptor ispcDstDesc, ispcDuDesc, ispcDvDesc;                               
-    ispcDstDesc.offset = dstDesc.offset + dstDesc.offset + i * dstDesc.stride;
-    ispcDstDesc.length = dstDesc.length;
-    ispcDstDesc.stride = dstDesc.stride;
-    
-    while (i < r.end()) {
-        // the patch coordinates are sorted by patch handle
-        // the following code searches the coordinates that
-        // belongs to the same patch so that they can be evalauated 
-        // with ISPC
-        int nCoord = 1;
-        Far::PatchTable::PatchHandle handle = patchCoords[i].handle;
-        while(i + nCoord < r.end() && 
-              handle.isEqual(patchCoords[i + nCoord].handle) )
-              nCoord ++;
-              
-        PatchArray const &array = patchArrays[handle.arrayIndex];
-        int patchType = array.GetPatchType();
-        Far::PatchParam const & param = patchParamBuffer[handle.patchIndex];
+    tbb::parallel_for(range, kernel);
 
-        unsigned int bitField = param.field1;
-
-        const int *cvs = &patchIndexBuffer[array.indexBase + handle.vertIndex];
-
-        __declspec( align(64) ) float u[nCoord];
-        __declspec( align(64) ) float v[nCoord];        
-        
-        for(int n=0; n<nCoord; n++) {
-            u[n] = patchCoords[i + n].s;
-            v[n] = patchCoords[i + n].t;            
-        }
-        
-        if (patchType == Far::PatchDescriptor::REGULAR) {
-            ispc::evalBSplineNoDerivative(bitField, nCoord, u, v, cvs, ispcSrcDesc, src, 
-                              ispcDstDesc, dst);
-        } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-            ispc::evalGregoryNoDerivative(bitField, nCoord, u, v, cvs, ispcSrcDesc, src, 
-                              ispcDstDesc, dst);        
-        } else if (patchType == Far::PatchDescriptor::QUADS) {
-            ispc::evalBilinearNoDerivative(bitField, nCoord, u, v, cvs, ispcSrcDesc, src, 
-                               ispcDstDesc, dst);           
-        } else {
-            assert(0);
-        }
-        
-        i += nCoord;
-        ispcDstDesc.offset = dstDesc.offset + i * dstDesc.stride;                                                  
-    }
-    });
-    
     return true;
 }
 
@@ -205,79 +383,18 @@ IspcEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
                            const int *patchIndexBuffer,
                            const PatchParam *patchParamBuffer) {
     if (srcDesc.length != dstDesc.length) return false;
-        
-    // Copy BufferDescriptor to ispc version
-    // Since memory alignment in ISPC may be different from C++,
-    // we use the assignment for each field instead of the assignment for 
-    // the whole struct
-    ispc::BufferDescriptor ispcSrcDesc;
-    ispcSrcDesc.offset = srcDesc.offset;
-    ispcSrcDesc.length = srcDesc.length;
-    ispcSrcDesc.stride = srcDesc.stride;                      
-                      
+    
+    ISPCEvalPatchKernel kernel(src, srcDesc,
+                               dst, dstDesc,
+                               du,  duDesc,
+                               dv, dvDesc,
+                               patchCoords,
+                               patchArrays,
+                               patchIndexBuffer,
+                               patchParamBuffer);
+                          
     tbb::blocked_range<int> range = tbb::blocked_range<int>(0, numPatchCoords, grain_size);
-    tbb::parallel_for(range, [&](const tbb::blocked_range<int> &r)
-    {    
-    uint i = r.begin();
-        
-    ispc::BufferDescriptor ispcDstDesc, ispcDuDesc, ispcDvDesc;                               
-    ispcDstDesc.offset = dstDesc.offset + dstDesc.offset + i * dstDesc.stride;
-    ispcDstDesc.length = dstDesc.length;
-    ispcDstDesc.stride = dstDesc.stride;
-    
-    ispcDuDesc.offset  = duDesc.offset  + i * duDesc.stride;
-    ispcDuDesc.length  = duDesc.length;
-    ispcDuDesc.stride  = duDesc.stride;
-    
-    ispcDvDesc.offset  = dvDesc.offset  + i * dvDesc.stride;
-    ispcDvDesc.length  = dvDesc.length;
-    ispcDvDesc.stride  = dvDesc.stride;
-    while (i < r.end()) {
-        // the patch coordinates are sorted by patch handle
-        // the following code searches the coordinates that
-        // belongs to the same patch so that they can be evalauated 
-        // with ISPC
-        int nCoord = 1;
-        Far::PatchTable::PatchHandle handle = patchCoords[i].handle;
-        while(i + nCoord < r.end() && 
-              handle.isEqual(patchCoords[i + nCoord].handle) )
-              nCoord ++;
-              
-        PatchArray const &array = patchArrays[handle.arrayIndex];
-        int patchType = array.GetPatchType();
-        Far::PatchParam const & param = patchParamBuffer[handle.patchIndex];
-
-        unsigned int bitField = param.field1;
-
-        const int *cvs = &patchIndexBuffer[array.indexBase + handle.vertIndex];
-
-        __declspec( align(64) ) float u[nCoord];
-        __declspec( align(64) ) float v[nCoord];        
-        
-        for(int n=0; n<nCoord; n++) {
-            u[n] = patchCoords[i + n].s;
-            v[n] = patchCoords[i + n].t;            
-        }
-        
-        if (patchType == Far::PatchDescriptor::REGULAR) {
-            ispc::evalBSpline(bitField, nCoord, u, v, cvs, ispcSrcDesc, src, 
-                              ispcDstDesc, dst, ispcDuDesc, du, ispcDvDesc, dv);
-        } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-            ispc::evalGregory(bitField, nCoord, u, v, cvs, ispcSrcDesc, src, 
-                              ispcDstDesc, dst, ispcDuDesc, du, ispcDvDesc, dv);        
-        } else if (patchType == Far::PatchDescriptor::QUADS) {
-            ispc::evalBilinear(bitField, nCoord, u, v, cvs, ispcSrcDesc, src, 
-                               ispcDstDesc, dst, ispcDuDesc, du, ispcDvDesc, dv);           
-        } else {
-            assert(0);
-        }
-        
-        i += nCoord;
-        ispcDstDesc.offset = dstDesc.offset + i * dstDesc.stride;
-        ispcDuDesc.offset  = duDesc.offset  + i * duDesc.stride;
-        ispcDvDesc.offset  = dvDesc.offset  + i * dvDesc.stride;                                                        
-    }
-    });
+    tbb::parallel_for(range, kernel);
     
     return true;
 }

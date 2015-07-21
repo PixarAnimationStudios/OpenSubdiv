@@ -197,8 +197,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
             endif()
 
         endforeach()
-
-        list(APPEND OSD_COMPILER_FLAGS -std=c++11)
+        
     endif()
 
 elseif(MSVC)
