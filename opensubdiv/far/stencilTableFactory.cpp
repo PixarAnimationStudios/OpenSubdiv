@@ -94,8 +94,9 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     PrimvarRefiner primvarRefiner(refiner);
 
     internal::StencilBuilder::Index srcIndex(&builder, 0);
-    internal::StencilBuilder::Index dstIndex(&builder,
-                                        refiner.GetLevel(0).GetNumVertices());
+    internal::StencilBuilder::Index dstIndex(&builder, 
+                                    refiner.GetLevel(0).GetNumVertices());
+
     for (int level=1; level<=maxlevel; ++level) {
         if (not interpolateVarying) {
             primvarRefiner.Interpolate(level, srcIndex, dstIndex);
@@ -103,17 +104,26 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
             primvarRefiner.InterpolateVarying(level, srcIndex, dstIndex);
         }
 
-        srcIndex = dstIndex;
-        dstIndex = dstIndex[refiner.GetLevel(level).GetNumVertices()];
-    }
+        if (options.factorizeIntermediateLevels) {
+            srcIndex = dstIndex;
+        }
 
+        dstIndex = dstIndex[refiner.GetLevel(level).GetNumVertices()];
+
+        if (not options.factorizeIntermediateLevels) {
+            // All previous verts are considered as coarse verts, as a
+            // result, we don't update the srcIndex and update the coarse
+            // vertex count.
+            builder.SetCoarseVertCount(dstIndex.GetOffset());
+        }
+    }
 
     size_t firstOffset = refiner.GetLevel(0).GetNumVertices();
     if (not options.generateIntermediateLevels)
         firstOffset = srcIndex.GetOffset();
  
-    // Copy stencils from the pool allocator into the tables
-    // always initialize numControlVertices (useful for torus case)
+    // Copy stencils from the StencilBuilder into the StencilTable.
+    // Always initialize numControlVertices (useful for torus case)
     StencilTable * result = 
                         new StencilTable(refiner.GetLevel(0).GetNumVertices(),
                                           builder.GetStencilOffsets(),
@@ -254,7 +264,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
         }
     }
 
-    // copy all local points stencils to proto stencils, and factoriz if needed.
+    // copy all local points stencils to proto stencils, and factorize if needed.
     int nLocalPointStencils = localPointStencilTable->GetNumStencils();
     int nLocalPointStencilsElements = 0;
 
