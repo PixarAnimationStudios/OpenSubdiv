@@ -545,9 +545,12 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR or
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
 
+    // level=0 may contain n-gons, which are not supported in PatchTable.
+    // even if generateAllLevels = true, we start from level 1.
+
     int maxvalence = refiner.GetMaxValence(),
         maxlevel = refiner.GetMaxLevel(),
-        firstlevel = options.generateAllLevels ? 0 : maxlevel,
+        firstlevel = options.generateAllLevels ? 1 : maxlevel,
         nlevels = maxlevel-firstlevel+1;
 
     PtexIndices ptexIndices(refiner);
@@ -591,9 +594,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         if (options.triangulateQuads)
             npatches *= 2;
 
-        if (level>=firstlevel) {
-            table->pushPatchArray(desc, npatches, &voffset, &poffset, 0);
-        }
+        table->pushPatchArray(desc, npatches, &voffset, &poffset, 0);
     }
 
     // Allocate various tables
@@ -615,8 +616,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     PatchParam     * pptr = &table->_paramTable[0];
     Index         ** fptr = 0;
 
-    Index levelVertOffset = options.generateAllLevels ?
-        0 : refiner.GetLevel(0).GetNumVertices();
+    // we always skip level=0 vertices (control cages)
+    Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
 
     Index * levelFVarVertOffsets = 0;
     if (generateFVarPatches) {
