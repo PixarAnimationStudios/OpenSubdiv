@@ -502,18 +502,25 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     Far::StencilTable const * vertexStencils = NULL;
     Far::StencilTable const * varyingStencils = NULL;
     int nverts=0;
+
     {
-        // Apply feature adaptive refinement to the mesh so that we can use the
-        // limit evaluation API features.
-        Far::TopologyRefiner::AdaptiveOptions options(level);
-        topologyRefiner->RefineAdaptive(options);
+        bool adaptive = (sdctype == OpenSubdiv::Sdc::SCHEME_CATMARK);
+        if (adaptive) {
+            // Apply feature adaptive refinement to the mesh so that we can use the
+            // limit evaluation API features.
+            Far::TopologyRefiner::AdaptiveOptions options(level);
+            topologyRefiner->RefineAdaptive(options);
+        } else {
+            Far::TopologyRefiner::UniformOptions options(level);
+            topologyRefiner->RefineUniform(options);
+        }
 
         // Generate stencil table to update the bi-cubic patches control
         // vertices after they have been re-posed (both for vertex & varying
         // interpolation)
         Far::StencilTableFactory::Options soptions;
         soptions.generateOffsets=true;
-        soptions.generateIntermediateLevels=true;
+        soptions.generateIntermediateLevels=adaptive;
 
         vertexStencils =
             Far::StencilTableFactory::Create(*topologyRefiner, soptions);
