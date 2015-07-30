@@ -23,6 +23,7 @@
 //
 #include "../far/topologyRefinerFactory.h"
 #include "../far/topologyRefiner.h"
+#include "../sdc/types.h"
 #include "../vtr/level.h"
 
 #include <cstdio>
@@ -161,7 +162,8 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     Sdc::Options options = refiner.GetSchemeOptions();
     Sdc::Crease  creasing(options);
 
-    bool makeBoundaryFacesHoles = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_NONE);
+    bool makeBoundaryFacesHoles = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_NONE
+                                && Sdc::SchemeTypeTraits::GetLocalNeighborhoodSize(refiner.GetSchemeType()) > 0);
     bool sharpenCornerVerts     = (options.GetVtxBoundaryInterpolation() == Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
     bool sharpenNonManFeatures  = true; //(options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
 
