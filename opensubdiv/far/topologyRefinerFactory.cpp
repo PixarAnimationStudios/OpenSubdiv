@@ -56,16 +56,13 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
     int fCount = baseLevel.getNumFaces();
 
     if (vCount == 0) {
-        char msg[1024];
-        snprintf(msg, 1024, "Invalid topology detected : mesh contains no vertices.");
-        Warning(msg);
+        Error(FAR_RUNTIME_ERROR,
+                "Invalid topology detected : mesh contains no vertices.");
         return false;
     }
     if (fCount == 0) {
-        char msg[1024];
-        snprintf(msg, 1024,
+        Error(FAR_RUNTIME_ERROR,
                 "Invalid topology detected : meshes without faces not yet supported.");
-        Warning(msg);
         return false;
     }
 
@@ -76,7 +73,7 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
         snprintf(msg, 1024,
                 "Invalid topology specified : face with %d vertices > %d max.",
                 baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
-        Warning(msg);
+        Error(FAR_RUNTIME_ERROR, msg);
         return false;
     }
 
@@ -84,16 +81,13 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
                      baseLevel.getOffsetOfFaceVertices(fCount - 1);
 
     if (fVertCount == 0) {
-        char msg[1024];
-        snprintf(msg, 1024, "Invalid topology detected : mesh contains no face-vertices.");
-        Warning(msg);
+        Error(FAR_RUNTIME_ERROR,
+                "Invalid topology detected : mesh contains no face-vertices.");
         return false;
     }
     if ((refiner.GetSchemeType() == Sdc::SCHEME_LOOP) && (fVertCount != (3 * fCount))) {
-        char msg[1024];
-        snprintf(msg, 1024,
+        Error(FAR_RUNTIME_ERROR,
                 "Invalid topology specified : non-triangular faces not supported by Loop scheme.");
-        Warning(msg);
         return false;
     }
     baseLevel.resizeFaceVertices(fVertCount);
@@ -135,26 +129,22 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
             snprintf(msg, 1024,
                     "Invalid topology detected : vertex with valence %d > %d max.",
                     baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
-            Warning(msg);
+            Error(FAR_RUNTIME_ERROR, msg);
             return false;
         }
     } else {
         if (baseLevel.getMaxValence() == 0) {
-            char msg[1024];
-            snprintf(msg, 1024, "Invalid topology detected : maximum valence not assigned.");
-            Warning(msg);
+            Error(FAR_RUNTIME_ERROR,
+                "Invalid topology detected : maximum valence not assigned.");
             return false;
         }
     }
 
     if (fullValidation) {
         if (not baseLevel.validateTopology(callback, callbackData)) {
-            char msg[1024];
-            snprintf(msg, 1024,
-                     completeMissingTopology ?
+            Error(FAR_RUNTIME_ERROR, completeMissingTopology ?
                     "Invalid topology detected as completed from partial specification." :
                     "Invalid topology detected as fully specified.");
-            Warning(msg);
             return false;
         }
     }
@@ -298,7 +288,7 @@ TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner)
         if (baseLevel.getNumFVarValues(channel) == 0) {
             char msg[1024];
             snprintf(msg, 1024, "Invalid face-varying channel : channel %d has no values.", channel);
-            Warning(msg);
+            Error(FAR_RUNTIME_ERROR, msg);
             return false;
         }
         baseLevel.completeFVarChannelTopology(channel, regBoundaryValence);
