@@ -55,7 +55,19 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
     int vCount = baseLevel.getNumVertices();
     int fCount = baseLevel.getNumFaces();
 
-    assert((vCount > 0) && (fCount > 0));
+    if (vCount == 0) {
+        char msg[1024];
+        snprintf(msg, 1024, "Invalid topology detected : mesh contains no vertices.");
+        Warning(msg);
+        return false;
+    }
+    if (fCount == 0) {
+        char msg[1024];
+        snprintf(msg, 1024,
+                "Invalid topology detected : meshes without faces not yet supported.");
+        Warning(msg);
+        return false;
+    }
 
     //  Make sure no face was defined that would lead to a valence overflow -- the max
     //  valence has been initialized with the maximum number of face-vertices:
@@ -71,6 +83,12 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
     int fVertCount = baseLevel.getNumFaceVertices(fCount - 1) +
                      baseLevel.getOffsetOfFaceVertices(fCount - 1);
 
+    if (fVertCount == 0) {
+        char msg[1024];
+        snprintf(msg, 1024, "Invalid topology detected : mesh contains no face-vertices.");
+        Warning(msg);
+        return false;
+    }
     if ((refiner.GetSchemeType() == Sdc::SCHEME_LOOP) && (fVertCount != (3 * fCount))) {
         char msg[1024];
         snprintf(msg, 1024,
@@ -79,7 +97,6 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
         return false;
     }
     baseLevel.resizeFaceVertices(fVertCount);
-    assert(baseLevel.getNumFaceVerticesTotal() > 0);
 
     //
     //  If edges were sized, all other topological relations must be sized with it, in
@@ -278,6 +295,12 @@ TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner)
     int regBoundaryValence = regVertexValence / 2;
 
     for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
+        if (baseLevel.getNumFVarValues(channel) == 0) {
+            char msg[1024];
+            snprintf(msg, 1024, "Invalid face-varying channel : channel %d has no values.", channel);
+            Warning(msg);
+            return false;
+        }
         baseLevel.completeFVarChannelTopology(channel, regBoundaryValence);
     }
     return true;
