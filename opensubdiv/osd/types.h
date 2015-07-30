@@ -42,14 +42,14 @@ struct PatchCoord {
 
     /// \brief Constructor
     ///
-    /// @param handle    patch handle
+    /// @param handleArg    patch handle
     ///
-    /// @param s         parametric location on the patch
+    /// @param sArg         parametric location on the patch
     ///
-    /// @param t         parametric location on the patch
+    /// @param tArg         parametric location on the patch
     ///
-    PatchCoord(Far::PatchTable::PatchHandle handle, float s, float t) :
-        handle(handle), s(s), t(t) { }
+    PatchCoord(Far::PatchTable::PatchHandle handleArg, float sArg, float tArg) :
+        handle(handleArg), s(sArg), t(tArg) { }
 
     PatchCoord() : s(0), t(0) {
         handle.arrayIndex = 0;
