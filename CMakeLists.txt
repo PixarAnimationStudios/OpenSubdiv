@@ -113,7 +113,7 @@ set(CMAKE_MODULE_PATH
 # OpenSubdiv trips bugs in some older gcc versions
 if (CMAKE_COMPILER_IS_GNUCC)
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.8)
-        message(FATAL_ERROR "g++ 4.8 or newer required")
+        message(WARNING "g++ 4.8 or newer recommended")
     endif()
 endif()
 
