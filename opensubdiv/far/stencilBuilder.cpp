@@ -215,6 +215,10 @@ public:
     std::vector<float> const&
     GetDvWeights() const { return _dvWeights; }
 
+    void SetCoarseVertCount(int numVerts) {
+        _coarseVertCount = numVerts;
+    }
+
 private:
 
     // Merge a vertex weight into the stencil table, if there is an existing
@@ -344,6 +348,12 @@ StencilBuilder::GetNumVertsInStencil(size_t stencilIndex) const
         return 0;
 
     return (int)_weightTable->GetSizes()[stencilIndex];
+}
+
+void
+StencilBuilder::SetCoarseVertCount(int numVerts)
+{
+    _weightTable->SetCoarseVertCount(numVerts);
 }
 
 std::vector<int> const&
