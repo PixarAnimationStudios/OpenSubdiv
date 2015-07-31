@@ -277,6 +277,7 @@ GLhud::Flush() {
     ortho(proj, 0, 0, float(GetWidth()), float(GetHeight()));
     glUniformMatrix4fv(_mvpMatrix, 1, GL_FALSE, proj);
 
+    glDisable(GL_DEPTH_TEST);
     {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, _fontTexture);
@@ -289,6 +290,7 @@ GLhud::Flush() {
 
         glBindTexture(GL_TEXTURE_2D, 0);
     }
+    glEnable(GL_DEPTH_TEST);
 
     return true;
 }
