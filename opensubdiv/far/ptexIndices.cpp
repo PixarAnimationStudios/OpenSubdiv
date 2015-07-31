@@ -94,9 +94,9 @@ PtexIndices::GetAdjacency(
 
     if (Sdc::SchemeTypeTraits::GetRegularFaceSize(
             refiner.GetSchemeType()) != 4) {
-        Far::Error(FAR_CODING_ERROR,
-            "PtexIndices::GetAdjacency() is currently only implemented for "
-            "quad schemes.");
+        Far::Error(FAR_RUNTIME_ERROR,
+                "Failure in PtexIndices::GetAdjacency() -- "
+                "currently only implemented for quad schemes.");
         return;
     }
 

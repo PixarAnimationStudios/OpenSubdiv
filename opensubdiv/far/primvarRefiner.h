@@ -317,7 +317,8 @@ PrimvarRefiner::Limit(T const & src, U & dst) const {
 
     if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot compute limit points -- last level of refinement does not include full topology.");
+            "Failure in PrimvarRefiner::Limit() -- "
+            "last level of refinement does not include full topology.");
         return;
     }
 
@@ -340,7 +341,8 @@ PrimvarRefiner::Limit(T const & src, U & dstPos, U1 & dstTan1, U2 & dstTan2) con
 
     if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot compute limit points -- last level of refinement does not include full topology.");
+            "Failure in PrimvarRefiner::Limit() -- "
+            "last level of refinement does not include full topology.");
         return;
     }
 
@@ -363,7 +365,8 @@ PrimvarRefiner::LimitFaceVarying(T const & src, U & dst, int channel) const {
 
     if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot compute limit points -- last level of refinement does not include full topology.");
+            "Failure in PrimvarRefiner::LimitFaceVarying() -- "
+            "last level of refinement does not include full topology.");
         return;
     }
 
