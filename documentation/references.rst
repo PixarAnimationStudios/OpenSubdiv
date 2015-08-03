@@ -73,7 +73,7 @@ References
     | `<http://doi.org/10.1111/j.1467-8659.2008.01276.x>`_
     |
     | *Approximating Catmull-Clark Subdivision Surfaces with Bicubic Patches*
-    | Charles Loop
+    | Charles Loop, Scott Schaefer
     | ACM Transactions on Graphics, Vol. 27 No. 1 Article 8 March 2008
     | `<http://research.microsoft.com/en-us/um/people/cloop/acctog.pdf>`_
     | `<http://doi.org/10.1145/1330511.1330519>`_ 
