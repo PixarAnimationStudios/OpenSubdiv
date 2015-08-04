@@ -38,21 +38,21 @@ Release 3.0.1 is a minor release focused on stability and correctness.
 
 **Changes**
     - Added a references section to the documentation, please see `References <references.html>`__
+    - Removed references to AddVaryingWithWeight from examples and tutorials
+    - Added more regression test shapes
+    - Addressed general compiler warnings (e.g. signed vs unsigned comparisons)
+    - Addressed compiler warnings in the core libraries reported by GCC's -Wshadow
+    - Eased GCC version restriction, earlier requirement for version 4.8 or newer is no longer needed
+    - Replaced topology initialization assertions with errors
+    - Improved compatibility with ICC
+    - Improved descriptive content and formatting of Far error messages
 
 **Bug Fixes**
-    - Removed references to AddVaryingWithWeight from examples and tutorials
-    - Fixed several compiler warnings (e.g. signed vs unsigned comparisons)
     - Fixed handling of unconnected vertices to avoid out of bounds data access
-    - Added more regression test shapes
     - Fixed non-zero starting offsets for TbbEvalStencils and OmpEvalStencils
-    - Fixed compiler warnings in the core libraries reported by GCC's -Wshadow
-    - Eased GCC version restriction, earlier requirement for version 4.8 or newer is no longer needed
-    - Improved compatibility with ICC
     - Fixed Far::StencilTableFactory::Options::factorizeIntermediateLevels
     - Fixed Far::PatchTablesFactory::Options::generateAllLevels
     - Fixed the behavior of VTX_BOUNDARY_NONE for meshes with bilinear scheme
-    - Replaced topology initialization assertions with errors
-    - Improved descriptive content and formatting of Far error messages
     - Disabled depth buffering when drawing the UI in the example viewers
     - Disabled the fractional tessellation spacing option in example viewers
       since this mode is currently not supported
