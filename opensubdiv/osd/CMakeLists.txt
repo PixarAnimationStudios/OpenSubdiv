@@ -317,13 +317,15 @@ add_library(osd_cpu_obj
         ${PUBLIC_HEADER_FILES}
 )
 
-add_library(osd_gpu_obj
-    OBJECT
-        ${GPU_SOURCE_FILES}
-        ${PRIVATE_HEADER_FILES}
-        ${PUBLIC_HEADER_FILES}
-        ${INC_FILES}
-)
+if( GPU_SOURCE_FILES ) 
+    add_library(osd_gpu_obj
+        OBJECT
+            ${GPU_SOURCE_FILES}
+            ${PRIVATE_HEADER_FILES}
+            ${PUBLIC_HEADER_FILES}
+            ${INC_FILES}
+    )
+endif()
 
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )
 

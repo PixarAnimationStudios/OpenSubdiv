@@ -79,8 +79,8 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
             farPatchTable->GetPatchParamTable();
         std::vector<Far::Index> const &sharpnessIndexTable =
             farPatchTable->GetSharpnessIndexTable();
-        int numPatches = farPatchTable->GetNumPatches(j);
-        for (int k = 0; k < numPatches; ++k) {
+        int numPatchesJ = farPatchTable->GetNumPatches(j);
+        for (int k = 0; k < numPatchesJ; ++k) {
             float sharpness = 0.0;
             int patchIndex = (int)_patchParamBuffer.size();
             if (patchIndex < (int)sharpnessIndexTable.size()) {

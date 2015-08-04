@@ -153,21 +153,23 @@ if (NOT NO_LIB)
 
     install( TARGETS osd_static_cpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
-    # this macro uses FindCUDA.cmake to compile .cu kernel files
-    # the target then adds the other obj dependencies and include files
-    _add_possibly_cuda_library(osd_static_gpu
-        STATIC
-            version.cpp
-            $<TARGET_OBJECTS:osd_gpu_obj>
-            ${CUDA_KERNEL_FILES}
-    )
-    set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
+    if( OSD_GPU )
+        # this macro uses FindCUDA.cmake to compile .cu kernel files
+        # the target then adds the other obj dependencies and include files
+        _add_possibly_cuda_library(osd_static_gpu
+            STATIC
+                version.cpp
+                $<TARGET_OBJECTS:osd_gpu_obj>
+                ${CUDA_KERNEL_FILES}
+        )
+        set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
 
-    target_link_libraries(osd_static_gpu
-        ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
-    )
+        target_link_libraries(osd_static_gpu
+            ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
+        )
 
-    install( TARGETS osd_static_gpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
+        install( TARGETS osd_static_gpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
+    endif()
 
 
     # Build dynamic libs  ----------------------------------
@@ -207,34 +209,36 @@ if (NOT NO_LIB)
         install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
         #---------------------------------------------------
-        _add_possibly_cuda_library(osd_dynamic_gpu
-            SHARED
-            version.cpp
-            $<TARGET_OBJECTS:osd_gpu_obj>
-            ${CUDA_KERNEL_FILES}
-        )
+        if( OSD_GPU )
+            _add_possibly_cuda_library(osd_dynamic_gpu
+                SHARED
+                version.cpp
+                $<TARGET_OBJECTS:osd_gpu_obj>
+                ${CUDA_KERNEL_FILES}
+            )
 
-        if (NOT ANDROID)
-            set_target_properties(osd_dynamic_gpu
-                PROPERTIES
-                    OUTPUT_NAME osdGPU
-                    CLEAN_DIRECT_OUTPUT 1
-                    SOVERSION ${OSD_SONAME}
-                )
-        else()
-            set_target_properties(osd_dynamic_gpu
-                PROPERTIES
-                    OUTPUT_NAME osdGPU
-                    CLEAN_DIRECT_OUTPUT 1
-                )
+            if (NOT ANDROID)
+                set_target_properties(osd_dynamic_gpu
+                    PROPERTIES
+                        OUTPUT_NAME osdGPU
+                        CLEAN_DIRECT_OUTPUT 1
+                        SOVERSION ${OSD_SONAME}
+                    )
+            else()
+                set_target_properties(osd_dynamic_gpu
+                    PROPERTIES
+                        OUTPUT_NAME osdGPU
+                        CLEAN_DIRECT_OUTPUT 1
+                    )
+            endif()
+
+            target_link_libraries(osd_dynamic_gpu
+                osd_dynamic_cpu
+                ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
+            )
+
+            install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
         endif()
-
-        target_link_libraries(osd_dynamic_gpu
-            osd_dynamic_cpu
-            ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
-        )
-
-        install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
     endif()
 

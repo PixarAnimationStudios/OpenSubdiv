@@ -40,8 +40,8 @@ namespace internal {
 //
 //  Simple constructor, destructor and basic initializers:
 //
-QuadRefinement::QuadRefinement(Level const & parent, Level & child, Sdc::Options const & options) :
-    Refinement(parent, child, options) {
+QuadRefinement::QuadRefinement(Level const & parentArg, Level & childArg, Sdc::Options const & optionsArg) :
+    Refinement(parentArg, childArg, optionsArg) {
 
     _splitType   = Sdc::SPLIT_TO_QUADS;
     _regFaceSize = 4;
@@ -344,9 +344,6 @@ QuadRefinement::populateEdgeVerticesFromParentEdges() {
 void
 QuadRefinement::populateEdgeFaceRelation() {
 
-    const Level& parent = *_parent;
-          Level& child  = *_child;
-
     //
     //  Notes on allocating/initializing the edge-face counts/offsets vector:
     //
@@ -367,27 +364,27 @@ QuadRefinement::populateEdgeFaceRelation() {
     //      - could at least make a quick traversal of components and use the above
     //        two points to get much closer estimate than what is used for uniform
     //
-    int childEdgeFaceIndexSizeEstimate = (int)parent._faceVertIndices.size() * 2 +
-                                         (int)parent._edgeFaceIndices.size() * 2;
+    int childEdgeFaceIndexSizeEstimate = (int)_parent->_faceVertIndices.size() * 2 +
+                                         (int)_parent->_edgeFaceIndices.size() * 2;
 
-    child._edgeFaceCountsAndOffsets.resize(child.getNumEdges() * 2);
-    child._edgeFaceIndices.resize(     childEdgeFaceIndexSizeEstimate);
-    child._edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
+    _child->_edgeFaceCountsAndOffsets.resize(_child->getNumEdges() * 2);
+    _child->_edgeFaceIndices.resize(     childEdgeFaceIndexSizeEstimate);
+    _child->_edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
 
     // Update _maxEdgeFaces from the parent level before calling the 
     // populateEdgeFacesFromParent methods below, as these may further
     // update _maxEdgeFaces.
-    child._maxEdgeFaces = parent._maxEdgeFaces;
+    _child->_maxEdgeFaces = _parent->_maxEdgeFaces;
 
     populateEdgeFacesFromParentFaces();
     populateEdgeFacesFromParentEdges();
 
     //  Revise the over-allocated estimate based on what is used (as indicated in the
     //  count/offset for the last vertex) and trim the index vector accordingly:
-    childEdgeFaceIndexSizeEstimate = child.getNumEdgeFaces(child.getNumEdges()-1) +
-                                     child.getOffsetOfEdgeFaces(child.getNumEdges()-1);
-    child._edgeFaceIndices.resize(     childEdgeFaceIndexSizeEstimate);
-    child._edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
+    childEdgeFaceIndexSizeEstimate = _child->getNumEdgeFaces(_child->getNumEdges()-1) +
+                                     _child->getOffsetOfEdgeFaces(_child->getNumEdges()-1);
+    _child->_edgeFaceIndices.resize(     childEdgeFaceIndexSizeEstimate);
+    _child->_edgeFaceLocalIndices.resize(childEdgeFaceIndexSizeEstimate);
 }
 
 void
@@ -516,9 +513,6 @@ QuadRefinement::populateEdgeFacesFromParentEdges() {
 void
 QuadRefinement::populateVertexFaceRelation() {
 
-    const Level& parent = *_parent;
-          Level& child  = *_child;
-
     //
     //  Notes on allocating/initializing the vertex-face counts/offsets vector:
     //
@@ -537,13 +531,13 @@ QuadRefinement::populateVertexFaceRelation() {
     //          - where the 1 or 2 is number of child edges of parent edge
     //      - same as parent vert for verts from parent verts (catmark)
     //
-    int childVertFaceIndexSizeEstimate = (int)parent._faceVertIndices.size()
-                                       + (int)parent._edgeFaceIndices.size() * 2
-                                       + (int)parent._vertFaceIndices.size();
+    int childVertFaceIndexSizeEstimate = (int)_parent->_faceVertIndices.size()
+                                       + (int)_parent->_edgeFaceIndices.size() * 2
+                                       + (int)_parent->_vertFaceIndices.size();
 
-    child._vertFaceCountsAndOffsets.resize(child.getNumVertices() * 2);
-    child._vertFaceIndices.resize(         childVertFaceIndexSizeEstimate);
-    child._vertFaceLocalIndices.resize(    childVertFaceIndexSizeEstimate);
+    _child->_vertFaceCountsAndOffsets.resize(_child->getNumVertices() * 2);
+    _child->_vertFaceIndices.resize(         childVertFaceIndexSizeEstimate);
+    _child->_vertFaceLocalIndices.resize(    childVertFaceIndexSizeEstimate);
 
     if (getFirstChildVertexFromVertices() == 0) {
         populateVertexFacesFromParentVertices();
@@ -557,10 +551,10 @@ QuadRefinement::populateVertexFaceRelation() {
 
     //  Revise the over-allocated estimate based on what is used (as indicated in the
     //  count/offset for the last vertex) and trim the index vectors accordingly:
-    childVertFaceIndexSizeEstimate = child.getNumVertexFaces(child.getNumVertices()-1) +
-                                     child.getOffsetOfVertexFaces(child.getNumVertices()-1);
-    child._vertFaceIndices.resize(     childVertFaceIndexSizeEstimate);
-    child._vertFaceLocalIndices.resize(childVertFaceIndexSizeEstimate);
+    childVertFaceIndexSizeEstimate = _child->getNumVertexFaces(_child->getNumVertices()-1) +
+                                     _child->getOffsetOfVertexFaces(_child->getNumVertices()-1);
+    _child->_vertFaceIndices.resize(     childVertFaceIndexSizeEstimate);
+    _child->_vertFaceLocalIndices.resize(childVertFaceIndexSizeEstimate);
 }
 
 void
@@ -702,9 +696,6 @@ QuadRefinement::populateVertexFacesFromParentVertices() {
 void
 QuadRefinement::populateVertexEdgeRelation() {
 
-    const Level& parent = *_parent;
-          Level& child  = *_child;
-
     //
     //  Notes on allocating/initializing the vertex-edge counts/offsets vector:
     //
@@ -727,13 +718,13 @@ QuadRefinement::populateVertexEdgeRelation() {
     //          - any end vertex will require all N child faces (catmark)
     //      - same as parent vert for verts from parent verts (catmark)
     //
-    int childVertEdgeIndexSizeEstimate = (int)parent._faceVertIndices.size()
-                                       + (int)parent._edgeFaceIndices.size() + parent.getNumEdges() * 2
-                                       + (int)parent._vertEdgeIndices.size();
+    int childVertEdgeIndexSizeEstimate = (int)_parent->_faceVertIndices.size()
+                                       + (int)_parent->_edgeFaceIndices.size() + _parent->getNumEdges() * 2
+                                       + (int)_parent->_vertEdgeIndices.size();
 
-    child._vertEdgeCountsAndOffsets.resize(child.getNumVertices() * 2);
-    child._vertEdgeIndices.resize(         childVertEdgeIndexSizeEstimate);
-    child._vertEdgeLocalIndices.resize(    childVertEdgeIndexSizeEstimate);
+    _child->_vertEdgeCountsAndOffsets.resize(_child->getNumVertices() * 2);
+    _child->_vertEdgeIndices.resize(         childVertEdgeIndexSizeEstimate);
+    _child->_vertEdgeLocalIndices.resize(    childVertEdgeIndexSizeEstimate);
 
     if (getFirstChildVertexFromVertices() == 0) {
         populateVertexEdgesFromParentVertices();
@@ -747,10 +738,10 @@ QuadRefinement::populateVertexEdgeRelation() {
 
     //  Revise the over-allocated estimate based on what is used (as indicated in the
     //  count/offset for the last vertex) and trim the index vectors accordingly:
-    childVertEdgeIndexSizeEstimate = child.getNumVertexEdges(child.getNumVertices()-1) +
-                                     child.getOffsetOfVertexEdges(child.getNumVertices()-1);
-    child._vertEdgeIndices.resize(     childVertEdgeIndexSizeEstimate);
-    child._vertEdgeLocalIndices.resize(childVertEdgeIndexSizeEstimate);
+    childVertEdgeIndexSizeEstimate = _child->getNumVertexEdges(_child->getNumVertices()-1) +
+                                     _child->getOffsetOfVertexEdges(_child->getNumVertices()-1);
+    _child->_vertEdgeIndices.resize(     childVertEdgeIndexSizeEstimate);
+    _child->_vertEdgeLocalIndices.resize(childVertEdgeIndexSizeEstimate);
 }
 
 void

@@ -96,8 +96,6 @@ struct Vertex {
         point[2] += weight * src.point[2];
     }
 
-    void AddVaryingWithWeight(Vertex const &, float) { }
-
     float point[3];
 };
 

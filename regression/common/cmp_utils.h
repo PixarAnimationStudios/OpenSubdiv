@@ -47,8 +47,8 @@ namespace {
 template<class T>
 void
 GetReorderedHbrVertexData(
-    const OpenSubdiv::Far::TopologyRefiner &refiner,
-    const OpenSubdiv::HbrMesh<T> &hmesh,
+    const OpenSubdiv::Far::TopologyRefiner &farRefiner,
+    const OpenSubdiv::HbrMesh<T> &hbrMesh,
     std::vector<T> *hbrVertexData,
     std::vector<bool> *hbrVertexOnBoundaryData = NULL)
 {
@@ -178,14 +178,14 @@ GetReorderedHbrVertexData(
         }
     };
 
-    Mapper mapper(refiner, hmesh);
+    Mapper mapper(farRefiner, hbrMesh);
 
-    int nverts = hmesh.GetNumVertices();
-    assert( nverts==refiner.GetNumVerticesTotal() );
+    int nverts = hbrMesh.GetNumVertices();
+    assert( nverts==farRefiner.GetNumVerticesTotal() );
 
     hbrVertexData->resize(nverts);
 
-    for (int level=0, ofs=0; level<(refiner.GetMaxLevel()+1); ++level) {
+    for (int level=0, ofs=0; level<(farRefiner.GetMaxLevel()+1); ++level) {
 
        typename Mapper::LevelMap & map = mapper.maps[level];
        for (int i=0; i<(int)map.verts.size(); ++i) {

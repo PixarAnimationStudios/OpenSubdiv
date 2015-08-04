@@ -169,11 +169,6 @@ TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
                 float const * weights,
                 int start, int end) {
 
-    if (start > 0) {
-        sizes += start;
-        indices += offsets[start];
-        weights += offsets[start];
-    }
     src += srcDesc.offset;
     dst += dstDesc.offset;
 
@@ -197,13 +192,6 @@ TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
                 float const * duWeights,
                 float const * dvWeights,
                 int start, int end) {
-    if (start > 0) {
-        sizes += start;
-        indices += offsets[start];
-        weights += offsets[start];
-        duWeights += offsets[start];
-        dvWeights += offsets[start];
-    }
 
     if (src) src += srcDesc.offset;
     if (dst) dst += dstDesc.offset;

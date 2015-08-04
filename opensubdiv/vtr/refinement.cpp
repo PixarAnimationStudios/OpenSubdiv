@@ -45,9 +45,9 @@ namespace internal {
 //
 //  Simple constructor, destructor and basic initializers:
 //
-Refinement::Refinement(Level const & parent, Level & child, Sdc::Options const& options) :
-    _parent(&parent),
-    _child(&child),
+Refinement::Refinement(Level const & parentArg, Level & childArg, Sdc::Options const& options) :
+    _parent(&parentArg),
+    _child(&childArg),
     _options(options),
     _regFaceSize(-1),
     _uniform(false),
@@ -65,8 +65,8 @@ Refinement::Refinement(Level const & parent, Level & child, Sdc::Options const& 
     _firstChildVertFromEdge(0),
     _firstChildVertFromVert(0) {
 
-    assert((child.getDepth() == 0) && (child.getNumVertices() == 0));
-    child._depth = 1 + parent.getDepth();
+    assert((childArg.getDepth() == 0) && (childArg.getNumVertices() == 0));
+    childArg._depth = 1 + parentArg.getDepth();
 }
 
 Refinement::~Refinement() {

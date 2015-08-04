@@ -380,6 +380,15 @@ namespace {
         }
         return 0;
     }
+
+#ifdef __INTEL_COMPILER
+#pragma warning (push)
+#pragma warning disable 1572
+#endif
+    inline bool isSharpnessEqual(float s1, float s2) { return (s1 == s2); }
+#ifdef __INTEL_COMPILER
+#pragma warning (pop)
+#endif
 }
 
 void
@@ -1296,8 +1305,8 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
             }
         }
         // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
-        if (sharpnesses[0] != sharpnesses[2] or
-            sharpnesses[1] != sharpnesses[3]) {
+        if (isSharpnessEqual(sharpnesses[0], sharpnesses[2]) or
+            isSharpnessEqual(sharpnesses[1], sharpnesses[3])) {
             return false;
         }
     }

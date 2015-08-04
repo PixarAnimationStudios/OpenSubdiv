@@ -40,12 +40,14 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace {
+
 //
-//  A convenience container for the different types of feature adaptive patches
+//  A convenience container for the different types of feature adaptive patches.
+//  Each instance associates a value of the template parameter type with each
+//  patch type.
 //
 template <class TYPE>
 struct PatchTypes {
-
 
     TYPE R,    // regular patch
          G,    // gregory patch
@@ -54,7 +56,6 @@ struct PatchTypes {
 
     PatchTypes() { std::memset(this, 0, sizeof(PatchTypes<TYPE>)); }
 
-    // Returns the number of patches based on the patch type in the descriptor
     TYPE & getValue( Far::PatchDescriptor desc ) {
         switch (desc.GetType()) {
             case Far::PatchDescriptor::REGULAR          : return R;
@@ -66,17 +67,6 @@ struct PatchTypes {
         // can't be reached (suppress compiler warning)
         return R;
     }
-
-    // Counts the number of arrays required to store each type of patch used
-    // in the primitive
-    int getNumPatchArrays() const {
-        int result=0;
-        if (R) ++result;
-        if (G) ++result;
-        if (GB) ++result;
-        if (GP) ++result;
-        return result;
-    }
 };
 
 typedef PatchTypes<Far::Index *>      PatchCVPointers;
@@ -85,6 +75,17 @@ typedef PatchTypes<Far::Index *>      SharpnessIndexPointers;
 typedef PatchTypes<Far::Index>        PatchFVarOffsets;
 typedef PatchTypes<Far::Index **>     PatchFVarPointers;
 
+//  Helpers for compiler warnings and floating point equality tests
+#ifdef __INTEL_COMPILER
+#pragma warning (push)
+#pragma warning disable 1572
+#endif
+
+inline bool isSharpnessEqual(float s1, float s2) { return (s1 == s2); }
+
+#ifdef __INTEL_COMPILER
+#pragma warning (pop)
+#endif
 
 } // namespace anon
 
@@ -251,8 +252,8 @@ public:
     }
 
     // Compare cursor positions
-    bool operator != (int pos) {
-        return _currentChannel < pos;
+    bool operator != (int posArg) {
+        return _currentChannel < posArg;
     }
 
     // Return FVar channel index in the TopologyRefiner list
@@ -512,7 +513,7 @@ assignSharpnessIndex(float sharpness, std::vector<float> & sharpnessValues) {
 
     // linear search
     for (int i=0; i<(int)sharpnessValues.size(); ++i) {
-        if (sharpnessValues[i] == sharpness) {
+        if (isSharpnessEqual(sharpnessValues[i], sharpness)) {
             return i;
         }
     }
@@ -544,9 +545,12 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR or
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
 
+    // level=0 may contain n-gons, which are not supported in PatchTable.
+    // even if generateAllLevels = true, we start from level 1.
+
     int maxvalence = refiner.GetMaxValence(),
         maxlevel = refiner.GetMaxLevel(),
-        firstlevel = options.generateAllLevels ? 0 : maxlevel,
+        firstlevel = options.generateAllLevels ? 1 : maxlevel,
         nlevels = maxlevel-firstlevel+1;
 
     PtexIndices ptexIndices(refiner);
@@ -590,9 +594,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         if (options.triangulateQuads)
             npatches *= 2;
 
-        if (level>=firstlevel) {
-            table->pushPatchArray(desc, npatches, &voffset, &poffset, 0);
-        }
+        table->pushPatchArray(desc, npatches, &voffset, &poffset, 0);
     }
 
     // Allocate various tables
@@ -614,8 +616,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     PatchParam     * pptr = &table->_paramTable[0];
     Index         ** fptr = 0;
 
-    Index levelVertOffset = options.generateAllLevels ?
-        0 : refiner.GetLevel(0).GetNumVertices();
+    // we always skip level=0 vertices (control cages)
+    Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
 
     Index * levelFVarVertOffsets = 0;
     if (generateFVarPatches) {
@@ -715,7 +717,13 @@ PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options optio
     context.table = new PatchTable(maxValence);
 
     // Populate the patch array descriptors
-    context.table->reservePatchArrays(context.patchInventory.getNumPatchArrays());
+    int numPatchArrays = 0;
+    if (context.patchInventory.R > 0) ++numPatchArrays;
+    if (context.patchInventory.G > 0) ++numPatchArrays;
+    if (context.patchInventory.GB > 0) ++numPatchArrays;
+    if (context.patchInventory.GP > 0) ++numPatchArrays;
+
+    context.table->reservePatchArrays(numPatchArrays);
 
     // Sort through the inventory and push back non-empty patch arrays
     ConstPatchDescriptorArray const & descs =
@@ -1163,7 +1171,7 @@ PatchTableFactory::populateAdaptivePatches(
                     permutation = permuteCorner[bIndex];
                     level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
                 } else {
-                    assert(patchTag._boundaryCount >=0 && patchTag._boundaryCount <= 2);
+                    assert(patchTag._boundaryCount <= 2);
                 }
 
                 offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);

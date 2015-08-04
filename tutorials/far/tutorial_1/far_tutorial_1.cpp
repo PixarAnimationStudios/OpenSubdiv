@@ -186,7 +186,7 @@ public:
 
     int const * GetFaceVerts(int face) const { return g_faceverts+getCompOffset(g_facenverts, face); }
 
-    int const * GetFaceEdges(int edge) const { return g_faceedges+getCompOffset(g_facenverts, edge); }
+    int const * GetFaceEdges(int face) const { return g_faceedges+getCompOffset(g_facenverts, face); }
 
 
     //
@@ -402,8 +402,6 @@ struct Vertex {
         _position[1]+=weight*src._position[1];
         _position[2]+=weight*src._position[2];
     }
-
-    void AddVaryingWithWeight(Vertex const &, float) { }
 
     // Public interface ------------------------------------
     void SetPosition(float x, float y, float z) {

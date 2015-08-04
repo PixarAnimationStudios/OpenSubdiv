@@ -40,8 +40,8 @@ namespace internal {
 //
 //  Simple constructor, destructor and basic initializers:
 //
-TriRefinement::TriRefinement(Level const & parent, Level & child, Sdc::Options const & options) :
-    Refinement(parent, child, options) {
+TriRefinement::TriRefinement(Level const & parentArg, Level & childArg, Sdc::Options const & optionsArg) :
+    Refinement(parentArg, childArg, optionsArg) {
 
     _splitType   = Sdc::SPLIT_TO_TRIS;
     _regFaceSize = 3;

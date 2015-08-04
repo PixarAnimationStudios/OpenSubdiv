@@ -214,7 +214,12 @@ private:
         typedef float Weight;  //  Also part of the expected interface
 
     public:
-        Mask(Weight* v, Weight* e, Weight* f) : _vertWeights(v), _edgeWeights(e), _faceWeights(f) { }
+        Mask(Weight* v, Weight* e, Weight* f) : 
+            _vertWeights(v), _edgeWeights(e), _faceWeights(f),
+            _vertCount(0), _edgeCount(0), _faceCount(0), 
+            _faceWeightsForFaceCenters(false)
+        { }
+
         ~Mask() { }
 
     public:  //  Generic interface expected of <typename MASK>:
@@ -312,7 +317,8 @@ PrimvarRefiner::Limit(T const & src, U & dst) const {
 
     if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot compute limit points -- last level of refinement does not include full topology.");
+            "Failure in PrimvarRefiner::Limit() -- "
+            "last level of refinement does not include full topology.");
         return;
     }
 
@@ -335,7 +341,8 @@ PrimvarRefiner::Limit(T const & src, U & dstPos, U1 & dstTan1, U2 & dstTan2) con
 
     if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot compute limit points -- last level of refinement does not include full topology.");
+            "Failure in PrimvarRefiner::Limit() -- "
+            "last level of refinement does not include full topology.");
         return;
     }
 
@@ -358,7 +365,8 @@ PrimvarRefiner::LimitFaceVarying(T const & src, U & dst, int channel) const {
 
     if (_refiner.getLevel(_refiner.GetMaxLevel()).getNumVertexEdgesTotal() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot compute limit points -- last level of refinement does not include full topology.");
+            "Failure in PrimvarRefiner::LimitFaceVarying() -- "
+            "last level of refinement does not include full topology.");
         return;
     }
 

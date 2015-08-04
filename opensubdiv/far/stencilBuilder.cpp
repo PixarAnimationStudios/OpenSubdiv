@@ -24,12 +24,25 @@
 
 #include "../far/stencilBuilder.h"
 #include "../far/topologyRefiner.h"
-
+ 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 namespace internal {
+
+namespace {
+#ifdef __INTEL_COMPILER
+#pragma warning (push)
+#pragma warning disable 1572
+#endif
+
+    inline bool isWeightZero(float w) { return (w == 0.0f); }
+
+#ifdef __INTEL_COMPILER
+#pragma warning (pop)
+#endif
+}
 
 struct PointDerivWeight {
     float p;
@@ -202,6 +215,10 @@ public:
     std::vector<float> const&
     GetDvWeights() const { return _dvWeights; }
 
+    void SetCoarseVertCount(int numVerts) {
+        _coarseVertCount = numVerts;
+    }
+
 private:
 
     // Merge a vertex weight into the stencil table, if there is an existing
@@ -333,6 +350,12 @@ StencilBuilder::GetNumVertsInStencil(size_t stencilIndex) const
     return (int)_weightTable->GetSizes()[stencilIndex];
 }
 
+void
+StencilBuilder::SetCoarseVertCount(int numVerts)
+{
+    _weightTable->SetCoarseVertCount(numVerts);
+}
+
 std::vector<int> const&
 StencilBuilder::GetStencilOffsets() const { 
     return _weightTable->GetOffsets();
@@ -367,8 +390,9 @@ void
 StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 {
     // Ignore no-op weights.
-    if (weight == 0)
+    if (isWeightZero(weight)) {
         return;
+    }
     _owner->_weightTable->AddWithWeight(src._index, _index, weight,
                                 _owner->_weightTable->GetScalarAccumulator());
 }
@@ -376,7 +400,7 @@ StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 void
 StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 {
-    if(weight == 0.0f) {
+    if (isWeightZero(weight)) {
         return;
     }
 
@@ -386,7 +410,7 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 
     for (int i = 0; i < srcSize; ++i) {
         float w = srcWeights[i];
-        if (w == 0.0f) {
+        if (isWeightZero(w)) {
             continue;
         }
 
@@ -395,14 +419,14 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
         float wgt = weight * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                             _owner->_weightTable->GetScalarAccumulator());
-    }
+    }  
 }
 
 void
 StencilBuilder::Index::AddWithWeight(Stencil const& src,
                                      float weight, float du, float dv)
 {
-    if(weight == 0.0f and du == 0.0f and dv == 0.0f) {
+    if (isWeightZero(weight) and isWeightZero(du) and isWeightZero(dv)) {
         return;
     }
 
@@ -412,7 +436,7 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
 
     for (int i = 0; i < srcSize; ++i) {
         float w = srcWeights[i];
-        if (w == 0.0f) {
+        if (isWeightZero(w)) {
             continue;
         }
 

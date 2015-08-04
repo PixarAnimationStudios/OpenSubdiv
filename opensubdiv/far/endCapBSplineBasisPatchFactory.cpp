@@ -37,6 +37,17 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
+namespace {
+#ifdef __INTEL_COMPILER
+#pragma warning (push)
+#pragma warning disable 1572
+#endif
+    inline bool isWeightNonZero(float w) { return (w != 0.0f); }
+#ifdef __INTEL_COMPILER
+#pragma warning (pop)
+#endif
+}
+
 EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     TopologyRefiner const & refiner) :
     _refiner(&refiner), _numVertices(0), _numPatches(0) {
@@ -94,8 +105,8 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     std::vector<GregoryBasis::Point> H(16);
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            for (int k = 0; k < 4; ++k) {
-                if (Q[i][k] != 0) H[i*4+j] += bezierCP[j+k*4] * Q[i][k];
+            for (int k = 0; k < 4; ++k) {            
+                if (isWeightNonZero(Q[i][k])) H[i*4+j] += bezierCP[j+k*4] * Q[i][k];
             }
         }
     }
@@ -103,12 +114,12 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
         for (int j = 0; j < 4; ++j) {
             GregoryBasis::Point p;
             for (int k = 0; k < 4; ++k) {
-                if (Q[j][k] != 0) p += H[i*4+k] * Q[j][k];
+                if (isWeightNonZero(Q[j][k])) p += H[i*4+k] * Q[j][k];
             }
             _vertexStencils.push_back(p);
         }
     }
-
+    
     int varyingIndices[] = { 0, 0, 1, 1,
                              0, 0, 1, 1,
                              3, 3, 2, 2,

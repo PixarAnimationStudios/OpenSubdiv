@@ -249,7 +249,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                     eTag._linear = (ETag::ETagSize) _hasLinearBoundaries;
                 }
             }
-        } else {
+        } else if (vFaces.size() > 0) {
             //
             //  Unfortunately for non-manifold cases we can't make as much use of the
             //  retrieved face-values as there is no correlation between the incident
@@ -308,7 +308,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //  boundary vertices that have not already been tagged.
         //
         if (vIsBoundary && !vertexMismatch[vIndex]) {
-            if (_hasLinearBoundaries) {
+            if (_hasLinearBoundaries && (vFaces.size() > 0)) {
                 vertexMismatch[vIndex] = true;
 
                 if (vIsManifold) {
@@ -419,7 +419,11 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //
         IndexArray vValues = getVertexValues(vIndex);
 
-        vValues[0] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[0]) + vInFace[0]];
+        if (vFaces.size() > 0) {
+            vValues[0] = _faceVertValues[_level.getOffsetOfFaceVertices(vFaces[0]) + vInFace[0]];
+        } else {
+            vValues[0] = 0;
+        }
         if (!vertexMismatch[vIndex]) {
             continue;
         }

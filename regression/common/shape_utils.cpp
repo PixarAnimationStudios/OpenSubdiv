@@ -129,8 +129,8 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
                                std::stringstream ss;
                                ss << ifs.rdbuf();
                                ifs.close();
-                               std::string str = ss.str();
-                               s->parseMtllib(str.c_str());
+                               std::string tmpStr = ss.str();
+                               s->parseMtllib(tmpStr.c_str());
                                s->mtllib = buf;
                            }
                        } break;

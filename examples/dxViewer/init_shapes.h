@@ -79,7 +79,6 @@ static void initShapes() {
     g_defaultShapes.push_back(ShapeDesc("catmark_righthanded", catmark_righthanded, kCatmark));
     g_defaultShapes.push_back(ShapeDesc("catmark_pole8", catmark_pole8, kCatmark));
     g_defaultShapes.push_back(ShapeDesc("catmark_pole64", catmark_pole64, kCatmark));
-    g_defaultShapes.push_back(ShapeDesc("catmark_pole360", catmark_pole360, kCatmark));
     g_defaultShapes.push_back(ShapeDesc("catmark_nonman_quadpole8", catmark_nonman_quadpole8, kCatmark));
     g_defaultShapes.push_back(ShapeDesc("catmark_nonman_quadpole64", catmark_nonman_quadpole64, kCatmark));
     g_defaultShapes.push_back(ShapeDesc("catmark_nonman_quadpole360", catmark_nonman_quadpole360, kCatmark));
