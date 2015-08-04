@@ -124,7 +124,7 @@ convertToCompatibleStencilTable(
 }
 
 template <>
-Far::StencilTable const *
+inline Far::StencilTable const *
 convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
     Far::StencilTable const *table, void *  /*context*/) {
     // no need for conversion
@@ -134,7 +134,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
 }
 
 template <>
-Far::LimitStencilTable const *
+inline Far::LimitStencilTable const *
 convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, void>(
     Far::LimitStencilTable const *table, void *  /*context*/) {
     // no need for conversion
@@ -144,7 +144,7 @@ convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, 
 }
 
 template <>
-Far::StencilTable const *
+inline Far::StencilTable const *
 convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, ID3D11DeviceContext>(
     Far::StencilTable const *table, ID3D11DeviceContext *  /*context*/) {
     // no need for conversion

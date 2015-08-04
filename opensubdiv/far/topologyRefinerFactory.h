@@ -539,10 +539,6 @@ TopologyRefinerFactory<MESH>::getBaseFaceFVarValues(TopologyRefiner & newRefiner
 }
 
 
-
-// XXXX manuelk MSVC specializes these templated functions which creates duplicated symbols
-#ifndef _MSC_VER
-
 template <class MESH>
 bool
 TopologyRefinerFactory<MESH>::resizeComponentTopology(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
@@ -681,8 +677,6 @@ TopologyRefinerFactory<MESH>::reportInvalidTopology(
     //  errors. By default, nothing is reported
     //
 }
-
-#endif
 
 } // end namespace Far
 
