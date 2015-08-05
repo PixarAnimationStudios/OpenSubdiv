@@ -31,6 +31,14 @@
 
 ----
 
+Release 3.0.2
+=============
+
+Release 3.0.2 is a minor release for a specific fix.
+
+**Bug Fixes**
+    - Fixed drawing of single crease patches
+
 Release 3.0.1
 =============
 
