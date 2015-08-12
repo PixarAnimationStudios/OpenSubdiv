@@ -65,10 +65,10 @@
 
 
 // 
-//      Templated funtions able to retrieve any attribute that
+//      Templated functions able to retrieve any attribute that
 //      can be retrieved via the overloaded MPlug::getValue()
 //      methods.  Any attributes that need MPlug::getData()
-//      Need to use non-templated functions below
+//      need to use non-templated functions below
 //
 template<class T> static int
 findAttribute( MFnDependencyNode &depFn, const char *attr, T *val )

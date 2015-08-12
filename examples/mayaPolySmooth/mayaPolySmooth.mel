@@ -147,7 +147,7 @@ global proc string[] mayaPolySmooth(string $meshes[]) {
 }
 
 //
-// Clearnup the DAG from nodes created with mayaPolySmooth
+// Cleanup the DAG from nodes created with mayaPolySmooth
 //
 global proc mayaPolySmoothCleanup() {
 
