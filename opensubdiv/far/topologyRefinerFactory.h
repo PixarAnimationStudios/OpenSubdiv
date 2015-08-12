@@ -260,10 +260,10 @@ protected:
     ///
     /// These methods are used to assign edge or vertex sharpness, for tagging faces
     /// as holes, etc.  Unlike topological assignment, only those components that
-    /// posses a feature of interest need be explicitly assigned.
+    /// possess a feature of interest need be explicitly assigned.
     ///
     /// Since topological construction is largely complete by this point, a method is
-    /// availble to identify an edge for sharpness assignment given a pair of vertices.
+    /// available to identify an edge for sharpness assignment given a pair of vertices.
     ///
 
     /// \brief Identify an edge to be assigned a sharpness value given a vertex pair
@@ -286,7 +286,7 @@ protected:
     /// topology is assigned -- indices for face-varying values are assigned to the
     /// corners of each face just as indices for vertices were assigned.
     ///
-    /// Independent sets of face-varying data is stored in channels.  The identifier
+    /// Independent sets of face-varying data are stored in channels.  The identifier
     /// of each channel (an integer) is expected whenever referring to face-varying
     /// data in any form.
     ///
@@ -614,7 +614,7 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //  or, if the mesh is manifold, explicit assignment of these can be deferred and
     //  all can be determined by calling:
     //
-    //      void populateBaseLocalIndices(TopologyRefiner& newRefiner, )
+    //      void populateBaseLocalIndices(TopologyRefiner& newRefiner)
     //
     //  All components are assumed to be locally manifold and ordering of components in
     //  the above relations is expected to be counter-clockwise.

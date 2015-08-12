@@ -140,7 +140,7 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(OSD_COMPILER_FLAGS)
 
-# Disable spurrious warnings in gcc builds and clang
+# Disable spurious warnings in gcc builds and clang
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
@@ -151,7 +151,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
     endif()
 
     # HBR uses the offsetof macro on a templated struct, which appears
-    # to spurriously set off this warning in both gccc and Clang
+    # to spuriously set off this warning in both gcc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
 
     # HBR uses unions as an optimization for its memory allocation.
@@ -161,7 +161,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
 
     # FAR and OSD have templated virtual function implementations that trigger
-    # a lot of hidden virtual function overloads (some of them spurrious).
+    # a lot of hidden virtual function overloads (some of them spurious).
     # Disable those for now in Clang.
     if(CMAKE_COMPILER_IS_CLANGCC)
         list(APPEND OSD_COMPILER_FLAGS -Wno-overloaded-virtual)

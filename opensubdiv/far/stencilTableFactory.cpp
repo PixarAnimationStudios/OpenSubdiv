@@ -224,7 +224,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
         int nverts = refiner.GetNumVerticesTotal();
         if (nBaseStencils == nverts) {
 
-            // the table contain stencils for the control vertices
+            // the table contains stencils for the control vertices
             //
             //  <-----------------  nverts ------------------>
             //
@@ -264,7 +264,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
         }
     }
 
-    // copy all local points stencils to proto stencils, and factorize if needed.
+    // copy all local point stencils to proto stencils, and factorize if needed.
     int nLocalPointStencils = localPointStencilTable->GetNumStencils();
     int nLocalPointStencilsElements = 0;
 
@@ -371,7 +371,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         options.generateOffsets = true;
 
         // PERFORMANCE: We could potentially save some mem-copies by not
-        // instanciating the stencil tables and work directly off the source
+        // instantiating the stencil tables and work directly off the source
         // data.
         cvstencils = StencilTableFactory::Create(refiner, options);
     } else {

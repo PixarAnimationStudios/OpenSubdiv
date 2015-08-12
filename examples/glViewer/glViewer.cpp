@@ -85,7 +85,7 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
 
 /* Function to get the correct shader file based on the opengl version.
-  The implentation varies depending if glew is available or not. In case
+  The implementation varies depending if glew is available or not. In case
   is available the capabilities are queried during execution and the correct
   source is returned. If glew in not available during compile time the version
   is determined*/

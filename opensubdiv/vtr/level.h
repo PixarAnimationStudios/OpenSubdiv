@@ -91,7 +91,7 @@ public:
     //
     //  Most of these properties are passed down to child components during
     //  refinement, but some -- notably the designation of a component as semi-
-    //  sharp -- require re-determination as sharpnes values are reduced at each
+    //  sharp -- require re-determination as sharpness values are reduced at each
     //  level.
     //
     struct VTag {
@@ -179,7 +179,7 @@ public:
     //  Once have only quads (or tris), this local index need only occupy two bits
     //  and could conceivably be packed into the same integer as the face index, but
     //  for now, given the need to support faces of potentially high valence we'll
-    //  us an 8- or 16-bit integer.
+    //  use an 8- or 16-bit integer.
     //
     //  Methods to access the six topological relations:
     ConstIndexArray getFaceVertices(Index faceIndex) const;
@@ -414,7 +414,7 @@ private:
 
     //  The "depth" member is clearly useful in both the topological splitting and the
     //  stencil queries, but arguably it ties the Level to a hierarchy which counters
-    //  the idea if it being independent.
+    //  the idea of it being independent.
     int _depth;
 
     //  Maxima to help clients manage sizing of data buffers.  Given "max valence",
@@ -473,7 +473,7 @@ private:
 };
 
 //
-//  Access/modify the vertices indicent a given face:
+//  Access/modify the vertices incident a given face:
 //
 inline ConstIndexArray
 Level::getFaceVertices(Index faceIndex) const {
@@ -503,7 +503,7 @@ Level::getFaceVertices() const {
 }
 
 //
-//  Access/modify the edges indicent a given face:
+//  Access/modify the edges incident a given face:
 //
 inline ConstIndexArray
 Level::getFaceEdges(Index faceIndex) const {
@@ -517,7 +517,7 @@ Level::getFaceEdges(Index faceIndex) {
 }
 
 //
-//  Access/modify the faces indicent a given vertex:
+//  Access/modify the faces incident a given vertex:
 //
 inline ConstIndexArray
 Level::getVertexFaces(Index vertIndex) const {
@@ -554,7 +554,7 @@ Level::trimVertexFaces(Index vertIndex, int count) {
 }
 
 //
-//  Access/modify the edges indicent a given vertex:
+//  Access/modify the edges incident a given vertex:
 //
 inline ConstIndexArray
 Level::getVertexEdges(Index vertIndex) const {
@@ -598,7 +598,7 @@ Level::setMaxValence(int valence) {
 }
 
 //
-//  Access/modify the vertices indicent a given edge:
+//  Access/modify the vertices incident a given edge:
 //
 inline ConstIndexArray
 Level::getEdgeVertices(Index edgeIndex) const {
@@ -610,7 +610,7 @@ Level::getEdgeVertices(Index edgeIndex) {
 }
 
 //
-//  Access/modify the faces indicent a given edge:
+//  Access/modify the faces incident a given edge:
 //
 inline ConstIndexArray
 Level::getEdgeFaces(Index edgeIndex) const {

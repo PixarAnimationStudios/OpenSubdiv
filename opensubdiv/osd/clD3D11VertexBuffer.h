@@ -45,7 +45,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 ///
-/// \brief Concrete vertex buffer class for OpenCL subvision and DirectX
+/// \brief Concrete vertex buffer class for OpenCL subdivision and DirectX
 /// drawing.
 ///
 /// D3D11VertexBuffer implements CLVertexBufferInterface and

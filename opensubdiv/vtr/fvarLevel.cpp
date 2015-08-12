@@ -156,7 +156,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
 
     //
-    //  Its awkward and potentially inefficient to try and accomplish everything in one
+    //  It's awkward and potentially inefficient to try and accomplish everything in one
     //  pass over the vertices...
     //
     //  Make a first pass through the vertices to identify discts edges and to determine
@@ -556,7 +556,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
 //
 //  Values tagged as creases have their two "end values" identified relative to the incident
-//  faces of the vertex for compact storage and quick retrieval.  This methods identifies the
+//  faces of the vertex for compact storage and quick retrieval.  This method identifies the
 //  values for the two ends of such a crease value:
 //
 void
@@ -1018,7 +1018,7 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
     typedef Level::VTag::VTagSize  VertTagSize;
 
     //
-    //  Create a composite VTag for the face that augments the vertex corners' VTag's with
+    //  Create a composite VTag for the face that augments the vertex corners' VTags with
     //  topological information about the FVar values at each corner.  Only when there is
     //  a mismatch does the FVar value need to be inspected further:
     //
@@ -1061,7 +1061,7 @@ FVarLevel::getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
     typedef Level::ETag::ETagSize  FaceETagSize;
 
     //
-    //  Create a composite ETag for the face that augments the edges ETag's with
+    //  Create a composite ETag for the face that augments the edges' ETags with
     //  topological information about the FVar values at each corner.  Only when there is
     //  a mismatch does the FVar value need to be inspected further:
     //
