@@ -371,7 +371,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         options.generateOffsets = true;
 
         // PERFORMANCE: We could potentially save some mem-copies by not
-        // instanciating the stencil tables and work directly off the source
+        // instantiating the stencil tables and work directly off the source
         // data.
         cvstencils = StencilTableFactory::Create(refiner, options);
     } else {

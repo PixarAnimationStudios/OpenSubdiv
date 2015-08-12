@@ -100,10 +100,10 @@ public:
     ConstIndexArray GetEdgeFaces(Index e) const    { return _level->getEdgeFaces(e); }
 
     /// \brief Access the faces incident a given vertex
-    ConstIndexArray GetVertexFaces( Index v) const { return _level->getVertexFaces(v); }
+    ConstIndexArray GetVertexFaces(Index v) const  { return _level->getVertexFaces(v); }
 
     /// \brief Access the edges incident a given vertex
-    ConstIndexArray GetVertexEdges( Index v) const { return _level->getVertexEdges(v); }
+    ConstIndexArray GetVertexEdges(Index v) const  { return _level->getVertexEdges(v); }
 
     /// \brief Access the local indices of a vertex with respect to its incident faces
     ConstLocalIndexArray GetVertexFaceLocalIndices(Index v) const { return _level->getVertexFaceLocalIndices(v); }
