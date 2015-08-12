@@ -148,7 +148,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
     // sharpness, otherwise we may swim at geometric creases which
     // aren't actually discontinuous.
     //
-    // We need to make sure that that each of the vertices of the
+    // We need to make sure that each of the vertices of the
     // child face have the appropriate facevarying storage as
     // needed. If there are discontinuities in any facevarying datum,
     // the vertex must allocate a new block of facevarying storage
