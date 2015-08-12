@@ -292,7 +292,7 @@ public:
     /// \brief Evaluate basis functions for position and first derivatives at a
     /// given (s,t) parametric location of a patch.
     ///
-    /// @param handle  A patch handle indentifying the sub-patch containing the
+    /// @param handle  A patch handle identifying the sub-patch containing the
     ///                (s,t) location
     ///
     /// @param s       Patch coordinate (in coarse face normalized space)

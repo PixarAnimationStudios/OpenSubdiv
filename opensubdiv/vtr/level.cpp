@@ -1345,7 +1345,7 @@ namespace {
     //
     //  The "dynamic relation" allocates the latter vector of members based on a typical
     //  number of members per component, e.g. we expect valence 4 vertices in a typical
-    //  quad-mesh, and so an "expected" number might be 6 to accomodate a few x-ordinary
+    //  quad-mesh, and so an "expected" number might be 6 to accommodate a few x-ordinary
     //  vertices.  The member vector is allocated with this number per component and the
     //  counts and offsets initialized to refer to them -- but with the counts set to 0.
     //  The count will be incremented as members are identified and entered, and if any

@@ -85,7 +85,7 @@ protected:
 
     bool allocate(ID3D11Device *device);
 
-    // Acqures a cuda resource from DX11
+    // Acquires a cuda resource from DX11
     void map();
 
     // Releases a cuda resource to DX11

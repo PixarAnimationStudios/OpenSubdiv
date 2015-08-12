@@ -207,7 +207,7 @@ private:
 
 private:
     //
-    //  Local class to fulfil interface for <typename MASK> in the Scheme mask queries:
+    //  Local class to fulfill interface for <typename MASK> in the Scheme mask queries:
     //
     class Mask {
     public:
@@ -705,7 +705,7 @@ PrimvarRefiner::interpFVarFromEdges(int level, T const & src, U & dst, int chann
     Vtr::internal::FVarLevel const &      childFVar  = childLevel.getFVarLevel(channel);
 
     //
-    //  Allocate and intialize (if linearly interpolated) interpolation weights for
+    //  Allocate and initialize (if linearly interpolated) interpolation weights for
     //  the edge mask:
     //
     float                               eVertWeights[2];
@@ -1108,7 +1108,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
 
         //
         //  Apply the tangent masks -- both will have the same number of weights and 
-        //  indices (one tangent may be "padded" to accomodate the other), but these
+        //  indices (one tangent may be "padded" to accommodate the other), but these
         //  may differ from those of the position:
         //
         if (hasTangents) {
