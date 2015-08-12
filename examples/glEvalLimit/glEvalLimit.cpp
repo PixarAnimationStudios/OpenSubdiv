@@ -259,11 +259,11 @@ public:
         : _srcDesc(       /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
           _srcVaryingDesc(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
           _srcFVarDesc(   /*offset*/ 0, /*length*/ fvarWidth, /*stride*/ fvarWidth),
-          _vertexDesc(    /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-          _varyingDesc(   /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-          _fvarDesc(      /*offset*/ 0, /*legnth*/ fvarWidth, /*stride*/ fvarWidth),
-          _duDesc(        /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-          _dvDesc(        /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
+          _vertexDesc(    /*offset*/ 0, /*length*/ 3, /*stride*/ 6),
+          _varyingDesc(   /*offset*/ 3, /*length*/ 3, /*stride*/ 6),
+          _fvarDesc(      /*offset*/ 0, /*length*/ fvarWidth, /*stride*/ fvarWidth),
+          _duDesc(        /*offset*/ 0, /*length*/ 3, /*stride*/ 6),
+          _dvDesc(        /*offset*/ 3, /*length*/ 3, /*stride*/ 6),
           _deviceContext(deviceContext) {
 
         // total number of vertices = coarse points + refined points + local points
@@ -410,7 +410,7 @@ public:
 
         EVALUATOR::EvalPatchesVarying(
             _srcVaryingData, _srcVaryingDesc,
-            // varyingdata is interleved in vertexData.
+            // varying data is interleaved in vertexData.
             _vertexData, _varyingDesc,
             _patchCoords->GetNumVertices(),
             _patchCoords,

@@ -63,7 +63,7 @@ public:
 private:
     D3D11PtexMipmapTexture();
 
-    int _width,   // widht / height / depth of the 3D texel buffer
+    int _width,   // width / height / depth of the 3D texel buffer
         _height,
         _depth;
 

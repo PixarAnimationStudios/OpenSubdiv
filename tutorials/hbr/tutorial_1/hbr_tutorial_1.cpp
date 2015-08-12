@@ -27,7 +27,7 @@
 // Tutorial description:
 //
 // This tutorial shows how to safely create Hbr meshes from arbitrary topology.
-// Because Hbr is a half-edge data structure, it cannot represeent non-manifold
+// Because Hbr is a half-edge data structure, it cannot represent non-manifold
 // topology. Ensuring that the geometry used is manifold is a requirement to use
 // Hbr safely. This tutorial presents some simple tests to detect inappropriate
 // topology.

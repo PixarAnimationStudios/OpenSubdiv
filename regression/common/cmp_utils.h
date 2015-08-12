@@ -41,7 +41,7 @@ namespace {
 };
 
 
-// Copies vertex data from hmesh into hbrVertexData reordered to match
+// Copies vertex data from hbrMesh into hbrVertexData reordered to match
 // the given refiner and subdivision level.  This is used for later easy 
 // comparison between the two.
 template<class T>

@@ -26,7 +26,7 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// This tutorial presents in a very succint way the requisite steps to
+// This tutorial presents in a very succinct way the requisite steps to
 // instantiate an Hbr mesh from simple topological data.
 //
 

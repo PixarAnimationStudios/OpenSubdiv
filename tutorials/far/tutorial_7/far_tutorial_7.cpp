@@ -28,7 +28,7 @@
 //
 // This tutorial shows how to create and manipulate table of cascading stencils.
 //
-// We initalize a Far::TopologyRefiner initalized with a cube and apply uniform
+// We initialize a Far::TopologyRefiner with a cube and apply uniform
 // refinement. We then use a Far::StencilTableFactory to generate a stencil
 // table. We set the factory Options to not factorize intermediate levels,
 // thus giving a table of "cascading" stencils.
@@ -122,15 +122,15 @@ static Far::TopologyRefiner * createTopologyRefiner();
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    // Generate some FarTopologyRefiner (see far_tutorial_0 for details).
+    // Generate a FarTopologyRefiner (see far_tutorial_0 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
-    // Uniformly refine the topolgy up to 'maxlevel'.
+    // Uniformly refine the topology up to 'maxlevel'.
     int maxlevel = 4;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     // Use the FarStencilTable factory to create cascading stencil table
-    // note: we want stencils for the each refinement level
+    // note: we want stencils for each refinement level
     //       "cascade" mode is achieved by setting "factorizeIntermediateLevels"
     //       to false
     Far::StencilTableFactory::Options options;
@@ -145,7 +145,7 @@ int main(int, char **) {
 
     Vertex * destVerts = &vertexBuffer[0];
 
-    int start = 0, end = 0; // stencils batches for each level of subdivision
+    int start = 0, end = 0; // stencil batches for each level of subdivision
     for (int level=0; level<maxlevel; ++level) {
 
         int nverts = refiner->GetLevel(level+1).GetNumVertices();
