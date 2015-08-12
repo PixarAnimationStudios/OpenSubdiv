@@ -139,7 +139,7 @@ FVarLevel::resizeValues(int valueCount) {
 //
 //  Once values have been identified for each vertex and tagged, refinement propagates
 //  the tags to child values using more simplified logic (child values inherit the
-//  topology of their parent) and no futher analysis is required.
+//  topology of their parent) and no further analysis is required.
 //
 void
 FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
@@ -413,7 +413,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     //
     //  Now that we know the total number of additional sibling values (M values in addition
-    //  to the N vertex values) allocate space to accomodate all N + M vertex values.
+    //  to the N vertex values) allocate space to accommodate all N + M vertex values.
     //
     //  Then make the second pass through the vertices to identify the values associated with
     //  each and to inspect and tag local face-varying topology for those that don't match:

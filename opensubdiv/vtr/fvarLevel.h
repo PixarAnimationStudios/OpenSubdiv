@@ -66,7 +66,7 @@ namespace internal {
 //  take up almost half the memory of this representation, so if memory does
 //  become a concern, we do not need to store them.  The only reason we do so now
 //  is that the face-value interface for specifying base topology and inspecting
-//  subsequent levels is very familar to that of face-vertices for clients.  So
+//  subsequent levels is very familiar to that of face-vertices for clients.  So
 //  having them available for such access is convenient.
 //
 //  Regarding scope and access...

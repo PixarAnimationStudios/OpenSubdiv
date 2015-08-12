@@ -94,7 +94,7 @@ TopologyRefiner::Unrefine() {
 
 
 //
-//  Intializing and updating the component inventory:
+//  Initializing and updating the component inventory:
 //
 void
 TopologyRefiner::initializeInventory() {

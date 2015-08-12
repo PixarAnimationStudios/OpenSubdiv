@@ -131,7 +131,7 @@ public:
     ///  edge while T2 points inward across the limit surface.
     ///
     ///  As for magnitude, no assumptions should be made of the magnitudes of the resulting
-    ///  tanget vectors.  Common formulae often factor out scale factors that contribute to
+    ///  tangent vectors.  Common formulae often factor out scale factors that contribute to
     ///  magnitude.  While some attempt has been made to make magnitudes more consistent
     ///  between regular corners, boundaries and the interior, the same has not been done at
     ///  irregular vertices -- at least not yet.  This may be addressed in future, as having
@@ -484,7 +484,7 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
 //  provided though, there are cases where the parent and child sharpness values need to be
 //  identified, so accounting for the unknown Rules too is not much of an added complication.
 //
-//  The benefit of supporting specified Rules is that they can often often be trivially
+//  The benefit of supporting specified Rules is that they can often be trivially
 //  determined from context (e.g. a vertex derived from a face at a previous level will always
 //  be smooth) rather than more generally, and at greater cost, inspecting neighboring and
 //  they are often the same for parent and child.
@@ -572,7 +572,7 @@ Scheme<SCHEME>::ComputeVertexVertexMask(VERTEX const&   vertex,
     }
 
     //
-    //  Intialize a local child mask, compute the fractional weight from parent and child
+    //  Initialize a local child mask, compute the fractional weight from parent and child
     //  sharpness values and combine the two masks:
     //
     typedef typename MASK::Weight Weight;

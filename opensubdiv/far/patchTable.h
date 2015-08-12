@@ -397,7 +397,7 @@ public:
     /// \brief Evaluate basis functions for a varying value and
     /// derivatives at a given (u,v) parametric location of a patch.
     ///
-    /// @param handle  A patch handle indentifying the sub-patch containing the
+    /// @param handle  A patch handle identifying the sub-patch containing the
     ///                (u,v) location
     ///
     /// @param u       Patch coordinate (in base face normalized space)

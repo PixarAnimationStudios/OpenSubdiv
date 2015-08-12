@@ -313,7 +313,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
 //
 //  A note on tangent magnitudes:
 //
-//  Several formulae exist for limit tangents at a vertex to accomodate the
+//  Several formulae exist for limit tangents at a vertex to accommodate the
 //  different topological configurations around the vertex.  While these produce
 //  the desired direction, there is inconsistency in the resulting magnitudes.
 //  Ideally a regular mesh of uniformly shaped triangles with similar edge lengths

@@ -1414,7 +1414,7 @@ PatchTableFactory::populateAdaptivePatches(
 
             context.GetIrregularPatchCornerSpans(patch.levelIndex, patch.faceIndex, irregCornerSpans);
 
-            // switch endcap patchtype by option
+            // switch endcap patch type by option
             switch(context.options.GetEndCapType()) {
             case Options::ENDCAP_GREGORY_BASIS:
                 arrayBuilder->iptr +=
