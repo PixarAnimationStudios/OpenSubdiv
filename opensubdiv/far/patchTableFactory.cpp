@@ -1022,7 +1022,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 //
 //  Populate all adaptive patches now that the tables to hold data for them have been allocated.
 //  We need the inventory (counts per patch type) and the patch tags per face that were previously
-//  idenified.
+//  identified.
 //
 void
 PatchTableFactory::populateAdaptivePatches(
@@ -1187,7 +1187,7 @@ PatchTableFactory::populateAdaptivePatches(
                 // emit end patch. end patch should be in the max level (until we implement DFAS)
                 assert(i==refiner.GetMaxLevel());
 
-                // switch endcap patchtype by option
+                // switch endcap patch type by option
                 switch(context.options.GetEndCapType()) {
                 case Options::ENDCAP_GREGORY_BASIS:
                 {

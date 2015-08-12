@@ -33,13 +33,13 @@ namespace Vtr {
 namespace internal {
 
 //
-//  The StackBuffer class is intented solely to take the place of VLA's (Variable
+//  The StackBuffer class is intended solely to take the place of VLAs (Variable
 //  Length Arrays) which most compilers support, but are not strictly standard C++.
 //  Portability concerns forces us to make use of either alloca() or some other
 //  mechanism to create small arrays on the stack that are typically based on the
-//  valence of a vertex -- small in general, but occassionally large.
+//  valence of a vertex -- small in general, but occasionally large.
 //
-//  Note also that since the intent of this is to replace VLA's -- not general
+//  Note also that since the intent of this is to replace VLAs -- not general
 //  std::vectors -- support for std::vector functionality is intentionally limited
 //  and STL-like naming is avoided.  Like a VLA there is no incremental growth.
 //  Support for resizing is available to reuse an instance at the beginning of a

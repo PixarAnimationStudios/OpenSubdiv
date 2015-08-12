@@ -331,7 +331,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 //   trying to keep this general and we will be better off specializing it for each scheme.
 //   The fact that this method is intimately tied to patch generation also begs for it to
 //   become part of a class that encompasses both the feature adaptive tagging and the
-//   identification of the intended patch that result from it.
+//   identification of the intended patches that result from it.
 //
 void
 TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector) {
@@ -426,7 +426,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
             //  Any occurrence of a Dart vertex requires isolation
             selectFace = true;
         } else if (not (compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
-            //  None of the vertices is Smooth, so we have all vertices either Crease or Corner.
+            //  None of the vertices are Smooth, so we have all vertices either Crease or Corner.
             //  Though some may be regular patches, this currently warrants isolation as we only
             //  support regular patches with one corner or one boundary, i.e. with one or more
             //  smooth interior vertices.

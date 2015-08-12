@@ -72,7 +72,7 @@ namespace internal {
 //  Regarding scope and access...
 //      Unclear at this early state, but leaning towards nesting this class within
 //  Level, given the intimate dependency between the two.
-//      Everything is being declared public for now to facilitate access until its
+//      Everything is being declared public for now to facilitate access until it's
 //  clearer how this functionality will be provided.
 //
 class FVarLevel {

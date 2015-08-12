@@ -42,7 +42,7 @@ namespace Sdc {
 ///  limit surface, including the "shape" of primitive variable data associated with
 ///  it.
 ///
-///  The intent is that these sets of options be defined at a high-level and
+///  The intent is that these sets of options be defined at a high level and
 ///  propagated into the lowest-level computation in support of each subdivision
 ///  scheme.  Ideally it remains a set of bit-fields (essentially an int) and so
 ///  remains light weight and easily passed around by value.
@@ -83,10 +83,10 @@ public:
     //  Trivial get/set methods:
     //
 
-    /// \brief Set vertex boundary interpolation rule
+    /// \brief Get vertex boundary interpolation rule
     VtxBoundaryInterpolation GetVtxBoundaryInterpolation() const { return (VtxBoundaryInterpolation) _vtxBoundInterp; }
 
-    /// \brief Get vertex boundary interpolation rule
+    /// \brief Set vertex boundary interpolation rule
     void SetVtxBoundaryInterpolation(VtxBoundaryInterpolation b) { _vtxBoundInterp = b; }
 
     /// \brief Get face-varying interpolation rule

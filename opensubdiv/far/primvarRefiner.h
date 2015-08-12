@@ -92,14 +92,14 @@ public:
     ///       (ex. std::vector<MyVertex>).
     ///       Some interpolation methods however allow passing the buffers by
     ///       reference: this allows to work transparently with arrays and
-    ///       containers (or other scheme that overload the '[]' operator)
+    ///       containers (or other schemes that overload the '[]' operator)
     ///       <br><br>
     ///       See the <a href=http://graphics.pixar.com/opensubdiv/docs/tutorials.html>
     ///       Far tutorials</a> for code examples.
     ///
 
     /// \brief Apply vertex interpolation weights to a primvar buffer for a single
-    ///        level level of refinement.
+    ///        level of refinement.
     ///
     /// The destination buffer must allocate an array of data for all the
     /// refined vertices, i.e. at least refiner.GetLevel(level).GetNumVertices()
@@ -113,7 +113,7 @@ public:
     template <class T, class U> void Interpolate(int level, T const & src, U & dst) const;
 
     /// \brief Apply only varying interpolation weights to a primvar buffer
-    ///        for a single level level of refinement.
+    ///        for a single level of refinement.
     ///
     /// This method can useful if the varying primvar data does not need to be
     /// re-computed over time.
@@ -410,7 +410,7 @@ PrimvarRefiner::InterpolateVarying(int level, T const & src, U & dst) const {
     Vtr::internal::Level const &      parent     = refinement.parent();
 
     //
-    //  Group values to interolate based on origin -- note that there may
+    //  Group values to interpolate based on origin -- note that there may
     //  be none originating from faces:
     //
     if (refinement.getNumChildVerticesFromFaces() > 0) {
@@ -608,7 +608,7 @@ PrimvarRefiner::interpFromVerts(int level, T const & src, U & dst) const {
         //  Apply the weights to the parent vertex, the vertices opposite its incident
         //  edges, and the child vertices of its incident faces:
         //
-        //  In order to improve numerical precision, its better to apply smaller weights
+        //  In order to improve numerical precision, it's better to apply smaller weights
         //  first, so begin with the face-weights followed by the edge-weights and the
         //  vertex weight last.
         dst[cVert].Clear();
@@ -748,7 +748,7 @@ PrimvarRefiner::interpFVarFromEdges(int level, T const & src, U & dst, int chann
                 scheme.ComputeEdgeVertexMask(eHood, eMask, pRule, cRule);
             }
 
-            //  Apply the weights to the parent edges's vertices and (if applicable) to
+            //  Apply the weights to the parent edge's vertices and (if applicable) to
             //  the child vertices of its incident faces:
             //
             //  Even though the face-varying topology matches the vertex topology, we need
@@ -915,7 +915,7 @@ PrimvarRefiner::interpFVarFromVerts(int level, T const & src, U & dst, int chann
             //  it matches.
             //
             //  As with applying the mask to vertex data, in order to improve numerical
-            //  precision, its better to apply smaller weights first, so begin with the
+            //  precision, it's better to apply smaller weights first, so begin with the
             //  face-weights followed by the edge-weights and the vertex weight last.
             //
             Vtr::Index pVertValue = pVertValues[0];
@@ -1093,7 +1093,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
 
         //
         //  Combine the weights and indices for position and tangents.  As with applying
-        //  refinment masks to vertex data, in order to improve numerical precision, its
+        //  refinement masks to vertex data, in order to improve numerical precision, it's
         //  better to apply smaller weights first, so begin with the face-weights followed
         //  by the edge-weights and the vertex weight last.
         //

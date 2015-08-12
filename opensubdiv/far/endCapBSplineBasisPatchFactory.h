@@ -47,7 +47,7 @@ class EndCapBSplineBasisPatchFactory {
 public:
     // XXXX need to add support for face-varying channel stencils
 
-    /// \brief This factory accumulates vertex for bspline basis end cap
+    /// \brief This factory accumulates vertices for bspline basis end cap
     ///
     /// @param refiner                TopologyRefiner from which to generate patches
     ///

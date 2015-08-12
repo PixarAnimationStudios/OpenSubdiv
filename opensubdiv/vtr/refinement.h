@@ -52,8 +52,8 @@ class FVarRefinement;
 //  components in the child level.
 //
 //  Refinement is an abstract class and expects subclasses corresponding to the different types
-//  of topological splits that the supported subdivisions schemes collectively require, i.e. those
-//  list in Sdc::SplitType.  Note the virtual requirements expected of the subclasses in the list
+//  of topological splits that the supported subdivision schemes collectively require, i.e. those
+//  listed in Sdc::SplitType.  Note the virtual requirements expected of the subclasses in the list
 //  of protected methods -- they differ mainly in the topology that is created in the child Level
 //  and not the propagation of tags through refinement, subdivision of sharpness values or the
 //  treatment of face-varying data.  The primary subclasses are QuadRefinement and TriRefinement.
@@ -182,7 +182,7 @@ public:
     //  which could be deferred, in which case "transitional" could be a single bit.
     //
     //  Child tags are part of the child-to-parent mapping, which consists of the parent
-    //  component index for each child component, plus a tags for the child indicating more
+    //  component index for each child component, plus a tag for the child indicating more
     //  about its relationship to its parent, e.g. is it completely defined, what the parent
     //  component type is, what is the index of the child within its parent, etc.
     //
@@ -395,7 +395,7 @@ protected:
     std::vector<ChildTag> _childVertexTag;
 
     //
-    //  Tags for spase selection of components:
+    //  Tags for sparse selection of components:
     //
     std::vector<SparseTag> _parentFaceTag;
     std::vector<SparseTag> _parentEdgeTag;

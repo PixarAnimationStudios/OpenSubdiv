@@ -45,7 +45,7 @@
 //      This is intended to be a fairly simple container of topology, sharpness and
 //  other information that is useful to retain for subdivision.  It is intended to
 //  be constructed by other friend classes, i.e. factories and class specialized to
-//  contruct topology based on various splitting schemes.  So its interface consists
+//  construct topology based on various splitting schemes.  So its interface consists
 //  of simple methods for inspection, and low-level protected methods for populating
 //  it rather than high-level modifiers.
 //
@@ -1327,7 +1327,7 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
 
 //
 //  What follows is an internal/anonymous class and protected methods to complete all
-//  topological relations when only the face-vertex relations is defined.
+//  topological relations when only the face-vertex relations are defined.
 //
 //  In keeping with the original idea that Level is just data and relies on other
 //  classes to construct it, this functionality may be warranted elsewhere, but we are
@@ -1336,7 +1336,7 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
 //
 namespace {
     //
-    //  This is an internal helper class to manage the assembly of the tological relations
+    //  This is an internal helper class to manage the assembly of the topological relations
     //  that do not have a predictable size, i.e. faces-per-edge, faces-per-vertex and
     //  edges-per-vertex.  Level manages these with two vectors:
     //
@@ -1458,7 +1458,7 @@ namespace {
             _regIndices.resize(memberCount);
             return memberMax;
         } else {
-            //  Assign new offsets-per-component while determining if we can trivially compressed in place:
+            //  Assign new offsets-per-component while determining if we can trivially compress in place:
             bool cannotBeCompressedInPlace = false;
 
             int memberCount = _countsAndOffsets[0];
@@ -1537,7 +1537,7 @@ bool
 Level::completeTopologyFromFaceVertices() {
 
     //
-    //  Its assumed (a pre-condition) that face-vertices have been fully specified and that we
+    //  It's assumed (a pre-condition) that face-vertices have been fully specified and that we
     //  are to construct the remaining relations:  including the edge list.  We may want to
     //  support the existence of the edge list too in future:
     //
@@ -1548,7 +1548,7 @@ Level::completeTopologyFromFaceVertices() {
 
     //  May be unnecessary depending on how the vertices and faces were defined, but worth a
     //  call to ensure all data related to verts and faces is available -- this will be a
-    //  harmless call if all has been taken care of).
+    //  harmless call if all has been taken care of.
     //
     //  Remember to resize edges similarly after the edge list has been assembled...
     this->resizeVertices(vCount);
@@ -1602,7 +1602,7 @@ Level::completeTopologyFromFaceVertices() {
             }
 
             //
-            //  If the edge already exists, see if is non-manifold, i.e. it has already been
+            //  If the edge already exists, see if it is non-manifold, i.e. it has already been
             //  added to two faces, or this face has the edge in the same orientation as the
             //  first face (indicating opposite winding orders between the two faces).
             //
@@ -1671,7 +1671,7 @@ Level::completeTopologyFromFaceVertices() {
     //
     //  At this point all incident members are associated with each component.  We still
     //  need to populate the "local indices" for each and orient manifold components in
-    //  counter-clockwise order.  First mark tag non-manifold edges and their incident
+    //  counter-clockwise order.  First tag non-manifold edges and their incident
     //  vertices so that we can trivially skip orienting these -- though some vertices
     //  will be determined non-manifold as a result of a failure to orient them (and
     //  will be marked accordingly when so detected).
