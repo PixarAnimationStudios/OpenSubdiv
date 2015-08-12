@@ -935,7 +935,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
             //  XXXX (barfowl) -- why are we approximating a smooth x-ordinary corner with
             //  a sharp corner patch?  The boundary/corner points of the regular patch are
-            //  not even made colinear to make it smoother.  Something historical here...
+            //  not even made collinear to make it smoother.  Something historical here...
             //
             //  So this treatment may become optional in future and is bracketed with a
             //  condition now for that reason.  We approximate x-ordinary smooth corners
@@ -972,7 +972,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             }
 
             //
-            //  Now that all boundary features have have been identified and tagged, assign
+            //  Now that all boundary features have been identified and tagged, assign
             //  the transition type for the patch before taking inventory.
             //
             //  Identify and increment counts for regular patches (both non-transitional and
@@ -990,7 +990,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
                     context.patchInventory.R++;
                 }
             } else {
-                // select endcap patchtype
+                // select endcap patch type
                 switch(context.options.GetEndCapType()) {
                 case Options::ENDCAP_GREGORY_BASIS:
                     context.patchInventory.GP++;

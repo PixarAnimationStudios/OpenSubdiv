@@ -93,7 +93,7 @@ protected:
     /// Returns true if success.
     bool allocate(cl_context clContext);
 
-    /// Acqures a resource from GL.
+    /// Acquires a resource from GL.
     void map(cl_command_queue queue);
 
     /// Releases a resource to GL.

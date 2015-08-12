@@ -196,7 +196,7 @@ QuadRefinement::populateFaceEdgesFromParentFaces() {
 
     //
     //  This is fairly straightforward, but since we are dealing with edges here, we
-    //  occasionally have to deal with the limition of them being undirected.  Since
+    //  occasionally have to deal with the limitation of them being undirected.  Since
     //  child faces from the same parent face share much in common, we iterate through
     //  the parent faces.
     //

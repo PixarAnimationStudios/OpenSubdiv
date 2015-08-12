@@ -36,7 +36,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-// Builds a table of local indices pairs for each vertex of the patch.
+// Builds a table of local index pairs for each vertex of the patch.
 //
 //            o
 //         N0 |

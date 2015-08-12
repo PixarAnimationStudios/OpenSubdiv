@@ -94,7 +94,7 @@ TopologyRefiner::Unrefine() {
 
 
 //
-//  Intializing and updating the component inventory:
+//  Initializing and updating the component inventory:
 //
 void
 TopologyRefiner::initializeInventory() {
@@ -294,7 +294,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         //
         //  Initialize a Selector to mark a sparse set of components for refinement.  If
         //  nothing was selected, discard the new refinement and child level, trim the
-        //  maximum level and stop refinining any further.  Otherwise, refine and append
+        //  maximum level and stop refining any further.  Otherwise, refine and append
         //  the new refinement and child.
         //
         Vtr::internal::SparseSelector selector(*refinement);

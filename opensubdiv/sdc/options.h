@@ -101,10 +101,10 @@ public:
     /// \brief Set edge crease rule
     void SetCreasingMethod(CreasingMethod c) { _creasingMethod = c; }
 
-    /// \brief Get triangle subdivsion weights rule (Catmark scheme only !)
+    /// \brief Get triangle subdivision weights rule (Catmark scheme only !)
     TriangleSubdivision GetTriangleSubdivision() const { return (TriangleSubdivision) _triangleSub; }
 
-    /// \brief Set triangle subdivsion weights rule (Catmark scheme only !)
+    /// \brief Set triangle subdivision weights rule (Catmark scheme only !)
     void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = t; }
 
 private:

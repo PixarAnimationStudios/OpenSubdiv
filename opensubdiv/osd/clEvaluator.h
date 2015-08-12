@@ -95,7 +95,7 @@ public:
     /// Constructor.
     CLEvaluator(cl_context context, cl_command_queue queue);
 
-    /// Desctructor.
+    /// Destructor.
     ~CLEvaluator();
 
     /// Generic creator template.
