@@ -113,11 +113,11 @@ static Far::TopologyRefiner * createTopologyRefiner();
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    // Generate some FarTopologyRefiner (see far_tutorial_0 for details).
+    // Generate a FarTopologyRefiner (see far_tutorial_0 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
 
-    // Uniformly refine the topolgy up to 'maxlevel'.
+    // Uniformly refine the topology up to 'maxlevel'.
     int maxlevel = 4;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
@@ -159,7 +159,7 @@ int main(int, char **) {
         // Allocate varying primvar buffer (1 stencil for each vertex)
         std::vector<Vertex> varyingBuffer(varyingStencils->GetNumStencils());
 
-        // Use the a per-vertex array of RGB colors as 'varying' primvar data
+        // Use per-vertex array of RGB colors as 'varying' primvar data
         Vertex * varyingCVs = reinterpret_cast<Vertex *>(g_colors);
 
     delete refiner;

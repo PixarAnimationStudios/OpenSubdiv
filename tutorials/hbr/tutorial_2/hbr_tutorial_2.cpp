@@ -27,7 +27,7 @@
 // Tutorial description:
 //
 // This tutorial shows how to subdivide uniformly a simple Hbr mesh. We are
-// building upon previous turtorials and assuming a fully instantiated mesh:
+// building upon previous tutorials and assuming a fully instantiated mesh:
 // we start with an HbrMesh pointer initialized from the same pyramid shape
 // used in hbr_tutorial_0.
 //
@@ -45,7 +45,7 @@
 
 //------------------------------------------------------------------------------
 //
-// For this tutorial, we have to flesh the Vertex class further. Note that now
+// For this tutorial, we have to flesh out the Vertex class further. Note that now
 // the copy constructor, Clear() and AddwithWeight() methods have been
 // implemented to interpolate our float3 position data.
 //
@@ -113,7 +113,7 @@ int main(int, char **) {
 
         // Total number of faces in the mesh, across all levels
         //
-        // Mote: this function iterates over the list of faces and can be slow
+        // Note: this function iterates over the list of faces and can be slow
         int nfaces = hmesh->GetNumFaces();
 
         if (level==(maxlevel-1)) {
@@ -126,7 +126,7 @@ int main(int, char **) {
 
             Hface * f = hmesh->GetFace(face);
 
-            // Mote : hole tags would have to be dealt with here.
+            // Note: hole tags would have to be dealt with here.
             f->Refine();
         }
 

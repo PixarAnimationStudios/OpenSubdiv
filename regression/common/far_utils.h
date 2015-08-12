@@ -241,7 +241,7 @@ inline bool
 TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
-    // UV layyout (we only parse 1 channel)
+    // UV layout (we only parse 1 channel)
     if (not shape.faceuvs.empty()) {
 
         int nfaces = getNumBaseFaces(refiner),

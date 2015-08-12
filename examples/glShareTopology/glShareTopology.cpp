@@ -635,7 +635,7 @@ display() {
 
     glEnable(GL_DEPTH_TEST);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     g_scene->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
@@ -1193,7 +1193,7 @@ int main(int argc, char ** argv) {
     glfwMakeContextCurrent(g_window);
     GLUtils::PrintGLVersion();
 
-    // accommocate high DPI displays (e.g. mac retina displays)
+    // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
     glfwSetFramebufferSizeCallback(g_window, reshape);
 
@@ -1212,7 +1212,7 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 #ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
+    // clear GL errors which were generated during glewInit()
     glGetError();
 #endif
 #endif

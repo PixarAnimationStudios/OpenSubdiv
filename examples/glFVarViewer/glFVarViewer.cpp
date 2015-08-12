@@ -737,7 +737,7 @@ display() {
 
     glEnable(GL_DEPTH_TEST);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     GLuint vbo = g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
@@ -1153,7 +1153,7 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 #ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
+    // clear GL errors which were generated during glewInit()
     glGetError();
 #endif
 #endif
