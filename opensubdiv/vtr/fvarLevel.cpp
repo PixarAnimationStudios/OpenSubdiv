@@ -177,7 +177,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
 
     //
-    //  Its awkward and potentially inefficient to try and accomplish everything in one
+    //  It's awkward and potentially inefficient to try and accomplish everything in one
     //  pass over the vertices...
     //
     //  Make a first pass through the vertices to identify discts edges and to determine
@@ -582,7 +582,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
 //
 //  Values tagged as creases have their two "end values" identified relative to the incident
-//  faces of the vertex for compact storage and quick retrieval.  This methods identifies the
+//  faces of the vertex for compact storage and quick retrieval.  This method identifies the
 //  values for the two ends of such a crease value:
 //
 void

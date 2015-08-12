@@ -140,7 +140,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     //      - it allocates 2*maxvalence+1 for ALL vertices
     //      - it initializes the one-ring for ALL vertices
     //  We use the full size expected (not sure what else relies on that) but 
-    //  we avoiding initializing
+    //  we avoid initializing
     //  the vast majority of vertices that are not associated with gregory 
     //  patches -- by having previously marked those that are associated above
     //  and skipping all others.

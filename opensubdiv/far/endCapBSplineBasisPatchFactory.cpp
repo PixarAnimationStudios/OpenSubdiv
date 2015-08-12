@@ -132,7 +132,7 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
-    // other patches as well as to try to make extra ordinary verts watertight.
+    // other patches as well as try to make extra-ordinary verts watertight.
 
     int offset = (fvarChannel < 0)
                ? _refiner->GetNumVerticesTotal()

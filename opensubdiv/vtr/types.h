@@ -59,17 +59,17 @@ inline bool IndexIsValid(Index index) { return (index != INDEX_INVALID); }
 
 //
 //  Integer type and constants used to index one component within another.  Ideally
-//  this is just 2-bits once refinement reduces faces to tris or quads -- and so
+//  this is just 2 bits once refinement reduces faces to tris or quads -- and so
 //  could potentially be combined with an Index -- but we need something larger for
 //  the N-sided face.
 //
 typedef unsigned short  LocalIndex;
 
-//  Declared as "int" since its intended for more general use
+//  Declared as "int" since it's intended for more general use
 static const int VALENCE_LIMIT = ((1 << 16) - 1);  // std::numeric_limits<LocalIndex>::max()
 
 //
-//  Collections if integer types in variable or fixed sized arrays.  Note that the use
+//  Collections of integer types in variable or fixed sized arrays.  Note that the use
 //  of "vector" in the name indicates a class that wraps an std::vector (typically a
 //  member variable) which is fully resizable and owns its own storage, whereas "array"
 //  wraps a vtr::Array which uses a fixed block of pre-allocated memory.

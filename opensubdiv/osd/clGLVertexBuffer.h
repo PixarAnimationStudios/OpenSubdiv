@@ -36,7 +36,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 ///
-/// \brief Concrete vertex buffer class for OpenCL subvision and OpenGL drawing.
+/// \brief Concrete vertex buffer class for OpenCL subdivision and OpenGL drawing.
 ///
 /// CLGLVertexBuffer implements CLVertexBufferInterface and
 /// GLVertexBufferInterface.

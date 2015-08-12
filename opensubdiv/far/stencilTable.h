@@ -83,7 +83,7 @@ public:
         return _size;
     }
 
-    /// \brief Returns the control vertices indices
+    /// \brief Returns the control vertices' indices
     Index const * GetVertexIndices() const {
         return _indices;
     }
@@ -112,7 +112,7 @@ protected:
 
 /// \brief Table of subdivision stencils.
 ///
-/// Stencils are the most direct methods of evaluation of locations on the limit
+/// Stencils are the most direct method of evaluation of locations on the limit
 /// of a surface. Every point of a limit surface can be computed by linearly
 /// blending a collection of coarse control vertices.
 ///
@@ -230,7 +230,7 @@ protected:
 
     int _numControlVertices;              // number of control vertices
 
-    std::vector<int> _sizes;    // number of coeffiecient for each stencil
+    std::vector<int>           _sizes;    // number of coefficients for each stencil
     std::vector<Index>         _offsets,  // offset to the start of each stencil
                                _indices;  // indices of contributing coarse vertices
     std::vector<float>         _weights;  // stencil weight coefficients
@@ -449,7 +449,7 @@ private:
 };
 
 
-// Update values by appling cached stencil weights to new control values
+// Update values by applying cached stencil weights to new control values
 template <class T> void
 StencilTable::update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, Index start, Index end) const {
@@ -476,7 +476,7 @@ StencilTable::update(T const *controlValues, T *values,
         // Zero out the result accumulators
         values[i].Clear();
 
-        // For each element in the array, add the coefs contribution
+        // For each element in the array, add the coef's contribution
         for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
             values[i].AddWithWeight( controlValues[*indices], *weights );
         }

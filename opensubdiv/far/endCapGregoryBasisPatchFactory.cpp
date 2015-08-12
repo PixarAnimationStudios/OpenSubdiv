@@ -190,7 +190,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 int aedge = aedges.FindIndexIn4Tuple(edge);
                 assert(aedge!=Vtr::INDEX_INVALID);
 
-                // Find index of basis in the list of basis already generated
+                // Find index of basis in the list of bases already generated
                 unsigned int adjLevelAndFaceIndex = LevelAndFaceIndex::create(levelIndex, adjFaceIndex);
                 unsigned int * ptr = (unsigned int *)std::bsearch(&adjLevelAndFaceIndex,
                                                                   &_levelAndFaceIndices[0],
@@ -212,7 +212,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 Index * src = &_patchPoints[adjPatchIndex*20];
                 for (int j=0; j<4; ++j) {
                     // invert direction
-                    // note that src  indices have already been offsetted.
+                    // note that src indices have already been offsetted.
                     dest[gregoryEdgeVerts[i][3-j]] = src[gregoryEdgeVerts[aedge][j]];
                 }
             }
