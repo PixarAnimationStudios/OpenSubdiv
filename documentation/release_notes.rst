@@ -31,6 +31,12 @@
 
 ----
 
+Release 3.0.3
+=============
+
+**Bug Fixes**
+    - Fixed bug in display of Loop surfaces in glFVarViewer.
+
 Release 3.0.2
 =============
 
