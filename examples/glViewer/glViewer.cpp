@@ -85,10 +85,10 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
 
 /* Function to get the correct shader file based on the opengl version.
-  The implentation varies depending if glew is available or not. In case
+  The implementation varies depending if glew is available or not. In case it
   is available the capabilities are queried during execution and the correct
-  source is returned. If glew in not available during compile time the version
-  is determined*/
+  source is returned. If glew is not available the version is determined at
+  compile time */
 static const char *shaderSource(){
 #if not defined(OSD_USES_GLEW)
 
@@ -110,7 +110,7 @@ static const char *res =
                 ;
             //Determine the shader file to use. Since some opengl implementations
             //define that an extension is available but not an implementation 
-            //for it you cannnot trust in the glew header definitions to know that is 
+            //for it you cannot trust in the glew header definitions to know that is 
             //available, but you need to query it during runtime.
             if (GLUtils::SupportsAdaptiveTessellation())
                 res = gen;
@@ -1078,7 +1078,7 @@ display() {
     inverseMatrix(g_transformData.ModelViewInverseMatrix,
                   g_transformData.ModelViewMatrix);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     GLuint vbo = g_mesh->BindVertexBuffer();
 
     // vertex texture update for legacy gregory drawing
@@ -1697,7 +1697,7 @@ int main(int argc, char ** argv) {
     glfwMakeContextCurrent(g_window);
     GLUtils::PrintGLVersion();
 
-    // accommocate high DPI displays (e.g. mac retina displays)
+    // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
     glfwSetFramebufferSizeCallback(g_window, reshape);
 
@@ -1716,7 +1716,7 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 #ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
+    // clear GL errors which were generated during glewInit()
     glGetError();
 #endif
 #endif

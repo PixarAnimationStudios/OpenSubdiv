@@ -148,7 +148,7 @@ public:
                                           stencilTable,
                                           deviceContext);
         } else {
-            // Create an instace on demand (slow)
+            // Create an instance on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc,
                               BufferDescriptor(),
@@ -212,7 +212,7 @@ private:
     ID3D11ClassLinkage  * _classLinkage;
     ID3D11ClassInstance * _singleBufferKernel;
     ID3D11ClassInstance * _separateBufferKernel;
-    ID3D11Buffer        * _uniformArgs; // uniform paramaeters for kernels
+    ID3D11Buffer        * _uniformArgs; // uniform parameters for kernels
 
     int _workGroupSize;
 };

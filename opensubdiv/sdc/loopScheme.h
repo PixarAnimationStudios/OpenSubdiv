@@ -60,7 +60,7 @@ inline int Scheme<SCHEME_LOOP>::GetLocalNeighborhoodSize() { return 1; }
 //  Protected methods to assign the two types of masks for an edge-vertex --
 //  Crease and Smooth.
 //
-//  The Crease case does not really need to be speciailized, though it may be
+//  The Crease case does not really need to be specialized, though it may be
 //  preferable to define all explicitly here.
 //
 template <>
@@ -132,7 +132,7 @@ Scheme<SCHEME_LOOP>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) const
 //  Protected methods to assign the three types of masks for a vertex-vertex --
 //  Corner, Crease and Smooth (Dart is the same as Smooth).
 //
-//  Corner and Crease do not really need to be speciailized, though it may be
+//  Corner and Crease do not really need to be specialized, though it may be
 //  preferable to define all explicitly here.
 //
 template <>
@@ -313,7 +313,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
 //
 //  A note on tangent magnitudes:
 //
-//  Several formulae exist for limit tangents at a vertex to accomodate the
+//  Several formulae exist for limit tangents at a vertex to accommodate the
 //  different topological configurations around the vertex.  While these produce
 //  the desired direction, there is inconsistency in the resulting magnitudes.
 //  Ideally a regular mesh of uniformly shaped triangles with similar edge lengths
@@ -322,7 +322,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
 //  scale factors.
 //
 //  For uses where magnitude does not matter, this scaling should be irrelevant.
-//  But just as with patches, where the magnitudes of partial derivates are
+//  But just as with patches, where the magnitudes of partial derivatives are
 //  consistent between similar patches, the magnitudes of limit tangents should
 //  also be similar.
 //
@@ -349,9 +349,9 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
 //  where v5 = v0 + (v4 - v3) and v6 = v0 + v1 - v2.
 //
 //  When the standard limit tangent mask is applied, the cosines of increments
-//  of pi/3 gives us coefficients that are mutliples of 1/2, leading to the first
+//  of pi/3 give us coefficients that are multiples of 1/2, leading to the first
 //  tangent T1 = 3/2 * (v1 - v4), rather than the widely used T1 = v1 - v4.  So
-//  this scale factor of 3/2 is applied to insure tangents along the boundaries
+//  this scale factor of 3/2 is applied to ensure tangents along the boundaries
 //  are of similar magnitude as tangents in the immediate interior (which may be
 //  parallel).
 //
@@ -442,7 +442,7 @@ Scheme<SCHEME_LOOP>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
 
     //
     //  Second, the tangent across the interior faces:
-    //      Note this is ambigous for an interior vertex.  We currently return
+    //      Note this is ambiguous for an interior vertex.  We currently return
     //  the tangent for the surface in the counter-clockwise span between the
     //  leading and trailing edges that form the crease.  Given the expected
     //  computation of a surface normal as Tan1 X Tan2, this tangent should be

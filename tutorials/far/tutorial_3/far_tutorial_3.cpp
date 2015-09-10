@@ -81,11 +81,11 @@ private:
 //------------------------------------------------------------------------------
 // Face-varying container implementation.
 //
-// We are using a uv texture layout as a 'face-varying' primtiive variable
+// We are using a uv texture layout as a 'face-varying' primitive variable
 // attribute. Because face-varying data is specified 'per-face-per-vertex',
 // we cannot use the same container that we use for 'vertex' or 'varying'
 // data. We specify a new container, which only carries (u,v) coordinates.
-// Similarly to our 'Vertex' container, we add a minimaliztic interpolation
+// Similarly to our 'Vertex' container, we add a minimalistic interpolation
 // interface with a 'Clear()' and 'AddWithWeight()' methods.
 //
 struct FVarVertexUV {
@@ -248,7 +248,7 @@ int main(int, char **) {
         Far::TopologyRefinerFactory<Descriptor>::Create(desc,
             Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
-    // Uniformly refine the topolgy up to 'maxlevel'
+    // Uniformly refine the topology up to 'maxlevel'
     // note: fullTopologyInLastLevel must be true to work with face-varying data
     {
         Far::TopologyRefiner::UniformOptions refineOptions(maxlevel);

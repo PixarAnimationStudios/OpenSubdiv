@@ -371,7 +371,7 @@ gatherTopology( MFnMesh & inMeshFn,
     // Note : Only supports 1 channel of UVs and 1 channel of color
     if (*hasUVs || *hasColors) {
 
-        // Create 2 face-varying channel descriptor that will hold UVs and color
+        // Create 2 face-varying channel descriptors that will hold UVs and color
         desc.numFVarChannels = 2;
         channels = new Descriptor::FVarChannel[desc.numFVarChannels];
         desc.fvarChannels = channels;
@@ -750,7 +750,7 @@ convertToMayaMeshData(OpenSubdiv::Far::TopologyRefiner const & refiner,
             colorArray.set(colIt, c.r, c.g, c.b, c.a);
         }
 
-        // Currently, the plugin only supports one color sets
+        // Currently, the plugin only supports one color set
         int colorSetIndex = 0;
 
         // Assign color buffer and map the ids for each face-vertex

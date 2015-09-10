@@ -118,7 +118,7 @@ FVarLevel::resizeValues(int valueCount) {
 //
 //  Once values have been identified for each vertex and tagged, refinement propagates
 //  the tags to child values using more simplified logic (child values inherit the
-//  topology of their parent) and no futher analysis is required.
+//  topology of their parent) and no further analysis is required.
 //
 void
 FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
@@ -156,7 +156,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
 
     //
-    //  Its awkward and potentially inefficient to try and accomplish everything in one
+    //  It's awkward and potentially inefficient to try and accomplish everything in one
     //  pass over the vertices...
     //
     //  Make a first pass through the vertices to identify discts edges and to determine
@@ -383,7 +383,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     //
     //  Now that we know the total number of additional sibling values (M values in addition
-    //  to the N vertex values) allocate space to accomodate all N + M vertex values.  The
+    //  to the N vertex values) allocate space to accommodate all N + M vertex values.  The
     //  vertex value tags will be initialized to match, and we proceed to sparsely mark the
     //  vertices that mismatch, so initialize a few local ValueTag constants for that purpose
     //  (assigning entire Tag structs is much more efficient than setting individual bits)
@@ -556,7 +556,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
 //
 //  Values tagged as creases have their two "end values" identified relative to the incident
-//  faces of the vertex for compact storage and quick retrieval.  This methods identifies the
+//  faces of the vertex for compact storage and quick retrieval.  This method identifies the
 //  values for the two ends of such a crease value:
 //
 void
@@ -1018,7 +1018,7 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
     typedef Level::VTag::VTagSize  VertTagSize;
 
     //
-    //  Create a composite VTag for the face that augments the vertex corners' VTag's with
+    //  Create a composite VTag for the face that augments the vertex corners' VTags with
     //  topological information about the FVar values at each corner.  Only when there is
     //  a mismatch does the FVar value need to be inspected further:
     //
@@ -1061,7 +1061,7 @@ FVarLevel::getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
     typedef Level::ETag::ETagSize  FaceETagSize;
 
     //
-    //  Create a composite ETag for the face that augments the edges ETag's with
+    //  Create a composite ETag for the face that augments the edges' ETags with
     //  topological information about the FVar values at each corner.  Only when there is
     //  a mismatch does the FVar value need to be inspected further:
     //

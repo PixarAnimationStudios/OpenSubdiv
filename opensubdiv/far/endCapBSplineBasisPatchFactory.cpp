@@ -61,7 +61,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
-    // other patches as well as to try to make extra ordinary verts watertight.
+    // other patches as well as try to make extra-ordinary verts watertight.
 
     int offset = _refiner->GetNumVerticesTotal();
     for (int i = 0; i < 16; ++i) {

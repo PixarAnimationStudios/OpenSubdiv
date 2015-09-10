@@ -161,7 +161,7 @@ protected:
     ///  the vertices for that face.
     ///
     ///  If a full boundary representation with all neighborhood information is not
-    ///  available, e.g. faces and vertices are avaible but not edges, only the
+    ///  available, e.g. faces and vertices are available but not edges, only the
     ///  face-vertices should be specified.  The remaining topological relationships
     ///  will be constructed later in the assembly (though at greater cost than if
     ///  specified directly).
@@ -170,13 +170,13 @@ protected:
     ///  specified in order, i.e. the number of face-vertices for each successive face.
     ///
 
-    /// \brief Specify the number of vertices to be accomodated
+    /// \brief Specify the number of vertices to be accommodated
     static void setNumBaseVertices(TopologyRefiner & newRefiner, int count);
 
-    /// \brief Specify the number of faces to be accomodated
+    /// \brief Specify the number of faces to be accommodated
     static void setNumBaseFaces(TopologyRefiner & newRefiner, int count);
 
-    /// \brief Specify the number of edges to be accomodated
+    /// \brief Specify the number of edges to be accommodated
     static void setNumBaseEdges(TopologyRefiner & newRefiner, int count);
 
     /// \brief Specify the number of vertices incident each face
@@ -260,10 +260,10 @@ protected:
     ///
     /// These methods are used to assign edge or vertex sharpness, for tagging faces
     /// as holes, etc.  Unlike topological assignment, only those components that
-    /// posses a feature of interest need be explicitly assigned.
+    /// possess a feature of interest need be explicitly assigned.
     ///
     /// Since topological construction is largely complete by this point, a method is
-    /// availble to identify an edge for sharpness assignment given a pair of vertices.
+    /// available to identify an edge for sharpness assignment given a pair of vertices.
     ///
 
     /// \brief Identify an edge to be assigned a sharpness value given a vertex pair
@@ -286,7 +286,7 @@ protected:
     /// topology is assigned -- indices for face-varying values are assigned to the
     /// corners of each face just as indices for vertices were assigned.
     ///
-    /// Independent sets of face-varying data is stored in channels.  The identifier
+    /// Independent sets of face-varying data are stored in channels.  The identifier
     /// of each channel (an integer) is expected whenever referring to face-varying
     /// data in any form.
     ///
@@ -614,7 +614,7 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //  or, if the mesh is manifold, explicit assignment of these can be deferred and
     //  all can be determined by calling:
     //
-    //      void populateBaseLocalIndices(TopologyRefiner& newRefiner, )
+    //      void populateBaseLocalIndices(TopologyRefiner& newRefiner)
     //
     //  All components are assumed to be locally manifold and ordering of components in
     //  the above relations is expected to be counter-clockwise.
@@ -628,7 +628,7 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //      void setBaseVertexNonManifold(TopologyRefiner& newRefiner, Index vertex, bool b);
     //
     //  Also consider using TopologyLevel::ValidateTopology() when debugging to ensure
-    //  that topolology has been completely and correctly specified.
+    //  that topology has been completely and correctly specified.
     //
     return false;
 }

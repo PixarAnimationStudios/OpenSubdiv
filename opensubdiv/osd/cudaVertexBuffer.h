@@ -34,7 +34,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-/// \brief Concrete vertex buffer class for Cuda subvision.
+/// \brief Concrete vertex buffer class for Cuda subdivision.
 ///
 /// CudaVertexBuffer implements CudaVertexBufferInterface.
 /// An instance of this buffer class can be passed to CudaEvaluator

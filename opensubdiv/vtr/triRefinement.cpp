@@ -52,7 +52,7 @@ TriRefinement::~TriRefinement() {
 
 
 //
-//  Methods for construct the parent-to-child mapping
+//  Methods to construct the parent-to-child mapping
 //
 void
 TriRefinement::allocateParentChildIndices() {
@@ -161,7 +161,7 @@ TriRefinement::populateFaceVerticesFromParentFaces() {
         //  The orientation for the 4th "interior" face is unclear -- it begins
         //  with the child vertex of the 2nd edge of the triangle.  According
         //  to the notes with the Hbr implementation "the ordering of vertices
-        //  here is done to preserve parameteric space as best we can."
+        //  here is done to preserve parametric space as best we can."
         //
         if (IndexIsValid(pFaceChildren[0])) {
             IndexArray cFaceVerts = _child->getFaceVertices(pFaceChildren[0]);
