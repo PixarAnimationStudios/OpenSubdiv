@@ -72,7 +72,7 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
                                               bool verticesMask[4][5],
                                               int levelVertOffset) {
 
-    // Gregory patches only exist on the hight
+    // Gregory patches only exist on the highest level
     Vtr::internal::Level const & level = _refiner->getLevel(_refiner->GetMaxLevel());
 
     // Gather the CVs that influence the Gregory patch and their relative
@@ -153,7 +153,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 int aedge = aedges.FindIndexIn4Tuple(edge);
                 assert(aedge!=Vtr::INDEX_INVALID);
 
-                // Find index of basis in the list of basis already generated
+                // Find index of basis in the list of bases already generated
                 struct compare {
                     static int op(void const * a, void const * b) {
                         return *(Index const*)a - *(Index const*)b;
@@ -184,7 +184,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 Index * src = &_patchPoints[srcBasisIdx*20];
                 for (int j=0; j<4; ++j) {
                     // invert direction
-                    // note that src  indices have already been offsetted.
+                    // note that src indices have already been offsetted.
                     dest[gregoryEdgeVerts[i][3-j]] = src[gregoryEdgeVerts[aedge][j]];
                 }
             }

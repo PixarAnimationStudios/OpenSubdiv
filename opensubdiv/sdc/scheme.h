@@ -131,7 +131,7 @@ public:
     ///  edge while T2 points inward across the limit surface.
     ///
     ///  As for magnitude, no assumptions should be made of the magnitudes of the resulting
-    ///  tanget vectors.  Common formulae often factor out scale factors that contribute to
+    ///  tangent vectors.  Common formulae often factor out scale factors that contribute to
     ///  magnitude.  While some attempt has been made to make magnitudes more consistent
     ///  between regular corners, boundaries and the interior, the same has not been done at
     ///  irregular vertices -- at least not yet.  This may be addressed in future, as having
@@ -201,9 +201,9 @@ protected:
     //  Internal implementation support:
     //
     //  We need a local "mask" class to be declared locally within the vertex-vertex mask query
-    //  to hold one of the two possible mask required and to combine the local mask with the mask
+    //  to hold one of the two possible masks required and to combine the local mask with the mask
     //  the caller provides.  It has been parameterized by <WEIGHT> so that a version compatible
-    //  with the callers mask class is created.
+    //  with the caller's mask class is created.
     //
     template <typename WEIGHT>
     class LocalMask {
@@ -366,7 +366,7 @@ Scheme<SCHEME>::ComputeFaceVertexMask(FACE const& face, MASK& mask) const {
 //  determine if smooth or a crease, and also to detect and apply a transition from a
 //  crease to smooth.  Using the protected methods to assign the specific masks (only
 //  two -- smooth or crease) this implementation should serve all non-linear schemes
-//  (currently Catmark and Loop) and only need to be specialized it for Bilinear to
+//  (currently Catmark and Loop) and only needs to be specialized for Bilinear to
 //  trivialize it to the crease case.
 //
 //  The implementation here is slightly complicated by combining two scenarios into a
@@ -446,7 +446,7 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
     }
 
     //
-    //  We are now left with have the Crease-to-Smooth case -- compute the Smooth mask
+    //  We are now left with the Crease-to-Smooth case -- compute the Smooth mask
     //  for the child and augment it with the transitional Crease of the parent.
     //
     //  A general combination of separately assigned masks here (as done in the vertex-
@@ -475,7 +475,7 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
 //  to determine what subdivision Rules apply to the parent and its child vertex, and also to
 //  detect and apply a transition between two differing Rules.  Using the protected methods to
 //  assign specific masks, this implementation should serve all non-linear schemes (currently
-//  Catmark and Loop) and only need to be specialized for Bilinear to remove all unnecessary
+//  Catmark and Loop) and only needs to be specialized for Bilinear to remove all unnecessary
 //  complexity relating to creasing, Rules, etc.
 //
 //  The implementation here is slightly complicated by combining two scenarios into one --
@@ -484,7 +484,7 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
 //  provided though, there are cases where the parent and child sharpness values need to be
 //  identified, so accounting for the unknown Rules too is not much of an added complication.
 //
-//  The benefit of supporting specified Rules is that they can often often be trivially
+//  The benefit of supporting specified Rules is that they can often be trivially
 //  determined from context (e.g. a vertex derived from a face at a previous level will always
 //  be smooth) rather than more generally, and at greater cost, inspecting neighboring and
 //  they are often the same for parent and child.
@@ -572,7 +572,7 @@ Scheme<SCHEME>::ComputeVertexVertexMask(VERTEX const&   vertex,
     }
 
     //
-    //  Intialize a local child mask, compute the fractional weight from parent and child
+    //  Initialize a local child mask, compute the fractional weight from parent and child
     //  sharpness values and combine the two masks:
     //
     typedef typename MASK::Weight Weight;

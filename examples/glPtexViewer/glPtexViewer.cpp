@@ -1117,7 +1117,7 @@ updateConstantUniformBlock() {
     memcpy(g_modelViewProjection, constantData.ModelViewProjectionMatrix,
            16*sizeof(float));
 
-    // lighs
+    // lights
     Constant::Light light0 = {  { 0.6f, 1.0f, 0.6f, 0.0f },
                                 { 0.1f, 0.1f, 0.1f, 1.0f },
                                 { 1.7f, 1.3f, 1.1f, 1.0f },
@@ -1401,7 +1401,7 @@ display() {
     if (g_hud.IsVisible()) {
         double fps = 1.0/elapsed;
 
-        // Avereage fps over a defined number of time samples for
+        // Average fps over a defined number of time samples for
         // easier reading in the HUD
         g_fpsTimeSamples[g_currentFpsTimeSample++] = float(fps);
         if (g_currentFpsTimeSample >= NUM_FPS_TIME_SAMPLES)
@@ -1695,9 +1695,9 @@ void usage(const char *program) {
     printf("          -e <specularEnvMap.hdr> : specular environment map for IBL\n");
     printf("          -s <shaderfile.glsl>    : custom shader file\n");
     printf("          -y                      : Y-up model\n");
-    printf("          -m level                : max mimmap level (default=10)\n");
+    printf("          -m level                : max mipmap level (default=10)\n");
     printf("          -x <ptex limit MB>      : ptex target memory size\n");
-    printf("          --disp <scale>          : Displacment scale\n");
+    printf("          --disp <scale>          : Displacement scale\n");
 }
 
 //------------------------------------------------------------------------------

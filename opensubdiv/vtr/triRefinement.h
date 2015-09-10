@@ -89,7 +89,7 @@ protected:
 
 private:
     //
-    //  Unlike the quad-split, which can some vectors with the parent Level since
+    //  Unlike the quad-split, which can share some vectors with the parent Level since
     //  child components correspond to face-vertices, the tri-split must define its
     //  own local vectors to identify the children for each parent component -- to
     //  be referenced within the base class for more immediate/inline access:

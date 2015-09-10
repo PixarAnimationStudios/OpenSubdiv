@@ -328,7 +328,7 @@ public:
     }
 
     /// \brief dispatch eval stencils function with derivatives.
-    ///        dispatch the GLSL XFB kernel on on GPU asynchronously.
+    ///        dispatch the GLSL XFB kernel on GPU asynchronously.
     ///
     /// @param srcBuffer       GL buffer of input primvars.
     ///

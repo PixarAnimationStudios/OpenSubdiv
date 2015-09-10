@@ -247,10 +247,10 @@ public:
                DEVICE_CONTEXT *deviceContext = NULL)
         : _srcDesc(       /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
           _srcVaryingDesc(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
-          _vertexDesc(    /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-          _varyingDesc(   /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-          _duDesc(        /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
-          _dvDesc(        /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
+          _vertexDesc(    /*offset*/ 0, /*length*/ 3, /*stride*/ 6),
+          _varyingDesc(   /*offset*/ 3, /*length*/ 3, /*stride*/ 6),
+          _duDesc(        /*offset*/ 0, /*length*/ 3, /*stride*/ 6),
+          _dvDesc(        /*offset*/ 3, /*length*/ 3, /*stride*/ 6),
           _deviceContext(deviceContext) {
         _srcData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
         _srcVaryingData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
@@ -346,7 +346,7 @@ public:
 
         EVALUATOR::EvalPatches(
             _srcVaryingData, _srcVaryingDesc,
-            // varyingdata is interleved in vertexData.
+            // varying data is interleaved in vertexData.
             _vertexData, _varyingDesc,
             _patchCoords->GetNumVertices(),
             _patchCoords,

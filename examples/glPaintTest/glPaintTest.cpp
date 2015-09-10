@@ -648,7 +648,7 @@ display() {
 
     bindTextures(effect);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
@@ -694,7 +694,7 @@ display() {
         g_fpsTimer.Stop();
         double fps = 1.0/g_fpsTimer.GetElapsed();
         g_fpsTimer.Start();
-        // Avereage fps over a defined number of time samples for
+        // Average fps over a defined number of time samples for
         // easier reading in the HUD
         g_fpsTimeSamples[g_currentFpsTimeSample++] = float(fps);
         if (g_currentFpsTimeSample >= NUM_FPS_TIME_SAMPLES)
@@ -776,7 +776,7 @@ drawStroke(int x, int y) {
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_tessellationBinding, g_tessellationUB);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
@@ -1153,7 +1153,7 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 #ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
+    // clear GL errors which were generated during glewInit()
     glGetError();
 #endif
 #endif
