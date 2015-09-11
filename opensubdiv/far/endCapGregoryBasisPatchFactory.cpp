@@ -47,6 +47,15 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
 
     // Sanity check: the mesh must be adaptively refined
     assert(not refiner.IsUniform());
+
+    // Reserve the patch point stencils. Ideally topology refiner
+    // would have an API to return how many endcap patches will be required.
+    // Instead we conservatively estimate by the number of patches at the
+    // finest level.
+    int numMaxLevelFaces = refiner.GetLevel(refiner.GetMaxLevel()).GetNumFaces();
+
+    _vertexStencils.reserve(numMaxLevelFaces*20);
+    _varyingStencils.reserve(numMaxLevelFaces*20);
 }
 
 //

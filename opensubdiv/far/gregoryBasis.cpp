@@ -36,57 +36,6 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-// Builds a table of local indices pairs for each vertex of the patch.
-//
-//            o
-//         N0 |
-//            |              ....
-//            |              .... : Gregory patch
-//   o ------ o ------ o     ....
-// N1       V | .... M3
-//            | .......
-//            | .......
-//            o .......
-//          N2
-//
-// [...] [N2 - N3] [...]
-//
-// Each value pair is composed of 2 index values in range [0-4[ pointing
-// to the 2 neighbor vertices of the vertex 'V' belonging to the Gregory patch.
-// Neighbor ordering is valence CCW and must match the winding of the 1-ring
-// vertices.
-//
-static void
-getQuadOffsets(Vtr::internal::Level const & level, Vtr::Index fIndex,
-    Vtr::Index offsets[], int fvarChannel=-1) {
-
-    Far::ConstIndexArray fPoints = (fvarChannel<0) ?
-        level.getFaceVertices(fIndex) :
-            level.getFaceFVarValues(fIndex, fvarChannel);
-    assert(fPoints.size()==4);
-
-    for (int i = 0; i < 4; ++i) {
-
-        Vtr::Index      vIndex = fPoints[i];
-        Vtr::ConstIndexArray vFaces = level.getVertexFaces(vIndex),
-                             vEdges = level.getVertexEdges(vIndex);
-
-        int thisFaceInVFaces = -1;
-        for (int j = 0; j < vFaces.size(); ++j) {
-            if (fIndex == vFaces[j]) {
-                thisFaceInVFaces = j;
-                break;
-            }
-        }
-        assert(thisFaceInVFaces != -1);
-
-        // we have to use the number of incident edges to modulo the local index
-        // because there could be 2 consecutive edges in the face belonging to
-        // the Gregory patch.
-        offsets[i*2+0] = thisFaceInVFaces;
-        offsets[i*2+1] = (thisFaceInVFaces + 1)%vEdges.size();
-    }
-}
 
 int
 GregoryBasis::ProtoBasis::GetNumElements() const {
@@ -153,6 +102,8 @@ GregoryBasis::ProtoBasis::ProtoBasis(
     Vtr::internal::Level const & level, Index faceIndex,
     int levelVertOffset, int fvarChannel) {
 
+    // XXX: This function is subject to refactor in 3.1
+
     Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
         level.getFaceVertices(faceIndex) :
             level.getFaceFVarValues(faceIndex, fvarChannel);
@@ -162,27 +113,50 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         valences[4],
         zerothNeighbors[4];
 
-    Vtr::internal::StackBuffer<Index,40> manifoldRing((maxvalence+2)*2);
+    Point e0[4], e1[4], org[4];
+
+    // XXX: a temporary hack for the performance issue
+    // ensure Point has a capacity for the neighborhood of
+    // 2 extraordinary verts + 2 regular verts
+    // worse case: n-valence verts at a corner of n-gon.
+    int stencilCapacity =
+        4/*0-ring*/ + 2*(2*(maxvalence-2)/*1-ring around extraordinaries*/
+                       + 2/*1-ring around regulars, excluding shared ones*/);
+
+    for (int i = 0; i < 4; ++i) {
+        P[i].Clear(stencilCapacity);
+        e0[i].Clear(stencilCapacity);
+        e1[i].Clear(stencilCapacity);
+    }
+
+    Vtr::internal::StackBuffer<Index,40> manifoldRings[4];
+    manifoldRings[0].SetSize(maxvalence*2);
+    manifoldRings[1].SetSize(maxvalence*2);
+    manifoldRings[2].SetSize(maxvalence*2);
+    manifoldRings[3].SetSize(maxvalence*2);
 
     Vtr::internal::StackBuffer<Point,16> f(maxvalence);
     Vtr::internal::StackBuffer<Point,64> r(maxvalence*4);
 
-    Point e0[4], e1[4], org[4];
+
+    // the first phase
 
     for (int vid=0; vid<4; ++vid) {
 
-        org[vid] = facePoints[vid];
+        org[vid] = Point(facePoints[vid], 1.0f, stencilCapacity);
+        Point const &pos = org[vid];
+
         // save for varying stencils
-        V[vid] = facePoints[vid];
+        V[vid] = Point(facePoints[vid], 1.0f, stencilCapacity);
 
         int ringSize =
             level.gatherQuadRegularRingAroundVertex(
-                facePoints[vid], manifoldRing, fvarChannel);
+                facePoints[vid], manifoldRings[vid], fvarChannel);
 
         int valence;
         if (ringSize & 1) {
             // boundary vertex
-            manifoldRing[ringSize] = manifoldRing[ringSize-1];
+            manifoldRings[vid][ringSize] = manifoldRings[vid][ringSize-1];
             ++ringSize;
             valence = -ringSize/2;
         } else {
@@ -196,18 +170,16 @@ GregoryBasis::ProtoBasis::ProtoBasis(
               zerothNeighbor=0,
               ibefore=0;
 
-        Point pos(facePoints[vid]);
-
         for (int i=0; i<ivalence; ++i) {
 
             Index im = (i+ivalence-1)%ivalence,
                   ip = (i+1)%ivalence;
 
-            Index idx_neighbor = (manifoldRing[2*i + 0]),
-                  idx_diagonal = (manifoldRing[2*i + 1]),
-                  idx_neighbor_p = (manifoldRing[2*ip + 0]),
-                  idx_neighbor_m = (manifoldRing[2*im + 0]),
-                  idx_diagonal_m = (manifoldRing[2*im + 1]);
+            Index idx_neighbor = (manifoldRings[vid][2*i + 0]),
+                  idx_diagonal = (manifoldRings[vid][2*i + 1]),
+                  idx_neighbor_p = (manifoldRings[vid][2*ip + 0]),
+                  idx_neighbor_m = (manifoldRings[vid][2*im + 0]),
+                  idx_diagonal_m = (manifoldRings[vid][2*im + 1]);
 
             bool boundaryNeighbor = (level.getVertexEdges(idx_neighbor).size() >
                 level.getVertexFaces(idx_neighbor).size());
@@ -232,17 +204,24 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                 }
             }
 
-            Point neighbor(idx_neighbor),
-                  diagonal(idx_diagonal),
-                  neighbor_p(idx_neighbor_p),
-                  neighbor_m(idx_neighbor_m),
-                  diagonal_m(idx_diagonal_m);
+            float d = float(ivalence)+5.0f;
+            f[i].Clear(4);
+            f[i].AddWithWeight(facePoints[vid], float(ivalence)/d);
+            f[i].AddWithWeight(idx_neighbor_p,  2.0f/d);
+            f[i].AddWithWeight(idx_neighbor,    2.0f/d);
+            f[i].AddWithWeight(idx_diagonal,    1.0f/d);
 
-            f[i] = (pos*float(ivalence) + (neighbor_p+neighbor)*2.0f + diagonal) / (float(ivalence)+5.0f);
+            if (i == 0)
+                P[vid] = f[i];
+            else
+                P[vid] += f[i];
 
-            P[vid] += f[i];
-
-            r[vid*maxvalence+i] = (neighbor_p-neighbor_m)/3.0f + (diagonal-diagonal_m)/6.0f;
+            int rid = vid * maxvalence + i;
+            r[rid].Clear(4);
+            r[rid].AddWithWeight(idx_neighbor_p,  1.0f/3.0f);
+            r[rid].AddWithWeight(idx_neighbor_m, -1.0f/3.0f);
+            r[rid].AddWithWeight(idx_diagonal,    1.0f/6.0f);
+            r[rid].AddWithWeight(idx_diagonal_m, -1.0f/6.0f);
         }
 
         P[vid] /= float(ivalence);
@@ -265,8 +244,8 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
         if (valence<0) {
 
-            Point b0(boundaryEdgeNeighbors[0]),
-                  b1(boundaryEdgeNeighbors[1]);
+            Point b0(boundaryEdgeNeighbors[0], 1.0f, stencilCapacity),
+                  b1(boundaryEdgeNeighbors[1], 1.0f, stencilCapacity);
 
             if (ivalence>2) {
                 P[vid] = (b0 + b1 + pos*4.0f)/6.0f;
@@ -280,7 +259,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             float alpha_0k = -((1.0f+2.0f*c)*sqrtf(1.0f+c))/((3.0f*k+c)*sqrtf(1.0f-c));
             float beta_0 = s/(3.0f*k + c);
 
-            Point diagonal(manifoldRing[2*zerothNeighbor + 1]);
+            Point diagonal(manifoldRings[vid][2*zerothNeighbor + 1], 1.0f, stencilCapacity);
 
             e0[vid] = (b0 - b1)/6.0f;
             e1[vid] = pos*gamma + diagonal*beta_0 + (b0 + b1)*alpha_0k;
@@ -292,11 +271,11 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                 float alpha = (4.0f*sinf((float(M_PI) * float(x))/k))/(3.0f*k+c),
                       beta = (sinf((float(M_PI) * float(x))/k) + sinf((float(M_PI) * float(x+1))/k))/(3.0f*k+c);
 
-                Index idx_neighbor = manifoldRing[2*curri + 0],
-                      idx_diagonal = manifoldRing[2*curri + 1];
+                Index idx_neighbor = manifoldRings[vid][2*curri + 0],
+                      idx_diagonal = manifoldRings[vid][2*curri + 1];
 
-                Point p_neighbor(idx_neighbor),
-                      p_diagonal(idx_diagonal);
+                Point p_neighbor(idx_neighbor, 1.0f, stencilCapacity),
+                      p_diagonal(idx_diagonal, 1.0f, stencilCapacity);
 
                 e1[vid] += p_neighbor*alpha + p_diagonal*beta;
             }
@@ -304,25 +283,40 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         }
     }
 
-    Index quadOffsets[8];
-    getQuadOffsets(level, faceIndex, quadOffsets, fvarChannel);
+    // the second phase
 
     for (int vid=0; vid<4; ++vid) {
 
-        int n = abs(valences[vid]),
-            ivalence = n;
+        int n = abs(valences[vid]);
+        int ivalence = n;
 
         int ip = (vid+1)%4,
             im = (vid+3)%4,
             np = abs(valences[ip]),
             nm = abs(valences[im]);
 
-        Index start = quadOffsets[vid*2+0],
-              prev = quadOffsets[vid*2+1],
-              start_m = quadOffsets[im*2],
-              prev_p = quadOffsets[ip*2+1];
+        Index start = -1, prev = -1, start_m = -1, prev_p = -1;
+        for (int i = 0; i < n; ++i) {
+            if (manifoldRings[vid][i*2] == facePoints[ip])
+                start = i;
+            if (manifoldRings[vid][i*2] == facePoints[im])
+                prev = i;
+        }
+        for (int i = 0; i < np; ++i) {
+            if (manifoldRings[ip][i*2] == facePoints[vid]) {
+                prev_p = i;
+                break;
+            }
+        }
+        for (int i = 0; i < nm; ++i) {
+            if (manifoldRings[im][i*2] == facePoints[vid]) {
+                start_m = i;
+                break;
+            }
+        }
+        assert(start != -1 && prev != -1 && start_m != -1 && prev_p != -1);
 
-        Point Em_ip, Ep_im;
+        Point Em_ip(stencilCapacity), Ep_im(stencilCapacity);
 
         if (valences[ip]<-2) {
             Index j = (np + prev_p - zerothNeighbors[ip]) % np;
@@ -360,7 +354,6 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             Em[vid] = P[vid] + e0[vid]*csf(n-3, 2*prev ) + e1[vid]*csf(n-3, 2*prev + 1);
             Fp[vid] = (P[vid]*csf(np-3,2) + Ep[vid]*s1 + Em_ip*s2 + rp[start])/3.0f;
             Fm[vid] = (P[vid]*csf(nm-3,2) + Em[vid]*s3 + Ep_im*s2 - rp[prev])/3.0f;
-
         } else if (valences[vid] < -2) {
 
             Index jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
@@ -429,16 +422,7 @@ GregoryBasis::CreateStencilTable(PointsVector const &stencils) {
     float * weights = &stencilTable->_weights[0];
 
     for (int i = 0; i < nStencils; ++i) {
-        GregoryBasis::Point const &src = stencils[i];
-
-        int size = src.GetSize();
-        memcpy(indices, src.GetIndices(), size*sizeof(Index));
-        memcpy(weights, src.GetWeights(), size*sizeof(float));
-        *sizes = size;
-
-        indices += size;
-        weights += size;
-        ++sizes;
+        stencils[i].Copy(&sizes, &indices, &weights);
     }
     stencilTable->generateOffsets();
 

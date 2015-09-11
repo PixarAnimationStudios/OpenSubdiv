@@ -51,6 +51,18 @@ namespace {
 EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     TopologyRefiner const & refiner) :
     _refiner(&refiner), _numVertices(0), _numPatches(0) {
+
+    // Sanity check: the mesh must be adaptively refined
+    assert(not refiner.IsUniform());
+
+    // Reserve the patch point stencils. Ideally topology refiner
+    // would have an API to return how many endcap patches will be required.
+    // Instead we conservatively estimate by the number of patches at the
+    // finest level.
+    int numMaxLevelFaces = refiner.GetLevel(refiner.GetMaxLevel()).GetNumFaces();
+
+    _vertexStencils.reserve(numMaxLevelFaces*20);
+    _varyingStencils.reserve(numMaxLevelFaces*20);
 }
 
 ConstIndexArray
@@ -74,45 +86,50 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     //
     // Reorder gregory basis stencils into regular bezier
     GregoryBasis::ProtoBasis basis(*level, faceIndex, levelVertOffset, -1);
-    std::vector<GregoryBasis::Point> bezierCP;
-    bezierCP.reserve(16);
 
-    bezierCP.push_back(basis.P[0]);
-    bezierCP.push_back(basis.Ep[0]);
-    bezierCP.push_back(basis.Em[1]);
-    bezierCP.push_back(basis.P[1]);
+    GregoryBasis::Point const *bezierCP[16];
 
-    bezierCP.push_back(basis.Em[0]);
-    bezierCP.push_back(basis.Fp[0]); // arbitrary
-    bezierCP.push_back(basis.Fp[1]); // arbitrary
-    bezierCP.push_back(basis.Ep[1]);
+    bezierCP[0] = &basis.P[0];
+    bezierCP[1] = &basis.Ep[0];
+    bezierCP[2] = &basis.Em[1];
+    bezierCP[3] = &basis.P[1];
 
-    bezierCP.push_back(basis.Ep[3]);
-    bezierCP.push_back(basis.Fp[3]); // arbitrary
-    bezierCP.push_back(basis.Fp[2]); // arbitrary
-    bezierCP.push_back(basis.Em[2]);
+    bezierCP[4] = &basis.Em[0];
+    bezierCP[5] = &basis.Fp[0]; // arbitrary
+    bezierCP[6] = &basis.Fp[1]; // arbitrary
+    bezierCP[7] = &basis.Ep[1];
 
-    bezierCP.push_back(basis.P[3]);
-    bezierCP.push_back(basis.Em[3]);
-    bezierCP.push_back(basis.Ep[2]);
-    bezierCP.push_back(basis.P[2]);
+    bezierCP[8]  = &basis.Ep[3];
+    bezierCP[9]  = &basis.Fp[3]; // arbitrary
+    bezierCP[10] = &basis.Fp[2]; // arbitrary
+    bezierCP[11] = &basis.Em[2];
+
+    bezierCP[12] = &basis.P[3];
+    bezierCP[13] = &basis.Em[3];
+    bezierCP[14] = &basis.Ep[2];
+    bezierCP[15] = &basis.P[2];
+
+    // all stencils should have the same capacity.
+    int stencilCapacity = basis.P[0].GetCapacity();
 
     // Apply basis conversion from bezier to b-spline
     float Q[4][4] = {{ 6, -7,  2, 0},
                      { 0,  2, -1, 0},
                      { 0, -1,  2, 0},
                      { 0,  2, -7, 6} };
-    std::vector<GregoryBasis::Point> H(16);
+    Vtr::internal::StackBuffer<GregoryBasis::Point, 16> H(16);
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            for (int k = 0; k < 4; ++k) {            
-                if (isWeightNonZero(Q[i][k])) H[i*4+j] += bezierCP[j+k*4] * Q[i][k];
+            H[i*4+j].Clear(stencilCapacity);
+            for (int k = 0; k < 4; ++k) {
+                if (isWeightNonZero(Q[i][k]))
+                    H[i*4+j] += (*bezierCP[j+k*4]) * Q[i][k];
             }
         }
     }
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            GregoryBasis::Point p;
+            GregoryBasis::Point p(stencilCapacity);
             for (int k = 0; k < 4; ++k) {
                 if (isWeightNonZero(Q[j][k])) p += H[i*4+k] * Q[j][k];
             }
