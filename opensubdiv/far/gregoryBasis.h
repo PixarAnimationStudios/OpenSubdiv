@@ -80,17 +80,11 @@ public:
     //
     class Point {
     public:
-        static const int RESERVED_STENCIL_SIZE = 64;
+        // 40 means up to valence=10 is on stack
+        static const int RESERVED_STENCIL_SIZE = 40;
 
         Point(int stencilCapacity=RESERVED_STENCIL_SIZE) : _size(0) {
             _stencils.SetSize(stencilCapacity);
-        }
-
-        Point(Vtr::Index idx, float weight, int stencilCapacity) {
-            _stencils.SetSize(stencilCapacity);
-            _size = 1;
-            _stencils[0].index = idx;
-            _stencils[0].weight = weight;
         }
 
         Point(Point const & other) {
@@ -114,8 +108,23 @@ public:
         }
 
         void AddWithWeight(Vtr::Index idx, float weight) {
-            int loc = findIndex(idx);
-            _stencils[loc].weight += weight;
+            for (int i = 0; i < _size; ++i) {
+                if (_stencils[i].index == idx) {
+                    _stencils[i].weight += weight;
+                    return;
+                }
+            }
+            assert(_size < (int)_stencils.GetSize());
+            _stencils[_size].index = idx;
+            _stencils[_size].weight = weight;
+            ++_size;
+        }
+
+        void AddWithWeight(Point const &src, float weight) {
+            for (int i = 0; i < src._size; ++i) {
+                AddWithWeight(src._stencils[i].index,
+                              src._stencils[i].weight * weight);
+            }
         }
 
         Point & operator = (Point const & other) {
@@ -128,47 +137,11 @@ public:
             return *this;
         }
 
-        Point & operator += (Point const & other) {
-            for (int i = 0; i < other._size; ++i) {
-                AddWithWeight(other._stencils[i].index,
-                              other._stencils[i].weight);
-            }
-            return *this;
-        }
-
-        Point & operator -= (Point const & other) {
-            for (int i = 0; i < other._size; ++i) {
-                AddWithWeight(other._stencils[i].index,
-                              -other._stencils[i].weight);
-            }
-            return *this;
-        }
-
         Point & operator *= (float f) {
             for (int i=0; i<_size; ++i) {
                 _stencils[i].weight *= f;
             }
             return *this;
-        }
-
-        Point & operator /= (float f) {
-            return (*this)*=(1.0f/f);
-        }
-
-        friend Point operator * (Point const & src, float f) {
-            Point p( src ); return p*=f;
-        }
-
-        friend Point operator / (Point const & src, float f) {
-            Point p( src ); return p*= (1.0f/f);
-        }
-
-        Point operator + (Point const & other) {
-            Point p(*this); return p+=other;
-        }
-
-        Point operator - (Point const & other) {
-            Point p(*this); return p-=other;
         }
 
         void OffsetIndices(Vtr::Index offset) {
@@ -189,19 +162,6 @@ public:
         }
 
     private:
-
-        int findIndex(Vtr::Index idx) {
-            for (int i = 0; i < _size; ++i) {
-                if (_stencils[i].index == idx) {
-                    return i;
-                }
-            }
-            assert(_size < (int)_stencils.GetSize());
-            _stencils[_size].index = idx;
-            _stencils[_size].weight = 0.0f;
-            ++_size;
-            return _size-1;
-        }
 
         int _size;
 

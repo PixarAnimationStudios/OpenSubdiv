@@ -122,8 +122,9 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
         for (int j = 0; j < 4; ++j) {
             H[i*4+j].Clear(stencilCapacity);
             for (int k = 0; k < 4; ++k) {
-                if (isWeightNonZero(Q[i][k]))
-                    H[i*4+j] += (*bezierCP[j+k*4]) * Q[i][k];
+                if (isWeightNonZero(Q[i][k])) {
+                    H[i*4+j].AddWithWeight(*bezierCP[j+k*4], Q[i][k]);
+                }
             }
         }
     }
@@ -131,12 +132,14 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
         for (int j = 0; j < 4; ++j) {
             GregoryBasis::Point p(stencilCapacity);
             for (int k = 0; k < 4; ++k) {
-                if (isWeightNonZero(Q[j][k])) p += H[i*4+k] * Q[j][k];
+                if (isWeightNonZero(Q[j][k])) {
+                    p.AddWithWeight(H[i*4+k], Q[j][k]);
+                }
             }
             _vertexStencils.push_back(p);
         }
     }
-    
+
     int varyingIndices[] = { 0, 0, 1, 1,
                              0, 0, 1, 1,
                              3, 3, 2, 2,

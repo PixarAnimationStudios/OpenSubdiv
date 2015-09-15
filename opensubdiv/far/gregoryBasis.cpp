@@ -113,41 +113,36 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         valences[4],
         zerothNeighbors[4];
 
-    Point e0[4], e1[4], org[4];
-
     // XXX: a temporary hack for the performance issue
     // ensure Point has a capacity for the neighborhood of
     // 2 extraordinary verts + 2 regular verts
     // worse case: n-valence verts at a corner of n-gon.
     int stencilCapacity =
         4/*0-ring*/ + 2*(2*(maxvalence-2)/*1-ring around extraordinaries*/
-                       + 2/*1-ring around regulars, excluding shared ones*/);
+                         + 2/*1-ring around regulars, excluding shared ones*/);
 
+    Point e0[4], e1[4];
     for (int i = 0; i < 4; ++i) {
         P[i].Clear(stencilCapacity);
         e0[i].Clear(stencilCapacity);
         e1[i].Clear(stencilCapacity);
+        V[i].Clear(1);
     }
 
-    Vtr::internal::StackBuffer<Index,40> manifoldRings[4];
+    Vtr::internal::StackBuffer<Index, 40> manifoldRings[4];
     manifoldRings[0].SetSize(maxvalence*2);
     manifoldRings[1].SetSize(maxvalence*2);
     manifoldRings[2].SetSize(maxvalence*2);
     manifoldRings[3].SetSize(maxvalence*2);
 
-    Vtr::internal::StackBuffer<Point,16> f(maxvalence);
-    Vtr::internal::StackBuffer<Point,64> r(maxvalence*4);
-
+    Vtr::internal::StackBuffer<Point, 10> f(maxvalence);
+    Vtr::internal::StackBuffer<Point, 40> r(maxvalence*4);
 
     // the first phase
 
     for (int vid=0; vid<4; ++vid) {
-
-        org[vid] = Point(facePoints[vid], 1.0f, stencilCapacity);
-        Point const &pos = org[vid];
-
         // save for varying stencils
-        V[vid] = Point(facePoints[vid], 1.0f, stencilCapacity);
+        V[vid].AddWithWeight(facePoints[vid], 1.0f);
 
         int ringSize =
             level.gatherQuadRegularRingAroundVertex(
@@ -182,7 +177,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                   idx_diagonal_m = (manifoldRings[vid][2*im + 1]);
 
             bool boundaryNeighbor = (level.getVertexEdges(idx_neighbor).size() >
-                level.getVertexFaces(idx_neighbor).size());
+                                     level.getVertexFaces(idx_neighbor).size());
 
             if (fvarChannel>=0) {
                 // XXXX manuelk need logic to check for boundary in fvar
@@ -210,11 +205,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             f[i].AddWithWeight(idx_neighbor_p,  2.0f/d);
             f[i].AddWithWeight(idx_neighbor,    2.0f/d);
             f[i].AddWithWeight(idx_diagonal,    1.0f/d);
-
-            if (i == 0)
-                P[vid] = f[i];
-            else
-                P[vid] += f[i];
+            P[vid].AddWithWeight(f[i], 1.0f/float(ivalence));
 
             int rid = vid * maxvalence + i;
             r[rid].Clear(4);
@@ -224,8 +215,6 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             r[rid].AddWithWeight(idx_diagonal_m, -1.0f/6.0f);
         }
 
-        P[vid] /= float(ivalence);
-
         zerothNeighbors[vid] = zerothNeighbor;
         if (currentNeighbor == 1) {
             boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
@@ -233,24 +222,27 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
         for (int i=0; i<ivalence; ++i) {
             int im = (i+ivalence-1)%ivalence;
-            Point e = (f[i]+f[im])*0.5f;
-            e0[vid] += e * csf(ivalence-3, 2*i);
-            e1[vid] += e * csf(ivalence-3, 2*i+1);
+            float c0 = 0.5f * csf(ivalence-3, 2*i);
+            float c1 = 0.5f * csf(ivalence-3, 2*i+1);
+            e0[vid].AddWithWeight(f[i ], c0);
+            e0[vid].AddWithWeight(f[im], c0);
+            e1[vid].AddWithWeight(f[i ], c1);
+            e1[vid].AddWithWeight(f[im], c1);
         }
 
         float ef = computeCoefficient(ivalence);
         e0[vid] *= ef;
         e1[vid] *= ef;
 
-        if (valence<0) {
-
-            Point b0(boundaryEdgeNeighbors[0], 1.0f, stencilCapacity),
-                  b1(boundaryEdgeNeighbors[1], 1.0f, stencilCapacity);
-
+        // Boundary gregory case:
+        if (valence < 0) {
+            P[vid].Clear(stencilCapacity);
             if (ivalence>2) {
-                P[vid] = (b0 + b1 + pos*4.0f)/6.0f;
+                P[vid].AddWithWeight(boundaryEdgeNeighbors[0], 1.0f/6.0f);
+                P[vid].AddWithWeight(boundaryEdgeNeighbors[1], 1.0f/6.0f);
+                P[vid].AddWithWeight(facePoints[vid], 4.0f/6.0f);
             } else {
-                P[vid] = pos;
+                P[vid].AddWithWeight(facePoints[vid], 1.0f);
             }
             float k = float(float(ivalence) - 1.0f);    //k is the number of faces
             float c = cosf(float(M_PI)/k);
@@ -259,10 +251,17 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             float alpha_0k = -((1.0f+2.0f*c)*sqrtf(1.0f+c))/((3.0f*k+c)*sqrtf(1.0f-c));
             float beta_0 = s/(3.0f*k + c);
 
-            Point diagonal(manifoldRings[vid][2*zerothNeighbor + 1], 1.0f, stencilCapacity);
+            int idx_diagonal = manifoldRings[vid][2*zerothNeighbor + 1];
 
-            e0[vid] = (b0 - b1)/6.0f;
-            e1[vid] = pos*gamma + diagonal*beta_0 + (b0 + b1)*alpha_0k;
+            e0[vid].Clear(stencilCapacity);
+            e0[vid].AddWithWeight(boundaryEdgeNeighbors[0],  1.0f/6.0f);
+            e0[vid].AddWithWeight(boundaryEdgeNeighbors[1], -1.0f/6.0f);
+
+            e1[vid].Clear(stencilCapacity);
+            e1[vid].AddWithWeight(facePoints[vid],           gamma);
+            e1[vid].AddWithWeight(idx_diagonal,              beta_0);
+            e1[vid].AddWithWeight(boundaryEdgeNeighbors[0],  alpha_0k);
+            e1[vid].AddWithWeight(boundaryEdgeNeighbors[1],  alpha_0k);
 
             for (int x=1; x<ivalence-1; ++x) {
 
@@ -274,12 +273,10 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                 Index idx_neighbor = manifoldRings[vid][2*curri + 0],
                       idx_diagonal = manifoldRings[vid][2*curri + 1];
 
-                Point p_neighbor(idx_neighbor, 1.0f, stencilCapacity),
-                      p_diagonal(idx_diagonal, 1.0f, stencilCapacity);
-
-                e1[vid] += p_neighbor*alpha + p_diagonal*beta;
+                e1[vid].AddWithWeight(idx_neighbor, alpha);
+                e1[vid].AddWithWeight(idx_diagonal, beta);
             }
-            e1[vid] /= 3.0f;
+            e1[vid] *= 1.0f/3.0f;
         }
     }
 
@@ -316,20 +313,25 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         }
         assert(start != -1 && prev != -1 && start_m != -1 && prev_p != -1);
 
-        Point Em_ip(stencilCapacity), Ep_im(stencilCapacity);
+        Point Em_ip = P[ip];
+        Point Ep_im = P[im];
 
         if (valences[ip]<-2) {
             Index j = (np + prev_p - zerothNeighbors[ip]) % np;
-            Em_ip = P[ip] + e0[ip]*cosf((float(M_PI)*j)/float(np-1)) + e1[ip]*sinf((float(M_PI)*j)/float(np-1));
+            Em_ip.AddWithWeight(e0[ip], cosf((float(M_PI)*j)/float(np-1)));
+            Em_ip.AddWithWeight(e1[ip], sinf((float(M_PI)*j)/float(np-1)));
         } else {
-            Em_ip = P[ip] + e0[ip]*csf(np-3,2*prev_p) + e1[ip]*csf(np-3,2*prev_p+1);
+            Em_ip.AddWithWeight(e0[ip], csf(np-3, 2*prev_p));
+            Em_ip.AddWithWeight(e1[ip], csf(np-3, 2*prev_p+1));
         }
 
         if (valences[im]<-2) {
             Index j = (nm + start_m - zerothNeighbors[im]) % nm;
-            Ep_im = P[im] + e0[im]*cosf((float(M_PI)*j)/float(nm-1)) + e1[im]*sinf((float(M_PI)*j)/float(nm-1));
+            Ep_im.AddWithWeight(e0[im], cosf((float(M_PI)*j)/float(nm-1)));
+            Ep_im.AddWithWeight(e1[im], sinf((float(M_PI)*j)/float(nm-1)));
         } else {
-            Ep_im = P[im] + e0[im]*csf(nm-3,2*start_m) + e1[im]*csf(nm-3,2*start_m+1);
+            Ep_im.AddWithWeight(e0[im], csf(nm-3, 2*start_m));
+            Ep_im.AddWithWeight(e1[im], csf(nm-3, 2*start_m+1));
         }
 
         if (valences[vid] < 0) {
@@ -349,11 +351,25 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             float s1 = 3.0f - 2.0f*csf(n-3,2)-csf(np-3,2),
                   s2 = 2.0f*csf(n-3,2),
                   s3 = 3.0f -2.0f*cosf(2.0f*float(M_PI)/float(n)) - cosf(2.0f*float(M_PI)/float(nm));
+            Ep[vid] = P[vid];
+            Ep[vid].AddWithWeight(e0[vid], csf(n-3, 2*start));
+            Ep[vid].AddWithWeight(e1[vid], csf(n-3, 2*start +1));
 
-            Ep[vid] = P[vid] + e0[vid]*csf(n-3, 2*start) + e1[vid]*csf(n-3, 2*start +1);
-            Em[vid] = P[vid] + e0[vid]*csf(n-3, 2*prev ) + e1[vid]*csf(n-3, 2*prev + 1);
-            Fp[vid] = (P[vid]*csf(np-3,2) + Ep[vid]*s1 + Em_ip*s2 + rp[start])/3.0f;
-            Fm[vid] = (P[vid]*csf(nm-3,2) + Em[vid]*s3 + Ep_im*s2 - rp[prev])/3.0f;
+            Em[vid] = P[vid];
+            Em[vid].AddWithWeight(e0[vid], csf(n-3, 2*prev ));
+            Em[vid].AddWithWeight(e1[vid], csf(n-3, 2*prev + 1));
+
+            Fp[vid].Clear(stencilCapacity);
+            Fp[vid].AddWithWeight(P[vid],    csf(np-3, 2)/3.0f);
+            Fp[vid].AddWithWeight(Ep[vid],   s1/3.0f);
+            Fp[vid].AddWithWeight(Em_ip,     s2/3.0f);
+            Fp[vid].AddWithWeight(rp[start], 1.0f/3.0f);
+
+            Fm[vid].Clear(stencilCapacity);
+            Fm[vid].AddWithWeight(P[vid],   csf(nm-3, 2)/3.0f);
+            Fm[vid].AddWithWeight(Em[vid],  s3/3.0f);
+            Fm[vid].AddWithWeight(Ep_im,    s2/3.0f);
+            Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
         } else if (valences[vid] < -2) {
 
             Index jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
@@ -363,24 +379,59 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                   s2 = 2*csf(n-3,2),
                   s3 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
 
-            Ep[vid] = P[vid] + e0[vid]*cosf((float(M_PI)*jp)/float(ivalence-1)) + e1[vid]*sinf((float(M_PI)*jp)/float(ivalence-1));
-            Em[vid] = P[vid] + e0[vid]*cosf((float(M_PI)*jm)/float(ivalence-1)) + e1[vid]*sinf((float(M_PI)*jm)/float(ivalence-1));
-            Fp[vid] = (P[vid]*csf(np-3,2) + Ep[vid]*s1 + Em_ip*s2 + rp[start])/3.0f;
-            Fm[vid] = (P[vid]*csf(nm-3,2) + Em[vid]*s3 + Ep_im*s2 - rp[prev])/3.0f;
+            Ep[vid] = P[vid];
+            Ep[vid].AddWithWeight(e0[vid], cosf((float(M_PI)*jp)/float(ivalence-1)));
+            Ep[vid].AddWithWeight(e1[vid], sinf((float(M_PI)*jp)/float(ivalence-1)));
+
+            Em[vid] = P[vid];
+            Em[vid].AddWithWeight(e0[vid], cosf((float(M_PI)*jm)/float(ivalence-1)));
+            Em[vid].AddWithWeight(e1[vid], sinf((float(M_PI)*jm)/float(ivalence-1)));
+
+            Fp[vid].Clear(stencilCapacity);
+            Fp[vid].AddWithWeight(P[vid],    csf(np-3,2)/3.0f);
+            Fp[vid].AddWithWeight(Ep[vid],   s1/3.0f);
+            Fp[vid].AddWithWeight(Em_ip,     s2/3.0f);
+            Fp[vid].AddWithWeight(rp[start], 1.0f/3.0f);
+
+            Fm[vid].Clear(stencilCapacity);
+            Fm[vid].AddWithWeight(P[vid],   csf(nm-3,2)/3.0f);
+            Fm[vid].AddWithWeight(Em[vid],  s3/3.0f);
+            Fm[vid].AddWithWeight(Ep_im,    s2/3.0f);
+            Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
 
             if (valences[im]<0) {
                 s1=3-2*csf(n-3,2)-csf(np-3,2);
-                Fp[vid] = Fm[vid] = (P[vid]*csf(np-3,2) + Ep[vid]*s1 + Em_ip*s2 + rp[start])/3.0f;
+                Fp[vid].Clear(stencilCapacity);
+                Fp[vid].AddWithWeight(P[vid],    csf(np-3,2)/3.0f);
+                Fp[vid].AddWithWeight(Ep[vid],   s1/3.0f);
+                Fp[vid].AddWithWeight(Em_ip,     s2/3.0f);
+                Fp[vid].AddWithWeight(rp[start], 1.0f/3.0f);
+                Fm[vid] = Fp[vid];
             } else if (valences[ip]<0) {
                 s1 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
-                Fm[vid] = Fp[vid] = (P[vid]*csf(nm-3,2) + Em[vid]*s1 + Ep_im*s2 - rp[prev])/3.0f;
+                Fm[vid].Clear(stencilCapacity);
+                Fm[vid].AddWithWeight(P[vid],   csf(nm-3,2)/3.0f);
+                Fm[vid].AddWithWeight(Em[vid],  s1/3.0f);
+                Fm[vid].AddWithWeight(Ep_im,    s2/3.0f);
+                Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
+                Fp[vid] = Fm[vid];
             }
 
         } else if (valences[vid]==-2) {
+            Ep[vid].Clear(stencilCapacity);
+            Ep[vid].AddWithWeight(facePoints[vid], 2.0f/3.0f);
+            Ep[vid].AddWithWeight(facePoints[ip],  1.0f/3.0f);
 
-            Ep[vid] = (org[vid]*2.0f + org[ip])/3.0f;
-            Em[vid] = (org[vid]*2.0f + org[im])/3.0f;
-            Fp[vid] = Fm[vid] = (org[vid]*4.0f + org[((vid+2)%n)] + org[ip]*2.0f + org[im]*2.0f)/9.0f;
+            Em[vid].Clear(stencilCapacity);
+            Em[vid].AddWithWeight(facePoints[vid], 2.0f/3.0f);
+            Em[vid].AddWithWeight(facePoints[im],  1.0f/3.0f);
+
+            Fp[vid].Clear(stencilCapacity);
+            Fp[vid].AddWithWeight(facePoints[vid],         4.0f/9.0f);
+            Fp[vid].AddWithWeight(facePoints[((vid+2)%n)], 1.0f/9.0f);
+            Fp[vid].AddWithWeight(facePoints[ip],          2.0f/9.0f);
+            Fp[vid].AddWithWeight(facePoints[im],          2.0f/9.0f);
+            Fm[vid] = Fp[vid];
         }
     }
 
