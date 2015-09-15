@@ -306,7 +306,7 @@ public:
     /// @param wDt     Weights (evaluated basis functions) for derivative wrt t
     ///
     void EvaluateBasis(PatchHandle const & handle, float s, float t,
-        float wP[], float wDs[], float wDt[], float wDss[] = 0, float wDst[] = 0, float wDtt[] = 0) const;
+        float wP[], float wDs[] = 0, float wDt[] = 0, float wDss[] = 0, float wDst[] = 0, float wDtt[] = 0) const;
 
     //@}
 
