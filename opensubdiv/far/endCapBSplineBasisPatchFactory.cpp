@@ -61,8 +61,8 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     // finest level.
     int numMaxLevelFaces = refiner.GetLevel(refiner.GetMaxLevel()).GetNumFaces();
 
-    _vertexStencils.reserve(numMaxLevelFaces*20);
-    _varyingStencils.reserve(numMaxLevelFaces*20);
+    _vertexStencils.reserve(numMaxLevelFaces*16);
+    _varyingStencils.reserve(numMaxLevelFaces*16);
 }
 
 ConstIndexArray
