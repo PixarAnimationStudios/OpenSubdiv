@@ -26,11 +26,37 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// Building on tutorial 0, this example shows how to instantiate a simple mesh,
-// refine it uniformly and then interpolate both 'vertex' and 'face-varying'
-// primvar data.
-// The resulting interpolated data is output as an 'obj' file, with the
-// 'face-varying' data recorded in the uv texture layout.
+// NOTE: The following approaches are approximations to compute smooth normals,
+//       for highest fidelity patches should be used for positions and normals, 
+//       which form the true limit surface.
+//
+// Building on tutorial 3, this example shows how to instantiate a simple mesh,
+// refine it uniformly, interpolate both 'vertex' and 'face-varying'
+// primvar data, and finally calculate approximated smooth normals. 
+// The resulting interpolated data is output in 'obj' format.
+//
+// Currently, this tutorial supports 3 methods to approximate smooth normals:
+// 
+//     CrossTriangle : Calculates smooth normals (accumulating per vertex) using
+//                     3 verts to generate 2 vectors. This approximation has
+//                     trouble when working with quads (which can be non-planar)
+//                     since it only takes into account half of each face. 
+//
+//     CrossQuad     : Calculates smooth normals (accumulating per vertex) 
+//                     but this time, instead of taking into account only 3 verts
+//                     it creates 2 vectors crossing the quad.
+//                     This approximation builds upon CrossTriangle but takes
+//                     into account the 4 verts of the face.
+//
+//     Limit         : Calculates the normals at the limit for each vert
+//                     at the last level of subdivision.
+//                     These are the true limit normals, however, in this example
+//                     they are used with verts that are not at the limit. 
+//                     This can lead to new visual artifacts since the normals
+//                     and the positions don't match. Additionally, this approach
+//                     requires extra computation to calculate the limit normals.
+//                     For this reason, we strongly suggest using  
+//                     limit positions with limit normals.
 //
 
 #include <opensubdiv/far/topologyDescriptor.h>
@@ -231,16 +257,8 @@ static int g_colorIndices[24] = { 0,  3,  9,  6,
 
 using namespace OpenSubdiv;
 
-// Currently, this tutorial supports 3 methods to calculate
-// approximated smooth normals: 
-//     CrossTriangle : Calculates smooth normals (accumulating per vertex) using
-//                     3 verts to generate 2 vectors.
-//     CrossQuad     : Calculates smooth normals (accumulating per vertex) but 
-//                     but this time instead of taking into account only 3 verts
-//                     it creates to vectors out of the 4 verts.
-//     Limit         : Calculates the normals at the limit and applies them
-//                     to the last level of subdivision requested.
-enum NormalMethod
+// Approximation methods for smooth normal computations
+enum NormalApproximation
 {
     CrossTriangle,
     CrossQuad,
@@ -251,18 +269,18 @@ enum NormalMethod
 int main(int argc, char ** argv) {
 
     const int maxlevel = 2;
-    enum NormalMethod normalMethod = CrossTriangle;
+    enum NormalApproximation normalApproximation = CrossTriangle;
 
     // Parsing command line parameters to see if the user wants to use a  
-    // specific method to calculate normals.
+    // specific method to calculate normals
     for (int i = 1; i < argc; ++i) {
 
         if (strstr(argv[i], "-limit")) {
-            normalMethod = Limit;
+            normalApproximation = Limit;
         } else if (!strcmp(argv[i], "-crossquad")) {
-            normalMethod = CrossQuad;
+            normalApproximation = CrossQuad;
         } else if (!strcmp(argv[i], "-crosstriangle")) {
-            normalMethod = CrossTriangle;
+            normalApproximation = CrossTriangle;
         } else {
             printf("Parameters : \n");
             printf("  -crosstriangle : use the cross product of vectors\n");
@@ -360,10 +378,7 @@ int main(int argc, char ** argv) {
         srcFVarColor = dstFVarColor;
     }
 
-    // Since the vertices are now interpolated, we can calculate smooth normals.
-    // In this example we will only calculate smooth normals for the last level
-    // of subdivision. Also, we will only take into account 3 verts of the face,
-    // so this is an approximation.
+    // Approximate normals
     Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
     int nverts = refLastLevel.GetNumVertices();
     int nfaces = refLastLevel.GetNumFaces();
@@ -371,8 +386,16 @@ int main(int argc, char ** argv) {
 
     std::vector<Vertex> normals(nverts);
 
-    if (normalMethod == Limit) {
-        // Limit position, derivatives and normals
+    // Different ways to approximate smooth normals
+    //
+    // For details check the description at the beginning of the file
+    if (normalApproximation == Limit) {
+
+        // Approximation using the normal at the limit with verts that are 
+        // not at the limit
+        //
+        // For details check the description at the beginning of the file
+
         std::vector<Vertex> fineLimitPos(nverts);
         std::vector<Vertex> fineDu(nverts);
         std::vector<Vertex> fineDv(nverts);
@@ -388,9 +411,14 @@ int main(int argc, char ** argv) {
             normals[vert].SetPosition(norm[0], norm[1], norm[2]);
         }
 
-    } else if (normalMethod == CrossQuad) {
-        // Accumulate normals calculated using the cross product of the two
-        // vectors generated by the 4 verts that form a quad.
+    } else if (normalApproximation == CrossQuad) {
+
+        // Approximate smooth normals by accumulating normal vectors computed as
+        // the cross product of two vectors generated by the 4 verts that 
+        // form each quad
+        //
+        // For details check the description at the beginning of the file
+
         for (int f = 0; f < nfaces; f++) {
             Far::ConstIndexArray faceVertices = refLastLevel.GetFaceVertices(f);
 
@@ -418,9 +446,13 @@ int main(int argc, char ** argv) {
             }
         }
 
-    } else if (normalMethod == CrossTriangle) {
-        // Accumulate normals calculated using the cross product of the 
-        // two vectors generated by 3 verts.
+    } else if (normalApproximation == CrossTriangle) {
+
+        // Approximate smooth normals by accumulating normal vectors computed as
+        // the cross product of two vectors generated by 3 verts of the quad
+        //
+        // For details check the description at the beginning of the file
+
         for (int f = 0; f < nfaces; f++) {
             Far::ConstIndexArray faceVertices = refLastLevel.GetFaceVertices(f);
 
