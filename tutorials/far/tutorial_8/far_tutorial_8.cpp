@@ -39,6 +39,28 @@
 #include <cstdio>
 
 //------------------------------------------------------------------------------
+// Math helpers.
+//
+//
+
+// Returns the normalized version of the input vector
+inline void
+normalize(float *n) {
+    float rn = 1.0f/sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
+    n[0] *= rn;
+    n[1] *= rn;
+    n[2] *= rn;
+}
+
+// Returns the cross product of \p v1 and \p v2.                                
+void cross(float const *v1, float const *v2, float* vOut)
+{                                                                                
+    vOut[0] = v1[1] * v2[2] - v1[2] * v2[1];
+    vOut[1] = v1[2] * v2[0] - v1[0] * v2[2];
+    vOut[2] = v1[0] * v2[1] - v1[1] * v2[0];
+}
+
+//------------------------------------------------------------------------------
 // Face-varying implementation.
 //
 //
@@ -126,7 +148,6 @@ struct FVarVertexColor {
 //------------------------------------------------------------------------------
 // Cube geometry from catmark_cube.h
 
-
 // 'vertex' primitive variable data & topology
 static float g_verts[8][3] = {{ -0.5f, -0.5f,  0.5f },
                               {  0.5f, -0.5f,  0.5f },
@@ -210,33 +231,53 @@ static int g_colorIndices[24] = { 0,  3,  9,  6,
 
 using namespace OpenSubdiv;
 
-inline void
-normalize(float *n) {
-    float rn = 1.0f/sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
-    n[0] *= rn;
-    n[1] *= rn;
-    n[2] *= rn;
-}
-
-inline void
-cross(float *n, const float *p0, const float *p1, const float *p2) {
-    float a[3] = { p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2] };
-    float b[3] = { p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2] };
-
-    n[0] = a[1]*b[2]-a[2]*b[1];
-    n[1] = a[2]*b[0]-a[0]*b[2];
-    n[2] = a[0]*b[1]-a[1]*b[0];
-}
+// Currently, this tutorial supports 3 methods to calculate
+// approximated smooth normals: 
+//     CrossTriangle : Calculates smooth normals (accumulating per vertex) using
+//                     3 verts to generate 2 vectors.
+//     CrossQuad     : Calculates smooth normals (accumulating per vertex) but 
+//                     but this time instead of taking into account only 3 verts
+//                     it creates to vectors out of the 4 verts.
+//     Limit         : Calculates the normals at the limit and applies them
+//                     to the last level of subdivision requested.
+enum NormalMethod
+{
+    CrossTriangle,
+    CrossQuad,
+    Limit
+};
 
 //------------------------------------------------------------------------------
-int main(int, char **) {
+int main(int argc, char ** argv) {
 
-    int maxlevel = 2;
+    const int maxlevel = 2;
+    enum NormalMethod normalMethod = CrossTriangle;
+
+    // Parsing command line parameters to see if the user wants to use a  
+    // specific method to calculate normals.
+    for (int i = 1; i < argc; ++i) {
+        if (strstr(argv[i], "-limit")) {
+            normalMethod = Limit;
+        }
+        else if (!strcmp(argv[i], "-crossquad")) {
+            normalMethod = CrossQuad;
+        }
+        else if (!strcmp(argv[i], "-crosstriangle")) {
+            normalMethod = CrossTriangle;
+        }
+        else {
+            printf("Parameters : \n");
+            printf("  -crosstriangle : use the cross product of vectors\n");
+            printf("                   generated from 3 verts (default).\n");
+            printf("  -crossquad     : use the cross product of vectors\n");
+            printf("                   generated from 4 verts.\n");
+            printf("  -limit         : use normals calculated from the limit.\n");
+            return 0;
+        }
+    }
 
     typedef Far::TopologyDescriptor Descriptor;
-
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
-
     Sdc::Options options;
     options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
     options.SetFVarLinearInterpolation(Sdc::Options::FVAR_LINEAR_NONE);
@@ -247,12 +288,11 @@ int main(int, char **) {
     desc.numFaces     = g_nfaces;
     desc.numVertsPerFace = g_vertsperface;
     desc.vertIndicesPerFace  = g_vertIndices;
-
+   
+    // Create a face-varying channel descriptor
     const int numChannels = 2;
     const int channelUV = 0;
     const int channelColor = 1;
-    
-    // Create a face-varying channel descriptor
     Descriptor::FVarChannel channels[numChannels];
     channels[channelUV].numValues = g_nuvs;
     channels[channelUV].valueIndices = g_uvIndices;
@@ -325,42 +365,99 @@ int main(int, char **) {
 
     // Since the vertices are now interpolated, we can calculate smooth normals.
     // In this example we will only calculate smooth normals for the last level
-    // of subdivision
+    // of subdivision. Also, we will only take into account 3 verts of the face,
+    // so this is an approximation.
     Far::TopologyLevel const & refLastLevel = refiner->GetLevel(maxlevel);
     int nverts = refLastLevel.GetNumVertices();
     int nfaces = refLastLevel.GetNumFaces();
     int firstOfLastVerts = refiner->GetNumVerticesTotal() - nverts;
 
     std::vector<Vertex> normals(nverts);
-    for (int f = 0; f < nfaces; f++) {
 
-        Far::ConstIndexArray faceVertices = refLastLevel.GetFaceVertices(f);
+    if(normalMethod == Limit) {
 
-        // We will use the first three verts to calculate a normal
-        const float * v0 = verts[ firstOfLastVerts + faceVertices[0] ].GetPosition();
-        const float * v1 = verts[ firstOfLastVerts + faceVertices[1] ].GetPosition();
-        const float * v2 = verts[ firstOfLastVerts + faceVertices[2] ].GetPosition();
+        // Limit position, derivatives and normals
+        std::vector<Vertex> fineLimitPos(nverts);
+        std::vector<Vertex> fineDu(nverts);
+        std::vector<Vertex> fineDv(nverts);
 
-        // Calculate the cross product between the vectors formed by v1-v0 and
-        // v2-v0, and then normalize the result
-        float normalCalculated [] = {0.0,0.0,0.0};
-        cross(&normalCalculated[0], v0, v1, v2);
-        normalize(&normalCalculated[0]);
+        primvarRefiner.Limit(&verts[firstOfLastVerts], fineLimitPos, fineDu, fineDv);
+        
+        for (int vert = 0; vert < nverts; ++vert) {
+            float const * du = fineDu[vert].GetPosition();
+            float const * dv = fineDv[vert].GetPosition();
+            
+            float norm[3];
+            cross(du, dv, norm);
+            normals[vert].SetPosition(norm[0], norm[1], norm[2]);
+        }
 
-        // Accumulate that normal on all verts that are part of that face
-        for(int vInFace = 0; vInFace < faceVertices.size() ; vInFace++ ) {
+    } else if (normalMethod == CrossQuad) {
 
-            int vertexIndex = faceVertices[vInFace];
-            normals[vertexIndex].position[0] += normalCalculated[0];
-            normals[vertexIndex].position[1] += normalCalculated[1];
-            normals[vertexIndex].position[2] += normalCalculated[2];
+        // Accumulate normals calculated using the cross product of the two
+        // vectors generated by the 4 verts that form a quad.
+        for (int f = 0; f < nfaces; f++) {
+            Far::ConstIndexArray faceVertices = refLastLevel.GetFaceVertices(f);
+
+            // We will use the first three verts to calculate a normal
+            const float * v0 = verts[ firstOfLastVerts + faceVertices[0] ].GetPosition();
+            const float * v1 = verts[ firstOfLastVerts + faceVertices[1] ].GetPosition();
+            const float * v2 = verts[ firstOfLastVerts + faceVertices[2] ].GetPosition();
+            const float * v3 = verts[ firstOfLastVerts + faceVertices[3] ].GetPosition();
+
+            // Calculate the cross product between the vectors formed by v1-v0 and
+            // v2-v0, and then normalize the result
+            float normalCalculated [] = {0.0,0.0,0.0};
+            float a[3] = { v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2] };
+            float b[3] = { v3[0]-v1[0], v3[1]-v1[1], v3[2]-v1[2] };          
+            cross(a, b, normalCalculated);
+            normalize(normalCalculated);
+
+            // Accumulate that normal on all verts that are part of that face
+            for(int vInFace = 0; vInFace < faceVertices.size() ; vInFace++ ) {
+
+                int vertexIndex = faceVertices[vInFace];
+                normals[vertexIndex].position[0] += normalCalculated[0];
+                normals[vertexIndex].position[1] += normalCalculated[1];
+                normals[vertexIndex].position[2] += normalCalculated[2];
+            }
+        }
+
+    } else if (normalMethod == CrossTriangle) {
+
+        // Accumulate normals calculated using the cross product of the 
+        // two vectors generated by 3 verts.
+        for (int f = 0; f < nfaces; f++) {
+            Far::ConstIndexArray faceVertices = refLastLevel.GetFaceVertices(f);
+
+            // We will use the first three verts to calculate a normal
+            const float * v0 = verts[ firstOfLastVerts + faceVertices[0] ].GetPosition();
+            const float * v1 = verts[ firstOfLastVerts + faceVertices[1] ].GetPosition();
+            const float * v2 = verts[ firstOfLastVerts + faceVertices[2] ].GetPosition();
+
+            // Calculate the cross product between the vectors formed by v1-v0 and
+            // v2-v0, and then normalize the result
+            float normalCalculated [] = {0.0,0.0,0.0};
+            float a[3] = { v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2] };
+            float b[3] = { v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2] };
+            cross(a, b, normalCalculated);
+            normalize(normalCalculated);
+
+            // Accumulate that normal on all verts that are part of that face
+            for(int vInFace = 0; vInFace < faceVertices.size() ; vInFace++ ) {
+
+                int vertexIndex = faceVertices[vInFace];
+                normals[vertexIndex].position[0] += normalCalculated[0];
+                normals[vertexIndex].position[1] += normalCalculated[1];
+                normals[vertexIndex].position[2] += normalCalculated[2];
+            }
         }
     }
-    
-    // Finally we just need to normalize the accumulated normals
-    for (int i = 0; i < nverts; ++i) {
 
-        normalize(&normals[i].position[0]);
+    // Finally we just need to normalize the accumulated normals
+    for (int vert = 0; vert < nverts; ++vert) {
+
+        normalize(&normals[vert].position[0]);
     }
    
     { // Output OBJ of the highest level refined -----------
@@ -372,8 +469,8 @@ int main(int, char **) {
         }
         
         // Print vertex normals
-        for (int i = 0; i < nverts; ++i) {
-            float const * pos = normals[i].GetPosition();
+        for (int vert = 0; vert < nverts; ++vert) {
+            float const * pos = normals[vert].GetPosition();
             printf("vn %f %f %f\n", pos[0], pos[1], pos[2]);
         }
 
@@ -387,7 +484,6 @@ int main(int, char **) {
 
         // Print faces
         for (int face = 0; face < nfaces; ++face) {
-
             Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
             Far::ConstIndexArray fuvs   = refLastLevel.GetFaceFVarValues(face, channelUV);
 
