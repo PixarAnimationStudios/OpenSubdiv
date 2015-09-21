@@ -70,12 +70,11 @@ GLPatchTable::allocate(Far::PatchTable const *farPatchTable) {
                         patchTable.GetPatchArrayBuffer() + numPatchArrays);
 
     // copy index buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _patchIndexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+    glBindBuffer(GL_ARRAY_BUFFER, _patchIndexBuffer);
+    glBufferData(GL_ARRAY_BUFFER,
                  indexSize * sizeof(GLint),
                  patchTable.GetPatchIndexBuffer(),
                  GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // copy patchparam buffer
     glBindBuffer(GL_ARRAY_BUFFER, _patchParamBuffer);
@@ -89,17 +88,8 @@ GLPatchTable::allocate(Far::PatchTable const *farPatchTable) {
     glGenTextures(1, &_patchIndexTexture);
     glGenTextures(1, &_patchParamTexture);
 
-    GLuint buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER,
-                 indexSize * sizeof(GLint),
-                 patchTable.GetPatchIndexBuffer(),
-                 GL_STATIC_DRAW);
-
     glBindTexture(GL_TEXTURE_BUFFER, _patchIndexTexture);
-//    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, _patchIndexBuffer);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, buffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, _patchIndexBuffer);
 
     glBindTexture(GL_TEXTURE_BUFFER, _patchParamTexture);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32I, _patchParamBuffer);
