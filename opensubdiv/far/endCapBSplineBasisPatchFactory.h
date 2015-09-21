@@ -91,6 +91,22 @@ public:
     }
 
 private:
+    ConstIndexArray getPatchPointsFromGregoryBasis(
+        Vtr::internal::Level const * level, Index thisFace,
+        ConstIndexArray facePoints,
+        int levelVertOffset);
+
+    ConstIndexArray getPatchPoints(
+        Vtr::internal::Level const *level, Index thisFace,
+        Index extraOrdinaryIndex, ConstIndexArray facePoints,
+        int levelVertOffset);
+
+    void computeLimitStencils(
+        Vtr::internal::Level const *level,
+        ConstIndexArray facePoints, int vid,
+        GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em);
+
+
     TopologyRefiner const *_refiner;
     GregoryBasis::PointsVector _vertexStencils;
     GregoryBasis::PointsVector _varyingStencils;
