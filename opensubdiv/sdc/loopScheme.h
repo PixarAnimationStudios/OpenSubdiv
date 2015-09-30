@@ -489,8 +489,8 @@ Scheme<SCHEME_LOOP>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
 
         double theta = M_PI / (interiorEdgeCount + 1);
 
-        Weight cWeight      = -3.0f * std::sin(theta);
-        Weight eWeightCoeff = -3.0f * (2.0f * std::cos(theta) - 2.0f);
+        Weight cWeight      = -3.0f * (Weight) std::sin(theta);
+        Weight eWeightCoeff = -3.0f * (2.0f * (Weight) std::cos(theta) - 2.0f);
 
         tan2Mask.VertexWeight(0) = 0.0f;
 
@@ -498,7 +498,7 @@ Scheme<SCHEME_LOOP>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
         tan2Mask.EdgeWeight(creaseEnds[1]) = cWeight;
 
         for (int i = 1; i <= interiorEdgeCount; ++i) {
-            tan2Mask.EdgeWeight(creaseEnds[0] + i) = eWeightCoeff * std::sin(i * theta);
+            tan2Mask.EdgeWeight(creaseEnds[0] + i) = eWeightCoeff * (Weight) std::sin(i * theta);
         }
     } else if (interiorEdgeCount == 1) {
         //  See notes above regarding scale factor of 3.0:
@@ -566,8 +566,8 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
         Weight alpha = (Weight) (2.0f * M_PI / valence);
         for (int i = 0; i < valence; ++i) {
             double alphaI = alpha * i;
-            tan1Mask.EdgeWeight(i) = std::cos(alphaI);
-            tan2Mask.EdgeWeight(i) = std::sin(alphaI);
+            tan1Mask.EdgeWeight(i) = (Weight) std::cos(alphaI);
+            tan2Mask.EdgeWeight(i) = (Weight) std::sin(alphaI);
         }
     }
 }
