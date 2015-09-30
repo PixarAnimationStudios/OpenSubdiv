@@ -79,6 +79,9 @@ public:
         (void)instance;       // unused
         (void)deviceContext;  // unused
 
+        if (stencilTable->GetNumStencils() == 0)
+            return false;
+
         return EvalStencils(srcBuffer->BindCpuBuffer(), srcDesc,
                             dstBuffer->BindCpuBuffer(), dstDesc,
                             &stencilTable->GetSizes()[0],
