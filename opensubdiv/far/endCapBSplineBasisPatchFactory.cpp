@@ -243,10 +243,10 @@ EndCapBSplineBasisPatchFactory::computeLimitStencils(
 
         P->AddWithWeight(f, 1.0f/float(valence));
 
-        float c0 = 0.5*cosf((float(2*M_PI) * float(i)/float(valence)))
-                 + 0.5*cosf((float(2*M_PI) * float(ip)/float(valence)));
-        float c1 = 0.5*sinf((float(2*M_PI) * float(i)/float(valence)))
-                 + 0.5*sinf((float(2*M_PI) * float(ip)/float(valence)));
+        float c0 = 0.5f*cosf((float(2*M_PI) * float(i)/float(valence)))
+                 + 0.5f*cosf((float(2*M_PI) * float(ip)/float(valence)));
+        float c1 = 0.5f*sinf((float(2*M_PI) * float(i)/float(valence)))
+                 + 0.5f*sinf((float(2*M_PI) * float(ip)/float(valence)));
         e0.AddWithWeight(f, c0*ef);
         e1.AddWithWeight(f, c1*ef);
     }
