@@ -34,8 +34,23 @@
 Release 3.0.3
 =============
 
+Release 3.0.3 is a minor stability release which includes important performance
+and bug fixes.
+
+**New Features**
+    - Smooth normal generation tutorial, far_tutorial_8
+
+**Changes**
+    - Major performance improvement in PatchTable construction
+    - Improved patch approximations for non-manifold features
+
 **Bug Fixes**
-    - Fixed bug in display of Loop surfaces in glFVarViewer.
+    - Fixed double delete in GLSL Compute controller
+    - Fixed buffer layout for GLSL Compute kernel
+    - Fixed GL buffer leak in Osd::GLPatchTable
+    - Fixed out-of-bounds data access for TBB and OMP stencil evaluation
+    - Fixed WIN32_LEAN_AND_MEAN typo
+    - Fixed Loop-related shader issues glFVarViewer
 
 Release 3.0.2
 =============
