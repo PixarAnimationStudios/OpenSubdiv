@@ -114,12 +114,6 @@ GLComputeEvaluator::GLComputeEvaluator() : _workGroupSize(64) {
 }
 
 GLComputeEvaluator::~GLComputeEvaluator() {
-    if (_stencilKernel.program) {
-        glDeleteProgram(_stencilKernel.program);
-    }
-    if (_patchKernel.program) {
-        glDeleteProgram(_patchKernel.program);
-    }
 }
 
 static GLuint

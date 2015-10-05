@@ -22,40 +22,16 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-add_subdirectory(common)
+set(SOURCE_FILES
+    far_tutorial_8.cpp
+)
 
-if (NOT NO_REGRESSION)
+_add_executable(far_tutorial_8
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
+)
 
-    add_subdirectory(hbr_regression)
+install(TARGETS far_tutorial_8 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
 
-    add_subdirectory(far_regression)
-
-    add_subdirectory(far_perf)
-
-    if(OPENGL_FOUND AND (GLEW_FOUND OR APPLE) AND GLFW_FOUND)
-        add_subdirectory(osd_regression)
-    else()
-        set(MISSING "")
-
-        if (NOT OPENGL_FOUND)
-            list(APPEND MISSING OpenGL)
-        endif()
-
-        if (NOT GLEW_FOUND)
-            list(APPEND MISSING glew)
-        endif()
-
-        if (NOT GLFW_FOUND)
-            list(APPEND MISSING glfw)
-        endif()
-
-        message(WARNING
-            "The following libraries could not be found : ${MISSING}.  "
-            "The osd regression test will not be available.  "
-            "If you have these libraries installed, please specify their "
-            "path to cmake (through the GLEW_LOCATION and GLFW_LOCATION "
-            "command line arguments or environment variables)."
-        )
-    endif()
-
-endif()

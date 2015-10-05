@@ -25,12 +25,12 @@
 #ifndef STOPWATCH_H
 #define STOPWATCH_H
 
-#if not (_WIN32 or _WIN64)
+#if (_WIN32 or _WIN64)
+    #include <windows.h>
+#else
     #include <sys/types.h>
     #include <sys/time.h>
     #include <sys/resource.h>
-#else
-
 #endif
 
 class Stopwatch {

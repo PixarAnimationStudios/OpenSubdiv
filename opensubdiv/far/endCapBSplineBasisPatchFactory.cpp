@@ -51,13 +51,60 @@ namespace {
 EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     TopologyRefiner const & refiner) :
     _refiner(&refiner), _numVertices(0), _numPatches(0) {
+
+    // Sanity check: the mesh must be adaptively refined
+    assert(not refiner.IsUniform());
+
+    // Reserve the patch point stencils. Ideally topology refiner
+    // would have an API to return how many endcap patches will be required.
+    // Instead we conservatively estimate by the number of patches at the
+    // finest level.
+    int numMaxLevelFaces = refiner.GetLevel(refiner.GetMaxLevel()).GetNumFaces();
+
+    _vertexStencils.reserve(numMaxLevelFaces*16);
+    _varyingStencils.reserve(numMaxLevelFaces*16);
 }
 
 ConstIndexArray
 EndCapBSplineBasisPatchFactory::GetPatchPoints(
-    Vtr::internal::Level const * level, Index faceIndex,
-    PatchTableFactory::PatchFaceTag const * /*levelPatchTags*/,
+    Vtr::internal::Level const * level, Index thisFace,
+    PatchTableFactory::PatchFaceTag const *levelPatchTags,
     int levelVertOffset) {
+
+    Vtr::ConstIndexArray facePoints = level->getFaceVertices(thisFace);
+    PatchTableFactory::PatchFaceTag patchTag = levelPatchTags[thisFace];
+    // if it's boundary, fallback to use GregoryBasis
+    if (patchTag._boundaryCount > 0) {
+        return getPatchPointsFromGregoryBasis(
+            level, thisFace, facePoints, levelVertOffset);
+    }
+
+    // there's a short-cut when the face contains only 1 extraordinary vertex.
+    // (we can achieve this by isolating 2 levels)
+    // look for the extraordinary vertex
+    int irregular = -1;
+    for (int i = 0; i < 4; ++i) {
+        int valence = level->getVertexFaces(facePoints[i]).size();
+        if (valence != 4) {
+            if (irregular != -1) {
+                // more than one extraoridinary vertices.
+                // fallback to use GregoryBasis
+                return getPatchPointsFromGregoryBasis(
+                    level, thisFace, facePoints, levelVertOffset);
+            }
+            irregular = i;
+        }
+    }
+
+    // faster B-spline endcap generation
+    return getPatchPoints(level, thisFace, irregular, facePoints,
+                          levelVertOffset);
+}
+
+ConstIndexArray
+EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
+    Vtr::internal::Level const * level, Index thisFace,
+    ConstIndexArray facePoints, int levelVertOffset) {
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
@@ -68,66 +115,386 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
         _patchPoints.push_back(_numVertices + offset);
         ++_numVertices;
     }
-
+    GregoryBasis::ProtoBasis basis(*level, thisFace, levelVertOffset, -1);
     // XXX: temporary hack. we should traverse topology and find existing
     //      vertices if available
     //
     // Reorder gregory basis stencils into regular bezier
-    GregoryBasis::ProtoBasis basis(*level, faceIndex, levelVertOffset, -1);
-    std::vector<GregoryBasis::Point> bezierCP;
-    bezierCP.reserve(16);
+    GregoryBasis::Point const *bezierCP[16];
 
-    bezierCP.push_back(basis.P[0]);
-    bezierCP.push_back(basis.Ep[0]);
-    bezierCP.push_back(basis.Em[1]);
-    bezierCP.push_back(basis.P[1]);
+    bezierCP[0] = &basis.P[0];
+    bezierCP[1] = &basis.Ep[0];
+    bezierCP[2] = &basis.Em[1];
+    bezierCP[3] = &basis.P[1];
 
-    bezierCP.push_back(basis.Em[0]);
-    bezierCP.push_back(basis.Fp[0]); // arbitrary
-    bezierCP.push_back(basis.Fp[1]); // arbitrary
-    bezierCP.push_back(basis.Ep[1]);
+    bezierCP[4] = &basis.Em[0];
+    bezierCP[5] = &basis.Fp[0]; // arbitrary
+    bezierCP[6] = &basis.Fp[1]; // arbitrary
+    bezierCP[7] = &basis.Ep[1];
 
-    bezierCP.push_back(basis.Ep[3]);
-    bezierCP.push_back(basis.Fp[3]); // arbitrary
-    bezierCP.push_back(basis.Fp[2]); // arbitrary
-    bezierCP.push_back(basis.Em[2]);
+    bezierCP[8]  = &basis.Ep[3];
+    bezierCP[9]  = &basis.Fp[3]; // arbitrary
+    bezierCP[10] = &basis.Fp[2]; // arbitrary
+    bezierCP[11] = &basis.Em[2];
 
-    bezierCP.push_back(basis.P[3]);
-    bezierCP.push_back(basis.Em[3]);
-    bezierCP.push_back(basis.Ep[2]);
-    bezierCP.push_back(basis.P[2]);
+    bezierCP[12] = &basis.P[3];
+    bezierCP[13] = &basis.Em[3];
+    bezierCP[14] = &basis.Ep[2];
+    bezierCP[15] = &basis.P[2];
+
+    // all stencils should have the same capacity.
+    int stencilCapacity = basis.P[0].GetCapacity();
 
     // Apply basis conversion from bezier to b-spline
     float Q[4][4] = {{ 6, -7,  2, 0},
                      { 0,  2, -1, 0},
                      { 0, -1,  2, 0},
                      { 0,  2, -7, 6} };
-    std::vector<GregoryBasis::Point> H(16);
+    Vtr::internal::StackBuffer<GregoryBasis::Point, 16> H(16);
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            for (int k = 0; k < 4; ++k) {            
-                if (isWeightNonZero(Q[i][k])) H[i*4+j] += bezierCP[j+k*4] * Q[i][k];
+            H[i*4+j].Clear(stencilCapacity);
+            for (int k = 0; k < 4; ++k) {
+                if (isWeightNonZero(Q[i][k])) {
+                    H[i*4+j].AddWithWeight(*bezierCP[j+k*4], Q[i][k]);
+                }
             }
         }
     }
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            GregoryBasis::Point p;
+            GregoryBasis::Point p(stencilCapacity);
             for (int k = 0; k < 4; ++k) {
-                if (isWeightNonZero(Q[j][k])) p += H[i*4+k] * Q[j][k];
+                if (isWeightNonZero(Q[j][k])) {
+                    p.AddWithWeight(H[i*4+k], Q[j][k]);
+                }
             }
             _vertexStencils.push_back(p);
         }
     }
-    
     int varyingIndices[] = { 0, 0, 1, 1,
                              0, 0, 1, 1,
                              3, 3, 2, 2,
                              3, 3, 2, 2,};
     for (int i = 0; i < 16; ++i) {
-        _varyingStencils.push_back(basis.V[varyingIndices[i]]);
+        GregoryBasis::Point p(1);
+        p.AddWithWeight(facePoints[varyingIndices[i]] + levelVertOffset, 1.0f);
+        _varyingStencils.push_back(p);
     }
 
+
+    ++_numPatches;
+    return ConstIndexArray(&_patchPoints[(_numPatches-1)*16], 16);
+}
+
+void
+EndCapBSplineBasisPatchFactory::computeLimitStencils(
+    Vtr::internal::Level const *level,
+    ConstIndexArray facePoints, int vid,
+    GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em)
+{
+    int maxvalence = level->getMaxValence();
+
+    Vtr::internal::StackBuffer<Index, 40> manifoldRing;
+    manifoldRing.SetSize(maxvalence*2);
+
+    int ringSize =
+        level->gatherQuadRegularRingAroundVertex(
+            facePoints[vid], manifoldRing, /*fvarChannel*/-1);
+
+    // note: this function has not yet supported boundary.
+    assert((ringSize & 1) == 0);
+    int valence = ringSize/2;
+    int stencilCapacity = ringSize + 1;
+
+    Index start = -1, prev = -1;
+    {
+        int ip = (vid+1)%4, im = (vid+3)%4;
+        for (int i = 0; i < valence; ++i) {
+            if (manifoldRing[i*2] == facePoints[ip])
+                start = i;
+            if (manifoldRing[i*2] == facePoints[im])
+                prev = i;
+        }
+    }
+    assert(start > -1 && prev > -1);
+
+    GregoryBasis::Point e0, e1;
+    e0.Clear(stencilCapacity);
+    e1.Clear(stencilCapacity);
+
+    float t = 2.0f * float(M_PI) / float(valence);
+    float ef = 1.0f / (valence * (cosf(t) + 5.0f +
+                                  sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
+
+    for (int i = 0; i < valence; ++i) {
+        Index ip = (i+1)%valence;
+        Index idx_neighbor   = (manifoldRing[2*i  + 0]),
+              idx_diagonal   = (manifoldRing[2*i  + 1]),
+              idx_neighbor_p = (manifoldRing[2*ip + 0]);
+
+        float d = float(valence)+5.0f;
+
+        GregoryBasis::Point f(4);
+        f.AddWithWeight(facePoints[vid], float(valence)/d);
+        f.AddWithWeight(idx_neighbor_p,  2.0f/d);
+        f.AddWithWeight(idx_neighbor,    2.0f/d);
+        f.AddWithWeight(idx_diagonal,    1.0f/d);
+
+        P->AddWithWeight(f, 1.0f/float(valence));
+
+        float c0 = 0.5f*cosf((float(2*M_PI) * float(i)/float(valence)))
+                 + 0.5f*cosf((float(2*M_PI) * float(ip)/float(valence)));
+        float c1 = 0.5f*sinf((float(2*M_PI) * float(i)/float(valence)))
+                 + 0.5f*sinf((float(2*M_PI) * float(ip)/float(valence)));
+        e0.AddWithWeight(f, c0*ef);
+        e1.AddWithWeight(f, c1*ef);
+    }
+
+    *Ep = *P;
+    Ep->AddWithWeight(e0, cosf((float(2*M_PI) * float(start)/float(valence))));
+    Ep->AddWithWeight(e1, sinf((float(2*M_PI) * float(start)/float(valence))));
+
+    *Em = *P;
+    Em->AddWithWeight(e0, cosf((float(2*M_PI) * float(prev)/float(valence))));
+    Em->AddWithWeight(e1, sinf((float(2*M_PI) * float(prev)/float(valence))));
+}
+
+ConstIndexArray
+EndCapBSplineBasisPatchFactory::getPatchPoints(
+    Vtr::internal::Level const *level, Index thisFace,
+    Index extraOrdinaryIndex, ConstIndexArray facePoints,
+    int levelVertOffset) {
+
+    //  Fast B-spline endcap construction.
+    //
+    //  This function assumes the patch is not on boundary
+    //  and it contains only 1 extraordinary vertex.
+    //  The location of the extraoridnary vertex can be one of
+    //  0-ring quad corner.
+    //
+    //  B-Spline control point gathering indice
+    //
+    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //            |     |     |
+    //            |     |     |      1,2,3,9,10,11,12,13 :
+    //     (6)----0-----3-----13       B-Spline control points, gathered by
+    //      |     |     |     |         traversing topology
+    //      |     |     |     |
+    //     (7)----1-----2-----12     (5) :
+    //      |     |     |     |        Fitted patch point (from limit position)
+    //      |     |     |     |
+    //     (8)----9-----10----11     (4),(6),(7),(8),(14),(15) :
+    //                                 Fitted patch points
+    //                                   (from limit tangents and bezier CP)
+    //
+    static int const rotation[4][16] = {
+        /*= 0 ring =*/ /* ================ 1 ring ================== */
+        { 0, 1, 2, 3,    4,  5,  6,  7,  8,  9, 10, 11, 12, 13 ,14, 15},
+        { 1, 2, 3, 0,    7,  8,  9, 10, 11, 12, 13, 14, 15,  4,  5,  6},
+        { 2, 3, 0, 1,   10, 11, 12, 13, 14, 15,  4,  5,  6,  7,  8,  9},
+        { 3, 0, 1, 2,   13, 14, 15,  4,  5,  6,  7,  8,  9, 10, 11, 12}};
+
+    int maxvalence = level->getMaxValence();
+    int stencilCapacity = 2*maxvalence + 16;
+    GregoryBasis::Point P(stencilCapacity), Em(stencilCapacity), Ep(stencilCapacity);
+
+    computeLimitStencils(level, facePoints, extraOrdinaryIndex, &P, &Em, &Ep);
+    P.OffsetIndices(levelVertOffset);
+    Em.OffsetIndices(levelVertOffset);
+    Ep.OffsetIndices(levelVertOffset);
+
+    // returning patch indices (a mix of cage vertices and patch points)
+    int patchPoints[16];
+
+    // first, we traverse the topology to gather 15 vertices. This process is
+    // similar to Vtr::Level::gatherQuadRegularInteriorPatchPoints
+    int pointIndex = 0;
+    int vid = extraOrdinaryIndex;
+
+    // 0-ring
+    patchPoints[pointIndex++] = facePoints[0] + levelVertOffset;
+    patchPoints[pointIndex++] = facePoints[1] + levelVertOffset;
+    patchPoints[pointIndex++] = facePoints[2] + levelVertOffset;
+    patchPoints[pointIndex++] = facePoints[3] + levelVertOffset;
+
+    // 1-ring
+    ConstIndexArray thisFaceVerts = level->getFaceVertices(thisFace);
+    for (int i = 0; i < 4; ++i) {
+        Index v = thisFaceVerts[i];
+        ConstIndexArray      vFaces   = level->getVertexFaces(v);
+        ConstLocalIndexArray vInFaces = level->getVertexFaceLocalIndices(v);
+
+        if (i != vid) {
+            // regular corner
+            int thisFaceInVFaces = vFaces.FindIndexIn4Tuple(thisFace);
+
+            int intFaceInVFaces  = (thisFaceInVFaces + 2) & 0x3;
+            Index intFace    = vFaces[intFaceInVFaces];
+            int   vInIntFace = vInFaces[intFaceInVFaces];
+            ConstIndexArray facePoints = level->getFaceVertices(intFace);
+
+            patchPoints[pointIndex++] =
+                facePoints[(vInIntFace + 1)&3] + levelVertOffset;
+            patchPoints[pointIndex++] =
+                facePoints[(vInIntFace + 2)&3] + levelVertOffset;
+            patchPoints[pointIndex++] =
+                facePoints[(vInIntFace + 3)&3] + levelVertOffset;
+        } else {
+            // irregular corner
+            int thisFaceInVFaces = vFaces.FindIndex(thisFace);
+            int valence = vFaces.size();
+            {
+                // first
+                int intFaceInVFaces  = (thisFaceInVFaces + 1) % valence;
+                Index intFace    = vFaces[intFaceInVFaces];
+                int   vInIntFace = vInFaces[intFaceInVFaces];
+                ConstIndexArray facePoints = level->getFaceVertices(intFace);
+                patchPoints[pointIndex++] =
+                    facePoints[(vInIntFace+3)&3] + levelVertOffset;
+            }
+            {
+                // middle: (n-vertices) needs a limit stencil. skip for now
+                pointIndex++;
+            }
+            {
+                // end
+                int intFaceInVFaces  = (thisFaceInVFaces + (valence-1)) %valence;
+                Index intFace    = vFaces[intFaceInVFaces];
+                int   vInIntFace = vInFaces[intFaceInVFaces];
+                ConstIndexArray facePoints = level->getFaceVertices(intFace);
+                patchPoints[pointIndex++] =
+                    facePoints[(vInIntFace+1)&3] + levelVertOffset;
+
+            }
+        }
+    }
+
+    // stencils for patch points
+    GregoryBasis::Point X5(stencilCapacity),
+        X6(stencilCapacity),
+        X7(stencilCapacity),
+        X8(stencilCapacity),
+        X4(stencilCapacity),
+        X15(stencilCapacity),
+        X14(stencilCapacity);
+
+    // limit tangent : Em
+    // X6 = 1/3 * ( 36Em - 16P0 - 8P1 - 2P2 - 4P3 -  P6 - 2P7)
+    // X7 = 1/3 * (-18Em +  8P0 + 4P1 +  P2 + 2P3 + 2P6 + 4P7)
+    // X8 = X6 + (P8-P6)
+    X6.AddWithWeight(Em,                             36.0f/3.0f);
+    X6.AddWithWeight(patchPoints[rotation[vid][0]], -16.0f/3.0f);
+    X6.AddWithWeight(patchPoints[rotation[vid][1]],  -8.0f/3.0f);
+    X6.AddWithWeight(patchPoints[rotation[vid][2]],  -2.0f/3.0f);
+    X6.AddWithWeight(patchPoints[rotation[vid][3]],  -4.0f/3.0f);
+    X6.AddWithWeight(patchPoints[rotation[vid][6]],  -1.0f/3.0f);
+    X6.AddWithWeight(patchPoints[rotation[vid][7]],  -2.0f/3.0f);
+
+    X7.AddWithWeight(Em,                            -18.0f/3.0f);
+    X7.AddWithWeight(patchPoints[rotation[vid][0]],   8.0f/3.0f);
+    X7.AddWithWeight(patchPoints[rotation[vid][1]],   4.0f/3.0f);
+    X7.AddWithWeight(patchPoints[rotation[vid][2]],   1.0f/3.0f);
+    X7.AddWithWeight(patchPoints[rotation[vid][3]],   2.0f/3.0f);
+    X7.AddWithWeight(patchPoints[rotation[vid][6]],   2.0f/3.0f);
+    X7.AddWithWeight(patchPoints[rotation[vid][7]],   4.0f/3.0f);
+
+    X8 = X6;
+    X8.AddWithWeight(patchPoints[rotation[vid][8]], 1.0f);
+    X8.AddWithWeight(patchPoints[rotation[vid][6]], -1.0f);
+
+    // limit tangent : Ep
+    // X4  = 1/3 * ( 36EP - 16P0 - 4P1 - 2P15 - 2P2 - 8P3 -  P4)
+    // X15 = 1/3 * (-18EP +  8P0 + 2P1 + 4P15 +  P2 + 4P3 + 2P4)
+    // X14 = X4  + (P14 - P4)
+    X4.AddWithWeight(Ep,                             36.0f/3.0f);
+    X4.AddWithWeight(patchPoints[rotation[vid][0]], -16.0f/3.0f);
+    X4.AddWithWeight(patchPoints[rotation[vid][1]],  -4.0f/3.0f);
+    X4.AddWithWeight(patchPoints[rotation[vid][2]],  -2.0f/3.0f);
+    X4.AddWithWeight(patchPoints[rotation[vid][3]],  -8.0f/3.0f);
+    X4.AddWithWeight(patchPoints[rotation[vid][4]],  -1.0f/3.0f);
+    X4.AddWithWeight(patchPoints[rotation[vid][15]], -2.0f/3.0f);
+
+    X15.AddWithWeight(Ep,                            -18.0f/3.0f);
+    X15.AddWithWeight(patchPoints[rotation[vid][0]],   8.0f/3.0f);
+    X15.AddWithWeight(patchPoints[rotation[vid][1]],   2.0f/3.0f);
+    X15.AddWithWeight(patchPoints[rotation[vid][2]],   1.0f/3.0f);
+    X15.AddWithWeight(patchPoints[rotation[vid][3]],   4.0f/3.0f);
+    X15.AddWithWeight(patchPoints[rotation[vid][4]],   2.0f/3.0f);
+    X15.AddWithWeight(patchPoints[rotation[vid][15]],  4.0f/3.0f);
+
+    X14 = X4;
+    X14.AddWithWeight(patchPoints[rotation[vid][14]],  1.0f);
+    X14.AddWithWeight(patchPoints[rotation[vid][4]],  -1.0f);
+
+    // limit corner (16th free vert)
+    // X5 = 36LP - 16P0 - 4(P1 + P3 + P4 + P6) - (P2 + P7 + P15)
+    X5.AddWithWeight(P,                              36.0f);
+    X5.AddWithWeight(patchPoints[rotation[vid][0]], -16.0f);
+    X5.AddWithWeight(patchPoints[rotation[vid][1]],  -4.0f);
+    X5.AddWithWeight(patchPoints[rotation[vid][3]],  -4.0f);
+    X5.AddWithWeight(X4,                             -4.0f);
+    X5.AddWithWeight(X6,                             -4.0f);
+    X5.AddWithWeight(patchPoints[rotation[vid][2]],  -1.0f);
+    X5.AddWithWeight(X7,                             -1.0f);
+    X5.AddWithWeight(X15,                            -1.0f);
+
+    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //            |     |     |
+    //            |     |     |      1,2,3,9,10,11,12,13 :
+    //     (6)----0-----3-----13       B-Spline control points, gathered by
+    //      |     |     |     |         traversing topology
+    //      |     |     |     |
+    //     (7)----1-----2-----12     (5) :
+    //      |     |     |     |        Fitted patch point (from limit position)
+    //      |     |     |     |
+    //     (8)----9-----10----11     (4),(6),(7),(8),(14),(15) :
+    //
+    // patch point stencils will be stored in this order
+    // (Em) 6, 7, 8, (Ep) 4, 15, 14, (P) 5
+
+    int offset = _refiner->GetNumVerticesTotal();
+
+    GregoryBasis::Point V0, V1, V3;
+    V0.AddWithWeight(facePoints[vid] + levelVertOffset, 1.0f);
+    V1.AddWithWeight(facePoints[(vid+1)&3] + levelVertOffset, 1.0f);
+    V3.AddWithWeight(facePoints[(vid+3)&3] + levelVertOffset, 1.0f);
+
+    // push back to stencils;
+    patchPoints[3* vid + 6]        = (_numVertices++) + offset;
+    _vertexStencils.push_back(X6);
+    _varyingStencils.push_back(V0);
+
+    patchPoints[3*((vid+1)%4) + 4] = (_numVertices++) + offset;
+    _vertexStencils.push_back(X7);
+    _varyingStencils.push_back(V1);
+
+    patchPoints[3*((vid+1)%4) + 5] = (_numVertices++) + offset;
+    _vertexStencils.push_back(X8);
+    _varyingStencils.push_back(V1);
+
+    patchPoints[3* vid + 4]        = (_numVertices++) + offset;
+    _vertexStencils.push_back(X4);
+    _varyingStencils.push_back(V0);
+
+    patchPoints[3*((vid+3)%4) + 6] = (_numVertices++) + offset;
+    _vertexStencils.push_back(X15);
+    _varyingStencils.push_back(V3);
+
+    patchPoints[3*((vid+3)%4) + 5] = (_numVertices++) + offset;
+    _vertexStencils.push_back(X14);
+    _varyingStencils.push_back(V3);
+
+    patchPoints[3*vid + 5]         = (_numVertices++) + offset;
+    _vertexStencils.push_back(X5);
+    _varyingStencils.push_back(V0);
+
+    // reorder into UV row-column
+    static int const permuteRegular[16] =
+        { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+    for (int i = 0; i < 16; ++i) {
+        _patchPoints.push_back(patchPoints[permuteRegular[i]]);
+    }
     ++_numPatches;
     return ConstIndexArray(&_patchPoints[(_numPatches-1)*16], 16);
 }
