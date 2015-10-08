@@ -205,6 +205,9 @@ protected:
     // Resize the table arrays (factory helper)
     void resize(int nstencils, int nelems);
 
+    // Reserves the table arrays (factory helper)
+    void reserve(int nstencils, int nelems);
+
 protected:
     StencilTable() : _numControlVertices(0) {}
     StencilTable(int numControlVerts)
@@ -212,8 +215,12 @@ protected:
     { }
 
     friend class StencilTableFactory;
+    friend class PatchTableFactory;
     // XXX: temporarily, GregoryBasis class will go away.
     friend class GregoryBasis;
+    // XXX: needed to call reserve().
+    friend class EndCapBSplineBasisPatchFactory;
+    friend class EndCapGregoryBasisPatchFactory;
 
     int _numControlVertices;              // number of control vertices
 
@@ -397,6 +404,13 @@ StencilTable::resize(int nstencils, int nelems) {
     _sizes.resize(nstencils);
     _indices.resize(nelems);
     _weights.resize(nelems);
+}
+
+inline void
+StencilTable::reserve(int nstencils, int nelems) {
+    _sizes.reserve(nstencils);
+    _indices.reserve(nelems);
+    _weights.reserve(nelems);
 }
 
 // Returns a Stencil at index i in the table
