@@ -42,9 +42,9 @@ before_script:
    - sudo apt-get install cmake
    - cmake --version
 
-   # install GL related libs from utopic
-   - sudo add-apt-repository 'deb http://us.archive.ubuntu.com/ubuntu/ utopic main restricted universe multiverse'
-   - sudo add-apt-repository 'deb http://us.archive.ubuntu.com/ubuntu/ utopic-updates main restricted universe multiverse'
+   # install GL related libs from wily
+   - sudo add-apt-repository 'deb http://us.archive.ubuntu.com/ubuntu/ wily main restricted universe multiverse'
+   - sudo add-apt-repository 'deb http://us.archive.ubuntu.com/ubuntu/ wily-updates main restricted universe multiverse'
    - sudo apt-get update -qq
    # install glut and xxf86vm (for GL libs)
    - sudo apt-get install freeglut3-dev
