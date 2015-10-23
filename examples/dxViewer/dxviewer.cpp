@@ -1213,9 +1213,9 @@ initHUD() {
     g_hud->AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0,
                        10, y, callbackCheckBox, kHUD_CB_VIEW_LOD, 'V');
     y += 20;
-    //g_hud->AddCheckBox("Fractional spacing (T)", g_fractionalSpacing != 0,
-    //                   10, y, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 'T');
-    //y += 20;
+    g_hud->AddCheckBox("Fractional spacing (T)", g_fractionalSpacing != 0,
+                       10, y, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 'T');
+    y += 20;
     g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,
                        10, y, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
     y += 20;
