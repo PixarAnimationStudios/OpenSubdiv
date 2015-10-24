@@ -124,7 +124,7 @@ convertToCompatibleStencilTable(
 }
 
 template <>
-Far::StencilTable const *
+inline Far::StencilTable const *
 convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
     Far::StencilTable const *table, void *  /*context*/) {
     // no need for conversion
@@ -134,7 +134,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
 }
 
 template <>
-Far::LimitStencilTable const *
+inline Far::LimitStencilTable const *
 convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, void>(
     Far::LimitStencilTable const *table, void *  /*context*/) {
     // no need for conversion
@@ -144,7 +144,7 @@ convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, 
 }
 
 template <>
-Far::StencilTable const *
+inline Far::StencilTable const *
 convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, ID3D11DeviceContext>(
     Far::StencilTable const *table, ID3D11DeviceContext *  /*context*/) {
     // no need for conversion
@@ -173,12 +173,12 @@ public:
 
     // XXX: FIXME, linear search
     struct Entry {
-        Entry(BufferDescriptor const &srcDesc,
-              BufferDescriptor const &dstDesc,
-              BufferDescriptor const &duDesc,
-              BufferDescriptor const &dvDesc,
-              EVALUATOR *e) : srcDesc(srcDesc), dstDesc(dstDesc),
-                              duDesc(duDesc), dvDesc(dvDesc), evaluator(e) {}
+        Entry(BufferDescriptor const &srcDescArg,
+              BufferDescriptor const &dstDescArg,
+              BufferDescriptor const &duDescArg,
+              BufferDescriptor const &dvDescArg,
+              EVALUATOR *evalArg) : srcDesc(srcDescArg), dstDesc(dstDescArg),
+                              duDesc(duDescArg), dvDesc(dvDescArg), evaluator(evalArg) {}
         BufferDescriptor srcDesc, dstDesc, duDesc, dvDesc;
         EVALUATOR *evaluator;
     };
@@ -420,24 +420,24 @@ public:
                                 instance, _deviceContext);
 
         if (_varyingDesc.length > 0) {
-            BufferDescriptor srcDesc = _varyingDesc;
-            BufferDescriptor dstDesc(srcDesc);
-            dstDesc.offset += numControlVertices * dstDesc.stride;
+            BufferDescriptor vSrcDesc = _varyingDesc;
+            BufferDescriptor vDstDesc(vSrcDesc);
+            vDstDesc.offset += numControlVertices * vDstDesc.stride;
 
             instance = GetEvaluator<Evaluator>(
-                _evaluatorCache, srcDesc, dstDesc,
+                _evaluatorCache, vSrcDesc, vDstDesc,
                 _deviceContext);
 
             if (_varyingBuffer) {
                 // non-interleaved
-                Evaluator::EvalStencils(_varyingBuffer, srcDesc,
-                                        _varyingBuffer, dstDesc,
+                Evaluator::EvalStencils(_varyingBuffer, vSrcDesc,
+                                        _varyingBuffer, vDstDesc,
                                         _varyingStencilTable,
                                         instance, _deviceContext);
             } else {
                 // interleaved
-                Evaluator::EvalStencils(_vertexBuffer, srcDesc,
-                                        _vertexBuffer, dstDesc,
+                Evaluator::EvalStencils(_vertexBuffer, vSrcDesc,
+                                        _vertexBuffer, vDstDesc,
                                         _varyingStencilTable,
                                         instance, _deviceContext);
             }

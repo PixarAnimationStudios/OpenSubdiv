@@ -539,15 +539,12 @@ TopologyRefinerFactory<MESH>::getBaseFaceFVarValues(TopologyRefiner & newRefiner
 }
 
 
-
-// XXXX manuelk MSVC specializes these templated functions which creates duplicated symbols
-#ifndef _MSC_VER
-
 template <class MESH>
 bool
 TopologyRefinerFactory<MESH>::resizeComponentTopology(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
 
-    Error(FAR_RUNTIME_ERROR, "Missing specialization for TopologyRefinerFactory<MESH>::resizeComponentTopology()");
+    Error(FAR_RUNTIME_ERROR,
+        "Failure in TopologyRefinerFactory<>::resizeComponentTopology() -- no specialization provided.");
 
     //
     //  Sizing the topology tables:
@@ -587,7 +584,8 @@ template <class MESH>
 bool
 TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refiner */, MESH const& /* mesh */) {
 
-    Error(FAR_RUNTIME_ERROR, "Missing specialization for TopologyRefinerFactory<MESH>::assignComponentTopology()");
+    Error(FAR_RUNTIME_ERROR,
+        "Failure in TopologyRefinerFactory<>::assignComponentTopology() -- no specialization provided.");
 
     //
     //  Assigning the topology tables:
@@ -679,8 +677,6 @@ TopologyRefinerFactory<MESH>::reportInvalidTopology(
     //  errors. By default, nothing is reported
     //
 }
-
-#endif
 
 } // end namespace Far
 

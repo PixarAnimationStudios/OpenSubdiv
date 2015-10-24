@@ -133,6 +133,8 @@ class StencilTable {
 
 public:
 
+    virtual ~StencilTable() {};
+    
     /// \brief Returns the number of stencils in the table
     int GetNumStencils() const {
         return (int)_sizes.size();

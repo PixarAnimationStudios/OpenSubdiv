@@ -47,6 +47,15 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
 
     // Sanity check: the mesh must be adaptively refined
     assert(not refiner.IsUniform());
+
+    // Reserve the patch point stencils. Ideally topology refiner
+    // would have an API to return how many endcap patches will be required.
+    // Instead we conservatively estimate by the number of patches at the
+    // finest level.
+    int numMaxLevelFaces = refiner.GetLevel(refiner.GetMaxLevel()).GetNumFaces();
+
+    _vertexStencils.reserve(numMaxLevelFaces*20);
+    _varyingStencils.reserve(numMaxLevelFaces*20);
 }
 
 //
@@ -133,11 +142,11 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
 
             { // Gather adjacent faces
                 ConstIndexArray adjfaces = level->getEdgeFaces(edge);
-                for (int i=0; i<adjfaces.size(); ++i) {
-                    if (adjfaces[i]==faceIndex) {
+                for (int j=0; j<adjfaces.size(); ++j) {
+                    if (adjfaces[j]==faceIndex) {
                         // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
                         // next face in the list of adjacent faces
-                        adjface = (adjfaces[(i+1)%adjfaces.size()]);
+                        adjface = (adjfaces[(j+1)%adjfaces.size()]);
                         break;
                     }
                 }
@@ -156,7 +165,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 // Find index of basis in the list of basis already generated
                 struct compare {
                     static int op(void const * a, void const * b) {
-                        return *(Index *)a - *(Index *)b;
+                        return *(Index const*)a - *(Index const*)b;
                     }
                 };
 

@@ -40,8 +40,6 @@ static std::vector<ShapeDesc> g_defaultShapes;
 
 //------------------------------------------------------------------------------
 static void initShapes() {
-//    g_defaultShapes.push_back( ShapeDesc("bilinear_cube",            bilinear_cube,            kBilinear) );
-
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner0",     catmark_cube_corner0,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner1",     catmark_cube_corner1,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner2",     catmark_cube_corner2,     kCatmark ) );
@@ -87,5 +85,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_helmet",           catmark_helmet,           kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_pawn",             catmark_pawn,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_rook",             catmark_rook,             kCatmark ) );
+
+    g_defaultShapes.push_back( ShapeDesc("bilinear_cube",            bilinear_cube,            kBilinear) );
 }
 //------------------------------------------------------------------------------

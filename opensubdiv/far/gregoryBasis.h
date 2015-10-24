@@ -26,6 +26,7 @@
 #define OPENSUBDIV3_FAR_GREGORY_BASIS_H
 
 #include "../vtr/level.h"
+#include "../vtr/stackBuffer.h"
 #include "../far/types.h"
 #include "../far/stencilTable.h"
 #include <cstring>
@@ -79,22 +80,15 @@ public:
     //
     class Point {
     public:
-        static const int RESERVED_ENTRY_SIZE = 64;
+        // 40 means up to valence=10 is on stack
+        static const int RESERVED_STENCIL_SIZE = 40;
 
-        Point() : _size(0) {
-            _indices.reserve(RESERVED_ENTRY_SIZE);
-            _weights.reserve(RESERVED_ENTRY_SIZE);
-        }
-
-        Point(Vtr::Index idx, float weight = 1.0f) {
-            _indices.reserve(RESERVED_ENTRY_SIZE);
-            _weights.reserve(RESERVED_ENTRY_SIZE);
-            _size = 1;
-            _indices.push_back(idx);
-            _weights.push_back(weight);
+        Point(int stencilCapacity=RESERVED_STENCIL_SIZE) : _size(0) {
+            _stencils.SetSize(stencilCapacity);
         }
 
         Point(Point const & other) {
+            _stencils.SetSize(other._stencils.GetSize());
             *this = other;
         }
 
@@ -102,96 +96,81 @@ public:
             return _size;
         }
 
-        Vtr::Index const * GetIndices() const {
-            return &_indices[0];
+        int GetCapacity() const {
+            return _stencils.GetSize();
         }
 
-        float const * GetWeights() const {
-            return &_weights[0];
+        void Clear(int capacity) {
+            _size = 0;
+            if ((int)_stencils.GetSize() < capacity) {
+                _stencils.SetSize(capacity);
+            }
+        }
+
+        void AddWithWeight(Vtr::Index idx, float weight) {
+            for (int i = 0; i < _size; ++i) {
+                if (_stencils[i].index == idx) {
+                    _stencils[i].weight += weight;
+                    return;
+                }
+            }
+            assert(_size < (int)_stencils.GetSize());
+            _stencils[_size].index = idx;
+            _stencils[_size].weight = weight;
+            ++_size;
+        }
+
+        void AddWithWeight(Point const &src, float weight) {
+            for (int i = 0; i < src._size; ++i) {
+                AddWithWeight(src._stencils[i].index,
+                              src._stencils[i].weight * weight);
+            }
         }
 
         Point & operator = (Point const & other) {
+            Clear(other.GetCapacity());
             _size = other._size;
-            _indices = other._indices;
-            _weights = other._weights;
-            return *this;
-        }
-
-        Point & operator += (Point const & other) {
-            for (int i=0; i<other._size; ++i) {
-                Vtr::Index idx = findIndex(other._indices[i]);
-                _weights[idx] += other._weights[i];
-            }
-            return *this;
-        }
-
-        Point & operator -= (Point const & other) {
-            for (int i=0; i<other._size; ++i) {
-                Vtr::Index idx = findIndex(other._indices[i]);
-                _weights[idx] -= other._weights[i];
+            assert(_size <= (int)_stencils.GetSize());
+            for (int i = 0; i < _size; ++i) {
+                _stencils[i] = other._stencils[i];
             }
             return *this;
         }
 
         Point & operator *= (float f) {
             for (int i=0; i<_size; ++i) {
-                _weights[i] *= f;
+                _stencils[i].weight *= f;
             }
             return *this;
         }
 
-        Point & operator /= (float f) {
-            return (*this)*=(1.0f/f);
-        }
-
-        friend Point operator * (Point const & src, float f) {
-            Point p( src ); return p*=f;
-        }
-
-        friend Point operator / (Point const & src, float f) {
-            Point p( src ); return p*= (1.0f/f);
-        }
-
-        Point operator + (Point const & other) {
-            Point p(*this); return p+=other;
-        }
-
-        Point operator - (Point const & other) {
-            Point p(*this); return p-=other;
-        }
-
         void OffsetIndices(Vtr::Index offset) {
             for (int i=0; i<_size; ++i) {
-                _indices[i] += offset;
+                _stencils[i].index += offset;
             }
         }
 
         void Copy(int ** size, Vtr::Index ** indices, float ** weights) const {
-            memcpy(*indices, &_indices[0], _size*sizeof(Vtr::Index));
-            memcpy(*weights, &_weights[0], _size*sizeof(float));
+            for (int i = 0; i < _size; ++i) {
+                **indices = _stencils[i].index;
+                **weights = _stencils[i].weight;
+                ++(*indices);
+                ++(*weights);
+            }
             **size = _size;
-            *indices += _size;
-            *weights += _size;
             ++(*size);
         }
 
     private:
 
-        int findIndex(Vtr::Index idx) {
-            for (int i=0; i<_size; ++i) {
-                if (_indices[i]==idx) {
-                    return i;
-                }
-            }
-            _indices.push_back(idx);
-            _weights.push_back(0.0f);
-            ++_size;
-            return _size-1;
-        }
-
         int _size;
-        std::vector<Vtr::Index> _indices;
-        std::vector<float> _weights;
+
+        struct Stencil {
+            Vtr::Index index;
+            float weight;
+        };
+
+        Vtr::internal::StackBuffer<Stencil, RESERVED_STENCIL_SIZE> _stencils;
     };
 
     //

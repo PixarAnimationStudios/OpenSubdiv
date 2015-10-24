@@ -31,6 +31,63 @@
 
 ----
 
+Release 3.0.3
+=============
+
+Release 3.0.3 is a minor stability release which includes important performance
+and bug fixes.
+
+**New Features**
+    - Smooth normal generation tutorial, far_tutorial_8
+
+**Changes**
+    - Major performance improvement in PatchTable construction
+    - Improved patch approximations for non-manifold features
+
+**Bug Fixes**
+    - Fixed double delete in GLSL Compute controller
+    - Fixed buffer layout for GLSL Compute kernel
+    - Fixed GL buffer leak in Osd::GLPatchTable
+    - Fixed out-of-bounds data access for TBB and OMP stencil evaluation
+    - Fixed WIN32_LEAN_AND_MEAN typo
+    - Fixed Loop-related shader issues glFVarViewer
+
+Release 3.0.2
+=============
+
+Release 3.0.2 is a minor release for a specific fix.
+
+**Bug Fixes**
+    - Fixed drawing of single crease patches
+
+Release 3.0.1
+=============
+
+Release 3.0.1 is a minor release focused on stability and correctness.
+
+**Changes**
+    - Added a references section to the documentation, please see `References <references.html>`__
+    - Removed references to AddVaryingWithWeight from examples and tutorials
+    - Added more regression test shapes
+    - Addressed general compiler warnings (e.g. signed vs unsigned comparisons)
+    - Addressed compiler warnings in the core libraries reported by GCC's -Wshadow
+    - Eased GCC version restriction, earlier requirement for version 4.8 or newer is no longer needed
+    - Replaced topology initialization assertions with errors
+    - Improved compatibility with ICC
+    - Improved descriptive content and formatting of Far error messages
+    - Improved build when configured to include no GPU specific code
+
+**Bug Fixes**
+    - Fixed handling of unconnected vertices to avoid out of bounds data access
+    - Fixed non-zero starting offsets for TbbEvalStencils and OmpEvalStencils
+    - Fixed Far::StencilTableFactory::Options::factorizeIntermediateLevels
+    - Fixed Far::PatchTablesFactory::Options::generateAllLevels
+    - Fixed the behavior of VTX_BOUNDARY_NONE for meshes with bilinear scheme
+    - Fixed some template method specializations which produced duplicate definitions
+    - Disabled depth buffering when drawing the UI in the example viewers
+    - Disabled the fractional tessellation spacing option in example viewers
+      since this mode is currently not supported
+
 Release 3.0.0
 =============
 

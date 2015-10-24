@@ -501,6 +501,9 @@ public:
 
         if (type == Far::PatchDescriptor::QUADS) {
             ss << "#define PRIM_QUAD\n";
+        } else if (type == Far::PatchDescriptor::TRIANGLES) {
+            ss << "#define PRIM_TRI\n";
+            ss << "#define LOOP\n";
         } else {
             ss << "#define PRIM_TRI\n";
         }

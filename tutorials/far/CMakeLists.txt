@@ -31,6 +31,7 @@ set(TUTORIALS
     tutorial_5
     tutorial_6
     tutorial_7
+    tutorial_8
 )
 
 foreach(tutorial ${TUTORIALS})

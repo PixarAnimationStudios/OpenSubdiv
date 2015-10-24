@@ -115,6 +115,8 @@ public:
         ss << "#define OSD_ENABLE_PATCH_CULL\n";
         ss << "#define GEOMETRY_OUT_LINE\n";
 
+        ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
+
         // include osd PatchCommon
         ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
         std::string common = ss.str();

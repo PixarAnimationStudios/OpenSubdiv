@@ -158,10 +158,12 @@ include_directories(
 
 set(INC_FILES )
 
+if(OPENGL_FOUND OR DXSDK_FOUND)
 _stringify("${EXAMPLES_COMMON_SHADER_FILES}" INC_FILES)
 
 source_group("Shaders" FILES ${EXAMPLES_COMMON_SHADER_FILES})
 source_group("Inc" FILES ${INC_FILES})
+endif()
 
 add_library(examples_common_obj
     OBJECT

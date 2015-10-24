@@ -40,6 +40,8 @@ typedef enum {
     FAR_RUNTIME_ERROR           ///< Issue a generic runtime error, but continue execution.
 } ErrorType;
 
+
+/// \brief The error callback function type (default is "printf")
 typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 
 /// \brief Sets the error callback function (default is "printf")
@@ -50,22 +52,8 @@ typedef void (*ErrorCallbackFunc)(ErrorType err, const char *message);
 ///
 void SetErrorCallback(ErrorCallbackFunc func);
 
-/// \brief Sends an OSD error
-///
-/// @param err the error type
-///
-void Error(ErrorType err);
 
-/// \brief Sends an OSD error with a message
-///
-/// @param err     the error type
-///
-/// @param format  the format of the message (followed by arguments)
-///
-void Error(ErrorType err, const char *format, ...);
-
-
-/// \brief Sets the warning callback function (default is "printf")
+/// \brief The warning callback function type (default is "printf")
 typedef void (*WarningCallbackFunc)(const char *message);
 
 /// \brief Sets the warning callback function (default is "printf")
@@ -76,7 +64,21 @@ typedef void (*WarningCallbackFunc)(const char *message);
 ///
 void SetWarningCallback(WarningCallbackFunc func);
 
-/// \brief Sends an OSD warning message
+
+//
+//  The following are intended for internal use only (and will eventually
+//  be moved within namespace internal)
+//
+
+/// \brief Sends an OSD error with a message (internal use only)
+///
+/// @param err     the error type
+///
+/// @param format  the format of the message (followed by arguments)
+///
+void Error(ErrorType err, const char *format, ...);
+
+/// \brief Sends an OSD warning message (internal use only)
 ///
 /// @param format  the format of the message (followed by arguments)
 ///

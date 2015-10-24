@@ -51,6 +51,8 @@ public:
 
     int GetNumVertsInStencil(size_t stencilIndex) const;
 
+    void SetCoarseVertCount(int numVerts);
+
     // Mapping from stencil[i] to it's starting offset in the sources[] and weights[] arrays;
     std::vector<int> const& GetStencilOffsets() const;
 

@@ -128,12 +128,10 @@ int   g_freeze = 0,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
-      g_drawPatchCVs = 0,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0};
 
-int   g_displayPatchColor = 1,
-      g_screenSpaceTess = 1,
+int   g_screenSpaceTess = 1,
       g_fractionalSpacing = 1,
       g_patchCull = 1,
       g_displayPatchCounts = 0;
@@ -1130,12 +1128,6 @@ callbackCheckBox(bool checked, int button) {
     case kHUD_CB_ANIMATE_VERTICES:
         g_moveScale = checked;
         break;
-    case kHUD_CB_DISPLAY_PATCH_COLOR:
-        g_displayPatchColor = checked;
-        break;
-    case kHUD_CB_DISPLAY_PATCH_CVs:
-        g_drawPatchCVs = checked;
-        break;
     case kHUD_CB_VIEW_LOD:
         g_screenSpaceTess = checked;
         break;
@@ -1204,13 +1196,32 @@ initHUD() {
                             kShadingNormal,
                             g_shadingMode == kShadingNormal);
 
-    g_hud->AddCheckBox("Patch CVs (L)",             false,                    10, 50,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_CVs, 'L');
-    g_hud->AddCheckBox("Patch Color (P)",           true,                     10, 70,  callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COLOR, 'P');
-    g_hud->AddCheckBox("Animate vertices (M)",      g_moveScale != 0,         10, 110,  callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'M');
-    g_hud->AddCheckBox("Freeze (spc)",              false,                    10, 130,  callbackCheckBox, kHUD_CB_FREEZE, ' ');
-    g_hud->AddCheckBox("Screen space LOD (V)",      g_screenSpaceTess != 0,   10, 150,  callbackCheckBox, kHUD_CB_VIEW_LOD, 'V');
-    g_hud->AddCheckBox("Fractional spacing (T)",    g_fractionalSpacing != 0, 10, 170, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 'T');
-    g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,         10, 190, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
+    int y = 10;
+    g_hud->AddCheckBox("Control edges (H)",
+                       g_controlMeshDisplay->GetEdgesDisplay(),
+                       10, y, callbackCheckBox,
+                       kHUD_CB_DISPLAY_CONTROL_MESH_EDGES, 'H');
+    y += 20;
+    g_hud->AddCheckBox("Control vertices (J)",
+                       g_controlMeshDisplay->GetVerticesDisplay(),
+                       10, y, callbackCheckBox,
+                       kHUD_CB_DISPLAY_CONTROL_MESH_VERTS, 'J');
+    y += 20;
+    g_hud->AddCheckBox("Animate vertices (M)", g_moveScale != 0,
+                       10, y, callbackCheckBox, kHUD_CB_ANIMATE_VERTICES, 'M');
+    y += 20;
+    g_hud->AddCheckBox("Screen space LOD (V)", g_screenSpaceTess != 0,
+                       10, y, callbackCheckBox, kHUD_CB_VIEW_LOD, 'V');
+    y += 20;
+    //g_hud->AddCheckBox("Fractional spacing (T)", g_fractionalSpacing != 0,
+    //                   10, y, callbackCheckBox, kHUD_CB_FRACTIONAL_SPACING, 'T');
+    //y += 20;
+    g_hud->AddCheckBox("Frustum Patch Culling (B)", g_patchCull != 0,
+                       10, y, callbackCheckBox, kHUD_CB_PATCH_CULL, 'B');
+    y += 20;
+    g_hud->AddCheckBox("Freeze (spc)", g_freeze != 0,
+                       10, y, callbackCheckBox, kHUD_CB_FREEZE, ' ');
+    y += 20;
 
     g_hud->AddCheckBox("Adaptive (`)", true, 10, 230, callbackAdaptive, 0, '`');
     g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 250, callbackSingleCreasePatch, 0, 'S');

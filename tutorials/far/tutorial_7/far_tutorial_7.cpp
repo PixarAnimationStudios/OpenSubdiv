@@ -72,8 +72,6 @@ struct Vertex {
         _position[2]+=weight*src._position[2];
     }
 
-    void AddVaryingWithWeight(Vertex const &, float) { }
-
     // Public interface ------------------------------------
     void SetPosition(float x, float y, float z) {
         _position[0]=x;

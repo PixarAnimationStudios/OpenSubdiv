@@ -33,37 +33,43 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
+//
+//  Statics for the publicly assignable callbacks and the methods to
+//  assign them (disable static assignment warnings when doing so):
+//
 static ErrorCallbackFunc errorFunc = 0;
-
-static char const * errors[] = {
-    "FAR_NO_ERROR",
-    "FAR_FATAL_ERROR",
-    "FAR_INTERNAL_CODING_ERROR",
-    "FAR_CODING_ERROR",
-    "FAR_RUNTIME_ERROR"
-};
-
-void SetErrorCallback(ErrorCallbackFunc func) {
+static WarningCallbackFunc warningFunc = 0;
 
 #ifdef __INTEL_COMPILER
 #pragma warning disable 1711
 #endif
+
+void SetErrorCallback(ErrorCallbackFunc func) {
     errorFunc = func;
+}
+
+void SetWarningCallback(WarningCallbackFunc func) {
+    warningFunc = func;
+}
+
 #ifdef __INTEL_COMPILER
 #pragma warning enable 1711
 #endif
-}
 
-void Error(ErrorType err) {
 
-    if (errorFunc) {
-        errorFunc(err, NULL);
-    } else {
-        fprintf(stderr, "Error : %s\n",errors[err]);
-    }
-}
-
+//
+//  The default error and warning callbacks eventually belong in the
+//  internal namespace:
+//
 void Error(ErrorType err, const char *format, ...) {
+
+    static char const * errorTypeLabel[] = {
+        "No Error",
+        "Fatal Error",
+        "Coding Error (internal)",
+        "Coding Error",
+        "Error"
+    };
 
     assert(err!=FAR_NO_ERROR);
 
@@ -76,21 +82,8 @@ void Error(ErrorType err, const char *format, ...) {
     if (errorFunc) {
         errorFunc(err, message);
     } else {
-        printf("Error %s : %s\n",errors[err], message);
+        printf("%s: %s\n", errorTypeLabel[err], message);
     }
-}
-
-static WarningCallbackFunc warningFunc = 0;
-
-void SetWarningCallback(WarningCallbackFunc func) {
-
-#ifdef __INTEL_COMPILER
-#pragma warning disable 1711
-#endif
-    warningFunc = func;
-#ifdef __INTEL_COMPILER
-#pragma warning enable 1711
-#endif
 }
 
 void Warning(const char *format, ...) {
@@ -104,7 +97,7 @@ void Warning(const char *format, ...) {
     if (warningFunc) {
         warningFunc(message);
     } else {
-        fprintf(stdout, "Warning : %s\n", message);
+        fprintf(stdout, "Warning: %s\n", message);
     }
 }
 

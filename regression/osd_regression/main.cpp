@@ -585,13 +585,13 @@ usage(char ** argv) {
 static void 
 parseArgs(int argc, char ** argv) {
 
-    for (int i=1; i<argc; ++i) {
-        if (not strcmp(argv[i],"-compute")) {
+    for (int argi=1; argi<argc; ++argi) {
+        if (not strcmp(argv[argi],"-compute")) {
         
             const char * backend = NULL;
             
-            if (i<(argc-1))
-                backend = argv[++i];
+            if (argi<(argc-1))
+                backend = argv[++argi];
 
             if (not strcmp(backend, "all")) {
               g_Backend = -1;
@@ -612,8 +612,8 @@ parseArgs(int argc, char ** argv) {
                 exit(0);
               }
             }
-        } else if ( (not strcmp(argv[i],"-help")) or
-                    (not strcmp(argv[i],"-h")) ) {
+        } else if ( (not strcmp(argv[argi],"-help")) or
+                    (not strcmp(argv[argi],"-h")) ) {
             usage(argv);
             exit(1);
         } else {

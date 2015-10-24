@@ -92,6 +92,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         osd_overview.rst
         osd_shader_interface.rst
         porting.rst
+        references.rst
         release_notes.rst
         release_notes_2x.rst
         roadmap.rst

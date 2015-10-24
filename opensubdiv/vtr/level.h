@@ -521,23 +521,23 @@ Level::getFaceEdges(Index faceIndex) {
 //
 inline ConstIndexArray
 Level::getVertexFaces(Index vertIndex) const {
-    return ConstIndexArray(&_vertFaceIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return ConstIndexArray( (&_vertFaceIndices[0]) + _vertFaceCountsAndOffsets[vertIndex*2+1],
                           _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 inline IndexArray
 Level::getVertexFaces(Index vertIndex) {
-    return IndexArray(&_vertFaceIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return IndexArray( (&_vertFaceIndices[0]) + _vertFaceCountsAndOffsets[vertIndex*2+1],
                           _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 
 inline ConstLocalIndexArray
 Level::getVertexFaceLocalIndices(Index vertIndex) const {
-    return ConstLocalIndexArray(&_vertFaceLocalIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return ConstLocalIndexArray( (&_vertFaceLocalIndices[0]) + _vertFaceCountsAndOffsets[vertIndex*2+1],
                                _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 inline LocalIndexArray
 Level::getVertexFaceLocalIndices(Index vertIndex) {
-    return LocalIndexArray(&_vertFaceLocalIndices[_vertFaceCountsAndOffsets[vertIndex*2+1]],
+    return LocalIndexArray( (&_vertFaceLocalIndices[0]) + _vertFaceCountsAndOffsets[vertIndex*2+1],
                                _vertFaceCountsAndOffsets[vertIndex*2]);
 }
 
@@ -558,23 +558,23 @@ Level::trimVertexFaces(Index vertIndex, int count) {
 //
 inline ConstIndexArray
 Level::getVertexEdges(Index vertIndex) const {
-    return ConstIndexArray(&_vertEdgeIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return ConstIndexArray( (&_vertEdgeIndices[0]) +_vertEdgeCountsAndOffsets[vertIndex*2+1],
                           _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 inline IndexArray
 Level::getVertexEdges(Index vertIndex) {
-    return IndexArray(&_vertEdgeIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return IndexArray( (&_vertEdgeIndices[0]) +_vertEdgeCountsAndOffsets[vertIndex*2+1],
                           _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 
 inline ConstLocalIndexArray
 Level::getVertexEdgeLocalIndices(Index vertIndex) const {
-    return ConstLocalIndexArray(&_vertEdgeLocalIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return ConstLocalIndexArray( (&_vertEdgeLocalIndices[0]) + _vertEdgeCountsAndOffsets[vertIndex*2+1],
                                _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 inline LocalIndexArray
 Level::getVertexEdgeLocalIndices(Index vertIndex) {
-    return LocalIndexArray(&_vertEdgeLocalIndices[_vertEdgeCountsAndOffsets[vertIndex*2+1]],
+    return LocalIndexArray( (&_vertEdgeLocalIndices[0]) + _vertEdgeCountsAndOffsets[vertIndex*2+1],
                                _vertEdgeCountsAndOffsets[vertIndex*2]);
 }
 
@@ -614,23 +614,27 @@ Level::getEdgeVertices(Index edgeIndex) {
 //
 inline ConstIndexArray
 Level::getEdgeFaces(Index edgeIndex) const {
-    return ConstIndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
-                          _edgeFaceCountsAndOffsets[edgeIndex*2]);
+    return ConstIndexArray(&_edgeFaceIndices[0] + 
+                           _edgeFaceCountsAndOffsets[edgeIndex*2+1],
+                           _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 inline IndexArray
 Level::getEdgeFaces(Index edgeIndex) {
-    return IndexArray(&_edgeFaceIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
-                          _edgeFaceCountsAndOffsets[edgeIndex*2]);
+    return IndexArray(&_edgeFaceIndices[0] +
+                      _edgeFaceCountsAndOffsets[edgeIndex*2+1],
+                      _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 
 inline ConstLocalIndexArray
 Level::getEdgeFaceLocalIndices(Index edgeIndex) const {
-    return ConstLocalIndexArray(&_edgeFaceLocalIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
-                               _edgeFaceCountsAndOffsets[edgeIndex*2]);
+    return ConstLocalIndexArray(&_edgeFaceLocalIndices[0] +
+                                _edgeFaceCountsAndOffsets[edgeIndex*2+1],
+                                _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 inline LocalIndexArray
 Level::getEdgeFaceLocalIndices(Index edgeIndex) {
-    return LocalIndexArray(&_edgeFaceLocalIndices[_edgeFaceCountsAndOffsets[edgeIndex*2+1]],
+    return LocalIndexArray(&_edgeFaceLocalIndices[0] +
+                           _edgeFaceCountsAndOffsets[edgeIndex*2+1],
                            _edgeFaceCountsAndOffsets[edgeIndex*2]);
 }
 

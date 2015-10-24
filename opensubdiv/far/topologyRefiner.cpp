@@ -192,12 +192,12 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
 
     if (_levels[0]->getNumVertices() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot apply uniform refinement -- base level appears to be uninitialized.");
+            "Failure in TopologyRefiner::RefineUniform() -- base level is uninitialized.");
         return;
     }
     if (_refinements.size()) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot apply uniform refinement -- previous refinements already applied.");
+            "Failure in TopologyRefiner::RefineUniform() -- previous refinements already applied.");
         return;
     }
 
@@ -220,7 +220,7 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
 
     for (int i = 1; i <= (int)options.refinementLevel; ++i) {
         refineOptions._minimalTopology =
-            options.fullTopologyInLastLevel ? false : (i == options.refinementLevel);
+            options.fullTopologyInLastLevel ? false : (i == (int)options.refinementLevel);
 
         Vtr::internal::Level& parentLevel = getLevel(i-1);
         Vtr::internal::Level& childLevel  = *(new Vtr::internal::Level);
@@ -245,17 +245,17 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
     if (_levels[0]->getNumVertices() == 0) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot apply adaptive refinement -- base level appears to be uninitialized.");
+            "Failure in TopologyRefiner::RefineAdaptive() -- base level is uninitialized.");
         return;
     }
     if (_refinements.size()) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot apply adaptive refinement -- previous refinements already applied.");
+            "Failure in TopologyRefiner::RefineAdaptive() -- previous refinements already applied.");
         return;
     }
     if (_subdivType != Sdc::SCHEME_CATMARK) {
         Error(FAR_RUNTIME_ERROR,
-            "Cannot apply adaptive refinement -- currently only supported for scheme Catmark.");
+            "Failure in TopologyRefiner::RefineAdaptive() -- currently only supported for Catmark scheme.");
         return;
     }
 

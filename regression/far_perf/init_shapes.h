@@ -22,18 +22,27 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_VERSION_H
-#define OPENSUBDIV3_VERSION_H
+#include "../common/shape_utils.h"
 
-#define OPENSUBDIV_VERSION v3_0_3
+struct ShapeDesc {
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme,
+              bool iisLeftHanded=false) :
+        name(iname), data(idata), scheme(ischeme), isLeftHanded(iisLeftHanded) { }
 
+    std::string name,
+                data;
+    Scheme      scheme;
+    bool        isLeftHanded;
+};
 
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
+static std::vector<ShapeDesc> g_shapes;
 
-} // end namespace OpenSubdiv
+#include "../shapes/all.h"
 
-#endif /* OPENSUBDIV3_VERSION_H */
+//------------------------------------------------------------------------------
+static void initShapes() {
+    g_shapes.push_back( ShapeDesc("catmark_car",     catmark_car,   kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_pole64", catmark_pole64, kCatmark ) );
+}
+//------------------------------------------------------------------------------
