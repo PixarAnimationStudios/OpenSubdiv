@@ -304,6 +304,12 @@ class LimitStencilTable : public StencilTable {
 
 public:
 
+    /// \brief Returns a LimitStencil at index i in the table
+    LimitStencil GetLimitStencil(Index i) const;
+
+    /// \brief Returns the limit stencil at index i in the table
+    LimitStencil operator[] (Index index) const;
+
     /// \brief Returns the 'u' derivative stencil interpolation weights
     std::vector<float> const & GetDuWeights() const {
         return _duWeights;
@@ -435,6 +441,25 @@ LimitStencilTable::resize(int nstencils, int nelems) {
     StencilTable::resize(nstencils, nelems);
     _duWeights.resize(nelems);
     _dvWeights.resize(nelems);
+}
+
+// Returns a LimitStencil at index i in the table
+inline LimitStencil
+LimitStencilTable::GetLimitStencil(Index i) const {
+    assert((not GetOffsets().empty()) and i<(int)GetOffsets().size());
+
+    Index ofs = GetOffsets()[i];
+
+    return LimitStencil( const_cast<int *>(&GetSizes()[i]),
+                         const_cast<Index *>(&GetControlIndices()[ofs]),
+                         const_cast<float *>(&GetWeights()[ofs]),
+                         const_cast<float *>(&GetDuWeights()[ofs]),
+                         const_cast<float *>(&GetDvWeights()[ofs]) );
+}
+
+inline LimitStencil
+LimitStencilTable::operator[] (Index index) const {
+    return GetLimitStencil(index);
 }
 
 
