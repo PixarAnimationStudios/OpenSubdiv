@@ -126,7 +126,6 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         P[i].Clear(stencilCapacity);
         e0[i].Clear(stencilCapacity);
         e1[i].Clear(stencilCapacity);
-        V[i].Clear(1);
     }
 
     Vtr::internal::StackBuffer<Index, 40> manifoldRings[4];
@@ -142,7 +141,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
     for (int vid=0; vid<4; ++vid) {
         // save for varying stencils
-        V[vid].AddWithWeight(facePoints[vid], 1.0f);
+        varyingIndex[vid] = facePoints[vid] + levelVertOffset;
 
         int ringSize =
             level.gatherQuadRegularRingAroundVertex(
@@ -445,39 +444,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         Em[i].OffsetIndices(levelVertOffset);
         Fp[i].OffsetIndices(levelVertOffset);
         Fm[i].OffsetIndices(levelVertOffset);
-        V[i].OffsetIndices(levelVertOffset);
     }
-}
-
-/*static*/
-StencilTable *
-GregoryBasis::CreateStencilTable(PointsVector const &stencils) {
-
-    int nStencils = (int)stencils.size();
-    if (nStencils == 0) return NULL;
-
-    int nElements = 0;
-    for (int i = 0; i < nStencils; ++i) {
-        nElements += stencils[i].GetSize();
-    }
-
-    // allocate destination
-    StencilTable *stencilTable = new StencilTable();
-
-    // XXX: do we need numControlVertices in stencilTable?
-    stencilTable->_numControlVertices = 0;
-    stencilTable->resize(nStencils, nElements);
-
-    int * sizes = &stencilTable->_sizes[0];
-    Index * indices = &stencilTable->_indices[0];
-    float * weights = &stencilTable->_weights[0];
-
-    for (int i = 0; i < nStencils; ++i) {
-        stencils[i].Copy(&sizes, &indices, &weights);
-    }
-    stencilTable->generateOffsets();
-
-    return stencilTable;
 }
 
 } // end namespace Far

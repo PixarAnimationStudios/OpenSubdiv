@@ -41,7 +41,11 @@ namespace Far {
 // EndCapGregoryBasisPatchFactory for Vertex StencilTable
 //
 EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
-    TopologyRefiner const & refiner, bool shareBoundaryVertices) :
+    TopologyRefiner const & refiner,
+    StencilTable * vertexStencils,
+    StencilTable * varyingStencils,
+    bool shareBoundaryVertices) :
+    _vertexStencils(vertexStencils), _varyingStencils(varyingStencils),
     _refiner(&refiner), _shareBoundaryVertices(shareBoundaryVertices),
     _numGregoryBasisVertices(0), _numGregoryBasisPatches(0) {
 
@@ -54,8 +58,13 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     // finest level.
     int numMaxLevelFaces = refiner.GetLevel(refiner.GetMaxLevel()).GetNumFaces();
 
-    _vertexStencils.reserve(numMaxLevelFaces*20);
-    _varyingStencils.reserve(numMaxLevelFaces*20);
+    int numPatchPointsExpected = numMaxLevelFaces * 20;
+    // limits to 100M (=800M bytes) entries for the reserved size.
+    int numStencilsExpected = std::min(numPatchPointsExpected * 16,
+                                       100*1024*1024);
+    _vertexStencils->reserve(numPatchPointsExpected, numStencilsExpected);
+    // varying stencils use only 1 index with weight=1.0
+    _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
 }
 
 //
@@ -90,24 +99,24 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
 
     for (int i = 0; i < 4; ++i) {
         if (verticesMask[i][0]) {
-            _vertexStencils.push_back(basis.P[i]);
-            _varyingStencils.push_back(basis.V[i]);
+            GregoryBasis::AppendToStencilTable(basis.P[i], _vertexStencils);
+            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
         }
         if (verticesMask[i][1]) {
-            _vertexStencils.push_back(basis.Ep[i]);
-            _varyingStencils.push_back(basis.V[i]);
+            GregoryBasis::AppendToStencilTable(basis.Ep[i], _vertexStencils);
+            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
         }
         if (verticesMask[i][2]) {
-            _vertexStencils.push_back(basis.Em[i]);
-            _varyingStencils.push_back(basis.V[i]);
+            GregoryBasis::AppendToStencilTable(basis.Em[i], _vertexStencils);
+            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
         }
         if (verticesMask[i][3]) {
-            _vertexStencils.push_back(basis.Fp[i]);
-            _varyingStencils.push_back(basis.V[i]);
+            GregoryBasis::AppendToStencilTable(basis.Fp[i], _vertexStencils);
+            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
         }
         if (verticesMask[i][4]) {
-            _vertexStencils.push_back(basis.Fm[i]);
-            _varyingStencils.push_back(basis.V[i]);
+            GregoryBasis::AppendToStencilTable(basis.Fm[i], _vertexStencils);
+            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
         }
     }
     return true;
