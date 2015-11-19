@@ -72,6 +72,12 @@
 //         mix(input[c].var, input[d].var, UV.x), UV.y)
 #endif
 
+// For now, fractional spacing is supported only with screen space tessellation
+#ifndef OSD_ENABLE_SCREENSPACE_TESSELLATION
+#undef OSD_FRACTIONAL_EVEN_SPACING
+#undef OSD_FRACTIONAL_ODD_SPACING
+#endif
+
 #if defined OSD_FRACTIONAL_EVEN_SPACING
   #define OSD_SPACING fractional_even_spacing
 #elif defined OSD_FRACTIONAL_ODD_SPACING
