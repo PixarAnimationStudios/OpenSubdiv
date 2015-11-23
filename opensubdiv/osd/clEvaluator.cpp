@@ -204,7 +204,10 @@ CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
                           cl_mem offsets,
                           cl_mem indices,
                           cl_mem weights,
-                          int start, int end) const {
+                          int start, int end,
+                          unsigned int numStartEvents,
+                          const cl_event* startEvents,
+                          cl_event* endEvent) const {
     if (end <= start) return true;
 
     size_t globalWorkSize = (size_t)(end - start);
@@ -222,7 +225,7 @@ CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
 
     cl_int errNum = clEnqueueNDRangeKernel(
         _clCommandQueue, _stencilKernel, 1, NULL,
-        &globalWorkSize, NULL, 0, NULL, NULL);
+        &globalWorkSize, NULL, numStartEvents, startEvents, endEvent);
 
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
@@ -230,7 +233,10 @@ CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
         return false;
     }
 
+    if (endEvent == NULL)
+    {
     clFinish(_clCommandQueue);
+    }
     return true;
 }
 
@@ -245,7 +251,10 @@ CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
                           cl_mem weights,
                           cl_mem duWeights,
                           cl_mem dvWeights,
-                          int start, int end) const {
+                          int start, int end,
+                          unsigned int numStartEvents,
+                          const cl_event* startEvents,
+                          cl_event* endEvent) const {
     if (end <= start) return true;
 
     size_t globalWorkSize = (size_t)(end - start);
@@ -271,7 +280,7 @@ CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
 
     cl_int errNum = clEnqueueNDRangeKernel(
         _clCommandQueue, _stencilDerivKernel, 1, NULL,
-        &globalWorkSize, NULL, 0, NULL, NULL);
+        &globalWorkSize, NULL, numStartEvents, startEvents, endEvent);
 
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
@@ -279,7 +288,10 @@ CLEvaluator::EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
         return false;
     }
 
+    if (endEvent == NULL)
+    {
     clFinish(_clCommandQueue);
+    }
     return true;
 }
 
@@ -292,7 +304,10 @@ CLEvaluator::EvalPatches(cl_mem src, BufferDescriptor const &srcDesc,
                          cl_mem patchCoordsBuffer,
                          cl_mem patchArrayBuffer,
                          cl_mem patchIndexBuffer,
-                         cl_mem patchParamBuffer) const {
+                         cl_mem patchParamBuffer,
+                         unsigned int numStartEvents,
+                         const cl_event* startEvents,
+                         cl_event* endEvent) const {
 
     size_t globalWorkSize = (size_t)(numPatchCoords);
 
@@ -313,7 +328,7 @@ CLEvaluator::EvalPatches(cl_mem src, BufferDescriptor const &srcDesc,
 
     cl_int errNum = clEnqueueNDRangeKernel(
         _clCommandQueue, _patchKernel, 1, NULL,
-        &globalWorkSize, NULL, 0, NULL, NULL);
+        &globalWorkSize, NULL, numStartEvents, startEvents, endEvent);
 
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
@@ -321,7 +336,10 @@ CLEvaluator::EvalPatches(cl_mem src, BufferDescriptor const &srcDesc,
         return false;
     }
 
+    if (endEvent == NULL)
+    {
     clFinish(_clCommandQueue);
+    }
     return true;
 }
 
