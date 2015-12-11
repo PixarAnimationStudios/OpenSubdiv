@@ -1303,10 +1303,19 @@ PatchTableFactory::populateAdaptivePatches(
     }
 
     // finalize end patches
-    if (localPointStencils)
+    if (localPointStencils and localPointStencils->GetNumStencils() > 0) {
         localPointStencils->generateOffsets();
-    if (localPointVaryingStencils)
+    } else {
+        delete localPointStencils;
+        localPointStencils = NULL;
+    }
+
+    if (localPointVaryingStencils and localPointVaryingStencils->GetNumStencils() > 0) {
         localPointVaryingStencils->generateOffsets();
+    } else {
+        delete localPointVaryingStencils;
+        localPointVaryingStencils = NULL;
+    }
 
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_GREGORY_BASIS:
