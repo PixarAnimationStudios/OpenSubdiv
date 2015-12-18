@@ -710,12 +710,14 @@ macro(_add_glfw_executable target)
         foreach (LIB ${LIBRARIES} )
             string(REPLACE ".lib" ".dll" DLL ${LIB})
             string(REPLACE ".LIB" ".DLL" DLL ${DLL})
-            add_custom_command(
-                TARGET ${target} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${DLL}
-                    $<TARGET_FILE_DIR:${target}>
-            )
+            if (EXISTS ${DLL})
+                add_custom_command(
+                    TARGET ${target} POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        ${DLL}
+                        $<TARGET_FILE_DIR:${target}>
+                )
+            endif()
         endforeach()
     endif()
 
