@@ -1092,33 +1092,33 @@ OsdFlipMatrix(mat4 m)
                 m[0][3], m[0][2], m[0][1], m[0][0]);
 }
 
+// Regular BSpline to Bezier
+uniform mat4 Q = mat4(
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
+);
+
+// Infinitely Sharp (boundary)
+uniform mat4 Mi = mat4(
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     0.f,     1.f,     0.f
+);
+
 // convert BSpline cv to Bezier cv
 void
 OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
                                 out OsdPerPatchVertexBezier result)
 {
-    // Regular BSpline to Bezier
-    mat4 Q = mat4(
-        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-        0.f,     4.f/6.f, 2.f/6.f, 0.f,
-        0.f,     2.f/6.f, 4.f/6.f, 0.f,
-        0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
-    );
-
     result.patchParam = patchParam;
 
     int i = ID%4;
     int j = ID/4;
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-
-    // Infinitely Sharp (boundary)
-    mat4 Mi = mat4(
-        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-        0.f,     4.f/6.f, 2.f/6.f, 0.f,
-        0.f,     2.f/6.f, 4.f/6.f, 0.f,
-        0.f,     0.f,     1.f,     0.f
-    );
 
     mat4 Mj, Ms;
     float sharpness = OsdGetPatchSharpness(patchParam);
