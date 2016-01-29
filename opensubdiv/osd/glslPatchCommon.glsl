@@ -1120,7 +1120,10 @@ OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
 
-    mat4 Mj, Ms;
+    vec3 P  = vec3(0); // 0 to 1-2^(-Sf)
+    vec3 P1 = vec3(0); // 1-2^(-Sf) to 1-2^(-Sc)
+    vec3 P2 = vec3(0); // 1-2^(-Sc) to 1
+
     float sharpness = OsdGetPatchSharpness(patchParam);
     if (sharpness > 0) {
         float Sf = floor(sharpness);
@@ -1128,60 +1131,86 @@ OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
         float Sr = fract(sharpness);
         mat4 Mf = OsdComputeMs(Sf);
         mat4 Mc = OsdComputeMs(Sc);
-        Mj = (1-Sr) * Mf + Sr * Mi;
-        Ms = (1-Sr) * Mf + Sr * Mc;
+        mat4 Mj = (1-Sr) * Mf + Sr * Mi;
+        mat4 Ms = (1-Sr) * Mf + Sr * Mc;
         float s0 = 1 - pow(2, -floor(sharpness));
         float s1 = 1 - pow(2, -ceil(sharpness));
         result.vSegments = vec2(s0, s1);
-    } else {
-        Mj = Ms = Mi;
-        result.vSegments = vec2(0);
-    }
-    result.P  = vec3(0); // 0 to 1-2^(-Sf)
-    result.P1 = vec3(0); // 1-2^(-Sf) to 1-2^(-Sc)
-    result.P2 = vec3(0); // 1-2^(-Sc) to 1
 
-    mat4 MUi, MUj, MUs;
-    mat4 MVi, MVj, MVs;
-    MUi = MUj = MUs = Q;
-    MVi = MVj = MVs = Q;
+        mat4 MUi = Q, MUj = Q, MUs = Q;
+        mat4 MVi = Q, MVj = Q, MVs = Q;
 
-    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
-    if ((boundaryMask & 1) != 0) {
-        MVi = OsdFlipMatrix(Mi);
-        MVj = OsdFlipMatrix(Mj);
-        MVs = OsdFlipMatrix(Ms);
-    }
-    if ((boundaryMask & 2) != 0) {
-        MUi = Mi;
-        MUj = Mj;
-        MUs = Ms;
-    }
-    if ((boundaryMask & 4) != 0) {
-        MVi = Mi;
-        MVj = Mj;
-        MVs = Ms;
-    }
-    if ((boundaryMask & 8) != 0) {
-        MUi = OsdFlipMatrix(Mi);
-        MUj = OsdFlipMatrix(Mj);
-        MUs = OsdFlipMatrix(Ms);
-    }
+        int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+        if ((boundaryMask & 1) != 0) {
+            MVi = OsdFlipMatrix(Mi);
+            MVj = OsdFlipMatrix(Mj);
+            MVs = OsdFlipMatrix(Ms);
+        }
+        if ((boundaryMask & 2) != 0) {
+            MUi = Mi;
+            MUj = Mj;
+            MUs = Ms;
+        }
+        if ((boundaryMask & 4) != 0) {
+            MVi = Mi;
+            MVj = Mj;
+            MVs = Ms;
+        }
+        if ((boundaryMask & 8) != 0) {
+            MUi = OsdFlipMatrix(Mi);
+            MUj = OsdFlipMatrix(Mj);
+            MUs = OsdFlipMatrix(Ms);
+        }
 
-    vec3 Hi[4], Hj[4], Hs[4];
-    for (int l=0; l<4; ++l) {
-        Hi[l] = Hj[l] = Hs[l] = vec3(0);
+        vec3 Hi[4], Hj[4], Hs[4];
+        for (int l=0; l<4; ++l) {
+            Hi[l] = Hj[l] = Hs[l] = vec3(0);
+            for (int k=0; k<4; ++k) {
+                Hi[l] += MUi[i][k] * cv[l*4 + k];
+                Hj[l] += MUj[i][k] * cv[l*4 + k];
+                Hs[l] += MUs[i][k] * cv[l*4 + k];
+            }
+        }
         for (int k=0; k<4; ++k) {
-            Hi[l] += MUi[i][k] * cv[l*4 + k];
-            Hj[l] += MUj[i][k] * cv[l*4 + k];
-            Hs[l] += MUs[i][k] * cv[l*4 + k];
+            P  += MVi[j][k]*Hi[k];
+            P1 += MVj[j][k]*Hj[k];
+            P2 += MVs[j][k]*Hs[k];
+        }
+    } else {
+        result.vSegments = vec2(0);
+
+        mat4 MUi = Q;
+        mat4 MVi = Q;
+
+        int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+        if ((boundaryMask & 1) != 0) {
+            MVi = OsdFlipMatrix(Mi);
+        }
+        if ((boundaryMask & 2) != 0) {
+            MUi = Mi;
+        }
+        if ((boundaryMask & 4) != 0) {
+            MVi = Mi;
+        }
+        if ((boundaryMask & 8) != 0) {
+            MUi = OsdFlipMatrix(Mi);
+        }
+
+        vec3 Hi[4], Hj[4], Hs[4];
+        for (int l=0; l<4; ++l) {
+            Hi[l] = Hj[l] = Hs[l] = vec3(0);
+            for (int k=0; k<4; ++k) {
+                Hi[l] += MUi[i][k] * cv[l*4 + k];
+            }
+        }
+        for (int k=0; k<4; ++k) {
+            P += MVi[j][k]*Hi[k];
         }
     }
-    for (int k=0; k<4; ++k) {
-        result.P  += MVi[j][k]*Hi[k];
-        result.P1 += MVj[j][k]*Hj[k];
-        result.P2 += MVs[j][k]*Hs[k];
-    }
+
+    result.P  = P;
+    result.P1 = P1;
+    result.P2 = P2;
 #else
     OsdComputeBSplineBoundaryPoints(cv, patchParam);
 
