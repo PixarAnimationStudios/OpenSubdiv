@@ -1176,41 +1176,30 @@ OsdComputePerPatchVertexBSpline(ivec3 patchParam, int ID, vec3 cv[16],
             P1 += MVj[j][k]*Hj[k];
             P2 += MVs[j][k]*Hs[k];
         }
+
+        result.P  = P;
+        result.P1 = P1;
+        result.P2 = P2;
     } else {
         result.vSegments = vec2(0);
 
-        mat4 MUi = Q;
-        mat4 MVi = Q;
+        OsdComputeBSplineBoundaryPoints(cv, patchParam);
 
-        int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
-        if ((boundaryMask & 1) != 0) {
-            MVi = OsdFlipMatrix(Mi);
-        }
-        if ((boundaryMask & 2) != 0) {
-            MUi = Mi;
-        }
-        if ((boundaryMask & 4) != 0) {
-            MVi = Mi;
-        }
-        if ((boundaryMask & 8) != 0) {
-            MUi = OsdFlipMatrix(Mi);
-        }
-
-        vec3 Hi[4], Hj[4], Hs[4];
+        vec3 Hi[4];
         for (int l=0; l<4; ++l) {
-            Hi[l] = Hj[l] = Hs[l] = vec3(0);
+            Hi[l] = vec3(0);
             for (int k=0; k<4; ++k) {
-                Hi[l] += MUi[i][k] * cv[l*4 + k];
+                Hi[l] += Q[i][k] * cv[l*4 + k];
             }
         }
         for (int k=0; k<4; ++k) {
-            P += MVi[j][k]*Hi[k];
+            P += Q[j][k]*Hi[k];
         }
-    }
 
-    result.P  = P;
-    result.P1 = P1;
-    result.P2 = P2;
+        result.P  = P;
+        result.P1 = P;
+        result.P2 = P;
+    }
 #else
     OsdComputeBSplineBoundaryPoints(cv, patchParam);
 
