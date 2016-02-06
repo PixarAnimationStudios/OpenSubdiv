@@ -66,7 +66,7 @@ public:
     bool IsUniform() const   { return _isUniform; }
 
     /// \brief Returns the number of refinement levels
-    int  GetNumLevels() const { return (int)_levels.size(); }
+    int  GetNumLevels() const { return (int)_farLevels.size(); }
 
     /// \brief Returns the highest level of refinement
     int  GetMaxLevel() const { return _maxLevel; }
