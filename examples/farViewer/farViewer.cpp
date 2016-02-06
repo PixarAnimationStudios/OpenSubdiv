@@ -42,10 +42,6 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#if _MSC_VER
-    #define snprintf _snprintf
-#endif
-
 #include <osd/cpuGLVertexBuffer.h>
 
 #include <far/patchTableFactory.h>
@@ -70,6 +66,12 @@ GLFWmonitor* g_primary=0;
 #include <set>
 #include <fstream>
 #include <sstream>
+#include <cstdio>
+
+#if _MSC_VER
+    #define snprintf _snprintf
+#endif
+
 
 //------------------------------------------------------------------------------
 int g_level = 3,
