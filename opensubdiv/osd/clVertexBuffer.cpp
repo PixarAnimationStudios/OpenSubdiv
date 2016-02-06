@@ -54,12 +54,15 @@ CLVertexBuffer::Create(int numElements, int numVertices,
 }
 
 void
-CLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue) {
+CLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue queue,
+    cl_event* startEvents, unsigned int numStartEvents, cl_event* endEvent) {
 
     size_t size = _numElements * numVertices * sizeof(float);
     size_t offset = startVertex * _numElements * sizeof(float);
 
-    clEnqueueWriteBuffer(queue, _clMemory, true, offset, size, src, 0, NULL, NULL);
+    cl_bool blocking = (endEvent == NULL) ? CL_TRUE : CL_FALSE;
+    cl_int err = clEnqueueWriteBuffer(queue, _clMemory, blocking, offset, size, src, numStartEvents, startEvents, endEvent);
+    assert(err == CL_SUCCESS);
 }
 
 int

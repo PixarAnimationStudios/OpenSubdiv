@@ -56,12 +56,14 @@ public:
 
     /// This method is meant to be used in client code in order to provide coarse
     /// vertices data to Osd.
-    void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue);
+    void UpdateData(const float *src, int startVertex, int numVertices, cl_command_queue clQueue, 
+        cl_event* startEvents = NULL, unsigned int numStartEvents = 0, cl_event* endEvent = NULL);
 
     template<typename DEVICE_CONTEXT>
     void UpdateData(const float *src, int startVertex, int numVertices,
-                    DEVICE_CONTEXT context) {
-        UpdateData(src, startVertex, numVertices, context->GetCommandQueue());
+                    DEVICE_CONTEXT context, 
+                    cl_event* startEvents = NULL, unsigned int numStartEvents = 0, cl_event* endEvent = NULL) {
+        UpdateData(src, startVertex, numVertices, context->GetCommandQueue(), startEvents, numStartEvents, endEvent);
     }
 
     /// Returns how many elements defined in this vertex buffer.

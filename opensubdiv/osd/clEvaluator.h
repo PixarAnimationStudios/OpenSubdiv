@@ -158,6 +158,19 @@ public:
     ///                         cl_command_queue GetCommandQueue()
     ///                       methods.
     ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename STENCIL_TABLE, typename DEVICE_CONTEXT>
     static bool EvalStencils(
@@ -165,12 +178,16 @@ public:
         DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         STENCIL_TABLE const *stencilTable,
         CLEvaluator const *instance,
-        DEVICE_CONTEXT deviceContext) {
+        DEVICE_CONTEXT deviceContext,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) {
 
         if (instance) {
             return instance->EvalStencils(srcBuffer, srcDesc,
                                           dstBuffer, dstDesc,
-                                          stencilTable);
+                                          stencilTable,
+                                          numStartEvents, startEvents, endEvent);
         } else {
             // Create an instance on demand (slow)
             instance = Create(srcDesc, dstDesc,
@@ -180,7 +197,8 @@ public:
             if (instance) {
                 bool r = instance->EvalStencils(srcBuffer, srcDesc,
                                                 dstBuffer, dstDesc,
-                                                stencilTable);
+                                                stencilTable,
+                                                numStartEvents, startEvents, endEvent);
                 delete instance;
                 return r;
             }
@@ -230,6 +248,19 @@ public:
     ///                         cl_command_queue GetCommandQueue()
     ///                       methods.
     ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename STENCIL_TABLE, typename DEVICE_CONTEXT>
     static bool EvalStencils(
@@ -239,14 +270,18 @@ public:
         DST_BUFFER *dvBuffer, BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable,
         CLEvaluator const *instance,
-        DEVICE_CONTEXT deviceContext) {
+        DEVICE_CONTEXT deviceContext,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) {
 
         if (instance) {
             return instance->EvalStencils(srcBuffer, srcDesc,
                                           dstBuffer, dstDesc,
                                           duBuffer,  duDesc,
                                           dvBuffer,  dvDesc,
-                                          stencilTable);
+                                          stencilTable,
+                                          numStartEvents, startEvents, endEvent);
         } else {
             // Create an instance on demand (slow)
             instance = Create(srcDesc, dstDesc, duDesc, dvDesc,
@@ -256,7 +291,8 @@ public:
                                                 dstBuffer, dstDesc,
                                                 duBuffer,  duDesc,
                                                 dvBuffer,  dvDesc,
-                                                stencilTable);
+                                                stencilTable,
+                                                numStartEvents, startEvents, endEvent);
                 delete instance;
                 return r;
             }
@@ -271,7 +307,10 @@ public:
     bool EvalStencils(
         SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
         DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
-        STENCIL_TABLE const *stencilTable) const {
+        STENCIL_TABLE const *stencilTable,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) const {
         return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                             dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
                             stencilTable->GetSizesBuffer(),
@@ -279,7 +318,8 @@ public:
                             stencilTable->GetIndicesBuffer(),
                             stencilTable->GetWeightsBuffer(),
                             0,
-                            stencilTable->GetNumStencils());
+                            stencilTable->GetNumStencils(),
+                            numStartEvents, startEvents, endEvent);
     }
 
     /// Generic compute function.
@@ -291,7 +331,10 @@ public:
         DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
         DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
-        STENCIL_TABLE const *stencilTable) const {
+        STENCIL_TABLE const *stencilTable,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) const {
         return EvalStencils(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                             dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
                             duBuffer->BindCLBuffer(_clCommandQueue), duDesc,
@@ -303,7 +346,8 @@ public:
                             stencilTable->GetDuWeightsBuffer(),
                             stencilTable->GetDvWeightsBuffer(),
                             0,
-                            stencilTable->GetNumStencils());
+                            stencilTable->GetNumStencils(),
+                            numStartEvents, startEvents, endEvent);
     }
 
     /// Dispatch the CL compute kernel asynchronously.
@@ -315,7 +359,10 @@ public:
                       cl_mem indices,
                       cl_mem weights,
                       int start,
-                      int end) const;
+                      int end,
+                      unsigned int numStartEvents=0,
+                      const cl_event* startEvents=NULL,
+                      cl_event* endEvent=NULL) const;
 
     /// Dispatch the CL compute kernel asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
@@ -330,7 +377,10 @@ public:
                       cl_mem duWeights,
                       cl_mem dvWeights,
                       int start,
-                      int end) const;
+                      int end,
+                      unsigned int numStartEvents=0,
+                      const cl_event* startEvents=NULL,
+                      cl_event* endEvent=NULL) const;
 
     /// ----------------------------------------------------------------------
     ///
@@ -373,6 +423,19 @@ public:
     ///                         cl_command_queue GetCommandQueue()
     ///                       methods.
     ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
               typename DEVICE_CONTEXT>
@@ -383,13 +446,17 @@ public:
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
         CLEvaluator const *instance,
-        DEVICE_CONTEXT deviceContext) {
+        DEVICE_CONTEXT deviceContext,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) {
 
         if (instance) {
             return instance->EvalPatches(srcBuffer, srcDesc,
                                          dstBuffer, dstDesc,
                                          numPatchCoords, patchCoords,
-                                         patchTable);
+                                         patchTable,
+                                         numStartEvents, startEvents, endEvent);
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
@@ -401,7 +468,8 @@ public:
                 bool r = instance->EvalPatches(srcBuffer, srcDesc,
                                                dstBuffer, dstDesc,
                                                numPatchCoords, patchCoords,
-                                               patchTable);
+                                               patchTable,
+                                               numStartEvents, startEvents, endEvent);
                 delete instance;
                 return r;
             }
@@ -452,6 +520,19 @@ public:
     ///                         cl_command_queue GetCommandQueue()
     ///                       methods.
     ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
               typename DEVICE_CONTEXT>
@@ -464,7 +545,10 @@ public:
         PATCHCOORD_BUFFER *patchCoords,
         PATCH_TABLE *patchTable,
         CLEvaluator const *instance,
-        DEVICE_CONTEXT deviceContext) {
+        DEVICE_CONTEXT deviceContext,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) {
 
         if (instance) {
             return instance->EvalPatches(srcBuffer, srcDesc,
@@ -472,7 +556,8 @@ public:
                                          duBuffer, duDesc,
                                          dvBuffer, dvDesc,
                                          numPatchCoords, patchCoords,
-                                         patchTable);
+                                         patchTable,
+                                         numStartEvents, startEvents, endEvent);
         } else {
             // Create an instance on demand (slow)
             (void)deviceContext;  // unused
@@ -483,7 +568,8 @@ public:
                                                duBuffer, duDesc,
                                                dvBuffer, dvDesc,
                                                numPatchCoords, patchCoords,
-                                               patchTable);
+                                               patchTable,
+                                               numStartEvents, startEvents, endEvent);
                 delete instance;
                 return r;
             }
@@ -515,6 +601,19 @@ public:
     ///
     /// @param patchTable     CLPatchTable or equivalent
     ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     bool EvalPatches(
@@ -522,7 +621,10 @@ public:
         DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
-        PATCH_TABLE *patchTable) const {
+        PATCH_TABLE *patchTable,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) const {
 
         return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                            dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
@@ -532,7 +634,8 @@ public:
                            patchCoords->BindCLBuffer(_clCommandQueue),
                            patchTable->GetPatchArrayBuffer(),
                            patchTable->GetPatchIndexBuffer(),
-                           patchTable->GetPatchParamBuffer());
+                           patchTable->GetPatchParamBuffer(),
+                           numStartEvents, startEvents, endEvent);
     }
 
     /// \brief Generic limit eval function with derivatives. This function has
@@ -569,6 +672,19 @@ public:
     ///
     /// @param patchTable       CLPatchTable or equivalent
     ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
     bool EvalPatches(
@@ -578,7 +694,10 @@ public:
         DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         int numPatchCoords,
         PATCHCOORD_BUFFER *patchCoords,
-        PATCH_TABLE *patchTable) const {
+        PATCH_TABLE *patchTable,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) const {
 
         return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
                            dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
@@ -588,7 +707,8 @@ public:
                            patchCoords->BindCLBuffer(_clCommandQueue),
                            patchTable->GetPatchArrayBuffer(),
                            patchTable->GetPatchIndexBuffer(),
-                           patchTable->GetPatchParamBuffer());
+                           patchTable->GetPatchParamBuffer(),
+                           numStartEvents, startEvents, endEvent);
     }
 
     bool EvalPatches(cl_mem src, BufferDescriptor const &srcDesc,
@@ -599,7 +719,10 @@ public:
                      cl_mem patchCoordsBuffer,
                      cl_mem patchArrayBuffer,
                      cl_mem patchIndexBuffer,
-                     cl_mem patchParamsBuffer) const;
+                     cl_mem patchParamsBuffer,
+                     unsigned int numStartEvents=0,
+                     const cl_event* startEvents=NULL,
+                     cl_event* endEvent=NULL) const;
 
     /// ----------------------------------------------------------------------
     ///
