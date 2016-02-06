@@ -454,13 +454,13 @@ public:
 
     void EnableVertexAttributes( ) {
 
-        long int offset = 0;
+        int * offset = 0;
         for (AttrList::iterator i=_attrs.begin(); i!=_attrs.end(); ++i) {
 
             glEnableVertexAttribArray( i->location );
 
             glVertexAttribPointer( i->location, i->size,
-                GL_FLOAT, GL_FALSE, sizeof(GLfloat) * _attrStride, (void*)offset);
+                GL_FLOAT, GL_FALSE, sizeof(GLfloat) * _attrStride, (GLvoid*)offset);
 
             offset += sizeof(GLfloat) * i->size;
         }
