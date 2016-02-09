@@ -244,11 +244,24 @@ elseif(MSVC)
                     #/D_HAS_ITERATOR_DEBUGGING=0
     )
 
-    # Turn off a duplicate LIBCMT linker warning
-    set(CMAKE_EXE_LINKER_FLAGS
-        "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
-    set(CMAKE_SHARED_LINKER_FLAGS
-        "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+    option(MSVC_STATIC_CRT "Statically link MSVC CRT" OFF)
+
+    if(MSVC_STATIC_CRT)
+        message(STATUS "Using static MSVC CRT")
+        # http://stackoverflow.com/a/32128977/486990
+        add_compile_options(
+            "$<$<CONFIG:Debug>:/MTd>"
+            "$<$<CONFIG:RelWithDebInfo>:/MT>"
+            "$<$<CONFIG:Release>:/MT>"
+            "$<$<CONFIG:MinSizeRel>:/MT>"
+        )
+    else()
+        # Turn off a duplicate LIBCMT linker warning
+        set(CMAKE_EXE_LINKER_FLAGS
+            "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+        set(CMAKE_SHARED_LINKER_FLAGS
+            "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+    endif()
 
 endif()
 
