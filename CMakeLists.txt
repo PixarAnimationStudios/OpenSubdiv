@@ -273,10 +273,10 @@ elseif(MSVC)
     )
 
     # Turn off a duplicate LIBCMT linker warning
-    set(CMAKE_EXE_LINKER_FLAGS
-        "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
-    set(CMAKE_SHARED_LINKER_FLAGS
-        "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+    #set(CMAKE_EXE_LINKER_FLAGS
+    #    "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+    #set(CMAKE_SHARED_LINKER_FLAGS
+    #    "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
 
 endif()
 
