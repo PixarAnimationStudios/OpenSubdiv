@@ -314,6 +314,19 @@ option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
 
+option(STATIC_CRT "Statically link MSVC CRT" OFF)
+
+if(MSVC AND STATIC_CRT)
+    message(STATUS "Using static MSVC CRT")
+    # http://stackoverflow.com/a/32128977/486990
+    add_compile_options(
+        "$<$<CONFIG:Debug>:/MTd>"
+        "$<$<CONFIG:RelWithDebInfo>:/MT>"
+        "$<$<CONFIG:Release>:/MT>"
+        "$<$<CONFIG:MinSizeRel>:/MT>"
+    )
+endif()
+
 set(OSD_GPU FALSE)
 
 # Check for dependencies
