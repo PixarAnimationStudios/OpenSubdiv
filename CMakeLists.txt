@@ -272,6 +272,10 @@ elseif(MSVC)
                     #/D_HAS_ITERATOR_DEBUGGING=0
     )
 
+    # thomthom : When enabling static CRT there are linker errors in Release
+    # referring to libcpmt (Note not libcmt). Not sure why, but removing this
+    # exclude allowed it to build, and there where no linker error in VS2013/15
+    # when building with minimal build.
     # Turn off a duplicate LIBCMT linker warning
     #set(CMAKE_EXE_LINKER_FLAGS
     #    "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
@@ -314,16 +318,22 @@ option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
 
-option(STATIC_CRT "Statically link MSVC CRT" OFF)
+option(MSVC_STATIC_CRT_RELEASE "Statically link MSVC CRT in Release" OFF)
+option(MSVC_STATIC_CRT_DEBUG "Statically link MSVC CRT in Debug" OFF)
 
-if(MSVC AND STATIC_CRT)
-    message(STATUS "Using static MSVC CRT")
+if(MSVC AND MSVC_STATIC_CRT_RELEASE)
+    message(STATUS "Using static MSVC CRT Release")
     # http://stackoverflow.com/a/32128977/486990
     add_compile_options(
-        "$<$<CONFIG:Debug>:/MDd>"
         "$<$<CONFIG:RelWithDebInfo>:/MT>"
         "$<$<CONFIG:Release>:/MT>"
         "$<$<CONFIG:MinSizeRel>:/MT>"
+    )
+endif()
+if(MSVC AND MSVC_STATIC_CRT_DEBUG)
+    message(STATUS "Using static MSVC CRT Debug")
+    add_compile_options(
+        "$<$<CONFIG:Debug>:/MTd>"
     )
 endif()
 
