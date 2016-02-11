@@ -26,14 +26,16 @@
 // Patches.Common
 //----------------------------------------------------------
 
-// XXXdyu-patch-drawing support for fractional spacing
-#undef OSD_FRACTIONAL_ODD_SPACING
+// For now, fractional spacing is supported only with screen space tessellation
+#ifndef OSD_ENABLE_SCREENSPACE_TESSELLATION
 #undef OSD_FRACTIONAL_EVEN_SPACING
+#undef OSD_FRACTIONAL_ODD_SPACING
+#endif
 
-#if defined OSD_FRACTIONAL_ODD_SPACING
-  #define OSD_PARTITIONING "fractional_odd"
-#elif defined OSD_FRACTIONAL_EVEN_SPACING
+#if defined OSD_FRACTIONAL_EVEN_SPACING
   #define OSD_PARTITIONING "fractional_even"
+#elif defined OSD_FRACTIONAL_ODD_SPACING
+  #define OSD_PARTITIONING "fractional_odd"
 #else
   #define OSD_PARTITIONING "integer"
 #endif
@@ -494,7 +496,7 @@ float OsdComputeTessLevel(float3 p0, float3 p1)
     float3 center = (p0 + p1) / 2.0;
     float diameter = distance(p0, p1);
     float projLength = OsdComputePostProjectionSphereExtent(center, diameter);
-    float tessLevel = round(max(1.0, OsdTessLevel() * projLength));
+    float tessLevel = max(1.0, OsdTessLevel() * projLength);
 
     // We restrict adaptive tessellation levels to half of the device
     // supported maximum because transition edges are split into two
@@ -674,6 +676,97 @@ OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
 #endif
 }
 
+// Round up to the nearest even integer
+float OsdRoundUpEven(float x) {
+    return 2*ceil(x/2);
+}
+
+// Round up to the nearest odd integer
+float OsdRoundUpOdd(float x) {
+    return 2*ceil((x+1)/2)-1;
+}
+
+// Compute outer and inner tessellation levels taking into account the
+// current tessellation spacing mode.
+void
+OsdComputeTessLevels(inout float4 tessOuterLo, inout float4 tessOuterHi,
+                     out float4 tessLevelOuter, out float2 tessLevelInner)
+{
+    // Outer levels are the sum of the Lo and Hi segments where the Hi
+    // segments will have lengths of zero for non-transition edges.
+
+#if defined OSD_FRACTIONAL_EVEN_SPACING
+    // Combine fractional outer transition edge levels before rounding.
+    float4 combinedOuter = tessOuterLo + tessOuterHi;
+
+    // Round the segments of transition edges separately. We will recover the
+    // fractional parameterization of transition edges after tessellation.
+
+    tessLevelOuter = combinedOuter;
+    if (tessOuterHi[0] > 0) {
+        tessLevelOuter[0] =
+            OsdRoundUpEven(tessOuterLo[0]) + OsdRoundUpEven(tessOuterHi[0]);
+    }
+    if (tessOuterHi[1] > 0) {
+        tessLevelOuter[1] =
+            OsdRoundUpEven(tessOuterLo[1]) + OsdRoundUpEven(tessOuterHi[1]);
+    }
+    if (tessOuterHi[2] > 0) {
+        tessLevelOuter[2] =
+            OsdRoundUpEven(tessOuterLo[2]) + OsdRoundUpEven(tessOuterHi[2]);
+    }
+    if (tessOuterHi[3] > 0) {
+        tessLevelOuter[3] =
+            OsdRoundUpEven(tessOuterLo[3]) + OsdRoundUpEven(tessOuterHi[3]);
+    }
+#elif defined OSD_FRACTIONAL_ODD_SPACING
+    // Combine fractional outer transition edge levels before rounding.
+    float4 combinedOuter = tessOuterLo + tessOuterHi;
+
+    // Round the segments of transition edges separately. We will recover the
+    // fractional parameterization of transition edges after tessellation.
+    //
+    // The sum of the two outer odd segment lengths will be an even number
+    // which the tessellator will increase by +1 so that there will be a
+    // total odd number of segments. We clamp the combinedOuter tess levels
+    // (used to compute the inner tess levels) so that the outer transition
+    // edges will be sampled without degenerate triangles.
+
+    tessLevelOuter = combinedOuter;
+    if (tessOuterHi[0] > 0) {
+        tessLevelOuter[0] =
+            OsdRoundUpOdd(tessOuterLo[0]) + OsdRoundUpOdd(tessOuterHi[0]);
+        combinedOuter = max(float4(3,3,3,3), combinedOuter);
+    }
+    if (tessOuterHi[1] > 0) {
+        tessLevelOuter[1] =
+            OsdRoundUpOdd(tessOuterLo[1]) + OsdRoundUpOdd(tessOuterHi[1]);
+        combinedOuter = max(float4(3,3,3,3), combinedOuter);
+    }
+    if (tessOuterHi[2] > 0) {
+        tessLevelOuter[2] =
+            OsdRoundUpOdd(tessOuterLo[2]) + OsdRoundUpOdd(tessOuterHi[2]);
+        combinedOuter = max(float4(3,3,3,3), combinedOuter);
+    }
+    if (tessOuterHi[3] > 0) {
+        tessLevelOuter[3] =
+            OsdRoundUpOdd(tessOuterLo[3]) + OsdRoundUpOdd(tessOuterHi[3]);
+        combinedOuter = max(float4(3,3,3,3), combinedOuter);
+    }
+#else
+    // Round equally spaced transition edge levels before combining.
+    tessOuterLo = round(tessOuterLo);
+    tessOuterHi = round(tessOuterHi);
+
+    float4 combinedOuter = tessOuterLo + tessOuterHi;
+    tessLevelOuter = combinedOuter;
+#endif
+
+    // Inner levels are the averages the corresponding outer levels.
+    tessLevelInner[0] = (combinedOuter[1] + combinedOuter[3]) * 0.5;
+    tessLevelInner[1] = (combinedOuter[0] + combinedOuter[2]) * 0.5;
+}
+
 void
 OsdGetTessLevelsUniform(int3 patchParam,
                  out float4 tessLevelOuter, out float2 tessLevelInner,
@@ -681,13 +774,8 @@ OsdGetTessLevelsUniform(int3 patchParam,
 {
     OsdGetTessLevelsUniform(patchParam, tessOuterLo, tessOuterHi);
 
-    // Outer levels are the sum of the Lo and Hi segments where the Hi
-    // segments will have a length of zero for non-transition edges.
-    tessLevelOuter = tessOuterLo + tessOuterHi;
-
-    // Inner levels are the average the corresponding outer levels.
-    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
-    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
 }
 
 void
@@ -695,15 +783,11 @@ OsdGetTessLevelsAdaptiveRefinedPoints(float3 cpRefined[16], int3 patchParam,
                  out float4 tessLevelOuter, out float2 tessLevelInner,
                  out float4 tessOuterLo, out float4 tessOuterHi)
 {
-    OsdGetTessLevelsRefinedPoints(cpRefined, patchParam, tessOuterLo, tessOuterHi);
+    OsdGetTessLevelsRefinedPoints(cpRefined, patchParam,
+                                  tessOuterLo, tessOuterHi);
 
-    // Outer levels are the sum of the Lo and Hi segments where the Hi
-    // segments will have a length of zero for non-transition edges.
-    tessLevelOuter = tessOuterLo + tessOuterHi;
-
-    // Inner levels are the average the corresponding outer levels.
-    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
-    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
 }
 
 void
@@ -712,15 +796,11 @@ OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
                  out float4 tessLevelOuter, out float2 tessLevelInner,
                  out float4 tessOuterLo, out float4 tessOuterHi)
 {
-    OsdGetTessLevelsLimitPoints(cpBezier, patchParam, tessOuterLo, tessOuterHi);
+    OsdGetTessLevelsLimitPoints(cpBezier, patchParam,
+                                tessOuterLo, tessOuterHi);
 
-    // Outer levels are the sum of the Lo and Hi segments where the Hi
-    // segments will have a length of zero for non-transition edges.
-    tessLevelOuter = tessOuterLo + tessOuterHi;
-
-    // Inner levels are the average the corresponding outer levels.
-    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
-    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
 }
 
 void
@@ -741,25 +821,96 @@ OsdGetTessLevels(float3 cp0, float3 cp1, float3 cp2, float3 cp3,
     OsdGetTessLevelsUniform(patchParam, tessOuterLo, tessOuterHi);
 #endif
 
-    // Outer levels are the sum of the Lo and Hi segments where the Hi
-    // segments will have a length of zero for non-transition edges.
-    tessLevelOuter = tessOuterLo + tessOuterHi;
-
-    // Inner levels are the average the corresponding outer levels.
-    tessLevelInner[0] = (tessLevelOuter[1] + tessLevelOuter[3]) * 0.5;
-    tessLevelInner[1] = (tessLevelOuter[0] + tessLevelOuter[2]) * 0.5;
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
 }
 
+#if defined OSD_FRACTIONAL_EVEN_SPACING || defined OSD_FRACTIONAL_ODD_SPACING
 float
-OsdGetTessTransitionSplit(float t, float n0, float n1)
+OsdGetTessFractionalSplit(float t, float level, float levelUp)
 {
-    float ti = round(t * (n0 + n1));
+    // Fractional tessellation of an edge will produce n segments where n
+    // is the tessellation level of the edge (level) rounded up to the
+    // nearest even or odd integer (levelUp). There will be n-2 segments of
+    // equal length (dx1) and two additional segments of equal length (dx0)
+    // that are typically shorter than the other segments. The two additional
+    // segments should be placed symmetrically on opposite sides of the
+    // edge (offset).
 
-    if (ti <= n0) {
-        return 0.5 * (ti / n0);
+#if defined OSD_FRACTIONAL_EVEN_SPACING
+    if (level <= 2) return t;
+
+    float base = pow(2.0,floor(log2(levelUp)));
+    float offset = 1.0/(int(2*base-levelUp)/2 & int(base/2-1));
+
+#elif defined OSD_FRACTIONAL_ODD_SPACING
+    if (level <= 1) return t;
+
+    float base = pow(2.0,floor(log2(levelUp)));
+    float offset = 1.0/(((int(2*base-levelUp)/2+1) & int(base/2-1))+1);
+#endif
+
+    float dx0 = (1.0 - (levelUp-level)/2) / levelUp;
+    float dx1 = (1.0 - 2.0*dx0) / (levelUp - 2.0*ceil(dx0));
+
+    if (t < 0.5) {
+        float x = levelUp/2 - round(t*levelUp);
+        return 0.5 - (x*dx1 + int(x*offset > 1) * (dx0 - dx1));
+    } else if (t > 0.5) {
+        float x = round(t*levelUp) - levelUp/2;
+        return 0.5 + (x*dx1 + int(x*offset > 1) * (dx0 - dx1));
     } else {
-        return 0.5 * ((ti - n0) / n1) + 0.5;
+        return t;
     }
+}
+#endif
+
+float
+OsdGetTessTransitionSplit(float t, float lo, float hi)
+{
+#if defined OSD_FRACTIONAL_EVEN_SPACING
+    float loRoundUp = OsdRoundUpEven(lo);
+    float hiRoundUp = OsdRoundUpEven(hi);
+
+    // Convert the parametric t into a segment index along the combined edge.
+    float ti = round(t * (loRoundUp + hiRoundUp));
+
+    if (ti <= loRoundUp) {
+        float t0 = ti / loRoundUp;
+        return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
+    } else {
+        float t1 = (ti - loRoundUp) / hiRoundUp;
+        return OsdGetTessFractionalSplit(t1, hi, hiRoundUp) * 0.5 + 0.5;
+    }
+#elif defined OSD_FRACTIONAL_ODD_SPACING
+    float loRoundUp = OsdRoundUpOdd(lo);
+    float hiRoundUp = OsdRoundUpOdd(hi);
+
+    // Convert the parametric t into a segment index along the combined edge.
+    // The +1 below is to account for the extra segment produced by the
+    // tessellator since the sum of two odd tess levels will be rounded
+    // up by one to the next odd integer tess level.
+    float ti = round(t * (loRoundUp + hiRoundUp + 1));
+
+    if (ti <= loRoundUp) {
+        float t0 = ti / loRoundUp;
+        return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
+    } else if (ti > (loRoundUp+1)) {
+        float t1 = (ti - (loRoundUp+1)) / hiRoundUp;
+        return OsdGetTessFractionalSplit(t1, hi, hiRoundUp) * 0.5 + 0.5;
+    } else {
+        return 0.5;
+    }
+#else
+    // Convert the parametric t into a segment index along the combined edge.
+    float ti = round(t * (lo + hi));
+
+    if (ti <= lo) {
+        return (ti / lo) * 0.5;
+    } else {
+        return ((ti - lo) / hi) * 0.5 + 0.5;
+    }
+#endif
 }
 
 float2
@@ -815,19 +966,27 @@ OsdFlipMatrix(float4x4 m)
                     m[0][3], m[0][2], m[0][1], m[0][0]);
 }
 
+// Regular BSpline to Bezier
+static float4x4 Q = {
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
+};
+
+// Infinitely Sharp (boundary)
+static float4x4 Mi = {
+    1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
+    0.f,     4.f/6.f, 2.f/6.f, 0.f,
+    0.f,     2.f/6.f, 4.f/6.f, 0.f,
+    0.f,     0.f,     1.f,     0.f
+};
+
 // convert BSpline cv to Bezier cv
 void
 OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
                                 out OsdPerPatchVertexBezier result)
 {
-    // Regular BSpline to Bezier
-    float4x4 Q = {
-        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-        0.f,     4.f/6.f, 2.f/6.f, 0.f,
-        0.f,     2.f/6.f, 4.f/6.f, 0.f,
-        0.f,     1.f/6.f, 4.f/6.f, 1.f/6.f
-    };
-
     result.patchParam = patchParam;
 
     int i = ID%4;
@@ -835,15 +994,10 @@ OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
 
-    // Infinitely Sharp (boundary)
-    float4x4 Mi = {
-        1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
-        0.f,     4.f/6.f, 2.f/6.f, 0.f,
-        0.f,     2.f/6.f, 4.f/6.f, 0.f,
-        0.f,     0.f,     1.f,     0.f
-    };
+    float3 P  = float3(0,0,0); // 0 to 1-2^(-Sf)
+    float3 P1 = float3(0,0,0); // 1-2^(-Sf) to 1-2^(-Sc)
+    float3 P2 = float3(0,0,0); // 1-2^(-Sc) to 1
 
-    float4x4 Mj, Ms;
     float sharpness = OsdGetPatchSharpness(patchParam);
     if (sharpness > 0) {
         float Sf = floor(sharpness);
@@ -851,60 +1005,74 @@ OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
         float Sr = frac(sharpness);
         float4x4 Mf = OsdComputeMs(Sf);
         float4x4 Mc = OsdComputeMs(Sc);
-        Mj = (1-Sr) * Mf + Sr * Mi;
-        Ms = (1-Sr) * Mf + Sr * Mc;
+        float4x4 Mj = (1-Sr) * Mf + Sr * Mi;
+        float4x4 Ms = (1-Sr) * Mf + Sr * Mc;
         float s0 = 1 - pow(2, -floor(sharpness));
         float s1 = 1 - pow(2, -ceil(sharpness));
         result.vSegments = float2(s0, s1);
 
-    } else {
-        Mj = Ms = Mi;
-        result.vSegments = float2(0, 0);
-    }
-    result.P  = float3(0,0,0); // 0 to 1-2^(-Sf)
-    result.P1 = float3(0,0,0); // 1-2^(-Sf) to 1-2^(-Sc)
-    result.P2 = float3(0,0,0); // 1-2^(-Sc) to 1
+        float4x4 MUi = Q, MUj = Q, MUs = Q;
+        float4x4 MVi = Q, MVj = Q, MVs = Q;
 
-    float4x4 MUi, MUj, MUs;
-    float4x4 MVi, MVj, MVs;
-    MUi = MUj = MUs = Q;
-    MVi = MVj = MVs = Q;
-
-    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
-    if ((boundaryMask & 1) != 0) {
-        MVi = OsdFlipMatrix(Mi);
-        MVj = OsdFlipMatrix(Mj);
-        MVs = OsdFlipMatrix(Ms);
-    }
-    if ((boundaryMask & 2) != 0) {
-        MUi = Mi;
-        MUj = Mj;
-        MUs = Ms;
-    }
-    if ((boundaryMask & 4) != 0) {
-        MVi = Mi;
-        MVj = Mj;
-        MVs = Ms;
-    }
-    if ((boundaryMask & 8) != 0) {
-        MUi = OsdFlipMatrix(Mi);
-        MUj = OsdFlipMatrix(Mj);
-        MUs = OsdFlipMatrix(Ms);
-    }
-
-    float3 Hi[4], Hj[4], Hs[4];
-    for (int l=0; l<4; ++l) {
-        Hi[l] = Hj[l] = Hs[l] = float3(0,0,0);
-        for (int k=0; k<4; ++k) {
-            Hi[l] += MUi[i][k] * cv[l*4 + k];
-            Hj[l] += MUj[i][k] * cv[l*4 + k];
-            Hs[l] += MUs[i][k] * cv[l*4 + k];
+        int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+        if ((boundaryMask & 1) != 0) {
+            MVi = OsdFlipMatrix(Mi);
+            MVj = OsdFlipMatrix(Mj);
+            MVs = OsdFlipMatrix(Ms);
         }
-    }
-    for (int k=0; k<4; ++k) {
-        result.P  += MVi[j][k]*Hi[k];
-        result.P1 += MVj[j][k]*Hj[k];
-        result.P2 += MVs[j][k]*Hs[k];
+        if ((boundaryMask & 2) != 0) {
+            MUi = Mi;
+            MUj = Mj;
+            MUs = Ms;
+        }
+        if ((boundaryMask & 4) != 0) {
+            MVi = Mi;
+            MVj = Mj;
+            MVs = Ms;
+        }
+        if ((boundaryMask & 8) != 0) {
+            MUi = OsdFlipMatrix(Mi);
+            MUj = OsdFlipMatrix(Mj);
+            MUs = OsdFlipMatrix(Ms);
+        }
+
+        float3 Hi[4], Hj[4], Hs[4];
+        for (int l=0; l<4; ++l) {
+            Hi[l] = Hj[l] = Hs[l] = float3(0,0,0);
+            for (int k=0; k<4; ++k) {
+                Hi[l] += MUi[i][k] * cv[l*4 + k];
+                Hj[l] += MUj[i][k] * cv[l*4 + k];
+                Hs[l] += MUs[i][k] * cv[l*4 + k];
+            }
+        }
+        for (int k=0; k<4; ++k) {
+            P  += MVi[j][k]*Hi[k];
+            P1 += MVj[j][k]*Hj[k];
+            P2 += MVs[j][k]*Hs[k];
+        }
+
+        result.P  = P;
+        result.P1 = P1;
+        result.P2 = P2;
+    } else {
+        result.vSegments = float2(0, 0);
+
+        OsdComputeBSplineBoundaryPoints(cv, patchParam);
+
+        float3 Hi[4];
+        for (int l=0; l<4; ++l) {
+            Hi[l] = float3(0,0,0);
+            for (int k=0; k<4; ++k) {
+                Hi[l] += Q[i][k] * cv[l*4 + k];
+            }
+        }
+        for (int k=0; k<4; ++k) {
+            P += Q[j][k]*Hi[k];
+        }
+
+        result.P  = P;
+        result.P1 = P;
+        result.P2 = P;
     }
 #else
     OsdComputeBSplineBoundaryPoints(cv, patchParam);

@@ -703,21 +703,27 @@ macro(_add_glfw_executable target)
 
     _add_possibly_cuda_executable(${target} ${ARGN})
 
-    if(WIN32)
-        # Windows needs some of its dependency dll's copied into the same
-        # directory as the executable.
-        set( LIBRARIES ${GLFW_LIBRARIES})
-        foreach (LIB ${LIBRARIES} )
-            string(REPLACE ".lib" ".dll" DLL ${LIB})
-            string(REPLACE ".LIB" ".DLL" DLL ${DLL})
-            add_custom_command(
-                TARGET ${target} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                    ${DLL}
-                    $<TARGET_FILE_DIR:${target}>
-            )
-        endforeach()
-    endif()
+#
+# manuelk : commenting this out as it seems to be causing more problems than 
+# it is worth. Moving glfw as a native git recursive dependency will make this
+# redundant anyway.
+#
+
+#    if(WIN32)
+#        # Windows needs some of its dependency dll's copied into the same
+#        # directory as the executable.
+#        set(LIBRARIES ${GLFW_LIBRARIES})
+#        foreach (LIB ${LIBRARIES} )
+#            string(REPLACE ".lib" ".dll" DLL ${LIB})
+#            string(REPLACE ".LIB" ".DLL" DLL ${DLL})
+#            add_custom_command(
+#                TARGET ${target} POST_BUILD
+#                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#                    ${DLL}
+#                    $<TARGET_FILE_DIR:${target}>
+#            )
+#        endforeach()
+#    endif()
 
 endmacro()
 

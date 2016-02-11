@@ -75,7 +75,7 @@ D3D11VertexBuffer::UpdateData(const float *src, int startVertex, int numVertices
         return;
     }
 
-    int size = GetNumElements() * numVertices * sizeof(float);
+    unsigned int size = GetNumElements() * numVertices * sizeof(float);
 
     memcpy((float*)resource.pData + startVertex * _numElements, src, size);
 

@@ -51,11 +51,19 @@ public:
     ///
     /// @param refiner                TopologyRefiner from which to generate patches
     ///
+    /// @param vertexStencils         Output stencil table for the patch points
+    ///                               (vertex interpolation)
+    ///
+    /// @param varyingStencils        Output stencil table for the patch points
+    ///                               (varying interpolation)
+    ///
     /// @param shareBoundaryVertices  Use same boundary vertices for neighboring
     ///                               patches. It reduces the number of stencils
     ///                               to be used.
     ///
-    EndCapBSplineBasisPatchFactory(TopologyRefiner const & refiner);
+    EndCapBSplineBasisPatchFactory(TopologyRefiner const & refiner,
+                                   StencilTable * vertexStencils,
+                                   StencilTable * varyingStencils);
 
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that end patch points are not included in the vertices in
@@ -75,21 +83,6 @@ public:
         PatchTableFactory::PatchFaceTag const * levelPatchTags,
         int levelVertOffset);
 
-    /// \brief Create a StencilTable for end patch points, relative to the max
-    ///        subdivision level.
-    ///
-    StencilTable* CreateVertexStencilTable() const {
-        return GregoryBasis::CreateStencilTable(_vertexStencils);
-    }
-
-    /// \brief Create a StencilTable for end patch varying primvar.
-    ///        This table is used as a convenient way to get varying primvars
-    ///        populated on end patch points along with positions.
-    ///
-    StencilTable* CreateVaryingStencilTable() const {
-        return GregoryBasis::CreateStencilTable(_varyingStencils);
-    }
-
 private:
     ConstIndexArray getPatchPointsFromGregoryBasis(
         Vtr::internal::Level const * level, Index thisFace,
@@ -106,10 +99,10 @@ private:
         ConstIndexArray facePoints, int vid,
         GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em);
 
+    StencilTable * _vertexStencils;
+    StencilTable * _varyingStencils;
 
     TopologyRefiner const *_refiner;
-    GregoryBasis::PointsVector _vertexStencils;
-    GregoryBasis::PointsVector _varyingStencils;
     int _numVertices;
     int _numPatches;
     std::vector<Index> _patchPoints;

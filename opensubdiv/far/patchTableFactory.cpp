@@ -1122,14 +1122,26 @@ PatchTableFactory::populateAdaptivePatches(
     EndCapBSplineBasisPatchFactory *endCapBSpline = NULL;
     EndCapGregoryBasisPatchFactory *endCapGregoryBasis = NULL;
     EndCapLegacyGregoryPatchFactory *endCapLegacyGregory = NULL;
+    StencilTable *localPointStencils = NULL;
+    StencilTable *localPointVaryingStencils = NULL;
 
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_GREGORY_BASIS:
+        localPointStencils = new StencilTable(0);
+        localPointVaryingStencils = new StencilTable(0);
         endCapGregoryBasis = new EndCapGregoryBasisPatchFactory(
-            refiner, context.options.shareEndCapPatchPoints);
+            refiner,
+            localPointStencils,
+            localPointVaryingStencils,
+            context.options.shareEndCapPatchPoints);
         break;
     case Options::ENDCAP_BSPLINE_BASIS:
-        endCapBSpline = new EndCapBSplineBasisPatchFactory(refiner);
+        localPointStencils = new StencilTable(0);
+        localPointVaryingStencils = new StencilTable(0);
+        endCapBSpline = new EndCapBSplineBasisPatchFactory(
+            refiner,
+            localPointStencils,
+            localPointVaryingStencils);
         break;
     case Options::ENDCAP_LEGACY_GREGORY:
         endCapLegacyGregory = new EndCapLegacyGregoryPatchFactory(refiner);
@@ -1291,19 +1303,29 @@ PatchTableFactory::populateAdaptivePatches(
     }
 
     // finalize end patches
+    if (localPointStencils and localPointStencils->GetNumStencils() > 0) {
+        localPointStencils->generateOffsets();
+    } else {
+        delete localPointStencils;
+        localPointStencils = NULL;
+    }
+
+    if (localPointVaryingStencils and localPointVaryingStencils->GetNumStencils() > 0) {
+        localPointVaryingStencils->generateOffsets();
+    } else {
+        delete localPointVaryingStencils;
+        localPointVaryingStencils = NULL;
+    }
+
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_GREGORY_BASIS:
-        table->_localPointStencils =
-            endCapGregoryBasis->CreateVertexStencilTable();
-        table->_localPointVaryingStencils =
-            endCapGregoryBasis->CreateVaryingStencilTable();
+        table->_localPointStencils = localPointStencils;
+        table->_localPointVaryingStencils = localPointVaryingStencils;
         delete endCapGregoryBasis;
         break;
     case Options::ENDCAP_BSPLINE_BASIS:
-        table->_localPointStencils =
-            endCapBSpline->CreateVertexStencilTable();
-        table->_localPointVaryingStencils =
-            endCapBSpline->CreateVaryingStencilTable();
+        table->_localPointStencils = localPointStencils;
+        table->_localPointVaryingStencils = localPointVaryingStencils;
         delete endCapBSpline;
         break;
     case Options::ENDCAP_LEGACY_GREGORY:

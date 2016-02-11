@@ -163,10 +163,13 @@ int main(int, char **) {
     std::vector<Vertex> verts(nRefinerVertices + nLocalPoints);
     memcpy(&verts[0], g_verts, g_nverts*3*sizeof(float));
 
+    // Adaptive refinement may result in fewer levels than maxIsolation.
+    int nRefinedLevels = refiner->GetNumLevels();
+
     // Interpolate vertex primvar data : they are the control vertices
     // of the limit patches (see far_tutorial_0 for details)
     Vertex * src = &verts[0];
-    for (int level = 1; level <= maxIsolation; ++level) {
+    for (int level = 1; level < nRefinedLevels; ++level) {
         Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
         Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst);
         src = dst;
