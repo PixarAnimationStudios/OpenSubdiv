@@ -978,7 +978,7 @@ PrimvarRefiner::interpFVarFromVerts(int level, T const & src, U & dst, int chann
                     float eWeight = 0.125f;
 
                     //
-                    //  If semisharp we need to apply fractional weighting -- if made sharp because
+                    //  If semi-sharp we need to apply fractional weighting -- if made sharp because
                     //  of the other sibling (dependent-sharp) use the fractional weight from that
                     //  other sibling (should only occur when there are 2):
                     //

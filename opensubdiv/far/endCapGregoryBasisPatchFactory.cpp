@@ -212,7 +212,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 Index * src = &_patchPoints[adjPatchIndex*20];
                 for (int j=0; j<4; ++j) {
                     // invert direction
-                    // note that src indices have already been offsetted.
+                    // note that src indices have already been offset.
                     dest[gregoryEdgeVerts[i][3-j]] = src[gregoryEdgeVerts[aedge][j]];
                 }
             }

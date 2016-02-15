@@ -97,7 +97,7 @@ public:
     //@{
     ///  Optional sharp features:
     ///      Since options treat certain topological features as infinitely sharp -- boundaries
-    ///  or (in future) nonmanifold features -- sharpness values should be adjusted before use.
+    ///  or (in future) non-manifold features -- sharpness values should be adjusted before use.
     ///  The following methods will adjust (by return) specific values according to the options
     ///  applied.
     ///
