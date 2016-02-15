@@ -186,7 +186,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 int srcBasisIdx = (int)(ptr - &_faceIndices[0]);
 
                 if (!ptr) {
-                    // if the adjface is hole, it won't be found
+                    // if the adjacent is hole, it won't be found
                     break;
                 }
                 assert(ptr
@@ -202,7 +202,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 Index * src = &_patchPoints[srcBasisIdx*20];
                 for (int j=0; j<4; ++j) {
                     // invert direction
-                    // note that src  indices have already been offsetted.
+                    // note that src  indices have already been offset.
                     dest[gregoryEdgeVerts[i][3-j]] = src[gregoryEdgeVerts[aedge][j]];
                 }
             }

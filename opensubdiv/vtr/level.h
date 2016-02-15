@@ -59,11 +59,11 @@ class FVarLevel;
 //  the topology (i.e. all quads or all tris if not level 0).
 //
 //  This class is intended for private use within the library.  There are still
-//  opportunities to specialize levels -- e.g. those supporing N-sided faces vs
-//  those are are purely quads or tris -- so we prefer to insulate it from public
+//  opportunities to specialize levels -- e.g. those supporting N-sided faces vs
+//  those are purely quads or tris -- so we prefer to insulate it from public
 //  access.
 //
-//  The represenation of topology here is to store six topological relationships
+//  The representation of topology here is to store six topological relationships
 //  in tables of integers.  Each is stored in its own array(s) so the result is
 //  a SOA representation of the topology.  The six relations are:
 //
@@ -75,7 +75,7 @@ class FVarLevel;
 //      - vert-edges:  edges incident a vertex
 //
 //  There is some redundancy here but the intent is not that this be a minimal
-//  represenation, the intent is that it be amenable to refinement.  Classes in
+//  representation, the intent is that it be amenable to refinement.  Classes in
 //  the Far layer essentially store 5 of these 6 in a permuted form -- we add
 //  the face-edges here to simplify refinement.
 //
@@ -91,7 +91,7 @@ public:
     //
     //  Most of these properties are passed down to child components during
     //  refinement, but some -- notably the designation of a component as semi-
-    //  sharp -- require re-determination as sharpnes values are reduced at each
+    //  sharp -- require re-determination as sharpness values are reduced at each
     //  level.
     //
     struct VTag {

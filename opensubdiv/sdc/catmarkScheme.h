@@ -362,7 +362,7 @@ Scheme<SCHEME_CATMARK>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
 
     //
     //  Second, the tangent across the interior faces:
-    //      Note this is ambigous for an interior vertex.  We currently return
+    //      Note this is ambiguous for an interior vertex.  We currently return
     //  the tangent for the surface in the counter-clockwise span between the
     //  leading and trailing edges that form the crease.  Given the expected
     //  computation of a surface normal as Tan1 X Tan2, this tangent should be

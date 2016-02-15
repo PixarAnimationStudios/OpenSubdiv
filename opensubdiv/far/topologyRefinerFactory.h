@@ -161,7 +161,7 @@ protected:
     ///  the vertices for that face.
     ///
     ///  If a full boundary representation with all neighborhood information is not
-    ///  available, e.g. faces and vertices are avaible but not edges, only the
+    ///  available, e.g. faces and vertices are available but not edges, only the
     ///  face-vertices should be specified.  The remaining topological relationships
     ///  will be constructed later in the assembly (though at greater cost than if
     ///  specified directly).
@@ -170,13 +170,13 @@ protected:
     ///  specified in order, i.e. the number of face-vertices for each successive face.
     ///
 
-    /// \brief Specify the number of vertices to be accomodated
+    /// \brief Specify the number of vertices to be accommodated
     static void setNumBaseVertices(TopologyRefiner & newRefiner, int count);
 
-    /// \brief Specify the number of faces to be accomodated
+    /// \brief Specify the number of faces to be accommodated
     static void setNumBaseFaces(TopologyRefiner & newRefiner, int count);
 
-    /// \brief Specify the number of edges to be accomodated
+    /// \brief Specify the number of edges to be accommodated
     static void setNumBaseEdges(TopologyRefiner & newRefiner, int count);
 
     /// \brief Specify the number of vertices incident each face
@@ -263,7 +263,7 @@ protected:
     /// posses a feature of interest need be explicitly assigned.
     ///
     /// Since topological construction is largely complete by this point, a method is
-    /// availble to identify an edge for sharpness assignment given a pair of vertices.
+    /// available to identify an edge for sharpness assignment given a pair of vertices.
     ///
 
     /// \brief Identify an edge to be assigned a sharpness value given a vertex pair
@@ -628,7 +628,7 @@ TopologyRefinerFactory<MESH>::assignComponentTopology(TopologyRefiner& /* refine
     //      void setBaseVertexNonManifold(TopologyRefiner& newRefiner, Index vertex, bool b);
     //
     //  Also consider using TopologyLevel::ValidateTopology() when debugging to ensure
-    //  that topolology has been completely and correctly specified.
+    //  that topology has been completely and correctly specified.
     //
     return false;
 }
