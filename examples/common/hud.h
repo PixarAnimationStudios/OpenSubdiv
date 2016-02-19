@@ -146,7 +146,7 @@ protected:
         PullDownCallback callback;
 
         void SetSelected(int idx) {
-            if (idx>=0 and idx<(int)labels.size()) {
+            if (idx>=0 && idx<(int)labels.size()) {
                 selected=idx;
             }
         }

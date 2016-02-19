@@ -383,7 +383,7 @@ StencilTable::update(T const *controlValues, T *values,
         values += start;
     }
 
-    if (end<start or end<0) {
+    if (end<start || end<0) {
         end = GetNumStencils();
     }
 

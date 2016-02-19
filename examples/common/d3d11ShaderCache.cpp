@@ -90,7 +90,7 @@ D3D11DrawConfig::CompileVertexShader(const std::string &target,
         return false;
     }
 
-    if (ppInputLayout and !*ppInputLayout) {
+    if (ppInputLayout && !*ppInputLayout) {
         hr = pd3dDevice->CreateInputLayout(
             pInputElementDescs, numInputElements,
             pBlob->GetBufferPointer(),
