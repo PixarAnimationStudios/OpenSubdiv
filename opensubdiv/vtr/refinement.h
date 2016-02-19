@@ -150,7 +150,7 @@ public:
     ConstIndexArray  getEdgeChildEdges(Index parentEdge) const;
 
     //  Child-to-parent relationships
-    bool isChildVertexComplete(Index v) const       { return not _childVertexTag[v]._incomplete; }
+    bool isChildVertexComplete(Index v) const       { return ! _childVertexTag[v]._incomplete; }
 
     Index getChildFaceParentFace(Index f) const     { return _childFaceParentIndex[f]; }
     int   getChildFaceInParentFace(Index f) const   { return _childFaceTag[f]._indexInParent; }

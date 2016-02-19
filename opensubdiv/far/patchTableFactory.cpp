@@ -350,7 +350,7 @@ PatchTableFactory::allocateVertexTables(PatchTable * table, int /* nlevels */, b
         ncvs += table->GetNumControlVertices(i);
     }
 
-    if (ncvs==0 or npatches==0)
+    if (ncvs==0 || npatches==0)
         return;
 
     table->_patchVerts.resize( ncvs );
@@ -369,8 +369,8 @@ void
 PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
     Options options, int npatches, PatchTable * table) {
 
-    assert(options.generateFVarTables and
-        refiner.GetNumFVarChannels()>0 and npatches>0 and table);
+    assert(options.generateFVarTables &&
+        refiner.GetNumFVarChannels()>0 && npatches>0 && table);
 
     // Create a channel cursor to iterate over client-selected channels or
     // default to the channels found in the TopologyRefiner
@@ -411,7 +411,7 @@ PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
     (void)levelFaceOffset;  // not used
     (void)fofss;  // not used
 
-    if (not context.RequiresFVarPatches()) {
+    if (! context.RequiresFVarPatches()) {
         return 0;
     }
 
@@ -542,7 +542,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     assert(refiner.IsUniform());
 
     // ensure that triangulateQuads is only set for quadrilateral schemes
-    options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR or
+    options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR ||
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
 
     // level=0 may contain n-gons, which are not supported in PatchTable.
@@ -601,7 +601,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     allocateVertexTables( table, 0, /*hasSharpness=*/false );
 
     FVarChannelCursor fvc(refiner, options);
-    bool generateFVarPatches = (options.generateFVarTables and fvc.size()>0);
+    bool generateFVarPatches = (options.generateFVarTables && fvc.size()>0);
     if (generateFVarPatches) {
         int npatches = table->GetNumPatchesTotal();
         allocateFVarChannels(refiner, options, npatches, table);
@@ -639,7 +639,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         if (level>=firstlevel) {
             for (int face=0; face<nfaces; ++face) {
 
-                if (refiner.HasHoles() and refLevel.IsFaceHole(face)) {
+                if (refiner.HasHoles() && refLevel.IsFaceHole(face)) {
                     continue;
                 }
 
@@ -696,7 +696,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 PatchTable *
 PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options options) {
 
-    assert(not refiner.IsUniform());
+    assert(! refiner.IsUniform());
 
     PtexIndices ptexIndices(refiner);
 
@@ -872,16 +872,16 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             bool hasXOrdinaryVertex   = compFaceVertTag._xordinary;
 
             patchTag._hasPatch  = true;
-            patchTag._isRegular = not hasXOrdinaryVertex or hasNonManifoldVertex;
+            patchTag._isRegular = ! hasXOrdinaryVertex || hasNonManifoldVertex;
 
             // single crease patch optimization
-            if (context.options.useSingleCreasePatch and
-                not hasXOrdinaryVertex and not hasBoundaryVertex and not hasNonManifoldVertex) {
+            if (context.options.useSingleCreasePatch &&
+                ! hasXOrdinaryVertex && ! hasBoundaryVertex && ! hasNonManifoldVertex) {
 
                 Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
                 Vtr::internal::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
 
-                if (compFaceETag._semiSharp or compFaceETag._infSharp) {
+                if (compFaceETag._semiSharp || compFaceETag._infSharp) {
                     float sharpness = 0;
                     int rotation = 0;
                     if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
@@ -902,7 +902,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             //  for regular patches, though an irregular patch or extrapolated boundary patch
             //  is really necessary in future for some non-manifold cases.
             //
-            if (hasBoundaryVertex or hasNonManifoldVertex) {
+            if (hasBoundaryVertex || hasNonManifoldVertex) {
                 Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
 
                 int boundaryEdgeMask = ((level->getEdgeTag(fEdges[0])._boundary) << 0) |
@@ -971,7 +971,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
             bool approxSmoothCornerWithRegularPatch = true;
 
             if (approxSmoothCornerWithRegularPatch) {
-                if (!patchTag._isRegular and (patchTag._boundaryCount == 2)) {
+                if (!patchTag._isRegular && (patchTag._boundaryCount == 2)) {
                     //  We may have a sharp corner opposite/adjacent an xordinary vertex --
                     //  need to make sure there is only one xordinary vertex and that it
                     //  is the corner vertex.
@@ -987,7 +987,7 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
 
                         if (xordCount == 1) {
                             //  We require the vertex opposite the xordinary vertex be interior:
-                            if (not level->getVertexTag(fVerts[(xordVertex + 2) % 4])._boundary) {
+                            if (! level->getVertexTag(fVerts[(xordVertex + 2) % 4])._boundary) {
                                 patchTag._isRegular = true;
                             }
                         }
@@ -1162,7 +1162,7 @@ PatchTableFactory::populateAdaptivePatches(
             }
 
             const PatchFaceTag& patchTag = levelPatchTags[faceIndex];
-            if (not patchTag._hasPatch) {
+            if (! patchTag._hasPatch) {
                 continue;
             }
 
@@ -1303,14 +1303,14 @@ PatchTableFactory::populateAdaptivePatches(
     }
 
     // finalize end patches
-    if (localPointStencils and localPointStencils->GetNumStencils() > 0) {
+    if (localPointStencils && localPointStencils->GetNumStencils() > 0) {
         localPointStencils->generateOffsets();
     } else {
         delete localPointStencils;
         localPointStencils = NULL;
     }
 
-    if (localPointVaryingStencils and localPointVaryingStencils->GetNumStencils() > 0) {
+    if (localPointVaryingStencils && localPointVaryingStencils->GetNumStencils() > 0) {
         localPointVaryingStencils->generateOffsets();
     } else {
         delete localPointVaryingStencils;

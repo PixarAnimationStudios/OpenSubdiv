@@ -69,7 +69,7 @@ namespace {
         for ( size_t i=start; i<offsets->size(); i++ ) {
             // Once we've copied out all the control verts, jump to the offset
             // where the actual stencils begin.
-            if (includeCoarseVerts and (int)i == numControlVerts)
+            if (includeCoarseVerts && (int)i == numControlVerts)
                 i = firstOffset;
 
             // Copy the stencil.

@@ -179,7 +179,7 @@ inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam const & param,
         point[3] = sC * t;
     }
     
-    if (derivS and derivT) {
+    if (derivS && derivT) {
         float dScale = (float)(1 << param.GetDepth());
 
         derivS[0] = -tC * dScale;
@@ -246,7 +246,7 @@ void Spline<BASIS>::GetPatchWeights(PatchParam const & param,
         }
     }
 
-    if (derivS and derivT) {
+    if (derivS && derivT) {
         // Compute the tensor product weight of the differentiated (s,t) basis
         // function corresponding to each control vertex (scaled accordingly):
 
@@ -360,7 +360,7 @@ void GetGregoryWeights(PatchParam const & param,
     //  unclear if the approximations will hold up under surface analysis involving higher
     //  order differentiation.
     //
-    if (deriv1 and deriv2) {
+    if (deriv1 && deriv2) {
         //  Remember to include derivative scaling in all assignments below:
         float dScale = (float)(1 << param.GetDepth());
 

@@ -242,7 +242,7 @@ TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
     // UV layyout (we only parse 1 channel)
-    if (not shape.faceuvs.empty()) {
+    if (! shape.faceuvs.empty()) {
 
         int nfaces = getNumBaseFaces(refiner),
            channel = createBaseFVarChannel(refiner, (int)shape.uvs.size()/2 );
@@ -295,7 +295,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size(); ++j) {
                 int vertex = t->intargs[j];
-                if (vertex<0 or vertex>=getNumBaseVertices(refiner)) {
+                if (vertex<0 || vertex>=getNumBaseVertices(refiner)) {
                     printf("cannot find vertex for corner tag (%d)\n", vertex );
                     return false;
                 } else {

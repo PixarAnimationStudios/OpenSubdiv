@@ -907,7 +907,7 @@ Refinement::subdivideEdgeSharpness() {
                 cSharpness = creasing.SubdivideEdgeSharpnessAtVertex(pSharpness, pVertEdges.size(),
                                                                          pVertEdgeSharpness);
             }
-            if (not Sdc::Crease::IsSharp(cSharpness)) {
+            if (! Sdc::Crease::IsSharp(cSharpness)) {
                 cEdgeTag._semiSharp = false;
             }
         }
@@ -941,7 +941,7 @@ Refinement::subdivideVertexSharpness() {
             float pSharpness = _parent->_vertSharpness[pVert];
 
             cSharpness = creasing.SubdivideVertexSharpness(pSharpness);
-            if (not Sdc::Crease::IsSharp(cSharpness)) {
+            if (! Sdc::Crease::IsSharp(cSharpness)) {
                 cVertTag._semiSharp = false;
             }
         }

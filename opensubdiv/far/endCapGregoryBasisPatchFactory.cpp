@@ -50,7 +50,7 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     _numGregoryBasisVertices(0), _numGregoryBasisPatches(0) {
 
     // Sanity check: the mesh must be adaptively refined
-    assert(not refiner.IsUniform());
+    assert(! refiner.IsUniform());
 
     // Reserve the patch point stencils. Ideally topology refiner
     // would have an API to return how many endcap patches will be required.
@@ -164,8 +164,8 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             // - exist (no boundary)
             // - have already been processed (known CV indices)
             // - are also Gregory basis patches
-            if (adjface!=Vtr::INDEX_INVALID and (adjface < faceIndex) and
-                (not levelPatchTags[adjface]._isRegular)) {
+            if (adjface!=Vtr::INDEX_INVALID && (adjface < faceIndex) &&
+                (! levelPatchTags[adjface]._isRegular)) {
 
                 ConstIndexArray aedges = level->getFaceEdges(adjface);
                 int aedge = aedges.FindIndexIn4Tuple(edge);
@@ -190,8 +190,8 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                     break;
                 }
                 assert(ptr
-                       and srcBasisIdx>=0
-                       and srcBasisIdx<(int)_faceIndices.size());
+                       && srcBasisIdx>=0
+                       && srcBasisIdx<(int)_faceIndices.size());
 
                 // Copy the indices of CVs from the face on the other side of the
                 // shared edge

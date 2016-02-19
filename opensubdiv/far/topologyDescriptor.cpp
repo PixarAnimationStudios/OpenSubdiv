@@ -95,7 +95,7 @@ bool
 TopologyRefinerFactory<TopologyDescriptor>::assignComponentTags(
     TopologyRefiner & refiner, TopologyDescriptor const & desc) {
 
-    if ((desc.numCreases>0) and desc.creaseVertexIndexPairs and desc.creaseWeights) {
+    if ((desc.numCreases>0) && desc.creaseVertexIndexPairs && desc.creaseWeights) {
 
         int const * vertIndexPairs = desc.creaseVertexIndexPairs;
         for (int edge=0; edge<desc.numCreases; ++edge, vertIndexPairs+=2) {
@@ -113,13 +113,13 @@ TopologyRefinerFactory<TopologyDescriptor>::assignComponentTags(
         }
     }
 
-    if ((desc.numCorners>0) and desc.cornerVertexIndices and desc.cornerWeights) {
+    if ((desc.numCorners>0) && desc.cornerVertexIndices && desc.cornerWeights) {
 
         for (int vert=0; vert<desc.numCorners; ++vert) {
 
             int idx = desc.cornerVertexIndices[vert];
 
-            if (idx >= 0 and idx < getNumBaseVertices(refiner)) {
+            if (idx >= 0 && idx < getNumBaseVertices(refiner)) {
                 setBaseVertexSharpness(refiner, idx, desc.cornerWeights[vert]);
             } else {
                 char msg[1024];

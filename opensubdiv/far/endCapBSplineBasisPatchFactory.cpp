@@ -56,7 +56,7 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     _refiner(&refiner), _numVertices(0), _numPatches(0) {
 
     // Sanity check: the mesh must be adaptively refined
-    assert(not refiner.IsUniform());
+    assert(! refiner.IsUniform());
 
     // Reserve the patch point stencils. Ideally topology refiner
     // would have an API to return how many endcap patches will be required.
