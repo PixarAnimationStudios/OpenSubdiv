@@ -188,7 +188,7 @@ checkVertexBuffer(
         // boundary interpolation rules set to "none" produce "undefined" 
         // vertices on boundary vertices : far does not match hbr for those,
         // so skip comparison.
-        if (hbrVertexOnBoundaryPtr and (*hbrVertexOnBoundaryPtr)[i])
+        if (hbrVertexOnBoundaryPtr && (*hbrVertexOnBoundaryPtr)[i])
              continue;
 
         const float *hbrPos = hbrVertexData[i].GetPos();
@@ -586,25 +586,25 @@ static void
 parseArgs(int argc, char ** argv) {
 
     for (int argi=1; argi<argc; ++argi) {
-        if (not strcmp(argv[argi],"-compute")) {
+        if (! strcmp(argv[argi],"-compute")) {
         
             const char * backend = NULL;
             
             if (argi<(argc-1))
                 backend = argv[++argi];
 
-            if (not strcmp(backend, "all")) {
+            if (! strcmp(backend, "all")) {
               g_Backend = -1;
             } else {
               bool found = false;
               for (int i = 0; i < kBackendCount; ++i) {
-                if (not strcmp(backend, g_BackendNames[i])) {
+                if (! strcmp(backend, g_BackendNames[i])) {
                   g_Backend = i;
                   found = true;
                   break;
                 }
               }
-              if (not found) {
+              if (! found) {
                 printf("-compute : must be 'all' or one of: ");
                 for (int i = 0; i < kBackendCount; ++i)
                     printf("%s ", g_BackendNames[i]);
@@ -612,8 +612,8 @@ parseArgs(int argc, char ** argv) {
                 exit(0);
               }
             }
-        } else if ( (not strcmp(argv[argi],"-help")) or
-                    (not strcmp(argv[argi],"-h")) ) {
+        } else if ( (! strcmp(argv[argi],"-help")) ||
+                    (! strcmp(argv[argi],"-h")) ) {
             usage(argv);
             exit(1);
         } else {
@@ -633,7 +633,7 @@ main(int argc, char ** argv) {
     parseArgs(argc, argv);
 
     // Make sure we have an OpenGL context : create dummy GLFW window
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -641,7 +641,7 @@ main(int argc, char ** argv) {
     int width=10, height=10;
     
     static const char windowTitle[] = "OpenSubdiv OSD regression";
-    if (not (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
+    if (! (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
         return 1;

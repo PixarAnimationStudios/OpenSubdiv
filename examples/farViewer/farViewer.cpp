@@ -238,7 +238,7 @@ static void
 createEdgeNumbers(OpenSubdiv::Far::TopologyRefiner const & refiner,
     std::vector<Vertex> const & vertexBuffer, bool ids=false, bool sharpness=false) {
 
-    if (ids or sharpness) {
+    if (ids || sharpness) {
 
         int maxlevel = refiner.GetMaxLevel(),
             firstvert = 0;
@@ -345,7 +345,7 @@ static void
 createPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
     std::vector<Vertex> const & vertexBuffer) {
 
-    if (not g_currentPatch)
+    if (! g_currentPatch)
         return;
 
     int patchID = g_currentPatch-1,
@@ -388,7 +388,7 @@ createFVarPatchNumbers(OpenSubdiv::Far::PatchTable const & patchTable,
     int patch = g_currentPatch-1;
     static char buf[16];
 
-    if (patch>=0 and patch<patchTable.GetNumPatchesTotal()) {
+    if (patch>=0 && patch<patchTable.GetNumPatchesTotal()) {
 
         OpenSubdiv::Far::PatchTable::PatchHandle handle;
         handle.patchIndex = patch;
@@ -613,7 +613,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
     //
     std::vector<Vertex> fvarBuffer;
     Far::PatchTable * patchTable = 0;
-    bool createFVarWire = g_FarDrawFVarPatches or g_FarDrawFVarVerts;
+    bool createFVarWire = g_FarDrawFVarPatches || g_FarDrawFVarVerts;
 
     if (g_Adaptive) {
         Far::PatchTableFactory::Options options;
@@ -685,7 +685,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         stencilTable = Far::StencilTableFactory::Create(*refiner, options);
 
         // append local point stencils if needed
-        if (patchTable and patchTable->GetLocalPointStencilTable()) {
+        if (patchTable && patchTable->GetLocalPointStencilTable()) {
             if (Far::StencilTable const * stencilTableWithLocalPoints =
                 Far::StencilTableFactory::AppendLocalPointStencilTable(
                     *refiner, stencilTable,
@@ -734,7 +734,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         createFaceNumbers(*refiner, vertexBuffer);
     }
 
-    if (g_FarDrawPtexIDs and patchTable) {
+    if (g_FarDrawPtexIDs && patchTable) {
         createPtexNumbers(*patchTable, vertexBuffer);
     }
 
@@ -742,11 +742,11 @@ createFarGLMesh(Shape * shape, int maxlevel) {
         createPatchNumbers(*patchTable, vertexBuffer);
     }
 
-    if (g_Adaptive and g_FarDrawGregogyBasis) {
+    if (g_Adaptive && g_FarDrawGregogyBasis) {
         createGregoryBasis(*patchTable, vertexBuffer);
     }
 
-    if (g_Adaptive and createFVarWire) {
+    if (g_Adaptive && createFVarWire) {
         createFVarPatches(*refiner, *patchTable, fvarBuffer);
         createFVarPatchNumbers(*patchTable, fvarBuffer);
     }
@@ -774,7 +774,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
     g_controlMeshDisplay.SetTopology(refiner->GetLevel(0));
 
     // save coarse points in a GPU buffer (used for control mesh display)
-    if (not g_controlMeshDisplayVBO) {
+    if (! g_controlMeshDisplayVBO) {
         glGenBuffers(1, &g_controlMeshDisplayVBO);
     }
     glBindBuffer(GL_ARRAY_BUFFER, g_controlMeshDisplayVBO);
@@ -807,7 +807,7 @@ createFarGLMesh(Shape * shape, int maxlevel) {
 static void
 createMeshes(ShapeDesc const & desc, int maxlevel) {
 
-    if (not g_font) {
+    if (! g_font) {
         g_font = new GLFont(g_hud.GetFontTexture());
     }
     g_font->Clear();
@@ -923,15 +923,15 @@ display() {
     }
     g_far_glmesh.Draw(comp, g_transformUB, g_lightingUB);
 
-    if (g_Adaptive and g_FarDrawGregogyBasis) {
+    if (g_Adaptive && g_FarDrawGregogyBasis) {
         gregoryWire.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
         gregoryWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
 
-    if (g_Adaptive and g_FarDrawFVarVerts) {
+    if (g_Adaptive && g_FarDrawFVarVerts) {
         fvarVerts.Draw(GLMesh::COMP_VERT, g_transformUB, g_lightingUB);
     }
-    if (g_Adaptive and g_FarDrawFVarPatches) {
+    if (g_Adaptive && g_FarDrawFVarPatches) {
         fvarWire.Draw(GLMesh::COMP_EDGE, g_transformUB, g_lightingUB);
     }
 
@@ -966,9 +966,9 @@ display() {
                               * format0 = "Current Patch : %d/%d (%s - %d CVs)",
                               * format1 = "Current Patch : %d/%d (%s - %d CVs) fvar: (%s - %d CVs)";
 
-            if (g_Adaptive and g_currentPatch) {
+            if (g_Adaptive && g_currentPatch) {
                 
-                if (g_FarDrawFVarPatches or g_FarDrawFVarVerts) {
+                if (g_FarDrawFVarPatches || g_FarDrawFVarVerts) {
 
                     g_hud.DrawString(g_width/2-200, 225, format1,
                         g_currentPatch-1, g_numPatches-1,
@@ -1020,7 +1020,7 @@ motion(GLFWwindow *, double dx, double dy) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -1291,7 +1291,7 @@ initHUD() {
     g_hud.AddPullDownButton(fvar_pulldown, "FVAR_LINEAR_ALL",
         SdcOptions::FVAR_LINEAR_ALL, g_fvarInterpolation==SdcOptions::FVAR_LINEAR_ALL);
 
-    if (not g_font) {
+    if (! g_font) {
         g_font = new GLFont( g_hud.GetFontTexture() );
     }
 }
@@ -1320,7 +1320,7 @@ uninitGL() {
 static void
 idle() {
 
-    if (g_repeatCount != 0 and g_frame >= g_repeatCount)
+    if (g_repeatCount != 0 && g_frame >= g_repeatCount)
         g_running = 0;
 }
 
@@ -1349,7 +1349,7 @@ int main(int argc, char ** argv)
     }
     initShapes();
 
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -1364,7 +1364,7 @@ int main(int argc, char ** argv)
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
         // settle for the first one in the list
-        if (not g_primary) {
+        if (! g_primary) {
             int count=0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
@@ -1379,8 +1379,8 @@ int main(int argc, char ** argv)
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
+    if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
+                                       fullscreen && g_primary ? g_primary : NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
         return 1;
