@@ -32,6 +32,7 @@ set(PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
     "${DXSDK_LIBRARIES}"
     "${PTEX_LIBRARY}"
+    "${ZLIB_LIBRARY}"
 )
 
 include_directories(
