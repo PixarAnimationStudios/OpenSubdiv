@@ -644,7 +644,7 @@ ShaderCache g_shaderCache;
 
 //------------------------------------------------------------------------------
 D3D11PtexMipmapTexture *
-createPtex(const char *filename) {
+createPtex(const char *filename, int memLimit) {
 
     Ptex::String ptexError;
     printf("Loading ptex : %s\n", filename);
@@ -663,8 +663,11 @@ createPtex(const char *filename) {
         printf("Error in reading %s\n", filename);
         exit(1);
     }
+
+    size_t targetMemory = memLimit * 1024 * 1024; // MB
+
     D3D11PtexMipmapTexture *osdPtex = D3D11PtexMipmapTexture::Create(
-        g_pd3dDeviceContext, ptex, g_maxMipmapLevels);
+        g_pd3dDeviceContext, ptex, g_maxMipmapLevels, targetMemory);
 
     ptex->release();
 
@@ -1735,6 +1738,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     const char *diffuseEnvironmentMap = NULL, *specularEnvironmentMap = NULL;
     const char *colorFilename = NULL, *displacementFilename = NULL,
         *occlusionFilename = NULL, *specularFilename = NULL;
+    int memLimit;
 
     for (int i = 0; i < (int)argv.size(); ++i) {
         if (strstr(argv[i].c_str(), ".obj"))
@@ -1751,6 +1755,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
             g_yup = true;
         else if (argv[i] == "-m")
             g_maxMipmapLevels = atoi(argv[++i].c_str());
+        else if (argv[i] == "-x")
+            memLimit = atoi(argv[++i].c_str());
         else if (argv[i] == "--disp")
             g_displacementScale = (float)atof(argv[++i].c_str());
         else if (colorFilename == NULL)
@@ -1781,13 +1787,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     createOsdMesh(g_level, g_kernel);
 
     // load ptex files
-    g_osdPTexImage = createPtex(colorFilename);
+    g_osdPTexImage = createPtex(colorFilename, memLimit);
     if (displacementFilename)
-        g_osdPTexDisplacement = createPtex(displacementFilename);
+        g_osdPTexDisplacement = createPtex(displacementFilename, memLimit);
     if (occlusionFilename)
-        g_osdPTexOcclusion = createPtex(occlusionFilename);
+        g_osdPTexOcclusion = createPtex(occlusionFilename, memLimit);
     if (specularFilename)
-        g_osdPTexSpecular = createPtex(specularFilename);
+        g_osdPTexSpecular = createPtex(specularFilename, memLimit);
 
     initHUD();
 
