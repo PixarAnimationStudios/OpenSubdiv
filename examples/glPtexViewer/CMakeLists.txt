@@ -35,6 +35,7 @@ list(APPEND PLATFORM_LIBRARIES
     "${OPENGL_LIBRARY}"
     "${GLFW_LIBRARIES}"
     "${PTEX_LIBRARY}"
+    "${ZLIB_LIBRARY}"
 )
 
 include_directories(
