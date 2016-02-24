@@ -55,6 +55,9 @@ public:
 
     ID3D11ShaderResourceView **GetTexelsSRV() { return &_texelsSRV; }
 
+    /// Returns the amount of allocated memory (in byte)
+    size_t GetMemoryUsage() const { return _memoryUsage; }
+
     ~D3D11PtexMipmapTexture();
 
 private:
@@ -70,6 +73,8 @@ private:
     ID3D11Texture2D *_texels;  // texel data
     ID3D11ShaderResourceView *_layoutSRV;
     ID3D11ShaderResourceView *_texelsSRV;
+
+    size_t _memoryUsage;  // total amount of memory used (estimate)
 };
 
 #endif  // OPENSUBDIV_EXAMPLES_D3D11_PTEX_TEXTURE_H

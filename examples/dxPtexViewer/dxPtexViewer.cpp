@@ -205,11 +205,14 @@ float g_animTime = 0;
 std::vector<float> g_positions,
                    g_normals;
 
+std::vector<std::vector<float> > g_animPositions;
+
 D3D11PtexMipmapTexture * g_osdPTexImage = 0;
 D3D11PtexMipmapTexture * g_osdPTexDisplacement = 0;
 D3D11PtexMipmapTexture * g_osdPTexOcclusion = 0;
 D3D11PtexMipmapTexture * g_osdPTexSpecular = 0;
 const char * g_ptexColorFilename;
+size_t g_ptexMemoryUsage = 0;
 
 ID3D11Device * g_pd3dDevice = NULL;
 ID3D11DeviceContext * g_pd3dDeviceContext = NULL;
@@ -225,6 +228,8 @@ ID3D11Buffer* g_pcbTessellation = NULL;
 ID3D11Buffer* g_pcbLighting = NULL;
 ID3D11Buffer* g_pcbConfig = NULL;
 ID3D11DepthStencilView* g_pDepthStencilView = NULL;
+
+ID3D11Query * g_pipelineStatsQuery = NULL;
 
 bool g_bDone = false;
 
@@ -269,28 +274,61 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    std::vector<float> vertex;
-    vertex.reserve(nverts*6);
+    if (g_moveScale and g_adaptive and not g_animPositions.empty()) {
 
-    const float *p = &g_positions[0];
-    const float *n = &g_normals[0];
+        // baked animation only works with adaptive for now
+        // (since non-adaptive requires normals)
+        int nkeys = (int)g_animPositions.size();
+        const float fps = 24.0f;
 
-    for (int i = 0; i < nverts; ++i) {
-        float move = g_size*0.005f*cosf(p[0]*100/g_size+g_frame*0.01f);
-        vertex.push_back(p[0]);
-        vertex.push_back(p[1]+g_moveScale*move);
-        vertex.push_back(p[2]);
-        p += 3;
-//        if (g_adaptive == false)
-        {
-            vertex.push_back(n[0]);
-            vertex.push_back(n[1]);
-            vertex.push_back(n[2]);
-            n += 3;
+        float p = fmodf(g_animTime * fps, (float)nkeys);
+        int key = (int)p;
+        float b = p - key;
+
+        std::vector<float> vertex;
+        vertex.reserve(nverts*3);
+        for (int vert = 0; vert<nverts; ++vert) {
+
+            float const * p0 = &g_animPositions[key][vert*3],
+                        * p1 = &g_animPositions[(key+1)%nkeys][vert*3];
+
+            for (int i=0; i<3; ++i, ++p0, ++p1) {
+                vertex.push_back(*p0*(1.0f-b) + *p1*b);
+            }
+
+            // adaptive patches don't need normals, but we do not have an
+            // an easy shader variant with positions only
+            vertex.push_back(0.0f);
+            vertex.push_back(0.0f);
+            vertex.push_back(0.0f);
         }
-    }
 
-    g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
+        g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
+
+    } else {
+        std::vector<float> vertex;
+        vertex.reserve(nverts*6);
+
+        const float *p = &g_positions[0];
+        const float *n = &g_normals[0];
+
+        for (int i = 0; i < nverts; ++i) {
+            float move = g_size*0.005f*cosf(p[0]*100/g_size+g_frame*0.01f);
+            vertex.push_back(p[0]);
+            vertex.push_back(p[1]+g_moveScale*move);
+            vertex.push_back(p[2]);
+            p += 3;
+    //        if (g_adaptive == false)
+            {
+                vertex.push_back(n[0]);
+                vertex.push_back(n[1]);
+                vertex.push_back(n[2]);
+                n += 3;
+            }
+        }
+
+        g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
+    }
 
     Stopwatch s;
     s.Start();
@@ -864,8 +902,10 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         translate(pData->ModelViewMatrix, -g_center[0], -g_center[1], -g_center[2]);
 
         identity(pData->ProjectionMatrix);
-        perspective(pData->ProjectionMatrix, 45.0, aspect, 0.01f, 500.0);
-        multMatrix(pData->ModelViewProjectionMatrix, pData->ModelViewMatrix, pData->ProjectionMatrix);
+        perspective(pData->ProjectionMatrix, 45.0, aspect, g_size*0.001f, g_size+g_dolly);
+        multMatrix(pData->ModelViewProjectionMatrix,
+                   pData->ModelViewMatrix,
+                   pData->ProjectionMatrix);
 
         g_pd3dDeviceContext->Unmap( g_pcbPerFrame, 0 );
     }
@@ -1064,6 +1104,9 @@ drawModel() {
 static void
 display() {
 
+    Stopwatch s;
+    s.Start();
+
     float color[4] = {0.006f, 0.006f, 0.006f, 1.0f};
     g_pd3dDeviceContext->ClearRenderTargetView(g_pSwapChainRTV, color);
 
@@ -1073,18 +1116,74 @@ display() {
     g_pd3dDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 1);
     g_pd3dDeviceContext->RSSetState(g_pRasterizerState);
 
+// this query can be slow : turn off by default
+//#define PIPELINE_STATISTICS
+#ifdef PIPELINE_STATISTICS
+    g_pd3dDeviceContext->Begin(g_pipelineStatsQuery);
+#endif // PIPELINE_STATISTICS
+
     drawModel();
+
+#ifdef PIPELINE_STATISTICS
+    g_pd3dDeviceContext->End(g_pipelineStatsQuery);
+#endif // PIPELINE_STATISTICS
+
+    s.Stop();
+    float drawCpuTime = float(s.GetElapsed() * 1000.0f);
+
+    int timeElapsed = 0;
+    // XXXX TODO GPU cycles elapsed query
+    float drawGpuTime = timeElapsed / 1000.0f / 1000.0f;
+
+    UINT64 numPrimsGenerated = 0;
+#ifdef PIPELINE_STATISTICS
+    D3D11_QUERY_DATA_PIPELINE_STATISTICS pipelineStats;
+    ZeroMemory(&pipelineStats, sizeof(pipelineStats));
+    while (S_OK != g_pd3dDeviceContext->GetData(g_pipelineStatsQuery, &pipelineStats, g_pipelineStatsQuery->GetDataSize(), 0));
+    numPrimsGenerated = pipelineStats.GSPrimitives;
+#endif // PIPELINE_STATISTICS
+
+        g_fpsTimer.Stop();
+    float elapsed = (float)g_fpsTimer.GetElapsed();
+    if (not g_freeze)
+        g_animTime += elapsed;
+        g_fpsTimer.Start();
 
 
     if (g_hud->IsVisible()) {
-        g_fpsTimer.Stop();
-        double fps = 1.0/g_fpsTimer.GetElapsed();
-        g_fpsTimer.Start();
 
-        g_hud->DrawString(10, -100, "# of Vertices = %d", g_mesh->GetNumVertices());
-        g_hud->DrawString(10, -60, "GPU TIME = %.3f ms", g_gpuTime);
-        g_hud->DrawString(10, -40, "CPU TIME = %.3f ms", g_cpuTime);
-        g_hud->DrawString(10, -20, "FPS = %3.1f", fps);
+        double fps = 1.0/elapsed;
+
+        // Avereage fps over a defined number of time samples for
+        // easier reading in the HUD
+        g_fpsTimeSamples[g_currentFpsTimeSample++] = float(fps);
+        if (g_currentFpsTimeSample >= NUM_FPS_TIME_SAMPLES)
+            g_currentFpsTimeSample = 0;
+        double averageFps = 0;
+        for (int i = 0; i < NUM_FPS_TIME_SAMPLES; ++i) {
+            averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
+        }
+
+        g_hud->DrawString(10, -220, "Ptex memory use : %.1f mb", g_ptexMemoryUsage/1024.0/1024.0);
+        g_hud->DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
+#ifdef PIPELINE_STATISTICS
+        if (numPrimsGenerated > 1000000) {
+            g_hud->DrawString(10, -160, "Primitives      : %3.1f million",
+                             (float)numPrimsGenerated/1000000.0);
+        } else if (numPrimsGenerated > 1000) {
+            g_hud->DrawString(10, -160, "Primitives      : %3.1f thousand",
+                             (float)numPrimsGenerated/1000.0);
+        } else {
+            g_hud->DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
+        }
+#endif // PIPELINE_STATISTICS
+        g_hud->DrawString(10, -140, "Vertices        : %d", g_mesh->GetNumVertices());
+        g_hud->DrawString(10, -120, "Scheme          : %s", g_scheme == 0 ? "CATMARK" : "LOOP");
+        g_hud->DrawString(10, -100, "GPU Kernel      : %.3f ms", g_gpuTime);
+        g_hud->DrawString(10, -80,  "CPU Kernel      : %.3f ms", g_cpuTime);
+        g_hud->DrawString(10, -60,  "GPU Draw        : %.3f ms", drawGpuTime);
+        g_hud->DrawString(10, -40,  "CPU Draw        : %.3f ms", drawCpuTime);
+        g_hud->DrawString(10, -20,  "FPS             : %3.1f", fps);
     }
 
     g_hud->Flush();
@@ -1296,25 +1395,39 @@ initHUD() {
     g_hud = new D3D11hud(g_pd3dDeviceContext);
     g_hud->Init(g_width, g_height);
 
-    g_hud->AddRadioButton(0, "CPU (K)", true, 10, 10, callbackKernel, kCPU, 'K');
+    int compute_pulldown = g_hud->AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'K');
+    g_hud->AddPullDownButton(compute_pulldown, "CPU (K)", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
-    g_hud->AddRadioButton(0, "OPENMP", false, 10, 30, callbackKernel, kOPENMP, 'K');
+    g_hud->AddPullDownButton(compute_pulldown, "OPENMP", kOPENMP);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
-    g_hud->AddRadioButton(0, "TBB", false, 10, 50, callbackKernel, kTBB, 'K');
+    g_hud->AddPullDownButton(compute_pulldown, "TBB", kTBB);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    g_hud->AddRadioButton(0, "CUDA", false, 10, 70, callbackKernel, kCUDA, 'K');
+    g_hud->AddPullDownButton(compute_pulldown, "CUDA", kCUDA);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
     if (CLDeviceContext::HAS_CL_VERSION_1_1()) {
-        g_hud->AddRadioButton(0, "OPENCL", false, 10, 90, callbackKernel, kCL, 'K');
+        g_hud->AddPullDownButton(compute_pulldown, "OPENCL", kCL);
     }
 #endif
-    g_hud->AddRadioButton(0, "DirectCompute", false, 10, 110, callbackKernel, kDirectCompute, 'K');
+    g_hud->AddPullDownButton(compute_pulldown, "DirectCompute", kDirectCompute);
 
     g_hud->AddCheckBox("Adaptive (`)", g_adaptive,
-                       10, 150, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+                       10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+
+    g_hud->AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
+                      10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud->AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
+                      10, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud->AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud->AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
+                      10, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud->AddCheckBox("Bloom (Y)", g_bloom,
+                      10, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud->AddCheckBox("Freeze (spc)", g_freeze,
+                      10, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
 
     g_hud->AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0, 's');
     g_hud->AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1, 's');
@@ -1323,15 +1436,13 @@ initHUD() {
         char level[16];
         sprintf(level, "Lv. %d", i);
         g_hud->AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
-                              10, 220+i*20, callbackLevel, i, '0'+i);
+                              10, 320+i*20, callbackLevel, i, '0'+i);
     }
 
-    g_hud->AddRadioButton(HUD_RB_WIRE, "Wire (W)",       (g_wire == DISPLAY_WIRE),
-                         100, 10, callbackWireframe, 0, 'w');
-    g_hud->AddRadioButton(HUD_RB_WIRE, "Shaded",         (g_wire == DISPLAY_SHADED),
-                         100, 30, callbackWireframe, 1, 'w');
-    g_hud->AddRadioButton(HUD_RB_WIRE, "Wire on Shaded", (g_wire == DISPLAY_WIRE_ON_SHADED),
-                         100, 50, callbackWireframe, 2, 'w');
+    int shading_pulldown = g_hud->AddPullDown("Shading (W)", 250, 10, 250, callbackWireframe, 'w');
+    g_hud->AddPullDownButton(shading_pulldown, "Wire", DISPLAY_WIRE, g_wire==DISPLAY_WIRE);
+    g_hud->AddPullDownButton(shading_pulldown, "Shaded", DISPLAY_SHADED, g_wire==DISPLAY_SHADED);
+    g_hud->AddPullDownButton(shading_pulldown, "Wire+Shaded", DISPLAY_WIRE_ON_SHADED, g_wire==DISPLAY_WIRE_ON_SHADED);
 
     g_hud->AddLabel("Color (C)", -200, 10);
     g_hud->AddRadioButton(HUD_RB_COLOR, "None", (g_color == COLOR_NONE),
@@ -1396,22 +1507,12 @@ initHUD() {
 
     if (g_osdPTexOcclusion != NULL) {
         g_hud->AddCheckBox("Ambient Occlusion (A)", g_occlusion,
-                          250, 10, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
+                          -200, 570, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
     }
     if (g_osdPTexSpecular != NULL)
         g_hud->AddCheckBox("Specular (S)", g_specular,
-                          250, 30, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
+                          -200, 590, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
 
-    g_hud->AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
-                      450, 10, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud->AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
-                      450, 30, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud->AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-                      450, 50, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud->AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      450, 70, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud->AddCheckBox("Freeze (spc)", g_freeze,
-                      450, 90, callbackCheckBox, HUD_CB_FREEZE, ' ');
 }
 
 //------------------------------------------------------------------------------
@@ -1450,9 +1551,9 @@ initD3D11(HWND hWnd) {
     for(UINT driverTypeIndex=0; driverTypeIndex < numDriverTypes; driverTypeIndex++){
         hDriverType = driverTypes[driverTypeIndex];
         unsigned int deviceFlags = 0;
-#ifndef NDEBUG		
+#ifndef NDEBUG
                 // XXX: this is problematic in some environments.
-//		deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+//                deviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
         hr = D3D11CreateDeviceAndSwapChain(NULL,
                                            hDriverType, NULL, deviceFlags, NULL, 0,
@@ -1554,6 +1655,14 @@ initD3D11(HWND hWnd) {
 
     g_pd3dDevice->CreateDepthStencilState(&depthStencilDesc, &g_pDepthStencilState);
     assert(g_pDepthStencilState);
+
+#ifdef PIPELINE_STATISTICS
+    // Create pipeline statistics query
+    D3D11_QUERY_DESC queryDesc;
+    ZeroMemory(&queryDesc, sizeof(D3D11_QUERY_DESC));
+    queryDesc.Query = D3D11_QUERY_PIPELINE_STATISTICS;
+    g_pd3dDevice->CreateQuery(&queryDesc, &g_pipelineStatsQuery);
+#endif // PIPELINE_STATISTICS
 
     return true;
 }
@@ -1794,6 +1903,40 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
         g_osdPTexOcclusion = createPtex(occlusionFilename, memLimit);
     if (specularFilename)
         g_osdPTexSpecular = createPtex(specularFilename, memLimit);
+
+    g_ptexMemoryUsage =
+        (g_osdPTexImage ? g_osdPTexImage->GetMemoryUsage() : 0)
+        + (g_osdPTexDisplacement ? g_osdPTexDisplacement->GetMemoryUsage() : 0)
+        + (g_osdPTexOcclusion ? g_osdPTexOcclusion->GetMemoryUsage() : 0)
+        + (g_osdPTexSpecular ? g_osdPTexSpecular->GetMemoryUsage() : 0);
+
+    // load animation obj sequences (optional)
+    if (not animobjs.empty()) {
+        for (int i = 0; i < (int)animobjs.size(); ++i) {
+            std::ifstream ifs(animobjs[i].c_str());
+            if (ifs) {
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                ifs.close();
+
+                printf("Reading %s\r", animobjs[i].c_str());
+                std::string str = ss.str();
+                Shape *shape = Shape::parseObj(str.c_str(), kCatmark);
+
+                if (shape->verts.size() != g_positions.size()) {
+                    printf("Error: vertex count doesn't match.\n");
+                    goto end;
+                }
+
+                g_animPositions.push_back(shape->verts);
+                delete shape;
+            } else {
+                printf("Error in reading %s\n", animobjs[i].c_str());
+                goto end;
+            }
+        }
+        printf("\n");
+    }
 
     initHUD();
 

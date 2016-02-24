@@ -32,7 +32,8 @@
 D3D11PtexMipmapTexture::D3D11PtexMipmapTexture()
     : _width(0), _height(0), _depth(0),
       _layout(0), _texels(0),
-      _layoutSRV(0), _texelsSRV(0)
+      _layoutSRV(0), _texelsSRV(0),
+      _memoryUsage(0)
 {
 }
 
@@ -225,6 +226,7 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
 
     result->_layoutSRV = layoutSRV;
     result->_texelsSRV = texelsSRV;
+    result->_memoryUsage = loader.GetMemoryUsage();
 
     return result;
 }
