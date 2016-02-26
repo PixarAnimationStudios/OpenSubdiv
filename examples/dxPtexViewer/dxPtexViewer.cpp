@@ -58,6 +58,8 @@
 #include <osd/d3d11Mesh.h>
 OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 
+#include "./sky.h"
+
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
@@ -67,6 +69,7 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include "../common/d3d11Hud.h"
 #include "../common/d3d11PtexMipmapTexture.h"
 #include "../common/d3d11ShaderCache.h"
+#include "../common/hdr_reader.h"
 
 #include <osd/hlslPatchShaderSource.h>
 static const char *g_shaderSource =
@@ -207,6 +210,8 @@ std::vector<float> g_positions,
 
 std::vector<std::vector<float> > g_animPositions;
 
+Sky * g_sky=0;
+
 D3D11PtexMipmapTexture * g_osdPTexImage = 0;
 D3D11PtexMipmapTexture * g_osdPTexDisplacement = 0;
 D3D11PtexMipmapTexture * g_osdPTexOcclusion = 0;
@@ -220,18 +225,62 @@ IDXGISwapChain * g_pSwapChain = NULL;
 ID3D11RenderTargetView * g_pSwapChainRTV = NULL;
 
 ID3D11RasterizerState* g_pRasterizerState = NULL;
-ID3D11InputLayout* g_pInputLayout = NULL;
-ID3D11DepthStencilState* g_pDepthStencilState = NULL;
+ID3D11InputLayout * g_pInputLayout = NULL;
+ID3D11DepthStencilState * g_pDepthStencilState = NULL;
 ID3D11Texture2D * g_pDepthStencilBuffer = NULL;
-ID3D11Buffer* g_pcbPerFrame = NULL;
-ID3D11Buffer* g_pcbTessellation = NULL;
-ID3D11Buffer* g_pcbLighting = NULL;
-ID3D11Buffer* g_pcbConfig = NULL;
-ID3D11DepthStencilView* g_pDepthStencilView = NULL;
+ID3D11Buffer * g_pcbPerFrame = NULL;
+ID3D11Buffer * g_pcbTessellation = NULL;
+ID3D11Buffer * g_pcbLighting = NULL;
+ID3D11Buffer * g_pcbConfig = NULL;
+ID3D11DepthStencilView * g_pDepthStencilView = NULL;
+
+ID3D11Texture2D * g_diffuseEnvironmentMap = NULL;
+ID3D11ShaderResourceView * g_diffuseEnvironmentSRV = NULL;
+
+ID3D11Texture2D * g_specularEnvironmentMap = NULL;
+ID3D11ShaderResourceView * g_specularEnvironmentSRV = NULL;
+
+ID3D11SamplerState * g_iblSampler = NULL;
 
 ID3D11Query * g_pipelineStatsQuery = NULL;
 
 bool g_bDone = false;
+
+//------------------------------------------------------------------------------
+
+static ID3D11Texture2D *
+createHDRTexture(ID3D11Device * device, char const * hdrFile) {
+
+    HdrInfo info;
+    unsigned char * image = loadHdr(hdrFile, &info, /*convertToFloat=*/true);
+    if (image) {
+
+        D3D11_TEXTURE2D_DESC texDesc;
+        ZeroMemory(&texDesc, sizeof(texDesc));
+        texDesc.Width = info.width;
+        texDesc.Height = info.height;
+        texDesc.MipLevels = 1;
+        texDesc.ArraySize = 1;
+        texDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.SampleDesc.Quality = 0;
+        texDesc.Usage = D3D11_USAGE_DEFAULT;
+        texDesc.BindFlags =  D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+        texDesc.CPUAccessFlags = 0;
+        texDesc.MiscFlags = 0;
+
+        D3D11_SUBRESOURCE_DATA subData;
+        subData.pSysMem = (void *)image;
+        subData.SysMemPitch = info.width * 4 * sizeof(float);
+
+        ID3D11Texture2D * texture=0;
+        device->CreateTexture2D(&texDesc, &subData, &texture);
+
+        free(image);
+        return texture;
+    }
+    return 0;
+}
 
 //------------------------------------------------------------------------------
 static void
@@ -409,6 +458,7 @@ createPTexGeo(PtexTexture * r) {
         }
     }
 
+    g_size=0.0f;
     for (int j = 0; j < 3; ++j) {
         g_center[j] = (min[j] + max[j]) * 0.5f;
         g_size += (max[j]-min[j])*(max[j]-min[j]);
@@ -876,6 +926,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
             float ModelViewMatrix[16];
             float ProjectionMatrix[16];
             float ModelViewProjectionMatrix[16];
+            float ModelViewInverseMatrix[16];
         };
 
         if (! g_pcbPerFrame) {
@@ -906,7 +957,8 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         multMatrix(pData->ModelViewProjectionMatrix,
                    pData->ModelViewMatrix,
                    pData->ProjectionMatrix);
-
+        inverseMatrix(pData->ModelViewInverseMatrix,
+                      pData->ModelViewMatrix);
         g_pd3dDeviceContext->Unmap( g_pcbPerFrame, 0 );
     }
 
@@ -1014,6 +1066,19 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         g_pd3dDeviceContext->PSSetShaderResources(10, 1, g_osdPTexSpecular->GetTexelsSRV());
         g_pd3dDeviceContext->PSSetShaderResources(11, 1, g_osdPTexSpecular->GetLayoutSRV());
     }
+
+    if (g_ibl) {
+        if (g_diffuseEnvironmentMap) {
+            g_pd3dDeviceContext->PSSetShaderResources(12, 1, &g_diffuseEnvironmentSRV);
+
+        }
+        if (g_specularEnvironmentMap) {
+            g_pd3dDeviceContext->PSSetShaderResources(13, 1, &g_specularEnvironmentSRV);
+
+        }
+        assert(g_iblSampler);
+        g_pd3dDeviceContext->PSSetSamplers(0, 1, &g_iblSampler);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -1113,14 +1178,28 @@ display() {
     // Clear the depth buffer.
     g_pd3dDeviceContext->ClearDepthStencilView(g_pDepthStencilView, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-    g_pd3dDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 1);
-    g_pd3dDeviceContext->RSSetState(g_pRasterizerState);
+    if (g_ibl && g_sky) {
 
-// this query can be slow : turn off by default
-//#define PIPELINE_STATISTICS
+        float modelView[16], projection[16], mvp[16];
+        double aspect = g_width/(double)g_height;
+
+        identity(modelView);
+        rotate(modelView, g_rotate[1], 1, 0, 0);
+        rotate(modelView, g_rotate[0], 0, 1, 0);
+        perspective(projection, 45.0f, (float)aspect, g_size*0.001f, g_size+g_dolly);
+        multMatrix(mvp, modelView, projection);
+
+        g_sky->Draw(g_pd3dDeviceContext, mvp);
+    }
+
+// this query can be slow : comment out #define to turn off
+#define PIPELINE_STATISTICS
 #ifdef PIPELINE_STATISTICS
     g_pd3dDeviceContext->Begin(g_pipelineStatsQuery);
 #endif // PIPELINE_STATISTICS
+
+    g_pd3dDeviceContext->OMSetDepthStencilState(g_pDepthStencilState, 1);
+    g_pd3dDeviceContext->RSSetState(g_pRasterizerState);
 
     drawModel();
 
@@ -1395,7 +1474,47 @@ initHUD() {
     g_hud = new D3D11hud(g_pd3dDeviceContext);
     g_hud->Init(g_width, g_height);
 
-    int compute_pulldown = g_hud->AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'K');
+
+    if (g_osdPTexOcclusion != NULL) {
+        g_hud->AddCheckBox("Ambient Occlusion (A)", g_occlusion,
+                          -200, 570, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
+    }
+    if (g_osdPTexSpecular != NULL)
+        g_hud->AddCheckBox("Specular (S)", g_specular,
+                          -200, 590, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
+
+    if (g_diffuseEnvironmentMap || g_diffuseEnvironmentMap) {
+        g_hud->AddCheckBox("IBL (I)", g_ibl,
+                          -200, 610, callbackCheckBox, HUD_CB_IBL, 'i');
+    }
+
+    g_hud->AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
+                      10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
+    g_hud->AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
+                      10, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
+    g_hud->AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud->AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
+                      10, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
+    g_hud->AddCheckBox("Bloom (Y)", g_bloom,
+                      10, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
+    g_hud->AddCheckBox("Freeze (spc)", g_freeze,
+                      10, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
+
+    g_hud->AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0);
+    g_hud->AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1);
+
+    g_hud->AddCheckBox("Adaptive (`)", g_adaptive,
+                       10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
+
+    for (int i = 1; i < 8; ++i) {
+        char level[16];
+        sprintf(level, "Lv. %d", i);
+        g_hud->AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
+                              10, 320+i*20, callbackLevel, i, '0'+i);
+    }
+
+    int compute_pulldown = g_hud->AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
     g_hud->AddPullDownButton(compute_pulldown, "CPU (K)", kCPU);
 #ifdef OPENSUBDIV_HAS_OPENMP
     g_hud->AddPullDownButton(compute_pulldown, "OPENMP", kOPENMP);
@@ -1413,32 +1532,6 @@ initHUD() {
 #endif
     g_hud->AddPullDownButton(compute_pulldown, "DirectCompute", kDirectCompute);
 
-    g_hud->AddCheckBox("Adaptive (`)", g_adaptive,
-                       10, 300, callbackCheckBox, HUD_CB_ADAPTIVE, '`');
-
-    g_hud->AddCheckBox("Animate vertices (M)", g_moveScale != 0.0,
-                      10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
-    g_hud->AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
-                      10, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    g_hud->AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-                      10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
-    g_hud->AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
-                      10, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
-    g_hud->AddCheckBox("Bloom (Y)", g_bloom,
-                      10, 110, callbackCheckBox, HUD_CB_BLOOM, 'y');
-    g_hud->AddCheckBox("Freeze (spc)", g_freeze,
-                      10, 130, callbackCheckBox, HUD_CB_FREEZE, ' ');
-
-    g_hud->AddRadioButton(HUD_RB_SCHEME, "CATMARK", true, 10, 190, callbackScheme, 0, 's');
-    g_hud->AddRadioButton(HUD_RB_SCHEME, "BILINEAR", false, 10, 210, callbackScheme, 1, 's');
-
-    for (int i = 1; i < 8; ++i) {
-        char level[16];
-        sprintf(level, "Lv. %d", i);
-        g_hud->AddRadioButton(HUD_RB_LEVEL, level, i == g_level,
-                              10, 320+i*20, callbackLevel, i, '0'+i);
-    }
-
     int shading_pulldown = g_hud->AddPullDown("Shading (W)", 250, 10, 250, callbackWireframe, 'w');
     g_hud->AddPullDownButton(shading_pulldown, "Wire", DISPLAY_WIRE, g_wire==DISPLAY_WIRE);
     g_hud->AddPullDownButton(shading_pulldown, "Shaded", DISPLAY_SHADED, g_wire==DISPLAY_SHADED);
@@ -1449,8 +1542,9 @@ initHUD() {
                          -200, 30, callbackColor, COLOR_NONE, 'c');
     g_hud->AddRadioButton(HUD_RB_COLOR, "Ptex Nearest", (g_color == COLOR_PTEX_NEAREST),
                          -200, 50, callbackColor, COLOR_PTEX_NEAREST, 'c');
-    g_hud->AddRadioButton(HUD_RB_COLOR, "Ptex HW bilinear", (g_color == COLOR_PTEX_HW_BILINEAR),
-                         -200, 70, callbackColor, COLOR_PTEX_HW_BILINEAR, 'c');
+    // Commented out : we need to add a texture sampler state to make this work
+    //g_hud->AddRadioButton(HUD_RB_COLOR, "Ptex HW bilinear", (g_color == COLOR_PTEX_HW_BILINEAR),
+    //                     -200, 70, callbackColor, COLOR_PTEX_HW_BILINEAR, 'c');
     g_hud->AddRadioButton(HUD_RB_COLOR, "Ptex bilinear", (g_color == COLOR_PTEX_BILINEAR),
                          -200, 90, callbackColor, COLOR_PTEX_BILINEAR, 'c');
     g_hud->AddRadioButton(HUD_RB_COLOR, "Ptex biquadratic", (g_color == COLOR_PTEX_BIQUADRATIC),
@@ -1467,9 +1561,10 @@ initHUD() {
         g_hud->AddRadioButton(HUD_RB_DISPLACEMENT, "None",
                              (g_displacement == DISPLACEMENT_NONE),
                              -200, 220, callbackDisplacement, DISPLACEMENT_NONE, 'd');
-        g_hud->AddRadioButton(HUD_RB_DISPLACEMENT, "HW bilinear",
-                             (g_displacement == DISPLACEMENT_HW_BILINEAR),
-                             -200, 240, callbackDisplacement, DISPLACEMENT_HW_BILINEAR, 'd');
+        // Commented out : we need to add a texture sampler state to make this work
+        //g_hud->AddRadioButton(HUD_RB_DISPLACEMENT, "HW bilinear",
+        //                     (g_displacement == DISPLACEMENT_HW_BILINEAR),
+        //                     -200, 240, callbackDisplacement, DISPLACEMENT_HW_BILINEAR, 'd');
         g_hud->AddRadioButton(HUD_RB_DISPLACEMENT, "Bilinear",
                              (g_displacement == DISPLACEMENT_BILINEAR),
                              -200, 260, callbackDisplacement, DISPLACEMENT_BILINEAR, 'd');
@@ -1505,14 +1600,6 @@ initHUD() {
     g_hud->AddCheckBox("Seamless Mipmap", g_seamless,
                        -200, 530, callbackCheckBox, HUD_CB_SEAMLESS_MIPMAP, 'j');
 
-    if (g_osdPTexOcclusion != NULL) {
-        g_hud->AddCheckBox("Ambient Occlusion (A)", g_occlusion,
-                          -200, 570, callbackCheckBox, HUD_CB_DISPLAY_OCCLUSION, 'a');
-    }
-    if (g_osdPTexSpecular != NULL)
-        g_hud->AddCheckBox("Specular (S)", g_specular,
-                          -200, 590, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
-
 }
 
 //------------------------------------------------------------------------------
@@ -1527,9 +1614,18 @@ initD3D11(HWND hWnd) {
 
     UINT numDriverTypes = ARRAYSIZE(driverTypes);
 
+    int width = g_width,
+        height = g_height;
+    if (g_fullscreen) {
+        HWND const desktop = GetDesktopWindow();
+        RECT rect;
+        GetWindowRect(desktop, &rect);
+        width = (int)rect.right;
+        height = (int)rect.bottom;
+    }
     DXGI_SWAP_CHAIN_DESC hDXGISwapChainDesc;
-    hDXGISwapChainDesc.BufferDesc.Width = g_width;
-    hDXGISwapChainDesc.BufferDesc.Height = g_height;
+    hDXGISwapChainDesc.BufferDesc.Width = width;
+    hDXGISwapChainDesc.BufferDesc.Height = height;
     hDXGISwapChainDesc.BufferDesc.RefreshRate.Numerator  = 0;
     hDXGISwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
     hDXGISwapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -1540,7 +1636,7 @@ initD3D11(HWND hWnd) {
     hDXGISwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
     hDXGISwapChainDesc.BufferCount = 1;
     hDXGISwapChainDesc.OutputWindow = hWnd;
-    hDXGISwapChainDesc.Windowed = TRUE;
+    hDXGISwapChainDesc.Windowed = !g_fullscreen;
     hDXGISwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
     hDXGISwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
@@ -1806,6 +1902,23 @@ tokenize(std::string const & src) {
     return result;
 }
 
+//------------------------------------------------------------------------------
+void usage(const char *program) {
+    printf("Usage: %s [options] <color.ptx> [<displacement.ptx>] [occlusion.ptx>] "
+           "[specular.ptx] [pose.obj]...\n", program);
+    printf("Options:  -l level                : subdivision level\n");
+    printf("          -c count                : frame count until exit (for profiler)\n");
+    printf("          -d <diffseEnvMap.hdr>   : diffuse environment map for IBL\n");
+    printf("          -e <specularEnvMap.hdr> : specular environment map for IBL\n");
+    printf("          -s <shaderfile.glsl>    : custom shader file\n");
+    printf("          -y                      : Y-up model\n");
+    printf("          -m level                : max mimmap level (default=10)\n");
+    printf("          -x <ptex limit MB>      : ptex target memory size\n");
+    printf("          --disp <scale>          : Displacment scale\n");
+}
+
+//------------------------------------------------------------------------------
+
 int WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow) {
 
@@ -1860,6 +1973,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
             diffuseEnvironmentMap = argv[++i].c_str();
         else if (argv[i] == "-e")
             specularEnvironmentMap = argv[++i].c_str();
+        else if (argv[i] == "-f")
+            g_fullscreen = true;
         else if (argv[i] == "-y")
             g_yup = true;
         else if (argv[i] == "-m")
@@ -1887,7 +2002,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
 
     g_ptexColorFilename = colorFilename;
     if (g_ptexColorFilename == NULL) {
-        printf("Usage: \n");
+        usage(argv[0].c_str());
         return 1;
     }
 
@@ -1936,6 +2051,57 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
             }
         }
         printf("\n");
+    }
+
+    // IBL textures
+    if (diffuseEnvironmentMap) {
+
+        g_diffuseEnvironmentMap =
+            createHDRTexture(g_pd3dDevice, diffuseEnvironmentMap);
+        assert(g_diffuseEnvironmentMap);
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        ZeroMemory(&srvDesc, sizeof(srvDesc));
+        srvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+        g_pd3dDevice->CreateShaderResourceView(g_diffuseEnvironmentMap, &srvDesc, &g_diffuseEnvironmentSRV);
+        assert(g_diffuseEnvironmentSRV);
+    }
+
+    if (specularEnvironmentMap) {
+
+        g_specularEnvironmentMap =
+            createHDRTexture(g_pd3dDevice, specularEnvironmentMap);
+        assert(g_specularEnvironmentMap);
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        ZeroMemory(&srvDesc, sizeof(srvDesc));
+        srvDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.MipLevels = 1;
+        g_pd3dDevice->CreateShaderResourceView(g_specularEnvironmentMap, &srvDesc, &g_specularEnvironmentSRV);
+        assert(g_specularEnvironmentSRV);
+    }
+    
+    if (g_diffuseEnvironmentMap || g_specularEnvironmentMap) {
+
+        // texture sampler
+        D3D11_SAMPLER_DESC samplerDesc;
+        ZeroMemory(&samplerDesc, sizeof(samplerDesc));
+        samplerDesc.Filter = D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+        samplerDesc.AddressU = samplerDesc.AddressV = samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        samplerDesc.MaxAnisotropy = 0;
+        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        samplerDesc.MinLOD = 0;
+        samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        samplerDesc.BorderColor[0] = samplerDesc.BorderColor[1] = samplerDesc.BorderColor[2] = samplerDesc.BorderColor[3] = 0.0f;
+        g_pd3dDevice->CreateSamplerState(&samplerDesc, &g_iblSampler);
+
+        g_sky = new Sky(g_pd3dDevice, g_specularEnvironmentMap!=0 ?
+            g_specularEnvironmentMap : g_diffuseEnvironmentMap);
     }
 
     initHUD();

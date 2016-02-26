@@ -26,6 +26,7 @@
 
 set(SHADER_FILES
      shader.hlsl
+     skyshader.hlsl
 )
 
 set(PLATFORM_LIBRARIES
@@ -56,6 +57,7 @@ endif()
 
 set(SOURCE_FILES
     dxPtexViewer.cpp
+    sky.cpp
 )
 
 _stringify("${SHADER_FILES}" INC_FILES)
