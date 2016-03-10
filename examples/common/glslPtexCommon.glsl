@@ -114,7 +114,7 @@ vec4 PtexLookupNearest(vec4 patchCoord,
                        sampler2DArray data,
                        isamplerBuffer packings)
 {
-    vec2 uv = patchCoord.xy;
+    vec2 uv = clamp(patchCoord.xy, vec2(0), vec2(1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID);
     vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
@@ -127,7 +127,7 @@ vec4 PtexLookupNearest(vec4 patchCoord,
                        sampler2DArray data,
                        isamplerBuffer packings)
 {
-    vec2 uv = patchCoord.xy;
+    vec2 uv = clamp(patchCoord.xy, vec2(0), vec2(1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
     vec2 coords = vec2(uv.x * ppack.width + ppack.uOffset,
@@ -139,7 +139,7 @@ vec4 PtexLookupFast(vec4 patchCoord,
                     sampler2DArray data,
                     isamplerBuffer packings)
 {
-    vec2 uv = patchCoord.xy;
+    vec2 uv = clamp(patchCoord.xy, vec2(0), vec2(1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID);
 
@@ -154,7 +154,7 @@ vec4 PtexLookupFast(vec4 patchCoord,
                     sampler2DArray data,
                     isamplerBuffer packings)
 {
-    vec2 uv = patchCoord.xy;
+    vec2 uv = clamp(patchCoord.xy, vec2(0), vec2(1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
@@ -169,7 +169,7 @@ vec4 PtexLookup(vec4 patchCoord,
                 sampler2DArray data,
                 isamplerBuffer packings)
 {
-    vec2 uv = patchCoord.xy;
+    vec2 uv = clamp(patchCoord.xy, vec2(0), vec2(1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
@@ -203,7 +203,7 @@ vec4 PtexLookupQuadratic(out vec4 du,
                          sampler2DArray data,
                          isamplerBuffer packings)
 {
-    vec2 uv = patchCoord.xy;
+    vec2 uv = clamp(patchCoord.xy, vec2(0), vec2(1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
