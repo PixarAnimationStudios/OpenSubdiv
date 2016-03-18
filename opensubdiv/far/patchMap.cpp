@@ -32,13 +32,15 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 // Constructor
-PatchMap::PatchMap( PatchTable const & patchTable ) {
+template<class FD>
+PatchMapG<FD>::PatchMapG( PatchTableG<FD> const & patchTable ) {
     initialize( patchTable );
 }
 
 // sets all the children to point to the patch of index patchIdx
+template<class FD>
 void
-PatchMap::QuadNode::SetChild(int patchIdx) {
+PatchMapG<FD>::QuadNode::SetChild(int patchIdx) {
     for (int i=0; i<4; ++i) {
         children[i].isSet=true;
         children[i].isLeaf=true;
@@ -47,8 +49,9 @@ PatchMap::QuadNode::SetChild(int patchIdx) {
 }
 
 // sets the child in "quadrant" to point to the node or patch of the given index
+template<class FD>
 void
-PatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
+PatchMapG<FD>::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
     assert(quadrant<4);
     children[quadrant].isSet  = true;
     children[quadrant].isLeaf = isLeaf;
@@ -56,16 +59,18 @@ PatchMap::QuadNode::SetChild(unsigned char quadrant, int idx, bool isLeaf) {
 }
 
 // adds a child to a parent node and pushes it back on the tree
-PatchMap::QuadNode *
-PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
+template<class FD>
+typename PatchMapG<FD>::QuadNode *
+PatchMapG<FD>::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
     quadtree.push_back(QuadNode());
     int idx = (int)quadtree.size()-1;
     parent->SetChild(quadrant, idx, false);
     return &(quadtree[idx]);
 }
 
+template<class FD>
 void
-PatchMap::initialize( PatchTable const & patchTable ) {
+PatchMapG<FD>::initialize( PatchTableG<FD> const & patchTable ) {
 
     int nfaces = 0,
         narrays = (int)patchTable.GetNumPatchArrays(),
@@ -79,7 +84,7 @@ PatchMap::initialize( PatchTable const & patchTable ) {
 
     for (int parray=0, current=0; parray<narrays; ++parray) {
 
-        ConstPatchParamArray params = patchTable.GetPatchParams(parray);
+        Vtr::ConstArray<PatchParamG<FD> > params = patchTable.GetPatchParams(parray);
 
         int ringsize = patchTable.GetPatchArrayDescriptor(parray).GetNumControlVertices();
 
@@ -109,11 +114,11 @@ PatchMap::initialize( PatchTable const & patchTable ) {
     // populate the quadtree from the FarPatchArrays sub-patches
     for (Index parray=0, handleIndex=0; parray<narrays; ++parray) {
 
-        ConstPatchParamArray params = patchTable.GetPatchParams(parray);
+        Vtr::ConstArray<PatchParamG<FD> >  params = patchTable.GetPatchParams(parray);
 
         for (int i=0; i < patchTable.GetNumPatches(parray); ++i, ++handleIndex) {
 
-            PatchParam const & param = params[i];
+            PatchParamG<FD> const & param = params[i];
 
             unsigned short depth = param.GetDepth();
 
@@ -162,6 +167,9 @@ PatchMap::initialize( PatchTable const & patchTable ) {
     _quadtree = quadtree;
 }
 
+
+template class PatchMapG<float>;
+template class PatchMapG<double>;
 
 } // end namespace Far
 

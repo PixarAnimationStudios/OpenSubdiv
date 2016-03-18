@@ -41,7 +41,8 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class StencilTable;
+    template<class FD> class StencilTableG;
+    typedef StencilTableG<float> StencilTable;
 }
 
 namespace Osd {

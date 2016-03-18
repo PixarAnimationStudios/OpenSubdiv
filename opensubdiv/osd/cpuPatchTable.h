@@ -38,7 +38,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far{
-    class PatchTable;
+    typedef PatchTableG<float> PatchTable;
 };
 
 namespace Osd {

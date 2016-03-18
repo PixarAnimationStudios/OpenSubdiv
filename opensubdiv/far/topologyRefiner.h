@@ -209,11 +209,15 @@ protected:
     template <class MESH>
     friend class TopologyRefinerFactory;
     friend class TopologyRefinerFactoryBase;
-    friend class PatchTableFactory;
-    friend class EndCapGregoryBasisPatchFactory;
-    friend class EndCapLegacyGregoryPatchFactory;
+    template <class FD>
+    friend class PatchTableFactoryG;
+    template <class FD>
+    friend class EndCapGregoryBasisPatchFactoryG;
+    template <class FD>
+    friend class EndCapLegacyGregoryPatchFactoryG;
     friend class PtexIndices;
-    friend class PrimvarRefiner;
+    template <class FD>
+    friend class PrimvarRefinerG;
 
     Vtr::internal::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::internal::Level const & getLevel(int l) const { return *_levels[l]; }

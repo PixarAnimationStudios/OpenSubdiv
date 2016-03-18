@@ -46,16 +46,17 @@ namespace Far {
 /// parametric location, can efficiently return a handle to the sub-patch that
 /// contains this location.
 ///
-class PatchMap {
+template<class FD>
+class PatchMapG {
 public:
 
-    typedef PatchTable::PatchHandle Handle;
+    typedef typename PatchTableG<FD>::PatchHandle Handle;
 
     /// \brief Constructor
     ///
     /// @param patchTable  A valid set of PatchTable
     ///
-    PatchMap( PatchTable const & patchTable );
+    PatchMapG( PatchTableG<FD> const & patchTable );
 
     /// \brief Returns a handle to the sub-patch of the face at the given (u,v).
     /// Note : the faceid corresponds to quadrangulated face indices (ie. quads
@@ -70,11 +71,11 @@ public:
     /// @return        A patch handle or NULL if the face does not exist or the
     ///                limit surface is tagged as a hole at the given location
     ///
-    Handle const * FindPatch( int faceid, float u, float v ) const;
+    Handle const * FindPatch( int faceid, FD u, FD v ) const;
 
 private:
 
-    inline void initialize( PatchTable const & patchTable );
+    inline void initialize( PatchTableG<FD> const & patchTable );
 
     // Quadtree node with 4 children
     struct QuadNode {
@@ -121,8 +122,9 @@ private:
 
 // given a median, transforms the (u,v) to the quadrant they point to, and
 // return the quadrant index.
+template<class FD>
 template <class T> int
-PatchMap::resolveQuadrant(T & median, T & u, T & v) {
+PatchMapG<FD>::resolveQuadrant(T & median, T & u, T & v) {
     int quadrant = -1;
 
     if (u<median) {
@@ -145,22 +147,23 @@ PatchMap::resolveQuadrant(T & median, T & u, T & v) {
 }
 
 /// Returns a handle to the sub-patch of the face at the given (u,v).
-inline PatchMap::Handle const *
-PatchMap::FindPatch( int faceid, float u, float v ) const {
+template<class FD>
+inline typename PatchMapG<FD>::Handle const *
+PatchMapG<FD>::FindPatch( int faceid, FD u, FD v ) const {
 
     if (faceid>=(int)_quadtree.size())
         return NULL;
 
-    assert( (u>=0.0f) && (u<=1.0f) && (v>=0.0f) && (v<=1.0f) );
+    assert( (u>=0.0) && (u<=1.0) && (v>=0.0) && (v<=1.0) );
 
     QuadNode const * node = &_quadtree[faceid];
 
-    float half = 0.5f;
+    FD half = (FD)0.5;
 
     // 0xFF : we should never have depths greater than k_InfinitelySharp
     for (int depth=0; depth<0xFF; ++depth) {
 
-        float delta = half * 0.5f;
+        FD delta = half * (FD)0.5;
 
         int quadrant = resolveQuadrant( half, u, v );
         assert(quadrant>=0);
@@ -181,6 +184,8 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     assert(0);
     return 0;
 }
+
+typedef PatchMapG<float> PatchMap;
 
 } // end namespace Far
 

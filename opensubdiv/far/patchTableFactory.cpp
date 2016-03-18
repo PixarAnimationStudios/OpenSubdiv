@@ -53,7 +53,8 @@ namespace {
 #pragma warning disable 1572
 #endif
 
-inline bool isSharpnessEqual(float s1, float s2) { return (s1 == s2); }
+template<class FD>
+inline bool isSharpnessEqual(FD s1, FD s2) { return (s1 == s2); }
 
 #ifdef __INTEL_COMPILER
 #pragma warning (pop)
@@ -226,7 +227,8 @@ assignSharpnessIndex(float sharpness, std::vector<float> & sharpnessValues) {
 //
 // Note : struct members are not re-entrant nor are they intended to be !
 //
-struct PatchTableFactory::BuilderContext {
+template<class FD>
+struct PatchTableFactoryG<FD>::BuilderContext {
 
 public:
     // Simple struct to store <level,face> (and more?) info for a patch:
@@ -334,7 +336,8 @@ public:
 };
 
 // Constructor
-PatchTableFactory::BuilderContext::BuilderContext(
+template<class FD>
+PatchTableFactoryG<FD>::BuilderContext::BuilderContext(
     TopologyRefiner const & ref, Options opts) :
     refiner(ref), options(opts), ptexIndices(refiner),
     numRegularPatches(0), numIrregularPatches(0),
@@ -359,8 +362,9 @@ PatchTableFactory::BuilderContext::BuilderContext(
     }
 }
 
+template<class FD>
 int
-PatchTableFactory::BuilderContext::GatherLinearPatchPoints(
+PatchTableFactoryG<FD>::BuilderContext::GatherLinearPatchPoints(
         Index * iptrs, PatchTuple const & patch, int fvcFactory) const {
 
     Level const & level = refiner.getLevel(patch.levelIndex);
@@ -379,8 +383,9 @@ PatchTableFactory::BuilderContext::GatherLinearPatchPoints(
     return cvs.size();
 }
 
+template<class FD>
 int
-PatchTableFactory::BuilderContext::GatherRegularPatchPoints(
+PatchTableFactoryG<FD>::BuilderContext::GatherRegularPatchPoints(
         Index * iptrs, PatchTuple const & patch, int boundaryMask,
         int fvcFactory) const {
 
@@ -444,9 +449,10 @@ PatchTableFactory::BuilderContext::GatherRegularPatchPoints(
     return 16;
 }
 
+template<class FD>
 template <class END_CAP_FACTORY_TYPE>
 int
-PatchTableFactory::BuilderContext::GatherIrregularPatchPoints(
+PatchTableFactoryG<FD>::BuilderContext::GatherIrregularPatchPoints(
         END_CAP_FACTORY_TYPE *endCapFactory,
         Index * iptrs, PatchTuple const & patch,
         Level::VSpan cornerSpans[4],
@@ -467,8 +473,9 @@ PatchTableFactory::BuilderContext::GatherIrregularPatchPoints(
     return cvs.size();
 }
 
+template<class FD>
 bool
-PatchTableFactory::BuilderContext::IsPatchEligible(
+PatchTableFactoryG<FD>::BuilderContext::IsPatchEligible(
         int levelIndex, Index faceIndex) const {
 
     //
@@ -502,8 +509,9 @@ PatchTableFactory::BuilderContext::IsPatchEligible(
     return true;
 }
 
+template<class FD>
 bool
-PatchTableFactory::BuilderContext::IsPatchSmoothCorner(
+PatchTableFactoryG<FD>::BuilderContext::IsPatchSmoothCorner(
         int levelIndex, Index faceIndex, int fvcFactory) const
 {
     Level const & level = refiner.getLevel(levelIndex);
@@ -553,8 +561,9 @@ PatchTableFactory::BuilderContext::IsPatchSmoothCorner(
     return false;
 }
 
+template<class FD>
 bool
-PatchTableFactory::BuilderContext::IsPatchRegular(
+PatchTableFactoryG<FD>::BuilderContext::IsPatchRegular(
         int levelIndex, Index faceIndex, int fvcFactory) const
 {
     Level const & level = refiner.getLevel(levelIndex);
@@ -631,8 +640,9 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
     return isRegular;
 }
 
+template<class FD>
 int
-PatchTableFactory::BuilderContext::GetRegularPatchBoundaryMask(
+PatchTableFactoryG<FD>::BuilderContext::GetRegularPatchBoundaryMask(
         int levelIndex, Index faceIndex, int fvcFactory) const
 {
     Level const & level = refiner.getLevel(levelIndex);
@@ -694,8 +704,9 @@ PatchTableFactory::BuilderContext::GetRegularPatchBoundaryMask(
     return eBoundaryMask;
 }
 
+template<class FD>
 void
-PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
+PatchTableFactoryG<FD>::BuilderContext::GetIrregularPatchCornerSpans(
         int levelIndex, Index faceIndex,
         Level::VSpan cornerSpans[4],
         int fvcFactory) const
@@ -759,9 +770,10 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
 //
 //  Reserves tables based on the contents of the PatchArrayVector in the PatchTable:
 //
+template<class FD>
 void
-PatchTableFactory::allocateVertexTables(
-        BuilderContext const & context, PatchTable * table) {
+PatchTableFactoryG<FD>::allocateVertexTables(
+        BuilderContext const & context, PatchTableG<FD> * table) {
 
     int ncvs = 0, npatches = 0;
     for (int i=0; i<table->GetNumPatchArrays(); ++i) {
@@ -789,9 +801,10 @@ PatchTableFactory::allocateVertexTables(
 //
 //  Allocate face-varying tables
 //
+template<class FD>
 void
-PatchTableFactory::allocateFVarChannels(
-        BuilderContext const & context, PatchTable * table) {
+PatchTableFactoryG<FD>::allocateFVarChannels(
+        BuilderContext const & context, PatchTableG<FD> * table) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -836,8 +849,9 @@ PatchTableFactory::allocateFVarChannels(
 //  Populates the PatchParam for the given face, returning
 //  a pointer to the next entry
 //
-PatchParam
-PatchTableFactory::computePatchParam(
+template<class FD>
+PatchParamG<FD>
+PatchTableFactoryG<FD>::computePatchParam(
     BuilderContext const & context,
     int depth, Index faceIndex,
     int boundaryMask, int transitionMask) {
@@ -889,7 +903,7 @@ PatchTableFactory::computePatchParam(
         ptexIndex+=childIndexInParent;
     }
 
-    PatchParam param;
+    PatchParamG<FD> param;
     param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
               (unsigned short) boundaryMask, (unsigned short) transitionMask);
     return param;
@@ -900,8 +914,9 @@ PatchTableFactory::computePatchParam(
 //  cases.  In the past, more additional arguments were passed to the uniform version,
 //  but that may no longer be necessary (see notes in the uniform version below)...
 //
-PatchTable *
-PatchTableFactory::Create(TopologyRefiner const & refiner, Options options) {
+template<class FD>
+PatchTableG<FD> *
+PatchTableFactoryG<FD>::Create(TopologyRefiner const & refiner, Options options) {
 
     if (refiner.IsUniform()) {
         return createUniform(refiner, options);
@@ -910,8 +925,9 @@ PatchTableFactory::Create(TopologyRefiner const & refiner, Options options) {
     }
 }
 
-PatchTable *
-PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options options) {
+template<class FD>
+PatchTableG<FD> *
+PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options options) {
 
     assert(refiner.IsUniform());
 
@@ -943,7 +959,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     //
     //  Create the instance of the table and allocate and initialize its members.
-    PatchTable * table = new PatchTable(maxvalence);
+    PatchTableG<FD> * table = new PatchTableG<FD>(maxvalence);
 
     table->_numPtexFaces = context.ptexIndices.GetNumFaces();
 
@@ -982,7 +998,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     //
 
     Index          * iptr = &table->_patchVerts[0];
-    PatchParam     * pptr = &table->_paramTable[0];
+    PatchParamG<FD>     * pptr = &table->_paramTable[0];
     Index         ** fptr = 0;
 
     // we always skip level=0 vertices (control cages)
@@ -1065,8 +1081,9 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     return table;
 }
 
-PatchTable *
-PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options options) {
+template<class FD>
+PatchTableG<FD> *
+PatchTableFactoryG<FD>::createAdaptive(TopologyRefiner const & refiner, Options options) {
 
     assert(! refiner.IsUniform());
 
@@ -1083,7 +1100,7 @@ PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options optio
     //
     int maxValence = refiner.GetMaxValence();
 
-    PatchTable * table = new PatchTable(maxValence);
+    PatchTableG<FD> * table = new PatchTableG<FD>(maxValence);
 
     table->_numPtexFaces = context.ptexIndices.GetNumFaces();
 
@@ -1100,8 +1117,9 @@ PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options optio
 //  for each type, and retaining enough information for the patch for each face to populate it
 //  later with no additional analysis.
 //
+template<class FD>
 void
-PatchTableFactory::identifyAdaptivePatches(BuilderContext & context) {
+PatchTableFactoryG<FD>::identifyAdaptivePatches(BuilderContext & context) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -1141,7 +1159,7 @@ PatchTableFactory::identifyAdaptivePatches(BuilderContext & context) {
 
             if (context.IsPatchEligible(levelIndex, faceIndex)) {
 
-                context.patches.push_back(BuilderContext::PatchTuple(faceIndex, levelIndex));
+                context.patches.push_back(typename BuilderContext::PatchTuple(faceIndex, levelIndex));
 
                 // Count the patches here to simplify subsequent allocation.
                 if (context.IsPatchRegular(levelIndex, faceIndex)) {
@@ -1164,9 +1182,10 @@ PatchTableFactory::identifyAdaptivePatches(BuilderContext & context) {
 //
 //  Populate adaptive patches that we've previously identified.
 //
+template<class FD>
 void
-PatchTableFactory::populateAdaptivePatches(
-    BuilderContext & context, PatchTable * table) {
+PatchTableFactoryG<FD>::populateAdaptivePatches(
+    BuilderContext & context, PatchTableG<FD> * table) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -1184,10 +1203,10 @@ PatchTableFactory::populateAdaptivePatches(
         int numPatches;
 
         Far::Index *iptr;
-        Far::PatchParam *pptr;
+        Far::PatchParamG<FD> *pptr;
         Far::Index *sptr;
         Vtr::internal::StackBuffer<Far::Index*,1> fptr;
-        Vtr::internal::StackBuffer<Far::PatchParam*,1> fpptr;
+        Vtr::internal::StackBuffer<Far::PatchParamG<FD>*,1> fpptr;
 
     private:
         // Non-copyable
@@ -1285,36 +1304,36 @@ PatchTableFactory::populateAdaptivePatches(
 
     // endcap factories
     // XXX
-    EndCapBSplineBasisPatchFactory *endCapBSpline = NULL;
-    EndCapGregoryBasisPatchFactory *endCapGregoryBasis = NULL;
-    EndCapLegacyGregoryPatchFactory *endCapLegacyGregory = NULL;
-    Vtr::internal::StackBuffer<EndCapBSplineBasisPatchFactory*,1> fvarEndCapBSpline;
-    Vtr::internal::StackBuffer<EndCapGregoryBasisPatchFactory*,1> fvarEndCapGregoryBasis;
+    EndCapBSplineBasisPatchFactoryG<FD> *endCapBSpline = NULL;
+    EndCapGregoryBasisPatchFactoryG<FD> *endCapGregoryBasis = NULL;
+    EndCapLegacyGregoryPatchFactoryG<FD> *endCapLegacyGregory = NULL;
+    Vtr::internal::StackBuffer<EndCapBSplineBasisPatchFactoryG<FD>*,1> fvarEndCapBSpline;
+    Vtr::internal::StackBuffer<EndCapGregoryBasisPatchFactoryG<FD>*,1> fvarEndCapGregoryBasis;
 
-    StencilTable *localPointStencils = NULL;
-    StencilTable *localPointVaryingStencils = NULL;
-    Vtr::internal::StackBuffer<StencilTable*,1> localPointFVarStencils;
+    StencilTableG<FD> *localPointStencils = NULL;
+    StencilTableG<FD> *localPointVaryingStencils = NULL;
+    Vtr::internal::StackBuffer<StencilTableG<FD>*,1> localPointFVarStencils;
 
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_GREGORY_BASIS:
-        localPointStencils = new StencilTable(0);
-        localPointVaryingStencils = new StencilTable(0);
-        endCapGregoryBasis = new EndCapGregoryBasisPatchFactory(
+        localPointStencils = new StencilTableG<FD>(0);
+        localPointVaryingStencils = new StencilTableG<FD>(0);
+        endCapGregoryBasis = new EndCapGregoryBasisPatchFactoryG<FD>(
             refiner,
             localPointStencils,
             localPointVaryingStencils,
             context.options.shareEndCapPatchPoints);
         break;
     case Options::ENDCAP_BSPLINE_BASIS:
-        localPointStencils = new StencilTable(0);
-        localPointVaryingStencils = new StencilTable(0);
-        endCapBSpline = new EndCapBSplineBasisPatchFactory(
+        localPointStencils = new StencilTableG<FD>(0);
+        localPointVaryingStencils = new StencilTableG<FD>(0);
+        endCapBSpline = new EndCapBSplineBasisPatchFactoryG<FD>(
             refiner,
             localPointStencils,
             localPointVaryingStencils);
         break;
     case Options::ENDCAP_LEGACY_GREGORY:
-        endCapLegacyGregory = new EndCapLegacyGregoryPatchFactory(refiner);
+        endCapLegacyGregory = new EndCapLegacyGregoryPatchFactoryG<FD>(refiner);
         break;
     default:
         break;
@@ -1328,16 +1347,16 @@ PatchTableFactory::populateAdaptivePatches(
         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
             switch(context.options.GetEndCapType()) {
             case Options::ENDCAP_GREGORY_BASIS:
-                localPointFVarStencils[fvc] = new StencilTable(0);
-                fvarEndCapGregoryBasis[fvc] = new EndCapGregoryBasisPatchFactory(
+                localPointFVarStencils[fvc] = new StencilTableG<FD>(0);
+                fvarEndCapGregoryBasis[fvc] = new EndCapGregoryBasisPatchFactoryG<FD>(
                     refiner,
                     localPointFVarStencils[fvc],
                     NULL,
                     context.options.shareEndCapPatchPoints);
                 break;
             case Options::ENDCAP_BSPLINE_BASIS:
-                localPointFVarStencils[fvc] = new StencilTable(0);
-                fvarEndCapBSpline[fvc] = new EndCapBSplineBasisPatchFactory(
+                localPointFVarStencils[fvc] = new StencilTableG<FD>(0);
+                fvarEndCapBSpline[fvc] = new EndCapBSplineBasisPatchFactoryG<FD>(
                     refiner,
                     localPointFVarStencils[fvc],
                     NULL);
@@ -1351,7 +1370,7 @@ PatchTableFactory::populateAdaptivePatches(
     // Populate patch data buffers
     for (int patchIndex=0; patchIndex<(int)context.patches.size(); ++patchIndex) {
 
-        BuilderContext::PatchTuple const & patch = context.patches[patchIndex];
+        typename BuilderContext::PatchTuple const & patch = context.patches[patchIndex];
 
         Level const & level = refiner.getLevel(patch.levelIndex);
 
@@ -1445,7 +1464,7 @@ PatchTableFactory::populateAdaptivePatches(
         int paramTransitionMask = isRegular ?
                 context.GetTransitionMask(patch.levelIndex, patch.faceIndex) : 0;
 
-        PatchParam patchParam =
+        PatchParamG<FD> patchParam =
             computePatchParam(context,
                               patch.levelIndex, patch.faceIndex,
                               paramBoundaryMask, paramTransitionMask);
@@ -1459,11 +1478,11 @@ PatchTableFactory::populateAdaptivePatches(
         if (context.RequiresFVarPatches()) {
             for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
 
-                BuilderContext::PatchTuple fvarPatch(patch);
+                typename BuilderContext::PatchTuple fvarPatch(patch);
 
                 PatchDescriptor desc = table->GetFVarPatchDescriptor(fvc);
 
-                PatchParam fvarPatchParam = patchParam;
+                PatchParamG<FD> fvarPatchParam = patchParam;
 
                 // Deal with the linear cases trivially first
                 if (desc.GetType() == PatchDescriptor::QUADS) {
@@ -1603,18 +1622,21 @@ PatchTableFactory::populateAdaptivePatches(
 //
 //  Implementation of the PatchFaceTag:
 //
+template<class FD>
 void
-PatchTableFactory::PatchFaceTag::clear() {
+PatchTableFactoryG<FD>::PatchFaceTag::clear() {
     std::memset(this, 0, sizeof(*this));
 }
 
+template<class FD>
 void
-PatchTableFactory::PatchFaceTag::assignTransitionPropertiesFromEdgeMask(int tMask) {
+PatchTableFactoryG<FD>::PatchFaceTag::assignTransitionPropertiesFromEdgeMask(int tMask) {
     _transitionMask = tMask;
 }
 
+template<class FD>
 void
-PatchTableFactory::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int eMask) {
+PatchTableFactoryG<FD>::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int eMask) {
 
     static int const edgeMaskToCount[16] =
         { 0, 1, 1, 2, 1, -1, 2, -1, 1, 2, -1, -1, 2, -1, -1, -1 };
@@ -1631,8 +1653,9 @@ PatchTableFactory::PatchFaceTag::assignBoundaryPropertiesFromEdgeMask(int eMask)
     _boundaryIndex = edgeMaskToIndex[eMask];
 }
 
+template<class FD>
 void
-PatchTableFactory::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int vMask) {
+PatchTableFactoryG<FD>::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int vMask) {
 
     // This is only intended to support the case of a single boundary vertex with no
     // boundary edges, which can only occur with an irregular vertex
@@ -1651,6 +1674,9 @@ PatchTableFactory::PatchFaceTag::assignBoundaryPropertiesFromVertexMask(int vMas
     _boundaryCount = singleBitVertexMaskToCount[vMask];
     _boundaryIndex = singleBitVertexMaskToIndex[vMask];
 }
+
+template class PatchTableFactoryG<float>;
+template class PatchTableFactoryG<double>;
 
 } // end namespace Far
 
