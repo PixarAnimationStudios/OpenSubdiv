@@ -42,7 +42,8 @@ class TopologyRefiner;
 ///       will be replaced with SdcSchemeWorker for mask coefficients
 ///       and Vtr::Level for topology traversal.
 ///
-class EndCapGregoryBasisPatchFactory {
+template<class FD>
+class EndCapGregoryBasisPatchFactoryG {
 
 public:
 
@@ -64,9 +65,9 @@ public:
     ///                               patches. It reduces the number of stencils
     ///                               to be used.
     ///
-    EndCapGregoryBasisPatchFactory(TopologyRefiner const & refiner,
-                                   StencilTable *vertexStencils,
-                                   StencilTable *varyingStencils,
+    EndCapGregoryBasisPatchFactoryG(TopologyRefiner const & refiner,
+                                   StencilTableG<FD> *vertexStencils,
+                                   StencilTableG<FD> *varyingStencils,
                                    bool shareBoundaryVertices=true);
 
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
@@ -97,8 +98,8 @@ private:
                        bool newVerticesMask[4][5],
                        int levelVertOffset, int fvarChannel);
 
-    StencilTable *_vertexStencils;
-    StencilTable *_varyingStencils;
+    StencilTableG<FD> *_vertexStencils;
+    StencilTableG<FD> *_varyingStencils;
 
     TopologyRefiner const *_refiner;
     bool _shareBoundaryVertices;

@@ -36,14 +36,16 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 namespace internal {
 
+template<class FD>
 class WeightTable;
 
-class StencilBuilder {
+template<class FD>
+class StencilBuilderG {
 public:
-    StencilBuilder(int coarseVertCount, 
+    StencilBuilderG(int coarseVertCount, 
                    bool genCtrlVertStencils=true,
                    bool compactWeights=true);
-    ~StencilBuilder();
+    ~StencilBuilderG();
 
     // TODO: noncopyable.
 
@@ -63,32 +65,32 @@ public:
     std::vector<int> const& GetStencilSources() const;
 
     // The individual vertex weights, each weight is paired with one source.
-    std::vector<float> const& GetStencilWeights() const;
-    std::vector<float> const& GetStencilDuWeights() const;
-    std::vector<float> const& GetStencilDvWeights() const;
-    std::vector<float> const& GetStencilDuuWeights() const;
-    std::vector<float> const& GetStencilDuvWeights() const;
-    std::vector<float> const& GetStencilDvvWeights() const;
+    std::vector<FD> const& GetStencilWeights() const;
+    std::vector<FD> const& GetStencilDuWeights() const;
+    std::vector<FD> const& GetStencilDvWeights() const;
+    std::vector<FD> const& GetStencilDuuWeights() const;
+    std::vector<FD> const& GetStencilDuvWeights() const;
+    std::vector<FD> const& GetStencilDvvWeights() const;
 
     // Vertex Facade.
     class Index {
     public:
-        Index(StencilBuilder* owner, int index) 
+        Index(StencilBuilderG<FD>* owner, int index) 
             : _owner(owner)
             , _index(index)
         {}
 
         // Add with point/vertex weight only.
-        void AddWithWeight(Index const & src, float weight);
-        void AddWithWeight(Stencil const& src, float weight);
+        void AddWithWeight(Index const & src, FD weight);
+        void AddWithWeight(StencilG<FD> const& src, FD weight);
 
         // Add with first derivative.
-        void AddWithWeight(Stencil const& src,
-            float weight, float du, float dv);
+        void AddWithWeight(StencilG<FD> const& src,
+            FD weight, FD du, FD dv);
 
         // Add with first and second derivatives.
-        void AddWithWeight(Stencil const& src,
-            float weight, float du, float dv, float duu, float duv, float dvv);
+        void AddWithWeight(StencilG<FD> const& src,
+            FD weight, FD du, FD dv, FD duu, FD duv, FD dvv);
 
         Index operator[](int index) const {
             return Index(_owner, index+_index);
@@ -98,13 +100,16 @@ public:
 
         void Clear() {/*nothing to do here*/}
     private:
-        StencilBuilder* _owner;
+        StencilBuilderG<FD>* _owner;
         int _index;
     };
 
 private:
-    WeightTable* _weightTable;
+    WeightTable<FD>* _weightTable;
 };
+
+//typedef StencilBuilderG<float> StencilBuilder;
+//typedef StencilBuilderG<double> StencilBuilderDbl;
 
 } // end namespace internal
 } // end namespace Far

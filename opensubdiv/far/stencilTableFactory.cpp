@@ -45,8 +45,8 @@ namespace {
 #pragma warning (push)
 #pragma warning disable 1572
 #endif
-
-    inline bool isWeightZero(float w) { return (w == 0.0f); }
+template<class FD>
+inline bool isWeightZero(FD w) { return (w == (FD)0.0); }
 
 #ifdef __INTEL_COMPILER
 #pragma warning (pop)
@@ -55,15 +55,16 @@ namespace {
 
 //------------------------------------------------------------------------------
 
+template<class FD>
 void
-StencilTableFactory::generateControlVertStencils(
-    int numControlVerts, Stencil & dst) {
+StencilTableFactoryG<FD>::generateControlVertStencils(
+    int numControlVerts, StencilG<FD> & dst) {
 
     // Control vertices contribute a single index with a weight of 1.0
     for (int i=0; i<numControlVerts; ++i) {
         *dst._size = 1;
         *dst._indices = i;
-        *dst._weights = 1.0f;
+        *dst._weights = 1.0;
         dst.Next();
     }
 }
@@ -71,19 +72,20 @@ StencilTableFactory::generateControlVertStencils(
 //
 // StencilTable factory
 //
-StencilTable const *
-StencilTableFactory::Create(TopologyRefiner const & refiner,
+template<class FD>
+StencilTableG<FD> const *
+StencilTableFactoryG<FD>::Create(TopologyRefiner const & refiner,
     Options options) {
 
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
     if (maxlevel==0 && (! options.generateControlVerts)) {
-        StencilTable * result = new StencilTable;
+        StencilTableG<FD> * result = new StencilTableG<FD>;
         result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
         return result;
     }
 
     bool interpolateVarying = options.interpolationMode==INTERPOLATE_VARYING;
-    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilderG<FD> builder(refiner.GetLevel(0).GetNumVertices(),
                                 /*genControlVerts*/ true,
                                 /*compactWeights*/  true);
 
@@ -91,10 +93,10 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     // Interpolate stencils for each refinement level using
     // PrimvarRefiner::InterpolateLevel<>() for vertex or varying
     //
-    PrimvarRefiner primvarRefiner(refiner);
+    PrimvarRefinerG<FD> primvarRefiner(refiner);
 
-    internal::StencilBuilder::Index srcIndex(&builder, 0);
-    internal::StencilBuilder::Index dstIndex(&builder, 
+    typename internal::StencilBuilderG<FD>::Index srcIndex(&builder, 0);
+    typename internal::StencilBuilderG<FD>::Index dstIndex(&builder, 
                                     refiner.GetLevel(0).GetNumVertices());
 
     for (int level=1; level<=maxlevel; ++level) {
@@ -124,8 +126,8 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
  
     // Copy stencils from the StencilBuilder into the StencilTable.
     // Always initialize numControlVertices (useful for torus case)
-    StencilTable * result = 
-                        new StencilTable(refiner.GetLevel(0).GetNumVertices(),
+    StencilTableG<FD> * result = 
+                        new StencilTableG<FD>(refiner.GetLevel(0).GetNumVertices(),
                                           builder.GetStencilOffsets(),
                                           builder.GetStencilSizes(),
                                           builder.GetStencilSources(),
@@ -137,8 +139,9 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
 
 //------------------------------------------------------------------------------
 
-StencilTable const *
-StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
+template<class FD>
+StencilTableG<FD> const *
+StencilTableFactoryG<FD>::Create(int numTables, StencilTableG<FD> const ** tables) {
 
     // XXXtakahito:
     // This function returns NULL for empty inputs or erroneous condition.
@@ -156,7 +159,7 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
 
     for (int i=0; i<numTables; ++i) {
 
-        StencilTable const * st = tables[i];
+        StencilTableG<FD> const * st = tables[i];
         // allow the tables could have a null entry.
         if (!st) continue;
 
@@ -172,21 +175,21 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
         return NULL;
     }
 
-    StencilTable * result = new StencilTable;
+    StencilTableG<FD> * result = new StencilTableG<FD>;
     result->resize(nstencils, nelems);
 
     int * sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
-    float * weights = &result->_weights[0];
+    FD * weights = &result->_weights[0];
     for (int i=0; i<numTables; ++i) {
-        StencilTable const * st = tables[i];
+        StencilTableG<FD> const * st = tables[i];
         if (!st) continue;
 
         int st_nstencils = st->GetNumStencils(),
             st_nelems = (int)st->_indices.size();
         memcpy(sizes, &st->_sizes[0], st_nstencils*sizeof(int));
         memcpy(indices, &st->_indices[0], st_nelems*sizeof(Index));
-        memcpy(weights, &st->_weights[0], st_nelems*sizeof(float));
+        memcpy(weights, &st->_weights[0], st_nelems*sizeof(FD));
 
         sizes += st_nstencils;
         indices += st_nelems;
@@ -203,11 +206,12 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
 
 //------------------------------------------------------------------------------
 
-StencilTable const *
-StencilTableFactory::AppendLocalPointStencilTable(
+template<class FD>
+StencilTableG<FD> const *
+StencilTableFactoryG<FD>::AppendLocalPointStencilTable(
     TopologyRefiner const &refiner,
-    StencilTable const * baseStencilTable,
-    StencilTable const * localPointStencilTable,
+    StencilTableG<FD> const * baseStencilTable,
+    StencilTableG<FD> const * localPointStencilTable,
     bool factorize) {
 
     // factorize and append.
@@ -269,19 +273,19 @@ StencilTableFactory::AppendLocalPointStencilTable(
     int nLocalPointStencils = localPointStencilTable->GetNumStencils();
     int nLocalPointStencilsElements = 0;
 
-    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilderG<FD> builder(refiner.GetLevel(0).GetNumVertices(),
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  factorize);
-    internal::StencilBuilder::Index origin(&builder, 0);
-    internal::StencilBuilder::Index dst = origin;
-    internal::StencilBuilder::Index srcIdx = origin;
+    typename internal::StencilBuilderG<FD>::Index origin(&builder, 0);
+    typename internal::StencilBuilderG<FD>::Index dst = origin;
+    typename internal::StencilBuilderG<FD>::Index srcIdx = origin;
 
     for (int i = 0 ; i < nLocalPointStencils; ++i) {
-        Stencil src = localPointStencilTable->GetStencil(i);
+        StencilG<FD> src = localPointStencilTable->GetStencil(i);
         dst = origin[i];
         for (int j = 0; j < src.GetSize(); ++j) {
             Index index = src.GetVertexIndices()[j];
-            float weight = src.GetWeights()[j];
+            FD weight = src.GetWeights()[j];
             if (isWeightZero(weight)) continue;
 
             if (factorize) {
@@ -301,14 +305,14 @@ StencilTableFactory::AppendLocalPointStencilTable(
     }
 
     // create new stencil table
-    StencilTable * result = new StencilTable;
+    StencilTableG<FD> * result = new StencilTableG<FD>;
     result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
     result->resize(nBaseStencils + nLocalPointStencils,
                    nBaseStencilsElements + nLocalPointStencilsElements);
 
     int* sizes = &result->_sizes[0];
     Index * indices = &result->_indices[0];
-    float * weights = &result->_weights[0];
+    FD * weights = &result->_weights[0];
 
     // put base stencils first
     memcpy(sizes, &baseStencilTable->_sizes[0],
@@ -316,7 +320,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
     memcpy(indices, &baseStencilTable->_indices[0],
            nBaseStencilsElements*sizeof(Index));
     memcpy(weights, &baseStencilTable->_weights[0],
-           nBaseStencilsElements*sizeof(float));
+           nBaseStencilsElements*sizeof(FD));
 
     sizes += nBaseStencils;
     indices += nBaseStencilsElements;
@@ -340,11 +344,12 @@ StencilTableFactory::AppendLocalPointStencilTable(
 }
 
 //------------------------------------------------------------------------------
-LimitStencilTable const *
-LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
+template<class FD>
+LimitStencilTableG<FD> const *
+LimitStencilTableFactoryG<FD>::Create(TopologyRefiner const & refiner,
     LocationArrayVec const & locationArrays,
-        StencilTable const * cvStencilsIn,
-          PatchTable const * patchTableIn,
+   StencilTableG<FD> const * cvStencilsIn,
+     PatchTableG<FD> const * patchTableIn,
                      Options options) {
 
     // Compute the total number of stencils to generate
@@ -361,14 +366,14 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
 
     int maxlevel = refiner.GetMaxLevel();
 
-    StencilTable const * cvstencils = cvStencilsIn;
+    StencilTableG<FD> const * cvstencils = cvStencilsIn;
     if (! cvstencils) {
         // Generate stencils for the control vertices - this is necessary to
         // properly factorize patches with control vertices at level 0 (natural
         // regular patches, such as in a torus)
         // note: the control vertices of the mesh are added as single-index
         //       stencils of weight 1.0f
-        StencilTableFactory::Options options;
+        typename StencilTableFactoryG<FD>::Options options;
         options.generateIntermediateLevels = uniform ? false :true;
         options.generateControlVerts = true;
         options.generateOffsets = true;
@@ -376,7 +381,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         // PERFORMANCE: We could potentially save some mem-copies by not
         // instantiating the stencil tables and work directly off the source
         // data.
-        cvstencils = StencilTableFactory::Create(refiner, options);
+        cvstencils = StencilTableFactoryG<FD>::Create(refiner, options);
     } else {
         // Sanity checks
         //
@@ -390,7 +395,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     }
 
     // If a stencil table was given, use it, otherwise, create a new one
-    PatchTable const * patchtable = patchTableIn;
+    PatchTableG<FD> const * patchtable = patchTableIn;
 
     if (! patchtable) {
         // XXXX (manuelk) If no patch-table was passed, we should be able to
@@ -398,20 +403,20 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         // have been added to the refiner, maybe we can remove the need for the
         // patch table.
 
-        PatchTableFactory::Options options;
+        typename PatchTableFactoryG<FD>::Options options;
         options.SetEndCapType(
-            Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+            Far::PatchTableFactoryG<FD>::Options::ENDCAP_GREGORY_BASIS);
         options.useInfSharpPatch = !uniform &&
             refiner.GetAdaptiveOptions().useInfSharpPatch;
 
-        patchtable = PatchTableFactory::Create(refiner, options);
+        patchtable = PatchTableFactoryG<FD>::Create(refiner, options);
 
         if (! cvStencilsIn) {
             // if cvstencils is just created above, append endcap stencils
-            if (StencilTable const *localPointStencilTable =
+            if (StencilTableG<FD> const *localPointStencilTable =
                 patchtable->GetLocalPointStencilTable()) {
-                StencilTable const *table =
-                    StencilTableFactory::AppendLocalPointStencilTable(
+                StencilTableG<FD> const *table =
+                    StencilTableFactoryG<FD>::AppendLocalPointStencilTable(
                         refiner, cvstencils, localPointStencilTable);
                 delete cvstencils;
                 cvstencils = table;
@@ -431,34 +436,34 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     assert(patchtable && cvstencils);
 
     // Create a patch-map to locate sub-patches faster
-    PatchMap patchmap( *patchtable );
+    PatchMapG<FD> patchmap( *patchtable );
 
     //
     // Generate limit stencils for locations
     //
 
-    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilderG<FD> builder(refiner.GetLevel(0).GetNumVertices(),
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  true);
-    internal::StencilBuilder::Index origin(&builder, 0);
-    internal::StencilBuilder::Index dst = origin;
+    typename internal::StencilBuilderG<FD>::Index origin(&builder, 0);
+    typename internal::StencilBuilderG<FD>::Index dst = origin;
 
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
+    FD wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
     for (size_t i=0; i<locationArrays.size(); ++i) {
         LocationArray const & array = locationArrays[i];
         assert(array.ptexIdx>=0);
 
         for (int j=0; j<array.numLocations; ++j) { // for each face we're working on
-            float s = array.s[j],
+            FD s = array.s[j],
                   t = array.t[j]; // for each target (s,t) point on that face
 
-            PatchMap::Handle const * handle = 
+            typename PatchMapG<FD>::Handle const * handle = 
                                         patchmap.FindPatch(array.ptexIdx, s, t);
             if (handle) {
                 ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
 
-                StencilTable const & src = *cvstencils;
+                StencilTableG<FD> const & src = *cvstencils;
                 dst = origin[numLimitStencils];
 
                 if (options.generate2ndDerivatives) {
@@ -500,7 +505,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     //
     // Copy the proto-stencils into the limit stencil table
     //
-    LimitStencilTable * result = new LimitStencilTable(
+    LimitStencilTableG<FD> * result = new LimitStencilTableG<FD>(
                                           refiner.GetLevel(0).GetNumVertices(),
                                           builder.GetStencilOffsets(),
                                           builder.GetStencilSizes(),
@@ -515,6 +520,11 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
                                           /*fristOffset*/0);
     return result;
 }
+
+template class StencilTableFactoryG<float>;
+template class StencilTableFactoryG<double>;
+template class LimitStencilTableFactoryG<float>;
+template class LimitStencilTableFactoryG<double>;
 
 } // end namespace Far
 

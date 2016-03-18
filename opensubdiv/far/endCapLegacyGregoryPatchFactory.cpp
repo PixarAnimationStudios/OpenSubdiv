@@ -33,13 +33,15 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(
+template<class FD>
+EndCapLegacyGregoryPatchFactoryG<FD>::EndCapLegacyGregoryPatchFactoryG(
     TopologyRefiner const &refiner) :
     _refiner(refiner) {
 }
 
+template<class FD>
 ConstIndexArray
-EndCapLegacyGregoryPatchFactory::GetPatchPoints(
+EndCapLegacyGregoryPatchFactoryG<FD>::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
     Vtr::internal::Level::VSpan const /*cornerSpans*/[],
     int levelVertOffset, int fvarChannel) {
@@ -101,11 +103,12 @@ static void getQuadOffsets(
     }
 }
 
+template<class FD>
 void
-EndCapLegacyGregoryPatchFactory::Finalize(
+EndCapLegacyGregoryPatchFactoryG<FD>::Finalize(
     int maxValence, 
-    PatchTable::QuadOffsetsTable *quadOffsetsTable,
-    PatchTable::VertexValenceTable *vertexValenceTable,
+    typename PatchTableG<FD>::QuadOffsetsTable *quadOffsetsTable,
+    typename PatchTableG<FD>::VertexValenceTable *vertexValenceTable,
     int fvarChannel)
 {
     // populate quad offsets
@@ -120,7 +123,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     quadOffsetsTable->resize(numTotalGregoryPatches*4);
 
     if (numTotalGregoryPatches > 0) {
-        PatchTable::QuadOffsetsTable::value_type *p = 
+        typename PatchTableG<FD>::QuadOffsetsTable::value_type *p = 
             &((*quadOffsetsTable)[0]);
         for (size_t i = 0; i < numGregoryPatches; ++i) {
             getQuadOffsets(maxLevel, _gregoryFaceIndices[i], p, fvarChannel);
@@ -147,7 +150,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     //
     const int SizePerVertex = 2*maxValence + 1;
 
-    PatchTable::VertexValenceTable & vTable = (*vertexValenceTable);
+    typename PatchTableG<FD>::VertexValenceTable & vTable = (*vertexValenceTable);
     vTable.resize(_refiner.GetNumVerticesTotal() * SizePerVertex);
 
     int vOffset = 0;
@@ -195,6 +198,8 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     }
 }
 
+template class EndCapLegacyGregoryPatchFactoryG<float>;
+template class EndCapLegacyGregoryPatchFactoryG<double>;
 
 } // end namespace Far
 

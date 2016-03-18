@@ -35,9 +35,9 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-    class PatchTable;
-    class StencilTable;
-    class LimitStencilTable;
+typedef PatchTableG<float> PatchTable;
+    typedef StencilTableG<float> StencilTable;
+    typedef LimitStencilTableG<float> LimitStencilTable;
 }
 
 namespace Osd {

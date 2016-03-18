@@ -43,12 +43,22 @@ namespace Far {
 ///
 /// Allows access and manipulation of a single stencil in a StencilTable.
 ///
-class Stencil {
+
+template<class FD> class StencilTableFactoryG;
+template<class FD> class LimitStencilTableFactoryG;
+template<class FD> class StencilTableFactoryG;
+template<class FD> class PatchTableFactoryG;
+template<class FD> class GregoryBasisG;
+template<class FD> class EndCapBSplineBasisPatchFactoryG;
+template<class FD> class EndCapGregoryBasisPatchFactoryG;
+
+template<class FD>
+class StencilG {
 
 public:
 
     /// \brief Default constructor
-    Stencil() {}
+    StencilG() {}
 
     /// \brief Constructor
     ///
@@ -58,16 +68,16 @@ public:
     ///
     /// @param weights  Table pointer to the vertex weights of the stencil
     ///
-    Stencil(int * size,
+    StencilG(int * size,
             Index * indices,
-            float * weights)
+            FD * weights)
         : _size(size),
           _indices(indices),
           _weights(weights) {
     }
 
     /// \brief Copy constructor
-    Stencil(Stencil const & other) {
+    StencilG(StencilG const & other) {
         _size = other._size;
         _indices = other._indices;
         _weights = other._weights;
@@ -89,7 +99,7 @@ public:
     }
 
     /// \brief Returns the interpolation weights
-    float const * GetWeights() const {
+    FD const * GetWeights() const {
         return _weights;
     }
 
@@ -102,12 +112,12 @@ public:
     }
 
 protected:
-    friend class StencilTableFactory;
-    friend class LimitStencilTableFactory;
+    friend StencilTableFactoryG<FD>;
+    friend LimitStencilTableFactoryG<FD>;
 
     int * _size;
     Index         * _indices;
-    float         * _weights;
+    FD         * _weights;
 };
 
 /// \brief Table of subdivision stencils.
@@ -122,18 +132,19 @@ protected:
 /// recomputed simply by applying the blending weights to the series of coarse
 /// control vertices.
 ///
-class StencilTable {
-    StencilTable(int numControlVerts,
+template<class FD>
+class StencilTableG {
+    StencilTableG(int numControlVerts,
                     std::vector<int> const& offsets,
                     std::vector<int> const& sizes,
                     std::vector<int> const& sources,
-                    std::vector<float> const& weights,
+                    std::vector<FD> const& weights,
                     bool includeCoarseVerts,
                     size_t firstOffset);
 
 public:
 
-    virtual ~StencilTable() {};
+    virtual ~StencilTableG() {};
     
     /// \brief Returns the number of stencils in the table
     int GetNumStencils() const {
@@ -146,7 +157,7 @@ public:
     }
 
     /// \brief Returns a Stencil at index i in the table
-    Stencil GetStencil(Index i) const;
+    StencilG<FD> GetStencil(Index i) const;
 
     /// \brief Returns the number of control vertices of each stencil in the table
     std::vector<int> const & GetSizes() const {
@@ -164,12 +175,12 @@ public:
     }
 
     /// \brief Returns the stencil interpolation weights
-    std::vector<float> const & GetWeights() const {
+    std::vector<FD> const & GetWeights() const {
         return _weights;
     }
 
     /// \brief Returns the stencil at index i in the table
-    Stencil operator[] (Index index) const;
+    StencilG<FD> operator[] (Index index) const;
 
     /// \brief Updates point values based on the control values
     ///
@@ -197,7 +208,7 @@ protected:
 
     // Update values by applying cached stencil weights to new control values
     template <class T> void update( T const *controlValues, T *values,
-        std::vector<float> const & valueWeights, Index start, Index end) const;
+        std::vector<FD> const & valueWeights, Index start, Index end) const;
 
     // Populate the offsets table from the stencil sizes in _sizes (factory helper)
     void generateOffsets();
@@ -215,31 +226,32 @@ protected:
     void finalize();
 
 protected:
-    StencilTable() : _numControlVertices(0) {}
-    StencilTable(int numControlVerts)
+    StencilTableG() : _numControlVertices(0) {}
+    StencilTableG(int numControlVerts)
         : _numControlVertices(numControlVerts) 
     { }
 
-    friend class StencilTableFactory;
-    friend class PatchTableFactory;
+    friend StencilTableFactoryG<FD>;
+    friend PatchTableFactoryG<FD>;
     // XXX: temporarily, GregoryBasis class will go away.
-    friend class GregoryBasis;
+    friend GregoryBasisG<FD>;
     // XXX: needed to call reserve().
-    friend class EndCapBSplineBasisPatchFactory;
-    friend class EndCapGregoryBasisPatchFactory;
+    friend EndCapBSplineBasisPatchFactoryG<FD>;
+    friend EndCapGregoryBasisPatchFactoryG<FD>;
 
     int _numControlVertices;              // number of control vertices
 
     std::vector<int> _sizes;    // number of coeffiecient for each stencil
     std::vector<Index>         _offsets,  // offset to the start of each stencil
                                _indices;  // indices of contributing coarse vertices
-    std::vector<float>         _weights;  // stencil weight coefficients
+    std::vector<FD>         _weights;  // stencil weight coefficients
 };
 
 
 /// \brief Limit point stencil descriptor
 ///
-class LimitStencil : public Stencil {
+template<class FD>
+class LimitStencilG : public StencilG<FD> {
 
 public:
 
@@ -261,15 +273,15 @@ public:
     ///
     /// @param dvvWeights Table pointer to the 'vv' derivative weights
     ///
-    LimitStencil( int* size,
+    LimitStencilG( int* size,
                   Index * indices,
-                  float * weights,
-                  float * duWeights=0,
-                  float * dvWeights=0,
-                  float * duuWeights=0,
-                  float * duvWeights=0,
-                  float * dvvWeights=0)
-        : Stencil(size, indices, weights),
+                  FD * weights,
+                  FD * duWeights=0,
+                  FD * dvWeights=0,
+                  FD * duuWeights=0,
+                  FD * duvWeights=0,
+                  FD * dvvWeights=0)
+        : StencilG<FD>(size, indices, weights),
           _duWeights(duWeights),
           _dvWeights(dvWeights),
           _duuWeights(duuWeights),
@@ -278,36 +290,36 @@ public:
     }
 
     /// \brief Returns the u derivative weights
-    float const * GetDuWeights() const {
+    FD const * GetDuWeights() const {
         return _duWeights;
     }
 
     /// \brief Returns the v derivative weights
-    float const * GetDvWeights() const {
+    FD const * GetDvWeights() const {
         return _dvWeights;
     }
 
     /// \brief Returns the uu derivative weights
-    float const * GetDuuWeights() const {
+    FD const * GetDuuWeights() const {
         return _duuWeights;
     }
 
     /// \brief Returns the uv derivative weights
-    float const * GetDuvWeights() const {
+    FD const * GetDuvWeights() const {
         return _duvWeights;
     }
 
     /// \brief Returns the vv derivative weights
-    float const * GetDvvWeights() const {
+    FD const * GetDvvWeights() const {
         return _dvvWeights;
     }
 
     /// \brief Advance to the next stencil in the table
     void Next() {
-       int stride = *_size;
-       ++_size;
-       _indices += stride;
-       _weights += stride;
+       int stride = *StencilG<FD>::_size;
+       ++StencilG<FD>::_size;
+       StencilG<FD>::_indices += stride;
+       StencilG<FD>::_weights += stride;
        if (_duWeights) _duWeights += stride;
        if (_dvWeights) _dvWeights += stride;
        if (_duuWeights) _duuWeights += stride;
@@ -317,63 +329,64 @@ public:
 
 private:
 
-    friend class StencilTableFactory;
-    friend class LimitStencilTableFactory;
+    friend StencilTableFactoryG<FD>;
+    friend LimitStencilTableFactoryG<FD>;
 
-    float * _duWeights,  // pointer to stencil u derivative limit weights
-          * _dvWeights,  // pointer to stencil v derivative limit weights
-          * _duuWeights, // pointer to stencil uu derivative limit weights
-          * _duvWeights, // pointer to stencil uv derivative limit weights
-          * _dvvWeights; // pointer to stencil vv derivative limit weights
+    FD * _duWeights,  // pointer to stencil u derivative limit weights
+       * _dvWeights,  // pointer to stencil v derivative limit weights
+       * _duuWeights, // pointer to stencil uu derivative limit weights
+       * _duvWeights, // pointer to stencil uv derivative limit weights
+       * _dvvWeights; // pointer to stencil vv derivative limit weights
 };
 
 /// \brief Table of limit subdivision stencils.
 ///
 ///
-class LimitStencilTable : public StencilTable {
-    LimitStencilTable(int numControlVerts,
+template<class FD>
+class LimitStencilTableG : public StencilTableG<FD> {
+    LimitStencilTableG(int numControlVerts,
                     std::vector<int> const& offsets,
                     std::vector<int> const& sizes,
                     std::vector<int> const& sources,
-                    std::vector<float> const& weights,
-                    std::vector<float> const& duWeights,
-                    std::vector<float> const& dvWeights,
-                    std::vector<float> const& duuWeights,
-                    std::vector<float> const& duvWeights,
-                    std::vector<float> const& dvvWeights,
+                    std::vector<FD> const& weights,
+                    std::vector<FD> const& duWeights,
+                    std::vector<FD> const& dvWeights,
+                    std::vector<FD> const& duuWeights,
+                    std::vector<FD> const& duvWeights,
+                    std::vector<FD> const& dvvWeights,
                     bool includeCoarseVerts,
                     size_t firstOffset);
 
 public:
 
     /// \brief Returns a LimitStencil at index i in the table
-    LimitStencil GetLimitStencil(Index i) const;
+    LimitStencilG<FD> GetLimitStencil(Index i) const;
 
     /// \brief Returns the limit stencil at index i in the table
-    LimitStencil operator[] (Index index) const;
+    LimitStencilG<FD> operator[] (Index index) const;
 
     /// \brief Returns the 'u' derivative stencil interpolation weights
-    std::vector<float> const & GetDuWeights() const {
+    std::vector<FD> const & GetDuWeights() const {
         return _duWeights;
     }
 
     /// \brief Returns the 'v' derivative stencil interpolation weights
-    std::vector<float> const & GetDvWeights() const {
+    std::vector<FD> const & GetDvWeights() const {
         return _dvWeights;
     }
 
     /// \brief Returns the 'uu' derivative stencil interpolation weights
-    std::vector<float> const & GetDuuWeights() const {
+    std::vector<FD> const & GetDuuWeights() const {
         return _duuWeights;
     }
 
     /// \brief Returns the 'uv' derivative stencil interpolation weights
-    std::vector<float> const & GetDuvWeights() const {
+    std::vector<FD> const & GetDuvWeights() const {
         return _duvWeights;
     }
 
     /// \brief Returns the 'vv' derivative stencil interpolation weights
-    std::vector<float> const & GetDvvWeights() const {
+    std::vector<FD> const & GetDvvWeights() const {
         return _dvvWeights;
     }
 
@@ -398,8 +411,8 @@ public:
     void UpdateDerivs(T const *controlValues, T *uderivs, T *vderivs,
         int start=-1, int end=-1) const {
 
-        update(controlValues, uderivs, _duWeights, start, end);
-        update(controlValues, vderivs, _dvWeights, start, end);
+        this->update(controlValues, uderivs, _duWeights, start, end);
+        this->update(controlValues, vderivs, _dvWeights, start, end);
     }
 
     /// \brief Updates 2nd derivative values based on the control values
@@ -426,37 +439,44 @@ public:
     void Update2ndDerivs(T const *controlValues, T *uuderivs, T *uvderivs, T *vvderivs,
         int start=-1, int end=-1) const {
 
-        update(controlValues, uuderivs, _duuWeights, start, end);
-        update(controlValues, uvderivs, _duvWeights, start, end);
-        update(controlValues, vvderivs, _dvvWeights, start, end);
+        this->update(controlValues, uuderivs, _duuWeights, start, end);
+        this->update(controlValues, uvderivs, _duvWeights, start, end);
+        this->update(controlValues, vvderivs, _dvvWeights, start, end);
     }
 
     /// \brief Clears the stencils from the table
     void Clear();
 
 private:
-    friend class LimitStencilTableFactory;
+    friend LimitStencilTableFactoryG<FD>;
 
     // Resize the table arrays (factory helper)
     void resize(int nstencils, int nelems);
 
 private:
-    std::vector<float>  _duWeights,   // u  derivative limit stencil weights
+    std::vector<FD>  _duWeights,   // u  derivative limit stencil weights
                         _dvWeights,   // v  derivative limit stencil weights
                         _duuWeights,  // uu derivative limit stencil weights
                         _duvWeights,  // uv derivative limit stencil weights
                         _dvvWeights;  // vv derivative limit stencil weights
+
+    using StencilTableG<FD>::_offsets;
+    using StencilTableG<FD>::_sizes;
+    using StencilTableG<FD>::_indices;
+    using StencilTableG<FD>::_weights;
 };
 
 
 // Update values by appling cached stencil weights to new control values
-template <class T> void
-StencilTable::update(T const *controlValues, T *values,
-    std::vector<float> const &valueWeights, Index start, Index end) const {
+template <class FD>
+template <class T>
+void
+StencilTableG<FD>::update(T const *controlValues, T *values,
+    std::vector<FD> const &valueWeights, Index start, Index end) const {
 
     int const * sizes = &_sizes.at(0);
     Index const * indices = &_indices.at(0);
-    float const * weights = &valueWeights.at(0);
+    FD const * weights = &valueWeights.at(0);
 
     if (start>0) {
         assert(start<(Index)_offsets.size());
@@ -483,8 +503,9 @@ StencilTable::update(T const *controlValues, T *values,
     }
 }
 
+template<class FD>
 inline void
-StencilTable::generateOffsets() {
+StencilTableG<FD>::generateOffsets() {
     Index offset=0;
     int noffsets = (int)_sizes.size();
     _offsets.resize(noffsets);
@@ -494,91 +515,110 @@ StencilTable::generateOffsets() {
     }
 }
 
+template<class FD>
 inline void
-StencilTable::resize(int nstencils, int nelems) {
+StencilTableG<FD>::resize(int nstencils, int nelems) {
     _sizes.resize(nstencils);
     _indices.resize(nelems);
     _weights.resize(nelems);
 }
 
+template<class FD>
 inline void
-StencilTable::reserve(int nstencils, int nelems) {
+StencilTableG<FD>::reserve(int nstencils, int nelems) {
     _sizes.reserve(nstencils);
     _indices.reserve(nelems);
     _weights.reserve(nelems);
 }
 
+template<class FD>
 inline void
-StencilTable::shrinkToFit() {
+StencilTableG<FD>::shrinkToFit() {
     std::vector<int>(_sizes).swap(_sizes);
     std::vector<Index>(_indices).swap(_indices);
-    std::vector<float>(_weights).swap(_weights);
+    std::vector<FD>(_weights).swap(_weights);
 }
 
+template<class FD>
 inline void
-StencilTable::finalize() {
+StencilTableG<FD>::finalize() {
     shrinkToFit();
     generateOffsets();
 }
 
 // Returns a Stencil at index i in the table
-inline Stencil
-StencilTable::GetStencil(Index i) const {
+template<class FD>
+inline StencilG<FD>
+StencilTableG<FD>::GetStencil(Index i) const {
     assert((! _offsets.empty()) && i<(int)_offsets.size());
 
     Index ofs = _offsets[i];
 
-    return Stencil( const_cast<int*>(&_sizes[i]),
+    return StencilG<FD>( const_cast<int*>(&_sizes[i]),
                     const_cast<Index *>(&_indices[ofs]),
-                    const_cast<float *>(&_weights[ofs]) );
+                    const_cast<FD *>(&_weights[ofs]) );
 }
 
-inline Stencil
-StencilTable::operator[] (Index index) const {
+template<class FD>
+inline StencilG<FD>
+StencilTableG<FD>::operator[] (Index index) const {
     return GetStencil(index);
 }
 
+template<class FD>
 inline void
-LimitStencilTable::resize(int nstencils, int nelems) {
-    StencilTable::resize(nstencils, nelems);
+LimitStencilTableG<FD>::resize(int nstencils, int nelems) {
+    StencilTableG<FD>::resize(nstencils, nelems);
     _duWeights.resize(nelems);
     _dvWeights.resize(nelems);
 }
 
 // Returns a LimitStencil at index i in the table
-inline LimitStencil
-LimitStencilTable::GetLimitStencil(Index i) const {
-    assert((! GetOffsets().empty()) && i<(int)GetOffsets().size());
+template<class FD>
+inline LimitStencilG<FD>
+LimitStencilTableG<FD>::GetLimitStencil(Index i) const {
+    assert((! StencilTableG<FD>::GetOffsets().empty()) && i<(int)StencilTableG<FD>::GetOffsets().size());
 
-    Index ofs = GetOffsets()[i];
+    Index ofs = StencilTableG<FD>::GetOffsets()[i];
 
     if (!_duWeights.empty() && !_dvWeights.empty() &&
         !_duuWeights.empty() && !_duvWeights.empty() && !_dvvWeights.empty()) {
-        return LimitStencil( const_cast<int *>(&GetSizes()[i]),
-                             const_cast<Index *>(&GetControlIndices()[ofs]),
-                             const_cast<float *>(&GetWeights()[ofs]),
-                             const_cast<float *>(&GetDuWeights()[ofs]),
-                             const_cast<float *>(&GetDvWeights()[ofs]),
-                             const_cast<float *>(&GetDuuWeights()[ofs]),
-                             const_cast<float *>(&GetDuvWeights()[ofs]),
-                             const_cast<float *>(&GetDvvWeights()[ofs]) );
+        return LimitStencilG<FD>( const_cast<int *>(&StencilTableG<FD>::GetSizes()[i]),
+                             const_cast<Index *>(&StencilTableG<FD>::GetControlIndices()[ofs]),
+                             const_cast<FD *>(&StencilTableG<FD>::GetWeights()[ofs]),
+                             const_cast<FD *>(&GetDuWeights()[ofs]),
+                             const_cast<FD *>(&GetDvWeights()[ofs]),
+                             const_cast<FD *>(&GetDuuWeights()[ofs]),
+                             const_cast<FD *>(&GetDuvWeights()[ofs]),
+                             const_cast<FD *>(&GetDvvWeights()[ofs]) );
     } else if (!_duWeights.empty() && !_dvWeights.empty()) {
-        return LimitStencil( const_cast<int *>(&GetSizes()[i]),
-                             const_cast<Index *>(&GetControlIndices()[ofs]),
-                             const_cast<float *>(&GetWeights()[ofs]),
-                             const_cast<float *>(&GetDuWeights()[ofs]),
-                             const_cast<float *>(&GetDvWeights()[ofs]) );
+        return LimitStencilG<FD>( const_cast<int *>(&StencilTableG<FD>::GetSizes()[i]),
+                             const_cast<Index *>(&StencilTableG<FD>::GetControlIndices()[ofs]),
+                             const_cast<FD *>(&StencilTableG<FD>::GetWeights()[ofs]),
+                             const_cast<FD *>(&GetDuWeights()[ofs]),
+                             const_cast<FD *>(&GetDvWeights()[ofs]) );
     } else {
-        return LimitStencil( const_cast<int *>(&GetSizes()[i]),
-                             const_cast<Index *>(&GetControlIndices()[ofs]),
-                             const_cast<float *>(&GetWeights()[ofs]) );
+        return LimitStencilG<FD>( const_cast<int *>(&StencilTableG<FD>::GetSizes()[i]),
+                             const_cast<Index *>(&StencilTableG<FD>::GetControlIndices()[ofs]),
+                             const_cast<FD *>(&StencilTableG<FD>::GetWeights()[ofs]) );
     }
 }
 
-inline LimitStencil
-LimitStencilTable::operator[] (Index index) const {
+template<class FD>
+inline LimitStencilG<FD>
+LimitStencilTableG<FD>::operator[] (Index index) const {
     return GetLimitStencil(index);
 }
+
+typedef StencilG<float> Stencil;
+typedef LimitStencilG<float> LimitStencil;
+typedef StencilTableG<float> StencilTable;
+typedef LimitStencilTableG<float> LimitStencilTable;
+
+typedef StencilG<double> StencilDbl;
+typedef LimitStencilG<double> LimitStencilDbl;
+typedef StencilTableG<double> StencilTableDbl;
+typedef LimitStencilTableG<double> LimitStencilTableDbl;
 
 
 } // end namespace Far

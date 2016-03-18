@@ -45,17 +45,21 @@ namespace internal {
 // So this interface will be changing in future.
 //
 
-void GetBilinearWeights(PatchParam const & patchParam,
-    float s, float t, float wP[4], float wDs[4], float wDt[4], float wDss[4] = 0, float wDst[4] = 0, float wDtt[4] = 0);
+template<class FD>
+void GetBilinearWeights(PatchParamG<FD> const & patchParam,
+    FD s, FD t, FD wP[4], FD wDs[4], FD wDt[4], FD wDss[4] = 0, FD wDst[4] = 0, FD wDtt[4] = 0);
 
-void GetBezierWeights(PatchParam const & patchParam,
-    float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
+template<class FD>
+void GetBezierWeights(PatchParamG<FD> const & patchParam,
+    FD s, FD t, FD wP[16], FD wDs[16], FD wDt[16], FD wDss[16] = 0, FD wDst[16] = 0, FD wDtt[16] = 0);
 
-void GetBSplineWeights(PatchParam const & patchParam,
-    float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
+template<class FD>
+void GetBSplineWeights(PatchParamG<FD> const & patchParam,
+    FD s, FD t, FD wP[16], FD wDs[16], FD wDt[16], FD wDss[16] = 0, FD wDst[16] = 0, FD wDtt[16] = 0);
 
-void GetGregoryWeights(PatchParam const & patchParam,
-    float s, float t, float wP[20], float wDs[20], float wDt[20], float wDss[20] = 0, float wDst[20] = 0, float wDtt[20] = 0);
+template<class FD>
+void GetGregoryWeights(PatchParamG<FD> const & patchParam,
+    FD s, FD t, FD wP[20], FD wDs[20], FD wDt[20], FD wDss[20] = 0, FD wDst[20] = 0, FD wDtt[20] = 0);
 
 
 } // end namespace internal

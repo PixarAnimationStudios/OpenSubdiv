@@ -40,7 +40,8 @@ class TopologyRefiner;
 
 /// \brief Factory for constructing a PatchTable from a TopologyRefiner
 ///
-class PatchTableFactory {
+template<class FD>
+class PatchTableFactoryG {
 public:
 
     /// \brief Public options for the PatchTable factory
@@ -101,7 +102,7 @@ public:
     ///
     /// @return                     A new instance of PatchTable
     ///
-    static PatchTable * Create(TopologyRefiner const & refiner,
+    static PatchTableG<FD> * Create(TopologyRefiner const & refiner,
                                Options options=Options());
 
 private:
@@ -113,10 +114,10 @@ private:
     //
     //  Methods for allocating and managing the patch table data arrays:
     //
-    static PatchTable * createUniform(TopologyRefiner const & refiner,
+    static PatchTableG<FD> * createUniform(TopologyRefiner const & refiner,
                                       Options options);
 
-    static PatchTable * createAdaptive(TopologyRefiner const & refiner,
+    static PatchTableG<FD> * createAdaptive(TopologyRefiner const & refiner,
                                        Options options);
 
     //
@@ -126,15 +127,15 @@ private:
     static void identifyAdaptivePatches(BuilderContext & context);
 
     static void populateAdaptivePatches(BuilderContext & context,
-                                        PatchTable * table);
+                                        PatchTableG<FD> * table);
 
     static void allocateVertexTables(BuilderContext const & context,
-                                     PatchTable * table);
+                                     PatchTableG<FD> * table);
 
     static void allocateFVarChannels(BuilderContext const & context,
-                                     PatchTable * table);
+                                     PatchTableG<FD> * table);
 
-    static PatchParam computePatchParam(BuilderContext const & context,
+    static PatchParamG<FD> computePatchParam(BuilderContext const & context,
                                         int level, int face,
                                         int boundaryMask, int transitionMask);
 
@@ -165,6 +166,8 @@ public:
     };
     typedef std::vector<PatchFaceTag> PatchTagVector;
 };
+
+typedef PatchTableFactoryG<float> PatchTableFactory;
 
 } // end namespace Far
 

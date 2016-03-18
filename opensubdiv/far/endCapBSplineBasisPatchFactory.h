@@ -42,7 +42,8 @@ class TopologyRefiner;
 ///       will be replaced with SdcSchemeWorker for mask coefficients
 ///       and Vtr::Level for topology traversal.
 ///
-class EndCapBSplineBasisPatchFactory {
+template<class FD>
+class EndCapBSplineBasisPatchFactoryG {
 
 public:
     /// \brief This factory accumulates vertex for bspline basis end cap
@@ -59,9 +60,9 @@ public:
     ///                               patches. It reduces the number of stencils
     ///                               to be used.
     ///
-    EndCapBSplineBasisPatchFactory(TopologyRefiner const & refiner,
-                                   StencilTable * vertexStencils,
-                                   StencilTable * varyingStencils);
+    EndCapBSplineBasisPatchFactoryG(TopologyRefiner const & refiner,
+                                   StencilTableG<FD> * vertexStencils,
+                                   StencilTableG<FD> * varyingStencils);
 
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that end patch points are not included in the vertices in
@@ -96,10 +97,11 @@ private:
     void computeLimitStencils(
         Vtr::internal::Level const *level,
         ConstIndexArray facePoints, int vid, int fvarChannel,
-        GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em);
+        typename GregoryBasisG<FD>::Point *P, typename GregoryBasisG<FD>::Point *Ep,
+        typename GregoryBasisG<FD>::Point *Em);
 
-    StencilTable * _vertexStencils;
-    StencilTable * _varyingStencils;
+    StencilTableG<FD> * _vertexStencils;
+    StencilTableG<FD> * _varyingStencils;
 
     TopologyRefiner const *_refiner;
     int _numVertices;

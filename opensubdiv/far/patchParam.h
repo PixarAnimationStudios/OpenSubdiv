@@ -149,7 +149,8 @@ namespace Far {
  \endverbatim
 */
 
-struct PatchParam {
+template<class FD>
+struct PatchParamG {
     /// \brief Sets the values of the bit fields
     ///
     /// @param faceid face index
@@ -197,7 +198,7 @@ struct PatchParam {
     unsigned short GetDepth() const { return (unsigned short)unpack(field1,4,0); }
 
     /// \brief Returns the fraction of unit parametric space covered by this face.
-    float GetParamFraction() const;
+    FD GetParamFraction() const;
 
     /// \brief A (u,v) pair in the fraction of parametric space covered by this
     /// face is mapped into a normalized parametric space.
@@ -205,7 +206,7 @@ struct PatchParam {
     /// @param u  u parameter
     /// @param v  v parameter
     ///
-    void Normalize( float & u, float & v ) const;
+    void Normalize( FD & u, FD & v ) const;
 
     /// \brief A (u,v) pair in a normalized parametric space is mapped back into the
     /// fraction of parametric space covered by this face.
@@ -231,13 +232,16 @@ private:
     }
 };
 
-typedef std::vector<PatchParam> PatchParamTable;
+typedef PatchParamG<float> PatchParam;
 
-typedef Vtr::Array<PatchParam> PatchParamArray;
-typedef Vtr::ConstArray<PatchParam> ConstPatchParamArray;
+typedef std::vector<PatchParamG<float> > PatchParamTable;
 
+typedef Vtr::Array<PatchParamG<float> > PatchParamArray;
+typedef Vtr::ConstArray<PatchParamG<float> > ConstPatchParamArray;
+
+template<class FD>
 inline void
-PatchParam::Set(Index faceid, short u, short v,
+PatchParamG<FD>::Set(Index faceid, short u, short v,
                 unsigned short depth, bool nonquad,
                 unsigned short boundary, unsigned short transition,
                 bool regular) {
@@ -252,29 +256,32 @@ PatchParam::Set(Index faceid, short u, short v,
              pack(depth,      4,  0);
 }
 
-inline float
-PatchParam::GetParamFraction( ) const {
+template<class FD>
+inline FD
+PatchParamG<FD>::GetParamFraction( ) const {
     if (NonQuadRoot()) {
-        return 1.0f / float( 1 << (GetDepth()-1) );
+        return 1.0 / FD( 1 << (GetDepth()-1) );
     } else {
-        return 1.0f / float( 1 << GetDepth() );
+        return 1.0 / FD( 1 << GetDepth() );
     }
 }
 
+template<class FD>
 inline void
-PatchParam::Normalize( float & u, float & v ) const {
+PatchParamG<FD>::Normalize( FD & u, FD & v ) const {
 
-    float frac = GetParamFraction();
+    FD frac = GetParamFraction();
 
-    float pu = (float)GetU()*frac;
-    float pv = (float)GetV()*frac;
+    FD pu = (FD)GetU()*frac;
+    FD pv = (FD)GetV()*frac;
 
     u = (u - pu) / frac,
     v = (v - pv) / frac;
 }
 
+template<class FD>
 inline void
-PatchParam::Unnormalize( float & u, float & v ) const {
+PatchParamG<FD>::Unnormalize( float & u, float & v ) const {
 
     float frac = GetParamFraction();
 

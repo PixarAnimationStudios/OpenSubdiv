@@ -90,10 +90,13 @@ struct PatchArray {
     int primitiveIdBase;  // an offset within the patch param buffer
 };
 
-struct PatchParam : public Far::PatchParam {
+template<class FD>
+struct PatchParamG : public Far::PatchParamG<FD> {
     // int3 struct.
     float sharpness;
 };
+
+typedef PatchParamG<float> PatchParam;
 
 typedef std::vector<PatchArray> PatchArrayVector;
 typedef std::vector<PatchParam> PatchParamVector;
