@@ -114,7 +114,7 @@ float4 PtexLookupNearest(float4 patchCoord,
                          Texture2DArray data,
                          Buffer<uint> packings)
 {
-    float2 uv = patchCoord.xy;
+    float2 uv = clamp(patchCoord.xy, float2(0,0), float2(1,1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID);
     float2 coords = float2(uv.x * ppack.width + ppack.uOffset,
@@ -127,7 +127,7 @@ float4 PtexLookupNearest(float4 patchCoord,
                          Texture2DArray data,
                          Buffer<uint> packings)
 {
-    float2 uv = patchCoord.xy;
+    float2 uv = clamp(patchCoord.xy, float2(0,0), float2(1,1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
     float2 coords = float2(uv.x * ppack.width + ppack.uOffset,
@@ -140,7 +140,7 @@ float4 PtexLookup(float4 patchCoord,
                   Texture2DArray data,
                   Buffer<uint> packings)
 {
-    float2 uv = patchCoord.xy;
+    float2 uv = clamp(patchCoord.xy, float2(0,0), float2(1,1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
@@ -174,7 +174,7 @@ float4 PtexLookupQuadratic(out float4 du,
                            Texture2DArray data,
                            Buffer<uint> packings)
 {
-    float2 uv = patchCoord.xy;
+    float2 uv = clamp(patchCoord.xy, float2(0,0), float2(1,1));
     int faceID = int(patchCoord.w);
     PtexPacking ppack = getPtexPacking(packings, faceID, level);
 
