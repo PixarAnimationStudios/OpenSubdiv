@@ -31,6 +31,15 @@
 
 ----
 
+Release 3.0.5
+=============
+
+Release 3.0.5 is a minor stability release with performance and correctness bug fixes.
+
+**Bug Fixes**
+    - The previous release reduced transient memory use during PatchTable construction, but increased the amount of memory consumed by the resulting PatchTable itself, this regression has been fixed.
+    - The example Ptex texture sampling code has been fixed to prevent sampling beyond the texels for a face when multisample rasterization is enabled.
+
 Release 3.0.4
 =============
 
