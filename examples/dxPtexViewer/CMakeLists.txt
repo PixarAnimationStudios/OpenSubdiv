@@ -26,12 +26,14 @@
 
 set(SHADER_FILES
      shader.hlsl
+     skyshader.hlsl
 )
 
 set(PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
     "${DXSDK_LIBRARIES}"
     "${PTEX_LIBRARY}"
+    "${ZLIB_LIBRARY}"
 )
 
 include_directories(
@@ -55,6 +57,7 @@ endif()
 
 set(SOURCE_FILES
     dxPtexViewer.cpp
+    sky.cpp
 )
 
 _stringify("${SHADER_FILES}" INC_FILES)
