@@ -454,15 +454,15 @@ public:
 
     void EnableVertexAttributes( ) {
 
-        long int offset = 0;
+        GLvoid * offset = 0;
         for (AttrList::iterator i=_attrs.begin(); i!=_attrs.end(); ++i) {
 
             glEnableVertexAttribArray( i->location );
 
             glVertexAttribPointer( i->location, i->size,
-                GL_FLOAT, GL_FALSE, sizeof(GLfloat) * _attrStride, (void*)offset);
+                GL_FLOAT, GL_FALSE, sizeof(GLfloat) * _attrStride, (GLvoid*)offset);
 
-            offset += sizeof(GLfloat) * i->size;
+            offset = (GLubyte*)offset + sizeof(GLfloat) * i->size;
         }
     }
     GLuint GetUniformScale() const {
@@ -645,6 +645,8 @@ linkDefaultPrograms() {
         g_samplesProgram.SetFragShaderSource(fsSrc);
 
         g_samplesProgram.AddAttribute( "position",3 );
+        g_samplesProgram.AddAttribute( "uTangent",3 );
+        g_samplesProgram.AddAttribute( "vTangent",3 );
     }
 
     return true;

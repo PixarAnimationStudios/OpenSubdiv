@@ -1879,8 +1879,8 @@ int main(int argc, char ** argv) {
                       10, 30, callbackCheckBox, HUD_CB_ANIMATE_VERTICES, 'm');
     g_hud.AddCheckBox("Screen space LOD (V)",  g_screenSpaceTess,
                       10, 50, callbackCheckBox, HUD_CB_VIEW_LOD, 'v');
-    //g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
-    //                  10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
+    g_hud.AddCheckBox("Fractional spacing (T)",  g_fractionalSpacing,
+                      10, 70, callbackCheckBox, HUD_CB_FRACTIONAL_SPACING, 't');
     g_hud.AddCheckBox("Frustum Patch Culling (B)",  g_patchCull,
                       10, 90, callbackCheckBox, HUD_CB_PATCH_CULL, 'b');
     g_hud.AddCheckBox("Bloom (Y)", g_bloom,

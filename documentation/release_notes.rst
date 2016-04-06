@@ -31,6 +31,34 @@
 
 ----
 
+Release 3.0.5
+=============
+
+Release 3.0.5 is a minor stability release with performance and correctness bug fixes.
+
+**Bug Fixes**
+    - The previous release reduced transient memory use during PatchTable construction, but increased the amount of memory consumed by the resulting PatchTable itself, this regression has been fixed.
+    - The example Ptex texture sampling code has been fixed to prevent sampling beyond the texels for a face when multisample rasterization is enabled.
+
+Release 3.0.4
+=============
+
+Release 3.0.4 is a minor stability release which includes important performance
+and bug fixes.
+
+**New Features**
+    - Added accessor methods to Far::LimitStencilTable to retrieve limit stencil data including derivative weights
+    - Added support for OpenCL event control to Osd::CLVertexBuffer and Osd::CLEvaluator
+
+**Changes**
+    - Major reduction in memory use during Far::PatchTable construction for topologies with large numbers of extraordinary features
+    - Improved performance for GL and D3D11 tessellation control / hull shader execution when drawing BSpline patches with the single crease patch optimization enabled
+
+**Bug Fixes**
+    - Restored support for drawing with fractional tessellation
+    - Fixed far_tutorial_6 to refine primvar data only up to the number of levels produced by topological refinement
+    - Fixed build warnings and errors reported by Visual Studio 2015
+
 Release 3.0.3
 =============
 

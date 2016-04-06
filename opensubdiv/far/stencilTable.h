@@ -205,6 +205,15 @@ protected:
     // Resize the table arrays (factory helper)
     void resize(int nstencils, int nelems);
 
+    // Reserves the table arrays (factory helper)
+    void reserve(int nstencils, int nelems);
+
+    // Reallocates the table arrays to remove excess capacity (factory helper)
+    void shrinkToFit();
+
+    // Performs any final operations on internal tables (factory helper)
+    void finalize();
+
 protected:
     StencilTable() : _numControlVertices(0) {}
     StencilTable(int numControlVerts)
@@ -212,8 +221,12 @@ protected:
     { }
 
     friend class StencilTableFactory;
+    friend class PatchTableFactory;
     // XXX: temporarily, GregoryBasis class will go away.
     friend class GregoryBasis;
+    // XXX: needed to call reserve().
+    friend class EndCapBSplineBasisPatchFactory;
+    friend class EndCapGregoryBasisPatchFactory;
 
     int _numControlVertices;              // number of control vertices
 
@@ -296,6 +309,12 @@ class LimitStencilTable : public StencilTable {
                     size_t firstOffset);
 
 public:
+
+    /// \brief Returns a LimitStencil at index i in the table
+    LimitStencil GetLimitStencil(Index i) const;
+
+    /// \brief Returns the limit stencil at index i in the table
+    LimitStencil operator[] (Index index) const;
 
     /// \brief Returns the 'u' derivative stencil interpolation weights
     std::vector<float> const & GetDuWeights() const {
@@ -399,6 +418,26 @@ StencilTable::resize(int nstencils, int nelems) {
     _weights.resize(nelems);
 }
 
+inline void
+StencilTable::reserve(int nstencils, int nelems) {
+    _sizes.reserve(nstencils);
+    _indices.reserve(nelems);
+    _weights.reserve(nelems);
+}
+
+inline void
+StencilTable::shrinkToFit() {
+    std::vector<int>(_sizes).swap(_sizes);
+    std::vector<Index>(_indices).swap(_indices);
+    std::vector<float>(_weights).swap(_weights);
+}
+
+inline void
+StencilTable::finalize() {
+    shrinkToFit();
+    generateOffsets();
+}
+
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTable::GetStencil(Index i) const {
@@ -421,6 +460,25 @@ LimitStencilTable::resize(int nstencils, int nelems) {
     StencilTable::resize(nstencils, nelems);
     _duWeights.resize(nelems);
     _dvWeights.resize(nelems);
+}
+
+// Returns a LimitStencil at index i in the table
+inline LimitStencil
+LimitStencilTable::GetLimitStencil(Index i) const {
+    assert((not GetOffsets().empty()) and i<(int)GetOffsets().size());
+
+    Index ofs = GetOffsets()[i];
+
+    return LimitStencil( const_cast<int *>(&GetSizes()[i]),
+                         const_cast<Index *>(&GetControlIndices()[ofs]),
+                         const_cast<float *>(&GetWeights()[ofs]),
+                         const_cast<float *>(&GetDuWeights()[ofs]),
+                         const_cast<float *>(&GetDvWeights()[ofs]) );
+}
+
+inline LimitStencil
+LimitStencilTable::operator[] (Index index) const {
+    return GetLimitStencil(index);
 }
 
 
