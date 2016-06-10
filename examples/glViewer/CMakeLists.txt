@@ -53,7 +53,7 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_glfw_executable(glViewer
+_add_glfw_executable(glViewer "examples"
     glViewer.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"

@@ -317,6 +317,11 @@ add_library(osd_cpu_obj
         ${PUBLIC_HEADER_FILES}
 )
 
+set_target_properties(osd_cpu_obj
+    PROPERTIES
+        FOLDER "opensubdiv"
+)
+
 if( GPU_SOURCE_FILES ) 
     add_library(osd_gpu_obj
         OBJECT
@@ -325,6 +330,12 @@ if( GPU_SOURCE_FILES )
             ${PUBLIC_HEADER_FILES}
             ${INC_FILES}
     )
+
+    set_target_properties(osd_gpu_obj
+        PROPERTIES
+            FOLDER "opensubdiv"
+    )
+    
 endif()
 
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )
