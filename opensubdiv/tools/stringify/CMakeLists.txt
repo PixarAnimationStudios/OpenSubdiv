@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-_add_executable(stringify
+_add_executable(stringify "opensubdiv/tools"
     main.cpp
 )
 

@@ -84,6 +84,11 @@ if (NOT NO_LIB)
             ${PUBLIC_HEADER_FILES}
     )
 
+    set_target_properties(far_obj
+        PROPERTIES
+            FOLDER "opensubdiv"
+    )
+
 endif()
 
 #-------------------------------------------------------------------------------

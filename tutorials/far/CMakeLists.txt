@@ -45,3 +45,8 @@ foreach(tutorial ${TUTORIALS})
 endforeach()
 
 add_custom_target(far_tutorials DEPENDS ${TUTORIAL_TARGETS})
+
+set_target_properties(far_tutorials
+    PROPERTIES 
+        FOLDER "tutorials/far"
+)

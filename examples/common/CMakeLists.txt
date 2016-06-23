@@ -171,3 +171,11 @@ add_library(examples_common_obj
         ${EXAMPLES_COMMON_HEADER_FILES}
         ${INC_FILES}
 )
+
+set_target_properties(examples_common_obj
+    PROPERTIES
+        FOLDER "examples"
+)
+
+
+

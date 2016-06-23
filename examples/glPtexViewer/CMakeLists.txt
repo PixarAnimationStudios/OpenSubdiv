@@ -60,7 +60,7 @@ _stringify("${SHADER_FILES}" INC_FILES)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 #-------------------------------------------------------------------------------
-_add_glfw_executable(glPtexViewer
+_add_glfw_executable(glPtexViewer "examples"
     glPtexViewer.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"
