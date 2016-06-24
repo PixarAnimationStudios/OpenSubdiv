@@ -99,8 +99,8 @@ struct xyzVV {
     const float * GetPos() const { return _pos; }
 
     bool operator==(xyzVV const & other) const {
-        if (_pos[0]==other._pos[0] and
-            _pos[1]==other._pos[1] and
+        if (_pos[0]==other._pos[0] &&
+            _pos[1]==other._pos[1] &&
             _pos[2]==other._pos[2]) {
             return true;
         }
@@ -175,7 +175,7 @@ compareVertexData(std::vector<xyzVV> const& farVertexData, std::vector<xyzVV> co
 
         float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
         if ( dist > PRECISION ) {
-            if (not g_debugmode)
+            if (! g_debugmode)
                 printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
                        " (%.10f %.10f %.10f)\n", i, dist, hbrVert.GetPos()[0],
                                                           hbrVert.GetPos()[1],
@@ -194,7 +194,7 @@ compareVertexData(std::vector<xyzVV> const& farVertexData, std::vector<xyzVV> co
     if (deltaCnt[2])
         deltaAvg[2]/=deltaCnt[2];
 
-    if (not g_debugmode) {
+    if (! g_debugmode) {
         printf("  delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt[0], nverts,
                                                         (int)deltaCnt[1], nverts,
                                                         (int)deltaCnt[2], nverts );

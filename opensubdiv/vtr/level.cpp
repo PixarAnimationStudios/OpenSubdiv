@@ -1305,7 +1305,7 @@ Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) co
             }
         }
         // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
-        if (!isSharpnessEqual(sharpnesses[0], sharpnesses[2]) or
+        if (!isSharpnessEqual(sharpnesses[0], sharpnesses[2]) ||
             !isSharpnessEqual(sharpnesses[1], sharpnesses[3])) {
             return false;
         }

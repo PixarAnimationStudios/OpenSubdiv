@@ -151,7 +151,7 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
     if (faceid>=(int)_quadtree.size())
         return NULL;
 
-    assert( (u>=0.0f) and (u<=1.0f) and (v>=0.0f) and (v<=1.0f) );
+    assert( (u>=0.0f) && (u<=1.0f) && (v>=0.0f) && (v<=1.0f) );
 
     QuadNode const * node = &_quadtree[faceid];
 
@@ -166,7 +166,7 @@ PatchMap::FindPatch( int faceid, float u, float v ) const {
         assert(quadrant>=0);
 
         // is the quadrant a hole ?
-        if (not node->children[quadrant].isSet)
+        if (! node->children[quadrant].isSet)
             return 0;
 
         if (node->children[quadrant].isLeaf) {
