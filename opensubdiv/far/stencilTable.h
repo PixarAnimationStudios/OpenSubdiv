@@ -208,6 +208,12 @@ protected:
     // Reserves the table arrays (factory helper)
     void reserve(int nstencils, int nelems);
 
+    // Reallocates the table arrays to remove excess capacity (factory helper)
+    void shrinkToFit();
+
+    // Performs any final operations on internal tables (factory helper)
+    void finalize();
+
 protected:
     StencilTable() : _numControlVertices(0) {}
     StencilTable(int numControlVerts)
@@ -417,6 +423,19 @@ StencilTable::reserve(int nstencils, int nelems) {
     _sizes.reserve(nstencils);
     _indices.reserve(nelems);
     _weights.reserve(nelems);
+}
+
+inline void
+StencilTable::shrinkToFit() {
+    std::vector<int>(_sizes).swap(_sizes);
+    std::vector<Index>(_indices).swap(_indices);
+    std::vector<float>(_weights).swap(_weights);
+}
+
+inline void
+StencilTable::finalize() {
+    shrinkToFit();
+    generateOffsets();
 }
 
 // Returns a Stencil at index i in the table

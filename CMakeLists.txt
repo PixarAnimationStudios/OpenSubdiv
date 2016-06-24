@@ -26,6 +26,9 @@ project(OpenSubdiv)
 
 cmake_minimum_required(VERSION 2.8.6)
 
+# Turn on folder support
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
 if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
@@ -350,6 +353,7 @@ if(NOT NO_OPENGL AND NOT ANDROID AND NOT IOS)
 endif()
 if(NOT NO_PTEX)
    find_package(PTex 2.0)
+   find_package(Zlib 1.2)
 endif()
 if (OPENGL_FOUND AND NOT IOS)
     add_definitions(
@@ -525,6 +529,7 @@ endif()
 if(PTEX_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_PTEX
+        -DPTEX_STATIC
     )
 else()
     if(NOT NO_PTEX)
@@ -598,8 +603,6 @@ endif()
 
 # Macro for processing public headers into the build area for doxygen processing
 
-#set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
 add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
@@ -627,7 +630,6 @@ macro(_add_doxy_headers headers)
 
             add_custom_target(${targetname} DEPENDS "${outfile}")
 
-            #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
 
             list(APPEND headerfiles ${targetname} )
         endforeach()
@@ -667,9 +669,11 @@ function(_stringify src_files varname)
 endfunction()
 
 # Macro wrapper for adding a non-cuda dependent executable
-macro(_add_executable target)
+macro(_add_executable target folder)
 
     add_executable(${target} ${ARGN})
+
+    set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
     if(CMAKE_COMPILER_IS_ICC)
         target_link_libraries(${target} ${ICC_LIBRARIES})
@@ -679,12 +683,14 @@ endmacro()
 
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
-macro(_add_possibly_cuda_executable target)
+macro(_add_possibly_cuda_executable target folder)
     if(CUDA_FOUND)
         cuda_add_executable(${target} ${ARGN})
     else()
         add_executable(${target} ${ARGN})
     endif()
+
+    set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
     if(CMAKE_COMPILER_IS_ICC)
         target_link_libraries(${target} ${ICC_LIBRARIES})
@@ -694,19 +700,20 @@ endmacro()
 
 # Macro for adding a cuda library if cuda is found and a regular
 # library otherwise.
-macro(_add_possibly_cuda_library target)
+macro(_add_possibly_cuda_library target folder)
     if(CUDA_FOUND)
         cuda_add_library(${target} ${ARGN})
     else()
         add_library(${target} ${ARGN})
     endif()
+    set_target_properties(${target} PROPERTIES FOLDER ${folder})
 endmacro()
 
 
 # Macro for adding a (potentially cuda) GLFW executable.
-macro(_add_glfw_executable target)
+macro(_add_glfw_executable target folder)
 
-    _add_possibly_cuda_executable(${target} ${ARGN})
+    _add_possibly_cuda_executable(${target} ${folder} ${ARGN})
 
 #
 # manuelk : commenting this out as it seems to be causing more problems than 

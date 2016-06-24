@@ -54,7 +54,7 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_glfw_executable(farViewer
+_add_glfw_executable(farViewer "examples"
     farViewer.cpp
     gl_fontutils.cpp
     gl_mesh.cpp

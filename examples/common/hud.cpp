@@ -528,7 +528,7 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
             x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_MIDDLE);
         }
         drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_RIGHT);
-        int pos = (int)((it->value/float(it->max-it->min))*it->w);
+        int pos = int(((it->value-it->min)/(it->max-it->min))*float(it->w));
         drawChar(_staticVboSource, sx+pos, y, 1, 1, 0, FONT_SLIDER_CURSOR);
     }
     // draw pulldowns

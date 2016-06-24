@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2013 Nvidia
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,18 +22,44 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_VERSION_H
-#define OPENSUBDIV3_VERSION_H
+#include <D3D11.h>
+#include <D3Dcompiler.h>
 
-#define OPENSUBDIV_VERSION v3_0_5
+//
+// Draws an environment sphere centered on the camera w/ a texture
+//
+class Sky {
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
+public:
 
+    // Constructor (Sky does not own the texture asset)
+    Sky(ID3D11Device * device, ID3D11Texture2D * environmentMap);
 
-} // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
+    ~Sky();
 
-} // end namespace OpenSubdiv
+    void Draw(ID3D11DeviceContext * deviceContext, float const mvp[16]);
 
-#endif /* OPENSUBDIV3_VERSION_H */
+private:
+
+    void initialize(ID3D11Device * device);
+
+private:
+
+    int numIndices;
+
+    ID3D11VertexShader * vertexShader;
+    ID3D11PixelShader * pixelShader;
+    ID3D11Buffer * shaderConstants;
+
+    ID3D11InputLayout * inputLayout;
+    ID3D11RasterizerState * rasterizerState;
+    ID3D11DepthStencilState * depthStencilState;
+
+    ID3D11Texture2D * texture;
+    ID3D11ShaderResourceView * textureSRV;
+    ID3D11SamplerState * textureSS;
+
+    ID3D11Buffer * sphere;
+    ID3D11Buffer * sphereIndices;
+};
+

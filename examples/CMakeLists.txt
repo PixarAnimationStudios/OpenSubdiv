@@ -39,7 +39,7 @@ if (NOT NO_OPENGL)
             add_subdirectory(glPaintTest)
         endif()
 
-        if (PTEX_FOUND)
+        if (PTEX_FOUND AND ZLIB_FOUND)
             add_subdirectory(glPtexViewer)
         endif()
 
@@ -73,7 +73,7 @@ if (DXSDK_FOUND AND NOT NO_DX)
 
    add_subdirectory(dxViewer)
 
-   if (PTEX_FOUND)
+   if (PTEX_FOUND AND ZLIB_FOUND)
        add_subdirectory(dxPtexViewer)
    endif()
 

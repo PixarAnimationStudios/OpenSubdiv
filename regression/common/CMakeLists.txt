@@ -41,9 +41,19 @@ add_library(regression_common_obj
         ${REGRESSION_COMMON_HEADER_FILES}
 )
 
+set_target_properties(regression_common_obj
+    PROPERTIES
+        FOLDER "regression"
+)
+
 add_library(regression_far_utils_obj
     OBJECT
         far_utils.cpp
         far_utils.h
+)
+
+set_target_properties(regression_far_utils_obj
+    PROPERTIES
+        FOLDER "regression"
 )
 

@@ -24,7 +24,6 @@
 
 #include "ptexMipmapTextureLoader.h"
 
-#include <Ptexture.h>
 #include <vector>
 #include <list>
 #include <algorithm>
@@ -447,10 +446,11 @@ PtexMipmapTextureLoader::PtexMipmapTextureLoader(PtexTexture *ptex,
                                                        int maxNumPages,
                                                        int maxLevels,
                                                        size_t targetMemory,
-                                                       bool seamlessMipmap) :
+                                                       bool seamlessMipmap,
+                                                       bool padAlpha) :
     _ptex(ptex), _maxLevels(maxLevels), _bpp(0),
-    _pageWidth(0), _pageHeight(0), _texelBuffer(NULL), _layoutBuffer(NULL),
-    _memoryUsage(0)
+    _pageWidth(0), _pageHeight(0), _padAlpha(padAlpha),
+    _texelBuffer(NULL), _layoutBuffer(NULL), _memoryUsage(0)
 {
     // byte per pixel
     _bpp = ptex->numChannels() * Ptex::DataSize(ptex->dataType());
@@ -474,6 +474,10 @@ PtexMipmapTextureLoader::PtexMipmapTextureLoader(PtexTexture *ptex,
 
     optimizePacking(maxNumPages, targetMemory);
     generateBuffers();
+    
+    if (padAlpha) {
+        addAlphaChannel();
+    }
 }
 
 PtexMipmapTextureLoader::~PtexMipmapTextureLoader()
@@ -483,6 +487,48 @@ PtexMipmapTextureLoader::~PtexMipmapTextureLoader()
     }
     delete _texelBuffer;
     delete _layoutBuffer;
+}
+
+// add alpha channel to texelbuffer :
+//   assumes the texel buffer has been generated and apply a raw copy
+//   into a larger buffer with an alpha channel padded in
+// note : this is not a particularly elegant solution...
+void
+PtexMipmapTextureLoader::addAlphaChannel() {
+
+    assert(_ptex);
+
+    // allocate new larger texel buffer
+    int bpc = Ptex::DataSize(_ptex->dataType()),
+        srcStride = _ptex->numChannels() * bpc,
+        dstStride = srcStride + bpc;
+
+    size_t numTexels = _pageWidth * _pageHeight * _pages.size(),
+           memoryUsed = dstStride * numTexels;
+
+    unsigned char * texBuffer = new unsigned char[memoryUsed];
+
+    // loop over every texel & copy + pad
+    unsigned char const * src = _texelBuffer;
+    unsigned char * dest = texBuffer;
+
+    for (int i=0; i<numTexels; ++i, src+=srcStride, dest+=dstStride) {
+        memcpy(dest, src, srcStride);
+
+        /// set alpha to 1
+        switch (_ptex->dataType()) {
+            case Ptex::dt_uint8  : *(uint8_t *)(dest+srcStride)= 0xFF; break;
+            case Ptex::dt_uint16 : *(uint16_t *)(dest+srcStride) = 0xFFFF; break;
+            case Ptex::dt_half   : *(uint16_t *)(dest+srcStride) = 0x3C00; break;
+            case Ptex::dt_float  : *(float *)(dest+srcStride) = 1.0f; break;
+        }
+    }
+
+    // remove old buffer & adjust class members
+    delete [] _texelBuffer;
+    _texelBuffer = texBuffer;
+    _memoryUsage = memoryUsed;
+    _bpp = dstStride;
 }
 
 // resample border texels for guttering

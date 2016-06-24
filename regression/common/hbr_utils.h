@@ -578,61 +578,74 @@ createFaceVaryingUV( Shape const * sh, OpenSubdiv::HbrMesh<T> * mesh) {
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-simpleHbr(char const * Shapestr, Scheme scheme, std::vector<float> * verts=0, bool fvar=false) {
-
-    Shape * sh = Shape::parseObj( Shapestr, scheme );
+simpleHbr(Shape const * sh, std::vector<float> * verts=0, bool fvar=false) {
 
     int fvarwidth = fvar && sh->HasUV() ? 2 : 0;
 
-    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
+    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(sh->scheme, fvarwidth);
 
     createVerticesWithPositions<T>(sh, mesh);
 
-    createTopology<T>(sh, mesh, scheme);
+    createTopology<T>(sh, mesh, sh->scheme);
 
     if (fvar)
         createFaceVaryingUV<T>(sh, mesh);
 
     if (verts)
-        copyVertexPositions<T>(sh,mesh,*verts);
+        copyVertexPositions<T>(sh, mesh, *verts);
+
+    return mesh;
+}
+
+template <class T> OpenSubdiv::HbrMesh<T> *
+simpleHbr(char const * Shapestr, Scheme scheme, std::vector<float> * verts=0, bool fvar=false) {
+
+    Shape const * sh = Shape::parseObj( Shapestr, scheme );
+
+    OpenSubdiv::HbrMesh<T> * mesh = simpleHbr<T>(sh, verts, fvar);
 
     delete sh;
-
     return mesh;
 }
 
 //------------------------------------------------------------------------------
 template <class T> OpenSubdiv::HbrMesh<T> *
-simpleHbr(char const * Shapestr, Scheme scheme, std::vector<float> & verts, bool fvar=false) {
-
-    Shape * sh = Shape::parseObj( Shapestr, scheme );
+simpleHbr(Shape const * sh, std::vector<float> & verts, bool fvar=false) {
 
     int fvarwidth = fvar && sh->HasUV() ? 2 : 0;
 
-    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(scheme, fvarwidth);
+    OpenSubdiv::HbrMesh<T> * mesh = createMesh<T>(sh->scheme, fvarwidth);
 
     createVertices<T>(sh, mesh);
 
-    createTopology<T>(sh, mesh, scheme);
+    createTopology<T>(sh, mesh, sh->scheme);
 
     if (fvar)
         createFaceVaryingUV<T>(sh, mesh);
 
-    copyVertexPositions<T>(sh,mesh,verts);
+    copyVertexPositions<T>(sh, mesh, verts);
+
+    return mesh;
+}
+
+template <class T> OpenSubdiv::HbrMesh<T> *
+simpleHbr(char const * Shapestr, Scheme scheme, std::vector<float> & verts, bool fvar=false) {
+
+    Shape const * sh = Shape::parseObj( Shapestr, scheme );
+
+    OpenSubdiv::HbrMesh<T> *mesh = simpleHbr<T>(sh, verts, fvar);
 
     delete sh;
-
     return mesh;
 }
 
 //------------------------------------------------------------------------------
 template <class T>
 OpenSubdiv::HbrMesh<T> *
-interpolateHbrVertexData(char const * Shapestr, Scheme scheme, int maxlevel) {
+interpolateHbrVertexData(Shape const * sh, int maxlevel) {
 
     // Hbr interpolation
-    OpenSubdiv::HbrMesh<T> *hmesh = simpleHbr<T>(Shapestr, scheme,
-            /* verts vector */ 0, /* fvar */ false);
+    OpenSubdiv::HbrMesh<T> *hmesh = simpleHbr<T>(sh, /* verts vector */ 0, /* fvar */ false);
     assert(hmesh);
 
     for (int level=0, firstface=0; level<maxlevel; ++level ) {
@@ -649,9 +662,19 @@ interpolateHbrVertexData(char const * Shapestr, Scheme scheme, int maxlevel) {
         // refined.
         firstface = nfaces;
     }
-
     return hmesh;
+}
 
+template <class T>
+OpenSubdiv::HbrMesh<T> *
+interpolateHbrVertexData(char const * Shapestr, Scheme scheme, int maxlevel) {
+
+    Shape const * sh = Shape::parseObj( Shapestr, scheme );
+
+    OpenSubdiv::HbrMesh<T> *mesh = interpolateHbrVertexData<T>(sh, maxlevel);
+
+    delete sh;
+    return mesh;
 }
 
 //------------------------------------------------------------------------------

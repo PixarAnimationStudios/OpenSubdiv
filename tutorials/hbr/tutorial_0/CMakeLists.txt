@@ -26,7 +26,7 @@ set(SOURCE_FILES
     hbr_tutorial_0.cpp
 )
 
-_add_executable(hbr_tutorial_0
+_add_executable(hbr_tutorial_0 "tutorials/hbr"
     ${SOURCE_FILES}
 )
 

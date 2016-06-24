@@ -1304,14 +1304,14 @@ PatchTableFactory::populateAdaptivePatches(
 
     // finalize end patches
     if (localPointStencils && localPointStencils->GetNumStencils() > 0) {
-        localPointStencils->generateOffsets();
+        localPointStencils->finalize();
     } else {
         delete localPointStencils;
         localPointStencils = NULL;
     }
 
     if (localPointVaryingStencils && localPointVaryingStencils->GetNumStencils() > 0) {
-        localPointVaryingStencils->generateOffsets();
+        localPointVaryingStencils->finalize();
     } else {
         delete localPointVaryingStencils;
         localPointVaryingStencils = NULL;

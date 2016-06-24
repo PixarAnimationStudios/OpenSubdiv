@@ -85,6 +85,8 @@ if (WIN32)
         set(WINPATH "${WINPATH}/vc11")
     elseif (MSVC12)
         set(WINPATH "${WINPATH}/vc12")
+    elseif (MSVC14)
+        set(WINPATH "${WINPATH}/vc14")
     endif()
 
     list(APPEND TBB_LIB_ARCH ${WINPATH})
