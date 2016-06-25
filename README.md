@@ -65,7 +65,7 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
    ${GLEW_LOCATION}/lib/libGLEW.a (linux)
    ${GLEW_LOCATION}/lib/glew32.lib (windows)
 
-   ${GLFW_LOCATION}/include/glfw3.h
+   ${GLFW_LOCATION}/include/GLFW/glfw3.h
    ${GLFW_LOCATION}/lib/libglfw3.a (linux)
    ${GLFW_LOCATION}/lib/glfw3.lib (windows)
 ```

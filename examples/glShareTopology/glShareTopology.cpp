@@ -786,7 +786,7 @@ motion(GLFWwindow *, double dx, double dy) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -928,7 +928,7 @@ rebuildTopology() {
             g_defaultShapes[i].scheme,
             g_defaultShapes[i].isLeftHanded);
 
-        bool varying = (g_displayStyle==kVarying or g_displayStyle==kVaryingInterleaved);
+        bool varying = (g_displayStyle==kVarying || g_displayStyle==kVaryingInterleaved);
         g_scene->AddTopology(shape, g_level, varying);
 
         delete shape;
@@ -1143,7 +1143,7 @@ initGL() {
 //------------------------------------------------------------------------------
 static void
 idle() {
-    if (not g_freeze) {
+    if (! g_freeze) {
         ++g_frame;
         updateGeom();
         refine();
@@ -1175,7 +1175,7 @@ int main(int argc, char ** argv) {
     Far::SetErrorCallback(callbackError);
 
     glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -1184,7 +1184,7 @@ int main(int argc, char ** argv) {
 
     GLUtils::SetMinimumGLVersion();
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle, NULL, NULL))) {
+    if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle, NULL, NULL))) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
