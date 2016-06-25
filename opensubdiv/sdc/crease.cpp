@@ -168,7 +168,7 @@ Crease::SubdivideEdgeSharpnessesAroundVertex(int          edgeCount,
         //
         if (sharpCount == 0) {
             for (int i = 0; i < edgeCount; ++i) {
-                childSharpness[i] = Crease::SHARPNESS_SMOOTH;
+                childSharpness[i] = parentSharpness[i];
             }
         } else {
             for (int i = 0; i < edgeCount; ++i) {

@@ -360,7 +360,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         considerFVarChannels = false;
 
         for (int channel = 0; channel < numFVarChannels; ++channel) {
-            if (not level.getFVarLevel(channel).isLinear()) {
+            if (! level.getFVarLevel(channel).isLinear()) {
                 considerFVarChannels = true;
                 break;
             }
@@ -425,7 +425,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         } else if (compFaceVTag._rule & Sdc::Crease::RULE_DART) {
             //  Any occurrence of a Dart vertex requires isolation
             selectFace = true;
-        } else if (not (compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+        } else if (! (compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
             //  None of the vertices is Smooth, so we have all vertices either Crease or Corner.
             //  Though some may be regular patches, this currently warrants isolation as we only
             //  support regular patches with one corner or one boundary, i.e. with one or more
@@ -435,12 +435,12 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
             //  Any semi-sharp feature at or around the vertex warrants isolation -- unless we
             //  optimize for the single-crease patch, i.e. only edge sharpness of a constant value
             //  along the entire regular patch boundary (quickly exclude the Corner case first):
-            if (considerSingleCreasePatch && not (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
-                selectFace = not level.isSingleCreasePatch(face);
+            if (considerSingleCreasePatch && ! (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
+                selectFace = ! level.isSingleCreasePatch(face);
             } else {
                 selectFace = true;
             }
-        } else if (not compFaceVTag._boundary) {
+        } else if (! compFaceVTag._boundary) {
             //  At this point we are left with a mix of smooth and inf-sharp features.  If not
             //  on a boundary, the interior inf-sharp features need isolation -- unless we are
             //  again optimizing for the single-crease patch, infinitely sharp in this case.
@@ -449,12 +449,12 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
             //  is kept separate for the inf-sharp case:  a separate and much more efficient
             //  test can be made for the inf-sharp case, and there are other opportunities here
             //  to optimize for regular patches at infinitely sharp corners.
-            if (considerSingleCreasePatch && not (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
-                selectFace = not level.isSingleCreasePatch(face);
+            if (considerSingleCreasePatch && ! (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
+                selectFace = ! level.isSingleCreasePatch(face);
             } else {
                 selectFace = true;
             }
-        } else if (not (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
+        } else if (! (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
             //  We are now left with boundary faces -- if no Corner vertex, we have a mix of both
             //  regular Smooth and Crease vertices on a boundary face, which can only be a regular
             //  boundary patch, so don't isolate.
@@ -462,7 +462,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         } else {
             //  The last case with at least one Corner vertex and one Smooth (interior) vertex --
             //  distinguish the regular corner case from others:
-            if (not compFaceVTag._corner) {
+            if (! compFaceVTag._corner) {
                 //  We may consider interior sharp corners as regular in future, but for now we
                 //  only accept a topological corner for the regular corner case:
                 selectFace = true;
@@ -485,8 +485,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         //  If still not selected, inspect the face-varying channels (when present) for similar
         //  irregular features requiring isolation:
         //
-        if (not selectFace and considerFVarChannels) {
-            for (int channel = 0; not selectFace && (channel < numFVarChannels); ++channel) {
+        if (! selectFace && considerFVarChannels) {
+            for (int channel = 0; ! selectFace && (channel < numFVarChannels); ++channel) {
                 Vtr::internal::FVarLevel const & fvarLevel = level.getFVarLevel(channel);
 
                 //
@@ -501,7 +501,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
                         fvarLevel.getFaceCompositeValueTag(faceValues, faceVerts);
 
                 //  No mismatch in topology -> no need to further isolate...
-                if (not compFVarFaceTag._mismatch) continue;
+                if (! compFVarFaceTag._mismatch) continue;
 
                 if (compFVarFaceTag._xordinary) {
                     //  An xordinary boundary value always requires isolation:
@@ -514,10 +514,10 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
                     Vtr::internal::Level::VTag compFVarVTag =
                             fvarLevel.getFaceCompositeValueAndVTag(faceValues, faceVerts, fvarVTags);
 
-                    if (not (compFVarVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
+                    if (! (compFVarVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
                         //  No Smooth corners so too many boundaries/corners -- need to isolate:
                         selectFace = true;
-                    } else if (not (compFVarVTag._rule & Sdc::Crease::RULE_CORNER)) {
+                    } else if (! (compFVarVTag._rule & Sdc::Crease::RULE_CORNER)) {
                         //  A mix of Smooth and Crease corners -- must be regular so don't isolate:
                         selectFace = false;
                     } else {
@@ -537,7 +537,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
                         //  (the topological corner tag catches this above).  Verify that the corner
                         //  vertex is opposite the smooth vertex (and consider doing this above)...
                         //
-                        if (not selectFace && (level.getDepth() == 0)) {
+                        if (! selectFace && (level.getDepth() == 0)) {
                             if (fvarVTags[0]._infSharp && fvarVTags[2]._boundary) selectFace = true;
                             if (fvarVTags[1]._infSharp && fvarVTags[3]._boundary) selectFace = true;
                             if (fvarVTags[2]._infSharp && fvarVTags[0]._boundary) selectFace = true;

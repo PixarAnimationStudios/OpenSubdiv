@@ -49,7 +49,7 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
         numValuesM = refiner.GetLevel(maxlevel).GetNumFVarValues(channel),
         numValuesTotal = refiner.GetNumFVarValuesTotal(channel);
 
-    if (shape.uvs.empty() or numValuesTotal<=0) {
+    if (shape.uvs.empty() || numValuesTotal<=0) {
         return;
     }
 

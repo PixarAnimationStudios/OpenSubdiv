@@ -95,7 +95,7 @@ GetReorderedHbrVertexData(
                                   * v1 = hmesh.GetVertex(farVerts[1]);
 
                     Hhalfedge * e = v0->GetEdge(v1);
-                    if (not e) {
+                    if (! e) {
                         e = v1->GetEdge(v0);
                     }
                     assert(e);
@@ -164,10 +164,10 @@ GetReorderedHbrVertexData(
 
                     Hvertex const * v0 = current.verts[farVerts[0]],
                                   * v1 = current.verts[farVerts[1]];
-                    assert(v0 and v1);
+                    assert(v0 && v1);
 
                     Hhalfedge * e= v0->GetEdge(v1);
-                    if (not e) {
+                    if (! e) {
                         e = v1->GetEdge(v0);
                     }
                     assert(e);

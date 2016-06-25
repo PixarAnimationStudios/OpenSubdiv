@@ -185,7 +185,7 @@ Hud::MouseClick(int x, int y)
     for (std::vector<PullDown>::iterator it = _pulldowns.begin();
          it != _pulldowns.end(); ++it) {
         if (hitTest(*it, x, y)) {
-            if (not it->open) {
+            if (! it->open) {
                 it->h = FONT_CHAR_HEIGHT;
                 it->h *= (int)it->labels.size();
                 it->open=true;
@@ -200,7 +200,7 @@ Hud::MouseClick(int x, int y)
                         it->callback(it->values[it->selected]);
                     }
                 } else {
-                    it->open=not it->open;
+                    it->open=! it->open;
                 }
             }
             _requiresRebuildStatic = true;
@@ -528,7 +528,7 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
             x = drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_MIDDLE);
         }
         drawChar(_staticVboSource, x, y, 1, 1, 1, FONT_SLIDER_RIGHT);
-        int pos = (int)((it->value/float(it->max-it->min))*it->w);
+        int pos = int(((it->value-it->min)/(it->max-it->min))*float(it->w));
         drawChar(_staticVboSource, sx+pos, y, 1, 1, 0, FONT_SLIDER_CURSOR);
     }
     // draw pulldowns
