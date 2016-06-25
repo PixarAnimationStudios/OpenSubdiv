@@ -61,7 +61,7 @@ CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
 // SIMD ICC optimization of the stencil kernel
 //
 
-#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+#if defined ( __INTEL_COMPILER ) || defined ( __ICC )
     #define __ALIGN_DATA __declspec(align(32))
 #else
     #define __ALIGN_DATA
@@ -86,7 +86,7 @@ ComputeStencilKernel(float const * vertexSrc,
     for (int i=start; i<end; ++i) {
 
         // Clear
-#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+#if defined ( __INTEL_COMPILER ) || defined ( __ICC )
     #pragma simd
     #pragma vector aligned
 #endif
@@ -99,7 +99,7 @@ ComputeStencilKernel(float const * vertexSrc,
             weight = *weights;
 
             // AddWithWeight
-#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+#if defined ( __INTEL_COMPILER ) || defined ( __ICC )
     #pragma simd
     #pragma vector aligned
 #endif
@@ -108,7 +108,7 @@ ComputeStencilKernel(float const * vertexSrc,
             }
         }
 
-#if defined ( __INTEL_COMPILER ) or defined ( __ICC )
+#if defined ( __INTEL_COMPILER ) || defined ( __ICC )
     #pragma simd
     #pragma vector aligned
 #endif

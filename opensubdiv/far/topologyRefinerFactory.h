@@ -319,7 +319,7 @@ TopologyRefinerFactory<MESH>::Create(MESH const& mesh, Options options) {
 
     TopologyRefiner * refiner = new TopologyRefiner(options.schemeType, options.schemeOptions);
 
-    if (not populateBaseLevel(*refiner, mesh, options)) {
+    if (! populateBaseLevel(*refiner, mesh, options)) {
         delete refiner;
         return 0;
     }
@@ -349,8 +349,8 @@ TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH c
     //  an inventory of all components and their relations that is used to allocate buffers
     //  to be efficiently populated in the subsequent topology assignment step.
     //
-    if (not resizeComponentTopology(refiner, mesh)) return false;
-    if (not prepareComponentTopologySizing(refiner)) return false;
+    if (! resizeComponentTopology(refiner, mesh)) return false;
+    if (! prepareComponentTopologySizing(refiner)) return false;
 
     //
     //  Assignment of the topology -- this is a required specialization for MESH.  If edges
@@ -361,21 +361,21 @@ TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH c
     TopologyCallback callback = reinterpret_cast<TopologyCallback>(reportInvalidTopology);
     void const *     userData = &mesh;
         
-    if (not assignComponentTopology(refiner, mesh)) return false;
-    if (not prepareComponentTopologyAssignment(refiner, validate, callback, userData)) return false;
+    if (! assignComponentTopology(refiner, mesh)) return false;
+    if (! prepareComponentTopologyAssignment(refiner, validate, callback, userData)) return false;
 
     //
     //  User assigned and internal tagging of components -- an optional specialization for
     //  MESH.  Allows the specification of sharpness values, holes, etc.
     //
-    if (not assignComponentTags(refiner, mesh)) return false;
-    if (not prepareComponentTagsAndSharpness(refiner)) return false;
+    if (! assignComponentTags(refiner, mesh)) return false;
+    if (! prepareComponentTagsAndSharpness(refiner)) return false;
 
     //
     //  Defining channels of face-varying primvar data -- an optional specialization for MESH.
     //
-    if (not assignFaceVaryingTopology(refiner, mesh)) return false;
-    if (not prepareFaceVaryingChannels(refiner)) return false;
+    if (! assignFaceVaryingTopology(refiner, mesh)) return false;
+    if (! prepareFaceVaryingChannels(refiner)) return false;
 
     return true;
 }

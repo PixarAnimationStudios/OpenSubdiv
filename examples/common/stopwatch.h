@@ -25,7 +25,7 @@
 #ifndef STOPWATCH_H
 #define STOPWATCH_H
 
-#if (_WIN32 or _WIN64)
+#if (_WIN32 || _WIN64)
     #include <windows.h>
 #else
     #include <sys/types.h>

@@ -30,6 +30,7 @@ cbuffer Transform : register( b0 ) {
     float4x4 ModelViewMatrix;
     float4x4 ProjectionMatrix;
     float4x4 ModelViewProjectionMatrix;
+    float4x4 ModelViewInverseMatrix;
 };
 
 cbuffer Tessellation : register( b1 ) {
@@ -287,6 +288,31 @@ void gs_main( triangle OutputVertex input[3],
 }
 
 #endif
+
+
+// ---------------------------------------------------------------------------
+//  IBL lighting
+// ---------------------------------------------------------------------------
+
+Texture2D diffuseEnvironmentMap : register(t12);
+Texture2D specularEnvironmentMap : register(t13);
+
+SamplerState iblSampler : register(s0);
+
+#define M_PI 3.14159265358
+
+float4
+gamma(float4 value, float g) {
+    return float4(pow(value.xyz, float3(g,g,g)), 1);
+}
+
+float4
+getEnvironmentHDR(Texture2D tx, SamplerState sm, float3 dir)
+{
+    dir = mul(ModelViewInverseMatrix, float4(dir, 0)).xyz;
+    float2 uv = float2((atan2(dir.x,dir.z)/M_PI+1)*0.5, (1-dir.y)*0.5);
+    return tx.Sample(sm, uv);
+}
 
 
 // ---------------------------------------------------------------------------
@@ -559,8 +585,38 @@ ps_main(in OutputVertex input,
 #else
     float specular = 1.0;
 #endif
+
     // ------------ lighting ---------------
+#ifdef USE_IBL
+    // non-plausible BRDF
+    float4 a = float4(0, 0, 0, 1); //ambientColor;
+    float4 d = getEnvironmentHDR(diffuseEnvironmentMap, iblSampler, normal);
+
+    float3 eye = normalize(input.position.xyz - float3(0,0,0));
+    float3 r = reflect(eye, normal);
+    float4 s = getEnvironmentHDR(specularEnvironmentMap, iblSampler, r);
+
+    const float fresnelBias = 0.01;
+    const float fresnelScale = 1.0;
+    const float fresnelPower = 3.5;
+    float F = fresnelBias + fresnelScale * pow(1.0+dot(normal,eye), fresnelPower);
+
+    // Geometric attenuation term (
+    float NoV = dot(normal, -eye);
+    float alpha = 0.75 * 0.75; // roughness ^ 2
+    float k = alpha * 0.5;
+    float G = NoV/(NoV*(1-k)+k);
+
+    a *= (1-occ);
+    d *= (1-occ);
+    s *= min(specular, (1-occ)) * (F*G);
+
+    float4 Cf = (a+d)*texColor*(1-F)/M_PI + s;
+    //Cf = gamma(Cf, 2.2);
+
+#else
     float4 Cf = lighting(texColor, input.position.xyz, normal, occ);
+#endif
 
     // ------------ wireframe ---------------
     outColor = edgeColor(Cf, input.edgeDistance);

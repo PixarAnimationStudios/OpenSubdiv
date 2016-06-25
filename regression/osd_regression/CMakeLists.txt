@@ -42,7 +42,7 @@ if ( GLEW_FOUND )
     list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
 endif()
 
-_add_executable(osd_regression
+_add_executable(osd_regression "regression"
     "${SOURCE_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
 )

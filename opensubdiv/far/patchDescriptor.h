@@ -95,7 +95,7 @@ public:
 
     /// \brief Returns true if the type is an adaptive patch
     static inline bool IsAdaptive(Type type) {
-        return (type>=LOOP and type<=GREGORY_BASIS);
+        return (type>=LOOP && type<=GREGORY_BASIS);
     }
 
     /// \brief Returns true if the type is an adaptive patch

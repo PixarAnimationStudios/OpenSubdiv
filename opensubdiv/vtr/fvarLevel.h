@@ -167,7 +167,7 @@ public:
 
     bool isLinear() const            { return _isLinear; }
     bool hasLinearBoundaries() const { return _hasLinearBoundaries; }
-    bool hasSmoothBoundaries() const { return not _hasLinearBoundaries; }
+    bool hasSmoothBoundaries() const { return ! _hasLinearBoundaries; }
 
     Sdc::Options getOptions() const { return _options; }
 

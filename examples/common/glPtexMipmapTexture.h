@@ -28,9 +28,8 @@
 #include <osd/nonCopyable.h>
 #include <osd/opengl.h>
 
+#include <Ptexture.h>
 #include <stdlib.h>
-
-class PtexTexture;
 
 class GLPtexMipmapTexture : OpenSubdiv::Osd::NonCopyable<GLPtexMipmapTexture> {
 public:

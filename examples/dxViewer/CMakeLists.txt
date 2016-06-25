@@ -59,7 +59,7 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_possibly_cuda_executable(dxViewer WIN32
+_add_possibly_cuda_executable(dxViewer "examples" WIN32
     "${SOURCE_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>

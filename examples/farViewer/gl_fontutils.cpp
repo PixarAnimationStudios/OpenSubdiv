@@ -65,7 +65,7 @@ void GLFont::bindProgram() {
 #include "fontShader.gen.h"
 ;
     // Update and bind transform state
-    if (not _program) {
+    if (! _program) {
 
         _program = glCreateProgram();
 
@@ -106,15 +106,15 @@ void GLFont::bindProgram() {
     }
     glUseProgram(_program);
 
-    if (not _scale) {
+    if (! _scale) {
         _scale = glGetUniformLocation(_program, "scale");
     }
 
-    if (not _attrPosition) {
+    if (! _attrPosition) {
         _attrPosition = glGetAttribLocation(_program, "position");
     }
 
-    if (not _attrData) {
+    if (! _attrData) {
         _attrData = glGetAttribLocation(_program, "data");
     }
 }
@@ -169,7 +169,7 @@ void GLFont::Draw(GLuint transformUB) {
 
     bindProgram();
 
-    if (not _transformBinding) {
+    if (! _transformBinding) {
 
         GLuint uboIndex = glGetUniformBlockIndex(_program, "Transform");
         if (uboIndex != GL_INVALID_INDEX)

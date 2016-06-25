@@ -41,13 +41,13 @@ std::string stringify( std::string const & line ) {
             inconstant = inconstant ? false : true;
         }
 
-        if (line[i]=='\\' and line[i+1]=='\0') {
+        if (line[i]=='\\' && line[i+1]=='\0') {
             s << "\"";
             return s.str();
         }
 
         // escape backslash
-        if (inconstant and line[i]=='\\')
+        if (inconstant && line[i]=='\\')
            s << '\\' ;
 
         s << line[i];
@@ -67,21 +67,21 @@ int main(int argc, char **argv) {
 
     std::ifstream input;
     input.open(argv[1]);
-    if (not input.is_open()) {
+    if (! input.is_open()) {
         std::cerr << "Can not read from: " << argv[1] << std::endl;
         return 1;
     }
 
     std::ofstream output;
     output.open(argv[2]);
-    if (not output.is_open()) {
+    if (! output.is_open()) {
         std::cerr << "Can not write to: " << argv[2] << std::endl;
         return 1;
     }
 
     std::string line;
 
-    while (not input.eof()) {
+    while (! input.eof()) {
         std::getline(input, line);
         output << "\"" << stringify(line) << std::endl;
     }

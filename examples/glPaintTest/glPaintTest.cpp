@@ -832,7 +832,7 @@ motion(GLFWwindow * w, double dx, double dy) {
             // pan
             g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
             g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-        } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+        } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                    (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
             // dolly
             g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -860,7 +860,7 @@ mouse(GLFWwindow * w, int button, int state, int /* mods */) {
         g_mbutton[button] = (state == GLFW_PRESS);
     }
 
-    if (not glfwGetKey(w, GLFW_KEY_LEFT_ALT)) {
+    if (! glfwGetKey(w, GLFW_KEY_LEFT_ALT)) {
         if (g_mbutton[0] && !g_mbutton[1] && !g_mbutton[2]) {
             drawStroke(g_prev_x, g_prev_y);
         }
@@ -1100,7 +1100,7 @@ int main(int argc, char ** argv) {
     OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -1115,7 +1115,7 @@ int main(int argc, char ** argv) {
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
         // settle for the first one in the list
-        if (not g_primary) {
+        if (! g_primary) {
             int count=0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
@@ -1130,8 +1130,8 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
+    if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
+                                       fullscreen && g_primary ? g_primary : NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
         return 1;
