@@ -185,7 +185,7 @@ Hud::MouseClick(int x, int y)
     for (std::vector<PullDown>::iterator it = _pulldowns.begin();
          it != _pulldowns.end(); ++it) {
         if (hitTest(*it, x, y)) {
-            if (not it->open) {
+            if (! it->open) {
                 it->h = FONT_CHAR_HEIGHT;
                 it->h *= (int)it->labels.size();
                 it->open=true;
@@ -200,7 +200,7 @@ Hud::MouseClick(int x, int y)
                         it->callback(it->values[it->selected]);
                     }
                 } else {
-                    it->open=not it->open;
+                    it->open=! it->open;
                 }
             }
             _requiresRebuildStatic = true;
