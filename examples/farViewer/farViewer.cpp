@@ -414,7 +414,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
     OpenSubdiv::Far::PatchTable const & patchTable,
         std::vector<Vertex> const & fvarBuffer) {
 
-    assert(not fvarBuffer.empty());
+    assert(!fvarBuffer.empty());
 
     static int channel = 0;
 

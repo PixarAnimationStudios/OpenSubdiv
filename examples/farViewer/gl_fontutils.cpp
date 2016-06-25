@@ -163,7 +163,7 @@ void GLFont::Draw(GLuint transformUB) {
         return;
     }
 
-    assert(_VAO and _VBO);
+    assert(_VAO && _VBO);
 
     glBindVertexArray(_VAO);
 
