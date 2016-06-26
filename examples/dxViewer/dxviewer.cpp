@@ -1551,7 +1551,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                         NULL);
 
     std::vector<std::string> args = tokenize(lpCmdLine);
-    for (int i=0; i<args.size(); ++i) {
+    for (size_t i=0; i<args.size(); ++i) {
         std::ifstream ifs(args[i]);
         if (ifs) {
             std::stringstream ss;
