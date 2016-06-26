@@ -408,7 +408,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
                 virtual void operator() (OsdHbrHalfedge &e) {
 
                     OsdHbrFace * f=e.GetFace();
-                    if (f & (e.GetOrgVertex()==_v)) {
+                    if (f && (e.GetOrgVertex()==_v)) {
                         *_dstVertFaces++ = f->GetID();
                         for (int j=0; j<f->GetNumVertices(); ++j) {
                             if (f->GetVertex(j)==_v) {
