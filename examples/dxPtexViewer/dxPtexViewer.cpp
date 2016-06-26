@@ -323,7 +323,7 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    if (g_moveScale and g_adaptive and not g_animPositions.empty()) {
+    if (g_moveScale && g_adaptive && !g_animPositions.empty()) {
 
         // baked animation only works with adaptive for now
         // (since non-adaptive requires normals)
@@ -780,7 +780,7 @@ createOsdMesh(int level, int kernel) {
 
     // generate Hbr representation from ptex
     Shape * shape = createPTexGeo(ptexColor);
-    if (not shape) {
+    if (!shape) {
         return;
     }
 
@@ -817,7 +817,7 @@ createOsdMesh(int level, int kernel) {
     g_mesh = NULL;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive != 0 and g_scheme == 0);
+    bool doAdaptive = (g_adaptive != 0 && g_scheme == 0);
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
@@ -1224,7 +1224,7 @@ display() {
 
         g_fpsTimer.Stop();
     float elapsed = (float)g_fpsTimer.GetElapsed();
-    if (not g_freeze)
+    if (!g_freeze)
         g_animTime += elapsed;
         g_fpsTimer.Start();
 
@@ -1301,7 +1301,7 @@ motion(int x, int y) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if ((g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) or
+    } else if ((g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) ||
                (!g_mbutton[0] && !g_mbutton[1] && g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -1372,7 +1372,7 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+    if (g_kernel == kCL && (!g_clDeviceContext.IsInitialized())) {
         if (g_clDeviceContext.Initialize(g_pd3dDeviceContext) == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
@@ -1380,7 +1380,7 @@ callbackKernel(int k) {
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+    if (g_kernel == kCUDA && (!g_cudaDeviceContext.IsInitialized())) {
         if (g_cudaDeviceContext.Initialize(g_pd3dDevice) == false) {
             printf("Error in initializing Cuda\n");
             exit(1);
@@ -2026,7 +2026,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
         + (g_osdPTexSpecular ? g_osdPTexSpecular->GetMemoryUsage() : 0);
 
     // load animation obj sequences (optional)
-    if (not animobjs.empty()) {
+    if (!animobjs.empty()) {
         for (int i = 0; i < (int)animobjs.size(); ++i) {
             std::ifstream ifs(animobjs[i].c_str());
             if (ifs) {
@@ -2118,7 +2118,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
-            if (not g_freeze)
+            if (!g_freeze)
                 g_frame++;
 
             updateGeom();

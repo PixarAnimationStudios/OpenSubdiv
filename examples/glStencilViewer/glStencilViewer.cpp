@@ -858,7 +858,7 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+    if (g_kernel == kCL && (!g_clDeviceContext.IsInitialized())) {
         if (g_clDeviceContext.Initialize() == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
@@ -866,7 +866,7 @@ callbackKernel(int k) {
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+    if (g_kernel == kCUDA && (!g_cudaDeviceContext.IsInitialized())) {
         if (g_cudaDeviceContext.Initialize() == false) {
             printf("Error in initializing Cuda\n");
             exit(1);

@@ -797,7 +797,7 @@ MayaPolySmooth::compute( const MPlug& plug, MDataBlock& data ) {
         int subdivisionLevel = data.inputValue(a_subdivisionLevels).asInt();
         short stateH = data.inputValue(state).asShort();
 
-        if ((subdivisionLevel > 0) and (stateH !=1)) {
+        if ((subdivisionLevel > 0) && (stateH !=1)) {
 
             // == Retrieve input mesh ====================================
             // Get attr values
@@ -1212,9 +1212,9 @@ MStatus initializePlugin( MObject obj ) {
 
     // Source UI scripts
     MString path = plugin.loadPath()+"/mayaPolySmooth.mel";
-    if (not MGlobal::sourceFile(path)) {
+    if (!MGlobal::sourceFile(path)) {
         path = "mayaPolySmooth.mel";
-        if (not MGlobal::sourceFile(path)) {
+        if (!MGlobal::sourceFile(path)) {
             MGlobal::displayWarning("Failed to source mayaPolySmooth.mel.");
         }
     }

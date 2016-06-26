@@ -104,7 +104,7 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     int maxNumPages = D3D10_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 
     // Read the ptex data and pack the texels
-    bool padAlpha = reader->numChannels()==3 and reader->dataType()!=Ptex::dt_float;
+    bool padAlpha = reader->numChannels()==3 && reader->dataType()!=Ptex::dt_float;
 
     PtexMipmapTextureLoader loader(reader,
                                    maxNumPages,
@@ -119,7 +119,7 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
     ID3D11Buffer *layout = genTextureBuffer(deviceContext,
                                             numFaces * 6 * sizeof(short),
                                             loader.GetLayoutBuffer());
-    if (not layout) return NULL;
+    if (!layout) return NULL;
 
     DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
     int bpp = 0;

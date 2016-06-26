@@ -27,7 +27,7 @@
 
 #if defined(__APPLE__)
     #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE or TARGET_IPHONE_SIMULATOR
+    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
         #include <OpenGLES/ES2/gl.h>
     #else
         #if defined(OSD_USES_GLEW)
