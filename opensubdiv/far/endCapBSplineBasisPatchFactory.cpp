@@ -96,7 +96,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
         int valence = level->getVertexFaces(facePoints[i]).size();
         if (valence != 4) {
             if (irregular != -1) {
-                // more than one extraoridinary vertices.
+                // more than one extraordinary vertices.
                 // fallback to use GregoryBasis
                 return getPatchPointsFromGregoryBasis(
                     level, thisFace, facePoints, levelVertOffset);
@@ -279,12 +279,12 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     //
     //  This function assumes the patch is not on boundary
     //  and it contains only 1 extraordinary vertex.
-    //  The location of the extraoridnary vertex can be one of
+    //  The location of the extraordinary vertex can be one of
     //  0-ring quad corner.
     //
-    //  B-Spline control point gathering indice
+    //  B-Spline control point gathering indices
     //
-    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //     [5]   (4)---(15)--(14)    0 : extraordinary vertex
     //            |     |     |
     //            |     |     |      1,2,3,9,10,11,12,13 :
     //     (6)----0-----3-----13       B-Spline control points, gathered by
@@ -448,7 +448,7 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     X5.AddWithWeight(X7,                             -1.0f);
     X5.AddWithWeight(X15,                            -1.0f);
 
-    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //     [5]   (4)---(15)--(14)    0 : extraordinary vertex
     //            |     |     |
     //            |     |     |      1,2,3,9,10,11,12,13 :
     //     (6)----0-----3-----13       B-Spline control points, gathered by

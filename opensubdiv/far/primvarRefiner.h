@@ -99,7 +99,7 @@ public:
     ///
 
     /// \brief Apply vertex interpolation weights to a primvar buffer for a single
-    ///        level level of refinement.
+    ///        level of refinement.
     ///
     /// The destination buffer must allocate an array of data for all the
     /// refined vertices, i.e. at least refiner.GetLevel(level).GetNumVertices()
@@ -113,7 +113,7 @@ public:
     template <class T, class U> void Interpolate(int level, T const & src, U & dst) const;
 
     /// \brief Apply only varying interpolation weights to a primvar buffer
-    ///        for a single level level of refinement.
+    ///        for a single level of refinement.
     ///
     /// This method can useful if the varying primvar data does not need to be
     /// re-computed over time.
@@ -207,7 +207,7 @@ private:
 
 private:
     //
-    //  Local class to fulfil interface for <typename MASK> in the Scheme mask queries:
+    //  Local class to fulfill interface for <typename MASK> in the Scheme mask queries:
     //
     class Mask {
     public:
@@ -410,7 +410,7 @@ PrimvarRefiner::InterpolateVarying(int level, T const & src, U & dst) const {
     Vtr::internal::Level const &      parent     = refinement.parent();
 
     //
-    //  Group values to interolate based on origin -- note that there may
+    //  Group values to interpolate based on origin -- note that there may
     //  be none originating from faces:
     //
     if (refinement.getNumChildVerticesFromFaces() > 0) {
@@ -705,7 +705,7 @@ PrimvarRefiner::interpFVarFromEdges(int level, T const & src, U & dst, int chann
     Vtr::internal::FVarLevel const &      childFVar  = childLevel.getFVarLevel(channel);
 
     //
-    //  Allocate and intialize (if linearly interpolated) interpolation weights for
+    //  Allocate and initialize (if linearly interpolated) interpolation weights for
     //  the edge mask:
     //
     float                               eVertWeights[2];
@@ -978,7 +978,7 @@ PrimvarRefiner::interpFVarFromVerts(int level, T const & src, U & dst, int chann
                     float eWeight = 0.125f;
 
                     //
-                    //  If semisharp we need to apply fractional weighting -- if made sharp because
+                    //  If semi-sharp we need to apply fractional weighting -- if made sharp because
                     //  of the other sibling (dependent-sharp) use the fractional weight from that
                     //  other sibling (should only occur when there are 2):
                     //
@@ -1093,7 +1093,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
 
         //
         //  Combine the weights and indices for position and tangents.  As with applying
-        //  refinment masks to vertex data, in order to improve numerical precision, its
+        //  refinement masks to vertex data, in order to improve numerical precision, its
         //  better to apply smaller weights first, so begin with the face-weights followed
         //  by the edge-weights and the vertex weight last.
         //
@@ -1108,7 +1108,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
 
         //
         //  Apply the tangent masks -- both will have the same number of weights and 
-        //  indices (one tangent may be "padded" to accomodate the other), but these
+        //  indices (one tangent may be "padded" to accommodate the other), but these
         //  may differ from those of the position:
         //
         if (hasTangents) {

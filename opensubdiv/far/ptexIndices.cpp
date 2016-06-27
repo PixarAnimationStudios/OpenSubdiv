@@ -163,7 +163,7 @@ PtexIndices::GetAdjacency(
             adjEdges[2] = 1;
         }
 
-        {   // resolve neighbor outisde the sub-face (edge 0)
+        {   // resolve neighbor outside the sub-face (edge 0)
             int edge0 = fedges[quadrant];
             Index adjface0 = getAdjacentFace(level, edge0, face);
             if (adjface0==-1) {
@@ -182,7 +182,7 @@ PtexIndices::GetAdjacency(
                 assert(adjFaces[0]!=-1);
             }
 
-            // resolve neighbor outisde the sub-face (edge 3)
+            // resolve neighbor outside the sub-face (edge 3)
             int edge3 = fedges[prevQuadrant];
             Index adjface3 = getAdjacentFace(level, edge3, face);
             if (adjface3==-1) {

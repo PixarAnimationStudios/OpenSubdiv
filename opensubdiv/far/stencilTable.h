@@ -230,7 +230,7 @@ protected:
 
     int _numControlVertices;              // number of control vertices
 
-    std::vector<int> _sizes;    // number of coeffiecient for each stencil
+    std::vector<int> _sizes;    // number of coefficient for each stencil
     std::vector<Index>         _offsets,  // offset to the start of each stencil
                                _indices;  // indices of contributing coarse vertices
     std::vector<float>         _weights;  // stencil weight coefficients
@@ -366,7 +366,7 @@ private:
 };
 
 
-// Update values by appling cached stencil weights to new control values
+// Update values by applying cached stencil weights to new control values
 template <class T> void
 StencilTable::update(T const *controlValues, T *values,
     std::vector<float> const &valueWeights, Index start, Index end) const {
