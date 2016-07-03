@@ -88,12 +88,12 @@ CpuGLVertexBuffer::BindCpuBuffer() {
 GLuint
 CpuGLVertexBuffer::BindVBO(void * /*deviceContext*/) {
 
-    if (not _dataDirty)
+    if (! _dataDirty)
         return _vbo;
 
     int size = GetNumElements() * GetNumVertices() * sizeof(float);
 
-    if (not _vbo) {
+    if (! _vbo) {
         glGenBuffers(1, &_vbo);
     }
 

@@ -383,7 +383,7 @@ StencilTable::update(T const *controlValues, T *values,
         values += start;
     }
 
-    if (end<start or end<0) {
+    if (end<start || end<0) {
         end = GetNumStencils();
     }
 
@@ -441,7 +441,7 @@ StencilTable::finalize() {
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTable::GetStencil(Index i) const {
-    assert((not _offsets.empty()) and i<(int)_offsets.size());
+    assert((! _offsets.empty()) && i<(int)_offsets.size());
 
     Index ofs = _offsets[i];
 
@@ -465,7 +465,7 @@ LimitStencilTable::resize(int nstencils, int nelems) {
 // Returns a LimitStencil at index i in the table
 inline LimitStencil
 LimitStencilTable::GetLimitStencil(Index i) const {
-    assert((not GetOffsets().empty()) and i<(int)GetOffsets().size());
+    assert((! GetOffsets().empty()) && i<(int)GetOffsets().size());
 
     Index ofs = GetOffsets()[i];
 

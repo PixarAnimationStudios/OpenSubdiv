@@ -59,7 +59,7 @@ D3D11LegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable,
     Far::PatchTable::QuadOffsetsTable const &
         quadOffsetsTable = farPatchTable->GetQuadOffsetsTable();
 
-    if (not valenceTable.empty()) {
+    if (! valenceTable.empty()) {
         D3D11_BUFFER_DESC bd;
         bd.ByteWidth = UINT(valenceTable.size() * sizeof(unsigned int));
         bd.Usage = D3D11_USAGE_DEFAULT;
@@ -91,7 +91,7 @@ D3D11LegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable,
         }
     }
 
-    if (not quadOffsetsTable.empty()) {
+    if (! quadOffsetsTable.empty()) {
         D3D11_BUFFER_DESC bd;
         bd.ByteWidth = UINT(quadOffsetsTable.size() * sizeof(unsigned int));
         bd.Usage = D3D11_USAGE_DEFAULT;

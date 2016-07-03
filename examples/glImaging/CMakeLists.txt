@@ -57,7 +57,7 @@ _stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_glfw_executable(glImaging
+_add_glfw_executable(glImaging "examples"
     "${SOURCE_FILES}"
     "${SHADER_FILES}"
     "${INC_FILES}"

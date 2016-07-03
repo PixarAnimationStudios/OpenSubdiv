@@ -67,6 +67,11 @@ if (NOT NO_LIB)
             ${PUBLIC_HEADER_FILES}
     )
 
+    set_target_properties(vtr_obj
+        PROPERTIES
+            FOLDER "opensubdiv"
+    )
+
 endif()
 
 #-------------------------------------------------------------------------------

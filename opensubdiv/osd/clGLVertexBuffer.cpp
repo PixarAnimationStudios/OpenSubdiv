@@ -138,7 +138,7 @@ CLGLVertexBuffer::map(cl_command_queue queue) {
 void
 CLGLVertexBuffer::unmap() {
 
-    if (not _clMapped) return;
+    if (! _clMapped) return;
     clEnqueueReleaseGLObjects(_clQueue, 1, &_clMemory, 0, 0, 0);
     _clMapped = false;
 }

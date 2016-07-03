@@ -239,7 +239,7 @@ private:
         //
         // Additionally, if the client does not want the resulting verts
         // compacted, do not attempt to combine weights.
-        if (_compactWeights and !_dests.empty() and _dests[lastOffset] == dst) {
+        if (_compactWeights && !_dests.empty() && _dests[lastOffset] == dst) {
 
             // tableSize is exactly _sources.size(), but using tableSize is
             // significantly faster.
@@ -267,7 +267,7 @@ private:
         // a way that the current stencil being built is always at the end of
         // the array, so if the dests array is empty or back() doesn't match
         // dst, then we just started building a new stencil.
-        if (_dests.empty() or dst != _dests.back()) {
+        if (_dests.empty() || dst != _dests.back()) {
             // _indices and _sizes always have num(stencils) elements so that
             // stencils can be directly looked up by their index in these
             // arrays. So here, ensure that they are large enough to hold the
@@ -426,7 +426,7 @@ void
 StencilBuilder::Index::AddWithWeight(Stencil const& src,
                                      float weight, float du, float dv)
 {
-    if (isWeightZero(weight) and isWeightZero(du) and isWeightZero(dv)) {
+    if (isWeightZero(weight) && isWeightZero(du) && isWeightZero(dv)) {
         return;
     }
 

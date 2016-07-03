@@ -150,7 +150,7 @@ PtexIndices::GetAdjacency(
         //  o----------o----------o
         // v0                     v1
         */
-        assert(quadrant>=0 and quadrant<fedges.size());
+        assert(quadrant>=0 && quadrant<fedges.size());
 
         int nextQuadrant = (quadrant+1) % fedges.size(),
             prevQuadrant = (quadrant+fedges.size()-1) % fedges.size();

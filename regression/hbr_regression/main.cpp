@@ -109,7 +109,7 @@ typedef OpenSubdiv::HbrVertexOperator<xyzVV> xyzVertexOperator;
 static Shape * readShape( char const * fname, Scheme scheme ) {
 
     FILE * handle = fopen( fname, "rt" );
-    if (not handle) {
+    if (! handle) {
         printf("Could not open \"%s\" - aborting.\n", fname);
         exit(0);
     }
@@ -145,7 +145,7 @@ static void writeObj( const char * fname, xyzmesh const * mesh,
     int firstface, int lastface, int firstvert, int lastvert ) {
 
     FILE * handle = fopen( fname, "w" );
-    if (not handle) {
+    if (! handle) {
         printf("Could not open \"%s\" - aborting.\n", fname);
         exit(0);
     }
@@ -242,7 +242,7 @@ static int checkMesh( shaperec const & r, int levels ) {
 
             float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
             if ( dist > STRICT_PRECISION ) {
-                if(dist < WEAK_PRECISION and g_allowWeakRegression) {
+                if(dist < WEAK_PRECISION && g_allowWeakRegression) {
                     g_strictRegressionFailure=true;
                 } else {
                     if (g_verbose) {
@@ -310,9 +310,9 @@ int main(int argc, char ** argv) {
     int levels=5, total=0;
 
     for (int i=1; i<argc; ++i) {
-        if ((not strcmp(argv[i],"-s")) or (not strcmp(argv[i],"-strict"))) {
+        if ((! strcmp(argv[i],"-s")) || (! strcmp(argv[i],"-strict"))) {
             g_allowWeakRegression=false;
-        } else if ((not strcmp(argv[i],"-v")) or (not strcmp(argv[i],"-verbose"))) {
+        } else if ((! strcmp(argv[i],"-v")) || (! strcmp(argv[i],"-verbose"))) {
             g_verbose=true;
         } else {
             usage( argv[1] );

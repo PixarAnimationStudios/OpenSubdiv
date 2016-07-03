@@ -84,8 +84,8 @@ struct BufferDescriptor {
 
     /// True if the descriptors are identical
     bool operator == (BufferDescriptor const &other) const {
-        return (offset == other.offset and
-                length == other.length and
+        return (offset == other.offset &&
+                length == other.length &&
                 stride == other.stride);
     }
 

@@ -521,7 +521,7 @@ int main(int argc, char ** argv) {
 #endif
     }
 
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         std::cout << "Failed to initialize GLFW\n";
         return 1;
     }
@@ -532,7 +532,7 @@ int main(int argc, char ** argv) {
     GLUtils::SetMinimumGLVersion();
 
     GLFWwindow *window = glfwCreateWindow(width, height, windowTitle, NULL, NULL);
-    if (not window) {
+    if (! window) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
     }

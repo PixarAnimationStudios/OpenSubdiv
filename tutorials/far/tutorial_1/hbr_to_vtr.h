@@ -216,7 +216,7 @@ public:
 
     // Returns the edgeVertIndex for a given Hbr halfedge 'e' and vertex 'v'
     int GetEdgeVertIndex(OpenSubdiv::HbrHalfedge<T> const * e, OpenSubdiv::HbrVertex<T> const * v) const {
-        assert(e and v);
+        assert(e && v);
         if (_edgeset.find(e)==_edgeset.end()) {
             e = e->GetOpposite();
             assert(e);
@@ -279,7 +279,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::resizeComponentTopology(
 
             // index Hbr edge pointers in the map
             OsdHbrHalfedge const * e = f->GetEdge(j);
-            if (e->IsBoundary() or (e->GetRightFace()->GetID()>f->GetID())) {
+            if (e->IsBoundary() || (e->GetRightFace()->GetID()>f->GetID())) {
                 int id = (int)edges.size();
                 edges[e] = id;
             }
@@ -311,7 +311,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::resizeComponentTopology(
             GatherOperator(OsdHbrVertex const * v) : _v(v), vertEdgeCount(0), vertFaceCount(0) { }
 
             virtual void operator() (OsdHbrHalfedge &e) {
-                if (e.GetOrgVertex()==_v and e.GetFace())
+                if (e.GetOrgVertex()==_v && e.GetFace())
                     ++vertFaceCount;
                 ++vertEdgeCount;
             }
@@ -408,7 +408,7 @@ FarTopologyRefinerFactory<OsdHbrConverter>::assignComponentTopology(
                 virtual void operator() (OsdHbrHalfedge &e) {
 
                     OsdHbrFace * f=e.GetFace();
-                    if (f and (e.GetOrgVertex()==_v)) {
+                    if (f && (e.GetOrgVertex()==_v)) {
                         *_dstVertFaces++ = f->GetID();
                         for (int j=0; j<f->GetNumVertices(); ++j) {
                             if (f->GetVertex(j)==_v) {

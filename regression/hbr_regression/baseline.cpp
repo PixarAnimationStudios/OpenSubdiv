@@ -121,8 +121,8 @@ static void generate( char const * shapeStr, char const * name, int levels, Sche
         printf("    writing \"%s\"\n", fname.str().c_str());
 
         FILE * handle = fopen( fname.str().c_str(), "w" );
-        if (not handle) {
-            printf("Could not open \"%s\" - aborting.\n", fname.str().c_str());
+        if (! handle) {
+            printf("Could ! open \"%s\" - aborting.\n", fname.str().c_str());
             exit(0);
         }
 
@@ -194,25 +194,25 @@ static void parseArgs(int argc, char ** argv) {
         usage(argv[0]);
 
     for (int i=1; i<argc; ++i) {
-        if (not strcmp(argv[i],"-shape")) {
+        if (! strcmp(argv[i],"-shape")) {
             if (i<(argc-1))
                 g_shapeindex =  atoi( argv[++i] );
-            if ( g_shapeindex<0 or g_shapeindex>(int)g_shapes.size()) {
+            if ( g_shapeindex<0 || g_shapeindex>(int)g_shapes.size()) {
                 printf("-shape : index must be within [%ld %ld]\n", 0L, (long int)g_shapes.size());
                 exit(0);
             }
-        } else if (not strcmp(argv[i],"-scheme")) {
+        } else if (! strcmp(argv[i],"-scheme")) {
 
             const char * scheme = NULL;
 
             if (i<(argc-1))
                 scheme = argv[++i];
 
-            if (not strcmp(scheme,"bilinear"))
+            if (! strcmp(scheme,"bilinear"))
                 g_scheme = kBilinear;
-            else if (not strcmp(scheme,"catmark"))
+            else if (! strcmp(scheme,"catmark"))
                 g_scheme = kCatmark;
-            else if (not strcmp(scheme,"loop"))
+            else if (! strcmp(scheme,"loop"))
                 g_scheme = kLoop;
             else {
                 printf("-scheme : must be one of (\"bilinear\", \"catmark\", \"loop\")\n");
@@ -239,7 +239,7 @@ int main(int argc, char ** argv) {
     if ( g_objfile.size() ) {
 
         FILE * handle = fopen( g_objfile.c_str(), "rt" );
-        if (not handle) {
+        if (! handle) {
             printf("Could not open \"%s\" - aborting.\n", g_objfile.c_str());
             exit(0);
         }

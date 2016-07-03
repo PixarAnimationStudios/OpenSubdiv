@@ -56,7 +56,7 @@ static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
               BufferDescriptor const &desc) {
 
-    assert(src and dst);
+    assert(src && dst);
     src = elementAtIndex(src, srcIndex, desc);
     for (int k = 0; k < desc.length; ++k) {
         dst[k] += src[k] * weight;
@@ -67,7 +67,7 @@ static inline void
 copy(float *dst, int dstIndex, const float *src,
      BufferDescriptor const &desc) {
 
-    assert(src and dst);
+    assert(src && dst);
 
     dst = elementAtIndex(dst, dstIndex, desc);
     memcpy(dst, src, desc.length*sizeof(float));
@@ -115,14 +115,14 @@ public:
     void operator() (tbb::blocked_range<int> const &r) const {
 #define USE_SIMD
 #ifdef USE_SIMD
-        if (_srcDesc.length==4 and _srcDesc.stride==4 and _dstDesc.stride==4) {
+        if (_srcDesc.length==4 && _srcDesc.stride==4 && _dstDesc.stride==4) {
 
             // SIMD fast path for aligned primvar data (4 floats)
             int offset = _offsets[r.begin()];
             ComputeStencilKernel<4>(_vertexSrc, _vertexDst,
                 _sizes, _indices+offset, _weights+offset, r.begin(), r.end());
 
-        } else if (_srcDesc.length==8 and _srcDesc.stride==4 and _dstDesc.stride==4) {
+        } else if (_srcDesc.length==8 && _srcDesc.stride==4 && _dstDesc.stride==4) {
 
             // SIMD fast path for aligned primvar data (8 floats)
             int offset = _offsets[r.begin()];

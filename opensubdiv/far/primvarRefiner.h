@@ -265,7 +265,7 @@ template <class T, class U>
 inline void
 PrimvarRefiner::Interpolate(int level, T const & src, U & dst) const {
 
-    assert(level>0 and level<=(int)_refiner._refinements.size());
+    assert(level>0 && level<=(int)_refiner._refinements.size());
 
     switch (_refiner._subdivType) {
     case Sdc::SCHEME_CATMARK:
@@ -290,7 +290,7 @@ template <class T, class U>
 inline void
 PrimvarRefiner::InterpolateFaceVarying(int level, T const & src, U & dst, int channel) const {
 
-    assert(level>0 and level<=(int)_refiner._refinements.size());
+    assert(level>0 && level<=(int)_refiner._refinements.size());
 
     switch (_refiner._subdivType) {
     case Sdc::SCHEME_CATMARK:
@@ -387,7 +387,7 @@ template <class T, class U>
 inline void
 PrimvarRefiner::InterpolateFaceUniform(int level, T const & src, U & dst) const {
 
-    assert(level>0 and level<=(int)_refiner._refinements.size());
+    assert(level>0 && level<=(int)_refiner._refinements.size());
 
     Vtr::internal::Refinement const & refinement = _refiner.getRefinement(level-1);
     Vtr::internal::Level const & child = refinement.child();
@@ -404,7 +404,7 @@ template <class T, class U>
 inline void
 PrimvarRefiner::InterpolateVarying(int level, T const & src, U & dst) const {
 
-    assert(level>0 and level<=(int)_refiner._refinements.size());
+    assert(level>0 && level<=(int)_refiner._refinements.size());
 
     Vtr::internal::Refinement const & refinement = _refiner.getRefinement(level-1);
     Vtr::internal::Level const &      parent     = refinement.parent();
