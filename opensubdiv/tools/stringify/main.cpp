@@ -39,16 +39,18 @@ std::string stringify( std::string const & line ) {
         if (line[i]=='"') {
             s << '\\' ;
             inconstant = inconstant ? false : true;
+        
+        } else if (line[i]=='\\') {
+            
+            if (line[i+1]=='\0') {
+                s << "\"";
+                return s.str();
+            }
+            
+            // escape backslash
+            if (inconstant)
+                s << '\\';
         }
-
-        if (line[i]=='\\' && line[i+1]=='\0') {
-            s << "\"";
-            return s.str();
-        }
-
-        // escape backslash
-        if (inconstant && line[i]=='\\')
-           s << '\\' ;
 
         s << line[i];
     }
