@@ -25,7 +25,6 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-#include <string>
 
 
 std::string stringify( std::string const & line ) {
@@ -38,7 +37,7 @@ std::string stringify( std::string const & line ) {
         // escape double quotes
         if (line[i]=='"') {
             s << '\\' ;
-            inconstant = inconstant ? false : true;
+            inconstant = ! inconstant;
         
         } else if (line[i]=='\\') {
             
