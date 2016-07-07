@@ -207,42 +207,6 @@ elseif(MSVC)
     # Turn on all warnings
     list(APPEND OSD_COMPILER_FLAGS /Wall)
 
-    # Temporary option to assist in the refactoring to avoid the need for these.
-    # https://github.com/PixarAnimationStudios/OpenSubdiv/issues/779#
-    option(NO_ISO646 "Disable MSVC iso646.h macros" OFF)
-    if(NOT NO_ISO646)
-        # MSVC is unfortunately not standard conforming with regards to
-        # the alternative names for logical and bitwise operators:
-        # http://stackoverflow.com/questions/555505/c-alternative-tokens
-        # http://stackoverflow.com/questions/6006526/c-writing-or-instead-of
-        #
-        # This can be solved by including iso646.h, but that is a rather
-        # unsatisfactory solution since we then always have to remember to
-        # include this header file.  Instead we define these operators
-        # ourselves as command line arguments to cl.exe.
-        #
-        # An alternative would be to compile with the /Za option
-        # (but unfortunately that breaks other code):
-        # http://msdn.microsoft.com/en-us/library/0k0w269d.aspx
-        list(APPEND OSD_COMPILER_FLAGS
-                        /Dand=&&
-                        /Dand_eq=&=
-                        /Dbitand=&
-                        /Dbitor=|
-                        /Dcompl=~
-                        /Dnot=!
-                        /Dnot_eq=!=
-                        /Dor=||
-                        /Dor_eq=|=
-                        # nvcc does not seem to like a caret being the last character
-                        # in a command line defined preprocessor symbol, so add an
-                        # empty trailing comment to avoid this.
-                        /Dxor=^/**/
-                        /Dxor_eq=^=
-        )
-    endif()
-
-
     list(APPEND OSD_COMPILER_FLAGS
                     /W3     # Use warning level recommended for production purposes.
                     /WX     # Treat all compiler warnings as errors.
