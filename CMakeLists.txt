@@ -31,12 +31,12 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
-if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
-    file(STRINGS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h"
+if(EXISTS "${OpenSubdiv_SOURCE_DIR}/opensubdiv/version.h")
+    file(STRINGS "${OpenSubdiv_SOURCE_DIR}/opensubdiv/version.h"
         OpenSubdiv_VERSION REGEX "^#define OPENSUBDIV_VERSION .*$")
     string(REPLACE "#define OPENSUBDIV_VERSION " "" OpenSubdiv_VERSION ${OpenSubdiv_VERSION})
 else()
-    message(FATAL_ERROR, "Cannot locate opensubdiv/version.h in CMAKE_SOURCE_DIR")
+    message(FATAL_ERROR, "Cannot locate opensubdiv/version.h in ${OpenSubdiv_SOURCE_DIR}")
 endif()
 
 # Evaluate 'soname' from OSD version
@@ -571,14 +571,14 @@ add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
     if (NOT NO_DOC AND DOXYGEN_FOUND)
-        file(RELATIVE_PATH path "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
+        file(RELATIVE_PATH path "${OpenSubdiv_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
 
         string(REPLACE  "/" "_" targetpath ${path})
 
         foreach (header ${headers})
 
             set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${header}")
-            set(outfile "${CMAKE_BINARY_DIR}/public_headers/${path}/${header}")
+            set(outfile "${OpenSubdiv_BINARY_DIR}/public_headers/${path}/${header}")
             set(targetname "${targetpath}_${header}")
 
             add_custom_command(
