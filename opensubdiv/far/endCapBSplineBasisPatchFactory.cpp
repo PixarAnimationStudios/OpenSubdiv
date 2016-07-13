@@ -77,6 +77,7 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
 ConstIndexArray
 EndCapBSplineBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index thisFace,
+    Vtr::internal::Level::VSpan const cornerSpans[],
     PatchTableFactory::PatchFaceTag const *levelPatchTags,
     int levelVertOffset) {
 
@@ -85,7 +86,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     // if it's boundary, fallback to use GregoryBasis
     if (patchTag._boundaryCount > 0) {
         return getPatchPointsFromGregoryBasis(
-            level, thisFace, facePoints, levelVertOffset);
+            level, thisFace, cornerSpans, facePoints, levelVertOffset);
     }
 
     // there's a short-cut when the face contains only 1 extraordinary vertex.
@@ -99,7 +100,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
                 // more than one extraoridinary vertices.
                 // fallback to use GregoryBasis
                 return getPatchPointsFromGregoryBasis(
-                    level, thisFace, facePoints, levelVertOffset);
+                    level, thisFace, cornerSpans, facePoints, levelVertOffset);
             }
             irregular = i;
         }
@@ -113,6 +114,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
 ConstIndexArray
 EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
     Vtr::internal::Level const * level, Index thisFace,
+    Vtr::internal::Level::VSpan const cornerSpans[],
     ConstIndexArray facePoints, int levelVertOffset) {
 
     // XXX: For now, always create new 16 indices for each patch.
@@ -124,7 +126,7 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
         _patchPoints.push_back(_numVertices + offset);
         ++_numVertices;
     }
-    GregoryBasis::ProtoBasis basis(*level, thisFace, levelVertOffset, -1);
+    GregoryBasis::ProtoBasis basis(*level, thisFace, cornerSpans, levelVertOffset, -1);
     // XXX: temporary hack. we should traverse topology and find existing
     //      vertices if available
     //

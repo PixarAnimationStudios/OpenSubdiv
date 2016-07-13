@@ -1223,13 +1223,18 @@ PatchTableFactory::populateAdaptivePatches(
                 // emit end patch. end patch should be in the max level (until we implement DFAS)
                 assert(i==refiner.GetMaxLevel());
 
+                // identify relevant spans around the corner vertices for the irregular patches
+                // (this is just a stub for now -- leaving the span "size" to zero, as constructed,
+                // indicates to use the full neighborhood)...
+                Vtr::internal::Level::VSpan cornerSpans[4];
+
                 // switch endcap patchtype by option
                 switch(context.options.GetEndCapType()) {
                 case Options::ENDCAP_GREGORY_BASIS:
                 {
                     // note: this call will be moved into vtr::level.
                     ConstIndexArray cvs = endCapGregoryBasis->GetPatchPoints(
-                        level, faceIndex, levelPatchTags, levelVertOffset);
+                        level, faceIndex, cornerSpans, levelPatchTags, levelVertOffset);
 
                     for (int j = 0; j < cvs.size(); ++j) iptrs.GP[j] = cvs[j];
                     iptrs.GP += cvs.size();
@@ -1244,7 +1249,7 @@ PatchTableFactory::populateAdaptivePatches(
                 case Options::ENDCAP_BSPLINE_BASIS:
                 {
                     ConstIndexArray cvs = endCapBSpline->GetPatchPoints(
-                        level, faceIndex, levelPatchTags, levelVertOffset);
+                        level, faceIndex, cornerSpans, levelPatchTags, levelVertOffset);
 
                     for (int j = 0; j < cvs.size(); ++j) iptrs.R[j] = cvs[j];
                     iptrs.R += cvs.size();

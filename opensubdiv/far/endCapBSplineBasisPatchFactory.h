@@ -80,12 +80,14 @@ public:
     ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
+        Vtr::internal::Level::VSpan const cornerSpans[],
         PatchTableFactory::PatchFaceTag const * levelPatchTags,
         int levelVertOffset);
 
 private:
     ConstIndexArray getPatchPointsFromGregoryBasis(
         Vtr::internal::Level const * level, Index thisFace,
+        Vtr::internal::Level::VSpan const cornerSpans[],
         ConstIndexArray facePoints,
         int levelVertOffset);
 

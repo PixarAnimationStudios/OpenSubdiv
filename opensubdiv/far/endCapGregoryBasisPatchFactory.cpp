@@ -77,7 +77,8 @@ EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
     // Gregory patches are end-caps: they only exist on max-level
     Vtr::internal::Level const & level = refiner.getLevel(refiner.GetMaxLevel());
 
-    GregoryBasis::ProtoBasis basis(level, faceIndex, 0, fvarChannel);
+    // Is this method used/supported?  If so, needs corner spans (and vert offset?)...
+    GregoryBasis::ProtoBasis basis(level, faceIndex, 0, 0, fvarChannel);
     GregoryBasis * result = new GregoryBasis;
     basis.Copy(result);
 
@@ -86,16 +87,14 @@ EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
 }
 
 bool
-EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
+EndCapGregoryBasisPatchFactory::addPatchBasis(Vtr::internal::Level const & level, Index faceIndex,
+                                              Vtr::internal::Level::VSpan const cornerSpans[],
                                               bool verticesMask[4][5],
                                               int levelVertOffset) {
 
-    // Gregory patches only exist on the hight
-    Vtr::internal::Level const & level = _refiner->getLevel(_refiner->GetMaxLevel());
-
     // Gather the CVs that influence the Gregory patch and their relative
     // weights in a basis
-    GregoryBasis::ProtoBasis basis(level, faceIndex, levelVertOffset, -1);
+    GregoryBasis::ProtoBasis basis(level, faceIndex, cornerSpans, levelVertOffset, -1);
 
     for (int i = 0; i < 4; ++i) {
         if (verticesMask[i][0]) {
@@ -131,8 +130,10 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
 ConstIndexArray
 EndCapGregoryBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
+    Vtr::internal::Level::VSpan const cornerSpans[],
     PatchTableFactory::PatchFaceTag const * levelPatchTags,
     int levelVertOffset) {
+
     // allocate indices (awkward)
     // assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
     for (int i = 0; i < 20; ++i) {
@@ -227,7 +228,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
     _faceIndices.push_back(faceIndex);
 
     // add basis
-    addPatchBasis(faceIndex, newVerticesMask, levelVertOffset);
+    addPatchBasis(*level, faceIndex, cornerSpans, newVerticesMask, levelVertOffset);
 
     ++_numGregoryBasisPatches;
 
