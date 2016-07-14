@@ -31,6 +31,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -100,6 +101,7 @@ inline float computeCoefficient(int valence) {
 
 GregoryBasis::ProtoBasis::ProtoBasis(
     Vtr::internal::Level const & level, Index faceIndex,
+    Vtr::internal::Level::VSpan const cornerSpans[],
     int levelVertOffset, int fvarChannel) {
 
     // XXX: This function is subject to refactor in 3.1
@@ -110,8 +112,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
     assert(facePoints.size()==4);
 
     int maxvalence = level.getMaxValence(),
-        valences[4],
-        zerothNeighbors[4];
+        valences[4];
 
     // XXX: a temporary hack for the performance issue
     // ensure Point has a capacity for the neighborhood of
@@ -140,29 +141,32 @@ GregoryBasis::ProtoBasis::ProtoBasis(
     // the first phase
 
     for (int vid=0; vid<4; ++vid) {
+
         // save for varying stencils
         varyingIndex[vid] = facePoints[vid] + levelVertOffset;
 
-        int ringSize =
-            level.gatherQuadRegularRingAroundVertex(
-                facePoints[vid], manifoldRings[vid], fvarChannel);
+        int ringSize = 0;
+        if (cornerSpans[vid]._numFaces == 0) {
+            ringSize = level.gatherQuadRegularRingAroundVertex( facePoints[vid],
+                    manifoldRings[vid], fvarChannel);
+        } else {
+            ringSize = level.gatherQuadRegularPartialRingAroundVertex( facePoints[vid],
+                    cornerSpans[vid],
+                    manifoldRings[vid], fvarChannel);
+        }
 
-        int valence;
+        // when the corner vertex is on a boundary (ring-size is odd), valence is
+        // negated and the ring is padded to replicate the last entry
         if (ringSize & 1) {
-            // boundary vertex
             manifoldRings[vid][ringSize] = manifoldRings[vid][ringSize-1];
             ++ringSize;
-            valence = -ringSize/2;
+            valences[vid] = -ringSize/2;
         } else {
-            valence = ringSize/2;
+            valences[vid] = ringSize/2;
         }
-        int ivalence = abs(valence);
-        valences[vid] = valence;
 
-        Index boundaryEdgeNeighbors[2],
-              currentNeighbor = 0,
-              zerothNeighbor=0,
-              ibefore=0;
+        int valence  = valences[vid];
+        int ivalence = abs(valence);
 
         for (int i=0; i<ivalence; ++i) {
 
@@ -175,35 +179,13 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                   idx_neighbor_m = (manifoldRings[vid][2*im + 0]),
                   idx_diagonal_m = (manifoldRings[vid][2*im + 1]);
 
-            bool boundaryNeighbor = (level.getVertexEdges(idx_neighbor).size() >
-                                     level.getVertexFaces(idx_neighbor).size());
-
-            if (fvarChannel>=0) {
-                // XXXX manuelk need logic to check for boundary in fvar
-                boundaryNeighbor = false;
-            }
-
-            if (boundaryNeighbor) {
-                if (currentNeighbor<2) {
-                    boundaryEdgeNeighbors[currentNeighbor] = idx_neighbor;
-                }
-                ++currentNeighbor;
-                if (currentNeighbor==1) {
-                    ibefore = zerothNeighbor = i;
-                } else {
-                    if (i-ibefore==1) {
-                        std::swap(boundaryEdgeNeighbors[0], boundaryEdgeNeighbors[1]);
-                        zerothNeighbor = i;
-                    }
-                }
-            }
-
             float d = float(ivalence)+5.0f;
             f[i].Clear(4);
             f[i].AddWithWeight(facePoints[vid], float(ivalence)/d);
             f[i].AddWithWeight(idx_neighbor_p,  2.0f/d);
             f[i].AddWithWeight(idx_neighbor,    2.0f/d);
             f[i].AddWithWeight(idx_diagonal,    1.0f/d);
+
             P[vid].AddWithWeight(f[i], 1.0f/float(ivalence));
 
             int rid = vid * maxvalence + i;
@@ -212,11 +194,6 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             r[rid].AddWithWeight(idx_neighbor_m, -1.0f/3.0f);
             r[rid].AddWithWeight(idx_diagonal,    1.0f/6.0f);
             r[rid].AddWithWeight(idx_diagonal_m, -1.0f/6.0f);
-        }
-
-        zerothNeighbors[vid] = zerothNeighbor;
-        if (currentNeighbor == 1) {
-            boundaryEdgeNeighbors[1] = boundaryEdgeNeighbors[0];
         }
 
         for (int i=0; i<ivalence; ++i) {
@@ -235,14 +212,14 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
         // Boundary gregory case:
         if (valence < 0) {
+            Index boundaryEdgeNeighbors[2] = { manifoldRings[vid][0],
+                                               manifoldRings[vid][ringSize-1] };
+
             P[vid].Clear(stencilCapacity);
-            if (ivalence>2) {
-                P[vid].AddWithWeight(boundaryEdgeNeighbors[0], 1.0f/6.0f);
-                P[vid].AddWithWeight(boundaryEdgeNeighbors[1], 1.0f/6.0f);
-                P[vid].AddWithWeight(facePoints[vid], 4.0f/6.0f);
-            } else {
-                P[vid].AddWithWeight(facePoints[vid], 1.0f);
-            }
+            P[vid].AddWithWeight(boundaryEdgeNeighbors[0], 1.0f/6.0f);
+            P[vid].AddWithWeight(boundaryEdgeNeighbors[1], 1.0f/6.0f);
+            P[vid].AddWithWeight(facePoints[vid], 4.0f/6.0f);
+
             float k = float(float(ivalence) - 1.0f);    //k is the number of faces
             float c = cosf(float(M_PI)/k);
             float s = sinf(float(M_PI)/k);
@@ -250,7 +227,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             float alpha_0k = -((1.0f+2.0f*c)*sqrtf(1.0f+c))/((3.0f*k+c)*sqrtf(1.0f-c));
             float beta_0 = s/(3.0f*k + c);
 
-            int idx_diagonal = manifoldRings[vid][2*zerothNeighbor + 1];
+            int idx_diagonal = manifoldRings[vid][1];
 
             e0[vid].Clear(stencilCapacity);
             e0[vid].AddWithWeight(boundaryEdgeNeighbors[0],  1.0f/6.0f);
@@ -264,13 +241,11 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
             for (int x=1; x<ivalence-1; ++x) {
 
-                Index curri = ((x + zerothNeighbor)%ivalence);
-
                 float alpha = (4.0f*sinf((float(M_PI) * float(x))/k))/(3.0f*k+c),
                       beta = (sinf((float(M_PI) * float(x))/k) + sinf((float(M_PI) * float(x+1))/k))/(3.0f*k+c);
 
-                Index idx_neighbor = manifoldRings[vid][2*curri + 0],
-                      idx_diagonal = manifoldRings[vid][2*curri + 1];
+                Index idx_neighbor = manifoldRings[vid][2*x + 0],
+                      idx_diagonal = manifoldRings[vid][2*x + 1];
 
                 e1[vid].AddWithWeight(idx_neighbor, alpha);
                 e1[vid].AddWithWeight(idx_diagonal, beta);
@@ -316,7 +291,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         Point Ep_im = P[im];
 
         if (valences[ip]<-2) {
-            Index j = (np + prev_p - zerothNeighbors[ip]) % np;
+            Index j = (np + prev_p) % np;
             Em_ip.AddWithWeight(e0[ip], cosf((float(M_PI)*j)/float(np-1)));
             Em_ip.AddWithWeight(e1[ip], sinf((float(M_PI)*j)/float(np-1)));
         } else {
@@ -325,7 +300,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         }
 
         if (valences[im]<-2) {
-            Index j = (nm + start_m - zerothNeighbors[im]) % nm;
+            Index j = (nm + start_m) % nm;
             Ep_im.AddWithWeight(e0[im], cosf((float(M_PI)*j)/float(nm-1)));
             Ep_im.AddWithWeight(e1[im], sinf((float(M_PI)*j)/float(nm-1)));
         } else {
@@ -371,8 +346,8 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
         } else if (valences[vid] < -2) {
 
-            Index jp = (ivalence + start - zerothNeighbors[vid]) % ivalence,
-                  jm = (ivalence + prev  - zerothNeighbors[vid]) % ivalence;
+            Index jp = (ivalence + start) % ivalence,
+                  jm = (ivalence + prev) % ivalence;
 
             float s1 = 3-2*csf(n-3,2)-csf(np-3,2),
                   s2 = 2*csf(n-3,2),

@@ -189,6 +189,7 @@ public:
 
         ProtoBasis(Vtr::internal::Level const & level,
                    Vtr::Index faceIndex,
+                   Vtr::internal::Level::VSpan const cornerSpans[],
                    int levelVertOffset,
                    int fvarChannel);
 
