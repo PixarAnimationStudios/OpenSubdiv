@@ -1277,89 +1277,64 @@ Level::gatherTriRegularCornerEdgePatchPoints(Index fIndex, Index points[], int c
 }
 
 bool
-Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) const {
+Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *sharpEdgeInFaceOut) const {
 
-    // Note: this function is called twice for the same patch, at topologyRefiner and patchTablesFactory.
-    // we may want to cache the result to improve the Far performance.
-    // To do so, FTag needs to be extended to store isSingleCrease(bool), sharpness(float) and rotation(0-3).
+    //  Using the composite tag for all face vertices, first make sure that some
+    //  face-vertices are Crease vertices, and quickly reject this case based on the
+    //  presence of other features.  Ultimately we want a regular interior face with
+    //  two (adjacent) Crease vertics and two Smooth vertices.  This first test
+    //  quickly ensures a regular interior face with some number of Crease vertices
+    //  and any remaining as Smooth.
     //
-    Vtr::ConstIndexArray  fVerts = this->getFaceVertices(face);
+    ConstIndexArray fVerts = getFaceVertices(face);
 
-    // the face has to be quad
-    if (fVerts.size() != 4) return false;
-
-    // if there's any corner vertex, return false.
-    for (int i = 0; i < fVerts.size(); ++i) {
-        if (this->getVertexSharpness(fVerts[i]) > 0.0f)
-            return false;
+    VTag allCornersTag = getFaceCompositeVTag(fVerts);
+    if (!(allCornersTag._rule & Sdc::Crease::RULE_CREASE) ||
+         (allCornersTag._rule & Sdc::Crease::RULE_CORNER) ||
+         (allCornersTag._rule & Sdc::Crease::RULE_DART) ||
+          allCornersTag._boundary ||
+          allCornersTag._xordinary ||
+          allCornersTag._nonManifold) {
+        return false;
     }
 
-    // make sure there's only one edge with sharpness
-    Vtr::ConstIndexArray  fEdges = this->getFaceEdges(face);
-    float sharpness = 0.0f;
-    int rotation = 0;
-    for (int i = 0; i < fEdges.size(); ++i) {
-        float s = this->getEdgeSharpness(fEdges[i]);
-        if (s > 0.0f) {
-            if (sharpness > 0.0f) {
-                // found more than one sharp edges.
-                return false;
-            }
-            sharpness = s;
-            rotation = i;
-        }
+    //  Identify the crease vertices in a 4-bit mask and use it as an index to
+    //  verify that we have exactly two adjacent crease vertices while identifying
+    //  the edge between them -- reject any case not returning a valid edge.
+    //
+    int creaseCornerMask = ((getVertexTag(fVerts[0])._rule == Sdc::Crease::RULE_CREASE) << 0) |
+                           ((getVertexTag(fVerts[1])._rule == Sdc::Crease::RULE_CREASE) << 1) |
+                           ((getVertexTag(fVerts[2])._rule == Sdc::Crease::RULE_CREASE) << 2) |
+                           ((getVertexTag(fVerts[3])._rule == Sdc::Crease::RULE_CREASE) << 3);
+    static const int sharpEdgeFromCreaseMask[16] = { -1, -1, -1,  0, -1, -1,  1, -1,
+                                                     -1,  3, -1, -1,  2, -1, -1, -1 };
+
+    int sharpEdgeInFace = sharpEdgeFromCreaseMask[creaseCornerMask];
+    if (sharpEdgeInFace < 0) {
+        return false;
     }
 
-    //  rotation = 0
-    //         |     |     |     |
-    //      ---5-----4-----15----14---
-    //         |     ||    |     |
-    //         |     ||    |     |
-    //      ---6-----0-----3-----13---
-    //         |     ||    |     |
-    //         |     ||    |     |
-    //      ---7-----1-----2-----12---
-    //         |     ||    |     |
-    //         |     ||    |     |
-    //      ---8-----9-----10----11---
-    //         |     |     |     |
+    //  Reject if the crease at the two crease vertices A and B is not regular, i.e.
+    //  any pair of opposing edges does not have the same sharpness value (one pair
+    //  sharp, the other smooth).  The resulting two regular creases must be "colinear"
+    //  (sharing the edge between them, and so its common sharpness value) otherwise
+    //  we would have more than two crease vertices.
+    //
+    ConstIndexArray vAEdges = getVertexEdges(fVerts[         sharpEdgeInFace]);
+    ConstIndexArray vBEdges = getVertexEdges(fVerts[fastMod4(sharpEdgeInFace + 1)]);
 
-    int v[4];
-    v[0] = fVerts[(0+rotation)%4];  // crease
-    v[1] = fVerts[(1+rotation)%4];  // crease
-    v[2] = fVerts[(2+rotation)%4];  // smooth
-    v[3] = fVerts[(3+rotation)%4];  // smooth
-
-    // check the edges around v[0], v[1]
-    for (int i = 0; i < 2; ++i) {
-        Vtr::ConstIndexArray  vEdges = this->getVertexEdges(v[i]);
-        if (vEdges.size() != 4) return false;
-        int nSharpEdges = 0;
-        float sharpnesses[4];
-        for (int j = 0; j < 4; ++j) {
-            sharpnesses[j] = this->getEdgeSharpness(vEdges[j]);
-            if (sharpnesses[j] > 0.0f) {
-                if (++nSharpEdges == 3) return false;
-            }
-        }
-        // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
-        if (!isSharpnessEqual(sharpnesses[0], sharpnesses[2]) ||
-            !isSharpnessEqual(sharpnesses[1], sharpnesses[3])) {
-            return false;
-        }
+    if (!isSharpnessEqual(getEdgeSharpness(vAEdges[0]), getEdgeSharpness(vAEdges[2])) ||
+        !isSharpnessEqual(getEdgeSharpness(vAEdges[1]), getEdgeSharpness(vAEdges[3])) ||
+        !isSharpnessEqual(getEdgeSharpness(vBEdges[0]), getEdgeSharpness(vBEdges[2])) ||
+        !isSharpnessEqual(getEdgeSharpness(vBEdges[1]), getEdgeSharpness(vBEdges[3]))) {
+        return false;
     }
-    // check the edges around v[2], v[3]
-    for (int i = 2; i < 4; ++i) {
-        Vtr::ConstIndexArray  vEdges = this->getVertexEdges(v[i]);
-        if (vEdges.size() != 4) return false;
-        // all edges have to be smooth
-        for (int j = 0; j < 4; ++j) {
-            if (this->getEdgeSharpness(vEdges[j]) > 0.0f) return false;
-        }
+    if (sharpnessOut) {
+        *sharpnessOut = getEdgeSharpness(getFaceEdges(face)[sharpEdgeInFace]);
     }
-
-    if (sharpnessOut) *sharpnessOut = sharpness;
-    if (rotationOut) *rotationOut = rotation;
+    if (sharpEdgeInFaceOut) {
+        *sharpEdgeInFaceOut = sharpEdgeInFace;
+    }
     return true;
 }
 
