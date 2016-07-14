@@ -1240,7 +1240,7 @@ PatchTableFactory::populateAdaptivePatches(
                     iptrs.GP += cvs.size();
                     pptrs.GP = computePatchParam(
                         refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GP);
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
+                    if (sptrs.GP) *sptrs.GP++ = assignSharpnessIndex(0, table->_sharpnessValues);
                     fofss.GP += gatherFVarData(context,
                                                i, faceIndex, levelFaceOffset,
                                                0, levelFVarVertOffsets, fofss.GP, fptrs.GP);
@@ -1271,7 +1271,7 @@ PatchTableFactory::populateAdaptivePatches(
                         iptrs.G += cvs.size();
                         pptrs.G = computePatchParam(
                             refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.G);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
+                        if (sptrs.G) *sptrs.G++ = assignSharpnessIndex(0, table->_sharpnessValues);
                         fofss.G += gatherFVarData(context,
                                                   i, faceIndex, levelFaceOffset,
                                                   0, levelFVarVertOffsets, fofss.G, fptrs.G);
@@ -1280,7 +1280,7 @@ PatchTableFactory::populateAdaptivePatches(
                         iptrs.GB += cvs.size();
                         pptrs.GB = computePatchParam(
                             refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GB);
-                        if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
+                        if (sptrs.GB) *sptrs.GB++ = assignSharpnessIndex(0, table->_sharpnessValues);
                         fofss.GB += gatherFVarData(context,
                                                    i, faceIndex, levelFaceOffset,
                                                    0, levelFVarVertOffsets, fofss.GB, fptrs.GB);
