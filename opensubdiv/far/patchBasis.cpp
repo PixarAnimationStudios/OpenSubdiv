@@ -208,7 +208,7 @@ inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam const & param,
         derivT[2] =   s * dScale;
         derivT[3] =  sC * dScale;
 
-        if (derivSS and derivST and derivTT) {
+        if (derivSS && derivST && derivTT) {
             float d2Scale = dScale * dScale;
 
             for(int i=0;i<4;i++) {
@@ -291,7 +291,7 @@ void Spline<BASIS>::GetPatchWeights(PatchParam const & param,
             }
         }
 
-        if (derivSS and derivST and derivTT) {
+        if (derivSS && derivST && derivTT) {
             // Compute the tensor product weight of appropriate differentiated
             // (s,t) basis functions for each control vertex (scaled accordingly):
         
