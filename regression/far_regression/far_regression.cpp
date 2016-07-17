@@ -99,8 +99,8 @@ struct xyzVV {
     const float * GetPos() const { return _pos; }
 
     bool operator==(xyzVV const & other) const {
-        if (_pos[0]==other._pos[0] and
-            _pos[1]==other._pos[1] and
+        if (_pos[0]==other._pos[0] &&
+            _pos[1]==other._pos[1] &&
             _pos[2]==other._pos[2]) {
             return true;
         }
@@ -115,6 +115,8 @@ private:
 typedef OpenSubdiv::HbrMesh<xyzVV>           Hmesh;
 
 //------------------------------------------------------------------------------
+typedef OpenSubdiv::Sdc::Options                       SdcOptions;
+typedef OpenSubdiv::Far::TopologyLevel                 FarTopologyLevel;
 typedef OpenSubdiv::Far::TopologyRefiner               FarTopologyRefiner;
 typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory;
 
@@ -138,34 +140,18 @@ printVertexData(std::vector<xyzVV> const & hbrBuffer, std::vector<xyzVV> const &
 
 //------------------------------------------------------------------------------
 static int
-checkMesh(ShapeDesc const & desc, int maxlevel) {
-
-    static char const * schemes[] = { "Bilinear", "Catmark", "Loop" };
-    printf("- %-25s ( %-8s ): \n", desc.name.c_str(), schemes[desc.scheme]);
+compareVertexData(std::vector<xyzVV> const& farVertexData, std::vector<xyzVV> const& hbrVertexData) {
 
     int count=0;
     float deltaAvg[3] = {0.0f, 0.0f, 0.0f},
           deltaCnt[3] = {0.0f, 0.0f, 0.0f};
 
-    std::vector<xyzVV> hbrVertexData,
-                       farVertexData;
-
-    Hmesh *  hmesh = interpolateHbrVertexData<xyzVV>(
-        desc.data.c_str(), desc.scheme, maxlevel);
-
-    FarTopologyRefiner * refiner =
-        InterpolateFarVertexData<xyzVV>(
-            desc.data.c_str(), desc.scheme, maxlevel, farVertexData);
-
-    // copy Hbr vertex data into a re-ordered buffer (for easier comparison)
-    GetReorderedHbrVertexData(*refiner, *hmesh, &hbrVertexData);
-
     int nverts = (int)farVertexData.size();
 
     for (int i=0; i<nverts; ++i) {
 
-        xyzVV & hbrVert = hbrVertexData[i],
-              & farVert = farVertexData[i];
+        xyzVV const & hbrVert = hbrVertexData[i];
+        xyzVV const & farVert = farVertexData[i];
 
 #ifdef __INTEL_COMPILER // remark #1572: floating-point equality and inequality comparisons are unreliable
 #pragma warning disable 1572
@@ -189,7 +175,7 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
 
         float dist = sqrtf( delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
         if ( dist > PRECISION ) {
-            if (not g_debugmode)
+            if (! g_debugmode)
                 printf("// HbrVertex<T> %d fails : dist=%.10f (%.10f %.10f %.10f)"
                        " (%.10f %.10f %.10f)\n", i, dist, hbrVert.GetPos()[0],
                                                           hbrVert.GetPos()[1],
@@ -208,7 +194,7 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
     if (deltaCnt[2])
         deltaAvg[2]/=deltaCnt[2];
 
-    if (not g_debugmode) {
+    if (! g_debugmode) {
         printf("  delta ratio : (%d/%d %d/%d %d/%d)\n", (int)deltaCnt[0], nverts,
                                                         (int)deltaCnt[1], nverts,
                                                         (int)deltaCnt[2], nverts );
@@ -218,8 +204,132 @@ checkMesh(ShapeDesc const & desc, int maxlevel) {
         if (count==0)
             printf("  success !\n");
     }
-
     return count;
+}
+
+static int
+compareVerticesWithHbr(Shape const & shape,
+                       FarTopologyRefiner const & refiner,
+                       std::vector<xyzVV> const& farVertexData) {
+
+    std::vector<xyzVV> hbrVertexData;
+
+    Hmesh * hmesh = interpolateHbrVertexData<xyzVV>(&shape, refiner.GetMaxLevel());
+
+    // copy Hbr vertex data into a re-ordered buffer (for easier comparison)
+    GetReorderedHbrVertexData(refiner, *hmesh, &hbrVertexData);
+
+    // compare and report differences in vertex positions
+    return compareVertexData(farVertexData, hbrVertexData);
+}
+
+static bool
+isBaseMeshNonManifold(FarTopologyRefiner const & refiner) {
+
+    // Some simpler inspection methods of the RefinerLevel would help here...
+    //   - vertices and edges are internally tagged as manifold or not
+
+    FarTopologyLevel const & level = refiner.GetLevel(0);
+
+    int nVerts = level.GetNumVertices();
+    for (int i = 0; i < nVerts; ++i) {
+        int nVertFaces = level.GetVertexFaces(i).size();
+        int nVertEdges = level.GetVertexEdges(i).size();
+        int nEdgesMinusFaces = nVertEdges - nVertFaces;
+        if ((nEdgesMinusFaces > 1) || (nEdgesMinusFaces < 0)) {
+            return true;
+        }
+    }
+
+    int nEdges = level.GetNumEdges();
+    for (int i = 0; i < nEdges; ++i) {
+        int nEdgeFaces = level.GetEdgeFaces(i).size();
+        if ((nEdgeFaces < 1) || (nEdgeFaces > 2)) {
+            return true;
+        }
+        if (level.GetEdgeVertices(i)[0] == level.GetEdgeVertices(i)[1]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool
+shapeHasHierarchicalEditTags(Shape const & shape) {
+
+    for (int i = 0; i < (int)shape.tags.size(); ++i) {
+        Shape::tag const & tag = *shape.tags[i];
+
+        if ((tag.name == "vertexedit") || (tag.name == "edgeedit") || (tag.name == "faceedit")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool
+areVerticesCompatibleWithHbr(Shape const & shape, FarTopologyRefiner const & refiner,
+                             std::string * incompatibleString = 0)
+{
+    //
+    // Known incompatibilities with Hbr:
+    //   - non-manifold features -- Hbr does not support them
+    //   - very high-valence vertex -- accumulation of Hbr inaccuracies becomes considerable
+    //   - Chaikin creasing -- Hbr known to be incorrect
+    //   - hierarchical edits -- not supported by FarTopologyRefiner
+    //       - Shape will include tags "vertexedit", "edgeedit" and "faceedit"
+    //
+    if (isBaseMeshNonManifold(refiner)) {
+        if (incompatibleString) {
+            *incompatibleString = std::string("mesh is non-manifold");
+        }
+        return false;
+    }
+    if (refiner.GetMaxValence() > 64) {
+        if (incompatibleString) {
+            *incompatibleString = std::string("vertices of excessively high valence present");
+        }
+        return false;
+    }
+    if (refiner.GetSchemeOptions().GetCreasingMethod() == SdcOptions::CREASE_CHAIKIN) {
+        if (incompatibleString) {
+            *incompatibleString = std::string("assigned crease method is Chaikin");
+        }
+        return false;
+    }
+    if (shapeHasHierarchicalEditTags(shape)) {
+        if (incompatibleString) {
+            *incompatibleString = std::string("hierarchical edits no longer supported");
+        }
+        return false;
+    }
+    return true;
+}
+
+//------------------------------------------------------------------------------
+static int
+checkMesh(Shape const & shape, std::string const& name, int maxlevel) {
+
+    std::string warningDetail;
+
+    static char const * schemes[] = { "Bilinear", "Catmark", "Loop" };
+    printf("- %-25s ( %-8s ): \n", name.c_str(), schemes[shape.scheme]);
+
+    // Refine and interpolate vertex data for every shape:
+    std::vector<xyzVV> farVertexData;
+
+    FarTopologyRefiner * refiner = InterpolateFarVertexData<xyzVV>(shape, maxlevel, farVertexData);
+
+    // Perform relevant tests and accumulate failures:
+    int failureCount = 0;
+
+    if (areVerticesCompatibleWithHbr(shape, *refiner, &warningDetail)) {
+        failureCount = compareVerticesWithHbr(shape, *refiner, farVertexData);
+    } else {
+        printf("  warning : vertex data not compared with Hbr (%s)\n", warningDetail.c_str());
+    }
+
+    return failureCount;
 }
 
 //------------------------------------------------------------------------------
@@ -233,8 +343,17 @@ int main(int /* argc */, char ** /* argv */) {
         printf("[ ");
     else
         printf("precision : %f\n",PRECISION);
+
     for (int i=0; i<(int)g_shapes.size(); ++i) {
-        total+=checkMesh(g_shapes[i], levels);
+        ShapeDesc const & desc = g_shapes[i];
+
+        Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
+        if (shape) {
+            // May want to inspect and/or modify the shape before proceeding...
+
+            total+=checkMesh(*shape, desc.name, levels);
+        }
+        delete shape;
     }
 
     if (g_debugmode)

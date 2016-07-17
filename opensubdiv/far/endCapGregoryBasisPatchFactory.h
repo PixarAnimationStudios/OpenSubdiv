@@ -98,6 +98,8 @@ public:
     /// @param level            vtr refinement level
     ///
     /// @param faceIndex        vtr faceIndex at the level
+    //
+    /// @param cornerSpans      information about topology for each corner of patch
     ///
     /// @param levelPatchTags   Array of patchTags for all faces in the level
     ///
@@ -105,6 +107,7 @@ public:
     ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
+        Vtr::internal::Level::VSpan const cornerSpans[],
         PatchTableFactory::PatchFaceTag const * levelPatchTags,
         int levelVertOffset);
 
@@ -112,8 +115,9 @@ private:
 
     /// Creates a basis for the vertices specified in mask on the face and
     /// accumates it
-    bool addPatchBasis(Index faceIndex, bool newVerticesMask[4][5],
-                       int levelVertOffset);
+    bool addPatchBasis(Vtr::internal::Level const & level, Index faceIndex,
+                       Vtr::internal::Level::VSpan const cornerSpans[],
+                       bool newVerticesMask[4][5], int levelVertOffset);
 
     StencilTable *_vertexStencils;
     StencilTable *_varyingStencils;

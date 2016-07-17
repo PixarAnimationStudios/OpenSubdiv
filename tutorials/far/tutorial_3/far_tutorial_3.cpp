@@ -345,7 +345,7 @@ int main(int, char **) {
             Far::ConstIndexArray fuvs   = refLastLevel.GetFaceFVarValues(face, channelUV);
 
             // all refined Catmark faces should be quads
-            assert(fverts.size()==4 and fuvs.size()==4);
+            assert(fverts.size()==4 && fuvs.size()==4);
 
             printf("f ");
             for (int vert=0; vert<fverts.size(); ++vert) {

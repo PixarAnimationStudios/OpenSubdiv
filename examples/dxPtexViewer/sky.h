@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2013 Nvidia
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,32 +22,44 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_OSD_OPENGL_H
-#define OPENSUBDIV3_OSD_OPENGL_H
+#include <D3D11.h>
+#include <D3Dcompiler.h>
 
-#if defined(__APPLE__)
-    #include "TargetConditionals.h"
-    #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-        #include <OpenGLES/ES2/gl.h>
-    #else
-        #if defined(OSD_USES_GLEW)
-            #include <GL/glew.h>
-        #else
-            #include <OpenGL/gl3.h>
-        #endif
-    #endif
-#elif defined(ANDROID)
-    #include <GLES2/gl2.h>
-#else
-    #if defined(_WIN32)
-        #define WIN32_LEAN_AND_MEAN
-        #include <windows.h>
-    #endif
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <GL/gl.h>
-    #endif
-#endif
+//
+// Draws an environment sphere centered on the camera w/ a texture
+//
+class Sky {
 
-#endif  // OPENSUBDIV3_OSD_OPENGL_H
+public:
+
+    // Constructor (Sky does not own the texture asset)
+    Sky(ID3D11Device * device, ID3D11Texture2D * environmentMap);
+
+    ~Sky();
+
+    void Draw(ID3D11DeviceContext * deviceContext, float const mvp[16]);
+
+private:
+
+    void initialize(ID3D11Device * device);
+
+private:
+
+    int numIndices;
+
+    ID3D11VertexShader * vertexShader;
+    ID3D11PixelShader * pixelShader;
+    ID3D11Buffer * shaderConstants;
+
+    ID3D11InputLayout * inputLayout;
+    ID3D11RasterizerState * rasterizerState;
+    ID3D11DepthStencilState * depthStencilState;
+
+    ID3D11Texture2D * texture;
+    ID3D11ShaderResourceView * textureSRV;
+    ID3D11SamplerState * textureSS;
+
+    ID3D11Buffer * sphere;
+    ID3D11Buffer * sphereIndices;
+};
+

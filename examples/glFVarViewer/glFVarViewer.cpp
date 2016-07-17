@@ -361,7 +361,7 @@ rebuildMesh() {
     g_scheme = scheme;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 && g_scheme==kCatmark);
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
@@ -532,7 +532,7 @@ public:
         // face varying width
         ss << "#define OSD_FVAR_WIDTH 2\n";
 
-        if (not effectDesc.desc.IsAdaptive()) {
+        if (! effectDesc.desc.IsAdaptive()) {
             ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
         }
 
@@ -821,7 +821,7 @@ motion(GLFWwindow *, double dx, double dy) {
             // pan
             g_uvPan[0] -= (x - g_prev_x) * 2 / g_uvScale / static_cast<float>(g_width/2);
             g_uvPan[1] += (y - g_prev_y) * 2 / g_uvScale / static_cast<float>(g_height);
-        } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+        } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                    (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
             // scale
             g_uvScale += g_uvScale*0.01f*(x - g_prev_x);
@@ -836,7 +836,7 @@ motion(GLFWwindow *, double dx, double dy) {
             // pan
             g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
             g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-        } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+        } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                    (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
             // dolly
             g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -1046,12 +1046,12 @@ initGL() {
 static void
 idle() {
 
-    if (not g_freeze)
+    if (! g_freeze)
         g_frame++;
 
     updateGeom();
 
-    if (g_repeatCount != 0 and g_frame >= g_repeatCount)
+    if (g_repeatCount != 0 && g_frame >= g_repeatCount)
         g_running = 0;
 }
 
@@ -1097,7 +1097,7 @@ int main(int argc, char ** argv) {
     OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -1111,7 +1111,7 @@ int main(int argc, char ** argv) {
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
         // settle for the first one in the list
-        if (not g_primary) {
+        if (! g_primary) {
             int count = 0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
@@ -1126,8 +1126,8 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen and g_primary ? g_primary : NULL, NULL))) {
+    if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
+                                       fullscreen && g_primary ? g_primary : NULL, NULL))) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;

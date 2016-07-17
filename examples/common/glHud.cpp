@@ -246,7 +246,7 @@ GLhud::Rebuild(int width, int height,
                int framebufferWidth, int framebufferHeight) {
     Hud::Rebuild(width, height, framebufferWidth, framebufferHeight);
 
-    if (not _staticVbo)
+    if (! _staticVbo)
         return;
 
     _staticVboSize = (int)getStaticVboSource().size();

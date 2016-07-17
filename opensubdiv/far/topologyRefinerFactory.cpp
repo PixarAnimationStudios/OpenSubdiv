@@ -125,7 +125,7 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
 
     bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
     if (completeMissingTopology) {
-        if (not baseLevel.completeTopologyFromFaceVertices()) {
+        if (! baseLevel.completeTopologyFromFaceVertices()) {
             char msg[1024];
             snprintf(msg, 1024, "Failure in TopologyRefinerFactory<>::Create() -- "
                     "vertex with valence %d > %d max.",
@@ -142,7 +142,7 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
     }
 
     if (fullValidation) {
-        if (not baseLevel.validateTopology(callback, callbackData)) {
+        if (! baseLevel.validateTopology(callback, callbackData)) {
             if (completeMissingTopology) {
                 Error(FAR_RUNTIME_ERROR, "Failure in TopologyRefinerFactory<>::Create() -- "
                     "invalid topology detected from partial specification.");
@@ -240,7 +240,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
             //  more than two incident faces.  In these cases there are more incident
             //  faces than edges (1 more for each additional "fin") and no boundaries.
             //
-            if (not ((nonManifoldEdgeCount == 2) && (boundaryEdgeCount == 0) && (vFaces.size() > vEdges.size()))) {
+            if (! ((nonManifoldEdgeCount == 2) && (boundaryEdgeCount == 0) && (vFaces.size() > vEdges.size()))) {
                 vSharpness = Sdc::Crease::SHARPNESS_INFINITE;
             }
         }

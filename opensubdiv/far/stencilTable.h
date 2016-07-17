@@ -208,6 +208,12 @@ protected:
     // Reserves the table arrays (factory helper)
     void reserve(int nstencils, int nelems);
 
+    // Reallocates the table arrays to remove excess capacity (factory helper)
+    void shrinkToFit();
+
+    // Performs any final operations on internal tables (factory helper)
+    void finalize();
+
 protected:
     StencilTable() : _numControlVertices(0) {}
     StencilTable(int numControlVerts)
@@ -416,7 +422,7 @@ StencilTable::update(T const *controlValues, T *values,
         values += start;
     }
 
-    if (end<start or end<0) {
+    if (end<start || end<0) {
         end = GetNumStencils();
     }
 
@@ -458,10 +464,23 @@ StencilTable::reserve(int nstencils, int nelems) {
     _weights.reserve(nelems);
 }
 
+inline void
+StencilTable::shrinkToFit() {
+    std::vector<int>(_sizes).swap(_sizes);
+    std::vector<Index>(_indices).swap(_indices);
+    std::vector<float>(_weights).swap(_weights);
+}
+
+inline void
+StencilTable::finalize() {
+    shrinkToFit();
+    generateOffsets();
+}
+
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTable::GetStencil(Index i) const {
-    assert((not _offsets.empty()) and i<(int)_offsets.size());
+    assert((! _offsets.empty()) && i<(int)_offsets.size());
 
     Index ofs = _offsets[i];
 
@@ -485,7 +504,7 @@ LimitStencilTable::resize(int nstencils, int nelems) {
 // Returns a LimitStencil at index i in the table
 inline LimitStencil
 LimitStencilTable::GetLimitStencil(Index i) const {
-    assert((not GetOffsets().empty()) and i<(int)GetOffsets().size());
+    assert((! GetOffsets().empty()) && i<(int)GetOffsets().size());
 
     Index ofs = GetOffsets()[i];
 

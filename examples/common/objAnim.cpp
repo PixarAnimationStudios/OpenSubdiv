@@ -46,7 +46,7 @@ ObjAnim::InterpolatePositions(float time, float * positions, int stride) const {
 
     assert(positions);
 
-    if ( _positions.empty() or (not _shape)) {
+    if ( _positions.empty() || (! _shape)) {
         //printf("Error: InterpolatePositions on unfit ObjAnim instance\n");
         return;
     }
@@ -94,7 +94,7 @@ ObjAnim::Create(std::vector<char const *> objFiles, bool axis) {
 
     Shape const * shape = 0;
 
-    if (not objFiles.empty()) {
+    if (! objFiles.empty()) {
 
         anim = new ObjAnim;
 
@@ -102,7 +102,7 @@ ObjAnim::Create(std::vector<char const *> objFiles, bool axis) {
 
         for (int i = 0; i < (int)objFiles.size(); ++i) {
 
-            if (not objFiles[i]) {
+            if (! objFiles[i]) {
                 continue;
             }
 

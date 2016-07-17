@@ -357,7 +357,7 @@ PatchTable::IsFeatureAdaptive() const {
 
     for (int i=0; i<GetNumPatchArrays(); ++i) {
         PatchDescriptor const & desc = _patchArrays[i].desc;
-        if (desc.GetType()>=PatchDescriptor::REGULAR and
+        if (desc.GetType()>=PatchDescriptor::REGULAR &&
             desc.GetType()<=PatchDescriptor::GREGORY_BASIS) {
             return true;
         }
@@ -393,7 +393,7 @@ PatchTable::getPatchFVarValues(int patch, int channel) const {
         int ncvs = PatchDescriptor::GetNumFVarControlVertices(c.patchesType);
         return ConstIndexArray(&c.patchValues[patch * ncvs], ncvs);
     } else {
-        assert(patch<(int)c.patchValuesOffsets.size() and
+        assert(patch<(int)c.patchValuesOffsets.size() &&
             patch<(int)c.patchTypes.size());
         return ConstIndexArray(&c.patchValues[c.patchValuesOffsets[patch]],
             PatchDescriptor::GetNumFVarControlVertices(c.patchTypes[patch]));

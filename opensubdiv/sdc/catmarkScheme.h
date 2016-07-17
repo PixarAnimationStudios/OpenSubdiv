@@ -104,7 +104,7 @@ Scheme<SCHEME_CATMARK>::assignSmoothMaskForEdge(EDGE const& edge, MASK& mask) co
         }
     }
 
-    if (not useTriangleOption) {
+    if (! useTriangleOption) {
         mask.VertexWeight(0) = 0.25f;
         mask.VertexWeight(1) = 0.25f;
 

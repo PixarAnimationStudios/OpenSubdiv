@@ -204,8 +204,11 @@ D3D11ComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
         return false;
     }
 
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS
-        | D3D10_SHADER_RESOURCES_MAY_ALIAS;
+    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined(D3D10_SHADER_RESOURCES_MAY_ALIAS)
+     dwShaderFlags |= D3D10_SHADER_RESOURCES_MAY_ALIAS;
+#endif
+
 #ifdef _DEBUG
     dwShaderFlags |= D3DCOMPILE_DEBUG;
 #endif

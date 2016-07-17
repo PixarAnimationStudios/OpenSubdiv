@@ -292,8 +292,8 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     g_scheme = scheme;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and g_scheme==kCatmark),
-         doSingleCreasePatch = (g_singleCreasePatch!=0 and g_scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 && g_scheme==kCatmark),
+         doSingleCreasePatch = (g_singleCreasePatch!=0 && g_scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
@@ -643,7 +643,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
 
     // only legacy gregory needs maxValence and numElements
     // neither legacy gregory nor gregory basis need single crease
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY ||
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
         int maxValence = g_mesh->GetMaxValence();
         int numElements = 6;
@@ -668,7 +668,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
             float ModelViewInverseMatrix[16];
         };
 
-        if (not g_pcbPerFrame) {
+        if (! g_pcbPerFrame) {
             D3D11_BUFFER_DESC cbDesc;
             ZeroMemory(&cbDesc, sizeof(cbDesc));
             cbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -711,7 +711,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
             int PrimitiveIdBase;
         };
 
-        if (not g_pcbTessellation) {
+        if (! g_pcbTessellation) {
             D3D11_BUFFER_DESC cbDesc;
             ZeroMemory(&cbDesc, sizeof(cbDesc));
             cbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -742,7 +742,7 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
             float color[4];
         };
 
-        if (not g_pcbMaterial) {
+        if (! g_pcbMaterial) {
             D3D11_BUFFER_DESC cbDesc;
             ZeroMemory(&cbDesc, sizeof(cbDesc));
             cbDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -947,7 +947,7 @@ motion(int x, int y) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if ((g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) or
+    } else if ((g_mbutton[0] && g_mbutton[1] && !g_mbutton[2]) ||
                (!g_mbutton[0] && !g_mbutton[1] && g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -1043,7 +1043,7 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL_DX_INTEROP
-    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+    if (g_kernel == kCL && (!g_clDeviceContext.IsInitialized())) {
         if (g_clDeviceContext.Initialize(g_pd3dDeviceContext) == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
@@ -1051,7 +1051,7 @@ callbackKernel(int k) {
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+    if (g_kernel == kCUDA && (!g_cudaDeviceContext.IsInitialized())) {
         if (g_cudaDeviceContext.Initialize(g_pd3dDevice) == false) {
             printf("Error in initializing Cuda\n");
             exit(1);
@@ -1551,7 +1551,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                         NULL);
 
     std::vector<std::string> args = tokenize(lpCmdLine);
-    for (int i=0; i<args.size(); ++i) {
+    for (size_t i=0; i<args.size(); ++i) {
         std::ifstream ifs(args[i]);
         if (ifs) {
             std::stringstream ss;
@@ -1598,7 +1598,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
-            if (not g_freeze)
+            if (! g_freeze)
                 g_frame++;
 
             updateGeom();

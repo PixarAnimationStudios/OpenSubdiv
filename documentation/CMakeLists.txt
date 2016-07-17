@@ -31,7 +31,7 @@ if (DOXYGEN_FOUND)
     add_custom_target(doc_doxy
             ${DOXYGEN_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv.doxy"
         WORKING_DIRECTORY
-            "${CMAKE_BINARY_DIR}/public_headers/"
+            "${OpenSubdiv_BINARY_DIR}/public_headers/"
         DEPENDS
             public_headers
         COMMENT
@@ -184,7 +184,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         get_filename_component(BASENAME ${tutorial} NAME_WE)
 
         string(REGEX REPLACE "(/)" "_" TARGET_NAME ${tutorial})
-        set(infile "${CMAKE_SOURCE_DIR}/tutorials/${tutorial}")
+        set(infile "${OpenSubdiv_SOURCE_DIR}/tutorials/${tutorial}")
         set(rstfile "${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}.rst")
         set(htmlfile "${CMAKE_CURRENT_BINARY_DIR}/${BASENAME}.html")
 

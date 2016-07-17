@@ -26,14 +26,14 @@
 #include "ptexMipmapTextureLoader.h"
 #include <far/error.h>  // XXX: to be replaced
 
-#include <Ptexture.h>
 #include <D3D11.h>
 #include <cassert>
 
 D3D11PtexMipmapTexture::D3D11PtexMipmapTexture()
     : _width(0), _height(0), _depth(0),
       _layout(0), _texels(0),
-      _layoutSRV(0), _texelsSRV(0)
+      _layoutSRV(0), _texelsSRV(0),
+      _memoryUsage(0)
 {
 }
 
@@ -96,25 +96,33 @@ genTextureBuffer(ID3D11DeviceContext *deviceContext, int size, void const * data
 D3D11PtexMipmapTexture *
 D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
                                   PtexTexture * reader,
-                                  int maxLevels) {
+                                  int maxLevels,
+                                  size_t targetMemory) {
 
     D3D11PtexMipmapTexture * result = NULL;
 
     int maxNumPages = D3D10_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 
     // Read the ptex data and pack the texels
-    PtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
+    bool padAlpha = reader->numChannels()==3 && reader->dataType()!=Ptex::dt_float;
 
-    int numFaces = loader.GetNumFaces();
+    PtexMipmapTextureLoader loader(reader,
+                                   maxNumPages,
+                                   maxLevels,
+                                   targetMemory,
+                                   true, // seamlessMipmap
+                                   padAlpha);
+
+    int numChannels = reader->numChannels() + padAlpha,
+        numFaces = loader.GetNumFaces();
 
     ID3D11Buffer *layout = genTextureBuffer(deviceContext,
                                             numFaces * 6 * sizeof(short),
                                             loader.GetLayoutBuffer());
-    if (not layout) return NULL;
+    if (!layout) return NULL;
 
     DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
     int bpp = 0;
-    int numChannels = reader->numChannels();
     switch (reader->dataType()) {
         case Ptex::dt_uint16:
             switch (numChannels) {
@@ -138,7 +146,7 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
             switch (numChannels) {
                 case 1: format = DXGI_FORMAT_R16_FLOAT; break;
                 case 2: format = DXGI_FORMAT_R16G16_FLOAT; break;
-                case 3:assert(false); break;
+                case 3: assert(false); break;
                 case 4: format = DXGI_FORMAT_R16G16B16A16_FLOAT; break;
             }
             bpp = numChannels * 2;
@@ -218,6 +226,7 @@ D3D11PtexMipmapTexture::Create(ID3D11DeviceContext *deviceContext,
 
     result->_layoutSRV = layoutSRV;
     result->_texelsSRV = texelsSRV;
+    result->_memoryUsage = loader.GetMemoryUsage();
 
     return result;
 }

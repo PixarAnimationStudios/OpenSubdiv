@@ -52,7 +52,7 @@ static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
               BufferDescriptor const &desc) {
 
-    assert(src and dst);
+    assert(src && dst);
     src = elementAtIndex(src, srcIndex, desc);
     for (int k = 0; k < desc.length; ++k) {
         dst[k] += src[k] * weight;
@@ -62,7 +62,7 @@ addWithWeight(float *dst, const float *src, int srcIndex, float weight,
 static inline void
 copy(float *dst, int dstIndex, const float *src, BufferDescriptor const &desc) {
 
-    assert(src and dst);
+    assert(src && dst);
 
     dst = elementAtIndex(dst, dstIndex, desc);
     memcpy(dst, src, desc.length*sizeof(float));
@@ -77,7 +77,7 @@ CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
                 float const * weights,
                 int start, int end) {
 
-    assert(start>=0 and start<end);
+    assert(start>=0 && start<end);
 
     if (start>0) {
         sizes += start;
@@ -88,15 +88,15 @@ CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
     src += srcDesc.offset;
     dst += dstDesc.offset;
 
-    if (srcDesc.length == 4 and dstDesc.length == 4 and
-        srcDesc.stride == 4 and dstDesc.stride == 4) {
+    if (srcDesc.length == 4 && dstDesc.length == 4 &&
+        srcDesc.stride == 4 && dstDesc.stride == 4) {
 
         // SIMD fast path for aligned primvar data (4 floats)
         ComputeStencilKernel<4>(src, dst,
             sizes, indices, weights, start,  end);
 
-    } else if (srcDesc.length == 8 and dstDesc.length == 8 and
-               srcDesc.stride == 8 and dstDesc.stride == 8) {
+    } else if (srcDesc.length == 8 && dstDesc.length == 8 &&
+               srcDesc.stride == 8 && dstDesc.stride == 8) {
 
         // SIMD fast path for aligned primvar data (8 floats)
         ComputeStencilKernel<8>(src, dst,
