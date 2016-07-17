@@ -119,7 +119,7 @@ template <typename STENCIL_TABLE, typename SRC_STENCIL_TABLE,
 STENCIL_TABLE const *
 convertToCompatibleStencilTable(
     SRC_STENCIL_TABLE const *table, DEVICE_CONTEXT *context) {
-    if (not table) return NULL;
+    if (! table) return NULL;
     return STENCIL_TABLE::Create(table, context);
 }
 
@@ -129,7 +129,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
     Far::StencilTable const *table, void *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
-    if (not table) return NULL;
+    if (! table) return NULL;
     return new Far::StencilTable(*table);
 }
 
@@ -139,7 +139,7 @@ convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, 
     Far::LimitStencilTable const *table, void *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
-    if (not table) return NULL;
+    if (! table) return NULL;
     return new Far::LimitStencilTable(*table);
 }
 
@@ -149,7 +149,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, ID3D11Devi
     Far::StencilTable const *table, ID3D11DeviceContext *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
-    if (not table) return NULL;
+    if (! table) return NULL;
     return new Far::StencilTable(*table);
 }
 

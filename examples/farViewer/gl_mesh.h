@@ -84,7 +84,7 @@ public:
     void Initialize(Options options,
         std::vector<OpenSubdiv::HbrFace<T> const *> const & faces) {
 
-        assert(not faces.empty());
+        assert(!faces.empty());
 
         OpenSubdiv::HbrMesh<T> const * hmesh = faces[0]->GetMesh();
 

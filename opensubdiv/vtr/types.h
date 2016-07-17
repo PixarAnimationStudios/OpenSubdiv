@@ -70,7 +70,7 @@ static const int VALENCE_LIMIT = ((1 << 16) - 1);  // std::numeric_limits<LocalI
 
 //
 //  Collections if integer types in variable or fixed sized arrays.  Note that the use
-//  of "vector" in the name indicates a class that wraps an std:;vector (typically a
+//  of "vector" in the name indicates a class that wraps an std::vector (typically a
 //  member variable) which is fully resizable and owns its own storage, whereas "array"
 //  wraps a vtr::Array which uses a fixed block of pre-allocated memory.
 //

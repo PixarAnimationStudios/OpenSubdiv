@@ -35,3 +35,8 @@ foreach(tutorial ${TUTORIALS})
 endforeach()
 
 add_custom_target(osd_tutorials DEPENDS ${TUTORIAL_TARGETS})
+
+set_target_properties(osd_tutorials
+    PROPERTIES 
+        FOLDER "tutorials/osd"
+)

@@ -89,7 +89,7 @@ struct Shape {
 
     int GetNumFaces() const { return (int)nvertsPerFace.size(); }
 
-    bool HasUV() const { return not (uvs.empty() or faceuvs.empty()); }
+    bool HasUV() const { return ! (uvs.empty() || faceuvs.empty()); }
 
     int GetFVarWidth() const { return HasUV() ? 2 : 0; }
 

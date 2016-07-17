@@ -63,7 +63,7 @@ static int _GetCudaDeviceForCurrentGLContext()
     // If we don't have a current GL context, then choose the device which
     // matches the current X11 screen number.
     Display * display = glXGetCurrentDisplay();
-    if (not display) {
+    if (!display) {
         display = XOpenDisplay(NULL);
         if (display) {
             int screen = DefaultScreen(display);
@@ -90,7 +90,7 @@ static int _GetCudaDeviceForCurrentGLContext()
     int interopDevices[1];
     cudaError_t status = cudaGLGetDevices(&interopDeviceCount, interopDevices,
                                           1,  cudaGLDeviceListCurrentFrame);
-    if (status == cudaErrorNoDevice or interopDeviceCount != 1) {
+    if (status == cudaErrorNoDevice || interopDeviceCount != 1) {
         message("CUDA no interop devices found.\n");
         return 0;
     }

@@ -149,6 +149,28 @@ public:
 
     ETag getFaceCompositeETag(ConstIndexArray & faceEdges) const;
 
+    //  Additional simple struct to identify a "span" around a vertex, i.e. a
+    //  subset of the faces around a vertex delimited by some property (e.g. a
+    //  face-varying discontinuity, an inf-sharp edge, etc.)
+    //
+    //  The span requires an "origin", i.e. a leading edge or face and a "size"
+    //  to fully define its extent.  Use of the size is preferred over leading
+    //  and trailing edges/faces so that valence is available since for a non-
+    //  manifold vertex that cannot be determined from the two extremeties.
+    //  There is also a subtle but marginal advantage in using a leading edge
+    //  rather than face, but it may be worth using the leading face with the
+    //  face count for consistency (both properties defined in terms of faces).
+    //
+    //  Currently setting the size to 0 is an indication to use the full
+    //  neighborhood rather than a subset -- may want to revisit that choice...
+    //
+    struct VSpan {
+        VSpan() : _numFaces(0), _leadingVertEdge(0) { }
+
+        LocalIndex _numFaces;
+        LocalIndex _leadingVertEdge;
+    };
+
 public:
     Level();
     ~Level();
@@ -284,7 +306,10 @@ public:
     int gatherQuadRegularCornerPatchPoints(  Index fIndex, Index patchPoints[], int cornerVertInFace,
                                                                                 int fvarChannel = -1) const;
 
-    int gatherQuadRegularRingAroundVertex(Index vIndex, Index ringPoints[], int fvarChannel = -1) const;
+    int gatherQuadRegularRingAroundVertex(Index vIndex, Index ringPoints[],
+                                          int fvarChannel = -1) const;
+    int gatherQuadRegularPartialRingAroundVertex(Index vIndex, VSpan const & span, Index ringPoints[],
+                                                 int fvarChannel = -1) const;
 
     //  WIP -- for future use, need to extend for face-varying...
     int gatherTriRegularInteriorPatchPoints(      Index fIndex, Index patchVerts[], int rotation = 0) const;

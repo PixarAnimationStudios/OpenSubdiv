@@ -443,7 +443,7 @@ void CudaEvalStencils(
     const int * sizes, const int * offsets, const int * indices,
     const float * weights,
     int start, int end) {
-    if (length == 0 or srcStride == 0 or dstStride == 0 or (end <= start)) {
+    if (length == 0 || srcStride == 0 || dstStride == 0 || (end <= start)) {
         return;
     }
 

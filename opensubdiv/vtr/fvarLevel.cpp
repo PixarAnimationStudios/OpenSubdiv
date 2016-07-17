@@ -861,7 +861,7 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
     ConstLocalIndexArray vInFace = _level.getVertexFaceLocalIndices(vIndex);
 
     bool vIsBoundary = _level.getVertexTag(vIndex)._boundary;
-    bool vIsManifold = not _level.getVertexTag(vIndex)._nonManifold;
+    bool vIsManifold = ! _level.getVertexTag(vIndex)._nonManifold;
 
     bool isBaseLevel = (_level.getDepth() == 0);
 

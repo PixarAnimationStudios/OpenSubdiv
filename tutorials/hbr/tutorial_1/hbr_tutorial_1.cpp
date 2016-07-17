@@ -145,7 +145,7 @@ int main(int, char **) {
             Hhalfedge const * opposite = destination->GetEdge(origin);
 
             // Make sure that the vertices exist in the mesh
-            if (origin==NULL or destination==NULL) {
+            if (origin==NULL || destination==NULL) {
                 printf(" An edge was specified that connected a nonexistent vertex\n");
                 valid=false;
                 break;
@@ -159,7 +159,7 @@ int main(int, char **) {
             }
 
             // Check that no more than 2 faces are adjacent to the edge
-            if (opposite and opposite->GetOpposite() ) {
+            if (opposite && opposite->GetOpposite() ) {
                 printf(" A non-manifold edge incident to more than 2 faces was found\n");
                 valid=false;
                 break;

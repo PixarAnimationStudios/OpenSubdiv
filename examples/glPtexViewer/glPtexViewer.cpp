@@ -346,7 +346,7 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    if (g_moveScale and g_adaptive and not g_animPositions.empty()) {
+    if (g_moveScale && g_adaptive && !g_animPositions.empty()) {
         // baked animation only works with adaptive for now
         // (since non-adaptive requires normals)
         int nkey = (int)g_animPositions.size();
@@ -875,7 +875,7 @@ createOsdMesh(int level, int kernel) {
 
     // generate Shape representation from ptex
     Shape * shape = createPTexGeo(ptexColor);
-    if (not shape) {
+    if (!shape) {
         return;
     }
 
@@ -901,7 +901,7 @@ createOsdMesh(int level, int kernel) {
     g_mesh = NULL;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive != 0 and g_scheme == 0);
+    bool doAdaptive = (g_adaptive != 0 && g_scheme == 0);
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
@@ -1394,7 +1394,7 @@ display() {
 
     g_fpsTimer.Stop();
     float elapsed = (float)g_fpsTimer.GetElapsed();
-    if (not g_freeze)
+    if (!g_freeze)
         g_animTime += elapsed;
     g_fpsTimer.Start();
 
@@ -1466,7 +1466,7 @@ motion(GLFWwindow *, double dx, double dy) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -1510,7 +1510,7 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+    if (g_kernel == kCL && (!g_clDeviceContext.IsInitialized())) {
         // Initialize OpenCL
         if (g_clDeviceContext.Initialize() == false) {
             printf("Error in initializing OpenCL\n");
@@ -1519,7 +1519,7 @@ callbackKernel(int k) {
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+    if (g_kernel == kCUDA && (!g_cudaDeviceContext.IsInitialized())) {
         if (g_cudaDeviceContext.Initialize() == false) {
             printf("Error in initializing Cuda\n");
             exit(1);
@@ -1616,10 +1616,10 @@ callbackSlider(float value, int data) {
 //-------------------------------------------------------------------------------
 void
 reloadShaderFile() {
-    if (not g_shaderFilename) return;
+    if (!g_shaderFilename) return;
 
     std::ifstream ifs(g_shaderFilename);
-    if (not ifs) return;
+    if (!ifs) return;
     printf("Load shader %s\n", g_shaderFilename);
 
     std::stringstream ss;
@@ -1661,7 +1661,7 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 //------------------------------------------------------------------------------
 void
 idle() {
-    if (not g_freeze)
+    if (!g_freeze)
         g_frame++;
 
     updateGeom();
@@ -1778,7 +1778,7 @@ int main(int argc, char ** argv) {
     }
 
     glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
+    if (!glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -1792,7 +1792,7 @@ int main(int argc, char ** argv) {
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
         // settle for the first one in the list
-        if (not g_primary) {
+        if (!g_primary) {
             int count = 0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
@@ -1807,8 +1807,8 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if (not (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                               fullscreen and g_primary ? g_primary : NULL, NULL))) {
+    if (!(g_window=glfwCreateWindow(g_width, g_height, windowTitle,
+                               fullscreen && g_primary ? g_primary : NULL, NULL))) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
@@ -1866,7 +1866,7 @@ int main(int argc, char ** argv) {
         g_hud.AddCheckBox("Specular (S)", g_specular,
                           -200, 590, callbackCheckBox, HUD_CB_DISPLAY_SPECULAR, 's');
 
-    if (diffuseEnvironmentMap or specularEnvironmentMap) {
+    if (diffuseEnvironmentMap || specularEnvironmentMap) {
         g_hud.AddCheckBox("IBL (I)", g_ibl,
                           -200, 610, callbackCheckBox, HUD_CB_IBL, 'i');
     }
@@ -2015,7 +2015,7 @@ int main(int argc, char ** argv) {
         + (g_osdPTexSpecular ? g_osdPTexSpecular->GetMemoryUsage() : 0);
 
     // load animation obj sequences (optional)
-    if (not animobjs.empty()) {
+    if (!animobjs.empty()) {
         for (int i = 0; i < (int)animobjs.size(); ++i) {
             std::ifstream ifs(animobjs[i].c_str());
             if (ifs) {

@@ -111,14 +111,14 @@ add_custom_target(maya_polySmoothNode_melScripts
         COMMAND
             ${CMAKE_COMMAND} -E copy
             "${CMAKE_CURRENT_SOURCE_DIR}/mayaPolySmooth.mel"
-            "${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/mayaPolySmooth.mel"
+            "${OpenSubdiv_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/mayaPolySmooth.mel"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/mayaPolySmooth.mel"
 )
 
 install(
     FILES
-        "${CMAKE_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/mayaPolySmooth.mel"
+        "${OpenSubdiv_BINARY_DIR}/${CMAKE_LIBDIR_BASE}/mayaPolySmooth.mel"
     DESTINATION
         "${CMAKE_PLUGINDIR_BASE}"
 )

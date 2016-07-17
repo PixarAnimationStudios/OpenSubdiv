@@ -305,6 +305,9 @@ class LimitStencilTable : public StencilTable {
                     std::vector<float> const& weights,
                     std::vector<float> const& duWeights,
                     std::vector<float> const& dvWeights,
+                    std::vector<float> const& duuWeights,
+                    std::vector<float> const& duvWeights,
+                    std::vector<float> const& dvvWeights,
                     bool includeCoarseVerts,
                     size_t firstOffset);
 
@@ -326,6 +329,21 @@ public:
         return _dvWeights;
     }
 
+    /// \brief Returns the 'uu' derivative stencil interpolation weights
+    std::vector<float> const & GetDuuWeights() const {
+        return _duuWeights;
+    }
+
+    /// \brief Returns the 'uv' derivative stencil interpolation weights
+    std::vector<float> const & GetDuvWeights() const {
+        return _duvWeights;
+    }
+
+    /// \brief Returns the 'vv' derivative stencil interpolation weights
+    std::vector<float> const & GetDvvWeights() const {
+        return _dvvWeights;
+    }
+
     /// \brief Updates derivative values based on the control values
     ///
     /// \note The destination buffers ('uderivs' & 'vderivs') are assumed to
@@ -337,6 +355,15 @@ public:
     ///                       derivative primvar data
     ///
     /// @param vderivs        Destination buffer for the interpolated 'v'
+    ///                       derivative primvar data
+    ///
+    /// @param uuderivs       Destination buffer for the interpolated 'uu'
+    ///                       derivative primvar data
+    ///
+    /// @param uvderivs       Destination buffer for the interpolated 'uv'
+    ///                       derivative primvar data
+    ///
+    /// @param vvderivs       Destination buffer for the interpolated 'vv'
     ///                       derivative primvar data
     ///
     /// @param start          (skip to )index of first value to update
@@ -351,6 +378,15 @@ public:
         update(controlValues, vderivs, _dvWeights, start, end);
     }
 
+    template <class T>
+    void Update2ndPartials(T const *controlValues, T *uuderivs, T *uvderivs, T *vvderivs,
+        int start=-1, int end=-1) const {
+
+        update(controlValues, uuderivs, _duuWeights, start, end);
+        update(controlValues, uvderivs, _duvWeights, start, end);
+        update(controlValues, vvderivs, _dvvWeights, start, end);
+    }
+
     /// \brief Clears the stencils from the table
     void Clear();
 
@@ -361,8 +397,11 @@ private:
     void resize(int nstencils, int nelems);
 
 private:
-    std::vector<float>  _duWeights,  // u derivative limit stencil weights
-                        _dvWeights;  // v derivative limit stencil weights
+    std::vector<float>  _duWeights,   // u  derivative limit stencil weights
+                        _dvWeights,   // v  derivative limit stencil weights
+                        _duuWeights,  // uu derivative limit stencil weights
+                        _duvWeights,  // uv derivative limit stencil weights
+                        _dvvWeights;  // vv derivative limit stencil weights
 };
 
 
@@ -383,7 +422,7 @@ StencilTable::update(T const *controlValues, T *values,
         values += start;
     }
 
-    if (end<start or end<0) {
+    if (end<start || end<0) {
         end = GetNumStencils();
     }
 
@@ -441,7 +480,7 @@ StencilTable::finalize() {
 // Returns a Stencil at index i in the table
 inline Stencil
 StencilTable::GetStencil(Index i) const {
-    assert((not _offsets.empty()) and i<(int)_offsets.size());
+    assert((! _offsets.empty()) && i<(int)_offsets.size());
 
     Index ofs = _offsets[i];
 
@@ -465,7 +504,7 @@ LimitStencilTable::resize(int nstencils, int nelems) {
 // Returns a LimitStencil at index i in the table
 inline LimitStencil
 LimitStencilTable::GetLimitStencil(Index i) const {
-    assert((not GetOffsets().empty()) and i<(int)GetOffsets().size());
+    assert((! GetOffsets().empty()) && i<(int)GetOffsets().size());
 
     Index ofs = GetOffsets()[i];
 

@@ -137,19 +137,16 @@ InterpolateFVarData(OpenSubdiv::Far::TopologyRefiner & refiner,
 
 template <class T>
 OpenSubdiv::Far::TopologyRefiner *
-InterpolateFarVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
-    std::vector<T> &data) {
+InterpolateFarVertexData(Shape const & shape, int maxlevel, std::vector<T> &data) {
 
     typedef OpenSubdiv::Far::TopologyRefiner FarTopologyRefiner;
     typedef OpenSubdiv::Far::TopologyRefinerFactory<Shape> FarTopologyRefinerFactory;
 
     // Far interpolation
-    Shape * shape = Shape::parseObj(shapeStr, scheme);
-
     FarTopologyRefiner * refiner =
-        FarTopologyRefinerFactory::Create(*shape,
+        FarTopologyRefinerFactory::Create(shape,
             FarTopologyRefinerFactory::Options(
-                GetSdcType(*shape), GetSdcOptions(*shape)));
+                GetSdcType(shape), GetSdcOptions(shape)));
     assert(refiner);
 
     FarTopologyRefiner::UniformOptions options(maxlevel);
@@ -159,9 +156,9 @@ InterpolateFarVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
     // populate coarse mesh positions
     data.resize(refiner->GetNumVerticesTotal());
     for (int i=0; i<refiner->GetLevel(0).GetNumVertices(); i++) {
-        data[i].SetPosition(shape->verts[i*3+0],
-                            shape->verts[i*3+1],
-                            shape->verts[i*3+2]);
+        data[i].SetPosition(shape.verts[i*3+0],
+                            shape.verts[i*3+1],
+                            shape.verts[i*3+2]);
     }
 
     T * srcVerts = &data[0];
@@ -173,6 +170,18 @@ InterpolateFarVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
         srcVerts = dstVerts;
         dstVerts += refiner->GetLevel(i).GetNumVertices();
     }
+    return refiner;
+}
+
+template <class T>
+OpenSubdiv::Far::TopologyRefiner *
+InterpolateFarVertexData(const char *shapeStr, Scheme scheme, int maxlevel,
+    std::vector<T> &data) {
+
+    Shape const * shape = Shape::parseObj(shapeStr, scheme);
+
+    OpenSubdiv::Far::TopologyRefiner * refiner =
+            InterpolateFarVertexData(*shape, maxlevel, data);
 
     delete shape;
     return refiner;
@@ -241,8 +250,8 @@ inline bool
 TopologyRefinerFactory<Shape>::assignFaceVaryingTopology(
     Far::TopologyRefiner & refiner, Shape const & shape) {
 
-    // UV layyout (we only parse 1 channel)
-    if (not shape.faceuvs.empty()) {
+    // UV layout (we only parse 1 channel)
+    if (! shape.faceuvs.empty()) {
 
         int nfaces = getNumBaseFaces(refiner),
            channel = createBaseFVarChannel(refiner, (int)shape.uvs.size()/2 );
@@ -295,7 +304,7 @@ TopologyRefinerFactory<Shape>::assignComponentTags(
 
             for (int j=0; j<(int)t->intargs.size(); ++j) {
                 int vertex = t->intargs[j];
-                if (vertex<0 or vertex>=getNumBaseVertices(refiner)) {
+                if (vertex<0 || vertex>=getNumBaseVertices(refiner)) {
                     printf("cannot find vertex for corner tag (%d)\n", vertex );
                     return false;
                 } else {

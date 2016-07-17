@@ -357,7 +357,7 @@ PatchTable::IsFeatureAdaptive() const {
 
     for (int i=0; i<GetNumPatchArrays(); ++i) {
         PatchDescriptor const & desc = _patchArrays[i].desc;
-        if (desc.GetType()>=PatchDescriptor::REGULAR and
+        if (desc.GetType()>=PatchDescriptor::REGULAR &&
             desc.GetType()<=PatchDescriptor::GREGORY_BASIS) {
             return true;
         }
@@ -393,7 +393,7 @@ PatchTable::getPatchFVarValues(int patch, int channel) const {
         int ncvs = PatchDescriptor::GetNumFVarControlVertices(c.patchesType);
         return ConstIndexArray(&c.patchValues[patch * ncvs], ncvs);
     } else {
-        assert(patch<(int)c.patchValuesOffsets.size() and
+        assert(patch<(int)c.patchValuesOffsets.size() &&
             patch<(int)c.patchTypes.size());
         return ConstIndexArray(&c.patchValues[c.patchValuesOffsets[patch]],
             PatchDescriptor::GetNumFVarControlVertices(c.patchTypes[patch]));
@@ -424,17 +424,17 @@ PatchTable::print() const {
 //
 void
 PatchTable::EvaluateBasis(PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[]) const {
+    float wP[], float wDs[], float wDt[], float wDss[], float wDst[], float wDtt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
     PatchParam const & param = _paramTable[handle.patchIndex];
 
     if (patchType == PatchDescriptor::REGULAR) {
-        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt);
+        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
     } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt);
+        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
     } else if (patchType == PatchDescriptor::QUADS) {
-        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt);
+        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
     } else {
         assert(0);
     }

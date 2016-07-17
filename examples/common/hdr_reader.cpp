@@ -79,7 +79,7 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
 
     // read header
     while(true) {
-        if (not fgets(buffer, MAXLINE, fp)) goto error;
+        if (! fgets(buffer, MAXLINE, fp)) goto error;
         if (buffer[0] == '\n') break;
         if (buffer[0] == '\r' && buffer[0] == '\n') break;
         if (strncmp(buffer, "#?", 2) == 0) {
@@ -92,16 +92,16 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
     if (strncmp(info->format, "32-bit_rle_rgbe", 15)) goto error;
 
     // resolution
-    if (not fgets(buffer, MAXLINE, fp)) goto error;
+    if (! fgets(buffer, MAXLINE, fp)) goto error;
     {
         int n = (int)strlen(buffer);
         for (int i = 1; i < n; ++i) {
             if (buffer[i] == 'X') {
-                if (not (info->flag & HDR_Y_MAJOR)) info->flag |= HDR_X_MAJOR;
+                if (! (info->flag & HDR_Y_MAJOR)) info->flag |= HDR_X_MAJOR;
                 info->flag |= (char)((buffer[i-1] == '-') ? HDR_X_DEC : 0);
                 info->width = atoi(&buffer[i+1]);
             } else if (buffer[i] == 'Y') {
-                if (not (info->flag & HDR_X_MAJOR)) info->flag |= HDR_Y_MAJOR;
+                if (! (info->flag & HDR_X_MAJOR)) info->flag |= HDR_Y_MAJOR;
                 info->flag |= (char)((buffer[i-1] == '-') ? HDR_Y_DEC : 0);
                 info->height = atoi(&buffer[i+1]);
             }
@@ -128,7 +128,7 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
     line = (unsigned char *)malloc(info->scanLength*4);
 
     for (int y = info->scanWidth-1; y >= 0; --y) {
-        if (not readLine(line, info->scanLength, fp)) goto error;
+        if (! readLine(line, info->scanLength, fp)) goto error;
         for (int x = 0; x < info->scanLength; ++x) {
             if (convertToFloat) {
                 float scale = powf(2.0f, float(line[x*4+3] - 128))/255.0f;

@@ -8,9 +8,10 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
- * master : [![Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=master)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv)
-
- * dev : [![Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=dev)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv)
+|        |  Linux  |  Windows  | 
+|:------:|:-------:|:---------:|
+| master | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=master)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/master?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
+| dev | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=dev)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/dev?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
 
 ## Documents
  * [User Documents] (http://graphics.pixar.com/opensubdiv/docs/intro.html)
@@ -65,7 +66,7 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
    ${GLEW_LOCATION}/lib/libGLEW.a (linux)
    ${GLEW_LOCATION}/lib/glew32.lib (windows)
 
-   ${GLFW_LOCATION}/include/glfw3.h
+   ${GLFW_LOCATION}/include/GLFW/glfw3.h
    ${GLFW_LOCATION}/lib/libglfw3.a (linux)
    ${GLFW_LOCATION}/lib/glfw3.lib (windows)
 ```

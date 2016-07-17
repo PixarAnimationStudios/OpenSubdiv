@@ -76,7 +76,7 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     Options options) {
 
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
-    if (maxlevel==0 and (not options.generateControlVerts)) {
+    if (maxlevel==0 && (! options.generateControlVerts)) {
         StencilTable * result = new StencilTable;
         result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
         return result;
@@ -98,7 +98,7 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
                                     refiner.GetLevel(0).GetNumVertices());
 
     for (int level=1; level<=maxlevel; ++level) {
-        if (not interpolateVarying) {
+        if (! interpolateVarying) {
             primvarRefiner.Interpolate(level, srcIndex, dstIndex);
         } else {
             primvarRefiner.InterpolateVarying(level, srcIndex, dstIndex);
@@ -110,7 +110,7 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
 
         dstIndex = dstIndex[refiner.GetLevel(level).GetNumVertices()];
 
-        if (not options.factorizeIntermediateLevels) {
+        if (! options.factorizeIntermediateLevels) {
             // All previous verts are considered as coarse verts, as a
             // result, we don't update the srcIndex and update the coarse
             // vertex count.
@@ -119,7 +119,7 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     }
 
     size_t firstOffset = refiner.GetLevel(0).GetNumVertices();
-    if (not options.generateIntermediateLevels)
+    if (! options.generateIntermediateLevels)
         firstOffset = srcIndex.GetOffset();
  
     // Copy stencils from the StencilBuilder into the StencilTable.
@@ -146,7 +146,7 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
     // other Create() API returns an empty stencil instead of NULL.
     // They need to be consistent.
 
-    if ( (numTables<=0) or (not tables)) {
+    if ( (numTables<=0) || (! tables)) {
         return NULL;
     }
 
@@ -160,7 +160,7 @@ StencilTableFactory::Create(int numTables, StencilTable const ** tables) {
         // allow the tables could have a null entry.
         if (!st) continue;
 
-        if (ncvs >= 0 and st->GetNumControlVertices() != ncvs) {
+        if (ncvs >= 0 && st->GetNumControlVertices() != ncvs) {
             return NULL;
         }
         ncvs = st->GetNumControlVertices();
@@ -211,8 +211,8 @@ StencilTableFactory::AppendLocalPointStencilTable(
     bool factorize) {
 
     // factorize and append.
-    if (baseStencilTable == NULL or
-        localPointStencilTable == NULL or
+    if (baseStencilTable == NULL ||
+        localPointStencilTable == NULL ||
         localPointStencilTable->GetNumStencils() == 0) return NULL;
 
     // baseStencilTable can be built with or without singular stencils
@@ -360,7 +360,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     int maxlevel = refiner.GetMaxLevel();
 
     StencilTable const * cvstencils = cvStencilsIn;
-    if (not cvstencils) {
+    if (! cvstencils) {
         // Generate stencils for the control vertices - this is necessary to
         // properly factorize patches with control vertices at level 0 (natural
         // regular patches, such as in a torus)
@@ -372,7 +372,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         options.generateOffsets = true;
 
         // PERFORMANCE: We could potentially save some mem-copies by not
-        // instanciating the stencil tables and work directly off the source
+        // instantiating the stencil tables and work directly off the source
         // data.
         cvstencils = StencilTableFactory::Create(refiner, options);
     } else {
@@ -390,7 +390,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     // If a stencil table was given, use it, otherwise, create a new one
     PatchTable const * patchtable = patchTableIn;
 
-    if (not patchtable) {
+    if (! patchtable) {
         // XXXX (manuelk) If no patch-table was passed, we should be able to
         // infer the patches fairly easily from the refiner. Once more tags
         // have been added to the refiner, maybe we can remove the need for the
@@ -402,7 +402,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
 
         patchtable = PatchTableFactory::Create(refiner, options);
 
-        if (not cvStencilsIn) {
+        if (! cvStencilsIn) {
             // if cvstencils is just created above, append endcap stencils
             if (StencilTable const *localPointStencilTable =
                 patchtable->GetLocalPointStencilTable()) {
@@ -416,15 +416,15 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     } else {
         // Sanity checks
         if (patchtable->IsFeatureAdaptive()==uniform) {
-            if (not cvStencilsIn) {
-                assert(cvstencils and cvstencils!=cvStencilsIn);
+            if (! cvStencilsIn) {
+                assert(cvstencils && cvstencils!=cvStencilsIn);
                 delete cvstencils;
             }
             return 0;
         }
     }
 
-    assert(patchtable and cvstencils);
+    assert(patchtable && cvstencils);
 
     // Create a patch-map to locate sub-patches faster
     PatchMap patchmap( *patchtable );
@@ -439,29 +439,29 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     internal::StencilBuilder::Index origin(&builder, 0);
     internal::StencilBuilder::Index dst = origin;
 
-    float wP[20], wDs[20], wDt[20];
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
     for (size_t i=0; i<locationArrays.size(); ++i) {
         LocationArray const & array = locationArrays[i];
         assert(array.ptexIdx>=0);
 
-        for (int j=0; j<array.numLocations; ++j) {
+        for (int j=0; j<array.numLocations; ++j) { // for each face we're working on
             float s = array.s[j],
-                  t = array.t[j];
+                  t = array.t[j]; // for each target (s,t) point on that face
 
             PatchMap::Handle const * handle = 
                                         patchmap.FindPatch(array.ptexIdx, s, t);
             if (handle) {
                 ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
 
-                patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+                patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 
                 StencilTable const & src = *cvstencils;
                 dst = origin[numLimitStencils];
 
                 dst.Clear();
                 for (int k = 0; k < cvs.size(); ++k) {
-                    dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k]);
+                    dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k], wDss[k], wDst[k], wDtt[k]);
                 }
 
                 ++numLimitStencils;
@@ -469,11 +469,11 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         }
     }
 
-    if (not cvStencilsIn) {
+    if (! cvStencilsIn) {
         delete cvstencils;
     }
 
-    if (not patchTableIn) {
+    if (! patchTableIn) {
         delete patchtable;
     }
 
@@ -488,6 +488,9 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
                                           builder.GetStencilWeights(),
                                           builder.GetStencilDuWeights(),
                                           builder.GetStencilDvWeights(),
+                                          builder.GetStencilDuuWeights(),
+                                          builder.GetStencilDuvWeights(),
+                                          builder.GetStencilDvvWeights(),
                                           /*ctrlVerts*/false,
                                           /*fristOffset*/0);
     return result;
