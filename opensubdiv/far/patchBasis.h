@@ -46,16 +46,16 @@ namespace internal {
 //
 
 void GetBilinearWeights(PatchParam const & patchParam,
-    float s, float t, float wP[4], float wDs[4], float wDt[4]);
+    float s, float t, float wP[4], float wDs[4], float wDt[4], float wDss[4] = 0, float wDst[4] = 0, float wDtt[4] = 0);
 
 void GetBezierWeights(PatchParam const & patchParam,
-    float s, float t, float wP[16], float wDs[16], float wDt[16]);
+    float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
 
 void GetBSplineWeights(PatchParam const & patchParam,
-    float s, float t, float wP[16], float wDs[16], float wDt[16]);
+    float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
 
 void GetGregoryWeights(PatchParam const & patchParam,
-    float s, float t, float wP[20], float wDs[20], float wDt[20]);
+    float s, float t, float wP[20], float wDs[20], float wDt[20], float wDss[20] = 0, float wDst[20] = 0, float wDtt[20] = 0);
 
 
 } // end namespace internal

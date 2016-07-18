@@ -372,7 +372,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         options.generateOffsets = true;
 
         // PERFORMANCE: We could potentially save some mem-copies by not
-        // instanciating the stencil tables and work directly off the source
+        // instantiating the stencil tables and work directly off the source
         // data.
         cvstencils = StencilTableFactory::Create(refiner, options);
     } else {
@@ -439,29 +439,29 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
     internal::StencilBuilder::Index origin(&builder, 0);
     internal::StencilBuilder::Index dst = origin;
 
-    float wP[20], wDs[20], wDt[20];
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
     for (size_t i=0; i<locationArrays.size(); ++i) {
         LocationArray const & array = locationArrays[i];
         assert(array.ptexIdx>=0);
 
-        for (int j=0; j<array.numLocations; ++j) {
+        for (int j=0; j<array.numLocations; ++j) { // for each face we're working on
             float s = array.s[j],
-                  t = array.t[j];
+                  t = array.t[j]; // for each target (s,t) point on that face
 
             PatchMap::Handle const * handle = 
                                         patchmap.FindPatch(array.ptexIdx, s, t);
             if (handle) {
                 ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
 
-                patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+                patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 
                 StencilTable const & src = *cvstencils;
                 dst = origin[numLimitStencils];
 
                 dst.Clear();
                 for (int k = 0; k < cvs.size(); ++k) {
-                    dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k]);
+                    dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k], wDss[k], wDst[k], wDtt[k]);
                 }
 
                 ++numLimitStencils;
@@ -488,6 +488,9 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
                                           builder.GetStencilWeights(),
                                           builder.GetStencilDuWeights(),
                                           builder.GetStencilDvWeights(),
+                                          builder.GetStencilDuuWeights(),
+                                          builder.GetStencilDuvWeights(),
+                                          builder.GetStencilDvvWeights(),
                                           /*ctrlVerts*/false,
                                           /*fristOffset*/0);
     return result;
