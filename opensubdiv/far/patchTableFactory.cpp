@@ -389,15 +389,11 @@ PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
 
         table->setFVarPatchChannelLinearInterpolation(interpolation, fvc.pos());
 
-        int nverts = 0;
-
         PatchDescriptor::Type type = options.triangulateQuads ?
             PatchDescriptor::TRIANGLES : PatchDescriptor::QUADS;
 
-        nverts =
-            npatches * PatchDescriptor::GetNumFVarControlVertices(type);
-
-        table->allocateFVarPatchChannelValues(npatches, nverts, fvc.pos());
+        table->allocateFVarPatchChannelValues(
+            PatchDescriptor(type), npatches, fvc.pos());
     }
 }
 
