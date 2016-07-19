@@ -465,8 +465,8 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         } else if (compFaceVTag._xordinary) {
             if (considerXOrdinaryFaces) {
                 selectFace = true;
-            } else {
-                selectFace = (compFaceVTag._rule & Sdc::Crease::RULE_CORNER);
+            } else if (compFaceVTag._rule & Sdc::Crease::RULE_CORNER) {
+                selectFace = true;
             }
         } else if (! (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
             //  We are now left with boundary faces -- if no Corner vertex, we have a mix of both
