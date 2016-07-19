@@ -239,6 +239,18 @@ TopologyRefiner::RefineUniform(UniformOptions options) {
     assembleFarLevels();
 }
 
+class TopologyRefiner::FeatureMask {
+public:
+    typedef unsigned int int_type;
+
+    FeatureMask() { *((int_type*)this) = 0; }
+
+    bool isEmpty() const { return *((int_type*)this) == 0; }
+
+    int_type xordFeatures  : 1;
+    int_type sharpFeatures : 1;
+    int_type fvarFeatures  : 1;
+};
 
 void
 TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
@@ -260,12 +272,28 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     }
 
     //
-    //  Allocate the stack of levels and the refinements between them:
+    //  Initialize member and local variables from the adaptive options:
     //
+    _isUniform = false;
     _adaptiveOptions = options;
 
-    _isUniform = false;
-    _maxLevel = options.isolationLevel;
+    //int xordLevel  = options.xordIsolationLevel;
+    int xordLevel  = options.isolationLevel;
+    int sharpLevel = options.isolationLevel;
+
+    int potentialMaxLevel = std::max(xordLevel, sharpLevel);
+
+    FeatureMask adaptiveFeatureMask;
+
+    //adaptiveFeatureMask.fvarFeatures = options.includeFVarChannels;
+    adaptiveFeatureMask.fvarFeatures = false;
+    if (adaptiveFeatureMask.fvarFeatures) {
+        //  Ignore face-varying channels if none present are non-linear:
+        adaptiveFeatureMask.fvarFeatures = false;
+        for (int channel = 0; channel < _levels[0]->getNumFVarChannels(); ++channel) {
+            adaptiveFeatureMask.fvarFeatures |= _levels[0]->getFVarLevel(channel).isLinear();
+        }
+    }
 
     //
     //  Initialize refinement options for Vtr -- full topology is always generated in
@@ -279,7 +307,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
     Sdc::Split splitType = Sdc::SchemeTypeTraits::GetTopologicalSplitType(_subdivType);
 
-    for (int i = 1; i <= (int)options.isolationLevel; ++i) {
+    for (int i = 1; i <= potentialMaxLevel; ++i) {
 
         Vtr::internal::Level& parentLevel     = getLevel(i-1);
         Vtr::internal::Level& childLevel      = *(new Vtr::internal::Level);
@@ -293,26 +321,28 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 
         //
         //  Initialize a Selector to mark a sparse set of components for refinement.  If
-        //  nothing was selected, discard the new refinement and child level, trim the
-        //  maximum level and stop refinining any further.  Otherwise, refine and append
-        //  the new refinement and child.
+        //  no features were selected, discard the new refinement and child level, and stop
+        //  refinining further.  Otherwise, refine and append the new refinement and child.
         //
         Vtr::internal::SparseSelector selector(*refinement);
 
-        selectFeatureAdaptiveComponents(selector);
-        if (selector.isSelectionEmpty()) {
-            _maxLevel = i - 1;
+        adaptiveFeatureMask.xordFeatures  = (i <= xordLevel);
+        adaptiveFeatureMask.sharpFeatures = (i <= sharpLevel);
 
+        selectFeatureAdaptiveComponents(selector, adaptiveFeatureMask);
+        if (selector.isSelectionEmpty()) {
             delete refinement;
             delete &childLevel;
             break;
+        } else {
+            refinement->refine(refineOptions);
+
+            appendLevel(childLevel);
+            appendRefinement(*refinement);
         }
-
-        refinement->refine(refineOptions);
-
-        appendLevel(childLevel);
-        appendRefinement(*refinement);
     }
+    _maxLevel = (unsigned int) _refinements.size();
+
     assembleFarLevels();
 }
 
@@ -334,38 +364,20 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
 //   identification of the intended patch that result from it.
 //
 void
-TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector) {
+TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
+                                                 FeatureMask const & featureMask) {
+
+    if (featureMask.isEmpty()) return;
 
     Vtr::internal::Level const& level = selector.getRefinement().parent();
+
+    bool considerXOrdinaryFaces = featureMask.xordFeatures;
 
     int  regularFaceSize           =  selector.getRefinement().getRegularFaceSize();
     bool considerSingleCreasePatch = _adaptiveOptions.useSingleCreasePatch && (regularFaceSize == 4);
 
-    //
-    //  Face-varying consideration when isolating features:
-    //      - there must obviously be face-varying channels for any consideration
-    //      - we can ignore all purely linear face-varying channels -- a common case that
-    //        will allow us to avoid the repeated per-face inspection of FVar data
-    //      - may allow a subset of face-varying channels to be considered in future:
-    //
-    //  Note that some of this consideration can be given at the highest level and then
-    //  reflected potentially in the Selector, e.g. when all FVar channels are linear,
-    //  any request to inspect them can be overridden for all levels and not repeatedly
-    //  reassessed here for each level.
-    //
     int  numFVarChannels      = level.getNumFVarChannels();
-    bool considerFVarChannels = false;
-
-    if (considerFVarChannels) {
-        considerFVarChannels = false;
-
-        for (int channel = 0; channel < numFVarChannels; ++channel) {
-            if (! level.getFVarLevel(channel).isLinear()) {
-                considerFVarChannels = true;
-                break;
-            }
-        }
-    }
+    bool considerFVarChannels = featureMask.fvarFeatures;
 
     //
     //  Inspect each face and the properties tagged at all of its corners:
@@ -411,17 +423,13 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         }
 
         bool selectFace = false;
-        if (compFaceVTag._xordinary) {
-            selectFace = true;
+        if (compFaceVTag._rule == Sdc::Crease::RULE_SMOOTH) {
+            //  If smooth, only isolate xordinary vertices if specified:
+            selectFace = compFaceVTag._xordinary && considerXOrdinaryFaces;
         } else if (compFaceVTag._nonManifold) {
             //  Warrants further inspection in future -- isolate for now
             //    - will want to defer inf-sharp treatment to below
             selectFace = true;
-        } else if (compFaceVTag._rule == Sdc::Crease::RULE_SMOOTH) {
-            //  Avoid isolation when ALL vertices are Smooth.  All vertices must be regular by
-            //  now and all vertices Smooth implies they are all interior vertices.  (If any
-            //  adjacent faces are not regular, this face will have been previously selected).
-            selectFace = false;
         } else if (compFaceVTag._rule & Sdc::Crease::RULE_DART) {
             //  Any occurrence of a Dart vertex requires isolation
             selectFace = true;
@@ -453,6 +461,12 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
                 selectFace = ! level.isSingleCreasePatch(face);
             } else {
                 selectFace = true;
+            }
+        } else if (compFaceVTag._xordinary) {
+            if (considerXOrdinaryFaces) {
+                selectFace = true;
+            } else {
+                selectFace = (compFaceVTag._rule & Sdc::Crease::RULE_CORNER);
             }
         } else if (! (compFaceVTag._rule & Sdc::Crease::RULE_CORNER)) {
             //  We are now left with boundary faces -- if no Corner vertex, we have a mix of both

@@ -144,11 +144,25 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
     int gregoryVertexOffset = _refiner->GetNumVerticesTotal();
 
     if (_shareBoundaryVertices) {
+        int levelIndex = level->getDepth();
+
+        //  Simple struct with encoding of <level,face> index as an unsigned int and a
+        //  comparison method for use with std::bsearch
+        struct LevelAndFaceIndex {
+            static inline unsigned int create(unsigned int levelIndex, Index faceIndex) {
+                return (levelIndex << 28) | (unsigned int) faceIndex;
+            }
+            static int compare(void const * a, void const * b) {
+                return *(unsigned int const*)a - *(unsigned int const*)b;
+            }
+        };
+
         ConstIndexArray fedges = level->getFaceEdges(faceIndex);
         assert(fedges.size()==4);
 
         for (int i=0; i<4; ++i) {
-            Index edge = fedges[i], adjface = 0;
+            Index edge = fedges[i];
+            Index adjFaceIndex = 0;
 
             { // Gather adjacent faces
                 ConstIndexArray adjfaces = level->getEdgeFaces(edge);
@@ -156,7 +170,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                     if (adjfaces[j]==faceIndex) {
                         // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
                         // next face in the list of adjacent faces
-                        adjface = (adjfaces[(j+1)%adjfaces.size()]);
+                        adjFaceIndex = (adjfaces[(j+1)%adjfaces.size()]);
                         break;
                     }
                 }
@@ -165,42 +179,33 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             // - exist (no boundary)
             // - have already been processed (known CV indices)
             // - are also Gregory basis patches
-            if (adjface!=Vtr::INDEX_INVALID && (adjface < faceIndex) &&
-                (! levelPatchTags[adjface]._isRegular)) {
+            if ((adjFaceIndex != Vtr::INDEX_INVALID) && (adjFaceIndex < faceIndex) &&
+                (! levelPatchTags[adjFaceIndex]._isRegular)) {
 
-                ConstIndexArray aedges = level->getFaceEdges(adjface);
+                ConstIndexArray aedges = level->getFaceEdges(adjFaceIndex);
                 int aedge = aedges.FindIndexIn4Tuple(edge);
                 assert(aedge!=Vtr::INDEX_INVALID);
 
                 // Find index of basis in the list of basis already generated
-                struct compare {
-                    static int op(void const * a, void const * b) {
-                        return *(Index const*)a - *(Index const*)b;
-                    }
-                };
-
-                Index * ptr = (Index *)std::bsearch(&adjface,
-                                                    &_faceIndices[0],
-                                                    _faceIndices.size(),
-                                                    sizeof(Index), compare::op);
-
-                int srcBasisIdx = (int)(ptr - &_faceIndices[0]);
-
-                if (!ptr) {
-                    // if the adjface is hole, it won't be found
+                unsigned int adjLevelAndFaceIndex = LevelAndFaceIndex::create(levelIndex, adjFaceIndex);
+                unsigned int * ptr = (unsigned int *)std::bsearch(&adjLevelAndFaceIndex,
+                                                                  &_levelAndFaceIndices[0],
+                                                                 _levelAndFaceIndices.size(),
+                                                                 sizeof(unsigned int),
+                                                                 LevelAndFaceIndex::compare);
+                if (ptr == 0) {
                     break;
                 }
-                assert(ptr
-                       && srcBasisIdx>=0
-                       && srcBasisIdx<(int)_faceIndices.size());
 
-                // Copy the indices of CVs from the face on the other side of the
-                // shared edge
+                int adjPatchIndex = (int)(ptr - &_levelAndFaceIndices[0]);
+                assert(adjPatchIndex>=0 && adjPatchIndex<(int)_levelAndFaceIndices.size());
+
+                // Copy the indices of CVs from the face on the other side of the shared edge
                 static int const gregoryEdgeVerts[4][4] = { { 0,  1,  7,  5},
                                                             { 5,  6, 12, 10},
                                                             {10, 11, 17, 15},
                                                             {15, 16,  2,  0} };
-                Index * src = &_patchPoints[srcBasisIdx*20];
+                Index * src = &_patchPoints[adjPatchIndex*20];
                 for (int j=0; j<4; ++j) {
                     // invert direction
                     // note that src  indices have already been offsetted.
@@ -208,6 +213,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 }
             }
         }
+        _levelAndFaceIndices.push_back(LevelAndFaceIndex::create(levelIndex, faceIndex));
     }
 
     bool newVerticesMask[4][5];
@@ -225,7 +231,6 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             }
         }
     }
-    _faceIndices.push_back(faceIndex);
 
     // add basis
     addPatchBasis(*level, faceIndex, cornerSpans, newVerticesMask, levelVertOffset);

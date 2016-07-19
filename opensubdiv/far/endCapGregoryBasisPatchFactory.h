@@ -126,8 +126,10 @@ private:
     bool _shareBoundaryVertices;
     int _numGregoryBasisVertices;
     int _numGregoryBasisPatches;
-    std::vector<Index> _faceIndices;
     std::vector<Index> _patchPoints;
+
+    //  Only used when sharing vertices:
+    std::vector<unsigned int> _levelAndFaceIndices;
 };
 
 } // end namespace Far
