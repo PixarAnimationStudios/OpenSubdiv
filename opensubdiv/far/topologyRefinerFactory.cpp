@@ -267,6 +267,56 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         vTag._incomplete = 0;
 
         //
+        //  Assign tags specific to inf-sharp features to identify regular topologies
+        //  partitioned by inf-sharp creases -- must be no semi-sharp features here
+        //  (and manifold for now):
+        //
+        vTag._infSharpEdges   = (infSharpEdgeCount > 0);
+        vTag._infSharpCrease  = false;
+        vTag._infSharpCorners = false;
+        vTag._infIrregular    = vTag._infSharp || vTag._infSharpEdges;
+
+        if (vTag._infSharpEdges) {
+            Sdc::Crease::Rule infRule = creasing.DetermineVertexVertexRule(vSharpness, infSharpEdgeCount);
+
+            if (infRule == Sdc::Crease::RULE_CREASE) {
+                vTag._infSharpCrease = true;
+
+                //  A "regular" inf-crease can only occur along a manifold regular boundary
+                //  or by bisecting a manifold interior region (it is also possible along
+                //  non-manifold vertices in some cases, but that requires much more effort
+                //  to detect -- perhaps later...)
+                //
+                if (!vTag._xordinary && !vTag._nonManifold) {
+                    if (vTag._boundary) {
+                        vTag._infIrregular = false;
+                    } else {
+                        assert((schemeRegularInteriorValence == 4) || (schemeRegularInteriorValence == 6));
+
+                        if (schemeRegularInteriorValence == 4) {
+                            vTag._infIrregular = (baseLevel.getEdgeTag(vEdges[0])._infSharp !=
+                                                  baseLevel.getEdgeTag(vEdges[2])._infSharp);
+                        } else if (schemeRegularInteriorValence == 6) {
+                            vTag._infIrregular = (baseLevel.getEdgeTag(vEdges[0])._infSharp !=
+                                                  baseLevel.getEdgeTag(vEdges[3])._infSharp) ||
+                                                 (baseLevel.getEdgeTag(vEdges[1])._infSharp !=
+                                                  baseLevel.getEdgeTag(vEdges[4])._infSharp);
+                        }
+                    }
+                }
+            } else if (infRule == Sdc::Crease::RULE_CORNER) {
+                vTag._infSharpCorners = true;
+
+                //  A regular set of inf-corners occurs when all edges are sharp and not
+                //  a smooth corner:
+                //
+                if ((infSharpEdgeCount == vEdges.size() && ((vEdges.size() > 2) || vTag._infSharp))) {
+                    vTag._infIrregular = false;
+                }
+            }
+        }
+
+        //
         //  Having just decided if a vertex is on a boundary, and with its incident faces
         //  available, mark incident faces as holes.
         //
