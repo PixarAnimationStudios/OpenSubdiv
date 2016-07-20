@@ -78,37 +78,47 @@ ConstIndexArray
 EndCapBSplineBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index thisFace,
     Vtr::internal::Level::VSpan const cornerSpans[],
-    PatchTableFactory::PatchFaceTag const *levelPatchTags,
+    PatchTableFactory::PatchFaceTag const * /* levelPatchTags */,
     int levelVertOffset) {
 
+    //
+    //  We can only use a faster method directly with B-Splines when we have a
+    //  single interior irregular corner.  We defer to an intermediate Gregory
+    //  patch in all other cases, i.e. the presence of any boundary, more than
+    //  one irregular vertex or use of the partial neighborhood at any corner
+    //  (not a true boundary wrt the corner vertex, but imposed by some other
+    //  feature -- inf-sharp crease, face-varying discontinuity, etc).
+    //
+    //  Assume we don't need to use a Gregory patch until we identify a feature
+    //  at any corner that indicates we do.
+    //
     Vtr::ConstIndexArray facePoints = level->getFaceVertices(thisFace);
-    PatchTableFactory::PatchFaceTag patchTag = levelPatchTags[thisFace];
-    // if it's boundary, fallback to use GregoryBasis
-    if (patchTag._boundaryCount > 0) {
-        return getPatchPointsFromGregoryBasis(
-            level, thisFace, cornerSpans, facePoints, levelVertOffset);
-    }
 
-    // there's a short-cut when the face contains only 1 extraordinary vertex.
-    // (we can achieve this by isolating 2 levels)
-    // look for the extraordinary vertex
-    int irregular = -1;
-    for (int i = 0; i < 4; ++i) {
-        int valence = level->getVertexFaces(facePoints[i]).size();
-        if (valence != 4) {
-            if (irregular != -1) {
-                // more than one extraoridinary vertices.
-                // fallback to use GregoryBasis
-                return getPatchPointsFromGregoryBasis(
-                    level, thisFace, cornerSpans, facePoints, levelVertOffset);
+    int irregCornerIndex = -1;
+    bool useGregoryPatch = false;
+
+    for (int corner = 0; (corner < 4) && !useGregoryPatch; ++corner) {
+        Vtr::internal::Level::VTag vtag = level->getVertexTag(facePoints[corner]);
+
+        if (vtag._boundary || (cornerSpans[corner]._numFaces > 0)) {
+            useGregoryPatch = true;
+        }
+        if (vtag._xordinary) {
+            if (irregCornerIndex < 0) {
+                irregCornerIndex = corner;
+            } else {
+                useGregoryPatch = true;
             }
-            irregular = i;
         }
     }
 
-    // faster B-spline endcap generation
-    return getPatchPoints(level, thisFace, irregular, facePoints,
-                          levelVertOffset);
+    if (useGregoryPatch) {
+        return getPatchPointsFromGregoryBasis(
+            level, thisFace, cornerSpans, facePoints, levelVertOffset);
+    } else {
+        return getPatchPoints(
+            level, thisFace, irregCornerIndex, facePoints, levelVertOffset);
+    }
 }
 
 ConstIndexArray
