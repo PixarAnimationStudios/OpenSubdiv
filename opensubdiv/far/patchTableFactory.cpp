@@ -1220,9 +1220,6 @@ PatchTableFactory::populateAdaptivePatches(
                 fofss.R += gatherFVarData(context,
                                           i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
             } else {
-                // emit end patch. end patch should be in the max level (until we implement DFAS)
-                assert(i==refiner.GetMaxLevel());
-
                 // identify relevant spans around the corner vertices for the irregular patches
                 // (this is just a stub for now -- leaving the span "size" to zero, as constructed,
                 // indicates to use the full neighborhood)...

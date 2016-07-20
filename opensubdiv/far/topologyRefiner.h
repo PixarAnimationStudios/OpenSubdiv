@@ -199,7 +199,9 @@ private:
     TopologyRefiner(TopologyRefiner const &) : _uniformOptions(0), _adaptiveOptions(0) { }
     TopologyRefiner & operator=(TopologyRefiner const &) { return *this; }
 
-    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector);
+    class FeatureMask;
+    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector, FeatureMask const & mask);
+    //void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector, bool xordFeatures);
 
     void initializeInventory();
     void updateInventory(Vtr::internal::Level const & newLevel);
