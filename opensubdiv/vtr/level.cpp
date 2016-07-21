@@ -531,13 +531,17 @@ Level::print(const Refinement* pRefinement) const {
     for (int i = 0; printVertTags && i < (int)_vertTags.size(); ++i) {
         VTag const& vTag = _vertTags[i];
         printf("        vert %4d:", i);
-        printf("  rule = %s",      ruleString((Sdc::Crease::Rule)vTag._rule));
-        printf(", boundary = %d",  (int)vTag._boundary);
-        printf(", corner = %d",    (int)vTag._corner);
-        printf(", xordinary = %d", (int)vTag._xordinary);
-        printf(", nonManifold = %d", (int)vTag._nonManifold);
-        printf(", infSharp = %d",  (int)vTag._infSharp);
-        printf(", semiSharp = %d", (int)vTag._semiSharp);
+        printf("  rule = %s",           ruleString((Sdc::Crease::Rule)vTag._rule));
+        printf(", boundary = %d",       (int)vTag._boundary);
+        printf(", corner = %d",         (int)vTag._corner);
+        printf(", xordinary = %d",      (int)vTag._xordinary);
+        printf(", nonManifold = %d",    (int)vTag._nonManifold);
+        printf(", infSharp = %d",       (int)vTag._infSharp);
+        printf(", infSharpEdges = %d",  (int)vTag._infSharpEdges);
+        printf(", infSharpCrease = %d", (int)vTag._infSharpCrease);
+        printf(", infSharpCorners = %d",(int)vTag._infSharpCorners);
+        printf(", infIrregular = %d",   (int)vTag._infIrregular);
+        printf(", semiSharp = %d",      (int)vTag._semiSharp);
         printf(", semiSharpEdges = %d", (int)vTag._semiSharpEdges);
         printf("\n");
     }

@@ -753,6 +753,9 @@ Refinement::populateVertexTagsFromParentEdges() {
         vTag._nonManifold    = pEdgeTag._nonManifold;
         vTag._boundary       = pEdgeTag._boundary;
         vTag._semiSharpEdges = pEdgeTag._semiSharp;
+        vTag._infSharpEdges  = pEdgeTag._infSharp;
+        vTag._infSharpCrease = pEdgeTag._infSharp;
+        vTag._infIrregular   = pEdgeTag._infSharp && pEdgeTag._nonManifold;
 
         vTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
                        ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
