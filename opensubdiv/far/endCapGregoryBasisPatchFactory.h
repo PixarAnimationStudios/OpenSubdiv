@@ -25,7 +25,6 @@
 #ifndef OPENSUBDIV3_FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
 
-#include "../far/patchTableFactory.h"
 #include "../far/gregoryBasis.h"
 #include "../far/stencilTable.h"
 #include "../vtr/level.h"
@@ -100,15 +99,11 @@ public:
     /// @param faceIndex        vtr faceIndex at the level
     //
     /// @param cornerSpans      information about topology for each corner of patch
-    ///
-    /// @param levelPatchTags   Array of patchTags for all faces in the level
-    ///
     /// @param levelVertOffset  relative offset of patch vertex indices
     ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
         Vtr::internal::Level::VSpan const cornerSpans[],
-        PatchTableFactory::PatchFaceTag const * levelPatchTags,
         int levelVertOffset);
 
 private:

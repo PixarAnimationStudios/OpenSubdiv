@@ -58,7 +58,6 @@ public:
     //
     struct PatchFaceTag {
     public:
-        unsigned int   _hasPatch        : 1;
         unsigned int   _isRegular       : 1;
         unsigned int   _transitionMask  : 4;
         unsigned int   _boundaryMask    : 4;
@@ -70,9 +69,6 @@ public:
         void clear();
         void assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask);
         void assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask);
-        void assignTransitionPropertiesFromEdgeMask(int transitionMask) {
-            _transitionMask = transitionMask;
-        }
     };
     typedef std::vector<PatchFaceTag> PatchTagVector;
 
@@ -135,7 +131,7 @@ private:
     //
     // Private helper structures
     //
-    struct AdaptiveContext;
+    struct BuilderContext;
 
     //
     //  Methods for allocating and managing the patch table data arrays:
@@ -150,25 +146,24 @@ private:
     //  High-level methods for identifying and populating patches associated with faces:
     //
 
-    static void identifyAdaptivePatches(AdaptiveContext & state);
+    static bool computePatchTag(BuilderContext & context,
+                                Index const levelIndex,
+                                Index const faceIndex,
+                                PatchTableFactory::PatchFaceTag &patchTag);
 
-    static void populateAdaptivePatches(AdaptiveContext & state,
-                                        PtexIndices const &ptexIndices);
+    static void identifyAdaptivePatches(BuilderContext & context);
 
-    static void allocateVertexTables(PatchTable * table, int nlevels, bool hasSharpness);
+    static void populateAdaptivePatches(BuilderContext & context,
+                                        PatchTable * table);
 
-    static void allocateFVarChannels(TopologyRefiner const & refiner,
-         Options options, int npatches, PatchTable * table);
+    static void allocateVertexTables(PatchTable * table, bool hasSharpness);
 
-    static PatchParam * computePatchParam(TopologyRefiner const & refiner,
-        PtexIndices const & ptexIndices,
-        int level, int face,
-        int boundaryMask, int transitionMask, PatchParam * coord);
+    static void allocateFVarChannels(BuilderContext const & context,
+                                     PatchTable * table);
 
-    static int gatherFVarData(AdaptiveContext & state,
-        int level, Index faceIndex, Index levelFaceOffset, int rotation,
-                              Index const * levelOffsets, Index fofss, Index ** fptrs);
-
+    static PatchParam computePatchParam(BuilderContext const & context,
+                                        int level, int face,
+                                        int boundaryMask, int transitionMask);
 };
 
 } // end namespace Far
