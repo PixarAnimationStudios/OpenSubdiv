@@ -76,13 +76,13 @@ void SetWarningCallback(WarningCallbackFunc func);
 ///
 /// @param format  the format of the message (followed by arguments)
 ///
-void Error(ErrorType err, const char *format, ...);
+void Error(ErrorType err, const char *format, ...) OPENSUBDIV_ATTRIBUTE((format(printf, 2, 3)));
 
 /// \brief Sends an OSD warning message (internal use only)
 ///
 /// @param format  the format of the message (followed by arguments)
 ///
-void Warning(const char *format, ...);
+void Warning(const char *format, ...) OPENSUBDIV_ATTRIBUTE((format(printf, 1, 2)));
 
 
 } // end namespace
