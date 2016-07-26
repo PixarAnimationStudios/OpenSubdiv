@@ -22,8 +22,15 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-_add_executable(stringify "opensubdiv/tools"
-    main.cpp
-)
+if(CMAKE_CROSSCOMPILING)
+	set(STRINGIFY_LOCATION "STRINGIFY-NOTFOUND" CACHE FILEPATH "Point it to the stringify binary from a native build") 
+	add_executable(stringify IMPORTED GLOBAL)
+	set_property(TARGET stringify PROPERTY IMPORTED_LOCATION ${STRINGIFY_LOCATION})
+endif()
 
-install(TARGETS stringify DESTINATION ${CMAKE_BINDIR_BASE})
+if(NOT CMAKE_CROSSCOMPILING)
+	_add_executable(stringify "opensubdiv/tools"
+	    main.cpp
+	)
+	install(TARGETS stringify DESTINATION ${CMAKE_BINDIR_BASE})
+endif() 
