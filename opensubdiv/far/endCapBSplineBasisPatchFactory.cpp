@@ -70,15 +70,17 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     int numStencilsExpected = std::min(numPatchPointsExpected * 16,
                                        100*1024*1024);
     _vertexStencils->reserve(numPatchPointsExpected, numStencilsExpected);
-    // varying stencils use only 1 index with weight=1.0
-    _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
+    if (_varyingStencils) {
+        // varying stencils use only 1 index with weight=1.0
+        _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
+    }
 }
 
 ConstIndexArray
 EndCapBSplineBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index thisFace,
     Vtr::internal::Level::VSpan const cornerSpans[],
-    int levelVertOffset) {
+    int levelVertOffset, int fvarChannel) {
 
     //
     //  We can only use a faster method directly with B-Splines when we have a
@@ -113,10 +115,12 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
 
     if (useGregoryPatch) {
         return getPatchPointsFromGregoryBasis(
-            level, thisFace, cornerSpans, facePoints, levelVertOffset);
+            level, thisFace, cornerSpans, facePoints,
+            levelVertOffset, fvarChannel);
     } else {
         return getPatchPoints(
-            level, thisFace, irregCornerIndex, facePoints, levelVertOffset);
+            level, thisFace, irregCornerIndex, facePoints,
+            levelVertOffset, fvarChannel);
     }
 }
 
@@ -124,18 +128,20 @@ ConstIndexArray
 EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
     Vtr::internal::Level const * level, Index thisFace,
     Vtr::internal::Level::VSpan const cornerSpans[],
-    ConstIndexArray facePoints, int levelVertOffset) {
+    ConstIndexArray facePoints, int levelVertOffset, int fvarChannel) {
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
     // other patches as well as to try to make extra ordinary verts watertight.
 
-    int offset = _refiner->GetNumVerticesTotal();
+    int offset = (fvarChannel < 0)
+               ? _refiner->GetNumVerticesTotal()
+               : _refiner->GetNumFVarValuesTotal(fvarChannel);
     for (int i = 0; i < 16; ++i) {
         _patchPoints.push_back(_numVertices + offset);
         ++_numVertices;
     }
-    GregoryBasis::ProtoBasis basis(*level, thisFace, cornerSpans, levelVertOffset, -1);
+    GregoryBasis::ProtoBasis basis(*level, thisFace, cornerSpans, levelVertOffset, fvarChannel);
     // XXX: temporary hack. we should traverse topology and find existing
     //      vertices if available
     //
@@ -192,15 +198,17 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
             GregoryBasis::AppendToStencilTable(p, _vertexStencils);
         }
     }
-    int varyingIndices[] = { 0, 0, 1, 1,
-                             0, 0, 1, 1,
-                             3, 3, 2, 2,
-                             3, 3, 2, 2,};
-    for (int i = 0; i < 16; ++i) {
-        int varyingIndex = facePoints[varyingIndices[i]] + levelVertOffset;
-        _varyingStencils->_sizes.push_back(1);
-        _varyingStencils->_indices.push_back(varyingIndex);
-        _varyingStencils->_weights.push_back(1.0f);
+    if (_varyingStencils) {
+        int varyingIndices[] = { 0, 0, 1, 1,
+                                 0, 0, 1, 1,
+                                 3, 3, 2, 2,
+                                 3, 3, 2, 2,};
+        for (int i = 0; i < 16; ++i) {
+            int varyingIndex = facePoints[varyingIndices[i]] + levelVertOffset;
+            _varyingStencils->_sizes.push_back(1);
+            _varyingStencils->_indices.push_back(varyingIndex);
+            _varyingStencils->_weights.push_back(1.0f);
+        }
     }
 
     ++_numPatches;
@@ -210,7 +218,7 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
 void
 EndCapBSplineBasisPatchFactory::computeLimitStencils(
     Vtr::internal::Level const *level,
-    ConstIndexArray facePoints, int vid,
+    ConstIndexArray facePoints, int vid, int fvarChannel,
     GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em)
 {
     int maxvalence = level->getMaxValence();
@@ -220,7 +228,7 @@ EndCapBSplineBasisPatchFactory::computeLimitStencils(
 
     int ringSize =
         level->gatherQuadRegularRingAroundVertex(
-            facePoints[vid], manifoldRing, /*fvarChannel*/-1);
+            facePoints[vid], manifoldRing, fvarChannel);
 
     // note: this function has not yet supported boundary.
     assert((ringSize & 1) == 0);
@@ -284,7 +292,7 @@ ConstIndexArray
 EndCapBSplineBasisPatchFactory::getPatchPoints(
     Vtr::internal::Level const *level, Index thisFace,
     Index extraOrdinaryIndex, ConstIndexArray facePoints,
-    int levelVertOffset) {
+    int levelVertOffset, int fvarChannel) {
 
     //  Fast B-spline endcap construction.
     //
@@ -319,7 +327,7 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     int stencilCapacity = 2*maxvalence + 16;
     GregoryBasis::Point P(stencilCapacity), Em(stencilCapacity), Ep(stencilCapacity);
 
-    computeLimitStencils(level, facePoints, extraOrdinaryIndex, &P, &Em, &Ep);
+    computeLimitStencils(level, facePoints, extraOrdinaryIndex, fvarChannel, &P, &Em, &Ep);
     P.OffsetIndices(levelVertOffset);
     Em.OffsetIndices(levelVertOffset);
     Ep.OffsetIndices(levelVertOffset);
@@ -473,7 +481,9 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     // patch point stencils will be stored in this order
     // (Em) 6, 7, 8, (Ep) 4, 15, 14, (P) 5
 
-    int offset = _refiner->GetNumVerticesTotal();
+    int offset = (fvarChannel < 0)
+               ? _refiner->GetNumVerticesTotal()
+               : _refiner->GetNumFVarValuesTotal(fvarChannel);
 
     int varyingIndex0 = facePoints[vid] + levelVertOffset;
     int varyingIndex1 = facePoints[(vid+1)&3] + levelVertOffset;
@@ -482,31 +492,45 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     // push back to stencils;
     patchPoints[3* vid + 6]        = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X6, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+    }
 
     patchPoints[3*((vid+1)%4) + 4] = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X7, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex1, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex1, _varyingStencils);
+    }
 
     patchPoints[3*((vid+1)%4) + 5] = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X8, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex1, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex1, _varyingStencils);
+    }
 
     patchPoints[3* vid + 4]        = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X4, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+    }
 
     patchPoints[3*((vid+3)%4) + 6] = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X15, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex3, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex3, _varyingStencils);
+    }
 
     patchPoints[3*((vid+3)%4) + 5] = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X14, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex3, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex3, _varyingStencils);
+    }
 
     patchPoints[3*vid + 5]         = (_numVertices++) + offset;
     GregoryBasis::AppendToStencilTable(X5, _vertexStencils);
-    GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+    if (_varyingStencils) {
+        GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+    }
 
     // reorder into UV row-column
     static int const permuteRegular[16] =

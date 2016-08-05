@@ -63,59 +63,53 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     int numStencilsExpected = std::min(numPatchPointsExpected * 16,
                                        100*1024*1024);
     _vertexStencils->reserve(numPatchPointsExpected, numStencilsExpected);
-    // varying stencils use only 1 index with weight=1.0
-    _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
-}
-
-//
-// Stateless EndCapGregoryBasisPatchFactory
-//
-GregoryBasis const *
-EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
-    Index faceIndex, int fvarChannel) {
-
-    // Gregory patches are end-caps: they only exist on max-level
-    Vtr::internal::Level const & level = refiner.getLevel(refiner.GetMaxLevel());
-
-    // Is this method used/supported?  If so, needs corner spans (and vert offset?)...
-    GregoryBasis::ProtoBasis basis(level, faceIndex, 0, 0, fvarChannel);
-    GregoryBasis * result = new GregoryBasis;
-    basis.Copy(result);
-
-    // note: this function doesn't create varying stencils.
-    return result;
+    if (_varyingStencils) {
+        // varying stencils use only 1 index with weight=1.0
+        _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
+    }
 }
 
 bool
 EndCapGregoryBasisPatchFactory::addPatchBasis(Vtr::internal::Level const & level, Index faceIndex,
                                               Vtr::internal::Level::VSpan const cornerSpans[],
                                               bool verticesMask[4][5],
-                                              int levelVertOffset) {
+                                              int levelVertOffset,
+                                              int fvarChannel) {
 
     // Gather the CVs that influence the Gregory patch and their relative
     // weights in a basis
-    GregoryBasis::ProtoBasis basis(level, faceIndex, cornerSpans, levelVertOffset, -1);
+    GregoryBasis::ProtoBasis basis(level, faceIndex, cornerSpans, levelVertOffset, fvarChannel);
 
     for (int i = 0; i < 4; ++i) {
         if (verticesMask[i][0]) {
             GregoryBasis::AppendToStencilTable(basis.P[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][1]) {
             GregoryBasis::AppendToStencilTable(basis.Ep[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][2]) {
             GregoryBasis::AppendToStencilTable(basis.Em[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][3]) {
             GregoryBasis::AppendToStencilTable(basis.Fp[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][4]) {
             GregoryBasis::AppendToStencilTable(basis.Fm[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
     }
     return true;
@@ -131,7 +125,7 @@ ConstIndexArray
 EndCapGregoryBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
     Vtr::internal::Level::VSpan const cornerSpans[],
-    int levelVertOffset) {
+    int levelVertOffset, int fvarChannel) {
 
     // allocate indices (awkward)
     // assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
@@ -140,7 +134,9 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
     }
     Index * dest = &_patchPoints[_numGregoryBasisPatches * 20];
 
-    int gregoryVertexOffset = _refiner->GetNumVerticesTotal();
+    int gregoryVertexOffset = (fvarChannel < 0)
+                            ? _refiner->GetNumVerticesTotal()
+                            : _refiner->GetNumFVarValuesTotal(fvarChannel);
 
     if (_shareBoundaryVertices) {
         int levelIndex = level->getDepth();
@@ -179,6 +175,10 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             // - have already been processed (known CV indices)
             // - are also Gregory basis patches
             if ((adjFaceIndex != Vtr::INDEX_INVALID) && (adjFaceIndex < faceIndex)) {
+
+                if (_levelAndFaceIndices.empty()) {
+                    break;
+                }
 
                 ConstIndexArray aedges = level->getFaceEdges(adjFaceIndex);
                 int aedge = aedges.FindIndexIn4Tuple(edge);
@@ -231,7 +231,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
     }
 
     // add basis
-    addPatchBasis(*level, faceIndex, cornerSpans, newVerticesMask, levelVertOffset);
+    addPatchBasis(*level, faceIndex, cornerSpans, newVerticesMask, levelVertOffset, fvarChannel);
 
     ++_numGregoryBasisPatches;
 
