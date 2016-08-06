@@ -205,7 +205,7 @@ public:
         int faceIndex;
         int levelIndex;
     };
-    typedef std::vector<PatchTuple> PatchTuppleVector;
+    typedef std::vector<PatchTuple> PatchTupleVector;
 
     int gatherBilinearPatchPoints(Index * iptrs,
                                   PatchTuple const & patch,
@@ -230,7 +230,7 @@ public:
     int numIrregularBoundaryPatches;
 
     // Tuple for each patch identified during topology traversal
-    PatchTuppleVector patches;
+    PatchTupleVector patches;
 
     std::vector<int> levelVertOffsets;
     std::vector< std::vector<int> > levelFVarValueOffsets;
@@ -1023,10 +1023,10 @@ PatchTableFactory::populateAdaptivePatches(
     } arrayBuilders[3];
     int R = 0, IR = 1, IRB = 2; // Regular, Irregular, IrregularBoundary
 
-    // We'll always have at least one patch array for regular patches
-    int numPatchArrays = 1;
+    // Regular patches patches will be packed into the first patch array
     arrayBuilders[R].patchType = PatchDescriptor::REGULAR;
     arrayBuilders[R].numPatches = context.numRegularPatches;
+    int numPatchArrays = (arrayBuilders[R].numPatches > 0);
 
     switch(context.options.GetEndCapType()) {
     case Options::ENDCAP_BSPLINE_BASIS:
@@ -1034,6 +1034,9 @@ PatchTableFactory::populateAdaptivePatches(
         // will be packed into the same patch array as regular patches
         IR = IRB = R;
         arrayBuilders[R].numPatches += context.numIrregularPatches;
+        // Make sure we've counted this array even when
+        // there are no regular patches.
+        numPatchArrays = (arrayBuilders[R].numPatches > 0);
         break;
     case Options::ENDCAP_GREGORY_BASIS:
         // Irregular patches (both interior and boundary) are converted
