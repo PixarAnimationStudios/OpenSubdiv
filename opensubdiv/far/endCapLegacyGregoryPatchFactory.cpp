@@ -41,11 +41,13 @@ EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(
 ConstIndexArray
 EndCapLegacyGregoryPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
-    Vtr::internal::Level::VSpan const cornerSpans[],
-    int levelVertOffset) {
+    Vtr::internal::Level::VSpan const /*cornerSpans*/[],
+    int levelVertOffset, int fvarChannel) {
 
     // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
-    Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
+    Vtr::ConstIndexArray faceVerts = (fvarChannel < 0)
+                                   ? level->getFaceVertices(faceIndex)
+                                   : level->getFaceFVarValues(faceIndex, fvarChannel);
 
     if (level->getFaceCompositeVTag(faceVerts)._boundary) {
         for (int j = 0; j < 4; ++j) {
@@ -68,9 +70,11 @@ EndCapLegacyGregoryPatchFactory::GetPatchPoints(
 //  Populate the quad-offsets table used by Gregory patches
 //
 static void getQuadOffsets(
-    Vtr::internal::Level const& level, Index faceIndex, unsigned int offsets[]) {
+    Vtr::internal::Level const& level, Index faceIndex, unsigned int offsets[], int fvarChannel) {
 
-    Vtr::ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
+    Vtr::ConstIndexArray fVerts = (fvarChannel < 0)
+                                ? level.getFaceVertices(faceIndex)
+                                : level.getFaceFVarValues(faceIndex, fvarChannel);
 
     for (int i = 0; i < 4; ++i) {
 
@@ -101,7 +105,8 @@ void
 EndCapLegacyGregoryPatchFactory::Finalize(
     int maxValence, 
     PatchTable::QuadOffsetsTable *quadOffsetsTable,
-    PatchTable::VertexValenceTable *vertexValenceTable)
+    PatchTable::VertexValenceTable *vertexValenceTable,
+    int fvarChannel)
 {
     // populate quad offsets
 
@@ -118,11 +123,11 @@ EndCapLegacyGregoryPatchFactory::Finalize(
         PatchTable::QuadOffsetsTable::value_type *p = 
             &((*quadOffsetsTable)[0]);
         for (size_t i = 0; i < numGregoryPatches; ++i) {
-            getQuadOffsets(maxLevel, _gregoryFaceIndices[i], p);
+            getQuadOffsets(maxLevel, _gregoryFaceIndices[i], p, fvarChannel);
             p += 4;
         }
         for (size_t i = 0; i < numGregoryBoundaryPatches; ++i) {
-            getQuadOffsets(maxLevel, _gregoryBoundaryFaceIndices[i], p);
+            getQuadOffsets(maxLevel, _gregoryBoundaryFaceIndices[i], p, fvarChannel);
             p += 4;
         }
     }

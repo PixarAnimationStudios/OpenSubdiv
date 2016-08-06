@@ -58,14 +58,17 @@ public:
     ///
     /// @param levelVertOffset  relative offset of patch vertex indices
     ///
+    /// @param fvarChannel      face-varying channel index
+    ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
         Vtr::internal::Level::VSpan const cornerSpans[],
-        int levelVertOffset);
+        int levelVertOffset, int fvarChannel = -1);
 
     void Finalize(int maxValence, 
                   PatchTable::QuadOffsetsTable *quadOffsetsTable,
-                  PatchTable::VertexValenceTable *vertexValenceTable);
+                  PatchTable::VertexValenceTable *vertexValenceTable,
+                  int fvarChannel = -1);
 
 
 private:

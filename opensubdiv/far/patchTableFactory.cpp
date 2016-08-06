@@ -347,6 +347,9 @@ gatherEndCapPatchPoints(
     int levelVertOffset = (fvarChannel < 0)
                         ? levelVertOffsets[patch.levelIndex]
                         : levelFVarValueOffsets[fvarChannel][patch.levelIndex];
+    int refinerChannel = (fvarChannel < 0)
+                       ? fvarChannel
+                       : fvarChannelIndices[fvarChannel];
 
     // identify relevant spans around the corner vertices for the irregular patches
     // (this is just a stub for now -- leaving the span "size" to zero, as constructed,
@@ -354,7 +357,7 @@ gatherEndCapPatchPoints(
     Vtr::internal::Level::VSpan cornerSpans[4];
 
     ConstIndexArray cvs = endCapFactory->GetPatchPoints(
-        level, patch.faceIndex, cornerSpans, levelVertOffset);
+        level, patch.faceIndex, cornerSpans, levelVertOffset, refinerChannel);
 
     for (int i = 0; i < cvs.size(); ++i) iptrs[i] = cvs[i];
     return cvs.size();
