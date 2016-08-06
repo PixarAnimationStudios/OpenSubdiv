@@ -41,15 +41,13 @@ EndCapLegacyGregoryPatchFactory::EndCapLegacyGregoryPatchFactory(
 ConstIndexArray
 EndCapLegacyGregoryPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
-    PatchTableFactory::PatchFaceTag const * levelPatchTags,
+    Vtr::internal::Level::VSpan const cornerSpans[],
     int levelVertOffset) {
-
-    PatchTableFactory::PatchFaceTag patchTag = levelPatchTags[faceIndex];
 
     // Gregory Regular Patch (4 CVs + quad-offsets / valence tables)
     Vtr::ConstIndexArray faceVerts = level->getFaceVertices(faceIndex);
 
-    if (patchTag._boundaryCount) {
+    if (level->getFaceCompositeVTag(faceVerts)._boundary) {
         for (int j = 0; j < 4; ++j) {
             // apply level offset
             _gregoryBoundaryTopology.push_back(faceVerts[j] + levelVertOffset);

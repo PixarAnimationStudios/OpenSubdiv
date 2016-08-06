@@ -25,7 +25,8 @@
 #ifndef OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_LEGACY_GREGORY_PATCH_FACTORY_H
 
-#include "../far/patchTableFactory.h"
+#include "../far/patchTable.h"
+#include "../far/types.h"
 #include "../vtr/level.h"
 
 namespace OpenSubdiv {
@@ -55,13 +56,12 @@ public:
     ///
     /// @param faceIndex        vtr faceIndex at the level
     ///
-    /// @param levelPatchTags   Array of patchTags for all faces in the level
-    ///
     /// @param levelVertOffset  relative offset of patch vertex indices
     ///
-    ConstIndexArray GetPatchPoints(Vtr::internal::Level const * level, Index faceIndex,
-                                   PatchTableFactory::PatchFaceTag const * levelPatchTags,
-                                   int levelVertOffset);
+    ConstIndexArray GetPatchPoints(
+        Vtr::internal::Level const * level, Index faceIndex,
+        Vtr::internal::Level::VSpan const cornerSpans[],
+        int levelVertOffset);
 
     void Finalize(int maxValence, 
                   PatchTable::QuadOffsetsTable *quadOffsetsTable,

@@ -131,7 +131,6 @@ ConstIndexArray
 EndCapGregoryBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
     Vtr::internal::Level::VSpan const cornerSpans[],
-    PatchTableFactory::PatchFaceTag const * levelPatchTags,
     int levelVertOffset) {
 
     // allocate indices (awkward)
@@ -179,8 +178,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             // - exist (no boundary)
             // - have already been processed (known CV indices)
             // - are also Gregory basis patches
-            if ((adjFaceIndex != Vtr::INDEX_INVALID) && (adjFaceIndex < faceIndex) &&
-                (! levelPatchTags[adjFaceIndex]._isRegular)) {
+            if ((adjFaceIndex != Vtr::INDEX_INVALID) && (adjFaceIndex < faceIndex)) {
 
                 ConstIndexArray aedges = level->getFaceEdges(adjFaceIndex);
                 int aedge = aedges.FindIndexIn4Tuple(edge);

@@ -28,6 +28,7 @@
 #include "../vtr/level.h"
 #include "../vtr/fvarLevel.h"
 #include "../vtr/refinement.h"
+#include "../vtr/stackBuffer.h"
 #include "../far/endCapBSplineBasisPatchFactory.h"
 #include "../far/endCapGregoryBasisPatchFactory.h"
 #include "../far/endCapLegacyGregoryPatchFactory.h"
@@ -40,40 +41,6 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace {
-
-//
-//  A convenience container for the different types of feature adaptive patches.
-//  Each instance associates a value of the template parameter type with each
-//  patch type.
-//
-template <class TYPE>
-struct PatchTypes {
-
-    TYPE R,    // regular patch
-         G,    // gregory patch
-         GB,   // gregory boundary patch
-         GP;   // gregory basis patch
-
-    PatchTypes() { std::memset(this, 0, sizeof(PatchTypes<TYPE>)); }
-
-    TYPE & getValue( Far::PatchDescriptor desc ) {
-        switch (desc.GetType()) {
-            case Far::PatchDescriptor::REGULAR          : return R;
-            case Far::PatchDescriptor::GREGORY          : return G;
-            case Far::PatchDescriptor::GREGORY_BOUNDARY : return GB;
-            case Far::PatchDescriptor::GREGORY_BASIS    : return GP;
-            default : assert(0);
-        }
-        // can't be reached (suppress compiler warning)
-        return R;
-    }
-};
-
-typedef PatchTypes<Far::Index *>      PatchCVPointers;
-typedef PatchTypes<Far::PatchParam *> PatchParamPointers;
-typedef PatchTypes<Far::Index *>      SharpnessIndexPointers;
-typedef PatchTypes<Far::Index>        PatchFVarOffsets;
-typedef PatchTypes<Far::Index **>     PatchFVarPointers;
 
 //  Helpers for compiler warnings and floating point equality tests
 #ifdef __INTEL_COMPILER
@@ -206,143 +173,423 @@ offsetAndPermuteIndices(Far::Index const indices[], int count,
 }
 
 //
-// Face-varying channel cursor
+// Builder Context
 //
-// This cursors allows to iterate over a set of selected face-varying channels.
-// If client-code specifies an optional sub-set of the list of channels carried
-// by the TopologyRefiner, the cursor can traverse this list and return both its
-// current position in the sub-set and the original index of the corresponding
-// channel in the TopologyRefiner.
-//
-class FVarChannelCursor {
-
-public:
-
-    FVarChannelCursor(TopologyRefiner const & refiner,
-                      PatchTableFactory::Options options)
-        : _channelIndices(0)
-    {
-        if (options.generateFVarTables) {
-            // If client-code does not select specific channels, default to all
-            // the channels in the refiner.
-            if (options.numFVarChannels==-1) {
-                _numChannels = refiner.GetNumFVarChannels();
-                _channelIndices = 0;
-            } else {
-                assert(options.numFVarChannels<=refiner.GetNumFVarChannels());
-                _numChannels = options.numFVarChannels;
-                _channelIndices = options.fvarChannelIndices;
-            }
-        } else {
-            _numChannels = 0;
-        }
-        _currentChannel = this->begin();
-    }
-
-    // Increment cursor
-    FVarChannelCursor & operator++() {
-        ++_currentChannel;
-        return *this;
-    }
-
-    // Assign a position to a cursor
-    FVarChannelCursor & operator = (int currentChannel) {
-        _currentChannel = currentChannel;
-        return *this;
-    }
-
-    // Compare cursor positions
-    bool operator != (int posArg) {
-        return _currentChannel < posArg;
-    }
-
-    // Return FVar channel index in the TopologyRefiner list
-    // XXXX use something better than dereferencing operator maybe ?
-    int operator*() {
-        assert(_currentChannel<_numChannels);
-        // If the cursor is iterating over a sub-set of channels, return the
-        // channel index from the sub-set, otherwise use the current cursor
-        // position as channel index.
-        return _channelIndices ?
-            _channelIndices[_currentChannel] : _currentChannel;
-    }
-
-    int pos() const   { return _currentChannel; }
-    int begin() const { return 0; }
-    int end() const   { return _numChannels; }
-    int size() const  { return _numChannels; }
-
-private:
-    int _numChannels,             // total number of channels
-        _currentChannel;          // current cursor position
-    int const * _channelIndices;  // list of selected channel indices
-};
-
-//
-// Adaptive Context
-//
-// Helper class aggregating transient contextual data structures during the
-// creation of feature adaptive patch table. The structure simplifies
-// the function prototypes of high-level private methods in the factory.
+// Helper class aggregating transient contextual data structures during
+// the creation of a patch table.
 // This helps keeping the factory class stateless.
 //
 // Note : struct members are not re-entrant nor are they intended to be !
 //
-struct PatchTableFactory::AdaptiveContext {
+struct PatchTableFactory::BuilderContext {
 
 public:
-    AdaptiveContext(TopologyRefiner const & refiner, Options options);
+    BuilderContext(TopologyRefiner const & refiner, Options options);
 
     TopologyRefiner const & refiner;
 
     Options const options;
 
-    // The patch table being created
-    PatchTable * table;
+    PtexIndices const ptexIndices;
 
 public:
+    struct PatchTuple {
+        PatchTuple()
+            : tag(), faceIndex(-1), levelIndex(-1) { }
+        PatchTuple(PatchTuple const & p)
+            : tag(p.tag), faceIndex(p.faceIndex), levelIndex(p.levelIndex) { }
+        PatchTuple(PatchFaceTag const & tag, int faceIndex, int levelIndex)
+            : tag(tag), faceIndex(faceIndex), levelIndex(levelIndex) { }
 
-    //
-    // Vertex
-    //
+        PatchFaceTag tag;
+        int faceIndex;
+        int levelIndex;
+    };
+    typedef std::vector<PatchTuple> PatchTuppleVector;
 
-    // Counters accumulating each type of patches during topology traversal
-    PatchTypes<int> patchInventory;
-
-    // Bit tags accumulating patch attributes during topology traversal
-    PatchTagVector patchTags;
-
-public:
-
-    //
-    // Face-varying
-    //
+    int gatherBilinearPatchPoints(Index * iptrs,
+                                  PatchTuple const & patch,
+                                  int fvarChannel = -1);
+    int gatherRegularPatchPoints(Index * iptrs,
+                                 PatchTuple const & patch,
+                                 int fvarChannel = -1);
+    template <class END_CAP_FACTORY_TYPE>
+    int gatherEndCapPatchPoints(END_CAP_FACTORY_TYPE *endCapFactory,
+                                Index * iptrs,
+                                PatchTuple const & patch,
+                                int fvarChannel = -1);
 
     // True if face-varying patches need to be generated for this topology
-    bool RequiresFVarPatches() const;
+    bool RequiresFVarPatches() const {
+        return (! fvarChannelIndices.empty());
+    }
 
-    // A cursor to iterate through the face-varying channels requested
-    // by client-code
-    FVarChannelCursor fvarChannelCursor;
+    // Counters accumulating each type of patch during topology traversal
+    int numRegularPatches;
+    int numIrregularPatches;
+    int numIrregularBoundaryPatches;
+
+    // Tuple for each patch identified during topology traversal
+    PatchTuppleVector patches;
+
+    std::vector<int> levelVertOffsets;
+    std::vector< std::vector<int> > levelFVarValueOffsets;
+
+    // These are the indices of face-varying channels in the refiner
+    // or empty if we are not populating face-varying data.
+    std::vector<int> fvarChannelIndices;
 };
 
 // Constructor
-PatchTableFactory::AdaptiveContext::AdaptiveContext(
+PatchTableFactory::BuilderContext::BuilderContext(
     TopologyRefiner const & ref, Options opts) :
-    refiner(ref), options(opts), table(0),
-    fvarChannelCursor(ref, opts) {
+    refiner(ref), options(opts), ptexIndices(refiner),
+    numRegularPatches(0), numIrregularPatches(0),
+    numIrregularBoundaryPatches(0) {
+
+    if (options.generateFVarTables) {
+        // If client-code does not select specific channels, default to all
+        // the channels in the refiner.
+        if (options.numFVarChannels==-1) {
+            fvarChannelIndices.resize(refiner.GetNumFVarChannels());
+            for (int fvc=0;fvc<(int)fvarChannelIndices.size(); ++fvc) {
+                fvarChannelIndices[fvc] = fvc; // std::iota
+            }
+        } else {
+            fvarChannelIndices.assign(
+                options.fvarChannelIndices,
+                options.fvarChannelIndices+options.numFVarChannels);
+        }
+    }
+}
+
+int
+PatchTableFactory::BuilderContext::gatherBilinearPatchPoints(
+        Index * iptrs, PatchTuple const & patch, int fvarChannel) {
+
+    Vtr::internal::Level const * level = &refiner.getLevel(patch.levelIndex);
+    int levelVertOffset = (fvarChannel < 0)
+                        ? levelVertOffsets[patch.levelIndex]
+                        : levelFVarValueOffsets[fvarChannel][patch.levelIndex];
+
+    ConstIndexArray cvs = (fvarChannel < 0)
+                        ?  level->getFaceVertices(patch.faceIndex)
+                        :  level->getFaceFVarValues(patch.faceIndex,
+                                fvarChannelIndices[fvarChannel]);
+
+    for (int i = 0; i < cvs.size(); ++i) iptrs[i] = levelVertOffset + cvs[i];
+    return cvs.size();
+}
+
+int
+PatchTableFactory::BuilderContext::gatherRegularPatchPoints(
+        Index * iptrs, PatchTuple const & patch, int fvarChannel) {
+
+    Vtr::internal::Level const * level = &refiner.getLevel(patch.levelIndex);
+    int levelVertOffset = (fvarChannel < 0)
+                        ? levelVertOffsets[patch.levelIndex]
+                        : levelFVarValueOffsets[fvarChannel][patch.levelIndex];
+    int refinerChannel = (fvarChannel < 0)
+                       ? fvarChannel
+                       : fvarChannelIndices[fvarChannel];
+
+    Index patchVerts[16];
+
+    int bIndex = patch.tag._boundaryIndex;
+
+    int const * permutation = 0;
+
+    if (patch.tag._boundaryCount == 0) {
+        static int const permuteRegular[16] =
+            { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
+        permutation = permuteRegular;
+        level->gatherQuadRegularInteriorPatchPoints(
+                patch.faceIndex, patchVerts, /*rotation=*/0, refinerChannel);
+    } else if (patch.tag._boundaryCount == 1) {
+        // Expand boundary patch vertices and rotate to
+        // restore correct orientation.
+        static int const permuteBoundary[4][16] = {
+            { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
+            { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
+            { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
+            { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
+        permutation = permuteBoundary[bIndex];
+        level->gatherQuadRegularBoundaryPatchPoints(
+                patch.faceIndex, patchVerts, bIndex, refinerChannel);
+    } else if (patch.tag._boundaryCount == 2) {
+        // Expand corner patch vertices and rotate to
+        // restore correct orientation.
+        static int const permuteCorner[4][16] = {
+            { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
+            { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
+            { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
+            { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
+        permutation = permuteCorner[bIndex];
+        level->gatherQuadRegularCornerPatchPoints(
+                patch.faceIndex, patchVerts, bIndex, refinerChannel);
+    } else {
+        assert(patch.tag._boundaryCount <= 2);
+    }
+
+    offsetAndPermuteIndices(
+        patchVerts, 16, levelVertOffset, permutation, iptrs);
+    return 16;
+}
+
+template <class END_CAP_FACTORY_TYPE>
+int
+PatchTableFactory::BuilderContext::
+gatherEndCapPatchPoints(
+        END_CAP_FACTORY_TYPE *endCapFactory,
+        Index * iptrs, PatchTuple const & patch, int fvarChannel) {
+
+    Vtr::internal::Level const * level = &refiner.getLevel(patch.levelIndex);
+    int levelVertOffset = (fvarChannel < 0)
+                        ? levelVertOffsets[patch.levelIndex]
+                        : levelFVarValueOffsets[fvarChannel][patch.levelIndex];
+
+    // identify relevant spans around the corner vertices for the irregular patches
+    // (this is just a stub for now -- leaving the span "size" to zero, as constructed,
+    // indicates to use the full neighborhood)...
+    Vtr::internal::Level::VSpan cornerSpans[4];
+
+    ConstIndexArray cvs = endCapFactory->GetPatchPoints(
+        level, patch.faceIndex, cornerSpans, levelVertOffset);
+
+    for (int i = 0; i < cvs.size(); ++i) iptrs[i] = cvs[i];
+    return cvs.size();
 }
 
 bool
-PatchTableFactory::AdaptiveContext::RequiresFVarPatches() const {
-    return (fvarChannelCursor.size() > 0);
+PatchTableFactory::computePatchTag(
+        BuilderContext & context,
+        Index const levelIndex, Index const faceIndex,
+        PatchTableFactory::PatchFaceTag &patchTag) {
+
+    TopologyRefiner const & refiner = context.refiner;
+
+    Vtr::internal::Level const * level = &refiner.getLevel(levelIndex);
+
+    if (level->isFaceHole(faceIndex)) {
+        return false;
+    }
+
+    //
+    //  Given components at Level[i], we need to be looking at Refinement[i] -- and not
+    //  [i-1] -- because the Refinement has transitional information for its parent edges
+    //  and faces.
+    //
+    //  For components in this level, we want to determine:
+    //    - what Edges are "transitional" (already done in Refinement for parent)
+    //    - what Faces are "transitional" (already done in Refinement for parent)
+    //    - what Faces are "complete" (applied to this Level in previous refinement)
+    //
+    Vtr::internal::Refinement const * refinement =
+        (levelIndex < refiner.GetMaxLevel())
+            ? refinement = &refiner.getRefinement(levelIndex) : 0;
+
+    //
+    //  This face does not warrant a patch under the following conditions:
+    //
+    //      - the face was fully refined into child faces
+    //      - the face is not a quad (should have been refined, so assert)
+    //      - the face is not "complete"
+    //
+    //  The first is trivially determined, and the second is really redundant.  The
+    //  last -- "incompleteness" -- indicates a face that exists to support the limit
+    //  of some neighboring component, and which does not have its own neighborhood
+    //  fully defined for its limit.  If any child vertex of a vertex of this face is
+    //  "incomplete" (and all are tagged) the face must be "incomplete", so get the
+    //  "composite" tag which combines bits for all vertices:
+    //
+    Vtr::internal::Refinement::SparseTag refinedFaceTag =
+        refinement
+            ? refinement->getParentFaceSparseTag(faceIndex)
+            : Vtr::internal::Refinement::SparseTag();
+
+    if (refinedFaceTag._selected) {
+        return false;
+    }
+
+    Vtr::ConstIndexArray fVerts = level->getFaceVertices(faceIndex);
+    assert(fVerts.size() == 4);
+
+    Vtr::internal::Level::VTag compFaceVertTag = level->getFaceCompositeVTag(fVerts);
+    if (compFaceVertTag._incomplete) {
+        return false;
+    }
+
+    //
+    //  We have a quad that will be represented as a B-spline or end cap patch.  Use
+    //  the "composite" tag again to quickly determine if any vertex is irregular, on
+    //  a boundary, non-manifold, etc.
+    //
+    //  Inspect the edges for boundaries and transitional edges and pack results into
+    //  4-bit masks.  We detect boundary edges rather than vertices as we hope to
+    //  replace the mask in future with one for infinitely sharp edges -- allowing
+    //  us to detect regular patches and avoid isolation.  We still need to account
+    //  for the irregular/xordinary case when a corner vertex is a boundary but there
+    //  are no boundary edges.
+    //
+    //  As for transition detection, assign the transition properties (even if 0).
+    //
+    //  NOTE on patches around non-manifold vertices:
+    //      In most cases the use of regular boundary or corner patches is what we want,
+    //  but in some, i.e. when a non-manifold vertex is infinitely sharp, using
+    //  such patches will create some discontinuities.  At this point non-manifold
+    //  support is still evolving and is not strictly defined, so this is left to
+    //  a later date to resolve.
+    //
+    //  NOTE on infinitely sharp (hard) edges:
+    //      We should be able to adapt this later to detect hard (inf-sharp) edges
+    //  rather than just boundary edges -- there is a similar tag per edge.  That
+    //  should allow us to generate regular patches for interior hard features.
+    //
+    bool hasBoundaryVertex    = compFaceVertTag._boundary;
+    bool hasNonManifoldVertex = compFaceVertTag._nonManifold;
+    bool hasXOrdinaryVertex   = compFaceVertTag._xordinary;
+
+    patchTag._isRegular = ! hasXOrdinaryVertex || hasNonManifoldVertex;
+
+    // single crease patch optimization
+    if (context.options.useSingleCreasePatch &&
+        ! hasXOrdinaryVertex && ! hasBoundaryVertex && ! hasNonManifoldVertex) {
+
+        Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
+        Vtr::internal::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
+
+        if (compFaceETag._semiSharp || compFaceETag._infSharp) {
+            float sharpness = 0;
+            int rotation = 0;
+            if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
+
+                // cap sharpness to the max isolation level
+                float cappedSharpness =
+                        std::min(sharpness, (float)(context.options.maxIsolationLevel - levelIndex));
+                if (cappedSharpness > 0) {
+                    patchTag._isSingleCrease = true;
+                    patchTag._boundaryIndex = rotation;
+                }
+            }
+        }
+    }
+
+    //  Identify boundaries for both regular and xordinary patches -- non-manifold
+    //  (infinitely sharp) edges and vertices are currently interpreted as boundaries
+    //  for regular patches, though an irregular patch or extrapolated boundary patch
+    //  is really necessary in future for some non-manifold cases.
+    //
+    if (hasBoundaryVertex || hasNonManifoldVertex) {
+        Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
+
+        int boundaryEdgeMask = ((level->getEdgeTag(fEdges[0])._boundary) << 0) |
+                               ((level->getEdgeTag(fEdges[1])._boundary) << 1) |
+                               ((level->getEdgeTag(fEdges[2])._boundary) << 2) |
+                               ((level->getEdgeTag(fEdges[3])._boundary) << 3);
+        if (hasNonManifoldVertex) {
+            int nonManEdgeMask = ((level->getEdgeTag(fEdges[0])._nonManifold) << 0) |
+                                 ((level->getEdgeTag(fEdges[1])._nonManifold) << 1) |
+                                 ((level->getEdgeTag(fEdges[2])._nonManifold) << 2) |
+                                 ((level->getEdgeTag(fEdges[3])._nonManifold) << 3);
+
+            //  Other than non-manifold edges, non-manifold vertices that were made
+            //  sharp should also trigger new "boundary" edges for the sharp corner
+            //  patches introduced in these cases.
+            //
+            if (level->getVertexTag(fVerts[0])._nonManifold &&
+                level->getVertexTag(fVerts[0])._infSharp) {
+                nonManEdgeMask |= (1 << 0) | (1 << 3);
+            }
+            if (level->getVertexTag(fVerts[1])._nonManifold &&
+                level->getVertexTag(fVerts[1])._infSharp) {
+                nonManEdgeMask |= (1 << 1) | (1 << 0);
+            }
+            if (level->getVertexTag(fVerts[2])._nonManifold &&
+                level->getVertexTag(fVerts[2])._infSharp) {
+                nonManEdgeMask |= (1 << 2) | (1 << 1);
+            }
+            if (level->getVertexTag(fVerts[3])._nonManifold &&
+                level->getVertexTag(fVerts[3])._infSharp) {
+                nonManEdgeMask |= (1 << 3) | (1 << 2);
+            }
+            boundaryEdgeMask |= nonManEdgeMask;
+        }
+
+        if (boundaryEdgeMask) {
+            patchTag.assignBoundaryPropertiesFromEdgeMask(boundaryEdgeMask);
+        } else {
+            int boundaryVertMask = ((level->getVertexTag(fVerts[0])._boundary) << 0) |
+                                   ((level->getVertexTag(fVerts[1])._boundary) << 1) |
+                                   ((level->getVertexTag(fVerts[2])._boundary) << 2) |
+                                   ((level->getVertexTag(fVerts[3])._boundary) << 3);
+
+            if (hasNonManifoldVertex) {
+                int nonManVertMask = ((level->getVertexTag(fVerts[0])._nonManifold) << 0) |
+                                     ((level->getVertexTag(fVerts[1])._nonManifold) << 1) |
+                                     ((level->getVertexTag(fVerts[2])._nonManifold) << 2) |
+                                     ((level->getVertexTag(fVerts[3])._nonManifold) << 3);
+                boundaryVertMask |= nonManVertMask;
+            }
+            patchTag.assignBoundaryPropertiesFromVertexMask(boundaryVertMask);
+        }
+    }
+
+    //  XXXX (barfowl) -- why are we approximating a smooth x-ordinary corner with
+    //  a sharp corner patch?  The boundary/corner points of the regular patch are
+    //  not even made colinear to make it smoother.  Something historical here...
+    //
+    //  So this treatment may become optional in future and is bracketed with a
+    //  condition now for that reason.  We approximate x-ordinary smooth corners
+    //  with regular B-spline patches instead of using a Gregory patch.  The smooth
+    //  corner must be properly isolated from any other irregular vertices (as it
+    //  will be at any level > 1) otherwise the Gregory patch is necessary.
+    //
+    //  This flag to be initialized with a future option... ?
+    bool approxSmoothCornerWithRegularPatch = true;
+
+    if (approxSmoothCornerWithRegularPatch) {
+        if (!patchTag._isRegular && (patchTag._boundaryCount == 2)) {
+            //  We may have a sharp corner opposite/adjacent an xordinary vertex --
+            //  need to make sure there is only one xordinary vertex and that it
+            //  is the corner vertex.
+            if (levelIndex > 1) {
+                patchTag._isRegular = true;
+            } else {
+                int xordVertex = 0;
+                int xordCount = 0;
+                if (level->getVertexTag(fVerts[0])._xordinary) { xordCount++; xordVertex = 0; }
+                if (level->getVertexTag(fVerts[1])._xordinary) { xordCount++; xordVertex = 1; }
+                if (level->getVertexTag(fVerts[2])._xordinary) { xordCount++; xordVertex = 2; }
+                if (level->getVertexTag(fVerts[3])._xordinary) { xordCount++; xordVertex = 3; }
+
+                if (xordCount == 1) {
+                    //  We require the vertex opposite the xordinary vertex be interior:
+                    if (! level->getVertexTag(fVerts[(xordVertex + 2) % 4])._boundary) {
+                        patchTag._isRegular = true;
+                    }
+                }
+            }
+        }
+    }
+
+    //
+    //  Now that all boundary features have have been identified and tagged, assign
+    //  the transition type for the patch before taking inventory.
+    //
+    //  Identify and increment counts for regular patches (both non-transitional and
+    //  transitional) and extra-ordinary patches (always non-transitional):
+    //
+    patchTag._transitionMask = refinedFaceTag._transitional;
+
+    return true;
 }
 
 //
 //  Reserves tables based on the contents of the PatchArrayVector in the PatchTable:
 //
 void
-PatchTableFactory::allocateVertexTables(PatchTable * table, int /* nlevels */, bool hasSharpness) {
+PatchTableFactory::allocateVertexTables(
+        PatchTable * table, bool hasSharpness) {
 
     int ncvs = 0, npatches = 0;
     for (int i=0; i<table->GetNumPatchArrays(); ++i) {
@@ -366,87 +613,43 @@ PatchTableFactory::allocateVertexTables(PatchTable * table, int /* nlevels */, b
 //  Allocate face-varying tables
 //
 void
-PatchTableFactory::allocateFVarChannels(TopologyRefiner const & refiner,
-    Options options, int npatches, PatchTable * table) {
-
-    assert(options.generateFVarTables &&
-        refiner.GetNumFVarChannels()>0 && npatches>0 && table);
-
-    // Create a channel cursor to iterate over client-selected channels or
-    // default to the channels found in the TopologyRefiner
-    FVarChannelCursor fvc(refiner, options);
-    if (fvc.size()==0) {
-        return;
-    }
-
-    table->allocateFVarPatchChannels(fvc.size());
-
-    // Iterate with the cursor to initialize each channel
-    for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-
-        Sdc::Options::FVarLinearInterpolation interpolation =
-            refiner.GetFVarLinearInterpolation(*fvc);
-
-        table->setFVarPatchChannelLinearInterpolation(interpolation, fvc.pos());
-
-        PatchDescriptor::Type type = options.triangulateQuads ?
-            PatchDescriptor::TRIANGLES : PatchDescriptor::QUADS;
-
-        table->allocateFVarPatchChannelValues(
-            PatchDescriptor(type), npatches, fvc.pos());
-    }
-}
-
-
-// gather face-varying patch points
-int
-PatchTableFactory::gatherFVarData(AdaptiveContext & context, int level,
-    Index faceIndex, Index levelFaceOffset, int rotation,
-        Index const * levelFVarVertOffsets, Index fofss, Index ** fptrs) {
-
-    (void)levelFaceOffset;  // not used
-    (void)fofss;  // not used
-
-    if (! context.RequiresFVarPatches()) {
-        return 0;
-    }
+PatchTableFactory::allocateFVarChannels(
+        BuilderContext const & context, PatchTable * table) {
 
     TopologyRefiner const & refiner = context.refiner;
 
-    // Iterate over valid FVar channels (if any)
-    FVarChannelCursor & fvc = context.fvarChannelCursor;
-    for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
+    int npatches = table->GetNumPatchesTotal();
 
-        Vtr::internal::Level const & vtxLevel = refiner.getLevel(level);
-        Vtr::internal::FVarLevel const & fvarLevel = vtxLevel.getFVarLevel(*fvc);
+    table->allocateFVarPatchChannels((int)context.fvarChannelIndices.size());
 
-        //
-        // Bi-linear patches
-        //
+    // Initialize each channel
+    for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+        int refinerChannel = context.fvarChannelIndices[fvc];
 
-        ConstIndexArray fvarValues = fvarLevel.getFaceValues(faceIndex);
+        Sdc::Options::FVarLinearInterpolation interpolation =
+            refiner.GetFVarLinearInterpolation(refinerChannel);
 
-        // Store verts values directly in non-sparse context channel arrays
-        for (int vert=0; vert<fvarValues.size(); ++vert) {
-            fptrs[fvc.pos()][vert] =
-                levelFVarVertOffsets[fvc.pos()] + fvarValues[(vert+rotation)%4];
-        }
-        fptrs[fvc.pos()]+=fvarValues.size();
+        table->setFVarPatchChannelLinearInterpolation(interpolation, fvc);
+
+        PatchDescriptor::Type type = context.options.triangulateQuads ?
+            PatchDescriptor::TRIANGLES : PatchDescriptor::QUADS;
+
+        table->allocateFVarPatchChannelValues(
+            PatchDescriptor(type), npatches, fvc);
     }
-    return 1;
 }
 
 //
 //  Populates the PatchParam for the given face, returning
 //  a pointer to the next entry
 //
-PatchParam *
+PatchParam
 PatchTableFactory::computePatchParam(
-    TopologyRefiner const & refiner, PtexIndices const &ptexIndices,
+    BuilderContext const & context,
     int depth, Vtr::Index faceIndex, int boundaryMask, 
-    int transitionMask, PatchParam *param) {
+    int transitionMask) {
 
-    if (param == NULL) return NULL;
+    TopologyRefiner const & refiner = context.refiner;
 
     // Move up the hierarchy accumulating u,v indices to the coarse level:
     int childIndexInParent = 0,
@@ -486,7 +689,7 @@ PatchTableFactory::computePatchParam(
         faceIndex = parentFaceIndex;
     }
 
-    Vtr::Index ptexIndex = ptexIndices.GetFaceId(faceIndex);
+    Vtr::Index ptexIndex = context.ptexIndices.GetFaceId(faceIndex);
     assert(ptexIndex!=-1);
 
     if (nonquad) {
@@ -494,12 +697,11 @@ PatchTableFactory::computePatchParam(
         --depth;
     }
 
-    param->Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
+    PatchParam param;
+    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
                (unsigned short) boundaryMask, (unsigned short) transitionMask);
-
-    return ++param;
+    return param;
 }
-
 
 //
 //  Indexing sharpnesses
@@ -537,6 +739,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     assert(refiner.IsUniform());
 
+    BuilderContext context(refiner, options);
+
     // ensure that triangulateQuads is only set for quadrilateral schemes
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR ||
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
@@ -548,8 +752,6 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         maxlevel = refiner.GetMaxLevel(),
         firstlevel = options.generateAllLevels ? 1 : maxlevel,
         nlevels = maxlevel-firstlevel+1;
-
-    PtexIndices ptexIndices(refiner);
 
     PatchDescriptor::Type ptype = PatchDescriptor::NON_PATCH;
     if (options.triangulateQuads) {
@@ -565,10 +767,9 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     //
     //  Create the instance of the table and allocate and initialize its members.
-    //
     PatchTable * table = new PatchTable(maxvalence);
 
-    table->_numPtexFaces = ptexIndices.GetNumFaces();
+    table->_numPtexFaces = context.ptexIndices.GetNumFaces();
 
     table->reservePatchArrays(nlevels);
 
@@ -594,14 +795,10 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     }
 
     // Allocate various tables
-    allocateVertexTables( table, 0, /*hasSharpness=*/false );
+    allocateVertexTables( table, /*hasSharpness=*/false );
 
-    FVarChannelCursor fvc(refiner, options);
-    bool generateFVarPatches = (options.generateFVarTables && fvc.size()>0);
-    if (generateFVarPatches) {
-        int npatches = table->GetNumPatchesTotal();
-        allocateFVarChannels(refiner, options, npatches, table);
-        assert(fvc.size() == table->GetNumFVarChannels());
+    if (context.RequiresFVarPatches()) {
+        allocateFVarChannels(context, table);
     }
 
     //
@@ -616,14 +813,14 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
 
     Index * levelFVarVertOffsets = 0;
-    if (generateFVarPatches) {
+    if (context.RequiresFVarPatches()) {
 
-        levelFVarVertOffsets = (Index *)alloca(fvc.size()*sizeof(Index));
-        memset(levelFVarVertOffsets, 0, fvc.size()*sizeof(Index));
+        levelFVarVertOffsets = (Index *)alloca(context.fvarChannelIndices.size()*sizeof(Index));
+        memset(levelFVarVertOffsets, 0, context.fvarChannelIndices.size()*sizeof(Index));
 
-        fptr = (Index **)alloca(fvc.size()*sizeof(Index *));
-        for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-            fptr[fvc.pos()] = table->getFVarValues(fvc.pos()).begin();
+        fptr = (Index **)alloca(context.fvarChannelIndices.size()*sizeof(Index *));
+        for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+            fptr[fvc] = table->getFVarValues(fvc).begin();
         }
     }
 
@@ -644,16 +841,18 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
 
-                pptr = computePatchParam(refiner, ptexIndices, level, face, /*boundary*/0, /*transition*/0, pptr);
+                *pptr++ = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
 
-                if (generateFVarPatches) {
-                    for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                        ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, *fvc);
+                if (context.RequiresFVarPatches()) {
+                    for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                        int refinerChannel = context.fvarChannelIndices[fvc];
+
+                        ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, refinerChannel);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc.pos()).size());
-                            fptr[fvc.pos()][vert] = levelFVarVertOffsets[fvc.pos()] + fvalues[vert];
+                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
+                            fptr[fvc][vert] = levelFVarVertOffsets[fvc] + fvalues[vert];
                         }
-                        fptr[fvc.pos()]+=fvalues.size();
+                        fptr[fvc]+=fvalues.size();
                     }
                 }
 
@@ -667,12 +866,12 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     *pptr = *(pptr - 1); // copy first patch param
                     ++pptr;
 
-                    if (generateFVarPatches) {
-                        for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                            *fptr[fvc.pos()] = *(fptr[fvc.pos()]-4); // copy fv0 index
-                            ++fptr[fvc.pos()];
-                            *fptr[fvc.pos()] = *(fptr[fvc.pos()]-3); // copy fv2 index
-                            ++fptr[fvc.pos()];
+                    if (context.RequiresFVarPatches()) {
+                        for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                            *fptr[fvc] = *(fptr[fvc]-4); // copy fv0 index
+                            ++fptr[fvc];
+                            *fptr[fvc] = *(fptr[fvc]-3); // copy fv2 index
+                            ++fptr[fvc];
                         }
                     }
                 }
@@ -681,8 +880,9 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
         if (options.generateAllLevels) {
             levelVertOffset += refiner.GetLevel(level).GetNumVertices();
-            for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-                levelFVarVertOffsets[fvc.pos()] += refiner.GetLevel(level).GetNumFVarValues(fvc.pos());
+            for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                int refinerChannel = context.fvarChannelIndices[fvc];
+                levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
             }
         }
     }
@@ -694,63 +894,29 @@ PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options optio
 
     assert(! refiner.IsUniform());
 
-    PtexIndices ptexIndices(refiner);
-
-    AdaptiveContext context(refiner, options);
+    BuilderContext context(refiner, options);
 
     //
-    //  First identify the patches -- accumulating the inventory patches for all of the
-    //  different types and information about the patch for each face:
+    //  First identify the patches -- accumulating an inventory of
+    //  information about each resulting patch:
     //
     identifyAdaptivePatches(context);
 
     //
-    //  Create the instance of the table and allocate and initialize its members based on
-    //  the inventory of patches determined above:
+    //  Create and initialize the instance of the table:
     //
     int maxValence = refiner.GetMaxValence();
 
-    context.table = new PatchTable(maxValence);
+    PatchTable * table = new PatchTable(maxValence);
 
-    // Populate the patch array descriptors
-    int numPatchArrays = 0;
-    if (context.patchInventory.R > 0) ++numPatchArrays;
-    if (context.patchInventory.G > 0) ++numPatchArrays;
-    if (context.patchInventory.GB > 0) ++numPatchArrays;
-    if (context.patchInventory.GP > 0) ++numPatchArrays;
-
-    context.table->reservePatchArrays(numPatchArrays);
-
-    // Sort through the inventory and push back non-empty patch arrays
-    ConstPatchDescriptorArray const & descs =
-        PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
-
-    int voffset=0, poffset=0, qoffset=0;
-    for (int i=0; i<descs.size(); ++i) {
-        PatchDescriptor desc = descs[i];
-        context.table->pushPatchArray(desc,
-            context.patchInventory.getValue(desc), &voffset, &poffset, &qoffset );
-    }
-
-    context.table->_numPtexFaces = ptexIndices.GetNumFaces();
-
-    // Allocate various tables
-    bool hasSharpness = context.options.useSingleCreasePatch;
-    allocateVertexTables(context.table, 0, hasSharpness);
-
-    if (context.RequiresFVarPatches()) {
-
-        int npatches = context.table->GetNumPatchesTotal();
-
-        allocateFVarChannels(refiner, options, npatches, context.table);
-    }
+    table->_numPtexFaces = context.ptexIndices.GetNumFaces();
 
     //
     //  Now populate the patches:
     //
-    populateAdaptivePatches(context, ptexIndices);
+    populateAdaptivePatches(context, table);
 
-    return context.table;
+    return table;
 }
 
 //
@@ -759,7 +925,7 @@ PatchTableFactory::createAdaptive(TopologyRefiner const & refiner, Options optio
 //  later with no additional analysis.
 //
 void
-PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
+PatchTableFactory::identifyAdaptivePatches(BuilderContext & context) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -773,344 +939,167 @@ PatchTableFactory::identifyAdaptivePatches(AdaptiveContext & context) {
     //  has no Refinement, so a single level is effectively the last, but with less information
     //  available in some cases, as it was not generated by refinement.
     //
-    context.patchTags.resize(refiner.GetNumFacesTotal());
+    int reservePatches = refiner.GetNumFacesTotal();
+    context.patches.reserve(reservePatches);
 
-    PatchFaceTag * levelPatchTags = &context.patchTags[0];
+    context.levelVertOffsets.push_back(0);
+    context.levelFVarValueOffsets.resize(context.fvarChannelIndices.size());
+    for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+        context.levelFVarValueOffsets[fvc].push_back(0);
+    }
 
-    for (int levelIndex = 0; levelIndex < refiner.GetNumLevels(); ++levelIndex) {
+    for (int levelIndex=0; levelIndex<refiner.GetNumLevels(); ++levelIndex) {
         Vtr::internal::Level const * level = &refiner.getLevel(levelIndex);
 
-        //
-        //  Given components at Level[i], we need to be looking at Refinement[i] -- and not
-        //  [i-1] -- because the Refinement has transitional information for its parent edges
-        //  and faces.
-        //
-        //  For components in this level, we want to determine:
-        //    - what Edges are "transitional" (already done in Refinement for parent)
-        //    - what Faces are "transitional" (already done in Refinement for parent)
-        //    - what Faces are "complete" (applied to this Level in previous refinement)
-        //
-        Vtr::internal::Refinement const            * refinement = 0;
-        Vtr::internal::Refinement::SparseTag const * refinedFaceTags = 0;
+        context.levelVertOffsets.push_back(
+                context.levelVertOffsets.back() + level->getNumVertices());
 
-        if (levelIndex < refiner.GetMaxLevel()) {
-            refinement      = &refiner.getRefinement(levelIndex);
-            refinedFaceTags = &refinement->getParentFaceSparseTag(0);
+        for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+            int refinerChannel = context.fvarChannelIndices[fvc];
+            context.levelFVarValueOffsets[fvc].push_back(
+                context.levelFVarValueOffsets[fvc].back()
+                + level->getNumFVarValues(refinerChannel));
         }
 
         for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
 
-            PatchFaceTag & patchTag = levelPatchTags[faceIndex];
+            PatchFaceTag patchTag;
             patchTag.clear();
-            patchTag._hasPatch = false;
 
-            if (level->isFaceHole(faceIndex)) {
+            if (! computePatchTag(context, levelIndex, faceIndex, patchTag)) {
                 continue;
             }
 
-            //
-            //  This face does not warrant a patch under the following conditions:
-            //
-            //      - the face was fully refined into child faces
-            //      - the face is not a quad (should have been refined, so assert)
-            //      - the face is not "complete"
-            //
-            //  The first is trivially determined, and the second is really redundant.  The
-            //  last -- "incompleteness" -- indicates a face that exists to support the limit
-            //  of some neighboring component, and which does not have its own neighborhood
-            //  fully defined for its limit.  If any child vertex of a vertex of this face is
-            //  "incomplete" (and all are tagged) the face must be "incomplete", so get the
-            //  "composite" tag which combines bits for all vertices:
-            //
-            Vtr::internal::Refinement::SparseTag refinedFaceTag = refinedFaceTags ?
-                refinedFaceTags[faceIndex] : Vtr::internal::Refinement::SparseTag();
+            context.patches.push_back(
+                BuilderContext::PatchTuple(patchTag, faceIndex, levelIndex));
 
-            if (refinedFaceTag._selected) {
-                continue;
-            }
-
-            Vtr::ConstIndexArray fVerts = level->getFaceVertices(faceIndex);
-            assert(fVerts.size() == 4);
-
-            Vtr::internal::Level::VTag compFaceVertTag = level->getFaceCompositeVTag(fVerts);
-            if (compFaceVertTag._incomplete) {
-                continue;
-            }
-
-            //
-            //  We have a quad that will be represented as a B-spline or end cap patch.  Use
-            //  the "composite" tag again to quickly determine if any vertex is irregular, on
-            //  a boundary, non-manifold, etc.
-            //
-            //  Inspect the edges for boundaries and transitional edges and pack results into
-            //  4-bit masks.  We detect boundary edges rather than vertices as we hope to
-            //  replace the mask in future with one for infinitely sharp edges -- allowing
-            //  us to detect regular patches and avoid isolation.  We still need to account
-            //  for the irregular/xordinary case when a corner vertex is a boundary but there
-            //  are no boundary edges.
-            //
-            //  As for transition detection, assign the transition properties (even if 0).
-            //
-            //  NOTE on patches around non-manifold vertices:
-            //      In most cases the use of regular boundary or corner patches is what we want,
-            //  but in some, i.e. when a non-manifold vertex is infinitely sharp, using
-            //  such patches will create some discontinuities.  At this point non-manifold
-            //  support is still evolving and is not strictly defined, so this is left to
-            //  a later date to resolve.
-            //
-            //  NOTE on infinitely sharp (hard) edges:
-            //      We should be able to adapt this later to detect hard (inf-sharp) edges
-            //  rather than just boundary edges -- there is a similar tag per edge.  That
-            //  should allow us to generate regular patches for interior hard features.
-            //
-            bool hasBoundaryVertex    = compFaceVertTag._boundary;
-            bool hasNonManifoldVertex = compFaceVertTag._nonManifold;
-            bool hasXOrdinaryVertex   = compFaceVertTag._xordinary;
-
-            patchTag._hasPatch  = true;
-            patchTag._isRegular = ! hasXOrdinaryVertex || hasNonManifoldVertex;
-
-            // single crease patch optimization
-            if (context.options.useSingleCreasePatch &&
-                ! hasXOrdinaryVertex && ! hasBoundaryVertex && ! hasNonManifoldVertex) {
-
-                Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
-                Vtr::internal::Level::ETag compFaceETag = level->getFaceCompositeETag(fEdges);
-
-                if (compFaceETag._semiSharp || compFaceETag._infSharp) {
-                    float sharpness = 0;
-                    int rotation = 0;
-                    if (level->isSingleCreasePatch(faceIndex, &sharpness, &rotation)) {
-
-                        // cap sharpness to the max isolation level
-                        float cappedSharpness =
-                                std::min(sharpness, (float)(context.options.maxIsolationLevel - levelIndex));
-                        if (cappedSharpness > 0) {
-                            patchTag._isSingleCrease = true;
-                            patchTag._boundaryIndex = rotation;
-                        }
-                    }
-                }
-            }
-
-            //  Identify boundaries for both regular and xordinary patches -- non-manifold
-            //  (infinitely sharp) edges and vertices are currently interpreted as boundaries
-            //  for regular patches, though an irregular patch or extrapolated boundary patch
-            //  is really necessary in future for some non-manifold cases.
-            //
-            if (hasBoundaryVertex || hasNonManifoldVertex) {
-                Vtr::ConstIndexArray fEdges = level->getFaceEdges(faceIndex);
-
-                int boundaryEdgeMask = ((level->getEdgeTag(fEdges[0])._boundary) << 0) |
-                                       ((level->getEdgeTag(fEdges[1])._boundary) << 1) |
-                                       ((level->getEdgeTag(fEdges[2])._boundary) << 2) |
-                                       ((level->getEdgeTag(fEdges[3])._boundary) << 3);
-                if (hasNonManifoldVertex) {
-                    int nonManEdgeMask = ((level->getEdgeTag(fEdges[0])._nonManifold) << 0) |
-                                         ((level->getEdgeTag(fEdges[1])._nonManifold) << 1) |
-                                         ((level->getEdgeTag(fEdges[2])._nonManifold) << 2) |
-                                         ((level->getEdgeTag(fEdges[3])._nonManifold) << 3);
-
-                    //  Other than non-manifold edges, non-manifold vertices that were made
-                    //  sharp should also trigger new "boundary" edges for the sharp corner
-                    //  patches introduced in these cases.
-                    //
-                    if (level->getVertexTag(fVerts[0])._nonManifold &&
-                        level->getVertexTag(fVerts[0])._infSharp) {
-                        nonManEdgeMask |= (1 << 0) | (1 << 3);
-                    }
-                    if (level->getVertexTag(fVerts[1])._nonManifold &&
-                        level->getVertexTag(fVerts[1])._infSharp) {
-                        nonManEdgeMask |= (1 << 1) | (1 << 0);
-                    }
-                    if (level->getVertexTag(fVerts[2])._nonManifold &&
-                        level->getVertexTag(fVerts[2])._infSharp) {
-                        nonManEdgeMask |= (1 << 2) | (1 << 1);
-                    }
-                    if (level->getVertexTag(fVerts[3])._nonManifold &&
-                        level->getVertexTag(fVerts[3])._infSharp) {
-                        nonManEdgeMask |= (1 << 3) | (1 << 2);
-                    }
-                    boundaryEdgeMask |= nonManEdgeMask;
-                }
-
-                if (boundaryEdgeMask) {
-                    patchTag.assignBoundaryPropertiesFromEdgeMask(boundaryEdgeMask);
-                } else {
-                    int boundaryVertMask = ((level->getVertexTag(fVerts[0])._boundary) << 0) |
-                                           ((level->getVertexTag(fVerts[1])._boundary) << 1) |
-                                           ((level->getVertexTag(fVerts[2])._boundary) << 2) |
-                                           ((level->getVertexTag(fVerts[3])._boundary) << 3);
-
-                    if (hasNonManifoldVertex) {
-                        int nonManVertMask = ((level->getVertexTag(fVerts[0])._nonManifold) << 0) |
-                                             ((level->getVertexTag(fVerts[1])._nonManifold) << 1) |
-                                             ((level->getVertexTag(fVerts[2])._nonManifold) << 2) |
-                                             ((level->getVertexTag(fVerts[3])._nonManifold) << 3);
-                        boundaryVertMask |= nonManVertMask;
-                    }
-                    patchTag.assignBoundaryPropertiesFromVertexMask(boundaryVertMask);
-                }
-            }
-
-            //  XXXX (barfowl) -- why are we approximating a smooth x-ordinary corner with
-            //  a sharp corner patch?  The boundary/corner points of the regular patch are
-            //  not even made colinear to make it smoother.  Something historical here...
-            //
-            //  So this treatment may become optional in future and is bracketed with a
-            //  condition now for that reason.  We approximate x-ordinary smooth corners
-            //  with regular B-spline patches instead of using a Gregory patch.  The smooth
-            //  corner must be properly isolated from any other irregular vertices (as it
-            //  will be at any level > 1) otherwise the Gregory patch is necessary.
-            //
-            //  This flag to be initialized with a future option... ?
-            bool approxSmoothCornerWithRegularPatch = true;
-
-            if (approxSmoothCornerWithRegularPatch) {
-                if (!patchTag._isRegular && (patchTag._boundaryCount == 2)) {
-                    //  We may have a sharp corner opposite/adjacent an xordinary vertex --
-                    //  need to make sure there is only one xordinary vertex and that it
-                    //  is the corner vertex.
-                    if (levelIndex > 1) {
-                        patchTag._isRegular = true;
-                    } else {
-                        int xordVertex = 0;
-                        int xordCount = 0;
-                        if (level->getVertexTag(fVerts[0])._xordinary) { xordCount++; xordVertex = 0; }
-                        if (level->getVertexTag(fVerts[1])._xordinary) { xordCount++; xordVertex = 1; }
-                        if (level->getVertexTag(fVerts[2])._xordinary) { xordCount++; xordVertex = 2; }
-                        if (level->getVertexTag(fVerts[3])._xordinary) { xordCount++; xordVertex = 3; }
-
-                        if (xordCount == 1) {
-                            //  We require the vertex opposite the xordinary vertex be interior:
-                            if (! level->getVertexTag(fVerts[(xordVertex + 2) % 4])._boundary) {
-                                patchTag._isRegular = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            //
-            //  Now that all boundary features have have been identified and tagged, assign
-            //  the transition type for the patch before taking inventory.
-            //
-            //  Identify and increment counts for regular patches (both non-transitional and
-            //  transitional) and extra-ordinary patches (always non-transitional):
-            //
-            patchTag.assignTransitionPropertiesFromEdgeMask(refinedFaceTag._transitional);
-
+            // Count the patches here to simplify subsequent allocation.
             if (patchTag._isRegular) {
-
-                if (patchTag._boundaryCount == 0) {
-                    context.patchInventory.R++;
-                } else if (patchTag._boundaryCount == 1) {
-                    context.patchInventory.R++;
-                } else {
-                    context.patchInventory.R++;
-                }
+                ++context.numRegularPatches;
             } else {
-                // select endcap patchtype
-                switch(context.options.GetEndCapType()) {
-                case Options::ENDCAP_GREGORY_BASIS:
-                    context.patchInventory.GP++;
-                    break;
-                case Options::ENDCAP_BSPLINE_BASIS:
-                    context.patchInventory.R++;
-                    break;
-                case Options::ENDCAP_LEGACY_GREGORY:
-                    if (patchTag._boundaryCount == 0) {
-                        context.patchInventory.G++;
-                    } else {
-                        context.patchInventory.GB++;
-                    }
-                    break;
-                case Options::ENDCAP_BILINEAR_BASIS:
-                    // not implemented yet
-                    assert(false);
-                    break;
-                default:
-                    // no endcap
-                    break;
+                ++context.numIrregularPatches;
+                // For legacy gregory patches we need to know how many
+                // irregular patches are also boundary patches.
+                if (patchTag._boundaryCount > 0) {
+                    ++context.numIrregularBoundaryPatches;
                 }
             }
         }
-        levelPatchTags += level->getNumFaces();
     }
 }
 
 //
-//  Populate all adaptive patches now that the tables to hold data for them have been allocated.
-//  We need the inventory (counts per patch type) and the patch tags per face that were previously
-//  idenified.
+//  Populate adaptive patches that we've previously identified.
 //
 void
 PatchTableFactory::populateAdaptivePatches(
-    AdaptiveContext & context, PtexIndices const & ptexIndices) {
+    BuilderContext & context, PatchTable * table) {
 
     TopologyRefiner const & refiner = context.refiner;
 
-    PatchTable * table = context.table;
+    // State needed to populate an array in the patch table.
+    // Pointers in this structure are initialized after the patch array
+    // data buffers have been allocated and are then incremented as we
+    // populate data into the patch table. Currently, we'll have at
+    // most 3 patch arrays: Regular, Irregular, and IrregularBoundary.
+    struct PatchArrayBuilder {
+        PatchArrayBuilder()
+            : patchType(PatchDescriptor::REGULAR), numPatches(0)
+            , iptr(NULL), pptr(NULL), sptr(NULL) { }
 
-    //
-    //  Setup convenience pointers at the beginning of each patch array for each
-    // table (patches, ptex)
-    //
-    PatchCVPointers    iptrs;
-    PatchParamPointers pptrs;
-    PatchFVarOffsets   fofss;
-    PatchFVarPointers  fptrs;
-    SharpnessIndexPointers sptrs;
+        PatchDescriptor::Type patchType;
+        int numPatches;
 
-    ConstPatchDescriptorArray const & descs =
-        PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SCHEME_CATMARK);
+        Far::Index *iptr;
+        Far::PatchParam *pptr;
+        Far::Index *sptr;
+        Vtr::internal::StackBuffer<Far::Index*,1> fptr;
 
-    for (int i=0; i<descs.size(); ++i) {
+    private:
+        // Non-copyable
+        PatchArrayBuilder(PatchArrayBuilder const &) {}
+        PatchArrayBuilder & operator=(PatchArrayBuilder const &) {return *this;}
 
-        PatchDescriptor desc = descs[i];
+    } arrayBuilders[3];
+    int R = 0, IR = 1, IRB = 2; // Regular, Irregular, IrregularBoundary
 
-        Index arrayIndex = table->findPatchArray(desc);
+    // We'll always have at least one patch array for regular patches
+    int numPatchArrays = 1;
+    arrayBuilders[R].patchType = PatchDescriptor::REGULAR;
+    arrayBuilders[R].numPatches = context.numRegularPatches;
 
-        if (arrayIndex==Vtr::INDEX_INVALID) {
-            continue;
-        }
+    switch(context.options.GetEndCapType()) {
+    case Options::ENDCAP_BSPLINE_BASIS:
+        // Irregular patches are converted to bspline basis and
+        // will be packed into the same patch array as regular patches
+        IR = IRB = R;
+        arrayBuilders[R].numPatches += context.numIrregularPatches;
+        break;
+    case Options::ENDCAP_GREGORY_BASIS:
+        // Irregular patches (both interior and boundary) are converted
+        // to Gregory basis and will be packed into an additional patch array
+        IR = IRB = numPatchArrays;
+        arrayBuilders[IR].patchType = PatchDescriptor::GREGORY_BASIS;
+        arrayBuilders[IR].numPatches += context.numIrregularPatches;
+        numPatchArrays += (arrayBuilders[IR].numPatches > 0);
+        break;
+    case Options::ENDCAP_LEGACY_GREGORY:
+        // Irregular interior and irregular boundary patches each will be
+        // packed into separate additional patch arrays.
+        IR = numPatchArrays;
+        arrayBuilders[IR].patchType = PatchDescriptor::GREGORY;
+        arrayBuilders[IR].numPatches = context.numIrregularPatches
+                                     - context.numIrregularBoundaryPatches;
+        numPatchArrays += (arrayBuilders[IR].numPatches > 0);
 
-        iptrs.getValue(desc) = table->getPatchArrayVertices(arrayIndex).begin();
-        pptrs.getValue(desc) = table->getPatchParams(arrayIndex).begin();
-        if (context.options.useSingleCreasePatch) {
-            sptrs.getValue(desc) = table->getSharpnessIndices(arrayIndex);
+        IRB = numPatchArrays;
+        arrayBuilders[IRB].patchType = PatchDescriptor::GREGORY_BOUNDARY;
+        arrayBuilders[IRB].numPatches = context.numIrregularBoundaryPatches;
+        numPatchArrays += (arrayBuilders[IRB].numPatches > 0);
+        break;
+    default:
+        break;
+    }
+
+    // Create patch arrays
+    table->reservePatchArrays(numPatchArrays);
+
+    int voffset=0, poffset=0, qoffset=0;
+    for (int arrayIndex=0; arrayIndex<numPatchArrays; ++arrayIndex) {
+        PatchArrayBuilder & arrayBuilder = arrayBuilders[arrayIndex];
+        table->pushPatchArray(PatchDescriptor(arrayBuilder.patchType),
+            arrayBuilder.numPatches, &voffset, &poffset, &qoffset );
+    }
+
+    // Allocate patch array data buffers
+    bool hasSharpness = context.options.useSingleCreasePatch;
+    allocateVertexTables(table, hasSharpness);
+
+    if (context.RequiresFVarPatches()) {
+        allocateFVarChannels(context, table);
+    }
+
+    // Initialize pointers used while populating patch array data buffers
+    for (int arrayIndex=0; arrayIndex<numPatchArrays; ++arrayIndex) {
+        PatchArrayBuilder & arrayBuilder = arrayBuilders[arrayIndex];
+
+        arrayBuilder.iptr = table->getPatchArrayVertices(arrayIndex).begin();
+        arrayBuilder.pptr = table->getPatchParams(arrayIndex).begin();
+        if (hasSharpness) {
+            arrayBuilder.sptr = table->getSharpnessIndices(arrayIndex);
         }
 
         if (context.RequiresFVarPatches()) {
+            arrayBuilder.fptr.SetSize((int)context.fvarChannelIndices.size());
 
-            Index & offsets = fofss.getValue(desc);
-            offsets = table->getPatchIndex(arrayIndex, 0);
+            for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
 
-            // XXXX manuelk this stuff will go away as we use offsets from FVarPatchChannel
-            FVarChannelCursor & fvc = context.fvarChannelCursor;
-            assert(fvc.size() == table->GetNumFVarChannels());
-
-            Index ** fptr = (Index **)alloca(fvc.size()*sizeof(Index *));
-            for (fvc=fvc.begin(); fvc!=fvc.end(); ++fvc) {
-
+                PatchDescriptor desc = table->GetFVarChannelPatchDescriptor(fvc);
                 Index pidx = table->getPatchIndex(arrayIndex, 0);
-                int ofs = pidx * 4;
-                fptr[fvc.pos()] = &table->getFVarValues(fvc.pos())[ofs];
+                int ofs = pidx * desc.GetNumControlVertices();
+                arrayBuilder.fptr[fvc] = &table->getFVarValues(fvc)[ofs];
             }
-            fptrs.getValue(desc) = fptr;
         }
-    }
-
-    //
-    //  Now iterate through the faces for all levels and populate the patches:
-    //
-    int levelFaceOffset = 0,
-        levelVertOffset = 0;
-    int * levelFVarVertOffsets = 0;
-    if (context.RequiresFVarPatches()) {
-         int nchannels = refiner.GetNumFVarChannels();
-         levelFVarVertOffsets = (int *)alloca(nchannels*sizeof(int));
-         memset(levelFVarVertOffsets, 0, nchannels*sizeof(int));
     }
 
     // endcap factories
@@ -1146,156 +1135,92 @@ PatchTableFactory::populateAdaptivePatches(
         break;
     }
 
-    for (int i = 0; i < refiner.GetNumLevels(); ++i) {
-        Vtr::internal::Level const * level = &refiner.getLevel(i);
+    // Populate patch data buffers
+    for (int patchIndex=0; patchIndex<(int)context.patches.size(); ++patchIndex) {
 
-        const PatchFaceTag * levelPatchTags = &context.patchTags[levelFaceOffset];
+        BuilderContext::PatchTuple const & patch = context.patches[patchIndex];
+        int boundaryMask = patch.tag._boundaryMask;
+        int transitionMask = patch.tag._transitionMask;
 
-        for (int faceIndex = 0; faceIndex < level->getNumFaces(); ++faceIndex) {
-
-            if (level->isFaceHole(faceIndex)) {
-                continue;
-            }
-
-            const PatchFaceTag& patchTag = levelPatchTags[faceIndex];
-            if (! patchTag._hasPatch) {
-                continue;
-            }
-
-            if (patchTag._isRegular) {
-                Index patchVerts[16];
-
-                int bIndex = patchTag._boundaryIndex;
-                int boundaryMask = patchTag._boundaryMask;
-                int transitionMask = patchTag._transitionMask;
-
-                int const * permutation = 0;
-                // only single-crease patch has a sharpness.
-                float sharpness = 0;
-
-                if (patchTag._boundaryCount == 0) {
-                    static int const permuteRegular[16] = { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-                    permutation = permuteRegular;
-
-                    if (patchTag._isSingleCrease) {
+        float sharpness = 0;
+        if (hasSharpness && patch.tag._isSingleCrease) {
+            Vtr::internal::Level const & level = refiner.getLevel(patch.levelIndex);
+            int bIndex = patch.tag._boundaryIndex;
                         boundaryMask = (1<<bIndex);
-                        sharpness = level->getEdgeSharpness((level->getFaceEdges(faceIndex)[bIndex]));
-                        sharpness = std::min(sharpness, (float)(context.options.maxIsolationLevel-i));
-                    }
+            sharpness = level.getEdgeSharpness(
+                (level.getFaceEdges(patch.faceIndex)[bIndex]));
+            sharpness = std::min(sharpness,
+                (float)(context.options.maxIsolationLevel-patch.levelIndex));
+        }
 
-                    level->gatherQuadRegularInteriorPatchPoints(faceIndex, patchVerts, 0 /* no rotation*/);
-                } else if (patchTag._boundaryCount == 1) {
-                    // Expand boundary patch vertices and rotate to restore correct orientation.
-                    static int const permuteBoundary[4][16] = {
-                        { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
-                        { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
-                        { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
-                        { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
-                    permutation = permuteBoundary[bIndex];
-                    level->gatherQuadRegularBoundaryPatchPoints(faceIndex, patchVerts, bIndex);
-                } else if (patchTag._boundaryCount == 2) {
-                    // Expand corner patch vertices and rotate to restore correct orientation.
-                    static int const permuteCorner[4][16] = {
-                        { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
-                        { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
-                        { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
-                        { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
-                    permutation = permuteCorner[bIndex];
-                    level->gatherQuadRegularCornerPatchPoints(faceIndex, patchVerts, bIndex);
+        // Most patches will be packed into the regular patch array
+        PatchArrayBuilder * arrayBuilder = &arrayBuilders[R];
+
+        if (patch.tag._isRegular) {
+            arrayBuilder->iptr +=
+                context.gatherRegularPatchPoints(arrayBuilder->iptr, patch);
+
+        } else {
+            // Switch to building the irregular patch array
+            arrayBuilder = &arrayBuilders[IR];
+
+            boundaryMask = 0;
+            transitionMask = 0;
+
+            // switch endcap patchtype by option
+            switch(context.options.GetEndCapType()) {
+            case Options::ENDCAP_GREGORY_BASIS:
+                arrayBuilder->iptr +=
+                    context.gatherEndCapPatchPoints(
+                        endCapGregoryBasis, arrayBuilder->iptr, patch);
+                break;
+            case Options::ENDCAP_BSPLINE_BASIS:
+                arrayBuilder->iptr +=
+                    context.gatherEndCapPatchPoints(
+                        endCapBSpline, arrayBuilder->iptr, patch);
+                break;
+            case Options::ENDCAP_LEGACY_GREGORY:
+                // For legacy gregory patches we may need to switch to
+                // the irregular boundary patch array.
+                if (patch.tag._boundaryCount == 0) {
+                    arrayBuilder->iptr +=
+                        context.gatherEndCapPatchPoints(
+                            endCapLegacyGregory, arrayBuilder->iptr, patch);
                 } else {
-                    assert(patchTag._boundaryCount <= 2);
+                    arrayBuilder = &arrayBuilders[IRB];
+                    arrayBuilder->iptr +=
+                        context.gatherEndCapPatchPoints(
+                            endCapLegacyGregory, arrayBuilder->iptr, patch);
                 }
-
-                offsetAndPermuteIndices(patchVerts, 16, levelVertOffset, permutation, iptrs.R);
-
-                iptrs.R += 16;
-                pptrs.R = computePatchParam(refiner, ptexIndices, i, faceIndex, boundaryMask, transitionMask, pptrs.R);
-                // XXX: sharpness will be integrated into patch param soon.
-                if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(sharpness, table->_sharpnessValues);
-
-                fofss.R += gatherFVarData(context,
-                                          i, faceIndex, levelFaceOffset, /*rotation*/0, levelFVarVertOffsets, fofss.R, fptrs.R);
-            } else {
-                // identify relevant spans around the corner vertices for the irregular patches
-                // (this is just a stub for now -- leaving the span "size" to zero, as constructed,
-                // indicates to use the full neighborhood)...
-                Vtr::internal::Level::VSpan cornerSpans[4];
-
-                // switch endcap patchtype by option
-                switch(context.options.GetEndCapType()) {
-                case Options::ENDCAP_GREGORY_BASIS:
-                {
-                    // note: this call will be moved into vtr::level.
-                    ConstIndexArray cvs = endCapGregoryBasis->GetPatchPoints(
-                        level, faceIndex, cornerSpans, levelPatchTags, levelVertOffset);
-
-                    for (int j = 0; j < cvs.size(); ++j) iptrs.GP[j] = cvs[j];
-                    iptrs.GP += cvs.size();
-                    pptrs.GP = computePatchParam(
-                        refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GP);
-                    if (sptrs.GP) *sptrs.GP++ = assignSharpnessIndex(0, table->_sharpnessValues);
-                    fofss.GP += gatherFVarData(context,
-                                               i, faceIndex, levelFaceOffset,
-                                               0, levelFVarVertOffsets, fofss.GP, fptrs.GP);
-                    break;
-                }
-                case Options::ENDCAP_BSPLINE_BASIS:
-                {
-                    ConstIndexArray cvs = endCapBSpline->GetPatchPoints(
-                        level, faceIndex, cornerSpans, levelPatchTags, levelVertOffset);
-
-                    for (int j = 0; j < cvs.size(); ++j) iptrs.R[j] = cvs[j];
-                    iptrs.R += cvs.size();
-                    pptrs.R = computePatchParam(
-                        refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.R);
-                    if (sptrs.R) *sptrs.R++ = assignSharpnessIndex(0, table->_sharpnessValues);
-                    fofss.R += gatherFVarData(context,
-                                              i, faceIndex, levelFaceOffset,
-                                              0, levelFVarVertOffsets, fofss.R, fptrs.R);
-                    break;
-                }
-                case Options::ENDCAP_LEGACY_GREGORY:
-                {
-                    ConstIndexArray cvs = endCapLegacyGregory->GetPatchPoints(
-                        level, faceIndex, levelPatchTags, levelVertOffset);
-
-                    if (patchTag._boundaryCount == 0) {
-                        for (int j = 0; j < cvs.size(); ++j) iptrs.G[j] = cvs[j];
-                        iptrs.G += cvs.size();
-                        pptrs.G = computePatchParam(
-                            refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.G);
-                        if (sptrs.G) *sptrs.G++ = assignSharpnessIndex(0, table->_sharpnessValues);
-                        fofss.G += gatherFVarData(context,
-                                                  i, faceIndex, levelFaceOffset,
-                                                  0, levelFVarVertOffsets, fofss.G, fptrs.G);
-                    } else {
-                        for (int j = 0; j < cvs.size(); ++j) iptrs.GB[j] = cvs[j];
-                        iptrs.GB += cvs.size();
-                        pptrs.GB = computePatchParam(
-                            refiner, ptexIndices, i, faceIndex, /*boundary*/0, /*transition*/0, pptrs.GB);
-                        if (sptrs.GB) *sptrs.GB++ = assignSharpnessIndex(0, table->_sharpnessValues);
-                        fofss.GB += gatherFVarData(context,
-                                                   i, faceIndex, levelFaceOffset,
-                                                   0, levelFVarVertOffsets, fofss.GB, fptrs.GB);
-                    }
-                    break;
-                }
-                case Options::ENDCAP_BILINEAR_BASIS:
-                    // not implemented yet
-                    assert(false);
-                    break;
-                default:
-                    // no endcap
-                    break;
-                }
+                break;
+            case Options::ENDCAP_BILINEAR_BASIS:
+                // not implemented yet
+                assert(false);
+                break;
+            default:
+                // no endcap
+                break;
             }
         }
-        levelFaceOffset += level->getNumFaces();
-        levelVertOffset += level->getNumVertices();
+
+        *arrayBuilder->pptr++ =
+            computePatchParam(context,
+                              patch.levelIndex, patch.faceIndex,
+                              boundaryMask, transitionMask);
+
+        if (hasSharpness) {
+            *arrayBuilder->sptr++ =
+                assignSharpnessIndex(sharpness, table->_sharpnessValues);
+        }
+
         if (context.RequiresFVarPatches()) {
-            int nchannels = refiner.GetNumFVarChannels();
-            for (int channel=0; channel<nchannels; ++channel) {
-                levelFVarVertOffsets[channel] += level->getNumFVarValues(channel);
+            for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                // For now, fvar data is always bilinear. Eventually, we will
+                // inspect the fvar topology and emit patches accordingly.
+                BuilderContext::PatchTuple fvarPatch(patch);
+                arrayBuilder->fptr[fvc] +=
+                    context.gatherBilinearPatchPoints(
+                        arrayBuilder->fptr[fvc], fvarPatch, fvc);
             }
         }
     }
