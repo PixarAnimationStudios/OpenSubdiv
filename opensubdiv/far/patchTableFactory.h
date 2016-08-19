@@ -59,6 +59,7 @@ public:
     struct PatchFaceTag {
     public:
         unsigned int   _isRegular       : 1;
+        unsigned int   _isLinear        : 1;
         unsigned int   _transitionMask  : 4;
         unsigned int   _boundaryMask    : 4;
         unsigned int   _boundaryIndex   : 2;
@@ -90,6 +91,7 @@ public:
              endCapType(ENDCAP_GREGORY_BASIS),
              shareEndCapPatchPoints(true),
              generateFVarTables(false),
+             generateFVarLegacyLinearPatches(true),
              numFVarChannels(-1),
              fvarChannelIndices(0)
         { }
@@ -111,7 +113,8 @@ public:
                                                   ///< currently only work with GregoryBasis.
 
                      // face-varying
-                     generateFVarTables   : 1;///< Generate face-varying patch tables
+                     generateFVarTables              : 1, ///< Generate face-varying patch tables
+                     generateFVarLegacyLinearPatches : 1; ///< Generate all linear face-varying patches (legacy)
         int          numFVarChannels;          ///< Number of channel indices and interpolation modes passed
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory
     };
@@ -145,11 +148,6 @@ private:
     //
     //  High-level methods for identifying and populating patches associated with faces:
     //
-
-    static bool computePatchTag(BuilderContext & context,
-                                Index const levelIndex,
-                                Index const faceIndex,
-                                PatchTableFactory::PatchFaceTag &patchTag);
 
     static void identifyAdaptivePatches(BuilderContext & context);
 
