@@ -291,7 +291,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         //  Ignore face-varying channels if none present are non-linear:
         adaptiveFeatureMask.fvarFeatures = false;
         for (int channel = 0; channel < _levels[0]->getNumFVarChannels(); ++channel) {
-            adaptiveFeatureMask.fvarFeatures |= _levels[0]->getFVarLevel(channel).isLinear();
+            adaptiveFeatureMask.fvarFeatures |= !_levels[0]->getFVarLevel(channel).isLinear();
         }
     }
 
