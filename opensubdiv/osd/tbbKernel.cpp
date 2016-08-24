@@ -317,8 +317,8 @@ public:
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
             int patchType = array.GetPatchType();
-            Far::PatchParam const & param =
-                _patchParamBuffer[coord.handle.patchIndex];
+            Far::PatchParamBase const & param =
+                _patchParamBuffer[coord.handle.patchIndex].GetPatchParamBase();
 
             int numControlVertices = 0;
             if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -371,8 +371,8 @@ public:
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
             int patchType = array.GetPatchType();
-            Far::PatchParam const & param =
-                _patchParamBuffer[coord.handle.patchIndex];
+            Far::PatchParamBase const & param =
+                _patchParamBuffer[coord.handle.patchIndex].GetPatchParamBase();
 
             int numControlVertices = 0;
             if (patchType == Far::PatchDescriptor::REGULAR) {

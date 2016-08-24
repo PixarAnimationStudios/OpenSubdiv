@@ -523,7 +523,8 @@ PatchTable::EvaluateBasis(
     float wDss[], float wDst[], float wDtt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
-    PatchParam const & param = _paramTable[handle.patchIndex];
+    PatchParamBase const & param =
+        _paramTable[handle.patchIndex].GetPatchParamBase();
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
@@ -545,7 +546,8 @@ PatchTable::EvaluateBasisVarying(
     float wP[], float wDs[], float wDt[],
     float wDss[], float wDst[], float wDtt[]) const {
 
-    PatchParam const & param = _paramTable[handle.patchIndex];
+    PatchParamBase const & param =
+        _paramTable[handle.patchIndex].GetPatchParamBase();
 
     internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 }
@@ -561,7 +563,8 @@ PatchTable::EvaluateBasisFaceVarying(
     int channel) const {
 
     PatchDescriptor::Type patchType = GetFVarChannelPatchDescriptor(channel).GetType();
-    PatchParam param = _paramTable[handle.patchIndex];
+    PatchParamBase const & param =
+        _paramTable[handle.patchIndex].GetPatchParamBase();
     // XXXdyu need fvar boundary parameterization
 
     if (patchType == PatchDescriptor::REGULAR) {

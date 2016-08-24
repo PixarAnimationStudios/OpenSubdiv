@@ -52,11 +52,11 @@ public:
     static void GetWeights(float v, float w, float point[]);
 
     // patch weights
-    static void GetPatchWeights(PatchParam const & param,
+    static void GetPatchWeights(PatchParamBase const & param,
         float s, float t, float point[], float deriv1[], float deriv2[], float deriv11[], float deriv12[], float deriv22[]);
 
     // adjust patch weights for boundary (and corner) edges
-    static void AdjustBoundaryWeights(PatchParam const & param,
+    static void AdjustBoundaryWeights(PatchParamBase const & param,
         float sWeights[4], float tWeights[4]);
 };
 
@@ -180,7 +180,7 @@ inline void Spline<BASIS_BOX_SPLINE>::GetWeights(
 }
 
 template <>
-inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam const & param,
+inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParamBase const & param,
     float s, float t, float point[4], float derivS[4], float derivT[4], float derivSS[4], float derivST[4], float derivTT[4]) {
 
     param.Normalize(s,t);
@@ -225,7 +225,7 @@ inline void Spline<BASIS_BILINEAR>::GetPatchWeights(PatchParam const & param,
 }
 
 template <SplineBasis BASIS>
-void Spline<BASIS>::AdjustBoundaryWeights(PatchParam const & param,
+void Spline<BASIS>::AdjustBoundaryWeights(PatchParamBase const & param,
     float sWeights[4], float tWeights[4]) {
 
     int boundary = param.GetBoundary();
@@ -253,7 +253,7 @@ void Spline<BASIS>::AdjustBoundaryWeights(PatchParam const & param,
 }
 
 template <SplineBasis BASIS>
-void Spline<BASIS>::GetPatchWeights(PatchParam const & param,
+void Spline<BASIS>::GetPatchWeights(PatchParamBase const & param,
     float s, float t, float point[16], float derivS[16], float derivT[16], float derivSS[16], float derivST[16], float derivTT[16]) {
 
     float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
@@ -310,22 +310,22 @@ void Spline<BASIS>::GetPatchWeights(PatchParam const & param,
     }
 }
 
-void GetBilinearWeights(PatchParam const & param,
+void GetBilinearWeights(PatchParamBase const & param,
     float s, float t, float point[4], float deriv1[4], float deriv2[4], float deriv11[4], float deriv12[4], float deriv22[4]) {
     Spline<BASIS_BILINEAR>::GetPatchWeights(param, s, t, point, deriv1, deriv2, deriv11, deriv12, deriv22);
 }
 
-void GetBezierWeights(PatchParam const param,
+void GetBezierWeights(PatchParamBase const param,
     float s, float t, float point[16], float deriv1[16], float deriv2[16], float deriv11[16], float deriv12[16], float deriv22[16]) {
     Spline<BASIS_BEZIER>::GetPatchWeights(param, s, t, point, deriv1, deriv2, deriv11, deriv12, deriv22);
 }
 
-void GetBSplineWeights(PatchParam const & param,
+void GetBSplineWeights(PatchParamBase const & param,
     float s, float t, float point[16], float deriv1[16], float deriv2[16], float deriv11[16], float deriv12[16], float deriv22[16]) {
     Spline<BASIS_BSPLINE>::GetPatchWeights(param, s, t, point, deriv1, deriv2, deriv11, deriv12, deriv22);
 }
 
-void GetGregoryWeights(PatchParam const & param,
+void GetGregoryWeights(PatchParamBase const & param,
     float s, float t, float point[20], float deriv1[20], float deriv2[20], float deriv11[20], float deriv12[20], float deriv22[20]) {
     //
     //  P3         e3-      e2+         P2
