@@ -38,40 +38,15 @@ namespace Far {
 
 class TopologyRefiner;
 
-/// \brief Container for gregory basis stencils
+/// \brief Container for utilities relating to Gregory patch construction
 ///
-/// XXXtakahito: Currently these classes are being used by EndPatch factories.
-///              These classes will likely go away once we get limit masks
-///              from SchemeWorker.
+/// The GregoryBasis class has been reduced to a simple container of subclasses and
+/// utilities (static methods) used by the EndCap Factories.  It remains a class as
+/// its methods to support stencil construction currently require it to be a friend
+/// of the StencilTable class.
 ///
 class GregoryBasis {
-
 public:
-
-    /// \brief Updates point values based on the control values
-    ///
-    /// \note The destination buffers are assumed to have allocated at least
-    ///       \c GetNumStencils() elements.
-    ///
-    /// @param controlValues  Buffer with primvar data for the control vertices
-    ///
-    /// @param values         Destination buffer for the interpolated primvar
-    ///                       data
-    ///
-    template <class T, class U>
-    void Evaluate(T const & controlValues, U values[20]) const {
-
-        Vtr::Index const * indices = &_indices.at(0);
-        float const * weights = &_weights.at(0);
-
-        for (int i=0; i<20; ++i) {
-            values[i].Clear();
-            for (int j=0; j<_sizes[i]; ++j, ++indices, ++weights) {
-                values[i].AddWithWeight(controlValues[*indices], *weights);
-            }
-        }
-    }
-
     //
     // Basis point
     //
@@ -193,11 +168,6 @@ public:
                    int levelVertOffset,
                    int fvarChannel);
 
-        int GetNumElements() const;
-
-        void Copy(int * sizes, Vtr::Index * indices, float * weights) const;
-        void Copy(GregoryBasis* dest) const;
-
         // Control Vertices based on :
         // "Approximating Subdivision Surfaces with Gregory Patches for Hardware
         // Tessellation" Loop, Schaefer, Ni, Castano (ACM ToG Siggraph Asia
@@ -229,8 +199,6 @@ public:
         Vtr::Index varyingIndex[4];
     };
 
-    typedef std::vector<GregoryBasis::Point> PointsVector;
-
     // for basis point stencil
     static void AppendToStencilTable(GregoryBasis::Point const &p,
                                      StencilTable *table) {
@@ -248,13 +216,6 @@ public:
         table->_indices.push_back(index);
         table->_weights.push_back(1.f);
     }
-
-private:
-
-    int _sizes[20];
-
-    std::vector<Vtr::Index> _indices;
-    std::vector<float> _weights;
 };
 
 } // end namespace Far

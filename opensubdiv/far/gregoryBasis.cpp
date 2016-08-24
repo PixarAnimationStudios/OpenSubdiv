@@ -38,47 +38,6 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-int
-GregoryBasis::ProtoBasis::GetNumElements() const {
-    int nelems=0;
-    for (int vid=0; vid<4; ++vid) {
-        nelems += P[vid].GetSize();
-        nelems += Ep[vid].GetSize();
-        nelems += Em[vid].GetSize();
-        nelems += Fp[vid].GetSize();
-        nelems += Fm[vid].GetSize();
-    }
-    return nelems;
-}
-void
-GregoryBasis::ProtoBasis::Copy(int * sizes, Index * indices, float * weights) const {
-    for (int vid=0; vid<4; ++vid) {
-        P[vid].Copy(&sizes, &indices, &weights);
-        Ep[vid].Copy(&sizes, &indices, &weights);
-        Em[vid].Copy(&sizes, &indices, &weights);
-        Fp[vid].Copy(&sizes, &indices, &weights);
-        Fm[vid].Copy(&sizes, &indices, &weights);
-    }
-}
-
-void
-GregoryBasis::ProtoBasis::Copy(GregoryBasis * dest) const {
-    int nelems = GetNumElements();
-
-    dest->_indices.resize(nelems);
-    dest->_weights.resize(nelems);
-
-    Copy(dest->_sizes, &dest->_indices[0], &dest->_weights[0]);
-}
-
-inline float csf(Index n, Index j) {
-    if (j%2 == 0) {
-        return cosf((2.0f * float(M_PI) * float(float(j-0)/2.0f))/(float(n)+3.0f));
-    } else {
-        return sinf((2.0f * float(M_PI) * float(float(j-1)/2.0f))/(float(n)+3.0f));
-    }
-}
-
 inline float computeCoefficient(int valence) {
     // precomputed coefficient table up to valence 29
     static float efTable[] = {
@@ -99,35 +58,45 @@ inline float computeCoefficient(int valence) {
                               sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
 }
 
+//
+//  There is a long and unclear history to the details of the patch conversion here...
+//
+//  The formulae for computing the Gregory patch points do not follow the more widely
+//  accepted work of Loop, Shaefer et al or Myles et al.  The formulae for the limit
+//  points and tangents also ultimately need to be retrieved from Sdc::Scheme to
+//  ensure they conform, so future factoring of the formulae is still necessary.
+//
+//  This implementation is in the process of iterative refactoring to adapt it for
+//  more general use.  The method is currently divided into four stages -- some of
+//  which will eventually be moved externally and/or made into methods of their own:
+//
+//      - gather complete topology information for all four corners of the patch
+//      - compute the vertex-points and intermediate values used below
+//      - compute the edge-points
+//      - compute the face-points (which depend on multiple edge-points)
+//
 GregoryBasis::ProtoBasis::ProtoBasis(
     Vtr::internal::Level const & level, Index faceIndex,
     Vtr::internal::Level::VSpan const cornerSpans[],
     int levelVertOffset, int fvarChannel) {
 
-    // XXX: This function is subject to refactor in 3.1
+    //
+    //  The first stage -- gather topology information for the entire patch:
+    //
+    //  This stage is intentionally separated from any computation as the information
+    //  gathered here for each corner vertex (one-ring, valence, etc.) will eventually
+    //  be passed to this function in a more general and compact form.  We have to
+    //  be careful with face-varying channels to query the topology from the vertices
+    //  of the level, while computing the patch basis from the points (fvar values).
+    //
+    Vtr::ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
+    Vtr::ConstIndexArray facePoints = (fvarChannel < 0)
+        ? faceVerts
+        : level.getFaceFVarValues(faceIndex, fvarChannel);
 
-    Vtr::ConstIndexArray facePoints = (fvarChannel<0) ?
-        level.getFaceVertices(faceIndex) :
-            level.getFaceFVarValues(faceIndex, fvarChannel);
-    assert(facePoints.size()==4);
-
-    int maxvalence = level.getMaxValence(),
-        valences[4];
-
-    // XXX: a temporary hack for the performance issue
-    // ensure Point has a capacity for the neighborhood of
-    // 2 extraordinary verts + 2 regular verts
-    // worse case: n-valence verts at a corner of n-gon.
-    int stencilCapacity =
-        4/*0-ring*/ + 2*(2*(maxvalence-2)/*1-ring around extraordinaries*/
-                         + 2/*1-ring around regulars, excluding shared ones*/);
-
-    Point e0[4], e1[4];
-    for (int i = 0; i < 4; ++i) {
-        P[i].Clear(stencilCapacity);
-        e0[i].Clear(stencilCapacity);
-        e1[i].Clear(stencilCapacity);
-    }
+    //  Should be use a "local" max valence here in future
+    //  A discontinuous edge in the fvar topology can increase the valence by one.
+    int maxvalence = level.getMaxValence() + int(fvarChannel>=0);
 
     Vtr::internal::StackBuffer<Index, 40> manifoldRings[4];
     manifoldRings[0].SetSize(maxvalence*2);
@@ -135,290 +104,356 @@ GregoryBasis::ProtoBasis::ProtoBasis(
     manifoldRings[2].SetSize(maxvalence*2);
     manifoldRings[3].SetSize(maxvalence*2);
 
+    bool  cornerBoundary[4];
+    int   cornerValences[4];
+    int   cornerNumFaces[4];
+    int   cornerPatchFace[4];
+    float cornerFaceAngle[4];
+
+    //  Sum the number of source vertices contributing to the patch, which define the
+    //  size of the stencil for each "point" involved.  We just want an upper bound
+    //  here for now, so sum the vertices from the neighboring rings at each corner,
+    //  but don't count the shared face points multiple times. 
+    int stencilCapacity = 4;
+
+    for (int corner = 0; corner < 4; ++corner) {
+
+        // save for varying stencils
+        varyingIndex[corner] = faceVerts[corner] + levelVertOffset;
+
+        //  Gather the (partial) one-ring around the corner vertex:
+        int ringSize = 0;
+        if (cornerSpans[corner]._numFaces == 0) {
+            ringSize = level.gatherQuadRegularRingAroundVertex( faceVerts[corner],
+                    manifoldRings[corner], fvarChannel);
+        } else {
+            ringSize = level.gatherQuadRegularPartialRingAroundVertex( faceVerts[corner],
+                    cornerSpans[corner],
+                    manifoldRings[corner], fvarChannel);
+        }
+        stencilCapacity += ringSize - 3;
+
+        //  Cache topology information about the corner for ease of use later:
+        if (ringSize & 1) {
+            cornerBoundary[corner] = true;
+            cornerNumFaces[corner] = (ringSize - 1) / 2;
+            cornerValences[corner] = cornerNumFaces[corner] + 1;
+
+            cornerFaceAngle[corner] = float(M_PI) / float(cornerNumFaces[corner]);
+
+            //  Necessary to pad the ring to even size for the f[] and r[] computations...
+            manifoldRings[corner][ringSize] = manifoldRings[corner][ringSize-1];
+        } else {
+            cornerBoundary[corner] = false;
+            cornerNumFaces[corner] = ringSize / 2;
+            cornerValences[corner] = cornerNumFaces[corner];
+
+            cornerFaceAngle[corner] = 2.0f * float(M_PI) / float(cornerNumFaces[corner]);
+        }
+
+        //  Identify the patch-face within the ring of faces for the corner (which
+        //  will later be identified externally and specified directly):
+        int nEdgeVerts = cornerValences[corner];
+
+        Index vNext = facePoints[(corner + 1) % 4];
+        Index vPrev = facePoints[(corner + 3) % 4];
+
+        cornerPatchFace[corner] = -1;
+        for (int i = 0; i < nEdgeVerts; ++i) {
+            int iPrev = (i + 1) % nEdgeVerts;
+            if ((manifoldRings[corner][2*i] == vNext) && (manifoldRings[corner][2*iPrev] == vPrev)) {
+                cornerPatchFace[corner] = i;
+                break;
+            }
+        }
+        assert(cornerPatchFace[corner] != -1);
+    }
+
+    //
+    //  The first computation pass...
+    //
+    //  Compute vertex-point (P) and intermediate values (f[] and r[]) for each corner
+    //
+    Point e0[4], e1[4];
+
     Vtr::internal::StackBuffer<Point, 10> f(maxvalence);
     Vtr::internal::StackBuffer<Point, 40> r(maxvalence*4);
 
-    // the first phase
+    for (int corner = 0; corner < 4; ++corner) {
+        Index vCorner = facePoints[corner];
 
-    for (int vid=0; vid<4; ++vid) {
+        int cornerValence = cornerValences[corner];
 
-        // save for varying stencils
-        varyingIndex[vid] = facePoints[vid] + levelVertOffset;
+        //
+        //  Compute intermediate f[] and r[] vectors:
+        //
+        //  The f[] are used to compute position and limit tangents for the interior case,
+        //  which should eventually be computed directly with Sdc::Scheme methods -- so
+        //  these f[] will ultimately be made obsolete.
+        //
+        //  The r[] are only used in computing face points Fp and Fm, and of the r[] that
+        //  are allocated and computed for every edge of every corner vertex, only two are
+        //  used for each corner vertex.  Aside from only computing the subset of r[] needed,
+        //  these can be deferred to direct computation as part of Fp and Fm as they serve
+        //  no other purpose.
+        //
+        //  Note also that the computations of each f[] and r[] do not take into account
+        //  boundaries and relies on padding of the rings to provide an indexable value in
+        //  these cases.
+        //
+        for (int i = 0; i < cornerValence; ++i) {
 
-        int ringSize = 0;
-        if (cornerSpans[vid]._numFaces == 0) {
-            ringSize = level.gatherQuadRegularRingAroundVertex( facePoints[vid],
-                    manifoldRings[vid], fvarChannel);
-        } else {
-            ringSize = level.gatherQuadRegularPartialRingAroundVertex( facePoints[vid],
-                    cornerSpans[vid],
-                    manifoldRings[vid], fvarChannel);
-        }
+            int iPrev = (i+cornerValence-1)%cornerValence;
+            int iNext = (i+1)%cornerValence;
 
-        // when the corner vertex is on a boundary (ring-size is odd), valence is
-        // negated and the ring is padded to replicate the last entry
-        if (ringSize & 1) {
-            manifoldRings[vid][ringSize] = manifoldRings[vid][ringSize-1];
-            ++ringSize;
-            valences[vid] = -ringSize/2;
-        } else {
-            valences[vid] = ringSize/2;
-        }
+            //  Identify the vertex at the end of each edge along with the previous and
+            //  next face- and edge-vertex in the ring:
+            Index vEdge     = (manifoldRings[corner][2*i]);
+            Index vFaceNext = (manifoldRings[corner][2*i + 1]);
+            Index vEdgeNext = (manifoldRings[corner][2*iNext]);
+            Index vEdgePrev = (manifoldRings[corner][2*iPrev]);
+            Index vFacePrev = (manifoldRings[corner][2*iPrev + 1]);
 
-        int valence  = valences[vid];
-        int ivalence = abs(valence);
-
-        for (int i=0; i<ivalence; ++i) {
-
-            Index im = (i+ivalence-1)%ivalence,
-                  ip = (i+1)%ivalence;
-
-            Index idx_neighbor = (manifoldRings[vid][2*i + 0]),
-                  idx_diagonal = (manifoldRings[vid][2*i + 1]),
-                  idx_neighbor_p = (manifoldRings[vid][2*ip + 0]),
-                  idx_neighbor_m = (manifoldRings[vid][2*im + 0]),
-                  idx_diagonal_m = (manifoldRings[vid][2*im + 1]);
-
-            float d = float(ivalence)+5.0f;
+            float denom = 1.0f / (float(cornerValence) + 5.0f);
             f[i].Clear(4);
-            f[i].AddWithWeight(facePoints[vid], float(ivalence)/d);
-            f[i].AddWithWeight(idx_neighbor_p,  2.0f/d);
-            f[i].AddWithWeight(idx_neighbor,    2.0f/d);
-            f[i].AddWithWeight(idx_diagonal,    1.0f/d);
+            f[i].AddWithWeight(vCorner,   float(cornerValence) * denom);
+            f[i].AddWithWeight(vEdgeNext, 2.0f * denom);
+            f[i].AddWithWeight(vEdge,     2.0f * denom);
+            f[i].AddWithWeight(vFaceNext, denom);
 
-            P[vid].AddWithWeight(f[i], 1.0f/float(ivalence));
-
-            int rid = vid * maxvalence + i;
+            int rid = corner * maxvalence + i;
             r[rid].Clear(4);
-            r[rid].AddWithWeight(idx_neighbor_p,  1.0f/3.0f);
-            r[rid].AddWithWeight(idx_neighbor_m, -1.0f/3.0f);
-            r[rid].AddWithWeight(idx_diagonal,    1.0f/6.0f);
-            r[rid].AddWithWeight(idx_diagonal_m, -1.0f/6.0f);
+            r[rid].AddWithWeight(vEdgeNext,  1.0f / 3.0f);
+            r[rid].AddWithWeight(vEdgePrev, -1.0f / 3.0f);
+            r[rid].AddWithWeight(vFaceNext,  1.0f / 6.0f);
+            r[rid].AddWithWeight(vFacePrev, -1.0f / 6.0f);
         }
 
-        for (int i=0; i<ivalence; ++i) {
-            int im = (i+ivalence-1)%ivalence;
-            float c0 = 0.5f * csf(ivalence-3, 2*i);
-            float c1 = 0.5f * csf(ivalence-3, 2*i+1);
-            e0[vid].AddWithWeight(f[i ], c0);
-            e0[vid].AddWithWeight(f[im], c0);
-            e1[vid].AddWithWeight(f[i ], c1);
-            e1[vid].AddWithWeight(f[im], c1);
-        }
+        //
+        //  Compute the vertex point P[] and intermediate limit tangents e0 and e1:
+        //
+        //  The limit tangents e0 and e1 should be computed from Sdc::Scheme methods.
+        //  But these explicit limit tangents vectors are not needed as intermediate
+        //  results as the Ep and Em can be computed more directly from the limit
+        //  masks for the tangent vectors.
+        //
+        if (! cornerBoundary[corner]) {
+            float theta    = cornerFaceAngle[corner];
+            float posScale = 1.0f / float(cornerValence);
+            float tanScale = computeCoefficient(cornerValence);
 
-        float ef = computeCoefficient(ivalence);
-        e0[vid] *= ef;
-        e1[vid] *= ef;
+            P[corner].Clear(stencilCapacity);
+            e0[corner].Clear(stencilCapacity);
+            e1[corner].Clear(stencilCapacity);
 
-        // Boundary gregory case:
-        if (valence < 0) {
-            Index boundaryEdgeNeighbors[2] = { manifoldRings[vid][0],
-                                               manifoldRings[vid][ringSize-1] };
+            for (int i=0; i<cornerValence; ++i) {
+                int iPrev = (i+cornerValence-1) % cornerValence;
 
-            P[vid].Clear(stencilCapacity);
-            P[vid].AddWithWeight(boundaryEdgeNeighbors[0], 1.0f/6.0f);
-            P[vid].AddWithWeight(boundaryEdgeNeighbors[1], 1.0f/6.0f);
-            P[vid].AddWithWeight(facePoints[vid], 4.0f/6.0f);
+                P[corner].AddWithWeight(f[i], posScale);
 
-            float k = float(float(ivalence) - 1.0f);    //k is the number of faces
-            float c = cosf(float(M_PI)/k);
-            float s = sinf(float(M_PI)/k);
-            float gamma = -(4.0f*s)/(3.0f*k+c);
-            float alpha_0k = -((1.0f+2.0f*c)*sqrtf(1.0f+c))/((3.0f*k+c)*sqrtf(1.0f-c));
-            float beta_0 = s/(3.0f*k + c);
+                float c0 = tanScale * 0.5f * cosf(float(i) * theta);
+                e0[corner].AddWithWeight(f[i],     c0);
+                e0[corner].AddWithWeight(f[iPrev], c0);
 
-            int idx_diagonal = manifoldRings[vid][1];
-
-            e0[vid].Clear(stencilCapacity);
-            e0[vid].AddWithWeight(boundaryEdgeNeighbors[0],  1.0f/6.0f);
-            e0[vid].AddWithWeight(boundaryEdgeNeighbors[1], -1.0f/6.0f);
-
-            e1[vid].Clear(stencilCapacity);
-            e1[vid].AddWithWeight(facePoints[vid],           gamma);
-            e1[vid].AddWithWeight(idx_diagonal,              beta_0);
-            e1[vid].AddWithWeight(boundaryEdgeNeighbors[0],  alpha_0k);
-            e1[vid].AddWithWeight(boundaryEdgeNeighbors[1],  alpha_0k);
-
-            for (int x=1; x<ivalence-1; ++x) {
-
-                float alpha = (4.0f*sinf((float(M_PI) * float(x))/k))/(3.0f*k+c),
-                      beta = (sinf((float(M_PI) * float(x))/k) + sinf((float(M_PI) * float(x+1))/k))/(3.0f*k+c);
-
-                Index idx_neighbor = manifoldRings[vid][2*x + 0],
-                      idx_diagonal = manifoldRings[vid][2*x + 1];
-
-                e1[vid].AddWithWeight(idx_neighbor, alpha);
-                e1[vid].AddWithWeight(idx_diagonal, beta);
+                float c1 = tanScale * 0.5f * sinf(float(i) * theta);
+                e1[corner].AddWithWeight(f[i],     c1);
+                e1[corner].AddWithWeight(f[iPrev], c1);
             }
-            e1[vid] *= 1.0f/3.0f;
+        } else {
+            Index vEdgeLeading  = manifoldRings[corner][0];
+            Index vEdgeTrailing = manifoldRings[corner][2*cornerValence-1];
+
+            P[corner].Clear(stencilCapacity);
+            P[corner].AddWithWeight(vEdgeLeading,  1.0f / 6.0f);
+            P[corner].AddWithWeight(vEdgeTrailing, 1.0f / 6.0f);
+            P[corner].AddWithWeight(vCorner,       4.0f / 6.0f);
+
+            float k = float(cornerNumFaces[corner]);
+            float theta = cornerFaceAngle[corner];
+            float c = cosf(theta);
+            float s = sinf(theta);
+            float div3kc = 1.0f / (3.0f*k+c);
+            float gamma = -4.0f * s * div3kc;
+            float alpha_0k = -((1.0f+2.0f*c) * sqrtf(1.0f+c)) * div3kc / sqrtf(1.0f-c);
+            float beta_0 = s * div3kc;
+
+            Index vEdge = manifoldRings[corner][0];
+            Index vFace = manifoldRings[corner][1];
+
+            e0[corner].Clear(stencilCapacity);
+            e0[corner].AddWithWeight(vEdgeLeading,   1.0f / 6.0f);
+            e0[corner].AddWithWeight(vEdgeTrailing, -1.0f / 6.0f);
+
+            e1[corner].Clear(stencilCapacity);
+            e1[corner].AddWithWeight(vCorner,       gamma);
+            e1[corner].AddWithWeight(vEdgeLeading,  alpha_0k);
+            e1[corner].AddWithWeight(vFace,         beta_0);
+            e1[corner].AddWithWeight(vEdgeTrailing, alpha_0k);
+
+            for (int i = 1; i < cornerValence - 1; ++i) {
+                float alpha = 4.0f * sinf(float(i)*theta) * div3kc;
+                float beta = (sinf(float(i)*theta) + sinf(float(i+1)*theta)) * div3kc;
+
+                vEdge = manifoldRings[corner][2*i + 0];
+                vFace = manifoldRings[corner][2*i + 1];
+
+                e1[corner].AddWithWeight(vEdge, alpha);
+                e1[corner].AddWithWeight(vFace, beta);
+            }
+            e1[corner] *= 1.0f / 3.0f;
         }
     }
 
-    // the second phase
+    //
+    //  The second computation pass...
+    //
+    //  Compute the edge points Ep and Em first.  These can be computed local to the corner,
+    //  unlike the face points, whose computation requires edge points from adjacent corners
+    //  and so are computed in a final pass after all edge points are available.
+    //
+    //  Consider merging this pass with the previous, now that face points have been deferred
+    //  to a separate third pass.
+    //
+    //  Note that computation of Ep and Em here use intermediate limit tangents e0 and e1 and
+    //  compute rotations of these for Ep and Em.  The masks for the limit tangents can be
+    //  rotated topologically to avoid the explicit rotation here (at least for the interior
+    //  case -- boundary case still warrants it until there is more flexibility in limit
+    //  tangent masks orientation in Sdc)
+    //
+    for (int corner = 0; corner < 4; ++corner) {
 
-    for (int vid=0; vid<4; ++vid) {
+        //  Identify edges in the ring pointing to the next and previous corner of the patch:
+        int iEdgeNext = cornerPatchFace[corner];
+        int iEdgePrev = (cornerPatchFace[corner] + 1) % cornerValences[corner];
 
-        int n = abs(valences[vid]);
-        int ivalence = n;
+        float faceAngle = cornerFaceAngle[corner];
 
-        int ip = (vid+1)%4,
-            im = (vid+3)%4,
-            np = abs(valences[ip]),
-            nm = abs(valences[im]);
+        float faceAngleNext = faceAngle * float(iEdgeNext);
+        float faceAnglePrev = faceAngle * float(iEdgePrev);
 
-        Index start = -1, prev = -1, start_m = -1, prev_p = -1;
-        for (int i = 0; i < n; ++i) {
-            if (manifoldRings[vid][i*2] == facePoints[ip])
-                start = i;
-            if (manifoldRings[vid][i*2] == facePoints[im])
-                prev = i;
-        }
-        for (int i = 0; i < np; ++i) {
-            if (manifoldRings[ip][i*2] == facePoints[vid]) {
-                prev_p = i;
-                break;
-            }
-        }
-        for (int i = 0; i < nm; ++i) {
-            if (manifoldRings[im][i*2] == facePoints[vid]) {
-                start_m = i;
-                break;
-            }
-        }
-        assert(start != -1 && prev != -1 && start_m != -1 && prev_p != -1);
+        if (! cornerBoundary[corner]) {
+            Ep[corner] = P[corner];
+            Ep[corner].AddWithWeight(e0[corner], cosf(faceAngleNext));
+            Ep[corner].AddWithWeight(e1[corner], sinf(faceAngleNext));
 
-        Point Em_ip = P[ip];
-        Point Ep_im = P[im];
+            Em[corner] = P[corner];
+            Em[corner].AddWithWeight(e0[corner], cosf(faceAnglePrev));
+            Em[corner].AddWithWeight(e1[corner], sinf(faceAnglePrev));
+        } else if (cornerNumFaces[corner] > 1) {
+            Ep[corner] = P[corner];
+            Ep[corner].AddWithWeight(e0[corner], cosf(faceAngleNext));
+            Ep[corner].AddWithWeight(e1[corner], sinf(faceAngleNext));
 
-        if (valences[ip]<-2) {
-            Index j = (np + prev_p) % np;
-            Em_ip.AddWithWeight(e0[ip], cosf((float(M_PI)*j)/float(np-1)));
-            Em_ip.AddWithWeight(e1[ip], sinf((float(M_PI)*j)/float(np-1)));
+            Em[corner] = P[corner];
+            Em[corner].AddWithWeight(e0[corner], cosf(faceAnglePrev));
+            Em[corner].AddWithWeight(e1[corner], sinf(faceAnglePrev));
         } else {
-            Em_ip.AddWithWeight(e0[ip], csf(np-3, 2*prev_p));
-            Em_ip.AddWithWeight(e1[ip], csf(np-3, 2*prev_p+1));
-        }
+            //  Edge points are on the control polygon here (with P midway between):
+            Ep[corner].Clear(stencilCapacity);
+            Ep[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
+            Ep[corner].AddWithWeight(facePoints[(corner+1)%4], 1.0f / 3.0f);
 
-        if (valences[im]<-2) {
-            Index j = (nm + start_m) % nm;
-            Ep_im.AddWithWeight(e0[im], cosf((float(M_PI)*j)/float(nm-1)));
-            Ep_im.AddWithWeight(e1[im], sinf((float(M_PI)*j)/float(nm-1)));
-        } else {
-            Ep_im.AddWithWeight(e0[im], csf(nm-3, 2*start_m));
-            Ep_im.AddWithWeight(e1[im], csf(nm-3, 2*start_m+1));
-        }
-
-        if (valences[vid] < 0) {
-            n = (n-1)*2;
-        }
-        if (valences[im] < 0) {
-            nm = (nm-1)*2;
-        }
-        if (valences[ip] < 0) {
-            np = (np-1)*2;
-        }
-
-        Point const * rp = &r[vid*maxvalence];
-
-        if (valences[vid] >= 2) {
-
-            float s1 = 3.0f - 2.0f*csf(n-3,2)-csf(np-3,2),
-                  s2 = 2.0f*csf(n-3,2),
-                  s3 = 3.0f -2.0f*cosf(2.0f*float(M_PI)/float(n)) - cosf(2.0f*float(M_PI)/float(nm));
-            Ep[vid] = P[vid];
-            Ep[vid].AddWithWeight(e0[vid], csf(n-3, 2*start));
-            Ep[vid].AddWithWeight(e1[vid], csf(n-3, 2*start +1));
-
-            Em[vid] = P[vid];
-            Em[vid].AddWithWeight(e0[vid], csf(n-3, 2*prev ));
-            Em[vid].AddWithWeight(e1[vid], csf(n-3, 2*prev + 1));
-
-            Fp[vid].Clear(stencilCapacity);
-            Fp[vid].AddWithWeight(P[vid],    csf(np-3, 2)/3.0f);
-            Fp[vid].AddWithWeight(Ep[vid],   s1/3.0f);
-            Fp[vid].AddWithWeight(Em_ip,     s2/3.0f);
-            Fp[vid].AddWithWeight(rp[start], 1.0f/3.0f);
-
-            Fm[vid].Clear(stencilCapacity);
-            Fm[vid].AddWithWeight(P[vid],   csf(nm-3, 2)/3.0f);
-            Fm[vid].AddWithWeight(Em[vid],  s3/3.0f);
-            Fm[vid].AddWithWeight(Ep_im,    s2/3.0f);
-            Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
-        } else if (valences[vid] < -2) {
-
-            Index jp = (ivalence + start) % ivalence,
-                  jm = (ivalence + prev) % ivalence;
-
-            float s1 = 3-2*csf(n-3,2)-csf(np-3,2),
-                  s2 = 2*csf(n-3,2),
-                  s3 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
-
-            Ep[vid] = P[vid];
-            Ep[vid].AddWithWeight(e0[vid], cosf((float(M_PI)*jp)/float(ivalence-1)));
-            Ep[vid].AddWithWeight(e1[vid], sinf((float(M_PI)*jp)/float(ivalence-1)));
-
-            Em[vid] = P[vid];
-            Em[vid].AddWithWeight(e0[vid], cosf((float(M_PI)*jm)/float(ivalence-1)));
-            Em[vid].AddWithWeight(e1[vid], sinf((float(M_PI)*jm)/float(ivalence-1)));
-
-            Fp[vid].Clear(stencilCapacity);
-            Fp[vid].AddWithWeight(P[vid],    csf(np-3,2)/3.0f);
-            Fp[vid].AddWithWeight(Ep[vid],   s1/3.0f);
-            Fp[vid].AddWithWeight(Em_ip,     s2/3.0f);
-            Fp[vid].AddWithWeight(rp[start], 1.0f/3.0f);
-
-            Fm[vid].Clear(stencilCapacity);
-            Fm[vid].AddWithWeight(P[vid],   csf(nm-3,2)/3.0f);
-            Fm[vid].AddWithWeight(Em[vid],  s3/3.0f);
-            Fm[vid].AddWithWeight(Ep_im,    s2/3.0f);
-            Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
-
-            if (valences[im]<0) {
-                s1=3-2*csf(n-3,2)-csf(np-3,2);
-                Fp[vid].Clear(stencilCapacity);
-                Fp[vid].AddWithWeight(P[vid],    csf(np-3,2)/3.0f);
-                Fp[vid].AddWithWeight(Ep[vid],   s1/3.0f);
-                Fp[vid].AddWithWeight(Em_ip,     s2/3.0f);
-                Fp[vid].AddWithWeight(rp[start], 1.0f/3.0f);
-                Fm[vid] = Fp[vid];
-            } else if (valences[ip]<0) {
-                s1 = 3.0f-2.0f*cosf(2.0f*float(M_PI)/n)-cosf(2.0f*float(M_PI)/nm);
-                Fm[vid].Clear(stencilCapacity);
-                Fm[vid].AddWithWeight(P[vid],   csf(nm-3,2)/3.0f);
-                Fm[vid].AddWithWeight(Em[vid],  s1/3.0f);
-                Fm[vid].AddWithWeight(Ep_im,    s2/3.0f);
-                Fm[vid].AddWithWeight(rp[prev], -1.0f/3.0f);
-                Fp[vid] = Fm[vid];
-            }
-
-        } else if (valences[vid]==-2) {
-            Ep[vid].Clear(stencilCapacity);
-            Ep[vid].AddWithWeight(facePoints[vid], 2.0f/3.0f);
-            Ep[vid].AddWithWeight(facePoints[ip],  1.0f/3.0f);
-
-            Em[vid].Clear(stencilCapacity);
-            Em[vid].AddWithWeight(facePoints[vid], 2.0f/3.0f);
-            Em[vid].AddWithWeight(facePoints[im],  1.0f/3.0f);
-
-            Fp[vid].Clear(stencilCapacity);
-            Fp[vid].AddWithWeight(facePoints[vid],         4.0f/9.0f);
-            Fp[vid].AddWithWeight(facePoints[((vid+2)%n)], 1.0f/9.0f);
-            Fp[vid].AddWithWeight(facePoints[ip],          2.0f/9.0f);
-            Fp[vid].AddWithWeight(facePoints[im],          2.0f/9.0f);
-            Fm[vid] = Fp[vid];
+            Em[corner].Clear(stencilCapacity);
+            Em[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
+            Em[corner].AddWithWeight(facePoints[(corner+3)%4], 1.0f / 3.0f);
         }
     }
 
-    // offset stencil indices.
-    // These stencils are created relative to the level. Adding levelVertOffset,
-    // we get stencils with absolute indices
-    // (starts from the coarse level if the leveVertOffset includes level 0)
-    for (int i = 0; i < 4; ++i) {
-        P[i].OffsetIndices(levelVertOffset);
-        Ep[i].OffsetIndices(levelVertOffset);
-        Em[i].OffsetIndices(levelVertOffset);
-        Fp[i].OffsetIndices(levelVertOffset);
-        Fm[i].OffsetIndices(levelVertOffset);
+    //
+    //  The third pass...
+    //
+    //  Compute the face points Fp and Fm in terms of the vertex (P) and edge points (Ep and
+    //  Em) previously computed.
+    //
+    for (int corner = 0; corner < 4; ++corner) {
+
+        int cornerNext = (corner+1) % 4;
+        int cornerOpp  = (corner+2) % 4;
+        int cornerPrev = (corner+3) % 4;
+
+        //  Identify edges in the ring pointing to the next and previous corner of the
+        //  patch and the intermediate r[] associated with each:
+        Point const * rp = &r[corner*maxvalence];
+
+        Point const & rEdgeNext = rp[cornerPatchFace[corner]];
+        Point const & rEdgePrev = rp[(cornerPatchFace[corner] + 1) % cornerValences[corner]];
+
+        //  Coefficients to arrange the face points for tangent continuity across edges:
+        float cosCorner = cosf(cornerFaceAngle[corner]);
+        float cosPrev   = cosf(cornerFaceAngle[cornerPrev]);
+        float cosNext   = cosf(cornerFaceAngle[cornerNext]);
+
+        float s1 = 3.0f - 2.0f * cosCorner - cosNext;
+        float s2 =        2.0f * cosCorner;
+        float s3 = 3.0f - 2.0f * cosCorner - cosPrev;
+
+        if (! cornerBoundary[corner]) {
+            Fp[corner].Clear(stencilCapacity);
+            Fp[corner].AddWithWeight(P[corner],      cosNext / 3.0f);
+            Fp[corner].AddWithWeight(Ep[corner],     s1      / 3.0f);
+            Fp[corner].AddWithWeight(Em[cornerNext], s2      / 3.0f);
+            Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / 3.0f);
+
+            Fm[corner].Clear(stencilCapacity);
+            Fm[corner].AddWithWeight(P[corner],      cosPrev / 3.0f);
+            Fm[corner].AddWithWeight(Em[corner],     s3      / 3.0f);
+            Fm[corner].AddWithWeight(Ep[cornerPrev], s2      / 3.0f);
+            Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / 3.0f);
+        } else if (cornerNumFaces[corner] > 1) {
+            Fp[corner].Clear(stencilCapacity);
+            Fp[corner].AddWithWeight(P[corner],      cosNext / 3.0f);
+            Fp[corner].AddWithWeight(Ep[corner],     s1      / 3.0f);
+            Fp[corner].AddWithWeight(Em[cornerNext], s2      / 3.0f);
+            Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / 3.0f);
+
+            Fm[corner].Clear(stencilCapacity);
+            Fm[corner].AddWithWeight(P[corner],      cosPrev / 3.0f);
+            Fm[corner].AddWithWeight(Em[corner],     s3      / 3.0f);
+            Fm[corner].AddWithWeight(Ep[cornerPrev], s2      / 3.0f);
+            Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / 3.0f);
+
+            if (cornerBoundary[cornerPrev]) {
+                Fp[corner].Clear(stencilCapacity);
+                Fp[corner].AddWithWeight(P[corner],      cosNext / 3.0f);
+                Fp[corner].AddWithWeight(Ep[corner],     s1      / 3.0f);
+                Fp[corner].AddWithWeight(Em[cornerNext], s2      / 3.0f);
+                Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / 3.0f);
+
+                Fm[corner] = Fp[corner];
+            } else if (cornerBoundary[cornerNext]) {
+                Fm[corner].Clear(stencilCapacity);
+                Fm[corner].AddWithWeight(P[corner],      cosPrev / 3.0f);
+                Fm[corner].AddWithWeight(Em[corner],     s3      / 3.0f);
+                Fm[corner].AddWithWeight(Ep[cornerPrev], s2      / 3.0f);
+                Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / 3.0f);
+
+                Fp[corner] = Fm[corner];
+            }
+        } else {
+            Fp[corner].Clear(stencilCapacity);
+            Fp[corner].AddWithWeight(facePoints[corner],     4.0f / 9.0f);
+            Fp[corner].AddWithWeight(facePoints[cornerOpp],  1.0f / 9.0f);
+            Fp[corner].AddWithWeight(facePoints[cornerNext], 2.0f / 9.0f);
+            Fp[corner].AddWithWeight(facePoints[cornerPrev], 2.0f / 9.0f);
+
+            Fm[corner] = Fp[corner];
+        }
+    }
+
+    //
+    //  Offset stencil indices...
+    //
+    //  These stencils are currently created relative to the level and have levelVertOffset
+    //  to make them absolute indices.  But we will be localizing these to the patch itself
+    //  and so any association/mapping with vertices or face-varying values in a Level will
+    //  be handled externally.
+    //
+    for (int corner = 0; corner < 4; ++corner) {
+        P[corner].OffsetIndices(levelVertOffset);
+        Ep[corner].OffsetIndices(levelVertOffset);
+        Em[corner].OffsetIndices(levelVertOffset);
+        Fp[corner].OffsetIndices(levelVertOffset);
+        Fm[corner].OffsetIndices(levelVertOffset);
     }
 }
 
