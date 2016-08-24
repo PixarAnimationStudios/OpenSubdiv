@@ -476,6 +476,7 @@ private:
 
     void allocateVaryingVertices(
         PatchDescriptor desc, int numPatches);
+    void populateVaryingVertices();
 
     //
     // Face-varying patch channels

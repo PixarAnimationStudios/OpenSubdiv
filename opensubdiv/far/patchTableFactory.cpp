@@ -592,7 +592,7 @@ PatchTableFactory::computePatchTag(
 //
 void
 PatchTableFactory::allocateVertexTables(
-        PatchTable * table, bool hasSharpness) {
+        BuilderContext const & context, PatchTable * table) {
 
     int ncvs = 0, npatches = 0;
     for (int i=0; i<table->GetNumPatchArrays(); ++i) {
@@ -607,7 +607,12 @@ PatchTableFactory::allocateVertexTables(
 
     table->_paramTable.resize( npatches );
 
-    if (hasSharpness) {
+    if (! context.refiner.IsUniform()) {
+        table->allocateVaryingVertices(
+            PatchDescriptor(PatchDescriptor::QUADS), npatches);
+    }
+
+    if (context.options.useSingleCreasePatch) {
         table->_sharpnessIndices.resize( npatches, Vtr::INDEX_INVALID );
     }
 }
@@ -798,7 +803,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     }
 
     // Allocate various tables
-    allocateVertexTables( table, /*hasSharpness=*/false );
+    allocateVertexTables(context, table);
 
     if (context.RequiresFVarPatches()) {
         allocateFVarChannels(context, table);
@@ -1079,7 +1084,7 @@ PatchTableFactory::populateAdaptivePatches(
 
     // Allocate patch array data buffers
     bool hasSharpness = context.options.useSingleCreasePatch;
-    allocateVertexTables(table, hasSharpness);
+    allocateVertexTables(context, table);
 
     if (context.RequiresFVarPatches()) {
         allocateFVarChannels(context, table);
@@ -1230,6 +1235,8 @@ PatchTableFactory::populateAdaptivePatches(
             }
         }
     }
+
+    table->populateVaryingVertices();
 
     // finalize end patches
     if (localPointStencils && localPointStencils->GetNumStencils() > 0) {
