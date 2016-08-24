@@ -268,7 +268,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             P[corner].AddWithWeight(vEdgeTrailing, 1.0f / 6.0f);
             P[corner].AddWithWeight(vCorner,       4.0f / 6.0f);
 
-            float k = cornerNumFaces[corner];
+            float k = float(cornerNumFaces[corner]);
             float theta = cornerFaceAngle[corner];
             float c = cosf(theta);
             float s = sinf(theta);
