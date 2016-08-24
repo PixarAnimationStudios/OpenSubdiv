@@ -135,7 +135,7 @@ PatchParam::Set( Index faceid, short u, short v,
              ((v & 0x3ff) << 12) |
              ((boundary & 0xf) << 8) |
              ((nonquad ? 1:0) << 4) |
-             (nonquad ? depth+1 : depth);
+             (depth);
 }
 
 inline float
