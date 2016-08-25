@@ -308,9 +308,20 @@ public:
     /// \brief Returns the value indices for the patches in \p array in \p channel
     ConstIndexArray GetPatchArrayFVarValues(int array, int channel = 0) const;
 
-
     /// \brief Returns an array of value indices for the patches in \p channel
     ConstIndexArray GetFVarValues(int channel = 0) const;
+
+    /// \brief Returns the value indices for a given patch in \p channel
+    PatchParamBase GetPatchFVarPatchParam(PatchHandle const & handle, int channel = 0) const;
+
+    /// \brief Returns the face-varying params for a given patch \p channel
+    PatchParamBase GetPatchFVarPatchParam(int array, int patch, int channel = 0) const;
+
+    /// \brief Returns the face-varying for a given patch in \p array in \p channel
+    ConstPatchParamBaseArray GetPatchArrayFVarPatchParam(int array, int channel = 0) const;
+
+    /// \brief Returns an array of face-varying patch param for \p channel
+    ConstPatchParamBaseArray GetFVarPatchParam(int channel = 0) const;
     //@}
 
 
@@ -498,6 +509,9 @@ private:
 
     IndexArray getFVarValues(int channel);
     ConstIndexArray getPatchFVarValues(int patch, int channel) const;
+
+    PatchParamBaseArray getFVarPatchParam(int channel);
+    PatchParamBase getPatchFVarPatchParam(int patch, int channel) const;
 
 private:
 

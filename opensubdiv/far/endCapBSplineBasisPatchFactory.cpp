@@ -96,7 +96,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     Vtr::ConstIndexArray facePoints = level->getFaceVertices(thisFace);
 
     int irregCornerIndex = -1;
-    bool useGregoryPatch = false;
+    bool useGregoryPatch = (fvarChannel >= 0);
 
     for (int corner = 0; (corner < 4) && !useGregoryPatch; ++corner) {
         Vtr::internal::Level::VTag vtag = level->getVertexTag(facePoints[corner]);

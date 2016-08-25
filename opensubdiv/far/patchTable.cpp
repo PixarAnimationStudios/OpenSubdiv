@@ -155,6 +155,7 @@ struct PatchTable::FVarPatchChannel {
     PatchDescriptor desc;
 
     std::vector<Index> patchValues;
+    std::vector<PatchParamBase> patchParam;
 };
 
 void
@@ -184,6 +185,7 @@ PatchTable::allocateFVarPatchChannelValues(
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.desc = desc;
     c.patchValues.resize(numPatches*desc.GetNumControlVertices());
+    c.patchParam.resize(numPatches);
 }
 void
 PatchTable::setFVarPatchChannelLinearInterpolation(
@@ -501,6 +503,36 @@ PatchTable::GetPatchArrayFVarValues(int array, int channel) const {
     int count = pa.numPatches * ncvs;
     return ConstIndexArray(&c.patchValues[start], count);
 }
+PatchParamBase
+PatchTable::getPatchFVarPatchParam(int patch, int channel) const {
+
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return c.patchParam[patch];
+}
+PatchParamBase
+PatchTable::GetPatchFVarPatchParam(PatchHandle const & handle, int channel) const {
+    return getPatchFVarPatchParam(handle.patchIndex, channel);
+}
+PatchParamBase
+PatchTable::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) const {
+    return getPatchFVarPatchParam(getPatchIndex(arrayIndex, patchIndex), channel);
+}
+ConstPatchParamBaseArray
+PatchTable::GetPatchArrayFVarPatchParam(int array, int channel) const {
+    PatchArray const & pa = getPatchArray(array);
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return ConstPatchParamBaseArray(&c.patchParam[pa.patchIndex], pa.numPatches);
+}
+ConstPatchParamBaseArray
+PatchTable::GetFVarPatchParam(int channel) const {
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return ConstPatchParamBaseArray(&c.patchParam[0], (int)c.patchParam.size());
+}
+PatchParamBaseArray
+PatchTable::getFVarPatchParam(int channel) {
+    FVarPatchChannel & c = getFVarPatchChannel(channel);
+    return PatchParamBaseArray(&c.patchParam[0], (int)c.patchParam.size());
+}
 
 void
 PatchTable::print() const {
@@ -563,9 +595,7 @@ PatchTable::EvaluateBasisFaceVarying(
     int channel) const {
 
     PatchDescriptor::Type patchType = GetFVarChannelPatchDescriptor(channel).GetType();
-    PatchParamBase const & param =
-        _paramTable[handle.patchIndex].GetPatchParamBase();
-    // XXXdyu need fvar boundary parameterization
+    PatchParamBase param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
