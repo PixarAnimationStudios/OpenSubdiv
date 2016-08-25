@@ -702,7 +702,6 @@ PatchTableFactory::computePatchParam(
 
     if (nonquad) {
         ptexIndex+=childIndexInParent;
-        --depth;
     }
 
     PatchParam param;

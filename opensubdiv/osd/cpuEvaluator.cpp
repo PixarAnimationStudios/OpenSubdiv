@@ -145,8 +145,8 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
         // XXX: patchIndex is absolute. not sure it's consistent.
         //      (should be offsetted by array.primitiveIdBase?)
         //    patchParamBuffer[array.primitiveIdBase + coord.handle.patchIndex]
-        Far::PatchParam const & param =
-            patchParamBuffer[coord.handle.patchIndex];
+        Far::PatchParamBase const & param =
+            patchParamBuffer[coord.handle.patchIndex].GetPatchParamBase();
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -218,8 +218,8 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
         PatchArray const &array = patchArrays[coord.handle.arrayIndex];
 
         int patchType = array.GetPatchType();
-        Far::PatchParam const & param =
-            patchParamBuffer[coord.handle.patchIndex];
+        Far::PatchParamBase const & param =
+            patchParamBuffer[coord.handle.patchIndex].GetPatchParamBase();
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
