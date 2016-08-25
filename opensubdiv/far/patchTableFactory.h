@@ -156,7 +156,8 @@ private:
     static void populateAdaptivePatches(BuilderContext & context,
                                         PatchTable * table);
 
-    static void allocateVertexTables(PatchTable * table, bool hasSharpness);
+    static void allocateVertexTables(BuilderContext const & context,
+                                     PatchTable * table);
 
     static void allocateFVarChannels(BuilderContext const & context,
                                      PatchTable * table);
