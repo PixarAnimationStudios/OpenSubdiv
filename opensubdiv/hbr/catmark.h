@@ -1063,8 +1063,6 @@ HbrCatmarkSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
         switch (masks[i]) {
             case HbrVertex<T>::k_Smooth:
             case HbrVertex<T>::k_Dart: {
-                // Compute n-2/n of the old vertex value
-                data.AddWithWeight(vertex->GetData(), weights[i] * invvalencesquared * valence * (valence - 2));
                 // Add 1 / n^2 * surrounding edge vertices and surrounding face
                 // subdivided vertices
                 HbrSubdivision<T>::AddSurroundingVerticesWithWeight(
@@ -1078,16 +1076,18 @@ HbrCatmarkSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
                     edge = vertex->GetNextEdge(edge);
                     if (edge == start) break;
                 }
+                // Compute n-2/n of the old vertex value
+                data.AddWithWeight(vertex->GetData(), weights[i] * invvalencesquared * valence * (valence - 2));
                 break;
             }
             case HbrVertex<T>::k_Crease: {
-                // Compute 3/4 of old vertex value
-                data.AddWithWeight(vertex->GetData(), weights[i] * 0.75f);
-
                 // Add 0.125f of the (hopefully only two!) neighbouring
                 // sharp edges
                 HbrSubdivision<T>::AddCreaseEdgesWithWeight(
                     mesh, vertex, i == 1, weights[i] * 0.125f, &data);
+
+                // Compute 3/4 of old vertex value
+                data.AddWithWeight(vertex->GetData(), weights[i] * 0.75f);
                 break;
             }
             case HbrVertex<T>::k_Corner:
