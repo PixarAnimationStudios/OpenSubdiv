@@ -705,7 +705,7 @@ HbrMesh<T>::Finish() {
     GetVertices(std::back_inserter(vertexlist));
 
     // If interpolateboundary is on, process boundary edges
-    if (interpboundarymethod == k_InterpolateBoundaryEdgeOnly || interpboundarymethod == k_InterpolateBoundaryEdgeAndCorner) {
+    if (interpboundarymethod == k_InterpolateBoundaryEdgeOnly || interpboundarymethod == k_InterpolateBoundaryEdgeAndCorner || interpboundarymethod == k_InterpolateBoundaryAlwaysSharp) {
         for (i = 0; i < nfaces; ++i) {
             if (HbrFace<T>* face = faces[i]) {
                 int nv = face->GetNumVertices();
@@ -719,7 +719,7 @@ HbrMesh<T>::Finish() {
         }
     }
     // Process corners
-    if (interpboundarymethod == k_InterpolateBoundaryEdgeAndCorner) {
+    if (interpboundarymethod == k_InterpolateBoundaryEdgeAndCorner || interpboundarymethod == k_InterpolateBoundaryAlwaysSharp) {
         for (typename std::vector<HbrVertex<T>*>::iterator vi = vertexlist.begin();
              vi != vertexlist.end(); ++vi) {
             HbrVertex<T>* vertex = *vi;
