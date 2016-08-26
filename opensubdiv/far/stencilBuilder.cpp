@@ -48,15 +48,18 @@ struct PointDerivWeight {
     float p;
     float du;
     float dv;
+    float duu;
+    float duv;
+    float dvv;
 
     PointDerivWeight() 
-        : p(0.0f), du(0.0f), dv(0.0f)
+        : p(0.0f), du(0.0f), dv(0.0f), duu(0.0f), duv(0.0f), dvv(0.0f)
     { }
     PointDerivWeight(float w) 
-        : p(w), du(w), dv(w)
+        : p(w), du(w), dv(w), duu(w), duv(w), dvv(w)
     { }
-    PointDerivWeight(float w, float wDu, float wDv) 
-        : p(w), du(wDu), dv(wDv)
+    PointDerivWeight(float w, float wDu, float wDv, float wDuu, float wDuv, float wDvv)
+        : p(w), du(wDu), dv(wDv), duu(wDuu), duv(wDuv), dvv(wDvv)
     { }
 
     friend PointDerivWeight operator*(PointDerivWeight lhs,
@@ -64,12 +67,18 @@ struct PointDerivWeight {
         lhs.p *= rhs.p;
         lhs.du *= rhs.du;
         lhs.dv *= rhs.dv;
+        lhs.duu *= rhs.duu;
+        lhs.duv *= rhs.duv;
+        lhs.dvv *= rhs.dvv;
         return lhs;
     }
     PointDerivWeight& operator+=(PointDerivWeight const& rhs) {
         p += rhs.p;
         du += rhs.du;
         dv += rhs.dv;
+        duu += rhs.duu;
+        duv += rhs.duv;
+        dvv += rhs.dvv;
         return *this;
     }
 };
@@ -162,16 +171,25 @@ public:
             _tbl->_weights.push_back(weight.p);
             _tbl->_duWeights.push_back(weight.du);
             _tbl->_dvWeights.push_back(weight.dv);
+            _tbl->_duuWeights.push_back(weight.duu);
+            _tbl->_duvWeights.push_back(weight.duv);
+            _tbl->_dvvWeights.push_back(weight.dvv);
         }
         void Add(size_t i, PointDerivWeight weight) {
             _tbl->_weights[i] += weight.p;
             _tbl->_duWeights[i] += weight.du;
             _tbl->_dvWeights[i] += weight.dv;
+            _tbl->_duuWeights[i] += weight.duu;
+            _tbl->_duvWeights[i] += weight.duv;
+            _tbl->_dvvWeights[i] += weight.dvv;
         }
         PointDerivWeight Get(size_t index) {
-            return PointDerivWeight(_tbl->_weights[index], 
+            return PointDerivWeight(_tbl->_weights[index],
                                     _tbl->_duWeights[index],
-                                    _tbl->_dvWeights[index]);
+                                    _tbl->_dvWeights[index],
+                                    _tbl->_duuWeights[index],
+                                    _tbl->_duvWeights[index],
+                                    _tbl->_dvvWeights[index]);
         }
     };
     PointDerivAccumulator GetPointDerivAccumulator() { 
@@ -215,10 +233,18 @@ public:
     std::vector<float> const&
     GetDvWeights() const { return _dvWeights; }
 
+    std::vector<float> const&
+    GetDuuWeights() const { return _duuWeights; }
+
+    std::vector<float> const&
+    GetDuvWeights() const { return _duvWeights; }
+
+    std::vector<float> const&
+    GetDvvWeights() const { return _dvvWeights; }
+
     void SetCoarseVertCount(int numVerts) {
         _coarseVertCount = numVerts;
     }
-
 private:
 
     // Merge a vertex weight into the stencil table, if there is an existing
@@ -308,6 +334,9 @@ private:
     std::vector<float> _weights;
     std::vector<float> _duWeights;
     std::vector<float> _dvWeights;
+    std::vector<float> _duuWeights;
+    std::vector<float> _duvWeights;
+    std::vector<float> _dvvWeights;
 
     // Index data used to recover stencil-to-vertex mapping.
     std::vector<int> _indices;
@@ -386,6 +415,21 @@ StencilBuilder::GetStencilDvWeights() const {
     return _weightTable->GetDvWeights();
 }
 
+std::vector<float> const&
+StencilBuilder::GetStencilDuuWeights() const {
+    return _weightTable->GetDuuWeights();
+}
+
+std::vector<float> const&
+StencilBuilder::GetStencilDuvWeights() const {
+    return _weightTable->GetDuvWeights();
+}
+
+std::vector<float> const&
+StencilBuilder::GetStencilDvvWeights() const {
+    return _weightTable->GetDvvWeights();
+}
+
 void
 StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
 {
@@ -424,9 +468,10 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 
 void
 StencilBuilder::Index::AddWithWeight(Stencil const& src,
-                                     float weight, float du, float dv)
+    float weight, float du, float dv, float duu, float duv, float dvv)
 {
-    if (isWeightZero(weight) and isWeightZero(du) and isWeightZero(dv)) {
+    if (isWeightZero(weight) and isWeightZero(du) and isWeightZero(dv) and
+        isWeightZero(duu) and isWeightZero(duv) and isWeightZero(dvv)) {
         return;
     }
 
@@ -442,7 +487,7 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
 
         Vtr::Index srcIndex = srcIndices[i];
 
-        PointDerivWeight wgt = PointDerivWeight(weight, du, dv) * w;
+        PointDerivWeight wgt = PointDerivWeight(weight, du, dv, duu, duv, dvv) * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                            _owner->_weightTable->GetPointDerivAccumulator());
     }

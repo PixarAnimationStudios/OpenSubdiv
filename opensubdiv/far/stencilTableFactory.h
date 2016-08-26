@@ -168,11 +168,11 @@ public:
     ///
     /// @param cvStencils       A set of StencilTable generated from the
     ///                         TopologyRefiner (optional: prevents redundant
-    ///                         instanciation of the table if available)
+    ///                         instantiation of the table if available)
     ///
     /// @param patchTable       A set of PatchTable generated from the
     ///                         TopologyRefiner (optional: prevents redundant
-    ///                         instanciation of the table if available)
+    ///                         instantiation of the table if available)
     ///
     static LimitStencilTable const * Create(TopologyRefiner const & refiner,
         LocationArrayVec const & locationArrays,
