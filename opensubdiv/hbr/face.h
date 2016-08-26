@@ -45,6 +45,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 template <class T> class HbrVertex;
+template <class T> class HbrVertexOperator;
 template <class T> class HbrHalfedge;
 template <class T> class HbrFace;
 template <class T> class HbrMesh;
@@ -150,6 +151,9 @@ public:
 
     // Return the ID of the vertex with the indicated index
     int GetVertexID(int index) const;
+
+    // Applies operator to all vertices
+    void ApplyOperatorAllVertices(HbrVertexOperator<T>& op) const;
 
     // Return the parent of this face
     HbrFace<T>* GetParent() const {
@@ -750,6 +754,16 @@ HbrFace<T>::GetVertexID(int index) const {
         return edge->GetOrgVertexID();
     } else {
         return edges[index].GetOrgVertexID();
+    }
+}
+
+template <class T>
+void
+HbrFace<T>::ApplyOperatorAllVertices(HbrVertexOperator<T> &op) const {
+    HbrHalfedge<T>* edge = GetFirstEdge();
+    for (int i = 0; i < nvertices; ++i) {
+        op(*edge->GetOrgVertex());
+        edge = edge->GetNext();
     }
 }
 
