@@ -46,6 +46,7 @@ namespace OPENSUBDIV_VERSION {
 
 template <class T> class HbrVertex;
 template <class T> class HbrHalfedge;
+template <class T> class HbrHalfedgeOperator;
 template <class T> class HbrFace;
 template <class T> class HbrMesh;
 template <class T> class HbrHierarchicalEdit;
@@ -144,6 +145,9 @@ public:
     // Return the halfedge which originates at the vertex with the
     // indicated origin index
     HbrHalfedge<T>* GetEdge(int index) const;
+
+    // Applies operator to all halfedges
+    void ApplyOperatorAllEdges(HbrHalfedgeOperator<T>& op) const;
 
     // Return the vertex with the indicated index
     HbrVertex<T>* GetVertex(int index) const;
@@ -722,6 +726,16 @@ HbrFace<T>::GetEdge(int index) const {
         return (HbrHalfedge<T>*)(extraedges + index * edgesize);
     } else {
         return const_cast<HbrHalfedge<T>*>(edges + index);
+    }
+}
+
+template <class T>
+void
+HbrFace<T>::ApplyOperatorAllEdges(HbrHalfedgeOperator<T> &op) const {
+    HbrHalfedge<T>* edge = GetFirstEdge();
+    for (int i = 0; i < nvertices; ++i) {
+        op(*edge);
+        edge = edge->GetNext();
     }
 }
 
