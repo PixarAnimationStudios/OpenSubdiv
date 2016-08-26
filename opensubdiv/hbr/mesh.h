@@ -174,6 +174,9 @@ public:
     template <typename OutputIterator>
     void GetFaces(OutputIterator faces) const;
 
+    // Applies operator to all faces
+    void ApplyOperatorAllFaces(HbrFaceOperator<T> &op) const;
+
     // Returns the subdivision method
     HbrSubdivision<T>* GetSubdivision() const { return subdivision; }
 
@@ -857,6 +860,14 @@ void
 HbrMesh<T>::GetFaces(OutputIterator lfaces) const {
     for (int i = 0; i < nfaces; ++i) {
         if (faces[i]) *lfaces++ = faces[i];
+    }
+}
+
+template <class T>
+void
+HbrMesh<T>::ApplyOperatorAllFaces(HbrFaceOperator<T> &op) const {
+    for (int i = 0; i < nfaces; ++i) {
+        if (faces[i]) op(*faces[i]);
     }
 }
 
