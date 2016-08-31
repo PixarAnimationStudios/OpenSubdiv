@@ -272,12 +272,16 @@ public:
     ///
     void Set(short u, short v,
              unsigned short depth, bool nonquad,
-             unsigned short boundary) {
+             unsigned short boundary, bool isRegular = true) {
         field1 = packBaseData(u, v, depth, nonquad, boundary);
+        field1 |= pack(isRegular,1,5);
     }
 
     /// \brief Resets everything to 0
     void Clear() { field1 = 0; }
+
+    /// \brief Returns whether the patch is regular
+    bool IsRegular() const { return (unpack(field1,1,5) != 0); }
 
     unsigned int field1:32;
 

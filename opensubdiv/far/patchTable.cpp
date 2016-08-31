@@ -594,8 +594,10 @@ PatchTable::EvaluateBasisFaceVarying(
     float wDss[], float wDst[], float wDtt[],
     int channel) const {
 
-    PatchDescriptor::Type patchType = GetFVarChannelPatchDescriptor(channel).GetType();
     PatchParamBase param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
+    PatchDescriptor::Type patchType = param.IsRegular()
+            ? PatchDescriptor::REGULAR
+            : GetFVarChannelPatchDescriptor(channel).GetType();
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
