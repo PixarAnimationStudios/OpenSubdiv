@@ -548,6 +548,62 @@ Level::print(const Refinement* pRefinement) const {
     fflush(stdout);
 }
 
+//
+//  Methods for retrieving and combining tags:
+//
+bool
+Level::doesVertexFVarTopologyMatch(Index vIndex, int fvarChannel) const {
+
+    return getFVarLevel(fvarChannel).valueTopologyMatches(
+            getFVarLevel(fvarChannel).getVertexValue(vIndex));
+}
+bool
+Level::doesEdgeFVarTopologyMatch(Index eIndex, int fvarChannel) const {
+
+    return getFVarLevel(fvarChannel).edgeTopologyMatches(eIndex);
+}
+bool
+Level::doesFaceFVarTopologyMatch(Index fIndex, int fvarChannel) const {
+
+    return ! getFVarLevel(fvarChannel).getFaceCompositeValueTag(fIndex).isMismatch();
+}
+
+void
+Level::getFaceVTags(Index fIndex, VTag vTags[], int fvarChannel) const {
+
+    ConstIndexArray fVerts = getFaceVertices(fIndex);
+    if (fvarChannel < 0) {
+        for (int i = 0; i < fVerts.size(); ++i) {
+            vTags[i] = getVertexTag(fVerts[i]);
+        }
+    } else {
+        FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+        ConstIndexArray fValues = fvarLevel.getFaceValues(fIndex);
+        for (int i = 0; i < fVerts.size(); ++i) {
+            Index valueIndex = fvarLevel.findVertexValueIndex(fVerts[i], fValues[i]);
+            FVarLevel::ValueTag valueTag = fvarLevel.getValueTag(valueIndex);
+
+            vTags[i] = valueTag.combineWithLevelVTag(getVertexTag(fVerts[i]));
+        }
+    }
+}
+void
+Level::getFaceETags(Index fIndex, ETag eTags[], int fvarChannel) const {
+
+    ConstIndexArray fEdges = getFaceEdges(fIndex);
+    if (fvarChannel < 0) {
+        for (int i = 0; i < fEdges.size(); ++i) {
+            eTags[i] = getEdgeTag(fEdges[i]);
+        }
+    } else {
+        FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+        for (int i = 0; i < fEdges.size(); ++i) {
+            FVarLevel::ETag fvarETag = fvarLevel.getEdgeTag(fEdges[i]);
+
+            eTags[i] = fvarETag.combineWithLevelETag(getEdgeTag(fEdges[i]));
+        }
+    }
+}
 
 namespace {
     template <typename TAG_TYPE, typename INT_TYPE>
@@ -564,24 +620,51 @@ namespace {
 }
 
 Level::VTag
-Level::getFaceCompositeVTag(ConstIndexArray & faceVerts) const {
+Level::VTag::BitwiseOr(VTag const vTags[], int size) {
 
-    VTag compTag = _vertTags[faceVerts[0]];
-
-    for (int i = 1; i < faceVerts.size(); ++i) {
-        combineTags<VTag, VTag::VTagSize>(compTag, _vertTags[faceVerts[i]]);
+    VTag compTag = vTags[0];
+    for (int i = 1; i < size; ++i) {
+        combineTags<VTag, VTag::VTagSize>(compTag, vTags[i]);
     }
     return compTag;
 }
 Level::ETag
-Level::getFaceCompositeETag(ConstIndexArray & faceEdges) const {
+Level::ETag::BitwiseOr(ETag const eTags[], int size) {
 
-    ETag compTag = _edgeTags[faceEdges[0]];
-
-    for (int i = 1; i < faceEdges.size(); ++i) {
-        combineTags<ETag, ETag::ETagSize>(compTag, _edgeTags[faceEdges[i]]);
+    ETag compTag = eTags[0];
+    for (int i = 1; i < size; ++i) {
+        combineTags<ETag, ETag::ETagSize>(compTag, eTags[i]);
     }
     return compTag;
+}
+
+Level::VTag
+Level::getFaceCompositeVTag(ConstIndexArray & fVerts) const {
+
+    VTag compTag = _vertTags[fVerts[0]];
+    for (int i = 1; i < fVerts.size(); ++i) {
+        combineTags<VTag, VTag::VTagSize>(compTag, _vertTags[fVerts[i]]);
+    }
+    return compTag;
+}
+Level::VTag
+Level::getFaceCompositeVTag(Index fIndex, int fvarChannel) const {
+
+    ConstIndexArray fVerts = getFaceVertices(fIndex);
+    if (fvarChannel < 0) {
+        return getFaceCompositeVTag(fVerts);
+    } else {
+        FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+        internal::StackBuffer<FVarLevel::ValueTag,64> fvarTags(fVerts.size());
+        fvarLevel.getFaceValueTags(fIndex, fvarTags);
+
+        VTag compTag = fvarTags[0].combineWithLevelVTag(_vertTags[fVerts[0]]);
+        for (int i = 1; i < fVerts.size(); ++i) {
+            combineTags<VTag, VTag::VTagSize>(compTag,
+                        fvarTags[i].combineWithLevelVTag(_vertTags[fVerts[i]]));
+        }
+        return compTag;
+    }
 }
 
 //

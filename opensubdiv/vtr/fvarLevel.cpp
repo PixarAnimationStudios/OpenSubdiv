@@ -96,7 +96,7 @@ FVarLevel::resizeVertexValues(int vertexValueCount) {
     valueTagMatch.clear();
     _vertValueTags.resize(vertexValueCount, valueTagMatch);
 
-    if (hasSmoothBoundaries()) {
+    if (hasCreaseEnds()) {
         _vertValueCreaseEnds.resize(vertexValueCount);
     }
 }
@@ -383,30 +383,13 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
     //
     //  Now that we know the total number of additional sibling values (M values in addition
-    //  to the N vertex values) allocate space to accomodate all N + M vertex values.  The
-    //  vertex value tags will be initialized to match, and we proceed to sparsely mark the
-    //  vertices that mismatch, so initialize a few local ValueTag constants for that purpose
-    //  (assigning entire Tag structs is much more efficient than setting individual bits)
+    //  to the N vertex values) allocate space to accomodate all N + M vertex values.
+    //
+    //  Then make the second pass through the vertices to identify the values associated with
+    //  each and to inspect and tag local face-varying topology for those that don't match:
     //
     resizeVertexValues(totalValueCount);
 
-    ValueTag valueTagMismatch;
-    valueTagMismatch.clear();
-    valueTagMismatch._mismatch = true;
-
-    ValueTag valueTagCrease = valueTagMismatch;
-    valueTagCrease._crease = true;
-
-    ValueTag valueTagSemiSharp = valueTagMismatch;
-    valueTagSemiSharp._semiSharp = true;
-
-    ValueTag valueTagDepSharp = valueTagSemiSharp;
-    valueTagDepSharp._depSharp = true;
-
-    //
-    //  Now the second pass through the vertices to identify the values associated with the
-    //  vertex and to inspect and tag local face-varying topology for those that don't match:
-    //
     for (int vIndex = 0; vIndex < _level.getNumVertices(); ++vIndex) {
         ConstIndexArray       vFaces  = _level.getVertexFaces(vIndex);
         ConstLocalIndexArray  vInFace = _level.getVertexFaceLocalIndices(vIndex);
@@ -466,10 +449,6 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         bool allCornersAreSharp = _hasLinearBoundaries || vTag._infSharp || vTag._nonManifold ||
                                   (_hasDependentSharpness && (vValues.size() > 2)) ||
                                   (sharpenDarts && (vValues.size() == 1) && !vTag._boundary);
-        if (allCornersAreSharp) {
-            std::fill(vValueTags.begin(), vValueTags.end(), valueTagMismatch);
-            continue;
-        }
 
         //
         //  Values may be a mix of sharp corners and smooth boundaries -- start by
@@ -493,26 +472,20 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //  infinitely sharp where possible (rather than semi-sharp) to avoid
         //  re-assessing this dependency as sharpness is reduced during refinement.
         //
-        allCornersAreSharp = false;
-
         bool hasDependentValuesToSharpen = false;
-        if (_hasDependentSharpness && (vValues.size() == 2)) {
-            //  Detect interior inf-sharp (or discts) edge:
-            allCornersAreSharp = vValueSpans[0]._disjoint || vValueSpans[1]._disjoint;
+        if (!allCornersAreSharp) {
+            if (_hasDependentSharpness && (vValues.size() == 2)) {
+                //  Detect interior inf-sharp (or discts) edge:
+                allCornersAreSharp = vValueSpans[0]._disjoint || vValueSpans[1]._disjoint;
 
-            //  Detect a sharp corner, making both sharp:
-            if (sharpenBothIfOneCorner) {
-                allCornersAreSharp |= (vValueSpans[0]._size == 1) || (vValueSpans[1]._size == 1);
+                //  Detect a sharp corner, making both sharp:
+                if (sharpenBothIfOneCorner) {
+                    allCornersAreSharp |= (vValueSpans[0]._size == 1) || (vValueSpans[1]._size == 1);
+                }
+
+                //  If only one semi-sharp, need to mark the other as dependent on it:
+                hasDependentValuesToSharpen = vValueSpans[0]._semiSharp != vValueSpans[1]._semiSharp;
             }
-
-            //  If only one semi-sharp, need to mark the other as dependent on it:
-            hasDependentValuesToSharpen = vValueSpans[0]._semiSharp != vValueSpans[1]._semiSharp;
-        }
-
-        //  XXXX (barfowl) -- see note above about this "pre-emptive" sharpening...
-        if (allCornersAreSharp) {
-            std::fill(vValueTags.begin(), vValueTags.end(), valueTagMismatch);
-            continue;
         }
 
         //
@@ -520,30 +493,47 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //  it accordingly.  If not semi-sharp, be sure to consider those values sharpened by
         //  the topology of other values.
         //
-        CreaseEndPairArray vValueCreaseEnds = getVertexValueCreaseEnds(vIndex);
-
         for (int i = 0; i < vValues.size(); ++i) {
+            ValueTag & valueTag = vValueTags[i];
+
+            valueTag.clear();
+            valueTag._mismatch = true;
+
             ValueSpan const & vSpan = vValueSpans[i];
+            if (vSpan._disjoint) {
+                valueTag._nonManifold = true;
+                continue;
+            }
+            assert(vSpan._size != 0);
 
-            if (vSpan._disjoint || ((vSpan._size == 1) && fvarCornersAreSharp)) {
-                vValueTags[i] = valueTagMismatch;
+            bool isInfSharp = allCornersAreSharp || vSpan._infSharp ||
+                              ((vSpan._size == 1) && fvarCornersAreSharp);
+            if (vSpan._size == 1) {
+                valueTag._xordinary = !isInfSharp;
             } else {
-                if ((vSpan._semiSharp > 0) || vTag._semiSharp) {
-                    vValueTags[i] = valueTagSemiSharp;
+                valueTag._xordinary = (vSpan._size != regularBoundaryValence);
+            }
+
+            if (!isInfSharp) {
+                if (vSpan._semiSharp || vTag._semiSharp) {
+                    valueTag._semiSharp = true;
                 } else if (hasDependentValuesToSharpen) {
-                    vValueTags[i] = valueTagDepSharp;
+                    valueTag._semiSharp = true;
+                    valueTag._depSharp = true;
                 } else {
-                    vValueTags[i] = valueTagCrease;
-                }
-                if (vSpan._size != regularBoundaryValence) {
-                    vValueTags[i]._xordinary = true;
+                    valueTag._crease = true;
                 }
 
-                vValueCreaseEnds[i]._startFace = vSpan._start;
-                if ((i == 0) && (vSpan._start != 0)) {
-                    vValueCreaseEnds[i]._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1 - vFaces.size());
-                } else {
-                    vValueCreaseEnds[i]._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1);
+                if (hasCreaseEnds()) {
+                    CreaseEndPair & valueCrease = getVertexValueCreaseEnds(vIndex)[i];
+
+                    valueCrease._startFace = vSpan._start;
+                    if ((i == 0) && (vSpan._start != 0)) {
+                        valueCrease._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1 - vFaces.size());
+                    } else {
+                        valueCrease._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1);
+                    }
+                    valueTag._creaseEnds = true;
                 }
             }
         }
@@ -925,25 +915,35 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
 
     bool vHasSingleValue = (getNumVertexValues(vIndex) == 1);
     bool vIsBoundary = vEdges.size() > vFaces.size();
+    bool vIsNonManifold = _level.getVertexTag(vIndex)._nonManifold;
 
-    if (vHasSingleValue) {
+    if (vIsNonManifold) {
+        ConstIndexArray vValues = getVertexValues(vIndex);
+        for (int i = 0; i < vValues.size(); ++i) {
+            vValueSpans[i]._size = 0;
+            vValueSpans[i]._disjoint = 1;
+        }
+    } else if (vHasSingleValue) {
         //  Mark an interior dart disjoint if more than one discts edge:
+        vValueSpans[0]._size  = 0;
+        vValueSpans[0]._start = 0;
         for (int i = 0; i < vEdges.size(); ++i) {
             if (_edgeTags[vEdges[i]]._mismatch) {
-                if (vValueSpans[0]._size) {
-                    vValueSpans[0]._disjoint = true;
+                if (vValueSpans[0]._size > 0) {
+                    vValueSpans[0]._disjoint = 1;
                     break;
                 } else {
                     vValueSpans[0]._size  = (LocalIndex) vFaces.size();
                     vValueSpans[0]._start = (LocalIndex) i;
                 }
             } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
-                vValueSpans[0]._disjoint = true;
+                ++ vValueSpans[0]._infSharp;
                 break;
             } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
                 ++ vValueSpans[0]._semiSharp;
             }
         }
+        vValueSpans[0]._size = (LocalIndex) vFaces.size();
     } else {
         //  Walk around the vertex and accumulate span info for each value -- be
         //  careful about the span for the first value "wrapping" around:
@@ -951,9 +951,9 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
         vValueSpans[0]._start = 0;
         if (!vIsBoundary && (vFaceSiblings[vFaces.size() - 1] == 0)) {
             if (_edgeTags[vEdges[0]]._mismatch) {
-                vValueSpans[0]._disjoint = true;
+                ++ vValueSpans[0]._disjoint;
             } else if (_level.getEdgeTag(vEdges[0])._infSharp) {
-                vValueSpans[0]._disjoint = true;
+                ++ vValueSpans[0]._infSharp;
             } else if (_level.getEdgeTag(vEdges[0])._semiSharp) {
                 ++ vValueSpans[0]._semiSharp;
             }
@@ -963,7 +963,7 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
                 if (_edgeTags[vEdges[i]]._mismatch) {
                     ++ vValueSpans[vFaceSiblings[i]]._disjoint;
                 } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
-                    vValueSpans[vFaceSiblings[i]]._disjoint = true;
+                    ++ vValueSpans[vFaceSiblings[i]]._infSharp;
                 } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
                     ++ vValueSpans[vFaceSiblings[i]]._semiSharp;
                 }
@@ -985,8 +985,31 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
 }
 
 //
-//  Miscellaneous utilities:
+//  Methods to retrieve and combine value and vertex tags:
 //
+void
+FVarLevel::getFaceValueTags(Index faceIndex, ValueTag valueTags[]) const {
+
+    ConstIndexArray faceValues = getFaceValues(faceIndex);
+    ConstIndexArray faceVerts  = _level.getFaceVertices(faceIndex);
+
+    for (int i = 0; i < faceValues.size(); ++i) {
+        Index srcValueIndex = findVertexValueIndex(faceVerts[i], faceValues[i]);
+        assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
+
+        valueTags[i] = _vertValueTags[srcValueIndex];
+    }
+}
+
+FVarLevel::ValueTag
+FVarLevel::getFaceCompositeValueTag(Index faceIndex) const {
+
+    ConstIndexArray faceValues = getFaceValues(faceIndex);
+    ConstIndexArray faceVerts  = _level.getFaceVertices(faceIndex);
+
+    return getFaceCompositeValueTag(faceValues, faceVerts);
+}
+
 FVarLevel::ValueTag
 FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues,
                                     ConstIndexArray & faceVerts) const {
@@ -1036,18 +1059,8 @@ FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
         assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
 
         ValueTag const & srcValueTag = _vertValueTags[srcValueIndex];
-        if (srcValueTag._mismatch) {
-            if (srcValueTag.isCorner()) {
-                srcVTag._rule = (VertTagSize) Sdc::Crease::RULE_CORNER;
-                srcVTag._infSharp = true;
-            } else {
-                srcVTag._rule = (VertTagSize) Sdc::Crease::RULE_CREASE;
-                srcVTag._infSharp = false;
-            }
-            srcVTag._boundary = true;
-            srcVTag._xordinary = srcValueTag._xordinary;
-            srcVTag._nonManifold = false;
-        }
+        srcVTag = srcValueTag.combineWithLevelVTag(srcVTag);
+
         compInt |= srcInt;
     }
     return compVTag;
