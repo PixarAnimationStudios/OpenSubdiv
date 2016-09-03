@@ -780,10 +780,10 @@ PatchTableFactory::computePatchParam(
         Refinement const& refinement  = refiner.getRefinement(i-1);
         Level const&      parentLevel = refiner.getLevel(i-1);
 
-        Index parentFaceIndex    = refinement.getChildFaceParentFace(faceIndex);
-        int   childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
+        Index parentFaceIndex = refinement.getChildFaceParentFace(faceIndex);
 
         if (parentLevel.getFaceVertices(parentFaceIndex).size() == 4) {
+            childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
             switch ( childIndexInParent ) {
                 case 0 :                     break;
                 case 1 : { u+=ofs;         } break;
