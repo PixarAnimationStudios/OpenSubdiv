@@ -1287,6 +1287,7 @@ PatchTableFactory::populateAdaptivePatches(
 
         // Properties to potentially be shared across vertex and face-varying patches:
         int          regBoundaryMask = 0;
+        bool         isRegSingleCrease = false;
         Level::VSpan irregCornerSpans[4];
         float        sharpness = 0.0f;
 
@@ -1297,28 +1298,32 @@ PatchTableFactory::populateAdaptivePatches(
 
             regBoundaryMask = context.GetRegularPatchBoundaryMask(patch.levelIndex, patch.faceIndex);
 
-            // The single-crease patch is a regular interior patch -- adjust this test to
-            // trigger/avoid inspection when inf-sharp patches are directly supported:
-            bool testSingleCreasePatch = hasSharpness &&
-                    (faceVTags._semiSharpEdges || faceVTags._infSharpEdges);
-            if (testSingleCreasePatch) {
-                int edgeInFace = 0;
-                if (level.isSingleCreasePatch(patch.faceIndex, &sharpness, &edgeInFace)) {
-
+            // Test regular interior patches for a single-crease patch when specified:
+            if (hasSharpness && (regBoundaryMask == 0) && (faceVTags._semiSharpEdges ||
+                                                           faceVTags._infSharpEdges)) {
+                float edgeSharpness = 0.0f;
+                int   edgeInFace = 0;
+                if (level.isSingleCreasePatch(patch.faceIndex, &edgeSharpness, &edgeInFace)) {
                     // cap sharpness to the max isolation level
-                    sharpness = std::min(sharpness,
+                    edgeSharpness = std::min(edgeSharpness,
                         float(context.options.maxIsolationLevel - patch.levelIndex));
-                    if (sharpness > 0.0f) {
+
+                    if (edgeSharpness > 0.0f) {
+                        isRegSingleCrease = true;
                         regBoundaryMask = (1 << edgeInFace);
-                    } else {
-                        sharpness = 0.0f;
+                        sharpness = edgeSharpness;
                     }
                 }
             }
-
-            arrayBuilder->iptr +=
-                context.GatherRegularPatchPoints(arrayBuilder->iptr, patch, regBoundaryMask);
-
+            
+            //  The single-crease patch is an interior patch so ignore boundary mask when gathering:
+            if (isRegSingleCrease) {
+                arrayBuilder->iptr +=
+                    context.GatherRegularPatchPoints(arrayBuilder->iptr, patch, 0);
+            } else {
+                arrayBuilder->iptr +=
+                    context.GatherRegularPatchPoints(arrayBuilder->iptr, patch, regBoundaryMask);
+            }
         } else {
             // Build the irregular patch array
             arrayBuilder = &arrayBuilders[IR];
@@ -1411,8 +1416,13 @@ PatchTableFactory::populateAdaptivePatches(
                     fvarBoundaryMask = fvarTopologyMatches ? regBoundaryMask :
                         context.GetRegularPatchBoundaryMask(patch.levelIndex, patch.faceIndex, fvc);
 
-                    context.GatherRegularPatchPoints(
-                            arrayBuilder->fptr[fvc], fvarPatch, fvarBoundaryMask, fvc);
+                    if (isRegSingleCrease && fvarTopologyMatches) {
+                        context.GatherRegularPatchPoints(
+                                arrayBuilder->fptr[fvc], fvarPatch, 0, fvc);
+                    } else {
+                        context.GatherRegularPatchPoints(
+                                arrayBuilder->fptr[fvc], fvarPatch, fvarBoundaryMask, fvc);
+                    }
                 } else {
                     Level::VSpan  localCornerSpans[4];
                     Level::VSpan* fvarCornerSpans = localCornerSpans;

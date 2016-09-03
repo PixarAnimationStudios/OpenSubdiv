@@ -493,8 +493,6 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         //  it accordingly.  If not semi-sharp, be sure to consider those values sharpened by
         //  the topology of other values.
         //
-        CreaseEndPairArray vValueCreaseEnds = getVertexValueCreaseEnds(vIndex);
-
         for (int i = 0; i < vValues.size(); ++i) {
             ValueTag & valueTag = vValueTags[i];
 
@@ -527,7 +525,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                 }
 
                 if (hasCreaseEnds()) {
-                    CreaseEndPair & valueCrease = vValueCreaseEnds[i];
+                    CreaseEndPair & valueCrease = getVertexValueCreaseEnds(vIndex)[i];
 
                     valueCrease._startFace = vSpan._start;
                     if ((i == 0) && (vSpan._start != 0)) {
