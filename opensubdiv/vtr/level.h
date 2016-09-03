@@ -124,6 +124,8 @@ public:
         //VTagSize _constSharp   : 1;  // variable when _semiSharp
         //VTagSize _hasEdits     : 1;  // variable
         //VTagSize _editsApplied : 1;  // variable
+
+        static VTag BitwiseOr(VTag const vTags[], int size = 4);
     };
     struct ETag {
         ETag() { }
@@ -137,6 +139,8 @@ public:
         ETagSize _boundary     : 1;  // fixed
         ETagSize _infSharp     : 1;  // fixed
         ETagSize _semiSharp    : 1;  // variable
+
+        static ETag BitwiseOr(ETag const eTags[], int size = 4);
     };
     struct FTag {
         FTag() { }
@@ -150,10 +154,6 @@ public:
         //  On deck -- coming soon...
         //FTagSize _hasEdits : 1;  // variable
     };
-
-    VTag getFaceCompositeVTag(ConstIndexArray & faceVerts) const;
-
-    ETag getFaceCompositeETag(ConstIndexArray & faceEdges) const;
 
     //  Additional simple struct to identify a "span" around a vertex, i.e. a
     //  subset of the faces around a vertex delimited by some property (e.g. a
@@ -295,6 +295,26 @@ public:
     //  High-level topology queries -- these may be moved elsewhere:
 
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
+
+    //
+    //  When inspecting topology, the component tags -- particularly VTag and ETag -- are most
+    //  often inspected in groups for the face to which they belong.  They are designed to be
+    //  bitwise OR'd (the result then referred to as a "composite" tag) to make quick decisions
+    //  about the face as a whole to avoid tedious topological inspection.
+    //
+    //  The same logic can be applied to topology in a FVar channel when tags specific to that
+    //  channel are used.  Note that the VTags apply to the FVar values assigned to the corners
+    //  of the face and not the vertex as a whole.
+    //
+    bool doesVertexFVarTopologyMatch(Index vIndex, int fvarChannel) const;
+    bool doesFaceFVarTopologyMatch(  Index fIndex, int fvarChannel) const;
+    bool doesEdgeFVarTopologyMatch(  Index eIndex, int fvarChannel) const;
+
+    void getFaceVTags(Index fIndex, VTag vTags[], int fvarChannel = -1) const;
+    void getFaceETags(Index fIndex, ETag eTags[], int fvarChannel = -1) const;
+
+    VTag getFaceCompositeVTag(Index fIndex, int fvarChannel = -1) const;
+    VTag getFaceCompositeVTag(ConstIndexArray & fVerts) const;
 
     //
     //  When gathering "patch points" we may want the indices of the vertices or the corresponding
