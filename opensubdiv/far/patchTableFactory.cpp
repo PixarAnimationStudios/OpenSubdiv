@@ -1257,9 +1257,7 @@ PatchTableFactory::populateAdaptivePatches(
                     refiner,
                     localPointFVarStencils[fvc],
                     NULL,
-                    // XXX - disabled until FVar bug fixed:
-                    //context.options.shareEndCapPatchPoints);
-                    false);
+                    context.options.shareEndCapPatchPoints);
                 break;
             case Options::ENDCAP_BSPLINE_BASIS:
                 localPointFVarStencils[fvc] = new StencilTable(0);
