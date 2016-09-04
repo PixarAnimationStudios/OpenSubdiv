@@ -155,7 +155,13 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
         ConstIndexArray fedges = level->getFaceEdges(faceIndex);
         assert(fedges.size()==4);
 
+        Vtr::internal::Level::ETag etags[4];
+        level->getFaceETags(faceIndex, etags, fvarChannel);
+
         for (int i=0; i<4; ++i) {
+            // Ignore boundary edges (or those with a face-varying discontinuity)
+            if (etags[i]._boundary) continue;
+
             Index edge = fedges[i];
             Index adjFaceIndex = 0;
 
