@@ -54,6 +54,9 @@ void GetBezierWeights(PatchParamBase const & patchParam,
 void GetBSplineWeights(PatchParamBase const & patchParam,
     float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
 
+void GetBSplineWeights(PatchParamBase const & patchParam,
+    float sharpness, float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
+
 void GetGregoryWeights(PatchParamBase const & patchParam,
     float s, float t, float wP[20], float wDs[20], float wDt[20], float wDss[20] = 0, float wDst[20] = 0, float wDtt[20] = 0);
 
