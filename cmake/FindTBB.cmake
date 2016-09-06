@@ -58,6 +58,7 @@ else ()
             "${TBB_LOCATION}/include"
             "$ENV{TBB_LOCATION}/include"
         PATHS
+	    /opt/intel/tbb/include
             /usr/include
             /usr/local/include
             /usr/openwin/share/include
@@ -120,6 +121,7 @@ foreach(TBB_LIB tbb             tbb_debug
             "$ENV{TBB_LOCATION}/lib"
             "$ENV{TBB_LOCATION}/bin"
             "$ENV{PROGRAMFILES}/TBB/lib"
+	    /opt/intel/tbb/lib/
             /usr/lib
             /usr/lib/w32api
             /usr/local/lib

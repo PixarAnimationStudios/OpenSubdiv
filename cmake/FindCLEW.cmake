@@ -57,7 +57,7 @@ find_path(CLEW_INCLUDE_DIR
   HINTS
     ${_clew_SEARCH_DIRS}
   PATH_SUFFIXES
-    include
+    include include/CL
   NO_DEFAULT_PATH
   DOC "The directory where clew.h resides")
 
@@ -67,7 +67,7 @@ find_library(CLEW_LIBRARY
   PATHS
     ${_clew_SEARCH_DIRS}
   PATH_SUFFIXES
-    lib lib64
+    lib lib64 lib/static
   NO_DEFAULT_PATH
   DOC "The CLEW library")
 

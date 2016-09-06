@@ -106,7 +106,7 @@ if (NOT NO_LIB)
     if( CUDA_FOUND )
         include_directories( "${CUDA_INCLUDE_DIRS}" )
         if (UNIX)
-            list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
+            list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_20 )
         endif()
     endif()
 
