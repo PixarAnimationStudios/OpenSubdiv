@@ -267,13 +267,11 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 option(PTEX_LOCATION "Path to Ptex" "")
 option(GLEW_LOCATION "Path to GLEW" "")
 option(GLFW_LOCATION "Path to GLFW" "")
-option(MAYA_LOCATION "Path to Maya" "")
 
 option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
 option(NO_EXAMPLES "Disable examples build" OFF)
 option(NO_TUTORIALS "Disable tutorials build" OFF)
 option(NO_REGRESSION "Disable regression tests build" OFF)
-option(NO_MAYA "Disable Maya plugin build" OFF)
 option(NO_PTEX "Disable PTex support" OFF)
 option(NO_DOC "Disable documentation build" OFF)
 option(NO_OMP "Disable OpenMP backend" OFF)
@@ -332,10 +330,6 @@ endif()
 
 if (WIN32 AND NOT NO_DX)
    find_package(DXSDK)
-endif()
-
-if (NOT NO_MAYA)
-find_package(Maya 201200)
 endif()
 
 if (NOT NO_DOC)
@@ -503,22 +497,6 @@ else()
             "please add your Ptex path to FindPTex.cmake in "
             "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
             "cmake command line argument or environment variable.")
-    endif()
-endif()
-
-if (NOT NO_MAYA)
-    if(MAYA_FOUND)
-        add_definitions(
-            -DOPENSUBDIV_HAS_MAYA
-        )
-    else()
-        message(WARNING
-            "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
-            "available.  If you do have Maya installed and see this message, "
-            "please add your Maya path to FindMaya.cmake in "
-            "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
-            "cmake command line argument or environment variable."
-        )
     endif()
 endif()
 
