@@ -60,7 +60,7 @@ before_script:
 
 script:
    - mkdir build && cd build
-   - cmake -DNO_TBB=1 -DNO_OMP=1 -DNO_CUDA=1 -DNO_OPENCL=1 -DNO_MAYA=1 -DNO_PTEX=1 -DNO_GLTESTS=1 -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
+   - cmake -DNO_TBB=1 -DNO_OMP=1 -DNO_CUDA=1 -DNO_OPENCL=1 -DNO_PTEX=1 -DNO_GLTESTS=1 -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
    - make
    - make test
 

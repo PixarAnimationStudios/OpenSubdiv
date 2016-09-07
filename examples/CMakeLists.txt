@@ -79,7 +79,3 @@ if (DXSDK_FOUND AND NOT NO_DX)
 
 endif()
 
-
-if (MAYA_FOUND AND (NOT NO_MAYA))
-    add_subdirectory(mayaPolySmooth)
-endif()
