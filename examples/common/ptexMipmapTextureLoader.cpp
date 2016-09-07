@@ -449,7 +449,7 @@ PtexMipmapTextureLoader::PtexMipmapTextureLoader(PtexTexture *ptex,
                                                        bool seamlessMipmap,
                                                        bool padAlpha) :
     _ptex(ptex), _maxLevels(maxLevels), _bpp(0),
-    _pageWidth(0), _pageHeight(0), _padAlpha(padAlpha),
+    _pageWidth(0), _pageHeight(0),
     _texelBuffer(NULL), _layoutBuffer(NULL), _memoryUsage(0)
 {
     // byte per pixel
@@ -512,7 +512,7 @@ PtexMipmapTextureLoader::addAlphaChannel() {
     unsigned char const * src = _texelBuffer;
     unsigned char * dest = texBuffer;
 
-    for (int i=0; i<numTexels; ++i, src+=srcStride, dest+=dstStride) {
+    for (int i=0; i<(int)numTexels; ++i, src+=srcStride, dest+=dstStride) {
         memcpy(dest, src, srcStride);
 
         /// set alpha to 1
