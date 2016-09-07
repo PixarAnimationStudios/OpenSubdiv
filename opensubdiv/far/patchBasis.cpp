@@ -26,6 +26,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <math.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
