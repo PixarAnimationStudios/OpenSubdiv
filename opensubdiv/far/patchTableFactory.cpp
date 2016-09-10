@@ -61,13 +61,31 @@ inline bool isSharpnessEqual(float s1, float s2) { return (s1 == s2); }
 
 //
 //  Local helper functions for identifying the subset of a ring around a
-//  corner that contributes to a patch:
+//  corner that contributes to a patch -- parameterized by a mask that
+//  indicates what kind of edge is to delimit the span.
 //
-//  Note that these methods need both face-verts and face-edges for each,
-//  corner, and that we don't really need the face-index once we have
+//  Note that the two main methods need both face-verts and face-edges for
+//  each corner, and that we don't really need the face-index once we have
 //  them -- consider passing the fVerts and fEdges as arguments as they
 //  will otherwise be retrieved repeatedly for each corner.
 //
+//  (As these mature it is likely they will be moved to Vtr, as a method
+//  to identify a VSpan would complement the existing method to gather
+//  the vertex/values associated with it.  The manifold vs non-manifold
+//  choice would then also be encapsulated -- provided both remain free
+//  of PatchTable-specific logic.)
+//
+inline Level::ETag
+getSingularEdgeMask(bool includeAllInfSharpEdges = false) {
+
+    Level::ETag eTagMask;
+    eTagMask.clear();
+    eTagMask._boundary = true;
+    eTagMask._nonManifold = true;
+    eTagMask._infSharp = includeAllInfSharpEdges;
+    return eTagMask;
+}
+
 inline bool
 isEdgeSingular(Level const & level, FVarLevel const * fvarLevel, Index eIndex,
                Level::ETag eTagMask)
@@ -80,10 +98,6 @@ isEdgeSingular(Level const & level, FVarLevel const * fvarLevel, Index eIndex,
     Level::ETag::ETagSize * iTag  = reinterpret_cast<Level::ETag::ETagSize*>(&eTag);
     Level::ETag::ETagSize * iMask = reinterpret_cast<Level::ETag::ETagSize*>(&eTagMask);
     return (*iTag & *iMask) > 0;
-
-//    return (eTagMask._boundary    && eTag._boundary) ||
-//           (eTagMask._infSharp    && eTag._infSharp) ||
-//           (eTagMask._nonManifold && eTag._nonManifold);
 }
 
 void
@@ -537,6 +551,45 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
     //
     bool isRegular = ! fCompVTag._xordinary || fCompVTag._nonManifold;
 
+    //  Reconsider when using inf-sharp patches in presence of inf-sharp features:
+    if (options_useInfinitelySharpPatches && fCompVTag._infSharpEdges) {
+        if (fCompVTag._nonManifold) {
+            isRegular = true;
+        } else if (!fCompVTag._infIrregular) {
+            isRegular = true;
+        } else {
+            //
+            //   This is unfortunately a relatively complex case to determine... if a corner
+            //   vertex has been tagged has having an inf-sharp irregularity about it, the
+            //   neighborhood of the corner is partitioned into both regular and irregular
+            //   regions and the face must be more closely inspected to determine in which
+            //   it lies.
+            //
+            //   There could be a simpler test here to quickly accept/reject regularity given
+            //   how local it is -- involving no more than one or two (in the case of Loop)
+            //   adjacent faces -- but it will likely be messy and will need to inspect
+            //   adjacent faces and/or edges.  In the meantime, gathering and inspecting the
+            //   subset of the neighborhood delimited by inf-sharp edges will suffice (and
+            //   be comparable in all but cases of high valence)
+            //
+            Level::VTag vTags[4];
+            level.getFaceVTags(faceIndex, vTags, fvcRefiner);
+
+            Level::VSpan vSpan;
+            Level::ETag eMask = getSingularEdgeMask(true);
+
+            isRegular = true;
+            for (int i = 0; i < 4; ++i) {
+                if (vTags[i]._infIrregular) {
+                    identifyManifoldCornerSpan(level, faceIndex, i, eMask, vSpan, fvcRefiner);
+
+                    isRegular = (vSpan._numFaces == (vTags[i]._infSharpCrease ? 2 : 1));
+                    if (!isRegular) break;
+                }
+            }
+        }
+    }
+
     //  Legacy option -- reinterpret a smooth corner as sharp if specified:
     if (options_approxSmoothCornerWithSharp) {
         if (fCompVTag._xordinary && fCompVTag._boundary && !fCompVTag._nonManifold) {
@@ -567,21 +620,32 @@ PatchTableFactory::BuilderContext::GetRegularPatchBoundaryMask(
     Level::VTag fTag = Level::VTag::BitwiseOr(vTags);
 
     //
+    //  Identify vertex tags for inf-sharp edges and/or boundaries, depending on
+    //  whether or not inf-sharp patches are in use:
+    //
+    int vBoundaryMask = 0;
+    if (fTag._infSharpEdges) {
+        if (options_useInfinitelySharpPatches) {
+            vBoundaryMask |= (vTags[0]._infSharpEdges << 0) |
+                             (vTags[1]._infSharpEdges << 1) |
+                             (vTags[2]._infSharpEdges << 2) |
+                             (vTags[3]._infSharpEdges << 3);
+        } else if (fTag._boundary) {
+            vBoundaryMask |= (vTags[0]._boundary << 0) |
+                             (vTags[1]._boundary << 1) |
+                             (vTags[2]._boundary << 2) |
+                             (vTags[3]._boundary << 3);
+        }
+    }
+
+    //
     //  Non-manifold patches have been historically represented as regular in all
     //  cases -- when a non-manifold vertex is sharp, it requires a regular corner
     //  patch, and so both of its neighboring corners need to be re-interpreted as
-    //  boundaries:
+    //  boundaries.
     //
-    //  NOTE that non-manifold face-varying patches have not been represented as
-    //  regular when they don't match the topology -- something that may change...
+    //  With the introduction of inf-sharp patches, this may soon change...
     //
-    int vBoundaryMask = 0;
-    if (fTag._boundary) {
-        vBoundaryMask |= (vTags[0]._boundary << 0) |
-                         (vTags[1]._boundary << 1) |
-                         (vTags[2]._boundary << 2) |
-                         (vTags[3]._boundary << 3);
-    }
     if (fTag._nonManifold && (fvcRefiner < 0)) {
         if (vTags[0]._nonManifold) vBoundaryMask |= (1 << 0) | (vTags[0]._infSharp ? 10 : 0);
         if (vTags[1]._nonManifold) vBoundaryMask |= (1 << 1) | (vTags[1]._infSharp ?  5 : 0);
@@ -616,66 +680,33 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
     level.getFaceVTags(faceIndex, vTags, fvcRefiner);
 
     FVarLevel::ValueTag fvarTags[4];
-    ConstIndexArray     fvarValues;
     if (fvcRefiner >= 0) {
-        FVarLevel const * fvarLevel = &level.getFVarLevel(fvcRefiner);
-        fvarLevel->getFaceValueTags(faceIndex, fvarTags);
-        fvarValues = fvarLevel->getFaceValues(faceIndex);
+        level.getFVarLevel(fvcRefiner).getFaceValueTags(faceIndex, fvarTags);
     }
 
     //
-    //  For each corner vertex, use the complete neighborhood when not using a FVar
-    //  channel or when the corner matches topology, otherwise identify the span of
-    //  interest around the vertex:
+    //  For each corner vertex, use the complete neighborhood when possible (which
+    //  does not require a search, otherwise identify the span of interest around
+    //  the vertex:
     //
     ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
+    Level::ETag singularEdgeMask = getSingularEdgeMask(options_useInfinitelySharpPatches);
+
     for (int i = 0; i < fVerts.size(); ++i) {
-        if ((fvcRefiner < 0) || !fvarTags[i]._mismatch) {
+        bool noFVarMisMatch = (fvcRefiner < 0) || !fvarTags[i]._mismatch;
+        bool testInfSharp   = options_useInfinitelySharpPatches &&
+                                (vTags[i]._infSharpEdges && (vTags[i]._rule != Sdc::Crease::RULE_DART));
+
+        if (noFVarMisMatch && !testInfSharp) {
             cornerSpans[i]._leadingVertEdge = 0;
             cornerSpans[i]._numFaces = 0;
-            continue;
-        }
-
-        //  CreaseEndPairs are only defined when the value of the FVar boundary is
-        //  smooth, i.e. not sharpened by either the vertex topology of FVar options.
-        //
-        ConstIndexArray vFaces = level.getVertexFaces(fVerts[i]);
-
-        if (fvarTags[i].hasCreaseEnds()) {
-            //  Be sure to find the vertex-value rather than using direct value at level 0:
-            FVarLevel const * fvarLevel = &level.getFVarLevel(fvcRefiner);
-
-            Index valueIndex = fvarLevel->findVertexValueIndex(fVerts[i], fvarValues[i]);
-
-            FVarLevel::CreaseEndPair creaseEnd = fvarLevel->getValueCreaseEndPair(valueIndex);
-
-            cornerSpans[i]._leadingVertEdge = creaseEnd._startFace;
-            cornerSpans[i]._numFaces =
-                (creaseEnd._endFace - creaseEnd._startFace + vFaces.size()) % vFaces.size() + 1;
+        } else if (!vTags[i]._nonManifold) {
+            identifyManifoldCornerSpan(
+                    level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
         } else {
-            //  Need to search either side of the face for a delimiting edge...
-            //
-            //  Using regular corner patches may be a good interim work around and will
-            //  better capture the sharp corner, like non-manifold patches...
-            //
-            //  BUT, given this is for irregular patches and is being passed to the end-cap
-            //  factories, the absence of an extra-ordinary vertex will cause problems --
-            //  at least for the BSpline end-cap factory.  So this will only work with the
-            //  Gregory option for some cases...
-            //
-            Level::ETag eTagMask;
-            eTagMask.clear();
-            eTagMask._boundary = true;
-            eTagMask._nonManifold = true;
-
-            if (vTags[i]._nonManifold) {
-                identifyNonManifoldCornerSpan(
-                        level, faceIndex, i, eTagMask, cornerSpans[i], fvcRefiner);
-            } else {
-                identifyManifoldCornerSpan(
-                        level, faceIndex, i, eTagMask, cornerSpans[i], fvcRefiner);
-            }
+            identifyNonManifoldCornerSpan(
+                    level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
         }
     }
 }
@@ -1326,9 +1357,12 @@ PatchTableFactory::populateAdaptivePatches(
             // Build the irregular patch array
             arrayBuilder = &arrayBuilders[IR];
 
-            // place-holder for initialization of the irregular "corner spans" -- leaving
-            // leaving the span "size" to zero, as constructed, indicates to use the full
-            // neighborhood
+            // Leaving the corner span "size" to zero, as constructed, indicates to use the full
+            // neighborhood -- we only need to identify a subset when using inf-sharp patches
+            if (context.options_useInfinitelySharpPatches) {
+                context.GetIrregularPatchCornerSpans(
+                                    patch.levelIndex, patch.faceIndex, irregCornerSpans);
+            }
 
             // switch endcap patchtype by option
             switch(context.options.GetEndCapType()) {
