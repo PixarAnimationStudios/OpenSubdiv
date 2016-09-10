@@ -147,8 +147,6 @@ private:
     int _bpp;
     int _pageWidth, _pageHeight;
 
-    bool _padAlpha;
-
     unsigned char *_texelBuffer;
     unsigned char *_layoutBuffer;
 
