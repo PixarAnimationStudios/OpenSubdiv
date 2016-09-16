@@ -273,11 +273,12 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         //
         vTag._infSharpEdges   = (infSharpEdgeCount > 0);
         vTag._infSharpCrease  = false;
-        vTag._infSharpCorners = false;
         vTag._infIrregular    = vTag._infSharp || vTag._infSharpEdges;
 
         if (vTag._infSharpEdges) {
-            Sdc::Crease::Rule infRule = creasing.DetermineVertexVertexRule(vSharpness, infSharpEdgeCount);
+            //  Ignore semi-sharp vertex sharpness when computing the inf-sharp Rule:
+            Sdc::Crease::Rule infRule = creasing.DetermineVertexVertexRule(
+                        (vTag._infSharp ? vSharpness : 0.0f), infSharpEdgeCount);
 
             if (infRule == Sdc::Crease::RULE_CREASE) {
                 vTag._infSharpCrease = true;
@@ -305,8 +306,6 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
                     }
                 }
             } else if (infRule == Sdc::Crease::RULE_CORNER) {
-                vTag._infSharpCorners = true;
-
                 //  A regular set of inf-corners occurs when all edges are sharp and not
                 //  a smooth corner:
                 //

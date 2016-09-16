@@ -114,16 +114,10 @@ public:
         VTagSize _rule            : 4;  // variable when _semiSharp
         VTagSize _incomplete      : 1;  // variable for sparse refinement
 
-        //  Inf-sharp tags -- in development, some may not persist...
+        //  Tags indicating incident infinitely-sharp (permanent) features
         VTagSize _infSharpEdges   : 1;  // fixed
         VTagSize _infSharpCrease  : 1;  // fixed
-        VTagSize _infSharpCorners : 1;  // fixed
         VTagSize _infIrregular    : 1;  // fixed
-
-        //  On deck -- coming soon...
-        //VTagSize _constSharp   : 1;  // variable when _semiSharp
-        //VTagSize _hasEdits     : 1;  // variable
-        //VTagSize _editsApplied : 1;  // variable
 
         static VTag BitwiseOr(VTag const vTags[], int size = 4);
     };
