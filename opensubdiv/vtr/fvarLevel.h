@@ -103,7 +103,7 @@ public:
     //  Tag per Value:
     //      - informs both refinement and interpolation
     //          - every value spawns a child value in refinement
-    //      - given ordering of values (1-per-vertex first) serves as a vertex tag
+    //      - includes a subset of Level::VTag to be later combined with a VTag
     //
     struct ValueTag {
         ValueTag() { }
@@ -116,7 +116,10 @@ public:
         bool isSemiSharp() const   { return _semiSharp; }
         bool isInfSharp() const    { return !_semiSharp && !_crease; }
         bool isDepSharp() const    { return _depSharp; }
-        bool hasCreaseEnds() const { return _creaseEnds; }
+        bool hasCreaseEnds() const { return _crease || _semiSharp; }
+
+        bool hasInfSharpEdges() const   { return _infSharpEdges; }
+        bool hasInfIrregularity() const { return _infIrregular; }
 
         typedef unsigned char ValueTagSize;
 
@@ -125,9 +128,11 @@ public:
         ValueTagSize _xordinary   : 1;  // local FVar topology is extra-ordinary
         ValueTagSize _nonManifold : 1;  // local FVar topology is non-manifold
         ValueTagSize _crease      : 1;  // value is a crease, otherwise a corner
-        ValueTagSize _creaseEnds  : 1;  // set when a crease-end-pair is assigned
         ValueTagSize _semiSharp   : 1;  // value is a corner decaying to crease
         ValueTagSize _depSharp    : 1;  // value is a corner by dependency on another
+
+        ValueTagSize _infSharpEdges : 1;  // value is a corner by inf-sharp features
+        ValueTagSize _infIrregular  : 1;  // value span includes inf-sharp irregularity
 
         Level::VTag combineWithLevelVTag(Level::VTag) const;
     };
@@ -209,15 +214,6 @@ public:
     void getFaceValueTags(Index faceIndex, ValueTag valueTags[]) const;
 
     ValueTag getFaceCompositeValueTag(Index faceIndex) const;
-    ValueTag getFaceCompositeValueTag(ConstIndexArray & faceValues,
-                                      ConstIndexArray & faceVerts) const;
-
-    Level::VTag getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
-                                             ConstIndexArray & faceVerts,
-                                             Level::VTag *     fvarVTags) const;
-
-    Level::ETag getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
-                                                Level::ETag *     fvarETags) const;
 
     //  Higher-level topological queries, i.e. values in a neighborhood:
     void getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2]) const;
@@ -401,10 +397,15 @@ FVarLevel::ValueTag::combineWithLevelVTag(Level::VTag levelTag) const
         if (this->isCorner()) {
             levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CORNER;
             levelTag._infSharp = true;
+            levelTag._infSharpCrease = false;
         } else {
             levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CREASE;
             levelTag._infSharp = false;
+            levelTag._infSharpCrease = true;
         }
+        levelTag._infSharpEdges = true;
+        levelTag._infIrregular = this->_infIrregular;
+
         levelTag._boundary = true;
         levelTag._xordinary = this->_xordinary;
         levelTag._nonManifold = this->_nonManifold;

@@ -508,11 +508,16 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
             bool isInfSharp = allCornersAreSharp || vSpan._infSharp ||
                               ((vSpan._size == 1) && fvarCornersAreSharp);
+
             if (vSpan._size == 1) {
                 valueTag._xordinary = !isInfSharp;
             } else {
                 valueTag._xordinary = (vSpan._size != regularBoundaryValence);
             }
+
+            valueTag._infSharpEdges = (vSpan._infSharp > 0);
+            valueTag._infIrregular = vSpan._infSharp ? ((vSpan._size - vSpan._infSharp) > 1)
+                                   : valueTag._xordinary;
 
             if (!isInfSharp) {
                 if (vSpan._semiSharp || vTag._semiSharp) {
@@ -533,7 +538,6 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                     } else {
                         valueCrease._endFace = (LocalIndex) (vSpan._start + vSpan._size - 1);
                     }
-                    valueTag._creaseEnds = true;
                 }
             }
         }
@@ -1007,13 +1011,6 @@ FVarLevel::getFaceCompositeValueTag(Index faceIndex) const {
     ConstIndexArray faceValues = getFaceValues(faceIndex);
     ConstIndexArray faceVerts  = _level.getFaceVertices(faceIndex);
 
-    return getFaceCompositeValueTag(faceValues, faceVerts);
-}
-
-FVarLevel::ValueTag
-FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues,
-                                    ConstIndexArray & faceVerts) const {
-
     typedef ValueTag::ValueTagSize ValueTagSize;
 
     ValueTag       compTag;
@@ -1030,71 +1027,6 @@ FVarLevel::getFaceCompositeValueTag(ConstIndexArray & faceValues,
         compInt |= srcInt;
     }
     return compTag;
-}
-
-Level::VTag
-FVarLevel::getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
-                                        ConstIndexArray & faceVerts,
-                                        Level::VTag * fvarVTags) const {
-
-    typedef Level::VTag            VertTag;
-    typedef Level::VTag::VTagSize  VertTagSize;
-
-    //
-    //  Create a composite VTag for the face that augments the vertex corners' VTag's with
-    //  topological information about the FVar values at each corner.  Only when there is
-    //  a mismatch does the FVar value need to be inspected further:
-    //
-    VertTag       compVTag;
-    VertTagSize & compInt = *(reinterpret_cast<VertTagSize *>(&compVTag));
-
-    compInt = 0;
-    for (int i = 0; i < faceVerts.size(); ++i) {
-        VertTag &     srcVTag = fvarVTags[i];
-        VertTagSize & srcInt  = *(reinterpret_cast<VertTagSize *>(&srcVTag));
-
-        srcVTag = _level.getVertexTag(faceVerts[i]);
-
-        Index srcValueIndex = findVertexValueIndex(faceVerts[i], faceValues[i]);
-        assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
-
-        ValueTag const & srcValueTag = _vertValueTags[srcValueIndex];
-        srcVTag = srcValueTag.combineWithLevelVTag(srcVTag);
-
-        compInt |= srcInt;
-    }
-    return compVTag;
-}
-
-Level::ETag
-FVarLevel::getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
-                                           Level::ETag *     fvarETags) const {
-
-    typedef Level::ETag            FaceETag;
-    typedef Level::ETag::ETagSize  FaceETagSize;
-
-    //
-    //  Create a composite ETag for the face that augments the edges ETag's with
-    //  topological information about the FVar values at each corner.  Only when there is
-    //  a mismatch does the FVar value need to be inspected further:
-    //
-    FaceETag       compETag;
-    FaceETagSize & compInt = *(reinterpret_cast<FaceETagSize *>(&compETag));
-
-    compInt = 0;
-    for (int i = 0; i < faceEdges.size(); ++i) {
-        FaceETag &     srcETag = fvarETags[i];
-        FaceETagSize & srcInt  = *(reinterpret_cast<FaceETagSize *>(&srcETag));
-
-        srcETag = _level.getEdgeTag(faceEdges[i]);
-
-        FVarLevel::ETag const & fvarETag = _edgeTags[faceEdges[i]];
-        if (fvarETag._mismatch) {
-            srcETag._boundary = true;
-        }
-        compInt |= srcInt;
-    }
-    return compETag;
 }
 
 } // end namespace internal

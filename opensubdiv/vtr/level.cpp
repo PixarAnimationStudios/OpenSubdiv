@@ -539,7 +539,6 @@ Level::print(const Refinement* pRefinement) const {
         printf(", infSharp = %d",       (int)vTag._infSharp);
         printf(", infSharpEdges = %d",  (int)vTag._infSharpEdges);
         printf(", infSharpCrease = %d", (int)vTag._infSharpCrease);
-        printf(", infSharpCorners = %d",(int)vTag._infSharpCorners);
         printf(", infIrregular = %d",   (int)vTag._infIrregular);
         printf(", semiSharp = %d",      (int)vTag._semiSharp);
         printf(", semiSharpEdges = %d", (int)vTag._semiSharpEdges);

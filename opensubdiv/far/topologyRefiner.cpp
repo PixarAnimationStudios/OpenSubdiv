@@ -501,33 +501,23 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         //
         if (! selectFace && considerFVarChannels) {
             for (int channel = 0; ! selectFace && (channel < numFVarChannels); ++channel) {
-                Vtr::internal::FVarLevel const & fvarLevel = level.getFVarLevel(channel);
-
-                //
-                //  Retrieve the counterpart to the face-vertices composite tag for the face-values
-                //  for this channel.  We can make some quick accept/reject tests but eventually we
-                //  will need to combine the face-vertex and face-varying topology to determine the
-                //  regularity of faces along face-varying boundaries.
-                //
-                Vtr::ConstIndexArray faceValues = fvarLevel.getFaceValues(face);
-
-                Vtr::internal::FVarLevel::ValueTag compFVarFaceTag =
-                        fvarLevel.getFaceCompositeValueTag(faceValues, faceVerts);
 
                 //  No mismatch in topology -> no need to further isolate...
-                if (! compFVarFaceTag._mismatch) continue;
+                if (level.doesFaceFVarTopologyMatch(face, channel)) continue;
 
-                if (compFVarFaceTag._xordinary) {
+                //
+                //  Get the corner tags for the FVar topology, combine, then make similar inferences
+                //  from the combined tags as done above for the vertex topology:
+                //
+                Vtr::internal::Level::VTag fvarVTags[4];
+                level.getFaceVTags(face, fvarVTags, channel);
+
+                Vtr::internal::Level::VTag compFVarVTag = Vtr::internal::Level::VTag::BitwiseOr(fvarVTags);
+
+                if (compFVarVTag._xordinary) {
                     //  An xordinary boundary value always requires isolation:
                     selectFace = true;
                 } else {
-                    //  Combine the FVar topology tags (ValueTags) at corners with the vertex topology
-                    //  tags (VTags), then make similar inferences from the combined tags as was done
-                    //  for the face.
-                    Vtr::internal::Level::VTag fvarVTags[4];
-                    Vtr::internal::Level::VTag compFVarVTag =
-                            fvarLevel.getFaceCompositeValueAndVTag(faceValues, faceVerts, fvarVTags);
-
                     if (! (compFVarVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
                         //  No Smooth corners so too many boundaries/corners -- need to isolate:
                         selectFace = true;
