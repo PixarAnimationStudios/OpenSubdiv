@@ -153,22 +153,28 @@ public:
     //  subset of the faces around a vertex delimited by some property (e.g. a
     //  face-varying discontinuity, an inf-sharp edge, etc.)
     //
-    //  The span requires an "origin", i.e. a leading edge or face and a "size"
-    //  to fully define its extent.  Use of the size is preferred over leading
-    //  and trailing edges/faces so that valence is available since for a non-
-    //  manifold vertex that cannot be determined from the two extremeties.
-    //  There is also a subtle but marginal advantage in using a leading edge
-    //  rather than face, but it may be worth using the leading face with the
-    //  face count for consistency (both properties defined in terms of faces).
+    //  The span requires an "origin" and a "size" to fully define its extent.
+    //  Use of the size is required over a leading/trailing pair as the valence
+    //  around a non-manifold vertex cannot be trivially determined from two
+    //  extremeties.  Similarly a start face is chosen over an edge as starting
+    //  with a manifold edge is ambiguous.  Additional tags also support
+    //  non-manifold cases, e.g. periodic spans at the apex of a double cone.
     //
-    //  Currently setting the size to 0 is an indication to use the full
-    //  neighborhood rather than a subset -- may want to revisit that choice...
+    //  Currently setting the size to 0 or leaving the span "unassigned" is an
+    //  indication to use the full neighborhood rather than a subset -- prefer
+    //  use of the const method here to direct inspection of the member.
     //
     struct VSpan {
-        VSpan() : _numFaces(0), _leadingVertEdge(0) { }
+        VSpan() { std::memset(this, 0, sizeof(VSpan)); }
+
+        void clear()            { std::memset(this, 0, sizeof(VSpan)); }
+        bool isAssigned() const { return _numFaces > 0; }
 
         LocalIndex _numFaces;
-        LocalIndex _leadingVertEdge;
+        LocalIndex _startFace;
+
+        unsigned short _periodic : 1;
+        unsigned short _sharp    : 1;
     };
 
 public:

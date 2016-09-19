@@ -231,14 +231,7 @@ public:
     void initializeFaceValuesFromFaceVertices();
     void initializeFaceValuesFromVertexFaceSiblings();
 
-    //  Information about the "span" for a value:
-    struct ValueSpan {
-        LocalIndex _size;
-        LocalIndex _start;
-        LocalIndex _disjoint;
-        LocalIndex _semiSharp;
-        LocalIndex _infSharp;
-    };
+    struct ValueSpan;
     void gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const;
 
     //  Debugging methods:

@@ -101,7 +101,7 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     for (int corner = 0; (corner < 4) && !useGregoryPatch; ++corner) {
         Vtr::internal::Level::VTag vtag = level->getVertexTag(facePoints[corner]);
 
-        if (vtag._boundary || (cornerSpans[corner]._numFaces > 0)) {
+        if (vtag._boundary || cornerSpans[corner].isAssigned()) {
             useGregoryPatch = true;
         }
         if (vtag._xordinary) {
