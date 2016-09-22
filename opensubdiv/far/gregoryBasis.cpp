@@ -123,7 +123,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
         //  Gather the (partial) one-ring around the corner vertex:
         int ringSize = 0;
-        if (cornerSpans[corner]._numFaces == 0) {
+        if (!cornerSpans[corner].isAssigned()) {
             ringSize = level.gatherQuadRegularRingAroundVertex( faceVerts[corner],
                     manifoldRings[corner], fvarChannel);
         } else {

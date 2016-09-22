@@ -116,6 +116,7 @@ identifyManifoldCornerSpan(Level const & level, Index fIndex,
     int iLeadingStart  = vEdges.FindIndex(fEdges[fCorner]);
     int iTrailingStart = (iLeadingStart + 1) % nEdges;
 
+    vSpan.clear();
     vSpan._numFaces = 1;
 
     int iLeading  = iLeadingStart;
@@ -131,7 +132,7 @@ identifyManifoldCornerSpan(Level const & level, Index fIndex,
         iTrailing = (iTrailing + 1) % nEdges;
         if (iTrailing == iLeadingStart) break;
     }
-    vSpan._leadingVertEdge = iLeading;
+    vSpan._startFace = (LocalIndex) iLeading;
 }
 
 void
@@ -140,17 +141,29 @@ identifyNonManifoldCornerSpan(Level const & level, Index fIndex,
                               Level::VSpan & vSpan, int /* fvc */ = -1)
 {
     //  For now, non-manifold patches revert to regular patches -- just identify
-    //  the single face now for a sharp corner patch...
+    //  the single face now for a sharp corner patch.
+    //
+    //  Remember that the face may be incident the vertex multiple times when
+    //  non-manifold, so make sure the local index of the corner vertex in the
+    //  face identified additionally matches the corner.
     //
     //FVarLevel const * fvarLevel = (fvc < 0) ? 0 : &level.getFVarChannel(fvc);
 
-    ConstIndexArray fVerts = level.getFaceVertices(fIndex);
-    ConstIndexArray fEdges = level.getFaceEdges(fIndex);
+    Index vIndex = level.getFaceVertices(fIndex)[fCorner];
 
-    ConstIndexArray vEdges = level.getFaceEdges(fVerts[fCorner]);
+    ConstIndexArray      vFaces  = level.getVertexFaces(vIndex);
+    ConstLocalIndexArray vInFace = level.getVertexFaceLocalIndices(vIndex);
 
-    vSpan._leadingVertEdge = vEdges.FindIndex(fEdges[fCorner]);
-    vSpan._numFaces = 1;
+    vSpan.clear();
+    for (int i = 0; i < vFaces.size(); ++i) {
+        if ((vFaces[i] == fIndex) && ((int)vInFace[i] == fCorner)) {
+            vSpan._startFace = (LocalIndex) i;
+            vSpan._numFaces = 1;
+            vSpan._sharp = true;
+            break;
+        }
+    }
+    assert(vSpan._numFaces == 1);
 }
 
 //
@@ -699,8 +712,7 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
                                 (vTags[i]._infSharpEdges && (vTags[i]._rule != Sdc::Crease::RULE_DART));
 
         if (noFVarMisMatch && !testInfSharp) {
-            cornerSpans[i]._leadingVertEdge = 0;
-            cornerSpans[i]._numFaces = 0;
+            cornerSpans[i].clear();
         } else if (!vTags[i]._nonManifold) {
             identifyManifoldCornerSpan(
                     level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);

@@ -47,6 +47,27 @@ namespace OPENSUBDIV_VERSION {
 namespace Vtr {
 namespace internal {
 
+
+//
+//  Information about the "span" for a face-varying value -- the set of faces
+//  that share face-varying continuous edges around their common vertex.
+//
+//  This is intended for transient internal use only when analyzing the base
+//  level topology.  Information gathered for a single span is translated into
+//  topology tags for the value (ValueTag) which classify the value and persist
+//  in the FVarLevel for later refinement and analysis.  The ValueSpan exists
+//  solely to derive the ValueTag and is not intended (or capable) of capturing
+//  the full topological extent of many spans.
+//
+struct FVarLevel::ValueSpan {
+    LocalIndex _size;
+    LocalIndex _start;
+    LocalIndex _disctsEdgeCount;
+    LocalIndex _semiSharpEdgeCount;
+    LocalIndex _infSharpEdgeCount;
+};
+
+
 //
 //  Simple (for now) constructor and destructor:
 //
@@ -475,8 +496,9 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         bool hasDependentValuesToSharpen = false;
         if (!allCornersAreSharp) {
             if (_hasDependentSharpness && (vValues.size() == 2)) {
-                //  Detect interior inf-sharp (or discts) edge:
-                allCornersAreSharp = vValueSpans[0]._disjoint || vValueSpans[1]._disjoint;
+                //  Detect interior inf-sharp or discts edges:
+                allCornersAreSharp = vValueSpans[0]._infSharpEdgeCount || vValueSpans[1]._infSharpEdgeCount ||
+                                     vValueSpans[0]._disctsEdgeCount   || vValueSpans[1]._disctsEdgeCount;
 
                 //  Detect a sharp corner, making both sharp:
                 if (sharpenBothIfOneCorner) {
@@ -484,7 +506,8 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                 }
 
                 //  If only one semi-sharp, need to mark the other as dependent on it:
-                hasDependentValuesToSharpen = vValueSpans[0]._semiSharp != vValueSpans[1]._semiSharp;
+                hasDependentValuesToSharpen = (vValueSpans[0]._semiSharpEdgeCount > 0) !=
+                                              (vValueSpans[1]._semiSharpEdgeCount > 0);
             }
         }
 
@@ -500,13 +523,13 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
             valueTag._mismatch = true;
 
             ValueSpan const & vSpan = vValueSpans[i];
-            if (vSpan._disjoint) {
+            if (vSpan._disctsEdgeCount) {
                 valueTag._nonManifold = true;
                 continue;
             }
             assert(vSpan._size != 0);
 
-            bool isInfSharp = allCornersAreSharp || vSpan._infSharp ||
+            bool isInfSharp = allCornersAreSharp || vSpan._infSharpEdgeCount ||
                               ((vSpan._size == 1) && fvarCornersAreSharp);
 
             if (vSpan._size == 1) {
@@ -515,12 +538,12 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
                 valueTag._xordinary = (vSpan._size != regularBoundaryValence);
             }
 
-            valueTag._infSharpEdges = (vSpan._infSharp > 0);
-            valueTag._infIrregular = vSpan._infSharp ? ((vSpan._size - vSpan._infSharp) > 1)
+            valueTag._infSharpEdges = (vSpan._infSharpEdgeCount > 0);
+            valueTag._infIrregular = vSpan._infSharpEdgeCount ? ((vSpan._size - vSpan._infSharpEdgeCount) > 1)
                                    : valueTag._xordinary;
 
             if (!isInfSharp) {
-                if (vSpan._semiSharp || vTag._semiSharp) {
+                if (vSpan._semiSharpEdgeCount || vTag._semiSharp) {
                     valueTag._semiSharp = true;
                 } else if (hasDependentValuesToSharpen) {
                     valueTag._semiSharp = true;
@@ -900,14 +923,10 @@ FVarLevel::getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const {
 //
 //  Gather information about the "span" of faces for each value:
 //
-//  This method is only invoked when the spans for values may be smooth boundaries and
-//  other criteria that make all sharp (e.g. a non-manifold vertex) have been considered.
-//
 //  The "size" (number of faces in which each value occurs), is most immediately useful
 //  in determining whether a value is a corner or smooth boundary, while other properties
-//  such as the first face and whether or not the span is interrupted by a discts edge
-//  (and so made "disjoint") or semi-sharp or infinite edges, are useful to fully qualify
-//  smooth boundaries by the caller.
+//  such as the first face and whether or not the span is interrupted by discts, semi-
+//  sharp or infinite edges, are useful to fully qualify smooth boundaries by the caller.
 //
 void
 FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
@@ -922,10 +941,14 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
     bool vIsNonManifold = _level.getVertexTag(vIndex)._nonManifold;
 
     if (vIsNonManifold) {
+        //  This needs more work as spans around a non-manifold vertex may themselves be
+        //  manifold.  Just mark all spans with a discts edge for now to trigger them 
+        //  non-manifold
+
         ConstIndexArray vValues = getVertexValues(vIndex);
         for (int i = 0; i < vValues.size(); ++i) {
             vValueSpans[i]._size = 0;
-            vValueSpans[i]._disjoint = 1;
+            vValueSpans[i]._disctsEdgeCount = 1;
         }
     } else if (vHasSingleValue) {
         //  Mark an interior dart disjoint if more than one discts edge:
@@ -934,17 +957,17 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
         for (int i = 0; i < vEdges.size(); ++i) {
             if (_edgeTags[vEdges[i]]._mismatch) {
                 if (vValueSpans[0]._size > 0) {
-                    vValueSpans[0]._disjoint = 1;
+                    vValueSpans[0]._disctsEdgeCount = 1;
                     break;
                 } else {
                     vValueSpans[0]._size  = (LocalIndex) vFaces.size();
                     vValueSpans[0]._start = (LocalIndex) i;
                 }
             } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
-                ++ vValueSpans[0]._infSharp;
+                ++ vValueSpans[0]._infSharpEdgeCount;
                 break;
             } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
-                ++ vValueSpans[0]._semiSharp;
+                ++ vValueSpans[0]._semiSharpEdgeCount;
             }
         }
         vValueSpans[0]._size = (LocalIndex) vFaces.size();
@@ -955,26 +978,26 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
         vValueSpans[0]._start = 0;
         if (!vIsBoundary && (vFaceSiblings[vFaces.size() - 1] == 0)) {
             if (_edgeTags[vEdges[0]]._mismatch) {
-                ++ vValueSpans[0]._disjoint;
+                ++ vValueSpans[0]._disctsEdgeCount;
             } else if (_level.getEdgeTag(vEdges[0])._infSharp) {
-                ++ vValueSpans[0]._infSharp;
+                ++ vValueSpans[0]._infSharpEdgeCount;
             } else if (_level.getEdgeTag(vEdges[0])._semiSharp) {
-                ++ vValueSpans[0]._semiSharp;
+                ++ vValueSpans[0]._semiSharpEdgeCount;
             }
         }
         for (int i = 1; i < vFaces.size(); ++i) {
             if (vFaceSiblings[i] == vFaceSiblings[i-1]) {
                 if (_edgeTags[vEdges[i]]._mismatch) {
-                    ++ vValueSpans[vFaceSiblings[i]]._disjoint;
+                    ++ vValueSpans[vFaceSiblings[i]]._disctsEdgeCount;
                 } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
-                    ++ vValueSpans[vFaceSiblings[i]]._infSharp;
+                    ++ vValueSpans[vFaceSiblings[i]]._infSharpEdgeCount;
                 } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
-                    ++ vValueSpans[vFaceSiblings[i]]._semiSharp;
+                    ++ vValueSpans[vFaceSiblings[i]]._semiSharpEdgeCount;
                 }
             } else {
                 //  If we have already set the span for this value, mark disjoint
                 if (vValueSpans[vFaceSiblings[i]]._size > 0) {
-                    ++ vValueSpans[vFaceSiblings[i]]._disjoint;
+                    ++ vValueSpans[vFaceSiblings[i]]._disctsEdgeCount;
                 }
                 vValueSpans[vFaceSiblings[i]]._start = (LocalIndex) i;
             }
@@ -983,7 +1006,7 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
         //  If the span for value 0 has wrapped around, decrement the disjoint added
         //  at the interior edge where it started the closing part of the span:
         if ((vFaceSiblings[vFaces.size() - 1] == 0) && !vIsBoundary) {
-            -- vValueSpans[0]._disjoint;
+            -- vValueSpans[0]._disctsEdgeCount;
         }
     }
 }

@@ -747,8 +747,8 @@ Level::gatherQuadRegularPartialRingAroundVertex(
     ConstIndexArray      vFaces   = level.getVertexFaces(vIndex);
     ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
 
-    int nFaces      = span._numFaces;
-    int leadingEdge = span._leadingVertEdge;
+    int nFaces    = span._numFaces;
+    int startFace = span._startFace;
 
     int ringIndex = 0;
     for (int i = 0; i < nFaces; ++i) {
@@ -756,7 +756,7 @@ Level::gatherQuadRegularPartialRingAroundVertex(
         //  For every incident quad, we want the two vertices clockwise in each face, i.e.
         //  the vertex at the end of the leading edge and the vertex opposite this one:
         //
-        int fIncident = (leadingEdge + i) % vFaces.size();
+        int fIncident = (startFace + i) % vFaces.size();
 
         ConstIndexArray fPoints = (fvarChannel < 0)
                                 ? level.getFaceVertices(vFaces[fIncident])
@@ -767,7 +767,7 @@ Level::gatherQuadRegularPartialRingAroundVertex(
         ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 1)];
         ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 2)];
 
-        if (i == nFaces - 1) {
+        if ((i == nFaces - 1) && !span._periodic) {
             ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 3)];
         }
     }
