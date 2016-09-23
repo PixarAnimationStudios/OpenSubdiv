@@ -38,6 +38,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr { namespace internal { class SparseSelector; } }
+namespace Far { namespace internal { class FeatureMask; } }
 
 namespace Far {
 
@@ -199,9 +200,8 @@ private:
     TopologyRefiner(TopologyRefiner const &) : _uniformOptions(0), _adaptiveOptions(0) { }
     TopologyRefiner & operator=(TopologyRefiner const &) { return *this; }
 
-    class FeatureMask;
-    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector, FeatureMask const & mask);
-    //void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector, bool xordFeatures);
+    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
+                                         internal::FeatureMask const & mask);
 
     void initializeInventory();
     void updateInventory(Vtr::internal::Level const & newLevel);
