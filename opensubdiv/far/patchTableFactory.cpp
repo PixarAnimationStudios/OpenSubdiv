@@ -601,6 +601,18 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
                 }
             }
         }
+
+        //  When inf-sharp and extra-ordinary features are not isolated, need to inspect more
+        //  closely -- any smooth extra-ordinary corner makes the patch irregular:
+        if (fCompVTag._xordinary && (levelIndex < 2)) {
+            Level::VTag vTags[4];
+            level.getFaceVTags(faceIndex, vTags, fvcRefiner);
+            for (int i = 0; i < 4; ++i) {
+                if (vTags[i]._xordinary && (vTags[i]._rule == Sdc::Crease::RULE_SMOOTH)) {
+                    isRegular = false;
+                }
+            }
+        }
     }
 
     //  Legacy option -- reinterpret a smooth corner as sharp if specified:
@@ -713,12 +725,15 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
 
         if (noFVarMisMatch && !testInfSharp) {
             cornerSpans[i].clear();
-        } else if (!vTags[i]._nonManifold) {
-            identifyManifoldCornerSpan(
-                    level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
         } else {
-            identifyNonManifoldCornerSpan(
-                    level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
+            if (!vTags[i]._nonManifold) {
+                identifyManifoldCornerSpan(
+                        level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
+            } else {
+                identifyNonManifoldCornerSpan(
+                        level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
+            }
+            cornerSpans[i]._sharp = testInfSharp && (vTags[i]._rule == Sdc::Crease::RULE_CORNER);
         }
     }
 }
