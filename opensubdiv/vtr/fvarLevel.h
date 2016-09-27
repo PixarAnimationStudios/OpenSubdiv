@@ -391,10 +391,12 @@ FVarLevel::ValueTag::combineWithLevelVTag(Level::VTag levelTag) const
             levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CORNER;
             levelTag._infSharp = true;
             levelTag._infSharpCrease = false;
+            levelTag._corner = !this->_infIrregular && !this->_infSharpEdges;
         } else {
             levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CREASE;
             levelTag._infSharp = false;
             levelTag._infSharpCrease = true;
+            levelTag._corner = false;
         }
         levelTag._infSharpEdges = true;
         levelTag._infIrregular = this->_infIrregular;

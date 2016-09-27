@@ -322,7 +322,7 @@ namespace internal {
         selectSemiSharpNonSingle = true;
 
         //  Inf-sharp features -- boundary extra-ordinary vertices are irreg creases:
-        selectInfSharpRegularCrease   = !useSingleCreasePatch;
+        selectInfSharpRegularCrease   = !(options_reduceInfSharpPatches || useSingleCreasePatch);
         selectInfSharpRegularCorner   = !options_reduceInfSharpPatches;
         selectInfSharpIrregularDart   = true;
         selectInfSharpIrregularCrease = true;
