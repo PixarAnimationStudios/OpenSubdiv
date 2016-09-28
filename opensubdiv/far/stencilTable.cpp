@@ -96,24 +96,24 @@ namespace {
             std::memcpy(&(*_weights)[curOffset],
                         &(*weights)[off], sz*sizeof(float));
 
-            if (_duWeights) {
+            if (_duWeights && !_duWeights->empty()) {
                 std::memcpy(&(*_duWeights)[curOffset],
                             &(*duWeights)[off], sz*sizeof(float));
             }
-            if (_dvWeights) {
+            if (_dvWeights && !_dvWeights->empty()) {
                 std::memcpy(&(*_dvWeights)[curOffset],
                         &(*dvWeights)[off], sz*sizeof(float));
             }
 
-            if (_duuWeights) {
+            if (_duuWeights && !_duuWeights->empty()) {
                 std::memcpy(&(*_duuWeights)[curOffset],
                         &(*duuWeights)[off], sz*sizeof(float));
             }
-            if (_duvWeights) {
+            if (_duvWeights && !_duvWeights->empty()) {
                 std::memcpy(&(*_duvWeights)[curOffset],
                         &(*duvWeights)[off], sz*sizeof(float));
             }
-            if (_dvvWeights) {
+            if (_dvvWeights && !_dvvWeights->empty()) {
                 std::memcpy(&(*_dvvWeights)[curOffset],
                         &(*dvvWeights)[off], sz*sizeof(float));
             }
@@ -127,16 +127,16 @@ namespace {
         _sizes->resize(stencilCount);
         _sources->resize(weightCount);
 
-        if (_duWeights)
+        if (_duWeights && !_duWeights->empty())
             _duWeights->resize(weightCount);
-        if (_dvWeights)
+        if (_dvWeights && !_dvWeights->empty())
             _dvWeights->resize(weightCount);
 
-        if (_duuWeights)
+        if (_duuWeights && !_duuWeights->empty())
             _duuWeights->resize(weightCount);
-        if (_duvWeights)
+        if (_duvWeights && !_duvWeights->empty())
             _duvWeights->resize(weightCount);
-        if (_dvvWeights)
+        if (_dvvWeights && !_dvvWeights->empty())
             _dvvWeights->resize(weightCount);
     }
 };

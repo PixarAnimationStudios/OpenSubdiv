@@ -158,6 +158,15 @@ public:
 
     typedef std::vector<LocationArray> LocationArrayVec;
 
+    struct Options {
+
+        Options() : generate1stDerivatives(true),
+                    generate2ndDerivatives(false) { }
+
+        unsigned int generate1stDerivatives      : 1, ///< Generate weights for 1st derivatives
+                     generate2ndDerivatives      : 1; ///< Generate weights for 2nd derivatives
+    };
+
     /// \brief Instantiates LimitStencilTable from a TopologyRefiner that has
     ///        been refined either uniformly or adaptively.
     ///
@@ -174,10 +183,14 @@ public:
     ///                         TopologyRefiner (optional: prevents redundant
     ///                         instantiation of the table if available)
     ///
+    /// @param options          Options controlling the creation of the table
+    ///
     static LimitStencilTable const * Create(TopologyRefiner const & refiner,
         LocationArrayVec const & locationArrays,
             StencilTable const * cvStencils=0,
-                PatchTable const * patchTable=0);
+              PatchTable const * patchTable=0,
+                         Options options=Options());
+
 };
 
 

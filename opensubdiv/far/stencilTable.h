@@ -253,26 +253,53 @@ public:
     ///
     /// @param duWeights  Table pointer to the 'u' derivative weights
     ///
-    /// @param dvWeights Table pointer to the 'v' derivative weights
+    /// @param dvWeights  Table pointer to the 'v' derivative weights
+    ///
+    /// @param duuWeights Table pointer to the 'uu' derivative weights
+    ///
+    /// @param duvWeights Table pointer to the 'uv' derivative weights
+    ///
+    /// @param dvvWeights Table pointer to the 'vv' derivative weights
     ///
     LimitStencil( int* size,
                   Index * indices,
                   float * weights,
-                  float * duWeights,
-                  float * dvWeights )
+                  float * duWeights=0,
+                  float * dvWeights=0,
+                  float * duuWeights=0,
+                  float * duvWeights=0,
+                  float * dvvWeights=0)
         : Stencil(size, indices, weights),
           _duWeights(duWeights),
-          _dvWeights(dvWeights) {
+          _dvWeights(dvWeights),
+          _duuWeights(duuWeights),
+          _duvWeights(duvWeights),
+          _dvvWeights(dvvWeights) {
     }
 
-    /// \brief
+    /// \brief Returns the u derivative weights
     float const * GetDuWeights() const {
         return _duWeights;
     }
 
-    /// \brief
+    /// \brief Returns the v derivative weights
     float const * GetDvWeights() const {
         return _dvWeights;
+    }
+
+    /// \brief Returns the uu derivative weights
+    float const * GetDuuWeights() const {
+        return _duuWeights;
+    }
+
+    /// \brief Returns the uv derivative weights
+    float const * GetDuvWeights() const {
+        return _duvWeights;
+    }
+
+    /// \brief Returns the vv derivative weights
+    float const * GetDvvWeights() const {
+        return _dvvWeights;
     }
 
     /// \brief Advance to the next stencil in the table
@@ -281,8 +308,11 @@ public:
        ++_size;
        _indices += stride;
        _weights += stride;
-       _duWeights += stride;
-       _dvWeights += stride;
+       if (_duWeights) _duWeights += stride;
+       if (_dvWeights) _dvWeights += stride;
+       if (_duuWeights) _duuWeights += stride;
+       if (_duvWeights) _duvWeights += stride;
+       if (_dvvWeights) _dvvWeights += stride;
     }
 
 private:
@@ -291,7 +321,10 @@ private:
     friend class LimitStencilTableFactory;
 
     float * _duWeights,  // pointer to stencil u derivative limit weights
-          * _dvWeights;  // pointer to stencil v derivative limit weights
+          * _dvWeights,  // pointer to stencil v derivative limit weights
+          * _duuWeights, // pointer to stencil uu derivative limit weights
+          * _duvWeights, // pointer to stencil uv derivative limit weights
+          * _dvvWeights; // pointer to stencil vv derivative limit weights
 };
 
 /// \brief Table of limit subdivision stencils.
@@ -508,11 +541,27 @@ LimitStencilTable::GetLimitStencil(Index i) const {
 
     Index ofs = GetOffsets()[i];
 
-    return LimitStencil( const_cast<int *>(&GetSizes()[i]),
-                         const_cast<Index *>(&GetControlIndices()[ofs]),
-                         const_cast<float *>(&GetWeights()[ofs]),
-                         const_cast<float *>(&GetDuWeights()[ofs]),
-                         const_cast<float *>(&GetDvWeights()[ofs]) );
+    if (!_duWeights.empty() && !_dvWeights.empty() &&
+        !_duuWeights.empty() && !_duvWeights.empty() && !_dvvWeights.empty()) {
+        return LimitStencil( const_cast<int *>(&GetSizes()[i]),
+                             const_cast<Index *>(&GetControlIndices()[ofs]),
+                             const_cast<float *>(&GetWeights()[ofs]),
+                             const_cast<float *>(&GetDuWeights()[ofs]),
+                             const_cast<float *>(&GetDvWeights()[ofs]),
+                             const_cast<float *>(&GetDuuWeights()[ofs]),
+                             const_cast<float *>(&GetDuvWeights()[ofs]),
+                             const_cast<float *>(&GetDvvWeights()[ofs]) );
+    } else if (!_duWeights.empty() && !_dvWeights.empty()) {
+        return LimitStencil( const_cast<int *>(&GetSizes()[i]),
+                             const_cast<Index *>(&GetControlIndices()[ofs]),
+                             const_cast<float *>(&GetWeights()[ofs]),
+                             const_cast<float *>(&GetDuWeights()[ofs]),
+                             const_cast<float *>(&GetDvWeights()[ofs]) );
+    } else {
+        return LimitStencil( const_cast<int *>(&GetSizes()[i]),
+                             const_cast<Index *>(&GetControlIndices()[ofs]),
+                             const_cast<float *>(&GetWeights()[ofs]) );
+    }
 }
 
 inline LimitStencil

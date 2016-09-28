@@ -84,7 +84,7 @@ public:
 
         // Add with first derivative.
         void AddWithWeight(Stencil const& src,
-                                     float weight, float du, float dv);
+            float weight, float du, float dv);
 
         // Add with first and second derivatives.
         void AddWithWeight(Stencil const& src,

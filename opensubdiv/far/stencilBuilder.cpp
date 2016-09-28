@@ -44,7 +44,37 @@ namespace {
 #endif
 }
 
-struct PointDerivWeight {
+struct Point1stDerivWeight {
+    float p;
+    float du;
+    float dv;
+
+    Point1stDerivWeight()
+        : p(0.0f), du(0.0f), dv(0.0f)
+    { }
+    Point1stDerivWeight(float w)
+        : p(w), du(w), dv(w)
+    { }
+    Point1stDerivWeight(float w, float wDu, float wDv)
+        : p(w), du(wDu), dv(wDv)
+    { }
+
+    friend Point1stDerivWeight operator*(Point1stDerivWeight lhs,
+                                         Point1stDerivWeight const& rhs) {
+        lhs.p *= rhs.p;
+        lhs.du *= rhs.du;
+        lhs.dv *= rhs.dv;
+        return lhs;
+    }
+    Point1stDerivWeight& operator+=(Point1stDerivWeight const& rhs) {
+        p += rhs.p;
+        du += rhs.du;
+        dv += rhs.dv;
+        return *this;
+    }
+};
+
+struct Point2ndDerivWeight {
     float p;
     float du;
     float dv;
@@ -52,18 +82,19 @@ struct PointDerivWeight {
     float duv;
     float dvv;
 
-    PointDerivWeight() 
+    Point2ndDerivWeight()
         : p(0.0f), du(0.0f), dv(0.0f), duu(0.0f), duv(0.0f), dvv(0.0f)
     { }
-    PointDerivWeight(float w) 
+    Point2ndDerivWeight(float w)
         : p(w), du(w), dv(w), duu(w), duv(w), dvv(w)
     { }
-    PointDerivWeight(float w, float wDu, float wDv, float wDuu, float wDuv, float wDvv)
+    Point2ndDerivWeight(float w, float wDu, float wDv,
+                        float wDuu, float wDuv, float wDvv)
         : p(w), du(wDu), dv(wDv), duu(wDuu), duv(wDuv), dvv(wDvv)
     { }
 
-    friend PointDerivWeight operator*(PointDerivWeight lhs,
-                                      PointDerivWeight const& rhs) {
+    friend Point2ndDerivWeight operator*(Point2ndDerivWeight lhs,
+                                         Point2ndDerivWeight const& rhs) {
         lhs.p *= rhs.p;
         lhs.du *= rhs.du;
         lhs.dv *= rhs.dv;
@@ -72,7 +103,7 @@ struct PointDerivWeight {
         lhs.dvv *= rhs.dvv;
         return lhs;
     }
-    PointDerivWeight& operator+=(PointDerivWeight const& rhs) {
+    Point2ndDerivWeight& operator+=(Point2ndDerivWeight const& rhs) {
         p += rhs.p;
         du += rhs.du;
         dv += rhs.dv;
@@ -87,18 +118,18 @@ struct PointDerivWeight {
 ///
 class WeightTable {
 public:
-    WeightTable(int coarseVerts, 
-                bool genCtrlVertStencils, 
+    WeightTable(int coarseVerts,
+                bool genCtrlVertStencils,
                 bool compactWeights)
-        : _size(0) 
+        : _size(0)
         , _lastOffset(0)
         , _coarseVertCount(coarseVerts)
         , _compactWeights(compactWeights)
     {
         // These numbers were chosen by profiling production assets at uniform
         // level 3.
-        size_t n = std::max(coarseVerts, 
-                      std::min(int(5*1024*1024), 
+        size_t n = std::max(coarseVerts,
+                      std::min(int(5*1024*1024),
                           coarseVerts*2));
         _dests.reserve(n);
         _sources.reserve(n);
@@ -127,7 +158,7 @@ public:
     }
 
     template <class W, class WACCUM>
-    void AddWithWeight(int src, int dest, W weight, WACCUM weights) 
+    void AddWithWeight(int src, int dest, W weight, WACCUM weights)
     {
         // Factorized stencils are expressed purely in terms of the control
         // mesh verts. Without this flattening, level_i's weights would point
@@ -157,17 +188,42 @@ public:
             assert(_sources[i] < _coarseVertCount);
 
             // Merge each of src's contributing verts into this stencil.
-            merge(_sources[i], dest, weights.Get(i), weight, 
+            merge(_sources[i], dest, weights.Get(i), weight,
                                 _lastOffset, _size, weights);
         }
     }
 
-    class PointDerivAccumulator {
+    class Point1stDerivAccumulator {
         WeightTable* _tbl;
     public:
-        PointDerivAccumulator(WeightTable* tbl) : _tbl(tbl)
+        Point1stDerivAccumulator(WeightTable* tbl) : _tbl(tbl)
         { }
-        void PushBack(PointDerivWeight weight) {
+        void PushBack(Point1stDerivWeight weight) {
+            _tbl->_weights.push_back(weight.p);
+            _tbl->_duWeights.push_back(weight.du);
+            _tbl->_dvWeights.push_back(weight.dv);
+        }
+        void Add(size_t i, Point1stDerivWeight weight) {
+            _tbl->_weights[i] += weight.p;
+            _tbl->_duWeights[i] += weight.du;
+            _tbl->_dvWeights[i] += weight.dv;
+        }
+        Point1stDerivWeight Get(size_t index) {
+            return Point1stDerivWeight(_tbl->_weights[index],
+                                       _tbl->_duWeights[index],
+                                       _tbl->_dvWeights[index]);
+        }
+    };
+    Point1stDerivAccumulator GetPoint1stDerivAccumulator() {
+        return Point1stDerivAccumulator(this);
+    };
+
+    class Point2ndDerivAccumulator {
+        WeightTable* _tbl;
+    public:
+        Point2ndDerivAccumulator(WeightTable* tbl) : _tbl(tbl)
+        { }
+        void PushBack(Point2ndDerivWeight weight) {
             _tbl->_weights.push_back(weight.p);
             _tbl->_duWeights.push_back(weight.du);
             _tbl->_dvWeights.push_back(weight.dv);
@@ -175,7 +231,7 @@ public:
             _tbl->_duvWeights.push_back(weight.duv);
             _tbl->_dvvWeights.push_back(weight.dvv);
         }
-        void Add(size_t i, PointDerivWeight weight) {
+        void Add(size_t i, Point2ndDerivWeight weight) {
             _tbl->_weights[i] += weight.p;
             _tbl->_duWeights[i] += weight.du;
             _tbl->_dvWeights[i] += weight.dv;
@@ -183,17 +239,17 @@ public:
             _tbl->_duvWeights[i] += weight.duv;
             _tbl->_dvvWeights[i] += weight.dvv;
         }
-        PointDerivWeight Get(size_t index) {
-            return PointDerivWeight(_tbl->_weights[index],
-                                    _tbl->_duWeights[index],
-                                    _tbl->_dvWeights[index],
-                                    _tbl->_duuWeights[index],
-                                    _tbl->_duvWeights[index],
-                                    _tbl->_dvvWeights[index]);
+        Point2ndDerivWeight Get(size_t index) {
+            return Point2ndDerivWeight(_tbl->_weights[index],
+                                       _tbl->_duWeights[index],
+                                       _tbl->_dvWeights[index],
+                                       _tbl->_duuWeights[index],
+                                       _tbl->_duvWeights[index],
+                                       _tbl->_dvvWeights[index]);
         }
     };
-    PointDerivAccumulator GetPointDerivAccumulator() { 
-        return PointDerivAccumulator(this);
+    Point2ndDerivAccumulator GetPoint2ndDerivAccumulator() {
+        return Point2ndDerivAccumulator(this);
     };
 
     class ScalarAccumulator {
@@ -201,8 +257,8 @@ public:
     public:
         ScalarAccumulator(WeightTable* tbl) : _tbl(tbl)
         { }
-        void PushBack(PointDerivWeight weight) {
-            _tbl->_weights.push_back(weight.p);
+        void PushBack(float weight) {
+            _tbl->_weights.push_back(weight);
         }
         void Add(size_t i, float w) {
             _tbl->_weights[i] += w;
@@ -211,7 +267,7 @@ public:
             return _tbl->_weights[index];
         }
     };
-    ScalarAccumulator GetScalarAccumulator() { 
+    ScalarAccumulator GetScalarAccumulator() {
         return ScalarAccumulator(this);
     };
 
@@ -252,13 +308,13 @@ private:
     //
     // PERFORMANCE: caution, this function is super hot.
     template <class W, class WACCUM>
-    void merge(int src, int dst, W weight, 
+    void merge(int src, int dst, W weight,
                // Delaying weight*factor multiplication hides memory latency of
                // accessing weight[i], yielding more stable performance.
                W weightFactor, 
                // Similarly, passing offset & tableSize as params yields higher
                // performance than accessing the class members directly.
-               int lastOffset, int tableSize, WACCUM weights) 
+               int lastOffset, int tableSize, WACCUM weights)
     {
         // The lastOffset is the vertex we're currently processing, by
         // leveraging this we need not lookup the dest stencil size or offset.
@@ -349,11 +405,11 @@ private:
     bool _compactWeights;
 };
 
-StencilBuilder::StencilBuilder(int coarseVertCount, 
-                               bool genCtrlVertStencils, 
+StencilBuilder::StencilBuilder(int coarseVertCount,
+                               bool genCtrlVertStencils,
                                bool compactWeights)
-        : _weightTable(new WeightTable(coarseVertCount, 
-                                   genCtrlVertStencils, 
+        : _weightTable(new WeightTable(coarseVertCount,
+                                   genCtrlVertStencils,
                                    compactWeights))
 {
 }
@@ -386,7 +442,7 @@ StencilBuilder::SetCoarseVertCount(int numVerts)
 }
 
 std::vector<int> const&
-StencilBuilder::GetStencilOffsets() const { 
+StencilBuilder::GetStencilOffsets() const {
     return _weightTable->GetOffsets();
 }
 
@@ -468,6 +524,32 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 
 void
 StencilBuilder::Index::AddWithWeight(Stencil const& src,
+    float weight, float du, float dv)
+{
+    if (isWeightZero(weight) && isWeightZero(du) && isWeightZero(dv)) {
+        return;
+    }
+
+    int srcSize = *src.GetSizePtr();
+    Vtr::Index const * srcIndices = src.GetVertexIndices();
+    float const * srcWeights = src.GetWeights();
+
+    for (int i = 0; i < srcSize; ++i) {
+        float w = srcWeights[i];
+        if (isWeightZero(w)) {
+            continue;
+        }
+
+        Vtr::Index srcIndex = srcIndices[i];
+
+        Point1stDerivWeight wgt = Point1stDerivWeight(weight, du, dv) * w;
+        _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
+                           _owner->_weightTable->GetPoint1stDerivAccumulator());
+    }
+}
+
+void
+StencilBuilder::Index::AddWithWeight(Stencil const& src,
     float weight, float du, float dv, float duu, float duv, float dvv)
 {
     if (isWeightZero(weight) && isWeightZero(du) && isWeightZero(dv) &&
@@ -487,9 +569,9 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
 
         Vtr::Index srcIndex = srcIndices[i];
 
-        PointDerivWeight wgt = PointDerivWeight(weight, du, dv, duu, duv, dvv) * w;
+        Point2ndDerivWeight wgt = Point2ndDerivWeight(weight, du, dv, duu, duv, dvv) * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
-                           _owner->_weightTable->GetPointDerivAccumulator());
+                           _owner->_weightTable->GetPoint2ndDerivAccumulator());
     }
 }
 
