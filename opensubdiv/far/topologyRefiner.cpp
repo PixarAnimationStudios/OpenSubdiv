@@ -287,11 +287,6 @@ namespace internal {
 
         int_type selectNonManifold  : 1;
         int_type selectFVarFeatures : 1;
-
-    private:
-        //  Temporary options pending addition to public interface of Refiner::AdaptiveOptions:
-        static int const options_reduceInfSharpPatches = false;
-        static int const options_considerFVarChannels  = false;
     };
 
     void
@@ -322,25 +317,25 @@ namespace internal {
         selectSemiSharpNonSingle = true;
 
         //  Inf-sharp features -- boundary extra-ordinary vertices are irreg creases:
-        selectInfSharpRegularCrease   = !(options_reduceInfSharpPatches || useSingleCreasePatch);
-        selectInfSharpRegularCorner   = !options_reduceInfSharpPatches;
+        selectInfSharpRegularCrease   = !(options.useInfSharpPatch || useSingleCreasePatch);
+        selectInfSharpRegularCorner   = !options.useInfSharpPatch;
         selectInfSharpIrregularDart   = true;
         selectInfSharpIrregularCrease = true;
         selectInfSharpIrregularCorner = true;
 
         selectNonManifold  = true;
-        selectFVarFeatures = options_considerFVarChannels;
+        selectFVarFeatures = options.considerFVarChannels;
     }
 
     void
-    FeatureMask::ReduceFeatures(Options const & /* options */) {
+    FeatureMask::ReduceFeatures(Options const & options) {
 
         //  Disable typical xordinary vertices:
         selectXOrdinaryInterior = false;
         selectXOrdinaryBoundary = false;
 
         //  If minimizing inf-sharp patches, disable all but sharp/corner irregularities
-        if (options_reduceInfSharpPatches) {
+        if (options.useInfSharpPatch) {
             selectInfSharpRegularCrease    = false;
             selectInfSharpRegularCorner    = false;
             selectInfSharpIrregularDart    = false;
@@ -379,8 +374,7 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
     //  of levels isolating different sets of features, initialize the two feature sets
     //  up front and use the appropriate one for each level:
     //
-    //int shallowLevel = std::min<int>(options_secondaryLevel, options.isolationLevel);
-    int shallowLevel = options.isolationLevel;
+    int shallowLevel = std::min<int>(options.secondaryLevel, options.isolationLevel);
     int deeperLevel  = options.isolationLevel;
 
     int potentialMaxLevel = deeperLevel;
