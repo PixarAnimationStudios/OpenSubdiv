@@ -540,7 +540,7 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
 
             valueTag._infSharpEdges = (vSpan._infSharpEdgeCount > 0);
             valueTag._infIrregular = vSpan._infSharpEdgeCount ? ((vSpan._size - vSpan._infSharpEdgeCount) > 1)
-                                   : valueTag._xordinary;
+                                   : (isInfSharp ? (vSpan._size > 1) : valueTag._xordinary);
 
             if (!isInfSharp) {
                 if (vSpan._semiSharpEdgeCount || vTag._semiSharp) {
@@ -950,7 +950,7 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
             vValueSpans[i]._size = 0;
             vValueSpans[i]._disctsEdgeCount = 1;
         }
-    } else if (vHasSingleValue) {
+    } else if (vHasSingleValue && !vIsBoundary) {
         //  Mark an interior dart disjoint if more than one discts edge:
         vValueSpans[0]._size  = 0;
         vValueSpans[0]._start = 0;
