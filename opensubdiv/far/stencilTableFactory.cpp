@@ -342,8 +342,10 @@ StencilTableFactory::AppendLocalPointStencilTable(
 //------------------------------------------------------------------------------
 LimitStencilTable const *
 LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
-    LocationArrayVec const & locationArrays, StencilTable const * cvStencilsIn,
-        PatchTable const * patchTableIn) {
+    LocationArrayVec const & locationArrays,
+        StencilTable const * cvStencilsIn,
+          PatchTable const * patchTableIn,
+                     Options options) {
 
     // Compute the total number of stencils to generate
     int numStencils=0, numLimitStencils=0;
@@ -454,14 +456,30 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
             if (handle) {
                 ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
 
-                patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-
                 StencilTable const & src = *cvstencils;
                 dst = origin[numLimitStencils];
 
-                dst.Clear();
-                for (int k = 0; k < cvs.size(); ++k) {
-                    dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k], wDss[k], wDst[k], wDtt[k]);
+                if (options.generate2ndDerivatives) {
+                    patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+
+                    dst.Clear();
+                    for (int k = 0; k < cvs.size(); ++k) {
+                        dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k], wDss[k], wDst[k], wDtt[k]);
+                    }
+                } else if (options.generate1stDerivatives) {
+                    patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+
+                    dst.Clear();
+                    for (int k = 0; k < cvs.size(); ++k) {
+                        dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k]);
+                    }
+                } else {
+                    patchtable->EvaluateBasis(*handle, s, t, wP);
+
+                    dst.Clear();
+                    for (int k = 0; k < cvs.size(); ++k) {
+                        dst.AddWithWeight(src[cvs[k]], wP[k]);
+                    }
                 }
 
                 ++numLimitStencils;
