@@ -135,14 +135,23 @@ public:
 
         AdaptiveOptions(int level) :
             isolationLevel(level),
+            secondaryLevel(15),
             useSingleCreasePatch(false),
+            useInfSharpPatch(false),
+            considerFVarChannels(false),
             orderVerticesFromFacesFirst(false) { }
 
-        unsigned int isolationLevel:4,              ///< Number of iterations applied to isolate
+        unsigned int isolationLevel:4;              ///< Number of iterations applied to isolate
                                                     ///< extraordinary vertices and creases
-                     useSingleCreasePatch:1,        ///< Use 'single-crease' patch and stop
+        unsigned int secondaryLevel:4;              ///< Shallower level to stop isolation of
+                                                    ///< smooth irregular features
+        unsigned int useSingleCreasePatch:1;        ///< Use 'single-crease' patch and stop
                                                     ///< isolation where applicable
-                     orderVerticesFromFacesFirst:1; ///< Order child vertices from faces first
+        unsigned int useInfSharpPatch:1;            ///< Use infinitely sharp patches and stop
+                                                    ///< isolation where applicable
+        unsigned int considerFVarChannels:1;        ///< Inspect face-varying channels and
+                                                    ///< isolate when irregular features present
+        unsigned int orderVerticesFromFacesFirst:1; ///< Order child vertices from faces first
                                                     ///< instead of child vertices of vertices
     };
 
