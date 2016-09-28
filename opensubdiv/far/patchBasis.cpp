@@ -26,6 +26,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <math.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -54,6 +55,9 @@ public:
     // patch weights
     static void GetPatchWeights(PatchParamBase const & param,
         float s, float t, float point[], float deriv1[], float deriv2[], float deriv11[], float deriv12[], float deriv22[]);
+
+    static void GetPatchWeights(PatchParamBase const & param,
+        float sharpness, float s, float t, float point[], float deriv1[], float deriv2[], float deriv11[], float deriv12[], float deriv22[]);
 
     // adjust patch weights for boundary (and corner) edges
     static void AdjustBoundaryWeights(PatchParamBase const & param,
@@ -310,6 +314,146 @@ void Spline<BASIS>::GetPatchWeights(PatchParamBase const & param,
     }
 }
 
+inline float mix(float s1, float s2, float t) {
+    return (1.0f-t) * s1 + t * s2;
+}
+
+inline void
+flipMatrix(float const * a, float * m) {
+    m[ 0]=a[15]; m[ 1]=a[14]; m[ 2]=a[13]; m[ 3]=a[12]; // 180
+    m[ 4]=a[11]; m[ 5]=a[10]; m[ 6]=a[ 9]; m[ 7]=a[ 8];
+    m[ 8]=a[ 7]; m[ 9]=a[ 6]; m[10]=a[ 5]; m[11]=a[ 4];
+    m[12]=a[ 3]; m[13]=a[ 2]; m[14]=a[ 1]; m[15]=a[ 0];
+}
+
+// column major !!!
+inline void
+applyMatrix(float * v, float const * m) {
+    float r[4];
+    r[0] = v[0]*m[0] + v[1]*m[4] + v[2]*m[ 8] + v[3]*m[12];
+    r[1] = v[0]*m[1] + v[1]*m[5] + v[2]*m[ 9] + v[3]*m[13];
+    r[2] = v[0]*m[2] + v[1]*m[6] + v[2]*m[10] + v[3]*m[14];
+    r[3] = v[0]*m[3] + v[1]*m[7] + v[2]*m[11] + v[3]*m[15];
+    memcpy(v, r, 4 * sizeof(float));
+}
+
+static void
+computeMixedCreaseMatrix(float sharp1, float sharp2, float t, float tInf, float m[16]) {
+
+  float s1 = exp2f(sharp1),
+        s2 = exp2f(sharp2);
+
+  float sOver3 = mix(s1, s2, t) / 3.0f,
+        oneOverS1 = 1.0f / s1,
+        oneOverS2 = 1.0f / s2,
+        oneOver6S = mix(oneOverS1, oneOverS2, t) / 6.0f,
+        sSqr = mix(s1*s1, s2*s2, t);
+
+  float A = -sSqr + sOver3 * 5.5f + oneOver6S      - 1.0f,
+        B =         sOver3        + oneOver6S      + 0.5f,
+        C =         sOver3        - oneOver6S*2.0f + 1.0f,
+        E =         sOver3        + oneOver6S      - 0.5f,
+        F =       - sOver3 * 0.5f + oneOver6S;
+
+    m[ 0] = 1.0f; m[ 1] = A*tInf;            m[ 2] = -2.0f*A*tInf;           m[ 3] = A*tInf;
+    m[ 4] = 0.0f; m[ 5] = mix(1.0f,B,tInf);  m[ 6] = -2.0f*E*tInf;           m[ 7] = E*tInf;
+    m[ 8] = 0.0f; m[ 9] = F*tInf;            m[10] = mix(1.0,C,tInf);        m[11] = F*tInf;
+    m[12] = 0.0f; m[13] = mix(-1.0f,E,tInf); m[14] = mix(2.0f,-2.0f*E,tInf); m[15] = B*tInf;
+}
+
+// compute the "crease matrix" for modifying basis weights at parametric
+// location 't', given a sharpness value (based off Matthias Niessner HLSL code)
+static void
+computeCreaseMatrix(float sharpness, float t, float m[16]) {
+
+    float sharpFloor = floorf(sharpness),
+          sharpCeil = sharpFloor + 1,
+          sharpFrac = sharpness - sharpFloor;
+
+    float creaseWidthFloor = 1.0f - exp2f(-sharpFloor),
+          creaseWidthCeil = 1.0f - exp2f(-sharpCeil);
+
+    // we compute the matrix for both the floor and ceiling of
+    // the sharpness value, and then interpolate between them
+    // as needed.
+    float tA = (t > creaseWidthCeil) ? sharpFrac : 0.0f,
+          tB = 0.0f;
+
+    if (t > creaseWidthFloor)
+      tB = 1.0f-sharpFrac;
+    if (t > creaseWidthCeil)
+      tB = 1.0f;
+
+    computeMixedCreaseMatrix(sharpFloor, sharpCeil, tA, tB, m);
+}
+
+template <SplineBasis BASIS>
+void Spline<BASIS>::GetPatchWeights(PatchParamBase const & param,
+    float sharpness, float s, float t, float point[16],
+        float derivS[16], float derivT[16], float derivSS[16], float derivST[16], float derivTT[16]) {
+
+    float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
+
+    int boundary = param.GetBoundary();
+
+    param.Normalize(s,t);
+
+    Spline<BASIS>::GetWeights(s, point ? sWeights : 0, derivS ? dsWeights : 0, derivSS ? dssWeights : 0);
+    Spline<BASIS>::GetWeights(t, point ? tWeights : 0, derivT ? dtWeights : 0, derivTT ? dttWeights : 0);
+
+    float m[16], mflip[16];
+    if (boundary & 1) {
+        computeCreaseMatrix(sharpness, 1.0f-t, m);
+        flipMatrix(m, mflip);
+        applyMatrix( tWeights, mflip);
+        applyMatrix(dtWeights, mflip);
+    }
+    if (boundary & 2) {
+        computeCreaseMatrix(sharpness, s, m);
+        applyMatrix( sWeights, m);
+        applyMatrix(dsWeights, m);
+    }
+    if (boundary & 4) {
+        computeCreaseMatrix(sharpness, t, m);
+        applyMatrix( tWeights, m);
+        applyMatrix(dtWeights, m);
+    }
+    if (boundary & 8) {
+        computeCreaseMatrix(sharpness, 1.0f-s, m);
+        flipMatrix(m, mflip);
+        applyMatrix( sWeights, mflip);
+        applyMatrix(dsWeights, mflip);
+    }
+
+    if (point) {
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                point[4*i+j] = sWeights[j] * tWeights[i];
+            }
+        }
+    }
+
+    if (derivS && derivT) {
+        // Compute the tensor product weight of the differentiated (s,t) basis
+        // function corresponding to each control vertex (scaled accordingly):
+
+        float dScale = (float)(1 << param.GetDepth());
+
+        for (int i = 0; i < 4; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                derivS[4*i+j] = dsWeights[j] * tWeights[i] * dScale;
+                derivT[4*i+j] = sWeights[j] * dtWeights[i] * dScale;
+            }
+        }
+        if (derivSS && derivST && derivTT) {
+            // XXXX manuelk TODO
+            assert(0);
+        }
+    }
+}
+
+
+
 void GetBilinearWeights(PatchParamBase const & param,
     float s, float t, float point[4], float deriv1[4], float deriv2[4], float deriv11[4], float deriv12[4], float deriv22[4]) {
     Spline<BASIS_BILINEAR>::GetPatchWeights(param, s, t, point, deriv1, deriv2, deriv11, deriv12, deriv22);
@@ -323,6 +467,11 @@ void GetBezierWeights(PatchParamBase const param,
 void GetBSplineWeights(PatchParamBase const & param,
     float s, float t, float point[16], float deriv1[16], float deriv2[16], float deriv11[16], float deriv12[16], float deriv22[16]) {
     Spline<BASIS_BSPLINE>::GetPatchWeights(param, s, t, point, deriv1, deriv2, deriv11, deriv12, deriv22);
+}
+
+void GetBSplineWeights(PatchParamBase const & param,
+    float sharpness, float s, float t, float point[16], float deriv1[16], float deriv2[16], float deriv11[16], float deriv12[16], float deriv22[16]) {
+    Spline<BASIS_BSPLINE>::GetPatchWeights(param, sharpness, s, t, point, deriv1, deriv2, deriv11, deriv12, deriv22);
 }
 
 void GetGregoryWeights(PatchParamBase const & param,
