@@ -454,6 +454,111 @@ public:
         const int *patchIndexBuffer,
         const PatchParam *patchParamBuffer);
 
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCpuBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCpuBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchTable       Far::PatchTable
+    ///
+    /// @param instance         not used in the cpu evaluator
+    ///
+    /// @param deviceContext    not used in the cpu evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatchesVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        TbbEvaluator const *instance = NULL,
+        void * deviceContext = NULL) {
+
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
+
+        return EvalPatches(srcBuffer->BindCpuBuffer(),
+                           srcDesc,
+                           dstBuffer->BindCpuBuffer(),
+                           dstDesc,
+                           numPatchCoords,
+                           (const PatchCoord*)patchCoords->BindCpuBuffer(),
+                           patchTable->GetVaryingPatchArrayBuffer(),
+                           patchTable->GetVaryingPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCpuBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCpuBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///
+    /// @param patchTable       Far::PatchTable
+    ///
+    /// @param fvarChannel      face-varying channel
+    ///
+    /// @param instance         not used in the cpu evaluator
+    ///
+    /// @param deviceContext    not used in the cpu evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatchesFaceVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        int fvarChannel,
+        TbbEvaluator const *instance = NULL,
+        void * deviceContext = NULL) {
+
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
+
+        return EvalPatches(srcBuffer->BindCpuBuffer(),
+                           srcDesc,
+                           dstBuffer->BindCpuBuffer(),
+                           dstDesc,
+                           numPatchCoords,
+                           (const PatchCoord*)patchCoords->BindCpuBuffer(),
+                           patchTable->GetFVarPatchArrayBuffer(fvarChannel),
+                           patchTable->GetFVarPatchIndexBuffer(fvarChannel),
+                           patchTable->GetFVarPatchParamBuffer(fvarChannel));
+    }
+
     /// ----------------------------------------------------------------------
     ///
     ///   Other methods

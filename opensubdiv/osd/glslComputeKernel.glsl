@@ -195,25 +195,6 @@ void main() {
 //};
 // # of patcharrays is 1 or 2.
 
-void getBSplineWeights(float t, inout vec4 point, inout vec4 deriv) {
-    // The four uniform cubic B-Spline basis functions evaluated at t:
-    float one6th = 1.0f / 6.0f;
-
-    float t2 = t * t;
-    float t3 = t * t2;
-
-    point.x = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
-    point.y = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
-    point.z = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
-    point.w = one6th * (                                 t3);
-
-    // Derivatives of the above four basis functions at t:
-    deriv.x = -0.5f*t2 +      t - 0.5f;
-    deriv.y =  1.5f*t2 - 2.0f*t;
-    deriv.z = -1.5f*t2 +      t + 0.5f;
-    deriv.w =  0.5f*t2;
-}
-
 uint getDepth(uint patchBits) {
     return (patchBits & 0xf);
 }
@@ -242,29 +223,14 @@ vec2 normalizePatchCoord(uint patchBits, vec2 uv) {
     return vec2((uv.x - pu) / frac, (uv.y - pv) / frac);
 }
 
-void adjustBoundaryWeights(uint bits, inout vec4 sWeights, inout vec4 tWeights) {
-    uint boundary = ((bits >> 8) & 0xf);
+bool isRegular(uint patchBits) {
+    return (((patchBits >> 5) & 0x1u) != 0);
+}
 
-    if ((boundary & 1) != 0) {
-        tWeights[2] -= tWeights[0];
-        tWeights[1] += 2*tWeights[0];
-        tWeights[0] = 0;
-    }
-    if ((boundary & 2) != 0) {
-        sWeights[1] -= sWeights[3];
-        sWeights[2] += 2*sWeights[3];
-        sWeights[3] = 0;
-    }
-    if ((boundary & 4) != 0) {
-        tWeights[1] -= tWeights[3];
-        tWeights[2] += 2*tWeights[3];
-        tWeights[3] = 0;
-    }
-    if ((boundary & 8) != 0) {
-        sWeights[2] -= sWeights[0];
-        sWeights[1] += 2*sWeights[0];
-        sWeights[0] = 0;
-    }
+int getNumControlVertices(int patchType) {
+    return (patchType == 3) ? 4 :
+           (patchType == 6) ? 16 :
+           (patchType == 9) ? 20 : 0;
 }
 
 void main() {
@@ -275,31 +241,38 @@ void main() {
     int patchIndex = coord.patchIndex;
 
     ivec4 array = patchArray[coord.arrayIndex];
-    int patchType = 6; // array.x XXX: REGULAR only for now.
-    int numControlVertices = 16;
 
     uint patchBits = patchParamBuffer[patchIndex].field1;
+    int patchType = isRegular(patchBits) ? 6 : array.x;
+
     vec2 uv = normalizePatchCoord(patchBits, vec2(coord.s, coord.t));
     float dScale = float(1 << getDepth(patchBits));
+    int boundary = int((patchBits >> 8) & 0xfU);
 
-    float wP[20], wDs[20], wDt[20];
-    if (patchType == 6) {  // REGULAR
-        vec4 sWeights, tWeights, dsWeights, dtWeights;
-        getBSplineWeights(uv.x, sWeights, dsWeights);
-        getBSplineWeights(uv.y, tWeights, dtWeights);
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
-        adjustBoundaryWeights(patchBits, sWeights, tWeights);
-        adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
-
-        for (int k = 0; k < 4; ++k) {
-            for (int l = 0; l < 4; ++l) {
-                wP[4*k+l]  = sWeights[l]  * tWeights[k];
-                wDs[4*k+l] = dsWeights[l] * tWeights[k]  * dScale;
-                wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
-            }
+    int numControlVertices = 0;
+    if (patchType == 3) {
+        float wP4[4], wDs4[4], wDt4[4], wDss4[4], wDst4[4], wDtt4[4];
+        OsdGetBilinearPatchWeights(uv.s, uv.t, dScale, wP4, wDs4, wDt4, wDss4, wDst4, wDtt4);
+        numControlVertices = 4;
+        for (int i=0; i<numControlVertices; ++i) {
+            wP[i] = wP4[i];
+            wDs[i] = wDs4[i];
+            wDt[i] = wDt4[i];
         }
-    } else {
-        // TODO: GREGORY BASIS
+    } else if (patchType == 6) {
+        float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
+        OsdGetBSplinePatchWeights(uv.s, uv.t, dScale, boundary, wP16, wDs16, wDt16, wDss16, wDst16, wDtt16);
+        numControlVertices = 16;
+        for (int i=0; i<numControlVertices; ++i) {
+            wP[i] = wP16[i];
+            wDs[i] = wDs16[i];
+            wDt[i] = wDt16[i];
+        }
+    } else if (patchType == 9) {
+        OsdGetGregoryPatchWeights(uv.s, uv.t, dScale, wP, wDs, wDt, wDss, wDst, wDtt);
+        numControlVertices = 20;
     }
 
     Vertex dst, du, dv;
@@ -307,7 +280,9 @@ void main() {
     clear(du);
     clear(dv);
 
-    int indexBase = array.z + coord.vertIndex;
+    int indexStride = getNumControlVertices(array.x);
+    int indexBase = array.z + indexStride * (patchIndex - array.w);
+
     for (int cv = 0; cv < numControlVertices; ++cv) {
         int index = patchIndexBuffer[indexBase + cv];
         addWithWeight(dst, readVertex(index), wP[cv]);

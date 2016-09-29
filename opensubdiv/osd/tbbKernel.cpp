@@ -316,9 +316,11 @@ public:
             PatchCoord const &coord = _patchCoords[i];
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
-            int patchType = array.GetPatchType();
             Far::PatchParam const & param =
                 _patchParamBuffer[coord.handle.patchIndex];
+            int patchType = param.IsRegular()
+                ? Far::PatchDescriptor::REGULAR
+                : array.GetPatchType();
 
             int numControlVertices = 0;
             if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -337,8 +339,11 @@ public:
                 assert(0);
             }
 
-            const int *cvs =
-                &_patchIndexBuffer[array.indexBase + coord.handle.vertIndex];
+            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
+            int indexBase = array.GetIndexBase() + indexStride *
+                    (coord.handle.patchIndex - array.GetPrimitiveIdBase());
+
+            const int *cvs = &_patchIndexBuffer[indexBase];
 
             dstT.Clear();
             for (int j = 0; j < numControlVertices; ++j) {
@@ -370,9 +375,11 @@ public:
             PatchCoord const &coord = _patchCoords[i];
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
-            int patchType = array.GetPatchType();
             Far::PatchParam const & param =
                 _patchParamBuffer[coord.handle.patchIndex];
+            int patchType = param.IsRegular()
+                ? Far::PatchDescriptor::REGULAR
+                : array.GetPatchType();
 
             int numControlVertices = 0;
             if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -391,8 +398,11 @@ public:
                 assert(0);
             }
 
-            const int *cvs =
-                &_patchIndexBuffer[array.indexBase + coord.handle.vertIndex];
+            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
+            int indexBase = array.GetIndexBase() + indexStride *
+                    (coord.handle.patchIndex - array.GetPrimitiveIdBase());
+
+            const int *cvs = &_patchIndexBuffer[indexBase];
 
             dstT.Clear();
             dstDuT.Clear();
@@ -432,6 +442,7 @@ TbbEvalPatches(float const *src, BufferDescriptor const &srcDesc,
     tbb::parallel_for(range, kernel);
 
 }
+
 
 }  // end namespace Osd
 

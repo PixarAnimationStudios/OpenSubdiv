@@ -23,6 +23,9 @@
 //
 
 #include "../osd/cpuPatchTable.h"
+#include "../far/patchDescriptor.h"
+
+#include <iostream>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -43,6 +46,20 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
     }
     _patchArrays.reserve(nPatchArrays);
     _indexBuffer.reserve(numIndices);
+
+    _varyingPatchArrays.reserve(nPatchArrays);
+    _varyingIndexBuffer.reserve(
+        numPatches*farPatchTable->GetVaryingPatchDescriptor().GetNumControlVertices());
+
+    _fvarPatchArrays.resize(farPatchTable->GetNumFVarChannels());
+    _fvarIndexBuffers.resize(farPatchTable->GetNumFVarChannels());
+    _fvarParamBuffers.resize(farPatchTable->GetNumFVarChannels());
+    for (int fvc=0; fvc<farPatchTable->GetNumFVarChannels(); ++fvc) {
+        _fvarPatchArrays[fvc].reserve(nPatchArrays);
+        _fvarIndexBuffers[fvc].reserve(
+            numPatches*farPatchTable->GetFVarChannelPatchDescriptor(fvc).GetNumControlVertices());
+        _fvarParamBuffers[fvc].reserve(numPatches);
+    }
     _patchParamBuffer.reserve(numPatches);
 
     // for each patchArray
@@ -55,8 +72,39 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
 
         // indices
         Far::ConstIndexArray indices = farPatchTable->GetPatchArrayVertices(j);
-        for (int k = 0; k < indices.size(); ++k) {
-            _indexBuffer.push_back(indices[k]);
+        _indexBuffer.insert(_indexBuffer.end(), indices.begin(), indices.end());
+
+        // varying
+        PatchArray varyingPatchArray(
+            farPatchTable->GetVaryingPatchDescriptor(), numPatches, 0, 0);
+        _varyingPatchArrays.push_back(varyingPatchArray);
+        Far::ConstIndexArray
+            varyingIndices = farPatchTable->GetPatchArrayVaryingVertices(j);
+        _varyingIndexBuffer.insert(_varyingIndexBuffer.end(),
+                varyingIndices.begin(), varyingIndices.end());
+
+        // face-varying
+        for (int fvc=0; fvc<farPatchTable->GetNumFVarChannels(); ++fvc) {
+            PatchArray fvarPatchArray(
+                farPatchTable->GetFVarChannelPatchDescriptor(fvc), numPatches, 0, 0);
+            _fvarPatchArrays[fvc].push_back(fvarPatchArray);
+
+            Far::ConstIndexArray
+                fvarIndices = farPatchTable->GetPatchArrayFVarValues(j, fvc);
+            _fvarIndexBuffers[fvc].insert(_fvarIndexBuffers[fvc].end(),
+                    fvarIndices.begin(), fvarIndices.end());
+
+            // face-varying param
+            Far::ConstPatchParamArray
+                fvarParam = farPatchTable->GetPatchArrayFVarPatchParam(j, fvc);
+            for (int k = 0; k < numPatches; ++k) {
+                PatchParam param;
+                //param.patchParam = patchParamTable[patchIndex];
+                param.field0 = fvarParam[k].field0;
+                param.field1 = fvarParam[k].field1;
+                param.sharpness = 0.0f;
+                _fvarParamBuffers[fvc].push_back(param);
+            }
         }
 
         // patchParams bundling

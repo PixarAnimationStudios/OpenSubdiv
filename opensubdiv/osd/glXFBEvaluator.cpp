@@ -23,6 +23,7 @@
 //
 
 #include "../osd/glXFBEvaluator.h"
+#include "../osd/glslPatchShaderSource.h"
 
 #include <sstream>
 #include <string>
@@ -154,18 +155,25 @@ compileKernel(BufferDescriptor const &srcDesc,
 
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
 
+    std::string patchBasisShaderSource =
+        GLSLPatchShaderSource::GetPatchBasisShaderSource();
+    const char *patchBasisShaderSourceDefine = "#define OSD_PATCH_BASIS_GLSL\n";
+
     std::ostringstream defines;
     defines << "#define LENGTH " << srcDesc.length << "\n"
             << "#define SRC_STRIDE " << srcDesc.stride << "\n"
             << "#define VERTEX_SHADER\n"
-            << kernelDefine << "\n";
+            << kernelDefine << "\n"
+            << patchBasisShaderSourceDefine << "\n";
     std::string defineStr = defines.str();
 
-    const char *shaderSources[3] = {"#version 410\n", NULL, NULL};
+
+    const char *shaderSources[4] = {"#version 410\n", NULL, NULL, NULL};
 
     shaderSources[1] = defineStr.c_str();
-    shaderSources[2] = shaderSource;
-    glShaderSource(vertexShader, 3, shaderSources, NULL);
+    shaderSources[2] = patchBasisShaderSource.c_str();
+    shaderSources[3] = shaderSource;
+    glShaderSource(vertexShader, 4, shaderSources, NULL);
     glCompileShader(vertexShader);
     glAttachShader(program, vertexShader);
 
