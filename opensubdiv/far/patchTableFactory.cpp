@@ -313,7 +313,6 @@ public:
 
     //  Additional options eventually to be made public in Options above:
     bool options_approxSmoothCornerWithSharp;
-    bool options_useInfinitelySharpPatches;
 
     PtexIndices const ptexIndices;
 
@@ -342,7 +341,6 @@ PatchTableFactory::BuilderContext::BuilderContext(
 
     //  Eventually to be passed in as Options and assigned to member...
     options_approxSmoothCornerWithSharp = true;
-    options_useInfinitelySharpPatches = false;
 
     if (options.generateFVarTables) {
         // If client-code does not select specific channels, default to all
@@ -565,7 +563,7 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
     bool isRegular = ! fCompVTag._xordinary || fCompVTag._nonManifold;
 
     //  Reconsider when using inf-sharp patches in presence of inf-sharp features:
-    if (options_useInfinitelySharpPatches && fCompVTag._infSharpEdges) {
+    if (options.useInfSharpPatch && fCompVTag._infSharpEdges) {
         if (fCompVTag._nonManifold) {
             isRegular = true;
         } else if (!fCompVTag._infIrregular) {
@@ -650,7 +648,7 @@ PatchTableFactory::BuilderContext::GetRegularPatchBoundaryMask(
     //
     int vBoundaryMask = 0;
     if (fTag._infSharpEdges) {
-        if (options_useInfinitelySharpPatches) {
+        if (options.useInfSharpPatch) {
             vBoundaryMask |= (vTags[0]._infSharpEdges << 0) |
                              (vTags[1]._infSharpEdges << 1) |
                              (vTags[2]._infSharpEdges << 2) |
@@ -716,11 +714,11 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
     //
     ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
-    Level::ETag singularEdgeMask = getSingularEdgeMask(options_useInfinitelySharpPatches);
+    Level::ETag singularEdgeMask = getSingularEdgeMask(options.useInfSharpPatch);
 
     for (int i = 0; i < fVerts.size(); ++i) {
         bool noFVarMisMatch = (fvcRefiner < 0) || !fvarTags[i]._mismatch;
-        bool testInfSharp   = options_useInfinitelySharpPatches &&
+        bool testInfSharp   = options.useInfSharpPatch &&
                                 (vTags[i]._infSharpEdges && (vTags[i]._rule != Sdc::Crease::RULE_DART));
 
         if (noFVarMisMatch && !testInfSharp) {
@@ -733,7 +731,9 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
                 identifyNonManifoldCornerSpan(
                         level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
             }
-            cornerSpans[i]._sharp = testInfSharp && (vTags[i]._rule == Sdc::Crease::RULE_CORNER);
+        }
+        if (options.useInfSharpPatch) {
+            cornerSpans[i]._sharp = vTags[i]._infIrregular && (vTags[i]._rule == Sdc::Crease::RULE_CORNER);
         }
     }
 }
@@ -1386,7 +1386,7 @@ PatchTableFactory::populateAdaptivePatches(
 
             // Leaving the corner span "size" to zero, as constructed, indicates to use the full
             // neighborhood -- we only need to identify a subset when using inf-sharp patches
-            if (context.options_useInfinitelySharpPatches) {
+            if (context.options.useInfSharpPatch) {
                 context.GetIrregularPatchCornerSpans(
                                     patch.levelIndex, patch.faceIndex, irregCornerSpans);
             }
