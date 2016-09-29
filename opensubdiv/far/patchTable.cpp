@@ -155,7 +155,7 @@ struct PatchTable::FVarPatchChannel {
     PatchDescriptor desc;
 
     std::vector<Index> patchValues;
-    std::vector<PatchParamBase> patchParam;
+    std::vector<PatchParam> patchParam;
 };
 
 void
@@ -503,35 +503,35 @@ PatchTable::GetPatchArrayFVarValues(int array, int channel) const {
     int count = pa.numPatches * ncvs;
     return ConstIndexArray(&c.patchValues[start], count);
 }
-PatchParamBase
+PatchParam
 PatchTable::getPatchFVarPatchParam(int patch, int channel) const {
 
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.patchParam[patch];
 }
-PatchParamBase
+PatchParam
 PatchTable::GetPatchFVarPatchParam(PatchHandle const & handle, int channel) const {
     return getPatchFVarPatchParam(handle.patchIndex, channel);
 }
-PatchParamBase
+PatchParam
 PatchTable::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) const {
     return getPatchFVarPatchParam(getPatchIndex(arrayIndex, patchIndex), channel);
 }
-ConstPatchParamBaseArray
+ConstPatchParamArray
 PatchTable::GetPatchArrayFVarPatchParam(int array, int channel) const {
     PatchArray const & pa = getPatchArray(array);
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    return ConstPatchParamBaseArray(&c.patchParam[pa.patchIndex], pa.numPatches);
+    return ConstPatchParamArray(&c.patchParam[pa.patchIndex], pa.numPatches);
 }
-ConstPatchParamBaseArray
+ConstPatchParamArray
 PatchTable::GetFVarPatchParam(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    return ConstPatchParamBaseArray(&c.patchParam[0], (int)c.patchParam.size());
+    return ConstPatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
-PatchParamBaseArray
+PatchParamArray
 PatchTable::getFVarPatchParam(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
-    return PatchParamBaseArray(&c.patchParam[0], (int)c.patchParam.size());
+    return PatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
 
 void
@@ -555,8 +555,7 @@ PatchTable::EvaluateBasis(
     float wDss[], float wDst[], float wDtt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
-    PatchParamBase const & param =
-        _paramTable[handle.patchIndex].GetPatchParamBase();
+    PatchParam const & param = _paramTable[handle.patchIndex];
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
@@ -578,8 +577,7 @@ PatchTable::EvaluateBasisVarying(
     float wP[], float wDs[], float wDt[],
     float wDss[], float wDst[], float wDtt[]) const {
 
-    PatchParamBase const & param =
-        _paramTable[handle.patchIndex].GetPatchParamBase();
+    PatchParam const & param = _paramTable[handle.patchIndex];
 
     internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 }
@@ -594,7 +592,7 @@ PatchTable::EvaluateBasisFaceVarying(
     float wDss[], float wDst[], float wDtt[],
     int channel) const {
 
-    PatchParamBase param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
+    PatchParam param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
     PatchDescriptor::Type patchType = param.IsRegular()
             ? PatchDescriptor::REGULAR
             : GetFVarChannelPatchDescriptor(channel).GetType();
