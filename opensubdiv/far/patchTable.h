@@ -268,6 +268,9 @@ public:
     /// \brief Accessors for varying data
     ///
 
+    /// \brief Returns the varying patch descriptor
+    PatchDescriptor GetVaryingPatchDescriptor() const;
+
     /// \brief Returns the varying vertex indices for a given patch
     ConstIndexArray GetPatchVaryingVertices(PatchHandle const & handle) const;
 

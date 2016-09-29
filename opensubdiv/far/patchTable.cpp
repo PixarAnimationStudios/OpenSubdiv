@@ -36,7 +36,8 @@ namespace Far {
 PatchTable::PatchTable(int maxvalence) :
     _maxValence(maxvalence),
     _localPointStencils(NULL),
-    _localPointVaryingStencils(NULL) {
+    _localPointVaryingStencils(NULL),
+    _varyingDesc(Far::PatchDescriptor::QUADS) {
 }
 
 // Copy constructor
@@ -49,8 +50,9 @@ PatchTable::PatchTable(PatchTable const & src) :
     _paramTable(src._paramTable),
     _quadOffsetsTable(src._quadOffsetsTable),
     _vertexValenceTable(src._vertexValenceTable),
-    _localPointStencils(NULL),
-    _localPointVaryingStencils(NULL),
+    _localPointStencils(src._localPointStencils),
+    _localPointVaryingStencils(src._localPointVaryingStencils),
+    _varyingDesc(src._varyingDesc),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
@@ -384,14 +386,24 @@ PatchTable::IsFeatureAdaptive() const {
     return false;
 }
 
+PatchDescriptor
+PatchTable::GetVaryingPatchDescriptor() const {
+    return _varyingDesc;
+}
 ConstIndexArray
 PatchTable::GetPatchVaryingVertices(PatchHandle const & handle) const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
     int numVaryingCVs = _varyingDesc.GetNumControlVertices();
     Index start = handle.patchIndex * numVaryingCVs;
     return ConstIndexArray(&_varyingVerts[start], numVaryingCVs);
 }
 ConstIndexArray
 PatchTable::GetPatchVaryingVertices(int array, int patch) const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
     PatchArray const & pa = getPatchArray(array);
     int numVaryingCVs = _varyingDesc.GetNumControlVertices();
     Index start = (pa.patchIndex + patch) * numVaryingCVs;
@@ -399,6 +411,9 @@ PatchTable::GetPatchVaryingVertices(int array, int patch) const {
 }
 ConstIndexArray
 PatchTable::GetPatchArrayVaryingVertices(int array) const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
     PatchArray const & pa = getPatchArray(array);
     int numVaryingCVs = _varyingDesc.GetNumControlVertices();
     Index start = pa.patchIndex * numVaryingCVs;
@@ -407,6 +422,9 @@ PatchTable::GetPatchArrayVaryingVertices(int array) const {
 }
 ConstIndexArray
 PatchTable::GetVaryingVertices() const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
     return ConstIndexArray(&_varyingVerts[0], (int)_varyingVerts.size());
 }
 IndexArray
