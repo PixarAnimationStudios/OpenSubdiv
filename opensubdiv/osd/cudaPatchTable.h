@@ -30,6 +30,8 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/types.h"
 
+#include <vector>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -63,6 +65,30 @@ public:
     /// Returns the cuda memory of the array of Osd::PatchParam buffer
     void *GetPatchParamBuffer() const { return _patchParamBuffer; }
 
+    /// Returns the cuda memory of the array of Osd::PatchArray buffer
+    void *GetVaryingPatchArrayBuffer() const {
+        return _varyingPatchArrays;
+    }
+    /// Returns the cuda memory of the array of varying control vertices
+    void *GetVaryingPatchIndexBuffer() const {
+        return _varyingIndexBuffer;
+    }
+
+    /// Returns the cuda memory of the array of Osd::PatchArray buffer
+    void *GetFVarPatchArrayBuffer(int fvarChannel) const {
+        return _fvarPatchArrays[fvarChannel];
+    }
+
+    /// Returns the cuda memory of the array of face-varying control vertices
+    void *GetFVarPatchIndexBuffer(int fvarChannel = 0) const {
+        return _fvarIndexBuffers[fvarChannel];
+    }
+
+    /// Returns the cuda memory of the array of face-varying param
+    void *GetFVarPatchParamBuffer(int fvarChannel = 0) const {
+        return _fvarParamBuffers[fvarChannel];
+    }
+
 protected:
     CudaPatchTable();
 
@@ -71,6 +97,13 @@ protected:
     void *_patchArrays;
     void *_indexBuffer;
     void *_patchParamBuffer;
+
+    void *_varyingPatchArrays;
+    void *_varyingIndexBuffer;
+
+    std::vector<void *> _fvarPatchArrays;
+    std::vector<void *> _fvarIndexBuffers;
+    std::vector<void *> _fvarParamBuffers;
 };
 
 }  // end namespace Osd

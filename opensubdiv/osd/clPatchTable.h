@@ -31,6 +31,8 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/types.h"
 
+#include <vector>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -71,6 +73,21 @@ public:
     /// Returns the CL memory of the array of Osd::PatchParam buffer
     cl_mem GetPatchParamBuffer() const { return _patchParamBuffer; }
 
+    /// Returns the CL memory of the array of Osd::PatchArray buffer
+    cl_mem GetVaryingPatchArrayBuffer() const { return _varyingPatchArrays; }
+
+    /// Returns the CL memory of the varying control vertices
+    cl_mem GetVaryingPatchIndexBuffer() const { return _varyingIndexBuffer; }
+
+    /// Returns the CL memory of the array of Osd::PatchArray buffer
+    cl_mem GetFVarPatchArrayBuffer(int fvarChannel = 0) const { return _fvarPatchArrays[fvarChannel]; }
+
+    /// Returns the CL memory of the face-varying control vertices
+    cl_mem GetFVarPatchIndexBuffer(int fvarChannel = 0) const { return _fvarIndexBuffers[fvarChannel]; }
+
+    /// Returns the CL memory of the array of Osd::PatchParam buffer
+    cl_mem GetFVarPatchParamBuffer(int fvarChannel = 0) const { return _fvarParamBuffers[fvarChannel]; }
+
 protected:
     CLPatchTable();
 
@@ -79,6 +96,14 @@ protected:
     cl_mem _patchArrays;
     cl_mem _indexBuffer;
     cl_mem _patchParamBuffer;
+
+    cl_mem _varyingPatchArrays;
+    cl_mem _varyingIndexBuffer;
+
+    std::vector<cl_mem> _fvarPatchArrays;
+    std::vector<cl_mem> _fvarIndexBuffers;
+    std::vector<cl_mem> _fvarParamBuffers;
+
 };
 
 }  // end namespace Osd

@@ -494,6 +494,111 @@ public:
         const int *patchIndices,
         const PatchParam *patchParams);
 
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///                         must have BindCudaBuffer() method returning an
+    ///                         array of PatchCoord struct in cuda memory.
+    ///
+    /// @param patchTable       CudaPatchTable or equivalent
+    ///
+    /// @param instance         not used in the cuda evaluator
+    ///
+    /// @param deviceContext    not used in the cuda evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatchesVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CudaEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        (void)instance;   // unused
+        (void)deviceContext;   // unused
+
+        return EvalPatches(srcBuffer->BindCudaBuffer(), srcDesc,
+                           dstBuffer->BindCudaBuffer(), dstDesc,
+                           numPatchCoords,
+                           (const PatchCoord *)patchCoords->BindCudaBuffer(),
+                           (const PatchArray *)patchTable->GetVaryingPatchArrayBuffer(),
+                           (const int *)patchTable->GetVaryingPatchIndexBuffer(),
+                           (const PatchParam *)patchTable->GetPatchParamBuffer());
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer        Input primvar buffer.
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         const float pointer for read
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer        Output primvar buffer
+    ///                         must have BindCudaBuffer() method returning a
+    ///                         float pointer for write
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords   number of patchCoords.
+    ///
+    /// @param patchCoords      array of locations to be evaluated.
+    ///                         must have BindCudaBuffer() method returning an
+    ///                         array of PatchCoord struct in cuda memory.
+    ///
+    /// @param patchTable       CudaPatchTable or equivalent
+    ///
+    /// @param fvarChannel      face-varying channel
+    ///
+    /// @param instance         not used in the cuda evaluator
+    ///
+    /// @param deviceContext    not used in the cuda evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatchesFaceVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        int fvarChannel,
+        CudaEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        (void)instance;   // unused
+        (void)deviceContext;   // unused
+
+        return EvalPatches(srcBuffer->BindCudaBuffer(), srcDesc,
+                           dstBuffer->BindCudaBuffer(), dstDesc,
+                           numPatchCoords,
+                           (const PatchCoord *)patchCoords->BindCudaBuffer(),
+                           (const PatchArray *)patchTable->GetFVarPatchArrayBuffer(fvarChannel),
+                           (const int *)patchTable->GetFVarPatchIndexBuffer(fvarChannel),
+                           (const PatchParam *)patchTable->GetFVarPatchParamBuffer(fvarChannel));
+    }
+
     /// ----------------------------------------------------------------------
     ///
     ///   Other methods

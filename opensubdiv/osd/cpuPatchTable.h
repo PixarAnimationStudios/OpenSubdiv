@@ -32,6 +32,8 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/types.h"
 
+#include <vector>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
@@ -85,10 +87,52 @@ public:
         return _patchParamBuffer.size();
     }
 
+    const PatchArray *GetVaryingPatchArrayBuffer() const {
+        if (_varyingPatchArrays.empty()) {
+            return NULL;
+        }
+        return &_varyingPatchArrays[0];
+    }
+    const int *GetVaryingPatchIndexBuffer() const {
+        if (_varyingIndexBuffer.empty()) {
+            return NULL;
+        }
+        return &_varyingIndexBuffer[0];
+    }
+    size_t GetVaryingPatchIndexSize() const {
+        return _varyingIndexBuffer.size();
+    }
+
+    int GetNumFVarChannels() const {
+        return (int)_fvarPatchArrays.size();
+    }
+    const PatchArray *GetFVarPatchArrayBuffer(int fvarChannel = 0) const {
+        return &_fvarPatchArrays[fvarChannel][0];
+    }
+    const int *GetFVarPatchIndexBuffer(int fvarChannel = 0) const {
+        return &_fvarIndexBuffers[fvarChannel][0];
+    }
+    size_t GetFVarPatchIndexSize(int fvarChannel = 0) const {
+        return _fvarIndexBuffers[fvarChannel].size();
+    }
+    const PatchParam *GetFVarPatchParamBuffer(int fvarChannel= 0) const {
+        return &_fvarParamBuffers[fvarChannel][0];
+    }
+    size_t GetFVarPatchParamSize(int fvarChannel = 0) const {
+        return _fvarParamBuffers[fvarChannel].size();
+    }
+
 protected:
     PatchArrayVector _patchArrays;
     std::vector<int> _indexBuffer;
     PatchParamVector _patchParamBuffer;
+
+    PatchArrayVector _varyingPatchArrays;
+    std::vector<int> _varyingIndexBuffer;
+
+    std::vector< PatchArrayVector > _fvarPatchArrays;
+    std::vector< std::vector<int> > _fvarIndexBuffers;
+    std::vector< PatchParamVector > _fvarParamBuffers;
 };
 
 }  // end namespace Osd

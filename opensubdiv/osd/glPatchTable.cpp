@@ -43,6 +43,14 @@ GLPatchTable::~GLPatchTable() {
     if (_patchParamBuffer) glDeleteBuffers(1, &_patchParamBuffer);
     if (_patchIndexTexture) glDeleteTextures(1, &_patchIndexTexture);
     if (_patchParamTexture) glDeleteTextures(1, &_patchParamTexture);
+    if (_varyingIndexBuffer) glDeleteBuffers(1, &_varyingIndexBuffer);
+    if (_varyingIndexTexture) glDeleteTextures(1, &_varyingIndexTexture);
+    for (int fvc=0; fvc<(int)_fvarIndexBuffers.size(); ++fvc) {
+        if (_fvarIndexBuffers[fvc]) glDeleteBuffers(1, &_fvarIndexBuffers[fvc]);
+    }
+    for (int fvc=0; fvc<(int)_fvarIndexTextures.size(); ++fvc) {
+        if (_fvarIndexTextures[fvc]) glDeleteTextures(1, &_fvarIndexTextures[fvc]);
+    }
 }
 
 GLPatchTable *
@@ -93,6 +101,60 @@ GLPatchTable::allocate(Far::PatchTable const *farPatchTable) {
 
     glBindTexture(GL_TEXTURE_BUFFER, _patchParamTexture);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32I, _patchParamBuffer);
+
+    // varying
+    _varyingPatchArrays.assign(
+        patchTable.GetVaryingPatchArrayBuffer(),
+        patchTable.GetVaryingPatchArrayBuffer() + numPatchArrays);
+
+    glGenBuffers(1, &_varyingIndexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, _varyingIndexBuffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 patchTable.GetVaryingPatchIndexSize() * sizeof(GLint),
+                 patchTable.GetVaryingPatchIndexBuffer(),
+                 GL_STATIC_DRAW);
+
+    glGenTextures(1, &_varyingIndexTexture);
+    glBindTexture(GL_TEXTURE_BUFFER, _varyingIndexTexture);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, _varyingIndexBuffer);
+
+    // face-varying
+    int numFVarChannels = patchTable.GetNumFVarChannels();
+    _fvarPatchArrays.resize(numFVarChannels);
+    _fvarIndexBuffers.resize(numFVarChannels);
+    _fvarIndexTextures.resize(numFVarChannels);
+    _fvarParamBuffers.resize(numFVarChannels);
+    _fvarParamTextures.resize(numFVarChannels);
+    for (int fvc=0; fvc<numFVarChannels; ++fvc) {
+        _fvarPatchArrays[fvc].assign(
+            patchTable.GetFVarPatchArrayBuffer(fvc),
+            patchTable.GetFVarPatchArrayBuffer(fvc) + numPatchArrays);
+
+        glGenBuffers(1, &_fvarIndexBuffers[fvc]);
+        glBindBuffer(GL_ARRAY_BUFFER, _fvarIndexBuffers[fvc]);
+        glBufferData(GL_ARRAY_BUFFER,
+                     patchTable.GetFVarPatchIndexSize(fvc) * sizeof(GLint),
+                     patchTable.GetFVarPatchIndexBuffer(fvc),
+                 GL_STATIC_DRAW);
+
+        glGenTextures(1, &_fvarIndexTextures[fvc]);
+        glBindTexture(GL_TEXTURE_BUFFER, _fvarIndexTextures[fvc]);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_R32I, _fvarIndexBuffers[fvc]);
+
+        glGenBuffers(1, &_fvarParamBuffers[fvc]);
+        glBindBuffer(GL_ARRAY_BUFFER, _fvarParamBuffers[fvc]);
+        glBufferData(GL_ARRAY_BUFFER,
+                     patchTable.GetFVarPatchParamSize(fvc) * sizeof(PatchParam),
+                     patchTable.GetFVarPatchParamBuffer(fvc),
+                 GL_STATIC_DRAW);
+
+        glGenTextures(1, &_fvarParamTextures[fvc]);
+        glBindTexture(GL_TEXTURE_BUFFER, _fvarParamTextures[fvc]);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32I, _fvarParamBuffers[fvc]);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindTexture(GL_TEXTURE_BUFFER, 0);
 
     return true;

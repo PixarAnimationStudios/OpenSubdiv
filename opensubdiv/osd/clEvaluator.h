@@ -724,6 +724,316 @@ public:
                      const cl_event* startEvents=NULL,
                      cl_event* endEvent=NULL) const;
 
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct.
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  client providing context class which supports
+    ///                         cL_context GetContext()
+    ///                         cl_command_queue GetCommandQueue()
+    ///                       methods.
+    ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
+              typename DEVICE_CONTEXT>
+    static bool EvalPatchesVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        CLEvaluator const *instance,
+        DEVICE_CONTEXT deviceContext,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) {
+
+        if (instance) {
+            return instance->EvalPatchesVarying(
+                                         srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable,
+                                         numStartEvents, startEvents, endEvent);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc,
+                              BufferDescriptor(),
+                              BufferDescriptor(),
+                              deviceContext);
+            if (instance) {
+                bool r = instance->EvalPatchesVarying(
+                                               srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable,
+                                               numStartEvents, startEvents, endEvent);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct.
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatchesVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) const {
+
+        return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
+                           dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
+                           0, BufferDescriptor(),
+                           0, BufferDescriptor(),
+                           numPatchCoords,
+                           patchCoords->BindCLBuffer(_clCommandQueue),
+                           patchTable->GetVaryingPatchArrayBuffer(),
+                           patchTable->GetVaryingPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer(),
+                           numStartEvents, startEvents, endEvent);
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct.
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    /// @param fvarChannel    face-varying channel
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  client providing context class which supports
+    ///                         cL_context GetContext()
+    ///                         cl_command_queue GetCommandQueue()
+    ///                       methods.
+    ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE,
+              typename DEVICE_CONTEXT>
+    static bool EvalPatchesFaceVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        int fvarChannel,
+        CLEvaluator const *instance,
+        DEVICE_CONTEXT deviceContext,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) {
+
+        if (instance) {
+            return instance->EvalPatchesFaceVarying(
+                                         srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable, fvarChannel,
+                                         numStartEvents, startEvents, endEvent);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc,
+                              BufferDescriptor(),
+                              BufferDescriptor(),
+                              deviceContext);
+            if (instance) {
+                bool r = instance->EvalPatchesFaceVarying(
+                                               srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable, fvarChannel,
+                                               numStartEvents, startEvents, endEvent);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindCLBuffer() method returning an
+    ///                       array of PatchCoord struct.
+    ///
+    /// @param patchTable     CLPatchTable or equivalent
+    ///
+    /// @param fvarChannel    face-varying channel
+    ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatchesFaceVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        int fvarChannel = 0,
+        unsigned int numStartEvents=0,
+        const cl_event* startEvents=NULL,
+        cl_event* endEvent=NULL) const {
+
+        return EvalPatches(srcBuffer->BindCLBuffer(_clCommandQueue), srcDesc,
+                           dstBuffer->BindCLBuffer(_clCommandQueue), dstDesc,
+                           0, BufferDescriptor(),
+                           0, BufferDescriptor(),
+                           numPatchCoords,
+                           patchCoords->BindCLBuffer(_clCommandQueue),
+                           patchTable->GetFVarPatchArrayBuffer(fvarChannel),
+                           patchTable->GetFVarPatchIndexBuffer(fvarChannel),
+                           patchTable->GetFVarPatchParamBuffer(fvarChannel),
+                           numStartEvents, startEvents, endEvent);
+    }
+
     /// ----------------------------------------------------------------------
     ///
     ///   Other methods

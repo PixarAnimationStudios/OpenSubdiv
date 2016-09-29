@@ -306,7 +306,7 @@ public:
     ///   Limit evaluations with PatchTable
     ///
     /// ----------------------------------------------------------------------
-    ///
+
     /// \brief Generic limit eval function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        in the same way.
@@ -560,6 +560,236 @@ public:
                      const PatchArrayVector &patchArrays,
                      GLuint patchIndexBuffer,
                      GLuint patchParamsBuffer) const;
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindVBO() method returning an
+    ///                       array of PatchCoord struct in VBO.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  not used in the GLXFB evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatchesVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        GLComputeEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        if (instance) {
+            return instance->EvalPatchesVarying(
+                                         srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc,
+                              BufferDescriptor(),
+                              BufferDescriptor());
+            if (instance) {
+                bool r = instance->EvalPatchesVarying(
+                                               srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a
+    ///                       const float pointer for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBOBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindVBO() method returning an
+    ///                       array of PatchCoord struct in VBO.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatchesVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable) const {
+
+        return EvalPatches(srcBuffer->BindVBO(), srcDesc,
+                           dstBuffer->BindVBO(), dstDesc,
+                           0, BufferDescriptor(),
+                           0, BufferDescriptor(),
+                           numPatchCoords,
+                           patchCoords->BindVBO(),
+                           patchTable->GetVaryingPatchArrays(),
+                           patchTable->GetVaryingPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindVBO() method returning an
+    ///                       array of PatchCoord struct in VBO.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    /// @param fvarChannel    face-varying channel
+    ///
+    /// @param instance       cached compiled instance. Clients are supposed to
+    ///                       pre-compile an instance of this class and provide
+    ///                       to this function. If it's null the kernel still
+    ///                       compute by instantiating on-demand kernel although
+    ///                       it may cause a performance problem.
+    ///
+    /// @param deviceContext  not used in the GLXFB evaluator
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    static bool EvalPatchesFaceVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        int fvarChannel,
+        GLComputeEvaluator const *instance,
+        void * deviceContext = NULL) {
+
+        if (instance) {
+            return instance->EvalPatchesFaceVarying(
+                                         srcBuffer, srcDesc,
+                                         dstBuffer, dstDesc,
+                                         numPatchCoords, patchCoords,
+                                         patchTable, fvarChannel);
+        } else {
+            // Create an instance on demand (slow)
+            (void)deviceContext;  // unused
+            instance = Create(srcDesc, dstDesc,
+                              BufferDescriptor(),
+                              BufferDescriptor());
+            if (instance) {
+                bool r = instance->EvalPatchesFaceVarying(
+                                               srcBuffer, srcDesc,
+                                               dstBuffer, dstDesc,
+                                               numPatchCoords, patchCoords,
+                                               patchTable, fvarChannel);
+                delete instance;
+                return r;
+            }
+            return false;
+        }
+    }
+
+    /// \brief Generic limit eval function. This function has a same
+    ///        signature as other device kernels have so that it can be called
+    ///        in the same way.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindVBO() method returning a
+    ///                       const float pointer for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindVBOBuffer() method returning a
+    ///                       float pointer for write
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param numPatchCoords number of patchCoords.
+    ///
+    /// @param patchCoords    array of locations to be evaluated.
+    ///                       must have BindVBO() method returning an
+    ///                       array of PatchCoord struct in VBO.
+    ///
+    /// @param patchTable     GLPatchTable or equivalent
+    ///
+    /// @param fvarChannel    face-varying channel
+    ///
+    template <typename SRC_BUFFER, typename DST_BUFFER,
+              typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
+    bool EvalPatchesFaceVarying(
+        SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
+        DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
+        int numPatchCoords,
+        PATCHCOORD_BUFFER *patchCoords,
+        PATCH_TABLE *patchTable,
+        int fvarChannel = 0) const {
+
+        return EvalPatches(srcBuffer->BindVBO(), srcDesc,
+                           dstBuffer->BindVBO(), dstDesc,
+                           0, BufferDescriptor(),
+                           0, BufferDescriptor(),
+                           numPatchCoords,
+                           patchCoords->BindVBO(),
+                           patchTable->GetFVarPatchArrays(fvarChannel),
+                           patchTable->GetFVarPatchIndexBuffer(fvarChannel),
+                           patchTable->GetFVarPatchParamBuffer(fvarChannel));
+    }
 
     /// ----------------------------------------------------------------------
     ///

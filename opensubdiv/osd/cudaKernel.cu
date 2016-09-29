@@ -23,6 +23,8 @@
 //
 
 #include <assert.h>
+#define OSD_PATCH_BASIS_CUDA
+#include "../osd/patchBasisCommon.h"
 
 // -----------------------------------------------------------------------------
 template<int N> struct DeviceVertex {
@@ -258,54 +260,6 @@ struct PatchParam {
     float sharpness;
 };
 
-__device__ void
-getBSplineWeights(float t, float point[4], float deriv[4]) {
-    // The four uniform cubic B-Spline basis functions evaluated at t:
-    float const one6th = 1.0f / 6.0f;
-
-    float t2 = t * t;
-    float t3 = t * t2;
-
-    point[0] = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
-    point[1] = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
-    point[2] = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
-    point[3] = one6th * (                                 t3);
-
-    // Derivatives of the above four basis functions at t:
-    if (deriv) {
-        deriv[0] = -0.5f*t2 +      t - 0.5f;
-        deriv[1] =  1.5f*t2 - 2.0f*t;
-        deriv[2] = -1.5f*t2 +      t + 0.5f;
-        deriv[3] =  0.5f*t2;
-    }
-}
-
-__device__ void
-adjustBoundaryWeights(unsigned int bits, float sWeights[4], float tWeights[4]) {
-    int boundary = ((bits >> 8) & 0xf);  // far/patchParam.h
-
-    if (boundary & 1) {
-        tWeights[2] -= tWeights[0];
-        tWeights[1] += 2*tWeights[0];
-        tWeights[0] = 0;
-    }
-    if (boundary & 2) {
-        sWeights[1] -= sWeights[3];
-        sWeights[2] += 2*sWeights[3];
-        sWeights[3] = 0;
-    }
-    if (boundary & 4) {
-        tWeights[1] -= tWeights[3];
-        tWeights[2] += 2*tWeights[3];
-        tWeights[3] = 0;
-    }
-    if (boundary & 8) {
-        sWeights[2] -= sWeights[0];
-        sWeights[1] += 2*sWeights[0];
-        sWeights[0] = 0;
-    }
-}
-
 __device__
 int getDepth(unsigned int patchBits) {
     return (patchBits & 0xf);
@@ -338,6 +292,18 @@ void normalizePatchCoord(unsigned int patchBits, float *u, float *v) {
     *v = (*v - pv) / frac;
 }
 
+__device__
+bool isRegular(unsigned int patchBits) {
+    return ((patchBits >> 5) & 0x1) != 0;
+}
+
+__device__
+int getNumControlVertices(int patchType) {
+    return (patchType == 3) ? 4 :
+           (patchType == 6) ? 16 :
+           (patchType == 9) ? 20 : 0;
+}
+
 __global__ void
 computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
                int length, int srcStride, int dstStride, int dstDuStride, int dstDvStride,
@@ -350,46 +316,43 @@ computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
 
     // PERFORMANCE: not yet optimized
 
-    float wP[20], wDs[20], wDt[20];
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
     for (int i = first; i < numPatchCoords; i += blockDim.x * gridDim.x) {
 
         PatchCoord const &coord = patchCoords[i];
         PatchArray const &array = patchArrayBuffer[coord.arrayIndex];
 
-        int patchType = 6; // array.patchType XXX: REGULAR only for now.
-        int numControlVertices = 16;
-        // note: patchIndex is absolute.
         unsigned int patchBits = patchParamBuffer[coord.patchIndex].field1;
+        int patchType = isRegular(patchBits) ? 6 : array.patchType;
 
         // normalize
         float s = coord.s;
         float t = coord.t;
         normalizePatchCoord(patchBits, &s, &t);
         float dScale = (float)(1 << getDepth(patchBits));
+        int boundary = int((patchBits >> 8) & 0xfU);
 
-        if (patchType == 6) {
-            float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
-            getBSplineWeights(s, sWeights, dsWeights);
-            getBSplineWeights(t, tWeights, dtWeights);
-
-            // Compute the tensor product weight of the (s,t) basis function
-            // corresponding to each control vertex:
-            adjustBoundaryWeights(patchBits, sWeights, tWeights);
-            adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
-
-            for (int k = 0; k < 4; ++k) {
-                for (int l = 0; l < 4; ++l) {
-                    wP[4*k+l]  = sWeights[l]  * tWeights[k];
-                    wDs[4*k+l] = dsWeights[l] * tWeights[k]  * dScale;
-                    wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
-                }
-            }
-        } else {
-            // TODO: Gregory Basis.
-            continue;
+        int numControlVertices = 0;
+        if (patchType == 3) {
+            OsdGetBilinearPatchWeights(s, t, dScale,
+                wP, wDs, wDt, wDss, wDst, wDtt);
+            numControlVertices = 4;
+        } else if (patchType == 6) {
+            OsdGetBSplinePatchWeights(s, t, dScale, boundary,
+                wP, wDs, wDt, wDss, wDst, wDtt);
+            numControlVertices = 16;
+        } else if (patchType == 9) {
+            OsdGetGregoryPatchWeights(s, t, dScale,
+                wP, wDs, wDt, wDss, wDst, wDtt);
+            numControlVertices = 20;
         }
-        const int *cvs = patchIndexBuffer + array.indexBase + coord.vertIndex;
+
+        int indexStride = getNumControlVertices(array.patchType);
+        int indexBase = array.indexBase + indexStride *
+                (coord.patchIndex - array.primitiveIdBase);
+
+        const int *cvs = patchIndexBuffer + indexBase;
 
         float * dstVert = dst + i * dstStride;
         clear(dstVert, length);
