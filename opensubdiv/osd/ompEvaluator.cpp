@@ -142,8 +142,8 @@ OmpEvaluator::EvalPatches(
         // XXX: patchIndex is absolute. not sure it's consistent.
         //      (should be offsetted by array.primitiveIdBase?)
         //    patchParamBuffer[array.primitiveIdBase + coord.handle.patchIndex]
-        Far::PatchParamBase const & param =
-            patchParamBuffer[coord.handle.patchIndex].GetPatchParamBase();
+        Far::PatchParam const & param =
+            patchParamBuffer[coord.handle.patchIndex];
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -203,8 +203,8 @@ OmpEvaluator::EvalPatches(
         PatchArray const &array = patchArrays[coord.handle.arrayIndex];
 
         int patchType = array.GetPatchType();
-        Far::PatchParamBase const & param =
-            patchParamBuffer[coord.handle.patchIndex].GetPatchParamBase();
+        Far::PatchParam const & param =
+            patchParamBuffer[coord.handle.patchIndex];
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {

@@ -821,8 +821,8 @@ PatchTableFactory::allocateFVarChannels(
 PatchParam
 PatchTableFactory::computePatchParam(
     BuilderContext const & context,
-    int depth, Index faceIndex, int boundaryMask, 
-    int transitionMask) {
+    int depth, Index faceIndex,
+    int boundaryMask, int transitionMask) {
 
     TopologyRefiner const & refiner = context.refiner;
 
@@ -873,7 +873,7 @@ PatchTableFactory::computePatchParam(
 
     PatchParam param;
     param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
-               (unsigned short) boundaryMask, (unsigned short) transitionMask);
+              (unsigned short) boundaryMask, (unsigned short) transitionMask);
     return param;
 }
 
@@ -1169,7 +1169,7 @@ PatchTableFactory::populateAdaptivePatches(
         Far::PatchParam *pptr;
         Far::Index *sptr;
         Vtr::internal::StackBuffer<Far::Index*,1> fptr;
-        Vtr::internal::StackBuffer<Far::PatchParamBase*,1> fpptr;
+        Vtr::internal::StackBuffer<Far::PatchParam*,1> fpptr;
 
     private:
         // Non-copyable
@@ -1450,7 +1450,7 @@ PatchTableFactory::populateAdaptivePatches(
 
                 PatchDescriptor desc = table->GetFVarChannelPatchDescriptor(fvc);
 
-                PatchParamBase fvarPatchParam = patchParam.GetPatchParamBase();
+                PatchParam fvarPatchParam = patchParam;
 
                 // Deal with the linear cases trivially first
                 if (desc.GetType() == PatchDescriptor::QUADS) {
@@ -1507,10 +1507,12 @@ PatchTableFactory::populateAdaptivePatches(
                 arrayBuilder->fptr[fvc] += desc.GetNumControlVertices();
 
                 fvarPatchParam.Set(
+                    patchParam.GetFaceId(),
                     patchParam.GetU(), patchParam.GetV(),
                     patchParam.GetDepth(),
                     patchParam.NonQuadRoot(),
                     (fvarIsRegular ? fvarBoundaryMask : 0),
+                    patchParam.GetTransition(),
                     fvarIsRegular);
                 *arrayBuilder->fpptr[fvc]++ = fvarPatchParam;
             }
