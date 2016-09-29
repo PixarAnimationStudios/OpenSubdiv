@@ -38,6 +38,8 @@ class HLSLPatchShaderSource {
 public:
     static std::string GetCommonShaderSource();
 
+    static std::string GetPatchBasisShaderSource();
+
     static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type);
 
     static std::string GetHullShaderSource(Far::PatchDescriptor::Type type);
