@@ -790,6 +790,8 @@ public:
         }
 
         // include osd PatchCommon
+        ss << "#define OSD_PATCH_BASIS_GLSL\n";
+        ss << Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
         ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
         std::string common = ss.str();
         ss.str("");

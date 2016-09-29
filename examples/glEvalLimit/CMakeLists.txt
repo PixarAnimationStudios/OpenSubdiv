@@ -56,6 +56,7 @@ _add_glfw_executable(glEvalLimit "examples"
     particles.h
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
+    $<TARGET_OBJECTS:regression_far_utils_obj>
     $<TARGET_OBJECTS:examples_common_obj>
 )
 

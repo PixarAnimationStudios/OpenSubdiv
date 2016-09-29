@@ -30,6 +30,7 @@ GLFWmonitor* g_primary = 0;
 
 #include <far/error.h>
 #include <osd/cpuEvaluator.h>
+#include <osd/cpuVertexBuffer.h>
 #include <osd/cpuGLVertexBuffer.h>
 #include <osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
@@ -61,6 +62,9 @@ static const char *shaderSource =
 enum DisplayStyle { kWire = 0,
                     kShaded,
                     kWireShaded };
+
+enum EndCap       { kEndCapBSplineBasis,
+                    kEndCapGregoryBasis };
 
 int g_currentShape = 0;
 
@@ -105,6 +109,7 @@ std::vector<float> g_orgPositions,
 
 Scheme             g_scheme;
 
+int g_endCap = kEndCapBSplineBasis;
 int g_level = 2;
 int g_tessLevel = 1;
 int g_tessLevelMin = 1;
@@ -138,7 +143,7 @@ struct Program {
 struct FVarData
 {
     FVarData() :
-        textureBuffer(0) {
+        textureBuffer(0), textureParamBuffer(0) {
     }
     ~FVarData() {
         Release();
@@ -147,11 +152,38 @@ struct FVarData
         if (textureBuffer)
             glDeleteTextures(1, &textureBuffer);
         textureBuffer = 0;
+        if (textureParamBuffer)
+            glDeleteTextures(1, &textureParamBuffer);
+        textureParamBuffer = 0;
     }
     void Create(OpenSubdiv::Far::PatchTable const *patchTable,
                 int fvarWidth, std::vector<float> const & fvarSrcData) {
+
+        using namespace OpenSubdiv;
+
         Release();
-        OpenSubdiv::Far::ConstIndexArray indices = patchTable->GetFVarValues();
+        Far::ConstIndexArray indices = patchTable->GetFVarValues();
+
+        const float * fvarSrcDataPtr = &fvarSrcData[0];
+        Osd::CpuVertexBuffer *fvarBuffer = NULL;
+
+        int numLocalFVarPoints = patchTable->GetNumLocalPointsFaceVarying();
+        if (numLocalFVarPoints > 0) {
+            int numSrcFVarPoints = (int)fvarSrcData.size() / fvarWidth;
+            fvarBuffer = Osd::CpuVertexBuffer::Create(
+                fvarWidth, numSrcFVarPoints + numLocalFVarPoints);
+            fvarBuffer->UpdateData(&fvarSrcData[0], 0, numSrcFVarPoints);
+
+            Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
+            Osd::BufferDescriptor dstDesc(numSrcFVarPoints*fvarWidth,
+                                          fvarWidth, fvarWidth);
+
+            Osd::CpuEvaluator::EvalStencils(fvarBuffer, srcDesc,
+                                            fvarBuffer, dstDesc,
+                                            patchTable->GetLocalPointFaceVaryingStencilTable());
+
+            fvarSrcDataPtr = fvarBuffer->BindCpuBuffer();
+        }
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -160,7 +192,7 @@ struct FVarData
         for (int fvert = 0; fvert < (int)indices.size(); ++fvert) {
             int index = indices[fvert] * fvarWidth;
             for (int i = 0; i < fvarWidth; ++i) {
-                data.push_back(fvarSrcData[index++]);
+                data.push_back(fvarSrcDataPtr[index++]);
             }
         }
         GLuint buffer;
@@ -169,6 +201,10 @@ struct FVarData
         glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
                      &data[0], GL_STATIC_DRAW);
 
+        if (fvarBuffer) {
+            delete fvarBuffer;
+        }
+
         glGenTextures(1, &textureBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
@@ -176,8 +212,23 @@ struct FVarData
         glBindTexture(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
+
+        Far::ConstPatchParamArray fvarParam = patchTable->GetFVarPatchParam();
+
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, fvarParam.size()*sizeof(Far::PatchParam),
+                     &fvarParam[0], GL_STATIC_DRAW);
+
+        glGenTextures(1, &textureParamBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, textureParamBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindTexture(GL_ARRAY_BUFFER, 0);
+
+        glDeleteBuffers(1, &buffer);
     }
-    GLuint textureBuffer;
+    GLuint textureBuffer, textureParamBuffer;
 } g_fvarData;
 
 //------------------------------------------------------------------------------
@@ -366,6 +417,10 @@ rebuildMesh() {
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
     bits.set(OpenSubdiv::Osd::MeshFVarData, 1);
+    bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, 1);
+    bits.set(OpenSubdiv::Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
+    bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
+
 
     int numVertexElements = 3;
     int numVaryingElements = 0;
@@ -461,10 +516,13 @@ GetEffect(bool uvDraw = false) {
 
 struct EffectDesc {
     EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
-               Effect effect) : desc(desc), effect(effect),
+               OpenSubdiv::Far::PatchDescriptor fvarDesc,
+               Effect effect) : desc(desc), fvarDesc(fvarDesc),
+                                effect(effect),
                                 maxValence(0), numElements(0) { }
 
     OpenSubdiv::Far::PatchDescriptor desc;
+    OpenSubdiv::Far::PatchDescriptor fvarDesc;
     Effect effect;
     int maxValence;
     int numElements;
@@ -472,9 +530,10 @@ struct EffectDesc {
     bool operator < (const EffectDesc &e) const {
         return
             (desc < e.desc || ((desc == e.desc &&
+            (fvarDesc < e.fvarDesc || ((fvarDesc == e.fvarDesc &&
             (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
             (numElements < e.numElements || ((numElements == e.numElements) &&
-            (effect < e.effect))))))));
+            (effect < e.effect)))))))))));
     }
 };
 
@@ -536,7 +595,17 @@ public:
             ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
         }
 
+        if (effectDesc.desc.IsAdaptive()) {
+            if (effectDesc.fvarDesc.GetType() == Far::PatchDescriptor::REGULAR) {
+                ss << "#define SHADING_FACEVARYING_SMOOTH_BSPLINE_BASIS\n";
+            } else if (effectDesc.fvarDesc.GetType() == Far::PatchDescriptor::GREGORY_BASIS) {
+                ss << "#define SHADING_FACEVARYING_SMOOTH_GREGORY_BASIS\n";
+            }
+        }
+
         // include osd PatchCommon
+        ss << "#define OSD_PATCH_BASIS_GLSL\n";
+        ss << Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
         ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
         std::string common = ss.str();
         ss.str("");
@@ -607,6 +676,9 @@ public:
         if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
             glUniform1i(loc, 1); // GL_TEXTURE1
         }
+        if ((loc = glGetUniformLocation(program, "OsdFVarParamBuffer")) != -1) {
+            glUniform1i(loc, 2); // GL_TEXTURE2
+        }
 
 
         return config;
@@ -661,14 +733,18 @@ bindTextures() {
     }
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureBuffer);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_BUFFER, g_fvarData.textureParamBuffer);
 
     glActiveTexture(GL_TEXTURE0);
 }
 
 static GLenum
-bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
+bindProgram(Effect effect,
+            OpenSubdiv::Osd::PatchArray const & patch,
+            OpenSubdiv::Far::PatchDescriptor const & fvarDesc) {
 
-    EffectDesc effectDesc(patch.GetDescriptor(), effect);
+    EffectDesc effectDesc(patch.GetDescriptor(), fvarDesc, effect);
 
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
@@ -745,6 +821,9 @@ display() {
 
     glBindVertexArray(g_vao);
 
+    OpenSubdiv::Far::PatchDescriptor fvarDesc =
+        g_mesh->GetFarPatchTable()->GetFVarChannelPatchDescriptor(0);
+
     OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
 
@@ -758,7 +837,7 @@ display() {
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        GLenum primType = bindProgram(GetEffect(), patch);
+        GLenum primType = bindProgram(GetEffect(), patch, fvarDesc);
 
         glDrawElements(
             primType,
@@ -789,7 +868,7 @@ display() {
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        GLenum primType = bindProgram(GetEffect(/*uvDraw=*/ true), patch);
+        GLenum primType = bindProgram(GetEffect(/*uvDraw=*/ true), patch, fvarDesc);
 
         glDrawElements(
             primType,
@@ -928,6 +1007,12 @@ callbackDisplayStyle(int b) {
 }
 
 static void
+callbackEndCap(int endCap) {
+    g_endCap = endCap;
+    rebuildMesh();
+}
+
+static void
 callbackLevel(int l) {
 
     g_level = l;
@@ -995,6 +1080,15 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Wire", kWire, g_displayStyle==kWire);
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
+
+    int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 140, 200,
+                                            callbackEndCap, 'e');
+    g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+        kEndCapBSplineBasis,
+        g_endCap == kEndCapBSplineBasis);
+    g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+        kEndCapGregoryBasis,
+        g_endCap == kEndCapGregoryBasis);
 
     if (GLUtils::SupportsAdaptiveTessellation())
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 250, callbackAdaptive, 0, '`');

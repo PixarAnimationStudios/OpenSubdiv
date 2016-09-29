@@ -564,6 +564,8 @@ public:
         }
 
         // include osd PatchCommon
+        ss << "#define OSD_PATCH_BASIS_HLSL\n";
+        ss << Osd::HLSLPatchShaderSource::GetPatchBasisShaderSource();
         ss << Osd::HLSLPatchShaderSource::GetCommonShaderSource();
         std::string common = ss.str();
         ss.str("");
