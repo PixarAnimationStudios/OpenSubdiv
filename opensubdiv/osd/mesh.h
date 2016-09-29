@@ -50,11 +50,12 @@ enum MeshBits {
     MeshAdaptive             = 0,
     MeshInterleaveVarying    = 1,
     MeshFVarData             = 2,
-    MeshUseSingleCreasePatch = 3,
-    MeshEndCapBSplineBasis   = 4,  // exclusive
-    MeshEndCapGregoryBasis   = 5,  // exclusive
-    MeshEndCapLegacyGregory  = 6,  // exclusive
-    NUM_MESH_BITS            = 7,
+    MeshFVarAdaptive         = 3,
+    MeshUseSingleCreasePatch = 4,
+    MeshEndCapBSplineBasis   = 5,  // exclusive
+    MeshEndCapGregoryBasis   = 6,  // exclusive
+    MeshEndCapLegacyGregory  = 7,  // exclusive
+    NUM_MESH_BITS            = 8,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -100,6 +101,22 @@ protected:
         if (adaptive) {
             Far::TopologyRefiner::AdaptiveOptions options(level);
             options.useSingleCreasePatch = singleCreasePatch;
+            refiner.RefineAdaptive(options);
+        } else {
+            //  This dependency on FVar channels should not be necessary
+            bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
+
+            Far::TopologyRefiner::UniformOptions options(level);
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            refiner.RefineUniform(options);
+        }
+    }
+    static inline void refineMesh(Far::TopologyRefiner & refiner,
+                                  int level, MeshBitset bits) {
+        if (bits.test(MeshAdaptive)) {
+            Far::TopologyRefiner::AdaptiveOptions options(level);
+            options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+            options.considerFVarChannels = bits.test(MeshFVarAdaptive);
             refiner.RefineAdaptive(options);
         } else {
             //  This dependency on FVar channels should not be necessary
@@ -347,9 +364,7 @@ public:
         assert(_refiner);
 
         MeshInterface<PATCH_TABLE>::refineMesh(
-            *_refiner, level,
-            bits.test(MeshAdaptive),
-            bits.test(MeshUseSingleCreasePatch));
+            *_refiner, level, bits);
 
         int vertexBufferStride = numVertexElements +
             (bits.test(MeshInterleaveVarying) ? numVaryingElements : 0);
@@ -511,6 +526,7 @@ private:
 
         Far::PatchTableFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
+        poptions.generateFVarLegacyLinearPatches = !bits.test(MeshFVarAdaptive);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
 
         if (bits.test(MeshEndCapBSplineBasis)) {
