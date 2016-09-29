@@ -562,12 +562,14 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
     //
     bool isRegular = ! fCompVTag._xordinary || fCompVTag._nonManifold;
 
+
+
     //  Reconsider when using inf-sharp patches in presence of inf-sharp features:
-    if (options.useInfSharpPatch && fCompVTag._infSharpEdges) {
-        if (fCompVTag._nonManifold) {
+    if (options.useInfSharpPatch && (fCompVTag._infSharp || fCompVTag._infSharpEdges)) {
+        if (fCompVTag._nonManifold || !fCompVTag._infIrregular) {
             isRegular = true;
-        } else if (!fCompVTag._infIrregular) {
-            isRegular = true;
+        } else if (!fCompVTag._infSharpEdges) {
+            isRegular = false;
         } else {
             //
             //   This is unfortunately a relatively complex case to determine... if a corner
