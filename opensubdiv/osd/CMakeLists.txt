@@ -294,10 +294,6 @@ if( CUDA_FOUND )
             cudaD3D11VertexBuffer.h
         )
     endif()
-
-    if (UNIX)
-        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
-    endif()
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})

@@ -475,6 +475,22 @@ if(CUDA_FOUND)
         -DOPENSUBDIV_HAS_CUDA
     )
     set(OSD_GPU TRUE)
+
+    if (UNIX)
+        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
+        if (NOT DEFINED OSD_CUDA_NVCC_FLAGS)
+            if (CUDA_VERSION_MAJOR LESS 6)
+                set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_11 )
+            else()
+                set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_20 )
+            endif()
+        endif()
+    endif()
+
+    if (DEFINED OSD_CUDA_NVCC_FLAGS)
+        list( APPEND CUDA_NVCC_FLAGS ${OSD_CUDA_NVCC_FLAGS})
+    endif()
+
 else()
     if (NOT NO_CUDA)
         message(WARNING
