@@ -190,35 +190,30 @@ struct PatchParam {
     /// \brief Returns the boundary edge encoding for the patch.
     unsigned short GetBoundary() const { return (unsigned short)unpack(field1,4,8); }
 
-    /// \brief True if the parent coarse face is a non-quad
+    /// \brief True if the parent base face is a non-quad
     bool NonQuadRoot() const { return (unpack(field1,1,4) != 0); }
 
     /// \brief Returns the level of subdivision of the patch
     unsigned short GetDepth() const { return (unsigned short)unpack(field1,4,0); }
 
-    /// \brief Returns the fraction of the coarse face parametric space
-    /// covered by this refined face.
+    /// \brief Returns the fraction of unit parametric space covered by this face.
     float GetParamFraction() const;
 
-    /// \brief Maps the (u,v) parameterization from coarse to refined
-    /// The (u,v) pair is mapped from the base face parameterization to
-    /// the refined face parameterization
-    ///
-    void MapBaseToRefined( float & u, float & v ) const;
-
-    /// \brief Maps the (u,v) parameterization from refined to coarse
-    /// The (u,v) pair is mapped from the refined face parameterization to
-    /// the base face parameterization
-    ///
-    void MapRefinedToBase( float & u, float & v ) const;
-
-    /// \brief The (u,v) pair is normalized to this sub-parametric space.
+    /// \brief A (u,v) pair in the fraction of parametric space covered by this
+    /// face is mapped into a normalized parametric space.
     ///
     /// @param u  u parameter
     /// @param v  v parameter
     ///
-    /// @see PatchParam#MapBaseToRefined
     void Normalize( float & u, float & v ) const;
+
+    /// \brief A (u,v) pair in a normalized parametric space is mapped back into the
+    /// fraction of parametric space covered by this face.
+    ///
+    /// @param u  u parameter
+    /// @param v  v parameter
+    ///
+    void Unnormalize( float & u, float & v ) const;
 
     /// \brief Returns whether the patch is regular
     bool IsRegular() const { return (unpack(field1,1,5) != 0); }
@@ -267,7 +262,7 @@ PatchParam::GetParamFraction( ) const {
 }
 
 inline void
-PatchParam::MapBaseToRefined( float & u, float & v ) const {
+PatchParam::Normalize( float & u, float & v ) const {
 
     float frac = GetParamFraction();
 
@@ -279,7 +274,7 @@ PatchParam::MapBaseToRefined( float & u, float & v ) const {
 }
 
 inline void
-PatchParam::MapRefinedToBase( float & u, float & v ) const {
+PatchParam::Unnormalize( float & u, float & v ) const {
 
     float frac = GetParamFraction();
 
@@ -288,11 +283,6 @@ PatchParam::MapRefinedToBase( float & u, float & v ) const {
 
     u = u * frac + pu,
     v = v * frac + pv;
-}
-
-inline void
-PatchParam::Normalize( float & u, float & v ) const {
-    return MapBaseToRefined(u, v);
 }
 
 } // end namespace Far
