@@ -374,11 +374,11 @@ getAdaptivePatchColor(int3 patchParam, float2 vSegments)
         float4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
 
         float4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
-        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
-        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
-        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
-        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
-        float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+        float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 0
+        float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 1
+        float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 2
+        float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 3
+        float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 4
 
         float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
         float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
