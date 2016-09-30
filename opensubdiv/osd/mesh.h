@@ -52,10 +52,11 @@ enum MeshBits {
     MeshFVarData             = 2,
     MeshFVarAdaptive         = 3,
     MeshUseSingleCreasePatch = 4,
-    MeshEndCapBSplineBasis   = 5,  // exclusive
-    MeshEndCapGregoryBasis   = 6,  // exclusive
-    MeshEndCapLegacyGregory  = 7,  // exclusive
-    NUM_MESH_BITS            = 8,
+    MeshUseInfSharpPatch     = 5,
+    MeshEndCapBSplineBasis   = 6,  // exclusive
+    MeshEndCapGregoryBasis   = 7,  // exclusive
+    MeshEndCapLegacyGregory  = 8,  // exclusive
+    NUM_MESH_BITS            = 9,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -116,6 +117,7 @@ protected:
         if (bits.test(MeshAdaptive)) {
             Far::TopologyRefiner::AdaptiveOptions options(level);
             options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+            options.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
             options.considerFVarChannels = bits.test(MeshFVarAdaptive);
             refiner.RefineAdaptive(options);
         } else {
@@ -528,6 +530,7 @@ private:
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.generateFVarLegacyLinearPatches = !bits.test(MeshFVarAdaptive);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+        poptions.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
 
         if (bits.test(MeshEndCapBSplineBasis)) {
             poptions.SetEndCapType(
