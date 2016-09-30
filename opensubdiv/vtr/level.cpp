@@ -666,6 +666,25 @@ Level::getFaceCompositeVTag(Index fIndex, int fvarChannel) const {
     }
 }
 
+Level::VTag
+Level::getVertexCompositeFVarVTag(Index vIndex, int fvarChannel) const {
+
+    FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+
+    FVarLevel::ConstValueTagArray fvTags = fvarLevel.getVertexValueTags(vIndex);
+
+    VTag vTag = getVertexTag(vIndex);
+    if (fvTags[0].isMismatch()) {
+        VTag compVTag = fvTags[0].combineWithLevelVTag(vTag);
+        for (int i = 1; i < fvTags.size(); ++i) {
+            combineTags<VTag, VTag::VTagSize>(compVTag, fvTags[i].combineWithLevelVTag(vTag));
+        }
+        return compVTag;
+    } else {
+        return vTag;
+    }
+}
+
 //
 //  High-level topology gathering functions -- used mainly in patch construction.  These
 //  may eventually be moved elsewhere, possibly to classes specialized for quad- and tri-
