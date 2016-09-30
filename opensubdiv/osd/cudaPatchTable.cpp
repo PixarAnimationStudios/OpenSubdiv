@@ -110,7 +110,7 @@ CudaPatchTable::allocate(Far::PatchTable const *farPatchTable) {
 
         err = cudaMemcpy(_fvarIndexBuffers[fvc],
                          patchTable.GetFVarPatchIndexBuffer(fvc),
-                         indexSize * sizeof(int),
+                         fvarIndexSize * sizeof(int),
                          cudaMemcpyHostToDevice);
         if (err != cudaSuccess) return false;
 
