@@ -237,7 +237,19 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         //  results as the Ep and Em can be computed more directly from the limit
         //  masks for the tangent vectors.
         //
-        if (! cornerBoundary[corner]) {
+        if (cornerSpans[corner]._sharp) {
+            P[corner].Clear(stencilCapacity);
+            P[corner].AddWithWeight(vCorner, 1.0f);
+
+            // Approximating these for now, pending future investigation...
+            e0[corner].Clear(stencilCapacity);
+            e0[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
+            e0[corner].AddWithWeight(facePoints[(corner+1)%4], 1.0f / 3.0f);
+
+            e1[corner].Clear(stencilCapacity);
+            e1[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
+            e1[corner].AddWithWeight(facePoints[(corner+3)%4], 1.0f / 3.0f);
+        } else if (! cornerBoundary[corner]) {
             float theta    = cornerFaceAngle[corner];
             float posScale = 1.0f / float(cornerValence);
             float tanScale = computeCoefficient(cornerValence);
@@ -331,7 +343,10 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         float faceAngleNext = faceAngle * float(iEdgeNext);
         float faceAnglePrev = faceAngle * float(iEdgePrev);
 
-        if (! cornerBoundary[corner]) {
+        if (cornerSpans[corner]._sharp) {
+            Ep[corner] = e0[corner];
+            Em[corner] = e1[corner];
+        } else if (! cornerBoundary[corner]) {
             Ep[corner] = P[corner];
             Ep[corner].AddWithWeight(e0[corner], cosf(faceAngleNext));
             Ep[corner].AddWithWeight(e1[corner], sinf(faceAngleNext));
