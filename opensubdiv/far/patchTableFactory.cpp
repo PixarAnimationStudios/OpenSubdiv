@@ -1137,7 +1137,7 @@ PatchTableFactory::identifyAdaptivePatches(BuilderContext & context) {
                     // irregular patches are also boundary patches.
                     if (context.options.GetEndCapType() == Options::ENDCAP_LEGACY_GREGORY) {
                         bool isBoundaryPatch = level.getFaceCompositeVTag(faceIndex)._boundary;
-                        ++context.numIrregularBoundaryPatches += isBoundaryPatch;
+                        context.numIrregularBoundaryPatches += isBoundaryPatch;
                     }
                 }
             }
@@ -1408,7 +1408,7 @@ PatchTableFactory::populateAdaptivePatches(
             case Options::ENDCAP_LEGACY_GREGORY:
                 // For legacy gregory patches we may need to switch to
                 // the irregular boundary patch array.
-                if (faceVTags._boundary) {
+                if (!faceVTags._boundary) {
                     arrayBuilder->iptr +=
                         context.GatherIrregularPatchPoints(
                             endCapLegacyGregory, arrayBuilder->iptr, patch, irregCornerSpans);
