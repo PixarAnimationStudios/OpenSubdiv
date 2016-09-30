@@ -54,7 +54,7 @@
 #elif defined(OSD_PATCH_BASIS_CUDA)
 
     #define OSD_FUNCTION_STORAGE_CLASS __device__
-    #define OSD_DATA_STORAGE_CLASS static
+    #define OSD_DATA_STORAGE_CLASS
     #define OSD_OPTIONAL(a) true
     #define OSD_OPTIONAL_INIT(a,b) b
     #define OSD_OUT
