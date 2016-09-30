@@ -128,6 +128,7 @@ int   g_freeze = 0,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
+      g_infSharpPatch = 0,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0};
 
@@ -293,11 +294,13 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
 
     // Adaptive refinement currently supported only for catmull-clark scheme
     bool doAdaptive = (g_adaptive!=0 && g_scheme==kCatmark),
-         doSingleCreasePatch = (g_singleCreasePatch!=0 && g_scheme==kCatmark);
+         doSingleCreasePatch = (g_singleCreasePatch!=0 && g_scheme==kCatmark),
+         doInfSharpPatch = (g_infSharpPatch!=0 && g_scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    bits.set(Osd::MeshUseInfSharpPatch, doInfSharpPatch);
     bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
     bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
     bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
@@ -1119,6 +1122,12 @@ callbackSingleCreasePatch(bool checked, int /* a */) {
 }
 
 static void
+callbackInfSharpPatch(bool checked, int /* a */) {
+    g_infSharpPatch = checked;
+    rebuildOsdMesh();
+}
+
+static void
 callbackCheckBox(bool checked, int button) {
     switch (button) {
     case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
@@ -1175,7 +1184,7 @@ initHUD() {
     g_hud->AddPullDownButton(compute_pulldown, "HLSL Compute", kDirectCompute);
 
     int displaystyle_pulldown = g_hud->AddPullDown("DisplayStyle (W)", 200, 10, 250,
-                                                   callbackDisplayStyle, 'w');
+                                                   callbackDisplayStyle, 'W');
     g_hud->AddPullDownButton(displaystyle_pulldown, "Wire", kDisplayStyleWire,
                             g_displayStyle == kDisplayStyleWire);
     g_hud->AddPullDownButton(displaystyle_pulldown, "Shaded", kDisplayStyleShaded,
@@ -1184,7 +1193,7 @@ initHUD() {
                             g_displayStyle == kDisplayStyleWireOnShaded);
 
     int shading_pulldown = g_hud->AddPullDown("Shading (C)", 200, 70, 250,
-                                             callbackShadingMode, 'c');
+                                             callbackShadingMode, 'C');
     g_hud->AddPullDownButton(shading_pulldown, "Material",
                             kShadingMaterial,
                             g_shadingMode == kShadingMaterial);
@@ -1225,11 +1234,12 @@ initHUD() {
                        10, y, callbackCheckBox, kHUD_CB_FREEZE, ' ');
     y += 20;
 
-    g_hud->AddCheckBox("Adaptive (`)", true, 10, 230, callbackAdaptive, 0, '`');
-    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 250, callbackSingleCreasePatch, 0, 'S');
+    g_hud->AddCheckBox("Adaptive (`)", true, 10, 190, callbackAdaptive, 0, '`');
+    g_hud->AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0, 10, 210, callbackSingleCreasePatch, 0, 'S');
+    g_hud->AddCheckBox("Inf Sharp Patch (I)", g_infSharpPatch!=0, 10, 230, callbackInfSharpPatch, 0, 'I');
 
     int endcap_pulldown = g_hud->AddPullDown(
-        "End cap (E)", 10, 270, 200, callbackEndCap, 'E');
+        "End cap (E)", 10, 250, 200, callbackEndCap, 'E');
     g_hud->AddPullDownButton(endcap_pulldown,"None",
                              kEndCapNone,
                              g_endCap == kEndCapNone);
@@ -1249,7 +1259,7 @@ initHUD() {
         g_hud->AddRadioButton(3, level, i==2, 10, 290+i*20, callbackLevel, i, '0'+(i%10));
     }
 
-    int shapes_pulldown = g_hud->AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
+    int shapes_pulldown = g_hud->AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'N');
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
         g_hud->AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
     }
