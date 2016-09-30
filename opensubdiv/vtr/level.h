@@ -304,7 +304,8 @@ public:
     //
     //  The same logic can be applied to topology in a FVar channel when tags specific to that
     //  channel are used.  Note that the VTags apply to the FVar values assigned to the corners
-    //  of the face and not the vertex as a whole.
+    //  of the face and not the vertex as a whole.  The "composite" face-varying VTag for a
+    //  vertex is the union of VTags of all distinct FVar values for that vertex.
     //
     bool doesVertexFVarTopologyMatch(Index vIndex, int fvarChannel) const;
     bool doesFaceFVarTopologyMatch(  Index fIndex, int fvarChannel) const;
@@ -315,6 +316,8 @@ public:
 
     VTag getFaceCompositeVTag(Index fIndex, int fvarChannel = -1) const;
     VTag getFaceCompositeVTag(ConstIndexArray & fVerts) const;
+
+    VTag getVertexCompositeFVarVTag(Index vIndex, int fvarChannel) const;
 
     //
     //  When gathering "patch points" we may want the indices of the vertices or the corresponding

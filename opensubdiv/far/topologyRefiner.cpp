@@ -611,9 +611,24 @@ namespace {
     doesFaceHaveDistinctFaceVaryingFeatures(Vtr::internal::Level const& level, Index face,
                                 internal::FeatureMask const & featureMask, int fvarChannel) {
 
+        using Vtr::internal::Level;
+
+        ConstIndexArray fVerts = level.getFaceVertices(face);
+
         assert(!level.doesFaceFVarTopologyMatch(face, fvarChannel));
 
-        Vtr::internal::Level::VTag compVTag = level.getFaceCompositeVTag(face, fvarChannel);
+        //  We can't use the composite VTag for the face here as it only includes the FVar
+        //  values specific to this face.  We need to account for all FVar values around
+        //  each corner of the face -- including those in potentially completely disjoint
+        //  sets -- to ensure that adjacent faces remain compatibly refined (i.e. differ
+        //  by only one level), so we use the composite tags for the corner vertices:
+        //
+        Level::VTag vTags[4];
+
+        for (int i = 0; i < fVerts.size(); ++i) {
+            vTags[i] = level.getVertexCompositeFVarVTag(fVerts[i], fvarChannel);
+        }
+        Level::VTag compVTag = Level::VTag::BitwiseOr(vTags, fVerts.size());
 
         //  Select non-manifold features if specified, otherwise treat as inf-sharp:
         if (compVTag._nonManifold && featureMask.selectNonManifold) {
