@@ -34,6 +34,9 @@ namespace Osd {
 static const char *commonShaderSource =
 #include "glslPatchCommon.gen.h"
 ;
+static const char *patchBasisShaderSource =
+#include "patchBasisCommon.gen.h"
+;
 static const char *bsplineShaderSource =
 #include "glslPatchBSpline.gen.h"
 ;
@@ -48,6 +51,12 @@ static const char *gregoryBasisShaderSource =
 std::string
 GLSLPatchShaderSource::GetCommonShaderSource() {
     return std::string(commonShaderSource);
+}
+
+/*static*/
+std::string
+GLSLPatchShaderSource::GetPatchBasisShaderSource() {
+    return std::string(patchBasisShaderSource);
 }
 
 /*static*/

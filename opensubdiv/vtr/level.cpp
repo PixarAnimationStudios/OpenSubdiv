@@ -531,19 +531,78 @@ Level::print(const Refinement* pRefinement) const {
     for (int i = 0; printVertTags && i < (int)_vertTags.size(); ++i) {
         VTag const& vTag = _vertTags[i];
         printf("        vert %4d:", i);
-        printf("  rule = %s",      ruleString((Sdc::Crease::Rule)vTag._rule));
-        printf(", boundary = %d",  (int)vTag._boundary);
-        printf(", corner = %d",    (int)vTag._corner);
-        printf(", xordinary = %d", (int)vTag._xordinary);
-        printf(", nonManifold = %d", (int)vTag._nonManifold);
-        printf(", infSharp = %d",  (int)vTag._infSharp);
-        printf(", semiSharp = %d", (int)vTag._semiSharp);
+        printf("  rule = %s",           ruleString((Sdc::Crease::Rule)vTag._rule));
+        printf(", boundary = %d",       (int)vTag._boundary);
+        printf(", corner = %d",         (int)vTag._corner);
+        printf(", xordinary = %d",      (int)vTag._xordinary);
+        printf(", nonManifold = %d",    (int)vTag._nonManifold);
+        printf(", infSharp = %d",       (int)vTag._infSharp);
+        printf(", infSharpEdges = %d",  (int)vTag._infSharpEdges);
+        printf(", infSharpCrease = %d", (int)vTag._infSharpCrease);
+        printf(", infIrregular = %d",   (int)vTag._infIrregular);
+        printf(", semiSharp = %d",      (int)vTag._semiSharp);
         printf(", semiSharpEdges = %d", (int)vTag._semiSharpEdges);
         printf("\n");
     }
     fflush(stdout);
 }
 
+//
+//  Methods for retrieving and combining tags:
+//
+bool
+Level::doesVertexFVarTopologyMatch(Index vIndex, int fvarChannel) const {
+
+    return getFVarLevel(fvarChannel).valueTopologyMatches(
+            getFVarLevel(fvarChannel).getVertexValue(vIndex));
+}
+bool
+Level::doesEdgeFVarTopologyMatch(Index eIndex, int fvarChannel) const {
+
+    return getFVarLevel(fvarChannel).edgeTopologyMatches(eIndex);
+}
+bool
+Level::doesFaceFVarTopologyMatch(Index fIndex, int fvarChannel) const {
+
+    return ! getFVarLevel(fvarChannel).getFaceCompositeValueTag(fIndex).isMismatch();
+}
+
+void
+Level::getFaceVTags(Index fIndex, VTag vTags[], int fvarChannel) const {
+
+    ConstIndexArray fVerts = getFaceVertices(fIndex);
+    if (fvarChannel < 0) {
+        for (int i = 0; i < fVerts.size(); ++i) {
+            vTags[i] = getVertexTag(fVerts[i]);
+        }
+    } else {
+        FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+        ConstIndexArray fValues = fvarLevel.getFaceValues(fIndex);
+        for (int i = 0; i < fVerts.size(); ++i) {
+            Index valueIndex = fvarLevel.findVertexValueIndex(fVerts[i], fValues[i]);
+            FVarLevel::ValueTag valueTag = fvarLevel.getValueTag(valueIndex);
+
+            vTags[i] = valueTag.combineWithLevelVTag(getVertexTag(fVerts[i]));
+        }
+    }
+}
+void
+Level::getFaceETags(Index fIndex, ETag eTags[], int fvarChannel) const {
+
+    ConstIndexArray fEdges = getFaceEdges(fIndex);
+    if (fvarChannel < 0) {
+        for (int i = 0; i < fEdges.size(); ++i) {
+            eTags[i] = getEdgeTag(fEdges[i]);
+        }
+    } else {
+        FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+        for (int i = 0; i < fEdges.size(); ++i) {
+            FVarLevel::ETag fvarETag = fvarLevel.getEdgeTag(fEdges[i]);
+
+            eTags[i] = fvarETag.combineWithLevelETag(getEdgeTag(fEdges[i]));
+        }
+    }
+}
 
 namespace {
     template <typename TAG_TYPE, typename INT_TYPE>
@@ -560,24 +619,70 @@ namespace {
 }
 
 Level::VTag
-Level::getFaceCompositeVTag(ConstIndexArray & faceVerts) const {
+Level::VTag::BitwiseOr(VTag const vTags[], int size) {
 
-    VTag compTag = _vertTags[faceVerts[0]];
-
-    for (int i = 1; i < faceVerts.size(); ++i) {
-        combineTags<VTag, VTag::VTagSize>(compTag, _vertTags[faceVerts[i]]);
+    VTag compTag = vTags[0];
+    for (int i = 1; i < size; ++i) {
+        combineTags<VTag, VTag::VTagSize>(compTag, vTags[i]);
     }
     return compTag;
 }
 Level::ETag
-Level::getFaceCompositeETag(ConstIndexArray & faceEdges) const {
+Level::ETag::BitwiseOr(ETag const eTags[], int size) {
 
-    ETag compTag = _edgeTags[faceEdges[0]];
-
-    for (int i = 1; i < faceEdges.size(); ++i) {
-        combineTags<ETag, ETag::ETagSize>(compTag, _edgeTags[faceEdges[i]]);
+    ETag compTag = eTags[0];
+    for (int i = 1; i < size; ++i) {
+        combineTags<ETag, ETag::ETagSize>(compTag, eTags[i]);
     }
     return compTag;
+}
+
+Level::VTag
+Level::getFaceCompositeVTag(ConstIndexArray & fVerts) const {
+
+    VTag compTag = _vertTags[fVerts[0]];
+    for (int i = 1; i < fVerts.size(); ++i) {
+        combineTags<VTag, VTag::VTagSize>(compTag, _vertTags[fVerts[i]]);
+    }
+    return compTag;
+}
+Level::VTag
+Level::getFaceCompositeVTag(Index fIndex, int fvarChannel) const {
+
+    ConstIndexArray fVerts = getFaceVertices(fIndex);
+    if (fvarChannel < 0) {
+        return getFaceCompositeVTag(fVerts);
+    } else {
+        FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+        internal::StackBuffer<FVarLevel::ValueTag,64> fvarTags(fVerts.size());
+        fvarLevel.getFaceValueTags(fIndex, fvarTags);
+
+        VTag compTag = fvarTags[0].combineWithLevelVTag(_vertTags[fVerts[0]]);
+        for (int i = 1; i < fVerts.size(); ++i) {
+            combineTags<VTag, VTag::VTagSize>(compTag,
+                        fvarTags[i].combineWithLevelVTag(_vertTags[fVerts[i]]));
+        }
+        return compTag;
+    }
+}
+
+Level::VTag
+Level::getVertexCompositeFVarVTag(Index vIndex, int fvarChannel) const {
+
+    FVarLevel const & fvarLevel = getFVarLevel(fvarChannel);
+
+    FVarLevel::ConstValueTagArray fvTags = fvarLevel.getVertexValueTags(vIndex);
+
+    VTag vTag = getVertexTag(vIndex);
+    if (fvTags[0].isMismatch()) {
+        VTag compVTag = fvTags[0].combineWithLevelVTag(vTag);
+        for (int i = 1; i < fvTags.size(); ++i) {
+            combineTags<VTag, VTag::VTagSize>(compVTag, fvTags[i].combineWithLevelVTag(vTag));
+        }
+        return compVTag;
+    } else {
+        return vTag;
+    }
 }
 
 //
@@ -644,6 +749,44 @@ Level::gatherQuadRegularRingAroundVertex(
         ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 2)];
 
         if (isBoundary && (i == (vFaces.size() - 1))) {
+            ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 3)];
+        }
+    }
+    return ringIndex;
+}
+
+int
+Level::gatherQuadRegularPartialRingAroundVertex(
+    Index vIndex, VSpan const & span, int ringPoints[], int fvarChannel) const {
+
+    Level const& level = *this;
+
+    assert(! level.isVertexNonManifold(vIndex));
+
+    ConstIndexArray      vFaces   = level.getVertexFaces(vIndex);
+    ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
+
+    int nFaces    = span._numFaces;
+    int startFace = span._startFace;
+
+    int ringIndex = 0;
+    for (int i = 0; i < nFaces; ++i) {
+        //
+        //  For every incident quad, we want the two vertices clockwise in each face, i.e.
+        //  the vertex at the end of the leading edge and the vertex opposite this one:
+        //
+        int fIncident = (startFace + i) % vFaces.size();
+
+        ConstIndexArray fPoints = (fvarChannel < 0)
+                                ? level.getFaceVertices(vFaces[fIncident])
+                                : level.getFaceFVarValues(vFaces[fIncident], fvarChannel);
+
+        int vInThisFace = vInFaces[fIncident];
+
+        ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 1)];
+        ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 2)];
+
+        if ((i == nFaces - 1) && !span._periodic) {
             ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 3)];
         }
     }
@@ -1239,89 +1382,64 @@ Level::gatherTriRegularCornerEdgePatchPoints(Index fIndex, Index points[], int c
 }
 
 bool
-Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *rotationOut) const {
+Level::isSingleCreasePatch(Index face, float *sharpnessOut, int *sharpEdgeInFaceOut) const {
 
-    // Note: this function is called twice for the same patch, at topologyRefiner and patchTablesFactory.
-    // we may want to cache the result to improve the Far performance.
-    // To do so, FTag needs to be extended to store isSingleCrease(bool), sharpness(float) and rotation(0-3).
+    //  Using the composite tag for all face vertices, first make sure that some
+    //  face-vertices are Crease vertices, and quickly reject this case based on the
+    //  presence of other features.  Ultimately we want a regular interior face with
+    //  two (adjacent) Crease vertics and two Smooth vertices.  This first test
+    //  quickly ensures a regular interior face with some number of Crease vertices
+    //  and any remaining as Smooth.
     //
-    Vtr::ConstIndexArray  fVerts = this->getFaceVertices(face);
+    ConstIndexArray fVerts = getFaceVertices(face);
 
-    // the face has to be quad
-    if (fVerts.size() != 4) return false;
-
-    // if there's any corner vertex, return false.
-    for (int i = 0; i < fVerts.size(); ++i) {
-        if (this->getVertexSharpness(fVerts[i]) > 0.0f)
-            return false;
+    VTag allCornersTag = getFaceCompositeVTag(fVerts);
+    if (!(allCornersTag._rule & Sdc::Crease::RULE_CREASE) ||
+         (allCornersTag._rule & Sdc::Crease::RULE_CORNER) ||
+         (allCornersTag._rule & Sdc::Crease::RULE_DART) ||
+          allCornersTag._boundary ||
+          allCornersTag._xordinary ||
+          allCornersTag._nonManifold) {
+        return false;
     }
 
-    // make sure there's only one edge with sharpness
-    Vtr::ConstIndexArray  fEdges = this->getFaceEdges(face);
-    float sharpness = 0.0f;
-    int rotation = 0;
-    for (int i = 0; i < fEdges.size(); ++i) {
-        float s = this->getEdgeSharpness(fEdges[i]);
-        if (s > 0.0f) {
-            if (sharpness > 0.0f) {
-                // found more than one sharp edges.
-                return false;
-            }
-            sharpness = s;
-            rotation = i;
-        }
+    //  Identify the crease vertices in a 4-bit mask and use it as an index to
+    //  verify that we have exactly two adjacent crease vertices while identifying
+    //  the edge between them -- reject any case not returning a valid edge.
+    //
+    int creaseCornerMask = ((getVertexTag(fVerts[0])._rule == Sdc::Crease::RULE_CREASE) << 0) |
+                           ((getVertexTag(fVerts[1])._rule == Sdc::Crease::RULE_CREASE) << 1) |
+                           ((getVertexTag(fVerts[2])._rule == Sdc::Crease::RULE_CREASE) << 2) |
+                           ((getVertexTag(fVerts[3])._rule == Sdc::Crease::RULE_CREASE) << 3);
+    static const int sharpEdgeFromCreaseMask[16] = { -1, -1, -1,  0, -1, -1,  1, -1,
+                                                     -1,  3, -1, -1,  2, -1, -1, -1 };
+
+    int sharpEdgeInFace = sharpEdgeFromCreaseMask[creaseCornerMask];
+    if (sharpEdgeInFace < 0) {
+        return false;
     }
 
-    //  rotation = 0
-    //         |     |     |     |
-    //      ---5-----4-----15----14---
-    //         |     ||    |     |
-    //         |     ||    |     |
-    //      ---6-----0-----3-----13---
-    //         |     ||    |     |
-    //         |     ||    |     |
-    //      ---7-----1-----2-----12---
-    //         |     ||    |     |
-    //         |     ||    |     |
-    //      ---8-----9-----10----11---
-    //         |     |     |     |
+    //  Reject if the crease at the two crease vertices A and B is not regular, i.e.
+    //  any pair of opposing edges does not have the same sharpness value (one pair
+    //  sharp, the other smooth).  The resulting two regular creases must be "colinear"
+    //  (sharing the edge between them, and so its common sharpness value) otherwise
+    //  we would have more than two crease vertices.
+    //
+    ConstIndexArray vAEdges = getVertexEdges(fVerts[         sharpEdgeInFace]);
+    ConstIndexArray vBEdges = getVertexEdges(fVerts[fastMod4(sharpEdgeInFace + 1)]);
 
-    int v[4];
-    v[0] = fVerts[(0+rotation)%4];  // crease
-    v[1] = fVerts[(1+rotation)%4];  // crease
-    v[2] = fVerts[(2+rotation)%4];  // smooth
-    v[3] = fVerts[(3+rotation)%4];  // smooth
-
-    // check the edges around v[0], v[1]
-    for (int i = 0; i < 2; ++i) {
-        Vtr::ConstIndexArray  vEdges = this->getVertexEdges(v[i]);
-        if (vEdges.size() != 4) return false;
-        int nSharpEdges = 0;
-        float sharpnesses[4];
-        for (int j = 0; j < 4; ++j) {
-            sharpnesses[j] = this->getEdgeSharpness(vEdges[j]);
-            if (sharpnesses[j] > 0.0f) {
-                if (++nSharpEdges == 3) return false;
-            }
-        }
-        // sharpnesses have to be [0, x, 0, x] or [x, 0, x, 0]
-        if (!isSharpnessEqual(sharpnesses[0], sharpnesses[2]) or
-            !isSharpnessEqual(sharpnesses[1], sharpnesses[3])) {
-            return false;
-        }
+    if (!isSharpnessEqual(getEdgeSharpness(vAEdges[0]), getEdgeSharpness(vAEdges[2])) ||
+        !isSharpnessEqual(getEdgeSharpness(vAEdges[1]), getEdgeSharpness(vAEdges[3])) ||
+        !isSharpnessEqual(getEdgeSharpness(vBEdges[0]), getEdgeSharpness(vBEdges[2])) ||
+        !isSharpnessEqual(getEdgeSharpness(vBEdges[1]), getEdgeSharpness(vBEdges[3]))) {
+        return false;
     }
-    // check the edges around v[2], v[3]
-    for (int i = 2; i < 4; ++i) {
-        Vtr::ConstIndexArray  vEdges = this->getVertexEdges(v[i]);
-        if (vEdges.size() != 4) return false;
-        // all edges have to be smooth
-        for (int j = 0; j < 4; ++j) {
-            if (this->getEdgeSharpness(vEdges[j]) > 0.0f) return false;
-        }
+    if (sharpnessOut) {
+        *sharpnessOut = getEdgeSharpness(getFaceEdges(face)[sharpEdgeInFace]);
     }
-
-    if (sharpnessOut) *sharpnessOut = sharpness;
-    if (rotationOut) *rotationOut = rotation;
+    if (sharpEdgeInFaceOut) {
+        *sharpEdgeInFaceOut = sharpEdgeInFace;
+    }
     return true;
 }
 

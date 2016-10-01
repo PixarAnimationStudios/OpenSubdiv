@@ -52,6 +52,10 @@ set(PUBLIC_HEADER_FILES
     types.h
 )
 
+list(APPEND KERNEL_FILES
+    patchBasisCommon.h
+)
+
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
 
 #-------------------------------------------------------------------------------
@@ -290,10 +294,6 @@ if( CUDA_FOUND )
             cudaD3D11VertexBuffer.h
         )
     endif()
-
-    if (UNIX)
-        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
-    endif()
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})
@@ -317,6 +317,11 @@ add_library(osd_cpu_obj
         ${PUBLIC_HEADER_FILES}
 )
 
+set_target_properties(osd_cpu_obj
+    PROPERTIES
+        FOLDER "opensubdiv"
+)
+
 if( GPU_SOURCE_FILES ) 
     add_library(osd_gpu_obj
         OBJECT
@@ -325,6 +330,12 @@ if( GPU_SOURCE_FILES )
             ${PUBLIC_HEADER_FILES}
             ${INC_FILES}
     )
+
+    set_target_properties(osd_gpu_obj
+        PROPERTIES
+            FOLDER "opensubdiv"
+    )
+    
 endif()
 
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )

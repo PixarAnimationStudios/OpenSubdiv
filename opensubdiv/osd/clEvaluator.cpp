@@ -41,6 +41,9 @@ namespace Osd {
 static const char *clSource =
 #include "clKernel.gen.h"
 ;
+static const char *patchBasisSource =
+#include "patchBasisCommon.gen.h"
+;
 
 // ----------------------------------------------------------------------------
 
@@ -140,11 +143,12 @@ CLEvaluator::Compile(BufferDescriptor const &srcDesc,
     std::ostringstream defines;
     defines << "#define LENGTH "     << srcDesc.length << "\n"
             << "#define SRC_STRIDE " << srcDesc.stride << "\n"
-            << "#define DST_STRIDE " << dstDesc.stride << "\n";
+            << "#define DST_STRIDE " << dstDesc.stride << "\n"
+            << "#define OSD_PATCH_BASIS_OPENCL\n";
     std::string defineStr = defines.str();
 
-    const char *sources[] = { defineStr.c_str(), clSource };
-    _program = clCreateProgramWithSource(_clContext, 2, sources, 0, &errNum);
+    const char *sources[] = { defineStr.c_str(), patchBasisSource, clSource };
+    _program = clCreateProgramWithSource(_clContext, 3, sources, 0, &errNum);
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
                    "clCreateProgramWithSource (%d)", errNum);

@@ -50,11 +50,13 @@ enum MeshBits {
     MeshAdaptive             = 0,
     MeshInterleaveVarying    = 1,
     MeshFVarData             = 2,
-    MeshUseSingleCreasePatch = 3,
-    MeshEndCapBSplineBasis   = 4,  // exclusive
-    MeshEndCapGregoryBasis   = 5,  // exclusive
-    MeshEndCapLegacyGregory  = 6,  // exclusive
-    NUM_MESH_BITS            = 7,
+    MeshFVarAdaptive         = 3,
+    MeshUseSingleCreasePatch = 4,
+    MeshUseInfSharpPatch     = 5,
+    MeshEndCapBSplineBasis   = 6,  // exclusive
+    MeshEndCapGregoryBasis   = 7,  // exclusive
+    MeshEndCapLegacyGregory  = 8,  // exclusive
+    NUM_MESH_BITS            = 9,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -110,6 +112,23 @@ protected:
             refiner.RefineUniform(options);
         }
     }
+    static inline void refineMesh(Far::TopologyRefiner & refiner,
+                                  int level, MeshBitset bits) {
+        if (bits.test(MeshAdaptive)) {
+            Far::TopologyRefiner::AdaptiveOptions options(level);
+            options.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+            options.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
+            options.considerFVarChannels = bits.test(MeshFVarAdaptive);
+            refiner.RefineAdaptive(options);
+        } else {
+            //  This dependency on FVar channels should not be necessary
+            bool fullTopologyInLastLevel = refiner.GetNumFVarChannels()>0;
+
+            Far::TopologyRefiner::UniformOptions options(level);
+            options.fullTopologyInLastLevel = fullTopologyInLastLevel;
+            refiner.RefineUniform(options);
+        }
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -119,7 +138,7 @@ template <typename STENCIL_TABLE, typename SRC_STENCIL_TABLE,
 STENCIL_TABLE const *
 convertToCompatibleStencilTable(
     SRC_STENCIL_TABLE const *table, DEVICE_CONTEXT *context) {
-    if (not table) return NULL;
+    if (! table) return NULL;
     return STENCIL_TABLE::Create(table, context);
 }
 
@@ -129,7 +148,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, void>(
     Far::StencilTable const *table, void *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
-    if (not table) return NULL;
+    if (! table) return NULL;
     return new Far::StencilTable(*table);
 }
 
@@ -139,7 +158,7 @@ convertToCompatibleStencilTable<Far::LimitStencilTable, Far::LimitStencilTable, 
     Far::LimitStencilTable const *table, void *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
-    if (not table) return NULL;
+    if (! table) return NULL;
     return new Far::LimitStencilTable(*table);
 }
 
@@ -149,7 +168,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, ID3D11Devi
     Far::StencilTable const *table, ID3D11DeviceContext *  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
-    if (not table) return NULL;
+    if (! table) return NULL;
     return new Far::StencilTable(*table);
 }
 
@@ -347,9 +366,7 @@ public:
         assert(_refiner);
 
         MeshInterface<PATCH_TABLE>::refineMesh(
-            *_refiner, level,
-            bits.test(MeshAdaptive),
-            bits.test(MeshUseSingleCreasePatch));
+            *_refiner, level, bits);
 
         int vertexBufferStride = numVertexElements +
             (bits.test(MeshInterleaveVarying) ? numVaryingElements : 0);
@@ -511,7 +528,9 @@ private:
 
         Far::PatchTableFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
+        poptions.generateFVarLegacyLinearPatches = !bits.test(MeshFVarAdaptive);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
+        poptions.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
 
         if (bits.test(MeshEndCapBSplineBasis)) {
             poptions.SetEndCapType(

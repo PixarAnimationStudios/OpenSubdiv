@@ -125,7 +125,7 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
 
     bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
     if (completeMissingTopology) {
-        if (not baseLevel.completeTopologyFromFaceVertices()) {
+        if (! baseLevel.completeTopologyFromFaceVertices()) {
             char msg[1024];
             snprintf(msg, 1024, "Failure in TopologyRefinerFactory<>::Create() -- "
                     "vertex with valence %d > %d max.",
@@ -142,7 +142,7 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
     }
 
     if (fullValidation) {
-        if (not baseLevel.validateTopology(callback, callbackData)) {
+        if (! baseLevel.validateTopology(callback, callbackData)) {
             if (completeMissingTopology) {
                 Error(FAR_RUNTIME_ERROR, "Failure in TopologyRefinerFactory<>::Create() -- "
                     "invalid topology detected from partial specification.");
@@ -240,7 +240,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
             //  more than two incident faces.  In these cases there are more incident
             //  faces than edges (1 more for each additional "fin") and no boundaries.
             //
-            if (not ((nonManifoldEdgeCount == 2) && (boundaryEdgeCount == 0) && (vFaces.size() > vEdges.size()))) {
+            if (! ((nonManifoldEdgeCount == 2) && (boundaryEdgeCount == 0) && (vFaces.size() > vEdges.size()))) {
                 vSharpness = Sdc::Crease::SHARPNESS_INFINITE;
             }
         }
@@ -265,6 +265,55 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
             vTag._xordinary = (vFaces.size() != schemeRegularInteriorValence);
         }
         vTag._incomplete = 0;
+
+        //
+        //  Assign tags specific to inf-sharp features to identify regular topologies
+        //  partitioned by inf-sharp creases -- must be no semi-sharp features here
+        //  (and manifold for now):
+        //
+        vTag._infSharpEdges   = (infSharpEdgeCount > 0);
+        vTag._infSharpCrease  = false;
+        vTag._infIrregular    = vTag._infSharp || vTag._infSharpEdges;
+
+        if (vTag._infSharpEdges) {
+            //  Ignore semi-sharp vertex sharpness when computing the inf-sharp Rule:
+            Sdc::Crease::Rule infRule = creasing.DetermineVertexVertexRule(
+                        (vTag._infSharp ? vSharpness : 0.0f), infSharpEdgeCount);
+
+            if (infRule == Sdc::Crease::RULE_CREASE) {
+                vTag._infSharpCrease = true;
+
+                //  A "regular" inf-crease can only occur along a manifold regular boundary
+                //  or by bisecting a manifold interior region (it is also possible along
+                //  non-manifold vertices in some cases, but that requires much more effort
+                //  to detect -- perhaps later...)
+                //
+                if (!vTag._xordinary && !vTag._nonManifold) {
+                    if (vTag._boundary) {
+                        vTag._infIrregular = false;
+                    } else {
+                        assert((schemeRegularInteriorValence == 4) || (schemeRegularInteriorValence == 6));
+
+                        if (schemeRegularInteriorValence == 4) {
+                            vTag._infIrregular = (baseLevel.getEdgeTag(vEdges[0])._infSharp !=
+                                                  baseLevel.getEdgeTag(vEdges[2])._infSharp);
+                        } else if (schemeRegularInteriorValence == 6) {
+                            vTag._infIrregular = (baseLevel.getEdgeTag(vEdges[0])._infSharp !=
+                                                  baseLevel.getEdgeTag(vEdges[3])._infSharp) ||
+                                                 (baseLevel.getEdgeTag(vEdges[1])._infSharp !=
+                                                  baseLevel.getEdgeTag(vEdges[4])._infSharp);
+                        }
+                    }
+                }
+            } else if (infRule == Sdc::Crease::RULE_CORNER) {
+                //  A regular set of inf-corners occurs when all edges are sharp and not
+                //  a smooth corner:
+                //
+                if ((infSharpEdgeCount == vEdges.size() && ((vEdges.size() > 2) || vTag._infSharp))) {
+                    vTag._infIrregular = false;
+                }
+            }
+        }
 
         //
         //  Having just decided if a vertex is on a boundary, and with its incident faces

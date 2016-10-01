@@ -35,6 +35,7 @@ list(APPEND PLATFORM_LIBRARIES
     "${OPENGL_LIBRARY}"
     "${GLFW_LIBRARIES}"
     "${PTEX_LIBRARY}"
+    "${ZLIB_LIBRARY}"
 )
 
 include_directories(
@@ -59,7 +60,7 @@ _stringify("${SHADER_FILES}" INC_FILES)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 #-------------------------------------------------------------------------------
-_add_glfw_executable(glPtexViewer
+_add_glfw_executable(glPtexViewer "examples"
     glPtexViewer.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"

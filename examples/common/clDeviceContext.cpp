@@ -158,10 +158,10 @@ CLDeviceContext::HAS_CL_VERSION_1_1 () {
 #ifdef OPENSUBDIV_HAS_CLEW
     static bool clewInitialized = false;
     static bool clewLoadSuccess;
-    if (not clewInitialized) {
+    if (!clewInitialized) {
         clewInitialized = true;
         clewLoadSuccess = clewInit() == CLEW_SUCCESS;
-        if (not clewLoadSuccess) {
+        if (!clewLoadSuccess) {
             error("Loading OpenCL failed.\n");
         }
     }

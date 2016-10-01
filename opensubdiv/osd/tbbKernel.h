@@ -26,6 +26,8 @@
 #define OPENSUBDIV3_OSD_TBB_KERNEL_H
 
 #include "../version.h"
+#include "../far/patchDescriptor.h"
+#include "../far/patchParam.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

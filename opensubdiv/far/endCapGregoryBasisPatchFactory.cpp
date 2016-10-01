@@ -50,7 +50,7 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     _numGregoryBasisVertices(0), _numGregoryBasisPatches(0) {
 
     // Sanity check: the mesh must be adaptively refined
-    assert(not refiner.IsUniform());
+    assert(! refiner.IsUniform());
 
     // Reserve the patch point stencils. Ideally topology refiner
     // would have an API to return how many endcap patches will be required.
@@ -63,60 +63,53 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
     int numStencilsExpected = std::min(numPatchPointsExpected * 16,
                                        100*1024*1024);
     _vertexStencils->reserve(numPatchPointsExpected, numStencilsExpected);
-    // varying stencils use only 1 index with weight=1.0
-    _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
-}
-
-//
-// Stateless EndCapGregoryBasisPatchFactory
-//
-GregoryBasis const *
-EndCapGregoryBasisPatchFactory::Create(TopologyRefiner const & refiner,
-    Index faceIndex, int fvarChannel) {
-
-    // Gregory patches are end-caps: they only exist on max-level
-    Vtr::internal::Level const & level = refiner.getLevel(refiner.GetMaxLevel());
-
-    GregoryBasis::ProtoBasis basis(level, faceIndex, 0, fvarChannel);
-    GregoryBasis * result = new GregoryBasis;
-    basis.Copy(result);
-
-    // note: this function doesn't create varying stencils.
-    return result;
+    if (_varyingStencils) {
+        // varying stencils use only 1 index with weight=1.0
+        _varyingStencils->reserve(numPatchPointsExpected, numPatchPointsExpected);
+    }
 }
 
 bool
-EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
+EndCapGregoryBasisPatchFactory::addPatchBasis(Vtr::internal::Level const & level, Index faceIndex,
+                                              Vtr::internal::Level::VSpan const cornerSpans[],
                                               bool verticesMask[4][5],
-                                              int levelVertOffset) {
-
-    // Gregory patches only exist on the hight
-    Vtr::internal::Level const & level = _refiner->getLevel(_refiner->GetMaxLevel());
+                                              int levelVertOffset,
+                                              int fvarChannel) {
 
     // Gather the CVs that influence the Gregory patch and their relative
     // weights in a basis
-    GregoryBasis::ProtoBasis basis(level, faceIndex, levelVertOffset, -1);
+    GregoryBasis::ProtoBasis basis(level, faceIndex, cornerSpans, levelVertOffset, fvarChannel);
 
     for (int i = 0; i < 4; ++i) {
         if (verticesMask[i][0]) {
             GregoryBasis::AppendToStencilTable(basis.P[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][1]) {
             GregoryBasis::AppendToStencilTable(basis.Ep[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][2]) {
             GregoryBasis::AppendToStencilTable(basis.Em[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][3]) {
             GregoryBasis::AppendToStencilTable(basis.Fp[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
         if (verticesMask[i][4]) {
             GregoryBasis::AppendToStencilTable(basis.Fm[i], _vertexStencils);
-            GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            if (_varyingStencils) {
+                GregoryBasis::AppendToStencilTable(basis.varyingIndex[i], _varyingStencils);
+            }
         }
     }
     return true;
@@ -131,8 +124,9 @@ EndCapGregoryBasisPatchFactory::addPatchBasis(Index faceIndex,
 ConstIndexArray
 EndCapGregoryBasisPatchFactory::GetPatchPoints(
     Vtr::internal::Level const * level, Index faceIndex,
-    PatchTableFactory::PatchFaceTag const * levelPatchTags,
-    int levelVertOffset) {
+    Vtr::internal::Level::VSpan const cornerSpans[],
+    int levelVertOffset, int fvarChannel) {
+
     // allocate indices (awkward)
     // assert(Vtr::INDEX_INVALID==0xFFFFFFFF);
     for (int i = 0; i < 20; ++i) {
@@ -140,14 +134,36 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
     }
     Index * dest = &_patchPoints[_numGregoryBasisPatches * 20];
 
-    int gregoryVertexOffset = _refiner->GetNumVerticesTotal();
+    int gregoryVertexOffset = (fvarChannel < 0)
+                            ? _refiner->GetNumVerticesTotal()
+                            : _refiner->GetNumFVarValuesTotal(fvarChannel);
 
     if (_shareBoundaryVertices) {
+        int levelIndex = level->getDepth();
+
+        //  Simple struct with encoding of <level,face> index as an unsigned int and a
+        //  comparison method for use with std::bsearch
+        struct LevelAndFaceIndex {
+            static inline unsigned int create(unsigned int levelIndex, Index faceIndex) {
+                return (levelIndex << 28) | (unsigned int) faceIndex;
+            }
+            static int compare(void const * a, void const * b) {
+                return *(unsigned int const*)a - *(unsigned int const*)b;
+            }
+        };
+
         ConstIndexArray fedges = level->getFaceEdges(faceIndex);
         assert(fedges.size()==4);
 
+        Vtr::internal::Level::ETag etags[4];
+        level->getFaceETags(faceIndex, etags, fvarChannel);
+
         for (int i=0; i<4; ++i) {
-            Index edge = fedges[i], adjface = 0;
+            // Ignore boundary edges (or those with a face-varying discontinuity)
+            if (etags[i]._boundary) continue;
+
+            Index edge = fedges[i];
+            Index adjFaceIndex = 0;
 
             { // Gather adjacent faces
                 ConstIndexArray adjfaces = level->getEdgeFaces(edge);
@@ -155,7 +171,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                     if (adjfaces[j]==faceIndex) {
                         // XXXX manuelk if 'edge' is non-manifold, arbitrarily pick the
                         // next face in the list of adjacent faces
-                        adjface = (adjfaces[(j+1)%adjfaces.size()]);
+                        adjFaceIndex = (adjfaces[(j+1)%adjfaces.size()]);
                         break;
                     }
                 }
@@ -164,42 +180,36 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             // - exist (no boundary)
             // - have already been processed (known CV indices)
             // - are also Gregory basis patches
-            if (adjface!=Vtr::INDEX_INVALID and (adjface < faceIndex) and
-                (not levelPatchTags[adjface]._isRegular)) {
+            if ((adjFaceIndex != Vtr::INDEX_INVALID) && (adjFaceIndex < faceIndex)) {
 
-                ConstIndexArray aedges = level->getFaceEdges(adjface);
+                if (_levelAndFaceIndices.empty()) {
+                    break;
+                }
+
+                ConstIndexArray aedges = level->getFaceEdges(adjFaceIndex);
                 int aedge = aedges.FindIndexIn4Tuple(edge);
                 assert(aedge!=Vtr::INDEX_INVALID);
 
                 // Find index of basis in the list of basis already generated
-                struct compare {
-                    static int op(void const * a, void const * b) {
-                        return *(Index const*)a - *(Index const*)b;
-                    }
-                };
-
-                Index * ptr = (Index *)std::bsearch(&adjface,
-                                                    &_faceIndices[0],
-                                                    _faceIndices.size(),
-                                                    sizeof(Index), compare::op);
-
-                int srcBasisIdx = (int)(ptr - &_faceIndices[0]);
-
-                if (!ptr) {
-                    // if the adjface is hole, it won't be found
+                unsigned int adjLevelAndFaceIndex = LevelAndFaceIndex::create(levelIndex, adjFaceIndex);
+                unsigned int * ptr = (unsigned int *)std::bsearch(&adjLevelAndFaceIndex,
+                                                                  &_levelAndFaceIndices[0],
+                                                                 _levelAndFaceIndices.size(),
+                                                                 sizeof(unsigned int),
+                                                                 LevelAndFaceIndex::compare);
+                if (ptr == 0) {
                     break;
                 }
-                assert(ptr
-                       and srcBasisIdx>=0
-                       and srcBasisIdx<(int)_faceIndices.size());
 
-                // Copy the indices of CVs from the face on the other side of the
-                // shared edge
+                int adjPatchIndex = (int)(ptr - &_levelAndFaceIndices[0]);
+                assert(adjPatchIndex>=0 && adjPatchIndex<(int)_levelAndFaceIndices.size());
+
+                // Copy the indices of CVs from the face on the other side of the shared edge
                 static int const gregoryEdgeVerts[4][4] = { { 0,  1,  7,  5},
                                                             { 5,  6, 12, 10},
                                                             {10, 11, 17, 15},
                                                             {15, 16,  2,  0} };
-                Index * src = &_patchPoints[srcBasisIdx*20];
+                Index * src = &_patchPoints[adjPatchIndex*20];
                 for (int j=0; j<4; ++j) {
                     // invert direction
                     // note that src  indices have already been offsetted.
@@ -207,6 +217,7 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
                 }
             }
         }
+        _levelAndFaceIndices.push_back(LevelAndFaceIndex::create(levelIndex, faceIndex));
     }
 
     bool newVerticesMask[4][5];
@@ -224,10 +235,9 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
             }
         }
     }
-    _faceIndices.push_back(faceIndex);
 
     // add basis
-    addPatchBasis(faceIndex, newVerticesMask, levelVertOffset);
+    addPatchBasis(*level, faceIndex, cornerSpans, newVerticesMask, levelVertOffset, fvarChannel);
 
     ++_numGregoryBasisPatches;
 

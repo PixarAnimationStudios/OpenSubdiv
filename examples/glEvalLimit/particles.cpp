@@ -55,7 +55,7 @@ public:
             p->t += dp[1] * _speed;
 
             // make sure particles can't skip more than 1 face boundary at a time
-            assert((p->s>-2.0f) and (p->s<2.0f) and (p->t>-2.0f) and (p->t<2.0f));
+            assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f));
 
             // check if the particle is jumping a boundary
             // note: a particle can jump 2 edges at a time (a "diagonal" jump)
@@ -70,7 +70,7 @@ public:
                 // warp the particle to the other side of the boundary
                 STParticles::WarpParticle(_adjacency, edge, p, dp);
             }
-            assert((p->s>=0.0f) and (p->s<=1.0f) and (p->t>=0.0f) and (p->t<=1.0f));
+            assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 
             // resolve particle positions into patch handles
             OpenSubdiv::Far::PatchTable::PatchHandle const *handle =
@@ -193,7 +193,7 @@ Rotate(int rot, STParticles::Position * p, float * dp) {
         case 2: FlipS(p, dp); FlipT(p, dp);  break;
         case 3: FlipT(p, dp); SwapST(p, dp); break;
     }
-    assert((p->s>=0.0f) and (p->s<=1.0f) and (p->t>=0.0f) and (p->t<=1.0f));
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 }
 
 inline void
@@ -202,7 +202,7 @@ Trim(STParticles::Position * p) {
     if (p->s>=1.0f) p->s = p->s - 1.0f;
     if (p->t <0.0f) p->t = 1.0f + p->t;
     if (p->t>=1.0f) p->t = p->t - 1.0f;
-    assert((p->s>=0.0f) and (p->s<=1.0f) and (p->t>=0.0f) and (p->t<=1.0f));
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 }
 
 inline void
@@ -231,13 +231,13 @@ Bounce(int edge, STParticles::Position * p, float * dp) {
     // because 'diagonal' cases aren't handled, stick particles to edges when
     // if they cross 2 boundaries
     Clamp(p);
-    assert((p->s>=0.0f) and (p->s<=1.0f) and (p->t>=0.0f) and (p->t<=1.0f));
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 }
 
 void
 STParticles::WarpParticle(std::vector<FaceInfo> const &adjacency,
                           int edge, Position * p, float * dp) {
-    assert(p->ptexIndex<(int)adjacency.size() and (edge>=0 and edge<4));
+    assert(p->ptexIndex<(int)adjacency.size() && (edge>=0 && edge<4));
     
     FaceInfo const & f = adjacency[p->ptexIndex];
 
@@ -263,7 +263,7 @@ STParticles::WarpParticle(std::vector<FaceInfo> const &adjacency,
             p->ptexIndex = afid; // move particle to adjacent face
         }
     }
-    assert((p->s>=0.0f) and (p->s<=1.0f) and (p->t>=0.0f) and (p->t<=1.0f));
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 }
 
 STParticles::~STParticles() {
@@ -297,7 +297,7 @@ STParticles::Update(float deltaTime) {
         p->t += dp[1] * speed;
 
         // make sure particles can't skip more than 1 face boundary at a time
-        assert((p->s>-2.0f) and (p->s<2.0f) and (p->t>-2.0f) and (p->t<2.0f));
+        assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f));
 
         // check if the particle is jumping a boundary
         // note: a particle can jump 2 edges at a time (a "diagonal" jump)
@@ -313,7 +313,7 @@ STParticles::Update(float deltaTime) {
             // warp the particle to the other side of the boundary
             WarpParticle(_adjacency, edge, p, dp);
         }
-        assert((p->s>=0.0f) and (p->s<=1.0f) and (p->t>=0.0f) and (p->t<=1.0f));
+        assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 
         // resolve particle positions into patch handles
         OpenSubdiv::Far::PatchTable::PatchHandle const *handle =

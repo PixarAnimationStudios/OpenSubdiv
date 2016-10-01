@@ -35,13 +35,25 @@ namespace OPENSUBDIV_VERSION {
 namespace Osd {
 
 CudaPatchTable::CudaPatchTable() :
-    _patchArrays(NULL), _indexBuffer(NULL), _patchParamBuffer(NULL) {
+    _patchArrays(NULL), _indexBuffer(NULL), _patchParamBuffer(NULL),
+    _varyingPatchArrays(NULL), _varyingIndexBuffer(NULL) {
 }
 
 CudaPatchTable::~CudaPatchTable() {
     if (_patchArrays) cudaFree(_patchArrays);
     if (_indexBuffer) cudaFree(_indexBuffer);
     if (_patchParamBuffer) cudaFree(_patchParamBuffer);
+    if (_varyingPatchArrays) cudaFree(_varyingPatchArrays);
+    if (_varyingIndexBuffer) cudaFree(_varyingIndexBuffer);
+    for (int fvc=0; fvc<(int)_fvarPatchArrays.size(); ++fvc) {
+        if (_fvarPatchArrays[fvc]) cudaFree(_fvarPatchArrays[fvc]);
+    }
+    for (int fvc=0; fvc<(int)_fvarIndexBuffers.size(); ++fvc) {
+        if (_fvarIndexBuffers[fvc]) cudaFree(_fvarIndexBuffers[fvc]);
+    }
+    for (int fvc=0; fvc<(int)_fvarParamBuffers.size(); ++fvc) {
+        if (_fvarParamBuffers[fvc]) cudaFree(_fvarParamBuffers[fvc]);
+    }
 }
 
 CudaPatchTable *
@@ -71,6 +83,48 @@ CudaPatchTable::allocate(Far::PatchTable const *farPatchTable) {
     err = cudaMalloc(&_patchParamBuffer, patchParamSize * sizeof(Osd::PatchParam));
     if (err != cudaSuccess) return false;
 
+    err = cudaMalloc(&_varyingPatchArrays, numPatchArrays * sizeof(Osd::PatchArray));
+    if (err != cudaSuccess) return false;
+
+    size_t varyingIndexSize = patchTable.GetVaryingPatchIndexSize();
+    err = cudaMalloc(&_varyingIndexBuffer, varyingIndexSize * sizeof(int));
+    if (err != cudaSuccess) return false;
+
+    size_t numFVarChannels = patchTable.GetNumFVarChannels();
+    _fvarPatchArrays.resize(numFVarChannels, 0);
+    _fvarIndexBuffers.resize(numFVarChannels, 0);
+    _fvarParamBuffers.resize(numFVarChannels, 0);
+    for (int fvc=0; fvc<(int)numFVarChannels; ++fvc) {
+        err = cudaMalloc(&_fvarPatchArrays[fvc], numPatchArrays * sizeof(Osd::PatchArray));
+        if (err != cudaSuccess) return false;
+
+        err = cudaMemcpy(_fvarPatchArrays[fvc],
+                         patchTable.GetFVarPatchArrayBuffer(fvc),
+                         numPatchArrays * sizeof(Osd::PatchArray),
+                         cudaMemcpyHostToDevice);
+        if (err != cudaSuccess) return false;
+
+        size_t fvarIndexSize = patchTable.GetFVarPatchIndexSize(fvc);
+        err = cudaMalloc(&_fvarIndexBuffers[fvc], fvarIndexSize * sizeof(int));
+        if (err != cudaSuccess) return false;
+
+        err = cudaMemcpy(_fvarIndexBuffers[fvc],
+                         patchTable.GetFVarPatchIndexBuffer(fvc),
+                         fvarIndexSize * sizeof(int),
+                         cudaMemcpyHostToDevice);
+        if (err != cudaSuccess) return false;
+
+        size_t fvarParamSize = patchTable.GetFVarPatchParamSize(fvc);
+        err = cudaMalloc(&_fvarParamBuffers[fvc], fvarParamSize * sizeof(Osd::PatchParam));
+        if (err != cudaSuccess) return false;
+
+        err = cudaMemcpy(_fvarParamBuffers[fvc],
+                         patchTable.GetFVarPatchParamBuffer(fvc),
+                         patchParamSize * sizeof(PatchParam),
+                         cudaMemcpyHostToDevice);
+        if (err != cudaSuccess) return false;
+    }
+
     // copy patch array
     err = cudaMemcpy(_patchArrays,
                      patchTable.GetPatchArrayBuffer(),
@@ -89,6 +143,18 @@ CudaPatchTable::allocate(Far::PatchTable const *farPatchTable) {
     err = cudaMemcpy(_patchParamBuffer,
                      patchTable.GetPatchParamBuffer(),
                      patchParamSize * sizeof(Osd::PatchParam),
+                     cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) return false;
+
+    // copy varying patch arrays and index buffer
+    err = cudaMemcpy(_varyingPatchArrays,
+                     patchTable.GetVaryingPatchArrayBuffer(),
+                     numPatchArrays * sizeof(Osd::PatchArray),
+                     cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) return false;
+    err = cudaMemcpy(_varyingIndexBuffer,
+                     patchTable.GetVaryingPatchIndexBuffer(),
+                     varyingIndexSize * sizeof(int),
                      cudaMemcpyHostToDevice);
     if (err != cudaSuccess) return false;
 

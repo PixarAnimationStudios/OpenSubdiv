@@ -25,8 +25,8 @@
 #ifndef OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_BSPLINE_BASIS_PATCH_FACTORY_H
 
-#include "../far/patchTableFactory.h"
 #include "../far/gregoryBasis.h"
+#include "../far/types.h"
 #include "../vtr/level.h"
 
 namespace OpenSubdiv {
@@ -45,8 +45,6 @@ class TopologyRefiner;
 class EndCapBSplineBasisPatchFactory {
 
 public:
-    // XXXX need to add support for face-varying channel stencils
-
     /// \brief This factory accumulates vertex for bspline basis end cap
     ///
     /// @param refiner                TopologyRefiner from which to generate patches
@@ -74,29 +72,30 @@ public:
     ///
     /// @param faceIndex        vtr faceIndex at the level
     ///
-    /// @param levelPatchTags   Array of patchTags for all faces in the level
-    ///
     /// @param levelVertOffset  relative offset of patch vertex indices
+    ///
+    /// @param fvarChannel      face-varying channel index
     ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
-        PatchTableFactory::PatchFaceTag const * levelPatchTags,
-        int levelVertOffset);
+        Vtr::internal::Level::VSpan const cornerSpans[],
+        int levelVertOffset, int fvarChannel = -1);
 
 private:
     ConstIndexArray getPatchPointsFromGregoryBasis(
         Vtr::internal::Level const * level, Index thisFace,
+        Vtr::internal::Level::VSpan const cornerSpans[],
         ConstIndexArray facePoints,
-        int levelVertOffset);
+        int levelVertOffset, int fvarChannel);
 
     ConstIndexArray getPatchPoints(
         Vtr::internal::Level const *level, Index thisFace,
         Index extraOrdinaryIndex, ConstIndexArray facePoints,
-        int levelVertOffset);
+        int levelVertOffset, int fvarChannel);
 
     void computeLimitStencils(
         Vtr::internal::Level const *level,
-        ConstIndexArray facePoints, int vid,
+        ConstIndexArray facePoints, int vid, int fvarChannel,
         GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em);
 
     StencilTable * _vertexStencils;

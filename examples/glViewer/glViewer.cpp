@@ -90,7 +90,7 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
   source is returned. If glew in not available during compile time the version
   is determined*/
 static const char *shaderSource(){
-#if not defined(OSD_USES_GLEW)
+#if ! defined(OSD_USES_GLEW)
 
 static const char *res =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
@@ -162,7 +162,8 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
                    kHUD_CB_FREEZE,
                    kHUD_CB_DISPLAY_PATCH_COUNTS,
                    kHUD_CB_ADAPTIVE,
-                   kHUD_CB_SINGLE_CREASE_PATCH };
+                   kHUD_CB_SINGLE_CREASE_PATCH,
+                   kHUD_CB_INF_SHARP_PATCH };
 
 int g_currentShape = 0;
 
@@ -182,6 +183,7 @@ int   g_fullscreen = 0,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
       g_singleCreasePatch = 1,
+      g_infSharpPatch = 0,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
@@ -299,7 +301,7 @@ updateGeom() {
     int nverts = 0;
     int stride = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
 
-    if (g_objAnim and g_currentShape==0) {
+    if (g_objAnim && g_currentShape==0) {
 
         nverts = g_objAnim->GetShape()->GetNumVertices(),
 
@@ -311,7 +313,7 @@ updateGeom() {
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], stride);
 
-        if (g_shadingMode == kShadingVaryingColor or
+        if (g_shadingMode == kShadingVaryingColor ||
             g_shadingMode == kShadingInterleavedVaryingColor) {
 
             const float *p = &g_objAnim->GetShape()->verts[0];
@@ -415,7 +417,7 @@ rebuildMesh() {
     ShapeDesc const &shapeDesc = g_defaultShapes[g_currentShape];
     int level = g_level;
     int kernel = g_kernel;
-    bool doAnim = g_objAnim and g_currentShape==0;
+    bool doAnim = g_objAnim && g_currentShape==0;
     Scheme scheme = shapeDesc.scheme;
 
     Shape const * shape = 0;
@@ -443,13 +445,15 @@ rebuildMesh() {
     g_mesh = NULL;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 and scheme==kCatmark);
+    bool doAdaptive = (g_adaptive!=0 && scheme==kCatmark);
     bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
-    bool doSingleCreasePatch = (g_singleCreasePatch!=0 and scheme==kCatmark);
+    bool doSingleCreasePatch = (g_singleCreasePatch!=0 && scheme==kCatmark);
+    bool doInfSharpPatch = (g_infSharpPatch!=0 && scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
+    bits.set(Osd::MeshUseInfSharpPatch, doInfSharpPatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(Osd::MeshFVarData, g_shadingMode == kShadingFaceVaryingColor);
     bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
@@ -458,7 +462,7 @@ rebuildMesh() {
 
     int numVertexElements = 3;
     int numVaryingElements =
-        (g_shadingMode == kShadingVaryingColor or interleaveVarying) ? 4 : 0;
+        (g_shadingMode == kShadingVaryingColor || interleaveVarying) ? 4 : 0;
 
 
     if (kernel == kCPU) {
@@ -551,7 +555,7 @@ rebuildMesh() {
         printf("Unsupported kernel %s\n", getKernelName(kernel));
     }
 
-    if (g_shadingMode == kShadingFaceVaryingColor and shape->HasUV()) {
+    if (g_shadingMode == kShadingFaceVaryingColor && shape->HasUV()) {
 
         std::vector<float> fvarData;
 
@@ -570,7 +574,7 @@ rebuildMesh() {
             Osd::GLLegacyGregoryPatchTable::Create(g_mesh->GetFarPatchTable());
     }
 
-    if (not doAnim) {
+    if (! doAnim) {
         delete shape;
     }
 
@@ -758,7 +762,7 @@ public:
         case kShadingFaceVaryingColor:
             ss << "#define OSD_FVAR_WIDTH 2\n";
             ss << "#define SHADING_FACEVARYING_COLOR\n";
-            if (not effectDesc.desc.IsAdaptive()) {
+            if (! effectDesc.desc.IsAdaptive()) {
                 ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
             }
             break;
@@ -790,6 +794,8 @@ public:
         }
 
         // include osd PatchCommon
+        ss << "#define OSD_PATCH_BASIS_GLSL\n";
+        ss << Osd::GLSLPatchShaderSource::GetPatchBasisShaderSource();
         ss << Osd::GLSLPatchShaderSource::GetCommonShaderSource();
         std::string common = ss.str();
         ss.str("");
@@ -987,7 +993,7 @@ bindProgram(Effect effect,
     // only legacy gregory needs maxValence and numElements
     // neither legacy gregory nor gregory basis need single crease
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
-    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY or
+    if (patch.GetDescriptor().GetType() == Descriptor::GREGORY ||
         patch.GetDescriptor().GetType() == Descriptor::GREGORY_BOUNDARY) {
         int maxValence = g_mesh->GetMaxValence();
         int numElements = (g_shadingMode == kShadingInterleavedVaryingColor ? 7 : 3);
@@ -1171,7 +1177,7 @@ display() {
 
     g_fpsTimer.Stop();
     float elapsed = (float)g_fpsTimer.GetElapsed();
-    if (not g_freeze) {
+    if (! g_freeze) {
         g_animTime += elapsed;
     }
     g_fpsTimer.Start();
@@ -1234,7 +1240,7 @@ motion(GLFWwindow *, double dx, double dy) {
         // pan
         g_pan[0] -= g_dolly*(x - g_prev_x)/g_width;
         g_pan[1] += g_dolly*(y - g_prev_y)/g_height;
-    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) or
+    } else if ((g_mbutton[0] && !g_mbutton[1] && g_mbutton[2]) ||
                (!g_mbutton[0] && g_mbutton[1] && !g_mbutton[2])) {
         // dolly
         g_dolly -= g_dolly*0.01f*(x - g_prev_x);
@@ -1328,9 +1334,9 @@ callbackDisplayStyle(int b) {
 
 static void
 callbackShadingMode(int b) {
-    if (g_shadingMode == kShadingVaryingColor or b == kShadingVaryingColor or
-        g_shadingMode == kShadingInterleavedVaryingColor or b == kShadingInterleavedVaryingColor or
-        g_shadingMode == kShadingFaceVaryingColor or b == kShadingFaceVaryingColor) {
+    if (g_shadingMode == kShadingVaryingColor || b == kShadingVaryingColor ||
+        g_shadingMode == kShadingInterleavedVaryingColor || b == kShadingInterleavedVaryingColor ||
+        g_shadingMode == kShadingFaceVaryingColor || b == kShadingFaceVaryingColor) {
         // need to rebuild for varying reconstruct
         g_shadingMode = b;
         rebuildMesh();
@@ -1350,7 +1356,7 @@ callbackKernel(int k) {
     g_kernel = k;
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    if (g_kernel == kCL and (not g_clDeviceContext.IsInitialized())) {
+    if (g_kernel == kCL && (!g_clDeviceContext.IsInitialized())) {
         if (g_clDeviceContext.Initialize() == false) {
             printf("Error in initializing OpenCL\n");
             exit(1);
@@ -1358,7 +1364,7 @@ callbackKernel(int k) {
     }
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
-    if (g_kernel == kCUDA and (not g_cudaDeviceContext.IsInitialized())) {
+    if (g_kernel == kCUDA && (!g_cudaDeviceContext.IsInitialized())) {
         if (g_cudaDeviceContext.Initialize() == false) {
             printf("Error in initializing Cuda\n");
             exit(1);
@@ -1398,6 +1404,10 @@ callbackCheckBox(bool checked, int button) {
             return;
         case kHUD_CB_SINGLE_CREASE_PATCH:
             g_singleCreasePatch = checked;
+            rebuildMesh();
+            return;
+        case kHUD_CB_INF_SHARP_PATCH:
+            g_infSharpPatch = checked;
             rebuildMesh();
             return;
         default:
@@ -1533,9 +1543,11 @@ initHUD() {
                           10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
         g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
                           10, 210, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
+        g_hud.AddCheckBox("Inf Sharp Patch (I)", g_infSharpPatch!=0,
+                          10, 230, callbackCheckBox, kHUD_CB_INF_SHARP_PATCH, 'i');
 
         int endcap_pulldown = g_hud.AddPullDown(
-            "End cap (E)", 10, 230, 200, callbackEndCap, 'e');
+            "End cap (E)", 10, 250, 200, callbackEndCap, 'e');
         g_hud.AddPullDownButton(endcap_pulldown,"None",
                                 kEndCapNone,
                                 g_endCap == kEndCapNone);
@@ -1584,12 +1596,12 @@ initGL() {
 static void
 idle() {
 
-    if (not g_freeze) {
+    if (! g_freeze) {
         g_frame++;
         updateGeom();
     }
 
-    if (g_repeatCount != 0 and g_frame >= g_repeatCount)
+    if (g_repeatCount != 0 && g_frame >= g_repeatCount)
         g_running = 0;
 }
 
@@ -1641,7 +1653,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    if (not animobjs.empty()) {
+    if (! animobjs.empty()) {
 
         g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
 
@@ -1655,7 +1667,7 @@ int main(int argc, char ** argv) {
     OpenSubdiv::Far::SetErrorCallback(callbackErrorOsd);
 
     glfwSetErrorCallback(callbackErrorGLFW);
-    if (not glfwInit()) {
+    if (! glfwInit()) {
         printf("Failed to initialize GLFW\n");
         return 1;
     }
@@ -1670,7 +1682,7 @@ int main(int argc, char ** argv) {
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
         // settle for the first one in the list
-        if (not g_primary) {
+        if (! g_primary) {
             int count = 0;
             GLFWmonitor ** monitors = glfwGetMonitors(&count);
 
@@ -1686,9 +1698,9 @@ int main(int argc, char ** argv) {
     }
 
     g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-        fullscreen and g_primary ? g_primary : NULL, NULL);
+        fullscreen && g_primary ? g_primary : NULL, NULL);
 
-    if (not g_window) {
+    if (! g_window) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;

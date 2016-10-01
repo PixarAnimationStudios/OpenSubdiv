@@ -753,6 +753,9 @@ Refinement::populateVertexTagsFromParentEdges() {
         vTag._nonManifold    = pEdgeTag._nonManifold;
         vTag._boundary       = pEdgeTag._boundary;
         vTag._semiSharpEdges = pEdgeTag._semiSharp;
+        vTag._infSharpEdges  = pEdgeTag._infSharp;
+        vTag._infSharpCrease = pEdgeTag._infSharp;
+        vTag._infIrregular   = pEdgeTag._infSharp && pEdgeTag._nonManifold;
 
         vTag._rule = (Level::VTag::VTagSize)((pEdgeTag._semiSharp || pEdgeTag._infSharp)
                        ? Sdc::Crease::RULE_CREASE : Sdc::Crease::RULE_SMOOTH);
@@ -907,7 +910,7 @@ Refinement::subdivideEdgeSharpness() {
                 cSharpness = creasing.SubdivideEdgeSharpnessAtVertex(pSharpness, pVertEdges.size(),
                                                                          pVertEdgeSharpness);
             }
-            if (not Sdc::Crease::IsSharp(cSharpness)) {
+            if (! Sdc::Crease::IsSharp(cSharpness)) {
                 cEdgeTag._semiSharp = false;
             }
         }
@@ -941,7 +944,7 @@ Refinement::subdivideVertexSharpness() {
             float pSharpness = _parent->_vertSharpness[pVert];
 
             cSharpness = creasing.SubdivideVertexSharpness(pSharpness);
-            if (not Sdc::Crease::IsSharp(cSharpness)) {
+            if (! Sdc::Crease::IsSharp(cSharpness)) {
                 cVertTag._semiSharp = false;
             }
         }

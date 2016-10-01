@@ -23,6 +23,7 @@
 //
 
 #include "../osd/glComputeEvaluator.h"
+#include "../osd/glslPatchShaderSource.h"
 
 #include <cassert>
 #include <sstream>
@@ -127,18 +128,25 @@ compileKernel(BufferDescriptor const &srcDesc,
 
     GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
 
+    std::string patchBasisShaderSource =
+        GLSLPatchShaderSource::GetPatchBasisShaderSource();
+    const char *patchBasisShaderSourceDefine = "#define OSD_PATCH_BASIS_GLSL\n";
+
     std::ostringstream defines;
     defines << "#define LENGTH "     << srcDesc.length << "\n"
             << "#define SRC_STRIDE " << srcDesc.stride << "\n"
             << "#define DST_STRIDE " << dstDesc.stride << "\n"
             << "#define WORK_GROUP_SIZE " << workGroupSize << "\n"
-            << kernelDefine << "\n";
+            << kernelDefine << "\n"
+            << patchBasisShaderSourceDefine << "\n";
     std::string defineStr = defines.str();
 
-    const char *shaderSources[3] = {"#version 430\n", 0, 0};
+    const char *shaderSources[4] = {"#version 430\n", 0, 0, 0};
+
     shaderSources[1] = defineStr.c_str();
-    shaderSources[2] = shaderSource;
-    glShaderSource(shader, 3, shaderSources, NULL);
+    shaderSources[2] = patchBasisShaderSource.c_str();
+    shaderSources[3] = shaderSource;
+    glShaderSource(shader, 4, shaderSources, NULL);
     glCompileShader(shader);
     glAttachShader(program, shader);
 

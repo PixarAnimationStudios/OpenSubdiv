@@ -418,11 +418,11 @@ getAdaptivePatchColor(ivec3 patchParam)
         vec4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
 
         vec4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 0
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 1
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 2
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 3
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 4
 
         vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
         vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory

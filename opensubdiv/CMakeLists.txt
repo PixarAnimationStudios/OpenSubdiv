@@ -105,9 +105,6 @@ if (NOT NO_LIB)
 
     if( CUDA_FOUND )
         include_directories( "${CUDA_INCLUDE_DIRS}" )
-        if (UNIX)
-            list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC --gpu-architecture compute_11 )
-        endif()
     endif()
 
 
@@ -145,7 +142,12 @@ if (NOT NO_LIB)
         $<TARGET_OBJECTS:far_obj>
         $<TARGET_OBJECTS:osd_cpu_obj>
     )
-    set_target_properties(osd_static_cpu PROPERTIES OUTPUT_NAME osdCPU CLEAN_DIRECT_OUTPUT 1)
+    set_target_properties(osd_static_cpu 
+        PROPERTIES 
+            OUTPUT_NAME osdCPU 
+            CLEAN_DIRECT_OUTPUT 1
+            FOLDER "opensubdiv"
+    )
 
     target_link_libraries(osd_static_cpu
         ${PLATFORM_CPU_LIBRARIES}
@@ -156,7 +158,7 @@ if (NOT NO_LIB)
     if( OSD_GPU )
         # this macro uses FindCUDA.cmake to compile .cu kernel files
         # the target then adds the other obj dependencies and include files
-        _add_possibly_cuda_library(osd_static_gpu
+        _add_possibly_cuda_library(osd_static_gpu "opensubdiv"
             STATIC
                 version.cpp
                 $<TARGET_OBJECTS:osd_gpu_obj>
@@ -210,7 +212,7 @@ if (NOT NO_LIB)
 
         #---------------------------------------------------
         if( OSD_GPU )
-            _add_possibly_cuda_library(osd_dynamic_gpu
+            _add_possibly_cuda_library(osd_dynamic_gpu "opensubdiv"
                 SHARED
                 version.cpp
                 $<TARGET_OBJECTS:osd_gpu_obj>

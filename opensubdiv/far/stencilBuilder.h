@@ -66,6 +66,9 @@ public:
     std::vector<float> const& GetStencilWeights() const;
     std::vector<float> const& GetStencilDuWeights() const;
     std::vector<float> const& GetStencilDvWeights() const;
+    std::vector<float> const& GetStencilDuuWeights() const;
+    std::vector<float> const& GetStencilDuvWeights() const;
+    std::vector<float> const& GetStencilDvvWeights() const;
 
     // Vertex Facade.
     class Index {
@@ -81,7 +84,11 @@ public:
 
         // Add with first derivative.
         void AddWithWeight(Stencil const& src,
-                                     float weight, float du, float dv);
+            float weight, float du, float dv);
+
+        // Add with first and second derivatives.
+        void AddWithWeight(Stencil const& src,
+            float weight, float du, float dv, float duu, float duv, float dvv);
 
         Index operator[](int index) const {
             return Index(_owner, index+_index);

@@ -95,47 +95,50 @@ public:
         ETagSize _disctsV0 : 1;  // discontinuous at vertex 0
         ETagSize _disctsV1 : 1;  // discontinuous at vertex 1
         ETagSize _linear   : 1;  // linear boundary constraints
+
+        Level::ETag combineWithLevelETag(Level::ETag) const;
     };
 
     //
     //  Tag per Value:
     //      - informs both refinement and interpolation
     //          - every value spawns a child value in refinement
-    //      - given ordering of values (1-per-vertex first) serves as a vertex tag
+    //      - includes a subset of Level::VTag to be later combined with a VTag
     //
     struct ValueTag {
         ValueTag() { }
 
         void clear() { std::memset(this, 0, sizeof(ValueTag)); }
 
-        bool isMismatch() const  { return _mismatch; }
-        bool isCrease() const    { return _crease; }
-        bool isCorner() const    { return !_crease; }
-        bool isSemiSharp() const { return _semiSharp; }
-        bool isInfSharp() const  { return !_semiSharp && !_crease; }
-        bool isDepSharp() const  { return _depSharp; }
+        bool isMismatch() const    { return _mismatch; }
+        bool isCrease() const      { return _crease; }
+        bool isCorner() const      { return !_crease; }
+        bool isSemiSharp() const   { return _semiSharp; }
+        bool isInfSharp() const    { return !_semiSharp && !_crease; }
+        bool isDepSharp() const    { return _depSharp; }
+        bool hasCreaseEnds() const { return _crease || _semiSharp; }
+
+        bool hasInfSharpEdges() const   { return _infSharpEdges; }
+        bool hasInfIrregularity() const { return _infIrregular; }
 
         typedef unsigned char ValueTagSize;
 
-        ValueTagSize _mismatch  : 1;  // local FVar topology does not match
-        ValueTagSize _crease    : 1;  // value is a crease, otherwise a corner
-        ValueTagSize _semiSharp : 1;  // value is a corner decaying to crease
-        ValueTagSize _depSharp  : 1;  // value is a corner by dependency on another
-        ValueTagSize _xordinary : 1;  // value is an x-ordinary crease in the limit
+        //  If there is no mismatch, no other members should be inspected
+        ValueTagSize _mismatch    : 1;  // local FVar topology does not match
+        ValueTagSize _xordinary   : 1;  // local FVar topology is extra-ordinary
+        ValueTagSize _nonManifold : 1;  // local FVar topology is non-manifold
+        ValueTagSize _crease      : 1;  // value is a crease, otherwise a corner
+        ValueTagSize _semiSharp   : 1;  // value is a corner decaying to crease
+        ValueTagSize _depSharp    : 1;  // value is a corner by dependency on another
+
+        ValueTagSize _infSharpEdges : 1;  // value is a corner by inf-sharp features
+        ValueTagSize _infIrregular  : 1;  // value span includes inf-sharp irregularity
+
+        Level::VTag combineWithLevelVTag(Level::VTag) const;
     };
 
     typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
     typedef Vtr::Array<ValueTag> ValueTagArray;
-
-    ValueTag    getFaceCompositeValueTag(ConstIndexArray & faceValues,
-                                         ConstIndexArray & faceVerts) const;
-
-    Level::VTag getFaceCompositeValueAndVTag(ConstIndexArray & faceValues,
-                                             ConstIndexArray & faceVerts,
-                                             Level::VTag *     fvarVTags) const;
-
-    Level::ETag getFaceCompositeCombinedEdgeTag(ConstIndexArray & faceEdges,
-                                                Level::ETag *     fvarETags) const;
 
     //
     //  Simple struct containing the "end faces" of a crease, i.e. the faces which
@@ -167,7 +170,8 @@ public:
 
     bool isLinear() const            { return _isLinear; }
     bool hasLinearBoundaries() const { return _hasLinearBoundaries; }
-    bool hasSmoothBoundaries() const { return not _hasLinearBoundaries; }
+    bool hasSmoothBoundaries() const { return ! _hasLinearBoundaries; }
+    bool hasCreaseEnds() const       { return hasSmoothBoundaries(); }
 
     Sdc::Options getOptions() const { return _options; }
 
@@ -204,6 +208,13 @@ public:
     ValueTag getValueTag(Index valueIndex) const          { return _vertValueTags[valueIndex]; }
     bool     valueTopologyMatches(Index valueIndex) const { return !getValueTag(valueIndex)._mismatch; }
 
+    CreaseEndPair getValueCreaseEndPair(Index valueIndex) const { return _vertValueCreaseEnds[valueIndex]; }
+
+    //  Tag queries related to faces (use Level methods for those returning Level::VTag/ETag)
+    void getFaceValueTags(Index faceIndex, ValueTag valueTags[]) const;
+
+    ValueTag getFaceCompositeValueTag(Index faceIndex) const;
+
     //  Higher-level topological queries, i.e. values in a neighborhood:
     void getEdgeFaceValues(Index eIndex, int fIncToEdge, Index valuesPerVert[2]) const;
     void getVertexEdgeValues(Index vIndex, Index valuesPerEdge[]) const;
@@ -220,13 +231,7 @@ public:
     void initializeFaceValuesFromFaceVertices();
     void initializeFaceValuesFromVertexFaceSiblings();
 
-    //  Information about the "span" for a value:
-    struct ValueSpan {
-        LocalIndex _size;
-        LocalIndex _start;
-        LocalIndex _disjoint;
-        LocalIndex _semiSharp;
-    };
+    struct ValueSpan;
     void gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const;
 
     //  Debugging methods:
@@ -364,6 +369,43 @@ FVarLevel::findVertexValueIndex(Index vertexIndex, Index valueIndex) const {
         ++ vvIndex;
     }
     return vvIndex;
+}
+
+//
+//  Methods related to tagging:
+//
+inline Level::ETag
+FVarLevel::ETag::combineWithLevelETag(Level::ETag levelTag) const
+{
+    if (this->_mismatch) {
+        levelTag._boundary = true;
+        levelTag._infSharp = true;
+    }
+    return levelTag;
+}
+inline Level::VTag
+FVarLevel::ValueTag::combineWithLevelVTag(Level::VTag levelTag) const
+{
+    if (this->_mismatch) {
+        if (this->isCorner()) {
+            levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CORNER;
+            levelTag._infSharp = true;
+            levelTag._infSharpCrease = false;
+            levelTag._corner = !this->_infIrregular && !this->_infSharpEdges;
+        } else {
+            levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CREASE;
+            levelTag._infSharp = false;
+            levelTag._infSharpCrease = true;
+            levelTag._corner = false;
+        }
+        levelTag._infSharpEdges = true;
+        levelTag._infIrregular = this->_infIrregular;
+
+        levelTag._boundary = true;
+        levelTag._xordinary = this->_xordinary;
+        levelTag._nonManifold = this->_nonManifold;
+    }
+    return levelTag;
 }
 
 } // end namespace internal

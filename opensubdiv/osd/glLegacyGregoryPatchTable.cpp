@@ -57,7 +57,7 @@ GLLegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable) {
     Far::PatchTable::QuadOffsetsTable const &
         quadOffsetsTable = farPatchTable->GetQuadOffsetsTable();
 
-    if (not valenceTable.empty()) {
+    if (! valenceTable.empty()) {
         GLuint buffer;
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_ARRAY_BUFFER, buffer);
@@ -71,7 +71,7 @@ GLLegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable) {
         glDeleteBuffers(1, &buffer);
     }
 
-    if (not quadOffsetsTable.empty()) {
+    if (! quadOffsetsTable.empty()) {
         GLuint buffer;
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_ARRAY_BUFFER, buffer);

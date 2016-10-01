@@ -40,42 +40,9 @@ class TopologyRefiner;
 
 class PatchTableFactory {
 public:
-    //  PatchFaceTag
-    //  A simple struct containing all information gathered about a face that is relevant
-    //  to constructing a patch for it (some of these enums should probably be defined more
-    //  as part of PatchTable)
-    //
-    //  Like the HbrFace<T>::AdaptiveFlags, this struct aggregates all of the face tags
-    //  supporting feature adaptive refinement.  For now it is not used elsewhere and can
-    //  remain local to this implementation, but we may want to move it into a header of
-    //  its own if it has greater use later.
-    //
-    //  Note that several properties being assigned here attempt to do so given a 4-bit
-    //  mask of properties at the edges or vertices of the quad.  Still not sure exactly
-    //  what will be done this way, but the goal is to create lookup tables (of size 16
-    //  for the 4 bits) to quickly determine was is needed, rather than iteration and
-    //  branching on the edges or vertices.
-    //
-    struct PatchFaceTag {
-    public:
-        unsigned int   _hasPatch        : 1;
-        unsigned int   _isRegular       : 1;
-        unsigned int   _transitionMask  : 4;
-        unsigned int   _boundaryMask    : 4;
-        unsigned int   _boundaryIndex   : 2;
-        unsigned int   _boundaryCount   : 3;
-        unsigned int   _hasBoundaryEdge : 3;
-        unsigned int   _isSingleCrease  : 1;
 
-        void clear();
-        void assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask);
-        void assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask);
-        void assignTransitionPropertiesFromEdgeMask(int transitionMask) {
-            _transitionMask = transitionMask;
-        }
-    };
-    typedef std::vector<PatchFaceTag> PatchTagVector;
-
+    /// \brief Public options for the PatchTable factory
+    ///
     struct Options {
 
         enum EndCapType {
@@ -90,10 +57,12 @@ public:
              generateAllLevels(false),
              triangulateQuads(false),
              useSingleCreasePatch(false),
+             useInfSharpPatch(false),
              maxIsolationLevel(maxIsolation),
              endCapType(ENDCAP_GREGORY_BASIS),
              shareEndCapPatchPoints(true),
              generateFVarTables(false),
+             generateFVarLegacyLinearPatches(true),
              numFVarChannels(-1),
              fvarChannelIndices(0)
         { }
@@ -107,6 +76,7 @@ public:
         unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      triangulateQuads     : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
                      useSingleCreasePatch : 1, ///< Use single crease patch
+                     useInfSharpPatch     : 1, ///< Use infinitely-sharp patch
                      maxIsolationLevel    : 4, ///< Cap adaptive feature isolation to the given level (max. 10)
 
                      // end-capping
@@ -115,7 +85,8 @@ public:
                                                   ///< currently only work with GregoryBasis.
 
                      // face-varying
-                     generateFVarTables   : 1;///< Generate face-varying patch tables
+                     generateFVarTables              : 1, ///< Generate face-varying patch tables
+                     generateFVarLegacyLinearPatches : 1; ///< Generate all linear face-varying patches (legacy)
         int          numFVarChannels;          ///< Number of channel indices and interpolation modes passed
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory
     };
@@ -135,7 +106,7 @@ private:
     //
     // Private helper structures
     //
-    struct AdaptiveContext;
+    struct BuilderContext;
 
     //
     //  Methods for allocating and managing the patch table data arrays:
@@ -150,25 +121,47 @@ private:
     //  High-level methods for identifying and populating patches associated with faces:
     //
 
-    static void identifyAdaptivePatches(AdaptiveContext & state);
+    static void identifyAdaptivePatches(BuilderContext & context);
 
-    static void populateAdaptivePatches(AdaptiveContext & state,
-                                        PtexIndices const &ptexIndices);
+    static void populateAdaptivePatches(BuilderContext & context,
+                                        PatchTable * table);
 
-    static void allocateVertexTables(PatchTable * table, int nlevels, bool hasSharpness);
+    static void allocateVertexTables(BuilderContext const & context,
+                                     PatchTable * table);
 
-    static void allocateFVarChannels(TopologyRefiner const & refiner,
-         Options options, int npatches, PatchTable * table);
+    static void allocateFVarChannels(BuilderContext const & context,
+                                     PatchTable * table);
 
-    static PatchParam * computePatchParam(TopologyRefiner const & refiner,
-        PtexIndices const & ptexIndices,
-        int level, int face,
-        int boundaryMask, int transitionMask, PatchParam * coord);
+    static PatchParam computePatchParam(BuilderContext const & context,
+                                        int level, int face,
+                                        int boundaryMask, int transitionMask);
 
-    static int gatherFVarData(AdaptiveContext & state,
-        int level, Index faceIndex, Index levelFaceOffset, int rotation,
-                              Index const * levelOffsets, Index fofss, Index ** fptrs);
+public:
+    //  PatchFaceTag
+    //  This simple struct was previously used within the factory to take inventory of
+    //  various kinds of patches to fully allocate buffers prior to populating them.  It
+    //  was not intended to be exposed as part of the public interface.
+    //
+    //  It is no longer used internally and is being kept here to respect preservation
+    //  of the public interface, but it will be deprecated at the earliest opportunity.
+    //
+    struct PatchFaceTag {
+    public:
+        unsigned int   _hasPatch        : 1;
+        unsigned int   _isRegular       : 1;
+        unsigned int   _transitionMask  : 4;
+        unsigned int   _boundaryMask    : 4;
+        unsigned int   _boundaryIndex   : 2;
+        unsigned int   _boundaryCount   : 3;
+        unsigned int   _hasBoundaryEdge : 3;
+        unsigned int   _isSingleCrease  : 1;
 
+        void clear();
+        void assignBoundaryPropertiesFromEdgeMask(int boundaryEdgeMask);
+        void assignBoundaryPropertiesFromVertexMask(int boundaryVertexMask);
+        void assignTransitionPropertiesFromEdgeMask(int boundaryVertexMask);
+    };
+    typedef std::vector<PatchFaceTag> PatchTagVector;
 };
 
 } // end namespace Far

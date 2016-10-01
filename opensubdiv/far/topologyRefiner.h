@@ -38,6 +38,7 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Vtr { namespace internal { class SparseSelector; } }
+namespace Far { namespace internal { class FeatureMask; } }
 
 namespace Far {
 
@@ -134,14 +135,23 @@ public:
 
         AdaptiveOptions(int level) :
             isolationLevel(level),
+            secondaryLevel(15),
             useSingleCreasePatch(false),
+            useInfSharpPatch(false),
+            considerFVarChannels(false),
             orderVerticesFromFacesFirst(false) { }
 
-        unsigned int isolationLevel:4,              ///< Number of iterations applied to isolate
+        unsigned int isolationLevel:4;              ///< Number of iterations applied to isolate
                                                     ///< extraordinary vertices and creases
-                     useSingleCreasePatch:1,        ///< Use 'single-crease' patch and stop
+        unsigned int secondaryLevel:4;              ///< Shallower level to stop isolation of
+                                                    ///< smooth irregular features
+        unsigned int useSingleCreasePatch:1;        ///< Use 'single-crease' patch and stop
                                                     ///< isolation where applicable
-                     orderVerticesFromFacesFirst:1; ///< Order child vertices from faces first
+        unsigned int useInfSharpPatch:1;            ///< Use infinitely sharp patches and stop
+                                                    ///< isolation where applicable
+        unsigned int considerFVarChannels:1;        ///< Inspect face-varying channels and
+                                                    ///< isolate when irregular features present
+        unsigned int orderVerticesFromFacesFirst:1; ///< Order child vertices from faces first
                                                     ///< instead of child vertices of vertices
     };
 
@@ -199,7 +209,8 @@ private:
     TopologyRefiner(TopologyRefiner const &) : _uniformOptions(0), _adaptiveOptions(0) { }
     TopologyRefiner & operator=(TopologyRefiner const &) { return *this; }
 
-    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector);
+    void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
+                                         internal::FeatureMask const & mask);
 
     void initializeInventory();
     void updateInventory(Vtr::internal::Level const & newLevel);

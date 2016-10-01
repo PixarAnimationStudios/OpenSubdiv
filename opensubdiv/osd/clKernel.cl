@@ -162,50 +162,6 @@ struct PatchParam {
     float sharpness;
 };
 
-static void getBSplineWeights(float t, float *point, float *deriv) {
-    // The four uniform cubic B-Spline basis functions evaluated at t:
-    float one6th = 1.0f / 6.0f;
-
-    float t2 = t * t;
-    float t3 = t * t2;
-
-    point[0] = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
-    point[1] = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
-    point[2] = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
-    point[3] = one6th * (                                 t3);
-
-    // Derivatives of the above four basis functions at t:
-    deriv[0] = -0.5f*t2 +      t - 0.5f;
-    deriv[1] =  1.5f*t2 - 2.0f*t;
-    deriv[2] = -1.5f*t2 +      t + 0.5f;
-    deriv[3] =  0.5f*t2;
-}
-
-static void adjustBoundaryWeights(uint bits, float *sWeights, float *tWeights) {
-    int boundary = ((bits >> 8) & 0xf);
-
-    if (boundary & 1) {
-        tWeights[2] -= tWeights[0];
-        tWeights[1] += 2*tWeights[0];
-        tWeights[0] = 0;
-    }
-    if (boundary & 2) {
-        sWeights[1] -= sWeights[3];
-        sWeights[2] += 2*sWeights[3];
-        sWeights[3] = 0;
-    }
-    if (boundary & 4) {
-        tWeights[1] -= tWeights[3];
-        tWeights[2] += 2*tWeights[3];
-        tWeights[3] = 0;
-    }
-    if (boundary & 8) {
-        sWeights[2] -= sWeights[0];
-        sWeights[1] += 2*sWeights[0];
-        sWeights[0] = 0;
-    }
-}
-
 static int getDepth(uint patchBits) {
     return (patchBits & 0xf);
 }
@@ -235,6 +191,16 @@ static void normalizePatchCoord(uint patchBits, float *uv) {
     uv[1] = (uv[1] - pv) / frac;
 }
 
+static bool isRegular(uint patchBits) {
+    return ((patchBits >> 5) & 0x1) != 0;
+}
+
+static int getNumControlVertices(int patchType) {
+    return (patchType == 3) ? 4 :
+           (patchType == 6) ? 16 :
+           (patchType == 9) ? 20 : 0;
+}
+
 __kernel void computePatches(__global float *src, int srcOffset,
                              __global float *dst, int dstOffset,
                              __global float *du,  int duOffset, int duStride,
@@ -253,35 +219,34 @@ __kernel void computePatches(__global float *src, int srcOffset,
     struct PatchCoord coord = patchCoords[current];
     struct PatchArray array = patchArrayBuffer[coord.arrayIndex];
 
-    int patchType = 6; // array.patchType XXX: REGULAR only for now.
-    int numControlVertices = 16;
     uint patchBits = patchParamBuffer[coord.patchIndex].field1;
+    int patchType = isRegular(patchBits) ? 6 : array.patchType;
 
     float uv[2] = {coord.s, coord.t};
     normalizePatchCoord(patchBits, uv);
     float dScale = (float)(1 << getDepth(patchBits));
+    int boundary = (patchBits >> 8) & 0xf;
 
-    float wP[20], wDs[20], wDt[20];
-    if (patchType == 6) {  // REGULAR
-        float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4];
-        getBSplineWeights(uv[0], sWeights, dsWeights);
-        getBSplineWeights(uv[1], tWeights, dtWeights);
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
-        adjustBoundaryWeights(patchBits, sWeights, tWeights);
-        adjustBoundaryWeights(patchBits, dsWeights, dtWeights);
-
-        for (int k = 0; k < 4; ++k) {
-            for (int l = 0; l < 4; ++l) {
-                wP[4*k+l]  = sWeights[l]  * tWeights[k];
-                wDs[4*k+l] = dsWeights[l] * tWeights[k]  * dScale;
-                wDt[4*k+l] = sWeights[l]  * dtWeights[k] * dScale;
-            }
-        }
-    } else {
-        // TODO: GREGORY BASIS
+    int numControlVertices = 0;
+    if (patchType == 3) {
+        OsdGetBilinearPatchWeights(uv[0], uv[1], dScale,
+            wP, wDs, wDt, wDss, wDst, wDtt);
+        numControlVertices = 4;
+    } else if (patchType == 6) {
+        OsdGetBSplinePatchWeights(uv[0], uv[1], dScale, boundary,
+            wP, wDs, wDt, wDss, wDst, wDtt);
+        numControlVertices = 16;
+    } else if (patchType == 9) {
+        OsdGetGregoryPatchWeights(uv[0], uv[1], dScale,
+            wP, wDs, wDt, wDss, wDst, wDtt);
+        numControlVertices = 20;
     }
 
-    int indexBase = array.indexBase + coord.vertIndex;
+    int indexStride = getNumControlVertices(array.patchType);
+    int indexBase = array.indexBase + indexStride *
+            (coord.patchIndex - array.primitiveIdBase);
 
     struct Vertex v;
     clear(&v);

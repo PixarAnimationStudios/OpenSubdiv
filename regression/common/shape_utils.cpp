@@ -35,7 +35,7 @@
 //------------------------------------------------------------------------------
 static char const * sgets( char * s, int size, char ** stream ) {
     for (int i=0; i<size; ++i) {
-        if ( (*stream)[i]=='\n' or (*stream)[i]=='\0') {
+        if ( (*stream)[i]=='\n' || (*stream)[i]=='\0') {
 
             memcpy(s, *stream, i);
             s[i]='\0';
@@ -71,7 +71,7 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
 
     char * str=const_cast<char *>(shapestr), line[256], buf[256], usemtl=-1;
     bool done = false;
-    while (not done) {
+    while (! done) {
         done = sgets(line, sizeof(line), &str)==0;
         char* end = &line[strlen(line)-1];
         if (*end == '\n') *end = '\0'; // strip trailing nl
@@ -111,7 +111,7 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
                               while (*cp == ' ') cp++;
                           }
                           s->nvertsPerFace.push_back(nverts);
-                          if (not s->mtls.empty()) {
+                          if (! s->mtls.empty()) {
                               s->mtlbind.push_back(usemtl);
                           }
                       } break;
@@ -120,10 +120,10 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
                            if (t)
                                s->tags.push_back(t);
                        } break;
-            case 'u' : if (parsemtl and sscanf(line, "usemtl %s", buf)==1) {
+            case 'u' : if (parsemtl && sscanf(line, "usemtl %s", buf)==1) {
                            usemtl = s->FindMaterial(buf);
                        } break;
-            case 'm' : if (parsemtl and sscanf(line, "mtllib %s", buf)==1) {
+            case 'm' : if (parsemtl && sscanf(line, "mtllib %s", buf)==1) {
                            std::ifstream ifs(buf);
                            if (ifs) {
                                std::stringstream ss;
@@ -210,7 +210,7 @@ void Shape::parseMtllib(char const * mtlstr) {
 
     bool done = false;
     float r, g, b, a;
-    while (not done) {
+    while (! done) {
         done = sgets(line, sizeof(line), &str)==0;
         char* end = &line[strlen(line)-1];
         if (*end == '\n') *end = '\0'; // strip trailing nl

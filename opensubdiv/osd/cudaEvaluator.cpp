@@ -61,6 +61,7 @@ extern "C" {
         const void *patchArrays,
         const int *patchIndices,
         const void *patchParams);
+
 }
 
 namespace OpenSubdiv {

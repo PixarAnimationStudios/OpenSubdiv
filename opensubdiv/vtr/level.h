@@ -114,10 +114,12 @@ public:
         VTagSize _rule            : 4;  // variable when _semiSharp
         VTagSize _incomplete      : 1;  // variable for sparse refinement
 
-        //  On deck -- coming soon...
-        //VTagSize _constSharp   : 1;  // variable when _semiSharp
-        //VTagSize _hasEdits     : 1;  // variable
-        //VTagSize _editsApplied : 1;  // variable
+        //  Tags indicating incident infinitely-sharp (permanent) features
+        VTagSize _infSharpEdges   : 1;  // fixed
+        VTagSize _infSharpCrease  : 1;  // fixed
+        VTagSize _infIrregular    : 1;  // fixed
+
+        static VTag BitwiseOr(VTag const vTags[], int size = 4);
     };
     struct ETag {
         ETag() { }
@@ -131,6 +133,8 @@ public:
         ETagSize _boundary     : 1;  // fixed
         ETagSize _infSharp     : 1;  // fixed
         ETagSize _semiSharp    : 1;  // variable
+
+        static ETag BitwiseOr(ETag const eTags[], int size = 4);
     };
     struct FTag {
         FTag() { }
@@ -145,9 +149,33 @@ public:
         //FTagSize _hasEdits : 1;  // variable
     };
 
-    VTag getFaceCompositeVTag(ConstIndexArray & faceVerts) const;
+    //  Additional simple struct to identify a "span" around a vertex, i.e. a
+    //  subset of the faces around a vertex delimited by some property (e.g. a
+    //  face-varying discontinuity, an inf-sharp edge, etc.)
+    //
+    //  The span requires an "origin" and a "size" to fully define its extent.
+    //  Use of the size is required over a leading/trailing pair as the valence
+    //  around a non-manifold vertex cannot be trivially determined from two
+    //  extremeties.  Similarly a start face is chosen over an edge as starting
+    //  with a manifold edge is ambiguous.  Additional tags also support
+    //  non-manifold cases, e.g. periodic spans at the apex of a double cone.
+    //
+    //  Currently setting the size to 0 or leaving the span "unassigned" is an
+    //  indication to use the full neighborhood rather than a subset -- prefer
+    //  use of the const method here to direct inspection of the member.
+    //
+    struct VSpan {
+        VSpan() { std::memset(this, 0, sizeof(VSpan)); }
 
-    ETag getFaceCompositeETag(ConstIndexArray & faceEdges) const;
+        void clear()            { std::memset(this, 0, sizeof(VSpan)); }
+        bool isAssigned() const { return _numFaces > 0; }
+
+        LocalIndex _numFaces;
+        LocalIndex _startFace;
+
+        unsigned short _periodic : 1;
+        unsigned short _sharp    : 1;
+    };
 
 public:
     Level();
@@ -269,6 +297,29 @@ public:
     bool isSingleCreasePatch(Index face, float* sharpnessOut=NULL, int* rotationOut=NULL) const;
 
     //
+    //  When inspecting topology, the component tags -- particularly VTag and ETag -- are most
+    //  often inspected in groups for the face to which they belong.  They are designed to be
+    //  bitwise OR'd (the result then referred to as a "composite" tag) to make quick decisions
+    //  about the face as a whole to avoid tedious topological inspection.
+    //
+    //  The same logic can be applied to topology in a FVar channel when tags specific to that
+    //  channel are used.  Note that the VTags apply to the FVar values assigned to the corners
+    //  of the face and not the vertex as a whole.  The "composite" face-varying VTag for a
+    //  vertex is the union of VTags of all distinct FVar values for that vertex.
+    //
+    bool doesVertexFVarTopologyMatch(Index vIndex, int fvarChannel) const;
+    bool doesFaceFVarTopologyMatch(  Index fIndex, int fvarChannel) const;
+    bool doesEdgeFVarTopologyMatch(  Index eIndex, int fvarChannel) const;
+
+    void getFaceVTags(Index fIndex, VTag vTags[], int fvarChannel = -1) const;
+    void getFaceETags(Index fIndex, ETag eTags[], int fvarChannel = -1) const;
+
+    VTag getFaceCompositeVTag(Index fIndex, int fvarChannel = -1) const;
+    VTag getFaceCompositeVTag(ConstIndexArray & fVerts) const;
+
+    VTag getVertexCompositeFVarVTag(Index vIndex, int fvarChannel) const;
+
+    //
     //  When gathering "patch points" we may want the indices of the vertices or the corresponding
     //  FVar values for a particular channel.  Both are represented and equally accessible within
     //  the faces, so we allow all to be returned through these methods.  Setting the optional FVar
@@ -284,7 +335,10 @@ public:
     int gatherQuadRegularCornerPatchPoints(  Index fIndex, Index patchPoints[], int cornerVertInFace,
                                                                                 int fvarChannel = -1) const;
 
-    int gatherQuadRegularRingAroundVertex(Index vIndex, Index ringPoints[], int fvarChannel = -1) const;
+    int gatherQuadRegularRingAroundVertex(Index vIndex, Index ringPoints[],
+                                          int fvarChannel = -1) const;
+    int gatherQuadRegularPartialRingAroundVertex(Index vIndex, VSpan const & span, Index ringPoints[],
+                                                 int fvarChannel = -1) const;
 
     //  WIP -- for future use, need to extend for face-varying...
     int gatherTriRegularInteriorPatchPoints(      Index fIndex, Index patchVerts[], int rotation = 0) const;

@@ -38,6 +38,8 @@ class GLSLPatchShaderSource {
 public:
     static std::string GetCommonShaderSource();
 
+    static std::string GetPatchBasisShaderSource();
+
     static std::string GetVertexShaderSource(
         Far::PatchDescriptor::Type type);
 

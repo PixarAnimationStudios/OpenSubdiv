@@ -26,14 +26,17 @@ project(OpenSubdiv)
 
 cmake_minimum_required(VERSION 2.8.6)
 
+# Turn on folder support
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 #-------------------------------------------------------------------------------
 # Obtain OpenSubdiv API version from version.h file
-if(EXISTS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h")
-    file(STRINGS "${CMAKE_SOURCE_DIR}/opensubdiv/version.h"
+if(EXISTS "${OpenSubdiv_SOURCE_DIR}/opensubdiv/version.h")
+    file(STRINGS "${OpenSubdiv_SOURCE_DIR}/opensubdiv/version.h"
         OpenSubdiv_VERSION REGEX "^#define OPENSUBDIV_VERSION .*$")
     string(REPLACE "#define OPENSUBDIV_VERSION " "" OpenSubdiv_VERSION ${OpenSubdiv_VERSION})
 else()
-    message(FATAL_ERROR, "Cannot locate opensubdiv/version.h in CMAKE_SOURCE_DIR")
+    message(FATAL_ERROR, "Cannot locate opensubdiv/version.h in ${OpenSubdiv_SOURCE_DIR}")
 endif()
 
 # Evaluate 'soname' from OSD version
@@ -204,37 +207,6 @@ elseif(MSVC)
     # Turn on all warnings
     list(APPEND OSD_COMPILER_FLAGS /Wall)
 
-    # MSVC is unfortunately not standard conforming with regards to
-    # the alternative names for logical and bitwise operators:
-    # http://stackoverflow.com/questions/555505/c-alternative-tokens
-    # http://stackoverflow.com/questions/6006526/c-writing-or-instead-of
-    #
-    # This can be solved by including iso646.h, but that is a rather
-    # unsatisfactory solution since we then always have to remember to
-    # include this header file.  Instead we define these operators
-    # ourselves as command line arguments to cl.exe.
-    #
-    # An alternative would be to compile with the /Za option
-    # (but unfortunately that breaks other code):
-    # http://msdn.microsoft.com/en-us/library/0k0w269d.aspx
-    list(APPEND OSD_COMPILER_FLAGS
-                    /Dand=&&
-                    /Dand_eq=&=
-                    /Dbitand=&
-                    /Dbitor=|
-                    /Dcompl=~
-                    /Dnot=!
-                    /Dnot_eq=!=
-                    /Dor=||
-                    /Dor_eq=|=
-                    # nvcc does not seem to like a caret being the last character
-                    # in a command line defined preprocessor symbol, so add an
-                    # empty trailing comment to avoid this.
-                    /Dxor=^/**/
-                    /Dxor_eq=^=
-    )
-
-
     list(APPEND OSD_COMPILER_FLAGS
                     /W3     # Use warning level recommended for production purposes.
                     /WX     # Treat all compiler warnings as errors.
@@ -295,13 +267,11 @@ set(CMAKE_SUPPRESS_REGENERATION TRUE)
 option(PTEX_LOCATION "Path to Ptex" "")
 option(GLEW_LOCATION "Path to GLEW" "")
 option(GLFW_LOCATION "Path to GLFW" "")
-option(MAYA_LOCATION "Path to Maya" "")
 
 option(NO_LIB "Disable the opensubdiv libs build (caveat emptor)" OFF)
 option(NO_EXAMPLES "Disable examples build" OFF)
 option(NO_TUTORIALS "Disable tutorials build" OFF)
 option(NO_REGRESSION "Disable regression tests build" OFF)
-option(NO_MAYA "Disable Maya plugin build" OFF)
 option(NO_PTEX "Disable PTex support" OFF)
 option(NO_DOC "Disable documentation build" OFF)
 option(NO_OMP "Disable OpenMP backend" OFF)
@@ -345,6 +315,7 @@ if(NOT NO_OPENGL AND NOT ANDROID AND NOT IOS)
 endif()
 if(NOT NO_PTEX)
    find_package(PTex 2.0)
+   find_package(Zlib 1.2)
 endif()
 if (OPENGL_FOUND AND NOT IOS)
     add_definitions(
@@ -359,10 +330,6 @@ endif()
 
 if (WIN32 AND NOT NO_DX)
    find_package(DXSDK)
-endif()
-
-if (NOT NO_MAYA)
-find_package(Maya 201200)
 endif()
 
 if (NOT NO_DOC)
@@ -508,6 +475,22 @@ if(CUDA_FOUND)
         -DOPENSUBDIV_HAS_CUDA
     )
     set(OSD_GPU TRUE)
+
+    if (UNIX)
+        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
+        if (NOT DEFINED OSD_CUDA_NVCC_FLAGS)
+            if (CUDA_VERSION_MAJOR LESS 6)
+                set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_11 )
+            else()
+                set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_20 )
+            endif()
+        endif()
+    endif()
+
+    if (DEFINED OSD_CUDA_NVCC_FLAGS)
+        list( APPEND CUDA_NVCC_FLAGS ${OSD_CUDA_NVCC_FLAGS})
+    endif()
+
 else()
     if (NOT NO_CUDA)
         message(WARNING
@@ -520,6 +503,7 @@ endif()
 if(PTEX_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_PTEX
+        -DPTEX_STATIC
     )
 else()
     if(NOT NO_PTEX)
@@ -529,22 +513,6 @@ else()
             "please add your Ptex path to FindPTex.cmake in "
             "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
             "cmake command line argument or environment variable.")
-    endif()
-endif()
-
-if (NOT NO_MAYA)
-    if(MAYA_FOUND)
-        add_definitions(
-            -DOPENSUBDIV_HAS_MAYA
-        )
-    else()
-        message(WARNING
-            "Maya was not found : the OpenSubdiv mayaViwer plugin will not be "
-            "available.  If you do have Maya installed and see this message, "
-            "please add your Maya path to FindMaya.cmake in "
-            "${PROJECT_SOURCE_DIR}/cmake or set it through the MAYA_LOCATION "
-            "cmake command line argument or environment variable."
-        )
     endif()
 endif()
 
@@ -593,20 +561,18 @@ endif()
 
 # Macro for processing public headers into the build area for doxygen processing
 
-#set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
 add_custom_target( public_headers )
 
 macro(_add_doxy_headers headers)
     if (NOT NO_DOC AND DOXYGEN_FOUND)
-        file(RELATIVE_PATH path "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
+        file(RELATIVE_PATH path "${OpenSubdiv_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
 
         string(REPLACE  "/" "_" targetpath ${path})
 
         foreach (header ${headers})
 
             set(infile "${CMAKE_CURRENT_SOURCE_DIR}/${header}")
-            set(outfile "${CMAKE_BINARY_DIR}/public_headers/${path}/${header}")
+            set(outfile "${OpenSubdiv_BINARY_DIR}/public_headers/${path}/${header}")
             set(targetname "${targetpath}_${header}")
 
             add_custom_command(
@@ -622,7 +588,6 @@ macro(_add_doxy_headers headers)
 
             add_custom_target(${targetname} DEPENDS "${outfile}")
 
-            #set_target_properties(${targetname} PROPERTIES FOLDER "public_headers/")
 
             list(APPEND headerfiles ${targetname} )
         endforeach()
@@ -662,9 +627,11 @@ function(_stringify src_files varname)
 endfunction()
 
 # Macro wrapper for adding a non-cuda dependent executable
-macro(_add_executable target)
+macro(_add_executable target folder)
 
     add_executable(${target} ${ARGN})
+
+    set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
     if(CMAKE_COMPILER_IS_ICC)
         target_link_libraries(${target} ${ICC_LIBRARIES})
@@ -674,12 +641,14 @@ endmacro()
 
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
-macro(_add_possibly_cuda_executable target)
+macro(_add_possibly_cuda_executable target folder)
     if(CUDA_FOUND)
         cuda_add_executable(${target} ${ARGN})
     else()
         add_executable(${target} ${ARGN})
     endif()
+
+    set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
     if(CMAKE_COMPILER_IS_ICC)
         target_link_libraries(${target} ${ICC_LIBRARIES})
@@ -689,19 +658,20 @@ endmacro()
 
 # Macro for adding a cuda library if cuda is found and a regular
 # library otherwise.
-macro(_add_possibly_cuda_library target)
+macro(_add_possibly_cuda_library target folder)
     if(CUDA_FOUND)
         cuda_add_library(${target} ${ARGN})
     else()
         add_library(${target} ${ARGN})
     endif()
+    set_target_properties(${target} PROPERTIES FOLDER ${folder})
 endmacro()
 
 
 # Macro for adding a (potentially cuda) GLFW executable.
-macro(_add_glfw_executable target)
+macro(_add_glfw_executable target folder)
 
-    _add_possibly_cuda_executable(${target} ${ARGN})
+    _add_possibly_cuda_executable(${target} ${folder} ${ARGN})
 
 #
 # manuelk : commenting this out as it seems to be causing more problems than 

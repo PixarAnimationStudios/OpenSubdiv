@@ -166,6 +166,57 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt;
 
+uniform isamplerBuffer OsdFVarParamBuffer;
+
+vec2
+interpolateFaceVarying(vec2 uv, int fvarOffset)
+{
+    int patchIndex = OsdGetPatchIndex(gl_PrimitiveID);
+
+#if defined(SHADING_FACEVARYING_SMOOTH_BSPLINE_BASIS)
+    float wP[16], wDs[16], wDt[16], wDss[16], wDst[16], wDtt[16];
+    int patchCVs = 16;
+    int patchStride = patchCVs;
+    int boundaryMask = (int(texelFetch(OsdFVarParamBuffer, patchIndex).y) >> 8) & 0xf;
+    OsdGetBSplinePatchWeights(uv.s, uv.t, 1.0f, boundaryMask, wP, wDs, wDt, wDss, wDst, wDtt);
+
+#elif defined(SHADING_FACEVARYING_SMOOTH_GREGORY_BASIS)
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
+    int patchCVs = 20;
+    int patchStride = patchCVs;
+    bool isRegular = ((int(texelFetch(OsdFVarParamBuffer, patchIndex).y) >> 5) & 0x1) != 0;
+    if (isRegular) {
+        float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
+        patchCVs = 16;
+        int boundaryMask = (int(texelFetch(OsdFVarParamBuffer, patchIndex).y) >> 8) & 0xf;
+        OsdGetBSplinePatchWeights(uv.s, uv.t, 1.0f, boundaryMask, wP16, wDs16, wDt16, wDss16, wDst16, wDtt16);
+        for (int i=0; i<patchCVs; ++i) {
+            wP[i] = wP16[i];
+        }
+    } else {
+        OsdGetGregoryPatchWeights(uv.s, uv.t, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
+    }
+
+#else
+    float wP[4], wDs[4], wDt[4], wDss[4], wDst[4], wDtt[4];
+    int patchCVs = 4;
+    int patchStride = patchCVs;
+    OsdGetBilinearPatchWeights(uv.s, uv.t, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
+#endif
+
+    int primOffset = patchIndex * patchStride;
+
+    vec2 result = vec2(0);
+    for (int i=0; i<patchCVs; ++i) {
+        int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;
+        vec2 cv = vec2(texelFetch(OsdFVarDataBuffer, index).s,
+                       texelFetch(OsdFVarDataBuffer, index + 1).s);
+        result += wP[i] * cv;
+    }
+
+    return result;
+}
+
 void emit(int index, vec3 normal)
 {
     outpt.v.position = inpt[index].v.position;
@@ -187,8 +238,7 @@ void emit(int index, vec3 normal)
 #else
     vec2 st = inpt[index].v.tessCoord;
 #endif
-    vec2 uv;
-    OSD_COMPUTE_FACE_VARYING_2(uv, /*fvarOffset=*/0, st);
+    vec2 uv = interpolateFaceVarying(st, /*fvarOffset*/0);
 #endif      // ------ scheme
 
     outpt.color = vec3(uv.s, uv.t, 0);

@@ -71,7 +71,7 @@ PatchMap::initialize( PatchTable const & patchTable ) {
         narrays = (int)patchTable.GetNumPatchArrays(),
         npatches = (int)patchTable.GetNumPatchesTotal();
 
-    if (not narrays or not npatches)
+    if (! narrays || ! npatches)
         return;
 
     // populate subpatch handles vector
@@ -141,12 +141,12 @@ PatchMap::initialize( PatchTable const & patchTable ) {
 
                 if (j==pdepth) {
                    // we have reached the depth of the sub-patch : add a leaf
-                   assert( not node->children[quadrant].isSet );
+                   assert( ! node->children[quadrant].isSet );
                    node->SetChild(quadrant, handleIndex, true);
                    break;
                 } else {
                     // travel down the child node of the corresponding quadrant
-                    if (not node->children[quadrant].isSet) {
+                    if (! node->children[quadrant].isSet) {
                         // create a new branch in the quadrant
                         node = addChild(quadtree, node, quadrant);
                     } else {

@@ -25,7 +25,6 @@
 #ifndef OPENSUBDIV3_FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
 #define OPENSUBDIV3_FAR_END_CAP_GREGORY_BASIS_PATCH_FACTORY_H
 
-#include "../far/patchTableFactory.h"
 #include "../far/gregoryBasis.h"
 #include "../far/stencilTable.h"
 #include "../vtr/level.h"
@@ -47,29 +46,9 @@ class EndCapGregoryBasisPatchFactory {
 
 public:
 
-    //
-    // Single patch GregoryBasis basis factory
-    //
-
-    /// \brief Instantiates a GregoryBasis from a TopologyRefiner that has been
-    ///        refined adaptively for a given face.
-    ///
-    /// @param refiner     The TopologyRefiner containing the topology
-    ///
-    /// @param faceIndex   The index of the face (level is assumed to be MaxLevel)
-    ///
-    /// @param fvarChannel Index of face-varying channel topology (default -1)
-    ///
-    static GregoryBasis const * Create(TopologyRefiner const & refiner,
-        Index faceIndex, int fvarChannel=-1);
-
-public:
-
     ///
     /// Multi-patch Gregory stencils factory
     ///
-
-    // XXXX need to add support for face-varying channel stencils
 
     /// \brief This factory accumulates vertex for Gregory basis patch
     ///
@@ -98,22 +77,25 @@ public:
     /// @param level            vtr refinement level
     ///
     /// @param faceIndex        vtr faceIndex at the level
-    ///
-    /// @param levelPatchTags   Array of patchTags for all faces in the level
-    ///
+    //
+    /// @param cornerSpans      information about topology for each corner of patch
     /// @param levelVertOffset  relative offset of patch vertex indices
+    ///
+    /// @param fvarChannel      face-varying channel index
     ///
     ConstIndexArray GetPatchPoints(
         Vtr::internal::Level const * level, Index faceIndex,
-        PatchTableFactory::PatchFaceTag const * levelPatchTags,
-        int levelVertOffset);
+        Vtr::internal::Level::VSpan const cornerSpans[],
+        int levelVertOffset, int fvarChannel = -1);
 
 private:
 
     /// Creates a basis for the vertices specified in mask on the face and
     /// accumates it
-    bool addPatchBasis(Index faceIndex, bool newVerticesMask[4][5],
-                       int levelVertOffset);
+    bool addPatchBasis(Vtr::internal::Level const & level, Index faceIndex,
+                       Vtr::internal::Level::VSpan const cornerSpans[],
+                       bool newVerticesMask[4][5],
+                       int levelVertOffset, int fvarChannel);
 
     StencilTable *_vertexStencils;
     StencilTable *_varyingStencils;
@@ -122,8 +104,10 @@ private:
     bool _shareBoundaryVertices;
     int _numGregoryBasisVertices;
     int _numGregoryBasisPatches;
-    std::vector<Index> _faceIndices;
     std::vector<Index> _patchPoints;
+
+    //  Only used when sharing vertices:
+    std::vector<unsigned int> _levelAndFaceIndices;
 };
 
 } // end namespace Far

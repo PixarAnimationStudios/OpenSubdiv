@@ -52,7 +52,7 @@ static inline void
 addWithWeight(float *dst, const float *src, int srcIndex, float weight,
               BufferDescriptor const &desc) {
 
-    assert(src and dst);
+    assert(src && dst);
     src = elementAtIndex(src, srcIndex, desc);
     for (int k = 0; k < desc.length; ++k) {
         dst[k] += src[k] * weight;
@@ -63,7 +63,7 @@ static inline void
 copy(float *dst, int dstIndex, const float *src,
      BufferDescriptor const &desc) {
 
-    assert(src and dst);
+    assert(src && dst);
 
     dst = elementAtIndex(dst, dstIndex, desc);
     memcpy(dst, src, desc.length*sizeof(float));

@@ -1,5 +1,5 @@
 //
-//   Copyright 2015 Pixar
+//   Copyright 2013 Nvidia
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,36 +22,44 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_OSD_HLSL_PATCH_SHADER_SOURCE_H
-#define OPENSUBDIV3_OSD_HLSL_PATCH_SHADER_SOURCE_H
+#include <D3D11.h>
+#include <D3Dcompiler.h>
 
-#include "../version.h"
-#include <string>
-#include "../far/patchDescriptor.h"
+//
+// Draws an environment sphere centered on the camera w/ a texture
+//
+class Sky {
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
-
-class HLSLPatchShaderSource {
 public:
-    static std::string GetCommonShaderSource();
 
-    static std::string GetPatchBasisShaderSource();
+    // Constructor (Sky does not own the texture asset)
+    Sky(ID3D11Device * device, ID3D11Texture2D * environmentMap);
 
-    static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type);
+    ~Sky();
 
-    static std::string GetHullShaderSource(Far::PatchDescriptor::Type type);
+    void Draw(ID3D11DeviceContext * deviceContext, float const mvp[16]);
 
-    static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type);
+private:
+
+    void initialize(ID3D11Device * device);
+
+private:
+
+    int numIndices;
+
+    ID3D11VertexShader * vertexShader;
+    ID3D11PixelShader * pixelShader;
+    ID3D11Buffer * shaderConstants;
+
+    ID3D11InputLayout * inputLayout;
+    ID3D11RasterizerState * rasterizerState;
+    ID3D11DepthStencilState * depthStencilState;
+
+    ID3D11Texture2D * texture;
+    ID3D11ShaderResourceView * textureSRV;
+    ID3D11SamplerState * textureSS;
+
+    ID3D11Buffer * sphere;
+    ID3D11Buffer * sphereIndices;
 };
 
-}  // end namespace Osd
-
-}  // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
-
-} // end namespace OpenSubdiv
-
-#endif  // OPENSUBDIV3_OSD_HLSL_PATCH_SHADER_SOURCE_H

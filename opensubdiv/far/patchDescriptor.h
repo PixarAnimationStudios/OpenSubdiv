@@ -47,12 +47,6 @@ namespace Far {
 /// * Adaptively subdivided meshes contain bicubic patches of types REGULAR,
 ///   GREGORY, GREGORY_BOUNDARY, GREGORY_BASIS.
 ///
-/// Bitfield layout :
-///
-///  Field       | Bits | Content
-///  ------------|:----:|------------------------------------------------------
-///  _type       | 4    | patch type
-///
 class PatchDescriptor {
 
 public:
@@ -95,7 +89,7 @@ public:
 
     /// \brief Returns true if the type is an adaptive patch
     static inline bool IsAdaptive(Type type) {
-        return (type>=LOOP and type<=GREGORY_BASIS);
+        return (type>=LOOP && type<=GREGORY_BASIS);
     }
 
     /// \brief Returns true if the type is an adaptive patch
@@ -107,6 +101,7 @@ public:
     /// type described
     static inline short GetNumControlVertices( Type t );
 
+    /// \brief Deprecated @see PatchDescriptor#GetNumControlVertices
     static inline short GetNumFVarControlVertices( Type t );
 
     /// \brief Returns the number of control vertices expected for a patch of the
@@ -115,8 +110,7 @@ public:
         return GetNumControlVertices( this->GetType() );
     }
 
-    /// \brief Returns the number of control vertices expected for a patch of the
-    /// type described
+    /// \brief Deprecated @see PatchDescriptor#GetNumControlVertices
     short GetNumFVarControlVertices() const {
         return GetNumFVarControlVertices( this->GetType() );
     }
@@ -145,7 +139,7 @@ public:
     void print() const;
 
 private:
-    unsigned int  _type:4;
+    unsigned int _type;
 };
 
 typedef Vtr::ConstArray<PatchDescriptor> ConstPatchDescriptorArray;
@@ -169,17 +163,7 @@ PatchDescriptor::GetNumControlVertices( Type type ) {
 // Returns the number of face-varying control vertices expected for a patch of this type
 inline short
 PatchDescriptor::GetNumFVarControlVertices( Type type ) {
-    switch (type) {
-        case REGULAR           : return GetRegularPatchSize();
-        case QUADS             : return 4;
-        case TRIANGLES         : return 3;
-        case LINES             : return 2;
-        case POINTS            : return 1;
-        case GREGORY_BASIS     : assert(0); return GetGregoryBasisPatchSize();
-        case GREGORY           :
-        case GREGORY_BOUNDARY  : assert(0); // unsupported types
-        default : return -1;
-    }
+    return PatchDescriptor::GetNumControlVertices(type);
 }
 
 // Allows ordering of patches by type

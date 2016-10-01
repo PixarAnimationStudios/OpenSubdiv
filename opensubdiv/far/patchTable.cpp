@@ -36,7 +36,8 @@ namespace Far {
 PatchTable::PatchTable(int maxvalence) :
     _maxValence(maxvalence),
     _localPointStencils(NULL),
-    _localPointVaryingStencils(NULL) {
+    _localPointVaryingStencils(NULL),
+    _varyingDesc(Far::PatchDescriptor::QUADS) {
 }
 
 // Copy constructor
@@ -49,8 +50,9 @@ PatchTable::PatchTable(PatchTable const & src) :
     _paramTable(src._paramTable),
     _quadOffsetsTable(src._quadOffsetsTable),
     _vertexValenceTable(src._vertexValenceTable),
-    _localPointStencils(NULL),
-    _localPointVaryingStencils(NULL),
+    _localPointStencils(src._localPointStencils),
+    _localPointVaryingStencils(src._localPointVaryingStencils),
+    _varyingDesc(src._varyingDesc),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues) {
@@ -63,11 +65,21 @@ PatchTable::PatchTable(PatchTable const & src) :
         _localPointVaryingStencils =
             new StencilTable(*src._localPointVaryingStencils);
     }
+    if (! src._localPointFaceVaryingStencils.empty()) {
+        _localPointFaceVaryingStencils.resize(src._localPointFaceVaryingStencils.size());
+        for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
+            _localPointFaceVaryingStencils[fvc] =
+                new StencilTable(*src._localPointFaceVaryingStencils[fvc]);
+}
+    }
 }
 
 PatchTable::~PatchTable() {
     delete _localPointStencils;
     delete _localPointVaryingStencils;
+    for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
+        delete _localPointFaceVaryingStencils[fvc];
+}
 }
 
 //
@@ -86,7 +98,7 @@ struct PatchTable::PatchArray {
     int numPatches;        // number of patches in the array
 
     Index vertIndex,       // index to the first control vertex
-          patchIndex,      // index of the first patch in the array
+          patchIndex,      // absolute index of the first patch in the array
           quadOffsetIndex; // index of the first quad offset entry
 
 };
@@ -140,30 +152,29 @@ PatchTable::reservePatchArrays(int numPatchArrays) {
 //
 struct PatchTable::FVarPatchChannel {
 
-    // Channel interpolation mode
     Sdc::Options::FVarLinearInterpolation interpolation;
 
-    // Patch type
-    //
-    // Note : in bilinear interpolation modes, all patches are of the same type,
-    // so we only need a single type (patchesType). In bi-cubic modes, each
-    // patch requires its own type (patchTypes).
-    PatchDescriptor::Type              patchesType;
-    std::vector<PatchDescriptor::Type> patchTypes;
+    PatchDescriptor desc;
 
-    // Patch points values
-    std::vector<Index> patchValuesOffsets; // offset to the first value of each patch
-    std::vector<Index> patchValues; // point values for each patch
+    std::vector<Index> patchValues;
+    std::vector<PatchParam> patchParam;
 };
+
+void
+PatchTable::allocateVaryingVertices(
+        PatchDescriptor desc, int numPatches) {
+    _varyingDesc = desc;
+    _varyingVerts.resize(numPatches*desc.GetNumControlVertices());
+}
 
 inline PatchTable::FVarPatchChannel &
 PatchTable::getFVarPatchChannel(int channel) {
-    assert(channel<(int)_fvarChannels.size());
+    assert(channel>=0 && channel<(int)_fvarChannels.size());
     return _fvarChannels[channel];
 }
 inline PatchTable::FVarPatchChannel const &
 PatchTable::getFVarPatchChannel(int channel) const {
-    assert(channel<(int)_fvarChannels.size());
+    assert(channel>=0 && channel<(int)_fvarChannels.size());
     return _fvarChannels[channel];
 }
 void
@@ -172,13 +183,11 @@ PatchTable::allocateFVarPatchChannels(int numChannels) {
 }
 void
 PatchTable::allocateFVarPatchChannelValues(
-        int numPatches, int numVerticesTotal, int channel) {
-
+        PatchDescriptor desc, int numPatches, int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
-    (void)numPatches; // not used
-    // Allocate bi-linear channels (allows uniform topology to be populated
-    // in a single traversal)
-    c.patchValues.resize(numVerticesTotal);
+    c.desc = desc;
+    c.patchValues.resize(numPatches*desc.GetNumControlVertices());
+    c.patchParam.resize(numPatches);
 }
 void
 PatchTable::setFVarPatchChannelLinearInterpolation(
@@ -343,6 +352,18 @@ int
 PatchTable::GetNumLocalPoints() const {
     return _localPointStencils ? _localPointStencils->GetNumStencils() : 0;
 }
+int
+PatchTable::GetNumLocalPointsVarying() const {
+    return _localPointVaryingStencils ? _localPointVaryingStencils->GetNumStencils() : 0;
+}
+int
+PatchTable::GetNumLocalPointsFaceVarying(int channel) const {
+    if (channel>=0 && channel<(int)_localPointFaceVaryingStencils.size() &&
+        _localPointFaceVaryingStencils[channel]) {
+        return _localPointFaceVaryingStencils[channel]->GetNumStencils();
+    }
+    return 0;
+}
 
 PatchTable::ConstQuadOffsetsArray
 PatchTable::GetPatchQuadOffsets(PatchHandle const & handle) const {
@@ -357,12 +378,100 @@ PatchTable::IsFeatureAdaptive() const {
 
     for (int i=0; i<GetNumPatchArrays(); ++i) {
         PatchDescriptor const & desc = _patchArrays[i].desc;
-        if (desc.GetType()>=PatchDescriptor::REGULAR and
+        if (desc.GetType()>=PatchDescriptor::REGULAR &&
             desc.GetType()<=PatchDescriptor::GREGORY_BASIS) {
             return true;
         }
     }
     return false;
+}
+
+PatchDescriptor
+PatchTable::GetVaryingPatchDescriptor() const {
+    return _varyingDesc;
+}
+ConstIndexArray
+PatchTable::GetPatchVaryingVertices(PatchHandle const & handle) const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
+    int numVaryingCVs = _varyingDesc.GetNumControlVertices();
+    Index start = handle.patchIndex * numVaryingCVs;
+    return ConstIndexArray(&_varyingVerts[start], numVaryingCVs);
+}
+ConstIndexArray
+PatchTable::GetPatchVaryingVertices(int array, int patch) const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
+    PatchArray const & pa = getPatchArray(array);
+    int numVaryingCVs = _varyingDesc.GetNumControlVertices();
+    Index start = (pa.patchIndex + patch) * numVaryingCVs;
+    return ConstIndexArray(&_varyingVerts[start], numVaryingCVs);
+}
+ConstIndexArray
+PatchTable::GetPatchArrayVaryingVertices(int array) const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
+    PatchArray const & pa = getPatchArray(array);
+    int numVaryingCVs = _varyingDesc.GetNumControlVertices();
+    Index start = pa.patchIndex * numVaryingCVs;
+    Index count = pa.numPatches * numVaryingCVs;
+    return ConstIndexArray(&_varyingVerts[start], count);
+}
+ConstIndexArray
+PatchTable::GetVaryingVertices() const {
+    if (_varyingVerts.empty()) {
+        return ConstIndexArray();
+    }
+    return ConstIndexArray(&_varyingVerts[0], (int)_varyingVerts.size());
+}
+IndexArray
+PatchTable::getPatchArrayVaryingVertices(int arrayIndex) {
+    PatchArray const & pa = getPatchArray(arrayIndex);
+    int numVaryingCVs = _varyingDesc.GetNumControlVertices();
+    Index start = pa.patchIndex * numVaryingCVs;
+    return IndexArray(&_varyingVerts[start], pa.numPatches * numVaryingCVs);
+}
+void
+PatchTable::populateVaryingVertices() {
+    // In order to support evaluation of varying data we need to access
+    // the varying values indexed by the zero ring vertices of the vertex
+    // patch. This indexing is redundant for triangles and quads and
+    // could be made redunant for other patch types if we reorganized
+    // the vertex patch indices so that the zero ring indices always occured
+    // first. This will also need to be updated when we add support for
+    // triangle patches.
+    int numVaryingCVs = _varyingDesc.GetNumControlVertices();
+    for (int arrayIndex=0; arrayIndex<(int)_patchArrays.size(); ++arrayIndex) {
+        PatchArray const & pa = getPatchArray(arrayIndex);
+        PatchDescriptor::Type patchType = pa.desc.GetType();
+        for (int patch=0; patch<pa.numPatches; ++patch) {
+            ConstIndexArray vertexCVs = GetPatchVertices(arrayIndex, patch);
+            int start = (pa.patchIndex + patch) * numVaryingCVs;
+            if (patchType == PatchDescriptor::REGULAR) {
+                _varyingVerts[start+0] = vertexCVs[5];
+                _varyingVerts[start+1] = vertexCVs[6];
+                _varyingVerts[start+2] = vertexCVs[10];
+                _varyingVerts[start+3] = vertexCVs[9];
+            } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
+                _varyingVerts[start+0] = vertexCVs[0];
+                _varyingVerts[start+1] = vertexCVs[5];
+                _varyingVerts[start+2] = vertexCVs[10];
+                _varyingVerts[start+3] = vertexCVs[15];
+            } else if (patchType == PatchDescriptor::QUADS) {
+                _varyingVerts[start+0] = vertexCVs[0];
+                _varyingVerts[start+1] = vertexCVs[1];
+                _varyingVerts[start+2] = vertexCVs[2];
+                _varyingVerts[start+3] = vertexCVs[3];
+            } else if (patchType == PatchDescriptor::TRIANGLES) {
+                _varyingVerts[start+0] = vertexCVs[0];
+                _varyingVerts[start+1] = vertexCVs[1];
+                _varyingVerts[start+2] = vertexCVs[2];
+            }
+        }
+    }
 }
 
 int
@@ -373,6 +482,11 @@ Sdc::Options::FVarLinearInterpolation
 PatchTable::GetFVarChannelLinearInterpolation(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.interpolation;
+}
+PatchDescriptor
+PatchTable::GetFVarChannelPatchDescriptor(int channel) const {
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return c.desc;
 }
 ConstIndexArray
 PatchTable::GetFVarValues(int channel) const {
@@ -386,18 +500,9 @@ PatchTable::getFVarValues(int channel) {
 }
 ConstIndexArray
 PatchTable::getPatchFVarValues(int patch, int channel) const {
-
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-
-    if (c.patchValuesOffsets.empty()) {
-        int ncvs = PatchDescriptor::GetNumFVarControlVertices(c.patchesType);
-        return ConstIndexArray(&c.patchValues[patch * ncvs], ncvs);
-    } else {
-        assert(patch<(int)c.patchValuesOffsets.size() and
-            patch<(int)c.patchTypes.size());
-        return ConstIndexArray(&c.patchValues[c.patchValuesOffsets[patch]],
-            PatchDescriptor::GetNumFVarControlVertices(c.patchTypes[patch]));
-   }
+    int ncvs = c.desc.GetNumControlVertices();
+    return ConstIndexArray(&c.patchValues[patch * ncvs], ncvs);
 }
 ConstIndexArray
 PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
@@ -406,6 +511,45 @@ PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
 ConstIndexArray
 PatchTable::GetPatchFVarValues(int arrayIndex, int patchIndex, int channel) const {
     return getPatchFVarValues(getPatchIndex(arrayIndex, patchIndex), channel);
+}
+ConstIndexArray
+PatchTable::GetPatchArrayFVarValues(int array, int channel) const {
+    PatchArray const & pa = getPatchArray(array);
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    int ncvs = c.desc.GetNumControlVertices();
+    int start = pa.patchIndex * ncvs;
+    int count = pa.numPatches * ncvs;
+    return ConstIndexArray(&c.patchValues[start], count);
+}
+PatchParam
+PatchTable::getPatchFVarPatchParam(int patch, int channel) const {
+
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return c.patchParam[patch];
+}
+PatchParam
+PatchTable::GetPatchFVarPatchParam(PatchHandle const & handle, int channel) const {
+    return getPatchFVarPatchParam(handle.patchIndex, channel);
+}
+PatchParam
+PatchTable::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) const {
+    return getPatchFVarPatchParam(getPatchIndex(arrayIndex, patchIndex), channel);
+}
+ConstPatchParamArray
+PatchTable::GetPatchArrayFVarPatchParam(int array, int channel) const {
+    PatchArray const & pa = getPatchArray(array);
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return ConstPatchParamArray(&c.patchParam[pa.patchIndex], pa.numPatches);
+}
+ConstPatchParamArray
+PatchTable::GetFVarPatchParam(int channel) const {
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return ConstPatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
+}
+PatchParamArray
+PatchTable::getFVarPatchParam(int channel) {
+    FVarPatchChannel & c = getFVarPatchChannel(channel);
+    return PatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
 
 void
@@ -420,21 +564,63 @@ PatchTable::print() const {
 }
 
 //
-//  Evaluate basis functions for position and first derivatives at (s,t):
+//  Evaluate basis functions for vertex and derivatives at (s,t):
 //
 void
-PatchTable::EvaluateBasis(PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[]) const {
+PatchTable::EvaluateBasis(
+    PatchHandle const & handle, float s, float t,
+    float wP[], float wDs[], float wDt[],
+    float wDss[], float wDst[], float wDtt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
     PatchParam const & param = _paramTable[handle.patchIndex];
 
     if (patchType == PatchDescriptor::REGULAR) {
-        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt);
+        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
     } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt);
+        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
     } else if (patchType == PatchDescriptor::QUADS) {
-        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt);
+        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else {
+        assert(0);
+    }
+}
+
+//
+//  Evaluate basis functions for varying and derivatives at (s,t):
+//
+void
+PatchTable::EvaluateBasisVarying(
+    PatchHandle const & handle, float s, float t,
+    float wP[], float wDs[], float wDt[],
+    float wDss[], float wDst[], float wDtt[]) const {
+
+    PatchParam const & param = _paramTable[handle.patchIndex];
+
+    internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+}
+
+//
+//  Evaluate basis functions for face-varying and derivatives at (s,t):
+//
+void
+PatchTable::EvaluateBasisFaceVarying(
+    PatchHandle const & handle, float s, float t,
+    float wP[], float wDs[], float wDt[],
+    float wDss[], float wDst[], float wDtt[],
+    int channel) const {
+
+    PatchParam param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
+    PatchDescriptor::Type patchType = param.IsRegular()
+            ? PatchDescriptor::REGULAR
+            : GetFVarChannelPatchDescriptor(channel).GetType();
+
+    if (patchType == PatchDescriptor::REGULAR) {
+        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
+        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else if (patchType == PatchDescriptor::QUADS) {
+        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
     } else {
         assert(0);
     }
