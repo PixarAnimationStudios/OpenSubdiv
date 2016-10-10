@@ -501,8 +501,10 @@ PatchTable::getFVarValues(int channel) {
 ConstIndexArray
 PatchTable::getPatchFVarValues(int patch, int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    int ncvs = c.desc.GetNumControlVertices();
-    return ConstIndexArray(&c.patchValues[patch * ncvs], ncvs);
+    int ncvsPerPatch = c.desc.GetNumControlVertices();
+    int ncvsThisPatch = c.patchParam[patch].IsRegular()
+                      ? c.desc.GetRegularPatchSize() : ncvsPerPatch;
+    return ConstIndexArray(&c.patchValues[patch * ncvsPerPatch], ncvsThisPatch);
 }
 ConstIndexArray
 PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
@@ -610,7 +612,7 @@ PatchTable::EvaluateBasisFaceVarying(
     float wDss[], float wDst[], float wDtt[],
     int channel) const {
 
-    PatchParam param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
+    PatchParam param = getPatchFVarPatchParam(handle.patchIndex, channel);
     PatchDescriptor::Type patchType = param.IsRegular()
             ? PatchDescriptor::REGULAR
             : GetFVarChannelPatchDescriptor(channel).GetType();
