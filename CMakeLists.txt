@@ -284,6 +284,8 @@ option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
 
+option(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES "Enable true derivative evaluation for Gregory basis patches" OFF)
+
 set(OSD_GPU FALSE)
 
 # Check for dependencies
@@ -514,6 +516,10 @@ else()
             "${PROJECT_SOURCE_DIR}/cmake or set it through the PTEX_LOCATION "
             "cmake command line argument or environment variable.")
     endif()
+endif()
+
+if( OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES )
+    add_definitions(-DOPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
 endif()
 
 # Link examples & regressions dynamically against Osd
