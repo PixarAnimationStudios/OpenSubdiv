@@ -208,6 +208,8 @@ public:
     /// @param dst       Destination buffer for the computed local point
     ///                  face-varying values
     ///
+    /// @param channel   face-varying channel
+    ///
     ///
     template <class T> void
     ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel = 0) const;
@@ -321,10 +323,10 @@ public:
     PatchParam GetPatchFVarPatchParam(int array, int patch, int channel = 0) const;
 
     /// \brief Returns the face-varying for a given patch in \p array in \p channel
-    ConstPatchParamArray GetPatchArrayFVarPatchParam(int array, int channel = 0) const;
+    ConstPatchParamArray GetPatchArrayFVarPatchParams(int array, int channel = 0) const;
 
     /// \brief Returns an array of face-varying patch param for \p channel
-    ConstPatchParamArray GetFVarPatchParam(int channel = 0) const;
+    ConstPatchParamArray GetFVarPatchParams(int channel = 0) const;
     //@}
 
 
@@ -513,7 +515,7 @@ private:
     IndexArray getFVarValues(int channel);
     ConstIndexArray getPatchFVarValues(int patch, int channel) const;
 
-    PatchParamArray getFVarPatchParam(int channel);
+    PatchParamArray getFVarPatchParams(int channel);
     PatchParam getPatchFVarPatchParam(int patch, int channel) const;
 
 private:

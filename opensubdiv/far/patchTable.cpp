@@ -538,18 +538,18 @@ PatchTable::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) 
     return getPatchFVarPatchParam(getPatchIndex(arrayIndex, patchIndex), channel);
 }
 ConstPatchParamArray
-PatchTable::GetPatchArrayFVarPatchParam(int array, int channel) const {
+PatchTable::GetPatchArrayFVarPatchParams(int array, int channel) const {
     PatchArray const & pa = getPatchArray(array);
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstPatchParamArray(&c.patchParam[pa.patchIndex], pa.numPatches);
 }
 ConstPatchParamArray
-PatchTable::GetFVarPatchParam(int channel) const {
+PatchTable::GetFVarPatchParams(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstPatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
 PatchParamArray
-PatchTable::getFVarPatchParam(int channel) {
+PatchTable::getFVarPatchParams(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return PatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
