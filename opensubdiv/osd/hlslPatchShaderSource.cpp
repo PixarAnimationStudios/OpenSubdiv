@@ -58,7 +58,12 @@ HLSLPatchShaderSource::GetCommonShaderSource() {
 /*static*/
 std::string
 HLSLPatchShaderSource::GetPatchBasisShaderSource() {
-    return std::string(patchBasisShaderSource);
+    std::stringstream ss;
+#if defined(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
+    ss << "#define OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES\n";
+#endif
+    ss << std::string(patchBasisShaderSource);
+    return ss.str();
 }
 
 /*static*/

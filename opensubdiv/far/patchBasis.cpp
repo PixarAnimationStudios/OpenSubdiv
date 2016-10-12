@@ -425,10 +425,9 @@ void GetGregoryWeights(PatchParam const & param,
             }
         }
 
-//#define _USE_BEZIER_PSEUDO_DERIVATIVES
         // dclyde's note: skipping half of the product rule like this does seem to change the result a lot in my tests.
         // This is not a runtime bottleneck for cloth sims anyway so I'm just using the accurate version.
-#ifdef _USE_BEZIER_PSEUDO_DERIVATIVES
+#ifndef OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES
         //  Approximation to the true Gregory derivatives by differentiating the Bezier patch
         //  unique to the given (s,t), i.e. having F = (g^+ * f^+) + (g^- * f^-) as its four
         //  interior points:
