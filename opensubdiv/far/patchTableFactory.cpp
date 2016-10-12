@@ -1262,7 +1262,7 @@ PatchTableFactory::populateAdaptivePatches(
                 int   ofs  = pidx * desc.GetNumControlVertices();
 
                 arrayBuilder.fptr[fvc] = &table->getFVarValues(fvc)[ofs];
-                arrayBuilder.fpptr[fvc] = &table->getFVarPatchParam(fvc)[pidx];
+                arrayBuilder.fpptr[fvc] = &table->getFVarPatchParams(fvc)[pidx];
             }
         }
     }

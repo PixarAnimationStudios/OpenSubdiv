@@ -96,7 +96,7 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
 
             // face-varying param
             Far::ConstPatchParamArray
-                fvarParam = farPatchTable->GetPatchArrayFVarPatchParam(j, fvc);
+                fvarParam = farPatchTable->GetPatchArrayFVarPatchParams(j, fvc);
             for (int k = 0; k < numPatches; ++k) {
                 PatchParam param;
                 //param.patchParam = patchParamTable[patchIndex];
