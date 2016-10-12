@@ -256,7 +256,7 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         //  correct (or relevant) if non-manifold:
         //
         vTag._boundary = (boundaryEdgeCount > 0);
-        vTag._corner = isSharpenedCorner;
+        vTag._corner = isTopologicalCorner && vTag._infSharp;
         if (vTag._corner) {
             vTag._xordinary = false;
         } else if (vTag._boundary) {
