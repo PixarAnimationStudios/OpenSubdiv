@@ -386,6 +386,15 @@ FVarLevel::completeTopologyFromFaceValues(int regularBoundaryValence) {
         }
 
         //
+        //  Some non-manifold cases can have multiple fvar-values but without any discts
+        //  edges that would previously have identified mismatch (e.g. two faces meeting
+        //  at a common vertex), so deal with that case now that we've counted values:
+        //
+        if (!vIsManifold && !vertexMismatch[vIndex]) {
+            vertexMismatch[vIndex] = (uniqueValueCount > 1);
+        }
+
+        //
         //  Update the value count and offset for this vertex and cumulative totals:
         //
         _vertSiblingCounts[vIndex]  = (LocalIndex) uniqueValueCount;
@@ -965,7 +974,6 @@ FVarLevel::gatherValueSpans(Index vIndex, ValueSpan * vValueSpans) const {
                 }
             } else if (_level.getEdgeTag(vEdges[i])._infSharp) {
                 ++ vValueSpans[0]._infSharpEdgeCount;
-                break;
             } else if (_level.getEdgeTag(vEdges[i])._semiSharp) {
                 ++ vValueSpans[0]._semiSharpEdgeCount;
             }

@@ -554,7 +554,7 @@ bool
 Level::doesVertexFVarTopologyMatch(Index vIndex, int fvarChannel) const {
 
     return getFVarLevel(fvarChannel).valueTopologyMatches(
-            getFVarLevel(fvarChannel).getVertexValue(vIndex));
+             getFVarLevel(fvarChannel).getVertexValueOffset(vIndex));
 }
 bool
 Level::doesEdgeFVarTopologyMatch(Index eIndex, int fvarChannel) const {

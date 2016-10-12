@@ -635,6 +635,11 @@ namespace {
             return true;
         }
 
+        //  Any remaining locally extra-ordinary face-varying boundaries warrant selection:
+        if (compVTag._xordinary && featureMask.selectXOrdinaryInterior) {
+            return true;
+        }
+
         //  If no smooth corners, too many boundaries/sharp-features and need to isolate:
         if (!(compVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
             return true;
