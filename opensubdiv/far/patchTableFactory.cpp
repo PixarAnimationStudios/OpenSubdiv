@@ -249,7 +249,8 @@ public:
     // Methods to query patch properties for classification and construction.
     bool IsPatchEligible(int levelIndex, Index faceIndex) const;
 
-    bool IsPatchSmoothCorner(int levelIndex, Index faceIndex) const;
+    bool IsPatchSmoothCorner(int levelIndex, Index faceIndex,
+                             int fvcFactory = -1) const;
 
     bool IsPatchRegular(int levelIndex, Index faceIndex,
                         int fvcFactory = -1) const;
@@ -503,28 +504,36 @@ PatchTableFactory::BuilderContext::IsPatchEligible(
 
 bool
 PatchTableFactory::BuilderContext::IsPatchSmoothCorner(
-        int levelIndex, Index faceIndex) const
+        int levelIndex, Index faceIndex, int fvcFactory) const
 {
     Level const & level = refiner.getLevel(levelIndex);
+
+    //  Ignore the face-varying channel if the topology for the face is not distinct
+    int fvcRefiner = GetDistinctRefinerFVarChannel(levelIndex, faceIndex, fvcFactory);
 
     Vtr::ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
     if (fVerts.size() != 4) return false;
 
     Level::VTag vTags[4];
-    vTags[0] = level.getVertexTag(fVerts[0]);
-    vTags[1] = level.getVertexTag(fVerts[1]);
-    vTags[2] = level.getVertexTag(fVerts[2]);
-    vTags[3] = level.getVertexTag(fVerts[3]);
+    level.getFaceVTags(faceIndex, vTags, fvcRefiner);
 
     //
     //  Test the subdivision rules for the corners, rather than just the boundary/interior
     //  tags, to ensure that inf-sharp vertices or edges are properly accounted for (and
     //  the cases appropriately excluded) if inf-sharp patches are enabled:
     //
-    int boundaryCount = (vTags[0]._boundary && (vTags[0]._rule == Sdc::Crease::RULE_CREASE))
+    int boundaryCount = 0;
+    if (options.useInfSharpPatch) {
+        boundaryCount = (vTags[0]._infSharpEdges && (vTags[0]._rule == Sdc::Crease::RULE_CREASE))
+                      + (vTags[1]._infSharpEdges && (vTags[1]._rule == Sdc::Crease::RULE_CREASE))
+                      + (vTags[2]._infSharpEdges && (vTags[2]._rule == Sdc::Crease::RULE_CREASE))
+                      + (vTags[3]._infSharpEdges && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
+    } else {
+        boundaryCount = (vTags[0]._boundary && (vTags[0]._rule == Sdc::Crease::RULE_CREASE))
                       + (vTags[1]._boundary && (vTags[1]._rule == Sdc::Crease::RULE_CREASE))
                       + (vTags[2]._boundary && (vTags[2]._rule == Sdc::Crease::RULE_CREASE))
                       + (vTags[3]._boundary && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
+    }
     int xordinaryCount = vTags[0]._xordinary
                        + vTags[1]._xordinary
                        + vTags[2]._xordinary
@@ -561,8 +570,6 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
     //  this when infinitely sharp patches are introduced later:
     //
     bool isRegular = ! fCompVTag._xordinary || fCompVTag._nonManifold;
-
-
 
     //  Reconsider when using inf-sharp patches in presence of inf-sharp features:
     if (options.useInfSharpPatch && (fCompVTag._infSharp || fCompVTag._infSharpEdges)) {
@@ -615,12 +622,10 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
         }
     }
 
-    //  Legacy option -- reinterpret a smooth corner as sharp if specified:
-    if (options_approxSmoothCornerWithSharp) {
+    //  Legacy option -- reinterpret an irregular smooth corner as sharp if specified:
+    if (!isRegular && options_approxSmoothCornerWithSharp) {
         if (fCompVTag._xordinary && fCompVTag._boundary && !fCompVTag._nonManifold) {
-            if (fvcRefiner < 0) {
-                isRegular = IsPatchSmoothCorner(levelIndex, faceIndex);
-            }
+            isRegular = IsPatchSmoothCorner(levelIndex, faceIndex, fvcRefiner);
         }
     }
     return isRegular;

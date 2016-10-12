@@ -433,6 +433,7 @@ FVarRefinement::propagateValueTags() {
     //
     cVert    = _refinement.getFirstChildVertexFromVertices();
     cVertEnd = cVert + _refinement.getNumChildVerticesFromVertices();
+
     for ( ; cVert < cVertEnd; ++cVert) {
         Index pVert = _refinement.getChildVertexParentIndex(cVert);
         assert(_refinement.isChildVertexComplete(cVert));
@@ -531,16 +532,6 @@ FVarRefinement::reclassifySemisharpValues() {
 
     internal::StackBuffer<Index,16> cVertEdgeBuffer(_childLevel.getMaxValence());
 
-    FVarLevel::ValueTag valTagCrease;
-    valTagCrease.clear();
-    valTagCrease._mismatch = true;
-    valTagCrease._crease   = true;
-
-    FVarLevel::ValueTag valTagSemiSharp;
-    valTagSemiSharp.clear();
-    valTagSemiSharp._mismatch = true;
-    valTagSemiSharp._semiSharp = true;
-
     Index cVert    = _refinement.getFirstChildVertexFromVertices();
     Index cVertEnd = cVert + _refinement.getNumChildVerticesFromVertices();
 
@@ -567,9 +558,9 @@ FVarRefinement::reclassifySemisharpValues() {
         if (!cVertTags._semiSharp && !cVertTags._semiSharpEdges) {
             for (int j = 0; j < cValueTags.size(); ++j) {
                 if (cValueTags[j]._semiSharp) {
-                    FVarLevel::ValueTag cValueTagOld = cValueTags[j];
-                    cValueTags[j] = valTagCrease;
-                    cValueTags[j]._xordinary = cValueTagOld._xordinary;
+                    cValueTags[j]._semiSharp = false;
+                    cValueTags[j]._depSharp = false;
+                    cValueTags[j]._crease = true;
                 }
             }
             continue;
@@ -612,9 +603,9 @@ FVarRefinement::reclassifySemisharpValues() {
                     }
                 }
                 if (!isStillSemiSharp) {
-                    FVarLevel::ValueTag cValueTagOld = cValueTags[j];
-                    cValueTags[j] = valTagCrease;
-                    cValueTags[j]._xordinary = cValueTagOld._xordinary;
+                    cValueTags[j]._semiSharp = false;
+                    cValueTags[j]._depSharp = false;
+                    cValueTags[j]._crease = true;
                 }
             }
         }

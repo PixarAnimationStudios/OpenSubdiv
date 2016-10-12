@@ -713,7 +713,7 @@ PrimvarRefiner::interpFVarFromEdges(int level, T const & src, U & dst, int chann
 
     Mask eMask(eVertWeights, 0, eFaceWeights);
 
-    bool isLinearFVar = parentFVar.isLinear();
+    bool isLinearFVar = parentFVar.isLinear() || (_refiner._subdivType == Sdc::SCHEME_BILINEAR);
     if (isLinearFVar) {
         eMask.SetNumVertexWeights(2);
         eMask.SetNumEdgeWeights(0);
@@ -848,7 +848,7 @@ PrimvarRefiner::interpFVarFromVerts(int level, T const & src, U & dst, int chann
     Vtr::internal::FVarLevel const &      parentFVar = parentLevel.getFVarLevel(channel);
     Vtr::internal::FVarLevel const &      childFVar  = childLevel.getFVarLevel(channel);
 
-    bool isLinearFVar = parentFVar.isLinear();
+    bool isLinearFVar = parentFVar.isLinear() || (_refiner._subdivType == Sdc::SCHEME_BILINEAR);
 
     Vtr::internal::StackBuffer<float,32> weightBuffer(2*parentLevel.getMaxValence());
 
@@ -964,7 +964,7 @@ PrimvarRefiner::interpFVarFromVerts(int level, T const & src, U & dst, int chann
                 Vtr::Index cVertValue = cVertValues[cSibling];
 
                 dst[cVertValue].Clear();
-                if (cValueTags[cSibling].isCorner()) {
+                if (isLinearFVar || cValueTags[cSibling].isCorner()) {
                     dst[cVertValue].AddWithWeight(src[pVertValue], 1.0f);
                 } else {
                     //
