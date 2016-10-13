@@ -742,6 +742,15 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
         if (options.useInfSharpPatch) {
             cornerSpans[i]._sharp = vTags[i]._infIrregular && (vTags[i]._rule == Sdc::Crease::RULE_CORNER);
         }
+
+        //  Legacy option -- reinterpret an irregular smooth corner as sharp if specified:
+        if (!cornerSpans[i]._sharp && options_approxSmoothCornerWithSharp) {
+            if (vTags[i]._xordinary && vTags[i]._boundary && !vTags[i]._nonManifold) {
+                    int nFaces = cornerSpans[i].isAssigned() ? cornerSpans[i]._numFaces
+                               : level.getVertexFaces(fVerts[i]).size();
+                    cornerSpans[i]._sharp = (nFaces == 1);
+            }
+        }
     }
 }
 
@@ -1393,7 +1402,7 @@ PatchTableFactory::populateAdaptivePatches(
 
             // Leaving the corner span "size" to zero, as constructed, indicates to use the full
             // neighborhood -- we only need to identify a subset when using inf-sharp patches
-            if (context.options.useInfSharpPatch) {
+            if (context.options.useInfSharpPatch || context.options_approxSmoothCornerWithSharp) {
                 context.GetIrregularPatchCornerSpans(
                                     patch.levelIndex, patch.faceIndex, irregCornerSpans);
             }
