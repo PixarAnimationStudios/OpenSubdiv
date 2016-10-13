@@ -88,7 +88,6 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         intro_30.rst
         license.rst
         mod_notes.rst
-        maya_osdpolysmooth.rst
         osd_overview.rst
         osd_shader_interface.rst
         porting.rst
