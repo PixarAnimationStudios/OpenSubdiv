@@ -315,7 +315,7 @@ if(NOT NO_OPENGL AND NOT ANDROID AND NOT IOS)
 endif()
 if(NOT NO_PTEX)
    find_package(PTex 2.0)
-   find_package(Zlib 1.2)
+   find_package(ZLIB 1.2)
 endif()
 if (OPENGL_FOUND AND NOT IOS)
     add_definitions(
