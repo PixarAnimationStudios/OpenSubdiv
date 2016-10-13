@@ -94,7 +94,6 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         references.rst
         release_notes.rst
         release_notes_2x.rst
-        roadmap.rst
         sdc_overview.rst
         subdivision_surfaces.rst
         tutorials.rst
