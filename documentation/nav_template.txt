@@ -39,7 +39,6 @@
                     <li><a href="contributing.html">Contributing</a></li>
                     <li><a href="cmake_build.html">Building OpenSubdiv</a></li>
                     <li><a href="code_examples.html">Code Examples</a></li>
-                    <li><a href="roadmap.html">Roadmap</a></li>
                     <li><a href="references.html">References</a></li>
                 </ul>
             <p></p>
