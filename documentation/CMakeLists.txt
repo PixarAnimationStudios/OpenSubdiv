@@ -85,13 +85,14 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         hedits.rst
         hbr_overview.rst
         intro.rst
-        intro_30.rst
         license.rst
         mod_notes.rst
         osd_overview.rst
         osd_shader_interface.rst
         porting.rst
         references.rst
+        release_30.rst
+        release_31.rst
         release_notes.rst
         release_notes_2x.rst
         sdc_overview.rst
