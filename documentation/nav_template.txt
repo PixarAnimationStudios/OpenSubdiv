@@ -42,13 +42,6 @@
                     <li><a href="references.html">References</a></li>
                 </ul>
             <p></p>
-            <li><a href="intro_30.html">Release 3.0</a></li>
-                <ul>
-                    <li><a href="intro_30.html">Overview</a></li>
-                    <li><a href="porting.html">Porting Guide: 2.0 to 3.0</a></li>
-                    <li><a href="compatibility.html">Subdivision Compatibility</a></li>
-                </ul>
-            <p></p>
             <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
                 <ul>
                     <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
@@ -101,7 +94,17 @@
                     <li><a href="additional_resources.html#videos">Videos</a>
                 </ul>
             <p></p>
-            <li><a href="release_notes.html">Release Notes</a></li>
+            <li><a href="release_notes.html">Releases</a>
+                <ul>
+                    <li><a href="release_31.html">Release 3.1</a></li>
+                    <li><a href="release_30.html">Release 3.0</a></li>
+                        <ul>
+                            <li><a href="intro_30.html">Overview</a></li>
+                            <li><a href="porting.html">Porting Guide: 2.0 to 3.0</a></li>
+                            <li><a href="compatibility.html">Subdivision Compatibility</a></li>
+                        </ul>
+                    <li><a href="release_notes.html">Release Notes</a></li>
+                </ul>
             <p></p>
             <li><a href="doxy_html/index.html" target="_blank">Doxygen</a></li>
         </ul>
