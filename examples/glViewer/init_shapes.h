@@ -57,6 +57,9 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_chaikin0",         catmark_chaikin0,         kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_chaikin1",         catmark_chaikin1,         kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_chaikin2",         catmark_chaikin2,         kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_single_crease",    catmark_single_crease,    kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_inf_crease0",      catmark_inf_crease0,      kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_inf_crease1",      catmark_inf_crease1,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fan",              catmark_fan,              kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_flap",             catmark_flap,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_flap2",            catmark_flap2,            kCatmark ) );
@@ -91,7 +94,6 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_tent",             catmark_tent,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_torus",            catmark_torus,            kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_torus_creases0",   catmark_torus_creases0,   kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_single_crease",    catmark_single_crease,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_smoothtris0",      catmark_smoothtris0,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_smoothtris1",      catmark_smoothtris1,      kCatmark ) );
 //    g_defaultShapes.push_back( ShapeDesc("catmark_square_hedit0",    catmark_square_hedit0,    kCatmark ) );
