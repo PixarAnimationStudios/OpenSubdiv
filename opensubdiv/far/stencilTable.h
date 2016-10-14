@@ -181,7 +181,7 @@ public:
     /// @param values         Destination buffer for the interpolated primvar
     ///                       data
     ///
-    /// @param start          (skip to )index of first value to update
+    /// @param start          index of first value to update
     ///
     /// @param end            Index of last value to update
     ///
@@ -390,16 +390,7 @@ public:
     /// @param vderivs        Destination buffer for the interpolated 'v'
     ///                       derivative primvar data
     ///
-    /// @param uuderivs       Destination buffer for the interpolated 'uu'
-    ///                       derivative primvar data
-    ///
-    /// @param uvderivs       Destination buffer for the interpolated 'uv'
-    ///                       derivative primvar data
-    ///
-    /// @param vvderivs       Destination buffer for the interpolated 'vv'
-    ///                       derivative primvar data
-    ///
-    /// @param start          (skip to )index of first value to update
+    /// @param start          index of first value to update
     ///
     /// @param end            Index of last value to update
     ///
@@ -411,6 +402,26 @@ public:
         update(controlValues, vderivs, _dvWeights, start, end);
     }
 
+    /// \brief Updates 2nd derivative values based on the control values
+    ///
+    /// \note The destination buffers ('uuderivs', 'uvderivs', & 'vderivs') are
+    ///       assumed to have allocated at least \c GetNumStencils() elements.
+    ///
+    /// @param controlValues  Buffer with primvar data for the control vertices
+    ///
+    /// @param uuderivs       Destination buffer for the interpolated 'uu'
+    ///                       derivative primvar data
+    ///
+    /// @param uvderivs       Destination buffer for the interpolated 'uv'
+    ///                       derivative primvar data
+    ///
+    /// @param vvderivs       Destination buffer for the interpolated 'vv'
+    ///                       derivative primvar data
+    ///
+    /// @param start          index of first value to update
+    ///
+    /// @param end            Index of last value to update
+    ///
     template <class T>
     void Update2ndPartials(T const *controlValues, T *uuderivs, T *uvderivs, T *vvderivs,
         int start=-1, int end=-1) const {

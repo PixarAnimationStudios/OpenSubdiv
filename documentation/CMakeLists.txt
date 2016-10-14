@@ -85,17 +85,16 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         hedits.rst
         hbr_overview.rst
         intro.rst
-        intro_30.rst
         license.rst
         mod_notes.rst
-        maya_osdpolysmooth.rst
         osd_overview.rst
         osd_shader_interface.rst
         porting.rst
         references.rst
+        release_30.rst
+        release_31.rst
         release_notes.rst
         release_notes_2x.rst
-        roadmap.rst
         sdc_overview.rst
         subdivision_surfaces.rst
         tutorials.rst

@@ -114,7 +114,8 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
                    kHUD_CB_ANIMATE_VERTICES,
                    kHUD_CB_ANIMATE_PARTICLES,
                    kHUD_CB_RANDOM_START,
-                   kHUD_CB_FREEZE };
+                   kHUD_CB_FREEZE,
+                   kHUD_CB_INF_SHARP_PATCH };
 
 enum DrawMode { kUV,
                 kVARYING,
@@ -130,6 +131,7 @@ int g_currentShape = 0,
     g_level = 3,
     g_kernel = kCPU,
     g_endCap = kEndCapBSplineBasis,
+    g_infSharpPatch = 0,
     g_numElements = 3;
 
 int   g_running = 1,
@@ -545,6 +547,23 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     g_orgPositions=shape->verts;
     g_positions.resize(g_orgPositions.size(), 0.0f);
 
+    // compute model bounding
+    float min[3] = { FLT_MAX,  FLT_MAX,  FLT_MAX};
+    float max[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
+    for (size_t i=0; i <g_orgPositions.size()/3; ++i) {
+        for(int j=0; j<3; ++j) {
+            float v = g_orgPositions[i*3+j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
+    }
+    for (int j=0; j<3; ++j) {
+        g_center[j] = (min[j] + max[j]) * 0.5f;
+        g_size += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    g_size = sqrtf(g_size);
+
+
     float speed = g_particles ? g_particles->GetSpeed() : 0.2f;
 
     // save coarse topology (used for coarse mesh drawing)
@@ -565,11 +584,14 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
     {
         bool adaptive = (sdctype == OpenSubdiv::Sdc::SCHEME_CATMARK);
+        bool doInfSharpPatch = (g_infSharpPatch!=0 && adaptive);
+
         if (adaptive) {
             // Apply feature adaptive refinement to the mesh so that we can use the
             // limit evaluation API features.
             Far::TopologyRefiner::AdaptiveOptions options(level);
             options.considerFVarChannels = true;
+            options.useInfSharpPatch = doInfSharpPatch;
             topologyRefiner->RefineAdaptive(options);
         } else {
             Far::TopologyRefiner::UniformOptions options(level);
@@ -600,6 +622,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
             poptions.SetEndCapType(
                 Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
         }
+        poptions.useInfSharpPatch = doInfSharpPatch;
         poptions.generateFVarTables = true;
         poptions.generateFVarLegacyLinearPatches = false;
 
@@ -1070,6 +1093,14 @@ setSamples(bool add) {
 
 //------------------------------------------------------------------------------
 static void
+fitFrame() {
+
+    g_pan[0] = g_pan[1] = 0;
+    g_dolly = g_size;
+}
+
+//------------------------------------------------------------------------------
+static void
 keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
     if (event == GLFW_RELEASE) return;
@@ -1077,6 +1108,8 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 
     switch (key) {
         case 'Q': g_running = 0; break;
+
+        case 'F': fitFrame(); break;
 
         case '=': setSamples(true); break;
 
@@ -1183,6 +1216,10 @@ callbackCheckBox(bool checked, int button) {
     case kHUD_CB_FREEZE:
         g_freeze = checked;
         break;
+    case kHUD_CB_INF_SHARP_PATCH:
+        g_infSharpPatch = checked;
+        createOsdMesh(g_defaultShapes[g_currentShape], g_level);
+        return;
     }
 }
 
@@ -1242,7 +1279,10 @@ initHUD() {
     }
 #endif
 
-    int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 140, 200,
+    g_hud.AddCheckBox("Inf Sharp Patch (I)", g_infSharpPatch!=0,
+                      10, 130, callbackCheckBox, kHUD_CB_INF_SHARP_PATCH, 'i');
+
+    int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 150, 200,
                                             callbackEndCap, 'e');
     g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
         kEndCapBSplineBasis,

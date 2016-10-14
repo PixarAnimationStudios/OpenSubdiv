@@ -109,7 +109,6 @@ The following configuration arguments can be passed to the CMake command line.
    -DPTEX_LOCATION=[path to Ptex]
    -DGLEW_LOCATION=[path to GLEW]
    -DGLFW_LOCATION=[path to GLFW]
-   -DMAYA_LOCATION=[path to Maya]
    -DTBB_LOCATION=[path to Intel's TBB]
    -DICC_LOCATION=[path to Intel's C++ Studio XE]
 
@@ -117,7 +116,6 @@ The following configuration arguments can be passed to the CMake command line.
    -DNO_EXAMPLES=1   // disable examples build
    -DNO_TUTORIALS=1  // disable tutorials build
    -DNO_REGRESSION=1 // disable regression tests build
-   -DNO_MAYA=1       // disable Maya plugin build
    -DNO_PTEX=1       // disable PTex support
    -DNO_DOC=1        // disable documentation build
    -DNO_OMP=1        // disable OpenMP
@@ -130,12 +128,12 @@ The following configuration arguments can be passed to the CMake command line.
 Environment Variables
 _____________________
 
-The paths to Maya, Ptex, GLFW, GLEW and other dependencies can also be specified
+The paths to Ptex, GLFW, GLEW and other dependencies can also be specified
 through the following environment variables:
 
 .. code:: c++
 
-   MAYA_LOCATION, PTEX_LOCATION, GLFW_LOCATION, GLEW_LOCATION
+   PTEX_LOCATION, GLFW_LOCATION, GLEW_LOCATION
 
 Automated Script
 ________________
@@ -170,7 +168,6 @@ build that can be run in GitShell :
         -D "OPENCL_INCLUDE_DIRS:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/inc" \
         -D "_OPENCL_CPP_INCLUDE_DIRS:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/inc" \
         -D "OPENCL_LIBRARIES:string=c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK 4.2/OpenCL/common/lib/x64/OpenCL.lib" \
-        -D "MAYA_LOCATION:string=c:/Program Files/Autodesk/Maya2013.5" \
         -D "PTEX_LOCATION:string=c:/Users/opensubdiv/demo/src/ptex/x64" \
         ..
 

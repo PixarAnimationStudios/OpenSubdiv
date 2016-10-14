@@ -501,8 +501,10 @@ PatchTable::getFVarValues(int channel) {
 ConstIndexArray
 PatchTable::getPatchFVarValues(int patch, int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    int ncvs = c.desc.GetNumControlVertices();
-    return ConstIndexArray(&c.patchValues[patch * ncvs], ncvs);
+    int ncvsPerPatch = c.desc.GetNumControlVertices();
+    int ncvsThisPatch = c.patchParam[patch].IsRegular()
+                      ? c.desc.GetRegularPatchSize() : ncvsPerPatch;
+    return ConstIndexArray(&c.patchValues[patch * ncvsPerPatch], ncvsThisPatch);
 }
 ConstIndexArray
 PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
@@ -536,18 +538,18 @@ PatchTable::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) 
     return getPatchFVarPatchParam(getPatchIndex(arrayIndex, patchIndex), channel);
 }
 ConstPatchParamArray
-PatchTable::GetPatchArrayFVarPatchParam(int array, int channel) const {
+PatchTable::GetPatchArrayFVarPatchParams(int array, int channel) const {
     PatchArray const & pa = getPatchArray(array);
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstPatchParamArray(&c.patchParam[pa.patchIndex], pa.numPatches);
 }
 ConstPatchParamArray
-PatchTable::GetFVarPatchParam(int channel) const {
+PatchTable::GetFVarPatchParams(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstPatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
 PatchParamArray
-PatchTable::getFVarPatchParam(int channel) {
+PatchTable::getFVarPatchParams(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return PatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
 }
@@ -610,7 +612,7 @@ PatchTable::EvaluateBasisFaceVarying(
     float wDss[], float wDst[], float wDtt[],
     int channel) const {
 
-    PatchParam param = GetPatchFVarPatchParam(handle.arrayIndex, handle.patchIndex, channel);
+    PatchParam param = getPatchFVarPatchParam(handle.patchIndex, channel);
     PatchDescriptor::Type patchType = param.IsRegular()
             ? PatchDescriptor::REGULAR
             : GetFVarChannelPatchDescriptor(channel).GetType();

@@ -46,7 +46,6 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 | Lib (URL)                                     | Min Version | Note                |
 | --------------------------------------------- | ----------- | ------------------- |
 | GLFW <br> http://www.glfw.org                 | 3.0.0       | GL examples         |
-| Maya SDK <br> http://www.autodesk.com/maya    | 2013        | maya plugin example |
 | Ptex <br> https://github.com/wdas/ptex        | 2.0         | ptex viewers        |
 | Zlib <br> http://www.zlib.net                 |             | (required for Ptex under windows)|
 | Docutils <br> http://docutils.sourceforge.net |             | documents           |

@@ -52,13 +52,6 @@ of the software.
    * - | `dxViewer <dxviewer.html>`_
      - | `dxPtexViewer <dxptexviewer.html>`_
 
-.. list-table:: **Plugin examples**
-   :class: quickref
-   :widths: 50
-
-   * - | `Maya osdPolySmooth <maya_osdpolysmooth.html>`_
-
-
 ----
 
 Common Keyboard Controls

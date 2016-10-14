@@ -213,7 +213,7 @@ struct FVarData
 
         glDeleteBuffers(1, &buffer);
 
-        Far::ConstPatchParamArray fvarParam = patchTable->GetFVarPatchParam();
+        Far::ConstPatchParamArray fvarParam = patchTable->GetFVarPatchParams();
 
         glGenBuffers(1, &buffer);
         glBindBuffer(GL_ARRAY_BUFFER, buffer);
