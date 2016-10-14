@@ -23,7 +23,7 @@
 
 
 3.0 - 3.1 Release Notes
------------------
+-----------------------
 
 .. contents::
    :local:
@@ -76,6 +76,22 @@ Release 3.1.0 is a significant release with several new features, important bug 
     - Fixed some subtle bugs with Chaikin refinement
     - Fixed compatibility issues with VS2015
     - Fixed some bugs with HUD sliders in the example viewers
+
+Release 3.1.0 RC2
+=================
+
+**Changes**
+    - Added and updated test shapes and updated example viewers
+
+**Bug Fixes**
+    - Fixed the names of some methods added to Far::PatchTable
+    - Fixed issues discovered during testing
+
+Release 3.1.0 RC1
+=================
+
+**Changes**
+    - First Release Candidate
 
 Release 3.0.5
 =============
@@ -203,7 +219,7 @@ Release 3.0.0 RC2
     - Fixed glViewer/farViewer stability bugs
 
 
-Release 3.0.0 RC1 
+Release 3.0.0 RC1
 =================
 
 **Changes**
