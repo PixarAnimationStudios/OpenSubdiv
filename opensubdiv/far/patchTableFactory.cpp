@@ -739,7 +739,9 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
                         level, faceIndex, i, singularEdgeMask, cornerSpans[i], fvcRefiner);
             }
         }
-        if (options.useInfSharpPatch) {
+        if (vTags[i]._corner) {
+            cornerSpans[i]._sharp = true;
+        } else if (options.useInfSharpPatch) {
             cornerSpans[i]._sharp = vTags[i]._infIrregular && (vTags[i]._rule == Sdc::Crease::RULE_CORNER);
         }
 
@@ -1400,12 +1402,7 @@ PatchTableFactory::populateAdaptivePatches(
             // Build the irregular patch array
             arrayBuilder = &arrayBuilders[IR];
 
-            // Leaving the corner span "size" to zero, as constructed, indicates to use the full
-            // neighborhood -- we only need to identify a subset when using inf-sharp patches
-            if (context.options.useInfSharpPatch || context.options_approxSmoothCornerWithSharp) {
-                context.GetIrregularPatchCornerSpans(
-                                    patch.levelIndex, patch.faceIndex, irregCornerSpans);
-            }
+            context.GetIrregularPatchCornerSpans(patch.levelIndex, patch.faceIndex, irregCornerSpans);
 
             // switch endcap patchtype by option
             switch(context.options.GetEndCapType()) {
