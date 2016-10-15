@@ -298,11 +298,11 @@ public:
     /// \brief Returns the number of face-varying channels
     int GetNumFVarChannels() const;
 
-    /// \brief Deprecated Returns the interpolation mode for \p channel
+    /// \brief Deprecated @see PatchTable#GetFVarPatchDescriptor
     Sdc::Options::FVarLinearInterpolation GetFVarChannelLinearInterpolation(int channel = 0) const;
 
     /// \brief Returns the patch descriptor for \p channel
-    PatchDescriptor GetFVarChannelPatchDescriptor(int channel = 0) const;
+    PatchDescriptor GetFVarPatchDescriptor(int channel = 0) const;
 
     /// \brief Returns the value indices for a given patch in \p channel
     ConstIndexArray GetPatchFVarValues(PatchHandle const & handle, int channel = 0) const;

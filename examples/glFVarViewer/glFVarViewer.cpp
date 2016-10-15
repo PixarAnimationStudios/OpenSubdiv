@@ -822,7 +822,7 @@ display() {
     glBindVertexArray(g_vao);
 
     OpenSubdiv::Far::PatchDescriptor fvarDesc =
-        g_mesh->GetFarPatchTable()->GetFVarChannelPatchDescriptor(0);
+        g_mesh->GetFarPatchTable()->GetFVarPatchDescriptor(0);
 
     OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
