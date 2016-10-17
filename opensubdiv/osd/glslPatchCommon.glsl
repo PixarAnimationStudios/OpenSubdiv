@@ -187,6 +187,11 @@ ivec2 OsdGetPatchFaceUV(ivec3 patchParam)
     return ivec2(u,v);
 }
 
+bool OsdGetPatchIsRegular(ivec3 patchParam)
+{
+    return ((patchParam.y >> 5) & 0x1) != 0;
+}
+
 float OsdGetPatchSharpness(ivec3 patchParam)
 {
     return intBitsToFloat(patchParam.z);

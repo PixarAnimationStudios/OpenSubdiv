@@ -162,6 +162,11 @@ int2 OsdGetPatchFaceUV(int3 patchParam)
     return int2(u,v);
 }
 
+bool OsdGetPatchIsRegular(int3 patchParam)
+{
+    return ((patchParam.y >> 5) & 0x1) != 0;
+}
+
 float OsdGetPatchSharpness(int3 patchParam)
 {
     return asfloat(patchParam.z);
