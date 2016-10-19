@@ -38,6 +38,8 @@ namespace Far {
 class PtexIndices;
 class TopologyRefiner;
 
+/// \brief Factory for constructing a PatchTable from a TopologyRefiner
+///
 class PatchTableFactory {
 public:
 

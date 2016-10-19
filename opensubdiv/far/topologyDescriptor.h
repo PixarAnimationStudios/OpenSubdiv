@@ -38,10 +38,13 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 ///
-/// \brief Descriptor for raw topology data, provided as a convenience with
-/// a corresponding Factory.  It should be functionally complete and simple
-/// to use, but for more demanding situations, writing a custom Factory is
-/// likely warranted.
+/// \brief  A simple reference to raw topology data for use with TopologyRefinerFactory
+/// 
+/// TopologyDescriptor is a simple struct containing references to raw topology data used
+/// to construct a TopologyRefiner.  It is not a requirement but a convenience for use
+/// with TopologyRefinerFactory when mesh topology is not available in an existing mesh
+/// data structure.  It should be functionally complete and simple to use, but for more
+/// demanding situations, writing a custom Factory is usually warranted.
 ///
 struct TopologyDescriptor {
 
