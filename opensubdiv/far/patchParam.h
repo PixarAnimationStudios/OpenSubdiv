@@ -227,7 +227,7 @@ private:
     }
 
     unsigned int unpack(unsigned int value, int width, int offset) const {
-        return (unsigned short)((value >> offset) & ((1<<width)-1));
+        return (unsigned int)((value >> offset) & ((1<<width)-1));
     }
 };
 
