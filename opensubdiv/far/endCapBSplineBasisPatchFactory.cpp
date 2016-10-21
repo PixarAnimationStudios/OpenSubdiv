@@ -257,9 +257,9 @@ EndCapBSplineBasisPatchFactoryG<FD>::computeLimitStencils(
     e0.Clear(stencilCapacity);
     e1.Clear(stencilCapacity);
 
-    FD t = 2.0 * FD(M_PI) / FD(valence);
-    FD ef = 1.0 / (valence * (cos(t) + 5.0 +
-                                  sqrt((cos(t) + 9) * (cos(t) + 1)))/16.0);
+    FD t = FD(2.0) * FD(M_PI) / FD(valence);
+    FD ef = FD( 1.0 / (valence * (cos(t) + 5.0 +
+                sqrt((cos(t) + 9) * (cos(t) + 1)))/16.0) );
 
     for (int i = 0; i < valence; ++i) {
         Index ip = (i+1)%valence;
@@ -267,7 +267,7 @@ EndCapBSplineBasisPatchFactoryG<FD>::computeLimitStencils(
               idx_diagonal   = (manifoldRing[2*i  + 1]),
               idx_neighbor_p = (manifoldRing[2*ip + 0]);
 
-        FD d = FD(valence)+5.0;
+        FD d = FD(valence+5.0);
 
         typename GregoryBasisG<FD>::Point f(4);
         f.AddWithWeight(facePoints[vid], FD(valence)/d);
@@ -418,21 +418,21 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
     // X6 = 1/3 * ( 36Em - 16P0 - 8P1 - 2P2 - 4P3 -  P6 - 2P7)
     // X7 = 1/3 * (-18Em +  8P0 + 4P1 +  P2 + 2P3 + 2P6 + 4P7)
     // X8 = X6 + (P8-P6)
-    X6.AddWithWeight(Em,                             36.0/3.0);
-    X6.AddWithWeight(patchPoints[rotation[vid][0]], -16.0/3.0);
-    X6.AddWithWeight(patchPoints[rotation[vid][1]],  -8.0/3.0);
-    X6.AddWithWeight(patchPoints[rotation[vid][2]],  -2.0/3.0);
-    X6.AddWithWeight(patchPoints[rotation[vid][3]],  -4.0/3.0);
-    X6.AddWithWeight(patchPoints[rotation[vid][6]],  -1.0/3.0);
-    X6.AddWithWeight(patchPoints[rotation[vid][7]],  -2.0/3.0);
+    X6.AddWithWeight(Em,                            FD( 36.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][0]], FD(-16.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][1]], FD( -8.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][2]], FD( -2.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][3]], FD( -4.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][6]], FD( -1.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][7]], FD( -2.0/3.0));
 
-    X7.AddWithWeight(Em,                            -18.0/3.0);
-    X7.AddWithWeight(patchPoints[rotation[vid][0]],   8.0/3.0);
-    X7.AddWithWeight(patchPoints[rotation[vid][1]],   4.0/3.0);
-    X7.AddWithWeight(patchPoints[rotation[vid][2]],   1.0/3.0);
-    X7.AddWithWeight(patchPoints[rotation[vid][3]],   2.0/3.0);
-    X7.AddWithWeight(patchPoints[rotation[vid][6]],   2.0/3.0);
-    X7.AddWithWeight(patchPoints[rotation[vid][7]],   4.0/3.0);
+    X7.AddWithWeight(Em,                            FD(-18.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][0]], FD(  8.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][1]], FD(  4.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][2]], FD(  1.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][3]], FD(  2.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][6]], FD(  2.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][7]], FD(  4.0/3.0));
 
     X8 = X6;
     X8.AddWithWeight(patchPoints[rotation[vid][8]], 1.0);
@@ -442,37 +442,36 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
     // X4  = 1/3 * ( 36EP - 16P0 - 4P1 - 2P15 - 2P2 - 8P3 -  P4)
     // X15 = 1/3 * (-18EP +  8P0 + 2P1 + 4P15 +  P2 + 4P3 + 2P4)
     // X14 = X4  + (P14 - P4)
-    X4.AddWithWeight(Ep,                             36.0/3.0);
-    X4.AddWithWeight(patchPoints[rotation[vid][0]], -16.0/3.0);
-    X4.AddWithWeight(patchPoints[rotation[vid][1]],  -4.0/3.0);
-    X4.AddWithWeight(patchPoints[rotation[vid][2]],  -2.0/3.0);
-    X4.AddWithWeight(patchPoints[rotation[vid][3]],  -8.0/3.0);
-    X4.AddWithWeight(patchPoints[rotation[vid][4]],  -1.0/3.0);
-    X4.AddWithWeight(patchPoints[rotation[vid][15]], -2.0/3.0);
+    X4.AddWithWeight(Ep,                            FD( 36.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][0]], FD(-16.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][1]], FD( -4.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][2]], FD( -2.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][3]], FD( -8.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][4]], FD( -1.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][15]],FD( -2.0/3.0));
 
-    X15.AddWithWeight(Ep,                            -18.0/3.0);
-    X15.AddWithWeight(patchPoints[rotation[vid][0]],   8.0/3.0);
-    X15.AddWithWeight(patchPoints[rotation[vid][1]],   2.0/3.0);
-    X15.AddWithWeight(patchPoints[rotation[vid][2]],   1.0/3.0);
-    X15.AddWithWeight(patchPoints[rotation[vid][3]],   4.0/3.0);
-    X15.AddWithWeight(patchPoints[rotation[vid][4]],   2.0/3.0);
-    X15.AddWithWeight(patchPoints[rotation[vid][15]],  4.0/3.0);
+    X15.AddWithWeight(Ep,                            FD(-18.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][0]], FD(  8.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][1]], FD(  2.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][2]], FD(  1.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][3]], FD(  4.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][4]], FD(  2.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][15]],FD(  4.0/3.0));
 
     X14 = X4;
-    X14.AddWithWeight(patchPoints[rotation[vid][14]],  1.0);
-    X14.AddWithWeight(patchPoints[rotation[vid][4]],  -1.0);
+    X14.AddWithWeight(patchPoints[rotation[vid][14]], FD( 1.0));
+    X14.AddWithWeight(patchPoints[rotation[vid][4]],  FD(-1.0));
 
     // limit corner (16th free vert)
     // X5 = 36LP - 16P0 - 4(P1 + P3 + P4 + P6) - (P2 + P7 + P15)
-    X5.AddWithWeight(P,                              36.0);
-    X5.AddWithWeight(patchPoints[rotation[vid][0]], -16.0);
-    X5.AddWithWeight(patchPoints[rotation[vid][1]],  -4.0);
-    X5.AddWithWeight(patchPoints[rotation[vid][3]],  -4.0);
-    X5.AddWithWeight(X4,                             -4.0);
-    X5.AddWithWeight(X6,                             -4.0);
-    X5.AddWithWeight(patchPoints[rotation[vid][2]],  -1.0);
-    X5.AddWithWeight(X7,                             -1.0);
-    X5.AddWithWeight(X15,                            -1.0);
+    X5.AddWithWeight(P,                             FD( 36.0));
+    X5.AddWithWeight(patchPoints[rotation[vid][0]], FD(-16.0));
+    X5.AddWithWeight(patchPoints[rotation[vid][1]], FD( -4.0));
+    X5.AddWithWeight(patchPoints[rotation[vid][3]], FD( -4.0));
+    X5.AddWithWeight(X4,                            FD( -4.0));
+    X5.AddWithWeight(X6,                            FD( -4.0));
+    X5.AddWithWeight(X7,                            FD( -1.0));
+    X5.AddWithWeight(X15,                           FD( -1.0));
 
     //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
     //            |     |     |
