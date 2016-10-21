@@ -313,7 +313,7 @@ TopologyRefiner* buildRefiner()
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    srand (time(NULL));
+    srand((int)time(NULL));
 
     std::cout.precision( 15 );
     std::cerr.precision( 15 );
