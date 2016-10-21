@@ -271,16 +271,16 @@ EndCapBSplineBasisPatchFactoryG<FD>::computeLimitStencils(
 
         typename GregoryBasisG<FD>::Point f(4);
         f.AddWithWeight(facePoints[vid], FD(valence)/d);
-        f.AddWithWeight(idx_neighbor_p,  2.0/d);
-        f.AddWithWeight(idx_neighbor,    2.0/d);
-        f.AddWithWeight(idx_diagonal,    1.0/d);
+        f.AddWithWeight(idx_neighbor_p,  FD(2.0/d));
+        f.AddWithWeight(idx_neighbor,    FD(2.0/d));
+        f.AddWithWeight(idx_diagonal,    FD(1.0/d));
 
-        P->AddWithWeight(f, 1.0/FD(valence));
+        P->AddWithWeight(f, FD(1.0/valence));
 
-        FD c0 = 0.5*cos((FD(2*M_PI) * FD(i)/FD(valence)))
-                 + 0.5*cos((FD(2*M_PI) * FD(ip)/FD(valence)));
-        FD c1 = 0.5*sin((FD(2*M_PI) * FD(i)/FD(valence)))
-                 + 0.5*sin((FD(2*M_PI) * FD(ip)/FD(valence)));
+        FD c0 = FD(0.5*cos((FD(2*M_PI) * FD(i)/FD(valence)))
+                 + 0.5*cos((FD(2*M_PI) * FD(ip)/FD(valence))));
+        FD c1 = FD(0.5*sin((FD(2*M_PI) * FD(i)/FD(valence)))
+                 + 0.5*sin((FD(2*M_PI) * FD(ip)/FD(valence))));
         e0.AddWithWeight(f, c0*ef);
         e1.AddWithWeight(f, c1*ef);
     }

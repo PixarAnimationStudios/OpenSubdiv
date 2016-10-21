@@ -260,9 +260,9 @@ template<class FD>
 inline FD
 PatchParamG<FD>::GetParamFraction( ) const {
     if (NonQuadRoot()) {
-        return 1.0 / FD( 1 << (GetDepth()-1) );
+        return FD(1.0) / ( 1 << (GetDepth()-1) );
     } else {
-        return 1.0 / FD( 1 << GetDepth() );
+        return FD(1.0) / ( 1 << GetDepth() );
     }
 }
 

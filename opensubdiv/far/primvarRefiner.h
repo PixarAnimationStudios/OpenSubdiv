@@ -431,7 +431,7 @@ PrimvarRefinerG<FD>::InterpolateVarying(int level, T const & src, U & dst) const
                 //  Apply the weights to the parent face's vertices:
                 ConstIndexArray fVerts = parent.getFaceVertices(face);
 
-                FD fVaryingWeight = 1.0 / (FD) fVerts.size();
+                FD fVaryingWeight = FD(1.0) / fVerts.size();
 
                 dst[cVert].Clear();
                 for (int i = 0; i < fVerts.size(); ++i) {
@@ -1000,10 +1000,10 @@ PrimvarRefinerG<FD>::interpFVarFromVerts(int level, T const & src, U & dst, int 
                         FD wCorner = pValueTags[pSibling].isDepSharp()
                                       ? refineFVar.getFractionalWeight(vert, !pSibling, cVert, !cSibling)
                                       : refineFVar.getFractionalWeight(vert, pSibling, cVert, cSibling);
-                        FD wCrease = 1.0 - wCorner;
+                        FD wCrease = FD(1.0 - wCorner);
 
-                        vWeight = wCrease * 0.75 + wCorner;
-                        eWeight = wCrease * 0.125;
+                        vWeight = wCrease * FD(0.75) + wCorner;
+                        eWeight = wCrease * FD(0.125);
                     }
                     dst[cVertValue].AddWithWeight(src[pEndValues[0]], eWeight);
                     dst[cVertValue].AddWithWeight(src[pEndValues[1]], eWeight);

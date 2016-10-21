@@ -537,14 +537,14 @@ void GetGregoryWeights(PatchParamG<FD> const & param,
     Spline<BASIS_BEZIER,FD>::GetWeights(t, Bt, deriv2 ? Bdt : 0, deriv22 ? Bdtt : 0);
 
     //  Rational multipliers G at s and t:
-    FD sC = 1.0 - s;
-    FD tC = 1.0 - t;
+    FD sC = FD(1.0) - s;
+    FD tC = FD(1.0) - t;
 
     //  Use <= here to avoid compiler warnings -- the sums should always be non-negative:
-    FD df0 = s  + t;   df0 = (df0 <= 0.0) ? 1.0 : (1.0 / df0);
-    FD df1 = sC + t;   df1 = (df1 <= 0.0) ? 1.0 : (1.0 / df1);
-    FD df2 = sC + tC;  df2 = (df2 <= 0.0) ? 1.0 : (1.0 / df2);
-    FD df3 = s  + tC;  df3 = (df3 <= 0.0) ? 1.0 : (1.0 / df3);
+    FD df0 = s  + t;   df0 = FD((df0 <= 0.0) ? 1.0 : (1.0 / df0));
+    FD df1 = sC + t;   df1 = FD((df1 <= 0.0) ? 1.0 : (1.0 / df1));
+    FD df2 = sC + tC;  df2 = FD((df2 <= 0.0) ? 1.0 : (1.0 / df2));
+    FD df3 = s  + tC;  df3 = FD((df3 <= 0.0) ? 1.0 : (1.0 / df3));
 
     FD G[8] = { s*df0, t*df0,  t*df1, sC*df1,  sC*df2, tC*df2,  tC*df3, s*df3 };
 

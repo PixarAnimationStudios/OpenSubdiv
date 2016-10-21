@@ -289,11 +289,11 @@ GregoryBasisG<FD>::ProtoBasis::ProtoBasis(
 
                 P[corner].AddWithWeight(f[i], posScale);
 
-                FD c0 = tanScale * 0.5 * cos(FD(i) * theta);
+                FD c0 = FD(tanScale * 0.5 * cos(FD(i) * theta));
                 e0[corner].AddWithWeight(f[i],     c0);
                 e0[corner].AddWithWeight(f[iPrev], c0);
 
-                FD c1 = tanScale * 0.5 * sin(FD(i) * theta);
+                FD c1 = FD(tanScale * 0.5 * sin(FD(i) * theta));
                 e1[corner].AddWithWeight(f[i],     c1);
                 e1[corner].AddWithWeight(f[iPrev], c1);
             }
@@ -420,9 +420,9 @@ GregoryBasisG<FD>::ProtoBasis::ProtoBasis(
         Point const & rEdgePrev = rp[(cornerPatchFace[corner] + 1) % cornerValences[corner]];
 
         //  Coefficients to arrange the face points for tangent continuity across edges:
-        FD cosCorner = cosf(cornerFaceAngle[corner]);
-        FD cosPrev   = cosf(cornerFaceAngle[cornerPrev]);
-        FD cosNext   = cosf(cornerFaceAngle[cornerNext]);
+        FD cosCorner = FD(cos(cornerFaceAngle[corner]));
+        FD cosPrev   = FD(cos(cornerFaceAngle[cornerPrev]));
+        FD cosNext   = FD(cos(cornerFaceAngle[cornerNext]));
 
         FD s1 = 3.0f - 2.0f * cosCorner - cosNext;
         FD s2 =        2.0f * cosCorner;
@@ -498,8 +498,8 @@ GregoryBasisG<FD>::ProtoBasis::ProtoBasis(
     }
 }
 
-template class GregoryBasisG<float>::ProtoBasis;
-template class GregoryBasisG<double>::ProtoBasis;
+template struct GregoryBasisG<float>::ProtoBasis;
+template struct GregoryBasisG<double>::ProtoBasis;
 
 } // end namespace Far
 
