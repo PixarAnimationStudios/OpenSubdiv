@@ -34,7 +34,9 @@
 Release 3.1.0
 =============
 
-Release 3.1.0 is a significant release with several new features, bug fixes, and general code and configuration improvements.
+Release 3.1.0 is a significant release with several new features, bug fixes, and general
+code and configuration improvements.  For more information on the following, please see
+`Release 3.1 <release_31.html>`__
 
 **New Features**
     - Bicubic Face-Varying Patches
@@ -60,9 +62,9 @@ Release 3.1.0 is a significant release with several new features, bug fixes, and
 **Bug Fixes**
     - Fixed Ptex version parsing and compatibility issues
     - Fixed compatibility issues with VS2015
-    - Fixed some bugs with HUD sliders in the example viewers
-    - Fixed bug with Bilinear interpolation of face-varying data
+    - Fixed bug interpolating face-varying data with Bilinear scheme
     - Fixed bug with refinement using Chaikin creasing
+    - Fixed bugs with HUD sliders in the example viewers
 
 Release 3.0.5
 =============
@@ -154,7 +156,7 @@ Release 3.0.0
 
 Release 3.0.0 is a major release with many significant improvements and
 changes.  For more information on the following, please see
-`Introduction to 3.0 <intro_30.html>`__
+`Release 3.0 <release_30.html>`__
 
 **New Features**
     - Faster subdivision using less memory

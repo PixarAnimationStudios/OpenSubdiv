@@ -50,7 +50,7 @@ projection (in this case FVAR_LINEAR_NONE):
 |    :width:  75%                              |    :width:  75%                              |
 |    :target: images/fvar_patch_linearall.png  |    :target: images/fvar_patch_linearnone.png |
 |                                              |                                              |
-| Linear Face-Varying patches                  | Bicubic Face-Varying patches                 |
+| Linear Face-Varying Patches                  | Bicubic Face-Varying Patches                 |
 +----------------------------------------------+----------------------------------------------+
 
 The result on the left shows the old linearly interpolated patches, which
@@ -113,7 +113,7 @@ In the following example, a single semi-sharp vertex is refined to level 5:
 +--------------------------------------+--------------------------------------+
 | .. image:: images/sec_level_off.png  | .. image:: images/sec_level_on.png   |
 |    :align:  center                   |    :align:  center                   |
-|    :width:  100%                     |    :width:  100%                     |
+|    :width:  75%                      |    :width:  75%                      |
 |    :target: images/sec_level_off.png |    :target: images/sec_level_on.png  |
 |                                      |                                      |
 | Single Isolation Level 5             | Primary Level 5, Secondary Level 2   |
@@ -123,7 +123,7 @@ Single isolation to level 5 on the left results in 312 patches.  The right shows
 semi-sharp feature isolated to 5, but with the new "secondary level" set to 2, the
 number of patches is reduced to 123.
 
-The second specified level of adaptive refinement -- the "secondary level" -- is used
+The second specified level of adaptive refinement is used
 to halt isolation for features that typically do not require the specified maximum.
 These include interior and boundary extra-ordinary vertices and those infinitely sharp
 patches that correspond to boundary extra-ordinary patches.
@@ -138,9 +138,9 @@ The motivation for sharp patches is to accurately represent the limit surface of
 infinitely sharp features, which otherwise can only be approximated by very high levels
 of adaptive refinement, resulting in many unnecessary patches.
 
-The true limit surface for regular faces along an infinitely sharp crease is actually a
-regular B-Spline patch -- essentially the same as regular faces along a boundary.  And
-similarly, the limit surface for faces around an extra-ordinary vertex on an infinitely
+The true limit surface for regular faces along an infinitely sharp crease is a
+regular B-Spline patch -- the same as regular faces along a boundary.
+Similarly, the limit surface for faces around an extra-ordinary vertex on an infinitely
 sharp crease is the same as that of faces around an extra-ordinary vertex on a boundary.
 So these patches are identified and isolated to the same degree -- the regular patches
 as soon as possible, and the irregular patches to the depth specified.
@@ -164,8 +164,7 @@ level 2 further reduces the number of patches to 42.
 
 The use of infinitely sharp patches can be enabled both at a high level as an new option to Osd::Mesh,
 or more directly when adaptively refining or construction the patch tables in
-Far::TopologyRefiner::AdaptiveOptions and Far::PatchTableFactory::Options.  See the API additions
-below and their associated Doxygen text for more details.
+Far::TopologyRefiner::AdaptiveOptions and Far::PatchTableFactory::Options.
 
 Given the improved accuracy and reduced patches by the use of simple regular patches, we would prefer
 that this be the default behavior, but it was made an explicit option in order to avoid disrupting
@@ -299,6 +298,6 @@ Bug Fixes
 ~~~~~~~~~
     - Fixed Ptex version parsing and compatibility issues
     - Fixed compatibility issues with VS2015
-    - Fixed some bugs with HUD sliders in the example viewers
-    - Fixed bug with Bilinear interpolation of face-varying data
+    - Fixed bug interpolating face-varying data with Bilinear scheme
     - Fixed bug with refinement using Chaikin creasing
+    - Fixed bugs with HUD sliders in the example viewers
