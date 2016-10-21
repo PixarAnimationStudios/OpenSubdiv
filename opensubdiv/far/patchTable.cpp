@@ -484,7 +484,7 @@ PatchTable::GetFVarChannelLinearInterpolation(int channel) const {
     return c.interpolation;
 }
 PatchDescriptor
-PatchTable::GetFVarChannelPatchDescriptor(int channel) const {
+PatchTable::GetFVarPatchDescriptor(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.desc;
 }
@@ -615,7 +615,7 @@ PatchTable::EvaluateBasisFaceVarying(
     PatchParam param = getPatchFVarPatchParam(handle.patchIndex, channel);
     PatchDescriptor::Type patchType = param.IsRegular()
             ? PatchDescriptor::REGULAR
-            : GetFVarChannelPatchDescriptor(channel).GetType();
+            : GetFVarPatchDescriptor(channel).GetType();
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);

@@ -38,8 +38,10 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 ///
-/// \brief TopologyLevel is an interface for accessing data in a specific level of a refined
-/// topology hierarchy.  Instances of TopologyLevel are created and owned by a TopologyRefiner,
+/// \brief An interface for accessing data in a specific level of a refined topology hierarchy.
+///
+/// TopologyLevel provides an interface to data in a specific level of a topology hierarchy.
+/// Instances of TopologyLevel are created and owned by a TopologyRefiner,
 /// which will return const-references to them.  Such references are only valid during the
 /// lifetime of TopologyRefiner that created and returned them, and only for a given refinement,
 /// i.e. if the TopologyRefiner is re-refined, any references to TopoologyLevels are invalidated.

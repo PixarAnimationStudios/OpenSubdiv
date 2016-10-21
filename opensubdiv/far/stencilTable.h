@@ -423,7 +423,7 @@ public:
     /// @param end            Index of last value to update
     ///
     template <class T>
-    void Update2ndPartials(T const *controlValues, T *uuderivs, T *uvderivs, T *vvderivs,
+    void Update2ndDerivs(T const *controlValues, T *uuderivs, T *uvderivs, T *vvderivs,
         int start=-1, int end=-1) const {
 
         update(controlValues, uuderivs, _duuWeights, start, end);

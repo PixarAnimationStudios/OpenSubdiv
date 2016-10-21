@@ -63,7 +63,7 @@ public:
     /// \brief Returns the subdivision options
     Sdc::Options GetSchemeOptions() const { return _subdivOptions; }
 
-    /// \brief Returns true if uniform subdivision has been applied
+    /// \brief Returns true if uniform refinement has been applied
     bool IsUniform() const   { return _isUniform; }
 
     /// \brief Returns the number of refinement levels
@@ -75,7 +75,7 @@ public:
     /// \brief Returns the maximum vertex valence in all levels
     int  GetMaxValence() const { return _maxValence; }
 
-    /// \ brief Returns true if faces have been tagged as holes
+    /// \brief Returns true if faces have been tagged as holes
     bool HasHoles() const { return _hasHoles; }
 
     /// \brief Returns the total number of vertices in all levels
@@ -102,6 +102,18 @@ public:
     //
 
     /// \brief Uniform refinement options
+    ///
+    /// Options for uniform refinement, including the number of levels, vertex
+    /// ordering and generation of topology information.
+    ///
+    /// Note the impact of the option to generate fullTopologyInLastLevel.  Given
+    /// subsequent levels of uniform refinement typically reguire 4x the data
+    /// of the previous level, only the minimum amount of data is generated in the
+    /// last level by default, i.e. a vertex and face-vertex list.  If requiring
+    /// topology traversal of the last level, e.g. inspecting edges or incident
+    /// faces of vertices, the option to generate full topology in the last
+    /// level should be enabled.
+    ///
     struct UniformOptions {
 
         UniformOptions(int level) :
@@ -118,6 +130,12 @@ public:
     };
 
     /// \brief Refine the topology uniformly
+    ///
+    /// This method applies uniform refinement to the level specified in the
+    /// given UniformOptions.
+    ///
+    /// Note the impact of the UniformOption to generate fullTopologyInLastLevel
+    /// and be sure it is assigned to satisfy the needs of the resulting refinement.
     ///
     /// @param options   Options controlling uniform refinement
     ///
@@ -164,7 +182,7 @@ public:
     /// \brief Returns the options specified on refinement
     AdaptiveOptions GetAdaptiveOptions() const { return _adaptiveOptions; }
 
-    /// \brief Unrefine the topology (keep control cage)
+    /// \brief Unrefine the topology, keeping only the base level.
     void Unrefine();
 
 
@@ -175,7 +193,7 @@ public:
     /// \brief Returns the number of face-varying channels in the tables
     int GetNumFVarChannels() const;
 
-    /// \brief Returns the face-varying interpolation rule-set for a given channel
+    /// \brief Returns the face-varying interpolation rule set for a given channel
     Sdc::Options::FVarLinearInterpolation GetFVarLinearInterpolation(int channel = 0) const;
 
     /// \brief Returns the total number of face-varying values in all levels

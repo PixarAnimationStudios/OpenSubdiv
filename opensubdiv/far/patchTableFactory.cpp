@@ -1272,7 +1272,7 @@ PatchTableFactory::populateAdaptivePatches(
 
             for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
 
-                PatchDescriptor desc = table->GetFVarChannelPatchDescriptor(fvc);
+                PatchDescriptor desc = table->GetFVarPatchDescriptor(fvc);
 
                 Index pidx = table->getPatchIndex(arrayIndex, 0);
                 int   ofs  = pidx * desc.GetNumControlVertices();
@@ -1461,7 +1461,7 @@ PatchTableFactory::populateAdaptivePatches(
 
                 BuilderContext::PatchTuple fvarPatch(patch);
 
-                PatchDescriptor desc = table->GetFVarChannelPatchDescriptor(fvc);
+                PatchDescriptor desc = table->GetFVarPatchDescriptor(fvc);
 
                 PatchParam fvarPatchParam = patchParam;
 

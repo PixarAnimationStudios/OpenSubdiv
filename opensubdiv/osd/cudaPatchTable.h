@@ -74,6 +74,9 @@ public:
         return _varyingIndexBuffer;
     }
 
+    /// Returns the number of face-varying channels buffers
+    int GetNumFVarChannels() const { return (int)_fvarPatchArrays.size(); }
+
     /// Returns the cuda memory of the array of Osd::PatchArray buffer
     void *GetFVarPatchArrayBuffer(int fvarChannel) const {
         return _fvarPatchArrays[fvarChannel];

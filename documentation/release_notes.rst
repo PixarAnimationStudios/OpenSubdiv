@@ -34,64 +34,37 @@
 Release 3.1.0
 =============
 
-Release 3.1.0 is a significant release with several new features, important bug fixes, and general code and configuration improvements.
+Release 3.1.0 is a significant release with several new features, bug fixes, and general
+code and configuration improvements.  For more information on the following, please see
+`Release 3.1 <release_31.html>`__
 
 **New Features**
-    - Bicubic Face-varying Patches
-
-        - Face-varying channel data that has a linear interpolation other than FVAR_LINEAR_ALL can now produce bicubic patches
-        - Adaptive refinement of face-varying data can be improved by considering face-varying topology during refinement
-        - Client shader code can obtain patch basis weights needed for evaluation by calling methods provided as source by Osd
-
-    - Varying and FaceVarying Evaluation
-
-        - Extended Far::PatchTable and the Osd Evaluator API to allow evaluation of varying and face-varying primvar data at arbitrary limit surface locations
-
-    - 2nd Order Derivative Evaluation
-
-        - Clients can now evaluate 2nd order derivatives using Far and Osd API
-
+    - Bicubic Face-Varying Patches
+    - Varying and Face-Varying Evaluation
+    - Second Order Derivative Evaluation
     - Separate Levels of Feature Isolation
-
-        - Extended feature adaptive refinement with a second, shallower level of refinement at which to represent features not needing greater isolation
-
     - Sharp Patches for Infinitely Sharp Features
 
-        - Infinitely sharp features can now be refined to infinitely sharp patches, both reducing the number of patches required and improving their accuracy
-
 **Changes**
-    - Added numerical valued preprocessor directives (OPENSUBDIV_VERSION_MAJOR, etc.) to <opensubdiv/version.h>
-    - Updated glFVarViewer and glEvalLimit viewer to make use of bicubic face-varying patches
-    - Updated glViewer and dxViewer to add a toggle for InfSharpPatch
-    - Improved documentation for Far::PatchParam and added Unnormalize() to complement Normalize()
-    - Improved far_regression
     - Enabled the use of CMake's folder feature
     - Removed the use of iso646 alternative keywords ('and', 'or', 'not', etc.) to improve portability
-    - Removed mayaPolySmooth example
-    - Removed cmake/FindIlmBase
+    - Added numerical valued preprocessor directives (OPENSUBDIV_VERSION_MAJOR, etc.) to <opensubdiv/version.h>
+    - Improved documentation for Far::PatchParam and added Unnormalize() to complement Normalize()
+    - Added additional topology queries to Far::TopologyLevel
+    - Updated glFVarViewer and glEvalLimit viewer to make use of bicubic face-varying patches
+    - Updated glViewer and dxViewer to add a toggle for InfSharpPatch
+    - Updated dxPtexViewer for improved feature parity with glPtexViewer
+    - Improved far_regression to exercise shapes independent of Hbr compatibility
     - Added support for Appveyor continuous integration testing
+    - Removed cmake/FindIlmBase
+    - Removed mayaPolySmooth example
 
 **Bug Fixes**
-    - Improved Ptex and DX compatibility
-    - Fixed some subtle bugs with Chaikin refinement
+    - Fixed Ptex version parsing and compatibility issues
     - Fixed compatibility issues with VS2015
-    - Fixed some bugs with HUD sliders in the example viewers
-
-Release 3.1.0 RC2
-=================
-
-**Changes**
-    - Added and updated test shapes and updated example viewers
-
-**Bug Fixes**
-    - Fixed the names of some methods added to Far::PatchTable
-    - Fixed issues discovered during testing
-
-Release 3.1.0 RC1
-=================
-
-**Changes**
-    - First Release Candidate
+    - Fixed bug interpolating face-varying data with Bilinear scheme
+    - Fixed bug with refinement using Chaikin creasing
+    - Fixed bugs with HUD sliders in the example viewers
 
 Release 3.0.5
 =============
@@ -183,7 +156,7 @@ Release 3.0.0
 
 Release 3.0.0 is a major release with many significant improvements and
 changes.  For more information on the following, please see
-`Introduction to 3.0 <intro_30.html>`__
+`Release 3.0 <release_30.html>`__
 
 **New Features**
     - Faster subdivision using less memory

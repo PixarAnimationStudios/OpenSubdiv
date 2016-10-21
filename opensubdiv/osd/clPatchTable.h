@@ -79,6 +79,9 @@ public:
     /// Returns the CL memory of the varying control vertices
     cl_mem GetVaryingPatchIndexBuffer() const { return _varyingIndexBuffer; }
 
+    /// Returns the number of face-varying channel buffers
+    int GetNumFVarChannels() const { return (int)_fvarPatchArrays.size(); }
+
     /// Returns the CL memory of the array of Osd::PatchArray buffer
     cl_mem GetFVarPatchArrayBuffer(int fvarChannel = 0) const { return _fvarPatchArrays[fvarChannel]; }
 
