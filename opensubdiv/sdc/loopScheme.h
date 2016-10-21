@@ -199,8 +199,8 @@ Scheme<SCHEME_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask)
         Weight invValence = Weight( 1.0 / valence );
         Weight beta       = Weight( 0.25 * cos( M_PI * 2.0 * invValence) + 0.375 );
 
-        eWeight = (0.625 - (beta * beta)) * invValence;;
-        vWeight = 1.0 - (eWeight * (Weight)valence);
+        eWeight = Weight((0.625 - (beta * beta)) * invValence);
+        vWeight = Weight(1.0 - (eWeight * (Weight)valence));
     }
 
     mask.VertexWeight(0) = vWeight;
