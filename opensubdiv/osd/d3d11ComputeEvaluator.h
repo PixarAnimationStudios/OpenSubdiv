@@ -39,6 +39,12 @@ struct ID3D11UnorderedAccessView;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
+namespace Far {
+    template<class FD> class StencilTableG<FD>;
+    typedef StencilTableG<float> StencilTable;
+}
+
 namespace Osd {
 
 /// \brief D3D11 stencil table
