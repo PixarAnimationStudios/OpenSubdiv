@@ -661,7 +661,7 @@ void GetGregoryWeights(PatchParamG<FD> const & param,
     }
 }
 
-template void GetBSplineWeights<float>(OpenSubdiv::OPENSUBDIV_VERSION::Far::PatchParamG<float> const&, float, float, float*, float*, float*, float*, float*, float*);
+template void GetBSplineWeights<float>(struct OpenSubdiv::OPENSUBDIV_VERSION::Far::PatchParamG<float> const&, float, float, float* const, float* const, float* const, float* const, float* const, float* const);
 template void GetGregoryWeights<float>(OpenSubdiv::OPENSUBDIV_VERSION::Far::PatchParamG<float> const&, float, float, float*, float*, float*, float*, float*, float*);
 template void GetBilinearWeights<float>(OpenSubdiv::OPENSUBDIV_VERSION::Far::PatchParamG<float> const&, float, float, float*, float*, float*, float*, float*, float*);
 
