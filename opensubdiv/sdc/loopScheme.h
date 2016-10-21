@@ -196,11 +196,11 @@ Scheme<SCHEME_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask)
         //     - could use some lookup tables here for common irregular valence (5, 7, 8)
         //       or all of these cosf() calls will be adding up...
 
-        Weight invValence = 1.0f / (Weight) valence;
-        Weight beta       = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
+        Weight invValence = Weight( 1.0 / valence );
+        Weight beta       = Weight( 0.25 * cos( M_PI * 2.0 * invValence) + 0.375 );
 
-        eWeight = (0.625f - (beta * beta)) * invValence;;
-        vWeight = 1.0f - (eWeight * (Weight)valence);
+        eWeight = (0.625 - (beta * beta)) * invValence;;
+        vWeight = 1.0 - (eWeight * (Weight)valence);
     }
 
     mask.VertexWeight(0) = vWeight;
