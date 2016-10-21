@@ -138,12 +138,18 @@ void main()
 layout(triangle_strip, max_vertices = EDGE_VERTS) out;
 in block {
     OutputVertex v;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -155,6 +161,10 @@ void emit(int index, vec3 normal)
     outpt.v.normal = inpt[index].v.normal;
 #else
     outpt.v.normal = normal;
+#endif
+
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    outpt.vSegments = inpt[index].vSegments;
 #endif
 
     outpt.color = inpt[index].color;
@@ -187,6 +197,7 @@ void emit(int index, vec3 normal, vec4 edgeVerts[EDGE_VERTS])
         edgeDistance(edgeVerts[index], edgeVerts[1], edgeVerts[2]);
 #ifdef PRIM_TRI
     outpt.edgeDistance[2] =
+    outpt.edgeDistance[3] =
         edgeDistance(edgeVerts[index], edgeVerts[2], edgeVerts[0]);
 #endif
 #ifdef PRIM_QUAD
@@ -272,6 +283,9 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt;
 
@@ -346,8 +360,7 @@ getAdaptivePatchColor(ivec3 patchParam)
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     // check this after boundary/corner since single crease patch also has edgeCount.
-    float sharpness = OsdGetPatchSharpness(patchParam);
-    if (sharpness > 0) {
+    if (inpt.vSegments.y > 0) {
         patchType = 1;
     }
 #elif defined OSD_PATCH_GREGORY
