@@ -201,7 +201,7 @@ public:
     };
 
     // for basis point stencil
-    static void AppendToStencilTable(GregoryBasisG<FD>::Point const &p,
+    static void AppendToStencilTable(typename GregoryBasisG<FD>::Point const &p,
                                      StencilTableG<FD> *table) {
         int size = p.GetSize();
         table->_sizes.push_back(size);

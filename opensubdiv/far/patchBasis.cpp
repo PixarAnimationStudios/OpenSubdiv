@@ -355,7 +355,7 @@ inline void Spline<BASIS_BILINEAR,double>::GetPatchWeights(PatchParamG<double> c
         point[3] = sC * t;
     }
     
-    if (derivS and derivT) {
+    if (derivS && derivT) {
         double dScale = (double)(1 << param.GetDepth());
 
         derivS[0] = -tC * dScale;
@@ -368,7 +368,7 @@ inline void Spline<BASIS_BILINEAR,double>::GetPatchWeights(PatchParamG<double> c
         derivT[2] =   s * dScale;
         derivT[3] =  sC * dScale;
 
-        if (derivSS and derivST and derivTT) {
+        if (derivSS && derivST && derivTT) {
             double d2Scale = dScale * dScale;
 
             for(int i=0;i<4;i++) {
