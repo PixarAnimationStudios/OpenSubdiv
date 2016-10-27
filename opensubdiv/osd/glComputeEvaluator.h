@@ -27,7 +27,6 @@
 
 #include "../version.h"
 
-#include "../osd/opengl.h"
 #include "../osd/types.h"
 #include "../osd/bufferDescriptor.h"
 
