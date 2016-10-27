@@ -175,7 +175,7 @@ if (NOT NO_LIB)
 
 
     # Build dynamic libs  ----------------------------------
-    if (NOT WIN32 AND NOT IOS)
+    if (NOT IOS)
 
         # generate dynamic-link targets
 
@@ -208,7 +208,17 @@ if (NOT NO_LIB)
             ${PLATFORM_CPU_LIBRARIES}
         )
 
-        install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
+        if (WIN32)
+            install( TARGETS osd_dynamic_cpu
+                ARCHIVE DESTINATION "${CMAKE_LIBDIR_BASE}"
+                RUNTIME DESTINATION "${CMAKE_BINDIR_BASE}"
+                )
+        else()
+            install( TARGETS osd_dynamic_cpu
+                LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}"
+                )
+        endif()
+
 
         #---------------------------------------------------
         if( OSD_GPU )
@@ -239,7 +249,16 @@ if (NOT NO_LIB)
                 ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
             )
 
-            install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
+            if (WIN32)
+                install( TARGETS osd_dynamic_gpu
+                    ARCHIVE DESTINATION "${CMAKE_LIBDIR_BASE}"
+                    RUNTIME DESTINATION "${CMAKE_BINDIR_BASE}"
+                    )
+            else()
+                install( TARGETS osd_dynamic_gpu
+                    LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}"
+                    )
+            endif()
         endif()
 
     endif()

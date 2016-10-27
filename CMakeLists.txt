@@ -530,10 +530,11 @@ else()
 endif()
 
 if (WIN32)
-    add_definitions(
-        # Link against the static version of GLEW.
-        -DGLEW_STATIC
-    )
+    if ("${GLEW_LIBRARY}" MATCHES "glew32s(d|)")
+        add_definitions(
+	    -DGLEW_STATIC
+	)
+    endif()
 
     if (DXSDK_FOUND AND NOT NO_DX)
         add_definitions(
@@ -550,15 +551,6 @@ if (WIN32)
             "environment variable."
         )
     endif()
-    
-    # Link examples & regressions statically against Osd for
-    # Windows until all the kinks can be worked out.
-    if( OSD_GPU )
-        set( OSD_LINK_TARGET osd_static_cpu osd_static_gpu )
-    else()
-        set( OSD_LINK_TARGET osd_static_cpu )
-    endif()
-    
 endif()
 
 
