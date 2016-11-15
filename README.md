@@ -8,7 +8,7 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
-|        |  Linux  |  Windows  | 
+|        |  Linux  |  Windows  |
 |:------:|:-------:|:---------:|
 | master | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=master)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/master?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
 | dev | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=dev)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/dev?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
@@ -83,7 +83,7 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 ```
 "c:/Program Files (x86)/CMake/bin/cmake.exe" ^
     -G "Visual Studio 12 Win64" ^
-    -D -D NO_PTEX=1 -D NO_DOC=1 ^
+    -D NO_PTEX=1 -D NO_DOC=1 ^
     -D NO_OMP=1 -D NO_TBB=1 -D NO_CUDA=1 -D NO_OPENCL=1 -D NO_CLEW=1 ^
     -D "GLEW_LOCATION=*YOUR GLEW INSTALL LOCATION*" ^
     -D "GLFW_LOCATION=*YOUR GLFW INSTALL LOCATION*" ^
@@ -94,7 +94,7 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 ### Linux
 
 ```
-cmake -D -D NO_PTEX=1 -D NO_DOC=1 \
+cmake -D NO_PTEX=1 -D NO_DOC=1 \
       -D NO_OMP=1 -D NO_TBB=1 -D NO_CUDA=1 -D NO_OPENCL=1 -D NO_CLEW=1 \
       -D GLEW_LOCATION="*YOUR GLEW INSTALL LOCATION*" \
       -D GLFW_LOCATION="*YOUR GLFW INSTALL LOCATION*" \
@@ -105,7 +105,7 @@ make
 ### OSX
 
 ```
-cmake -D -D NO_PTEX=1 -D NO_DOC=1 \
+cmake -D NO_PTEX=1 -D NO_DOC=1 \
       -D NO_OMP=1 -D NO_TBB=1 -D NO_CUDA=1 -D NO_OPENCL=1 -D NO_CLEW=1 \
       -D GLFW_LOCATION="*YOUR GLFW INSTALL LOCATION*" \
       ..
