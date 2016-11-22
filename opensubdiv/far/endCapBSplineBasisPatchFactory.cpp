@@ -42,16 +42,18 @@ namespace {
 #pragma warning (push)
 #pragma warning disable 1572
 #endif
-    inline bool isWeightNonZero(float w) { return (w != 0.0f); }
+template<class FD>
+inline bool isWeightNonZero(FD w) { return (w != (FD)0.0); }
 #ifdef __INTEL_COMPILER
 #pragma warning (pop)
 #endif
 }
 
-EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
+template<class FD>
+EndCapBSplineBasisPatchFactoryG<FD>::EndCapBSplineBasisPatchFactoryG(
     TopologyRefiner const & refiner,
-    StencilTable * vertexStencils,
-    StencilTable * varyingStencils) :
+    StencilTableG<FD> * vertexStencils,
+    StencilTableG<FD> * varyingStencils) :
     _vertexStencils(vertexStencils), _varyingStencils(varyingStencils),
     _refiner(&refiner), _numVertices(0), _numPatches(0) {
 
@@ -76,8 +78,9 @@ EndCapBSplineBasisPatchFactory::EndCapBSplineBasisPatchFactory(
     }
 }
 
+template<class FD>
 ConstIndexArray
-EndCapBSplineBasisPatchFactory::GetPatchPoints(
+EndCapBSplineBasisPatchFactoryG<FD>::GetPatchPoints(
     Vtr::internal::Level const * level, Index thisFace,
     Vtr::internal::Level::VSpan const cornerSpans[],
     int levelVertOffset, int fvarChannel) {
@@ -124,8 +127,9 @@ EndCapBSplineBasisPatchFactory::GetPatchPoints(
     }
 }
 
+template<class FD>
 ConstIndexArray
-EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
+EndCapBSplineBasisPatchFactoryG<FD>::getPatchPointsFromGregoryBasis(
     Vtr::internal::Level const * level, Index thisFace,
     Vtr::internal::Level::VSpan const cornerSpans[],
     ConstIndexArray facePoints, int levelVertOffset, int fvarChannel) {
@@ -141,12 +145,12 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
         _patchPoints.push_back(_numVertices + offset);
         ++_numVertices;
     }
-    GregoryBasis::ProtoBasis basis(*level, thisFace, cornerSpans, levelVertOffset, fvarChannel);
+    typename GregoryBasisG<FD>::ProtoBasis basis(*level, thisFace, cornerSpans, levelVertOffset, fvarChannel);
     // XXX: temporary hack. we should traverse topology and find existing
     //      vertices if available
     //
     // Reorder gregory basis stencils into regular bezier
-    GregoryBasis::Point const *bezierCP[16];
+    typename GregoryBasisG<FD>::Point const *bezierCP[16];
 
     bezierCP[0] = &basis.P[0];
     bezierCP[1] = &basis.Ep[0];
@@ -172,11 +176,11 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
     int stencilCapacity = basis.P[0].GetCapacity();
 
     // Apply basis conversion from bezier to b-spline
-    float Q[4][4] = {{ 6, -7,  2, 0},
+    FD Q[4][4] = {{ 6, -7,  2, 0},
                      { 0,  2, -1, 0},
                      { 0, -1,  2, 0},
                      { 0,  2, -7, 6} };
-    Vtr::internal::StackBuffer<GregoryBasis::Point, 16> H(16);
+    Vtr::internal::StackBuffer<typename GregoryBasisG<FD>::Point, 16> H(16);
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
             H[i*4+j].Clear(stencilCapacity);
@@ -189,13 +193,13 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
     }
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            GregoryBasis::Point p(stencilCapacity);
+            typename GregoryBasisG<FD>::Point p(stencilCapacity);
             for (int k = 0; k < 4; ++k) {
                 if (isWeightNonZero(Q[j][k])) {
                     p.AddWithWeight(H[i*4+k], Q[j][k]);
                 }
             }
-            GregoryBasis::AppendToStencilTable(p, _vertexStencils);
+            GregoryBasisG<FD>::AppendToStencilTable(p, _vertexStencils);
         }
     }
     if (_varyingStencils) {
@@ -207,7 +211,7 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
             int varyingIndex = facePoints[varyingIndices[i]] + levelVertOffset;
             _varyingStencils->_sizes.push_back(1);
             _varyingStencils->_indices.push_back(varyingIndex);
-            _varyingStencils->_weights.push_back(1.0f);
+            _varyingStencils->_weights.push_back(1.0);
         }
     }
 
@@ -215,11 +219,13 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
     return ConstIndexArray(&_patchPoints[(_numPatches-1)*16], 16);
 }
 
+template<class FD>
 void
-EndCapBSplineBasisPatchFactory::computeLimitStencils(
+EndCapBSplineBasisPatchFactoryG<FD>::computeLimitStencils(
     Vtr::internal::Level const *level,
     ConstIndexArray facePoints, int vid, int fvarChannel,
-    GregoryBasis::Point *P, GregoryBasis::Point *Ep, GregoryBasis::Point *Em)
+    typename GregoryBasisG<FD>::Point *P, typename GregoryBasisG<FD>::Point *Ep,
+    typename GregoryBasisG<FD>::Point *Em)
 {
     int maxvalence = level->getMaxValence();
 
@@ -247,13 +253,13 @@ EndCapBSplineBasisPatchFactory::computeLimitStencils(
     }
     assert(start > -1 && prev > -1);
 
-    GregoryBasis::Point e0, e1;
+    typename GregoryBasisG<FD>::Point e0, e1;
     e0.Clear(stencilCapacity);
     e1.Clear(stencilCapacity);
 
-    float t = 2.0f * float(M_PI) / float(valence);
-    float ef = 1.0f / (valence * (cosf(t) + 5.0f +
-                                  sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
+    FD t = FD(2.0) * FD(M_PI) / FD(valence);
+    FD ef = FD( 1.0 / (valence * (cos(t) + 5.0 +
+                sqrt((cos(t) + 9) * (cos(t) + 1)))/16.0) );
 
     for (int i = 0; i < valence; ++i) {
         Index ip = (i+1)%valence;
@@ -261,35 +267,36 @@ EndCapBSplineBasisPatchFactory::computeLimitStencils(
               idx_diagonal   = (manifoldRing[2*i  + 1]),
               idx_neighbor_p = (manifoldRing[2*ip + 0]);
 
-        float d = float(valence)+5.0f;
+        FD d = FD(valence+5.0);
 
-        GregoryBasis::Point f(4);
-        f.AddWithWeight(facePoints[vid], float(valence)/d);
-        f.AddWithWeight(idx_neighbor_p,  2.0f/d);
-        f.AddWithWeight(idx_neighbor,    2.0f/d);
-        f.AddWithWeight(idx_diagonal,    1.0f/d);
+        typename GregoryBasisG<FD>::Point f(4);
+        f.AddWithWeight(facePoints[vid], FD(valence)/d);
+        f.AddWithWeight(idx_neighbor_p,  FD(2.0/d));
+        f.AddWithWeight(idx_neighbor,    FD(2.0/d));
+        f.AddWithWeight(idx_diagonal,    FD(1.0/d));
 
-        P->AddWithWeight(f, 1.0f/float(valence));
+        P->AddWithWeight(f, FD(1.0/valence));
 
-        float c0 = 0.5f*cosf((float(2*M_PI) * float(i)/float(valence)))
-                 + 0.5f*cosf((float(2*M_PI) * float(ip)/float(valence)));
-        float c1 = 0.5f*sinf((float(2*M_PI) * float(i)/float(valence)))
-                 + 0.5f*sinf((float(2*M_PI) * float(ip)/float(valence)));
+        FD c0 = FD(0.5*cos((FD(2*M_PI) * FD(i)/FD(valence)))
+                 + 0.5*cos((FD(2*M_PI) * FD(ip)/FD(valence))));
+        FD c1 = FD(0.5*sin((FD(2*M_PI) * FD(i)/FD(valence)))
+                 + 0.5*sin((FD(2*M_PI) * FD(ip)/FD(valence))));
         e0.AddWithWeight(f, c0*ef);
         e1.AddWithWeight(f, c1*ef);
     }
 
     *Ep = *P;
-    Ep->AddWithWeight(e0, cosf((float(2*M_PI) * float(start)/float(valence))));
-    Ep->AddWithWeight(e1, sinf((float(2*M_PI) * float(start)/float(valence))));
+    Ep->AddWithWeight(e0, cos((FD(2*M_PI) * FD(start)/FD(valence))));
+    Ep->AddWithWeight(e1, sin((FD(2*M_PI) * FD(start)/FD(valence))));
 
     *Em = *P;
-    Em->AddWithWeight(e0, cosf((float(2*M_PI) * float(prev)/float(valence))));
-    Em->AddWithWeight(e1, sinf((float(2*M_PI) * float(prev)/float(valence))));
+    Em->AddWithWeight(e0, cos((FD(2*M_PI) * FD(prev)/FD(valence))));
+    Em->AddWithWeight(e1, sin((FD(2*M_PI) * FD(prev)/FD(valence))));
 }
 
+template<class FD>
 ConstIndexArray
-EndCapBSplineBasisPatchFactory::getPatchPoints(
+EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
     Vtr::internal::Level const *level, Index thisFace,
     Index extraOrdinaryIndex, ConstIndexArray facePoints,
     int levelVertOffset, int fvarChannel) {
@@ -325,7 +332,7 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
 
     int maxvalence = level->getMaxValence();
     int stencilCapacity = 2*maxvalence + 16;
-    GregoryBasis::Point P(stencilCapacity), Em(stencilCapacity), Ep(stencilCapacity);
+    typename GregoryBasisG<FD>::Point P(stencilCapacity), Em(stencilCapacity), Ep(stencilCapacity);
 
     computeLimitStencils(level, facePoints, extraOrdinaryIndex, fvarChannel, &P, &Em, &Ep);
     P.OffsetIndices(levelVertOffset);
@@ -399,7 +406,7 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     }
 
     // stencils for patch points
-    GregoryBasis::Point X5(stencilCapacity),
+    typename GregoryBasisG<FD>::Point X5(stencilCapacity),
         X6(stencilCapacity),
         X7(stencilCapacity),
         X8(stencilCapacity),
@@ -411,61 +418,60 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     // X6 = 1/3 * ( 36Em - 16P0 - 8P1 - 2P2 - 4P3 -  P6 - 2P7)
     // X7 = 1/3 * (-18Em +  8P0 + 4P1 +  P2 + 2P3 + 2P6 + 4P7)
     // X8 = X6 + (P8-P6)
-    X6.AddWithWeight(Em,                             36.0f/3.0f);
-    X6.AddWithWeight(patchPoints[rotation[vid][0]], -16.0f/3.0f);
-    X6.AddWithWeight(patchPoints[rotation[vid][1]],  -8.0f/3.0f);
-    X6.AddWithWeight(patchPoints[rotation[vid][2]],  -2.0f/3.0f);
-    X6.AddWithWeight(patchPoints[rotation[vid][3]],  -4.0f/3.0f);
-    X6.AddWithWeight(patchPoints[rotation[vid][6]],  -1.0f/3.0f);
-    X6.AddWithWeight(patchPoints[rotation[vid][7]],  -2.0f/3.0f);
+    X6.AddWithWeight(Em,                            FD( 36.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][0]], FD(-16.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][1]], FD( -8.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][2]], FD( -2.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][3]], FD( -4.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][6]], FD( -1.0/3.0));
+    X6.AddWithWeight(patchPoints[rotation[vid][7]], FD( -2.0/3.0));
 
-    X7.AddWithWeight(Em,                            -18.0f/3.0f);
-    X7.AddWithWeight(patchPoints[rotation[vid][0]],   8.0f/3.0f);
-    X7.AddWithWeight(patchPoints[rotation[vid][1]],   4.0f/3.0f);
-    X7.AddWithWeight(patchPoints[rotation[vid][2]],   1.0f/3.0f);
-    X7.AddWithWeight(patchPoints[rotation[vid][3]],   2.0f/3.0f);
-    X7.AddWithWeight(patchPoints[rotation[vid][6]],   2.0f/3.0f);
-    X7.AddWithWeight(patchPoints[rotation[vid][7]],   4.0f/3.0f);
+    X7.AddWithWeight(Em,                            FD(-18.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][0]], FD(  8.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][1]], FD(  4.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][2]], FD(  1.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][3]], FD(  2.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][6]], FD(  2.0/3.0));
+    X7.AddWithWeight(patchPoints[rotation[vid][7]], FD(  4.0/3.0));
 
     X8 = X6;
-    X8.AddWithWeight(patchPoints[rotation[vid][8]], 1.0f);
-    X8.AddWithWeight(patchPoints[rotation[vid][6]], -1.0f);
+    X8.AddWithWeight(patchPoints[rotation[vid][8]], 1.0);
+    X8.AddWithWeight(patchPoints[rotation[vid][6]], -1.0);
 
     // limit tangent : Ep
     // X4  = 1/3 * ( 36EP - 16P0 - 4P1 - 2P15 - 2P2 - 8P3 -  P4)
     // X15 = 1/3 * (-18EP +  8P0 + 2P1 + 4P15 +  P2 + 4P3 + 2P4)
     // X14 = X4  + (P14 - P4)
-    X4.AddWithWeight(Ep,                             36.0f/3.0f);
-    X4.AddWithWeight(patchPoints[rotation[vid][0]], -16.0f/3.0f);
-    X4.AddWithWeight(patchPoints[rotation[vid][1]],  -4.0f/3.0f);
-    X4.AddWithWeight(patchPoints[rotation[vid][2]],  -2.0f/3.0f);
-    X4.AddWithWeight(patchPoints[rotation[vid][3]],  -8.0f/3.0f);
-    X4.AddWithWeight(patchPoints[rotation[vid][4]],  -1.0f/3.0f);
-    X4.AddWithWeight(patchPoints[rotation[vid][15]], -2.0f/3.0f);
+    X4.AddWithWeight(Ep,                            FD( 36.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][0]], FD(-16.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][1]], FD( -4.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][2]], FD( -2.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][3]], FD( -8.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][4]], FD( -1.0/3.0));
+    X4.AddWithWeight(patchPoints[rotation[vid][15]],FD( -2.0/3.0));
 
-    X15.AddWithWeight(Ep,                            -18.0f/3.0f);
-    X15.AddWithWeight(patchPoints[rotation[vid][0]],   8.0f/3.0f);
-    X15.AddWithWeight(patchPoints[rotation[vid][1]],   2.0f/3.0f);
-    X15.AddWithWeight(patchPoints[rotation[vid][2]],   1.0f/3.0f);
-    X15.AddWithWeight(patchPoints[rotation[vid][3]],   4.0f/3.0f);
-    X15.AddWithWeight(patchPoints[rotation[vid][4]],   2.0f/3.0f);
-    X15.AddWithWeight(patchPoints[rotation[vid][15]],  4.0f/3.0f);
+    X15.AddWithWeight(Ep,                            FD(-18.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][0]], FD(  8.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][1]], FD(  2.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][2]], FD(  1.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][3]], FD(  4.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][4]], FD(  2.0/3.0));
+    X15.AddWithWeight(patchPoints[rotation[vid][15]],FD(  4.0/3.0));
 
     X14 = X4;
-    X14.AddWithWeight(patchPoints[rotation[vid][14]],  1.0f);
-    X14.AddWithWeight(patchPoints[rotation[vid][4]],  -1.0f);
+    X14.AddWithWeight(patchPoints[rotation[vid][14]], FD( 1.0));
+    X14.AddWithWeight(patchPoints[rotation[vid][4]],  FD(-1.0));
 
     // limit corner (16th free vert)
     // X5 = 36LP - 16P0 - 4(P1 + P3 + P4 + P6) - (P2 + P7 + P15)
-    X5.AddWithWeight(P,                              36.0f);
-    X5.AddWithWeight(patchPoints[rotation[vid][0]], -16.0f);
-    X5.AddWithWeight(patchPoints[rotation[vid][1]],  -4.0f);
-    X5.AddWithWeight(patchPoints[rotation[vid][3]],  -4.0f);
-    X5.AddWithWeight(X4,                             -4.0f);
-    X5.AddWithWeight(X6,                             -4.0f);
-    X5.AddWithWeight(patchPoints[rotation[vid][2]],  -1.0f);
-    X5.AddWithWeight(X7,                             -1.0f);
-    X5.AddWithWeight(X15,                            -1.0f);
+    X5.AddWithWeight(P,                             FD( 36.0));
+    X5.AddWithWeight(patchPoints[rotation[vid][0]], FD(-16.0));
+    X5.AddWithWeight(patchPoints[rotation[vid][1]], FD( -4.0));
+    X5.AddWithWeight(patchPoints[rotation[vid][3]], FD( -4.0));
+    X5.AddWithWeight(X4,                            FD( -4.0));
+    X5.AddWithWeight(X6,                            FD( -4.0));
+    X5.AddWithWeight(X7,                            FD( -1.0));
+    X5.AddWithWeight(X15,                           FD( -1.0));
 
     //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
     //            |     |     |
@@ -491,45 +497,45 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
 
     // push back to stencils;
     patchPoints[3* vid + 6]        = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X6, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X6, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex0, _varyingStencils);
     }
 
     patchPoints[3*((vid+1)%4) + 4] = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X7, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X7, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex1, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex1, _varyingStencils);
     }
 
     patchPoints[3*((vid+1)%4) + 5] = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X8, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X8, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex1, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex1, _varyingStencils);
     }
 
     patchPoints[3* vid + 4]        = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X4, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X4, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex0, _varyingStencils);
     }
 
     patchPoints[3*((vid+3)%4) + 6] = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X15, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X15, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex3, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex3, _varyingStencils);
     }
 
     patchPoints[3*((vid+3)%4) + 5] = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X14, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X14, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex3, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex3, _varyingStencils);
     }
 
     patchPoints[3*vid + 5]         = (_numVertices++) + offset;
-    GregoryBasis::AppendToStencilTable(X5, _vertexStencils);
+    GregoryBasisG<FD>::AppendToStencilTable(X5, _vertexStencils);
     if (_varyingStencils) {
-        GregoryBasis::AppendToStencilTable(varyingIndex0, _varyingStencils);
+        GregoryBasisG<FD>::AppendToStencilTable(varyingIndex0, _varyingStencils);
     }
 
     // reorder into UV row-column
@@ -541,6 +547,9 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     ++_numPatches;
     return ConstIndexArray(&_patchPoints[(_numPatches-1)*16], 16);
 }
+
+template class EndCapBSplineBasisPatchFactoryG<float>;
+template class EndCapBSplineBasisPatchFactoryG<double>;
 
 } // end namespace Far
 

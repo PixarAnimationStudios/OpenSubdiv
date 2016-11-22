@@ -45,7 +45,8 @@ class TopologyRefiner;
 /// its methods to support stencil construction currently require it to be a friend
 /// of the StencilTable class.
 ///
-class GregoryBasis {
+template<class FD>
+class GregoryBasisG {
 public:
     //
     // Basis point
@@ -82,7 +83,7 @@ public:
             }
         }
 
-        void AddWithWeight(Vtr::Index idx, float weight) {
+        void AddWithWeight(Vtr::Index idx, FD weight) {
             for (int i = 0; i < _size; ++i) {
                 if (_stencils[i].index == idx) {
                     _stencils[i].weight += weight;
@@ -95,7 +96,7 @@ public:
             ++_size;
         }
 
-        void AddWithWeight(Point const &src, float weight) {
+        void AddWithWeight(Point const &src, FD weight) {
             for (int i = 0; i < src._size; ++i) {
                 AddWithWeight(src._stencils[i].index,
                               src._stencils[i].weight * weight);
@@ -112,7 +113,7 @@ public:
             return *this;
         }
 
-        Point & operator *= (float f) {
+        Point & operator *= (FD f) {
             for (int i=0; i<_size; ++i) {
                 _stencils[i].weight *= f;
             }
@@ -125,7 +126,7 @@ public:
             }
         }
 
-        void Copy(int ** size, Vtr::Index ** indices, float ** weights) const {
+        void Copy(int ** size, Vtr::Index ** indices, FD ** weights) const {
             for (int i = 0; i < _size; ++i) {
                 **indices = _stencils[i].index;
                 **weights = _stencils[i].weight;
@@ -139,7 +140,7 @@ public:
         Vtr::Index GetStencilIndex(int index) const {
             return _stencils[index].index;
         }
-        float GetStencilWeight(int index) const {
+        FD GetStencilWeight(int index) const {
             return _stencils[index].weight;
         }
 
@@ -148,7 +149,7 @@ public:
 
         struct Stencil {
             Vtr::Index index;
-            float weight;
+            FD weight;
         };
 
         Vtr::internal::StackBuffer<Stencil, RESERVED_STENCIL_SIZE> _stencils;
@@ -200,8 +201,8 @@ public:
     };
 
     // for basis point stencil
-    static void AppendToStencilTable(GregoryBasis::Point const &p,
-                                     StencilTable *table) {
+    static void AppendToStencilTable(typename GregoryBasisG<FD>::Point const &p,
+                                     StencilTableG<FD> *table) {
         int size = p.GetSize();
         table->_sizes.push_back(size);
         for (int i = 0; i < size; ++i) {
@@ -211,10 +212,10 @@ public:
     }
 
     // for varying stencil (just copy)
-    static void AppendToStencilTable(int index, StencilTable *table) {
+    static void AppendToStencilTable(int index, StencilTableG<FD> *table) {
         table->_sizes.push_back(1);
         table->_indices.push_back(index);
-        table->_weights.push_back(1.f);
+        table->_weights.push_back(1.0);
     }
 };
 

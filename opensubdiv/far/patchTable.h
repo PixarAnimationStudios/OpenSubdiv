@@ -52,7 +52,11 @@ namespace Far {
 /// XXXX manuelk we should add a PatchIterator that can dereference into
 ///              a PatchHandle for fast linear traversal of the table
 ///
-class PatchTable {
+
+template<class FD> class PatchMapG;
+
+template<class FD>
+class PatchTableG {
 
 public:
 
@@ -61,8 +65,7 @@ public:
     // XXXX manuelk members will eventually be made private
     public:
 
-        friend class PatchTable;
-        friend class PatchMap;
+        friend class PatchMapG<FD>;
 
         Index arrayIndex, // Array index of the patch
               patchIndex, // Absolute Index of the patch
@@ -72,10 +75,10 @@ public:
 public:
 
     /// \brief Copy constructor
-    PatchTable(PatchTable const & src);
+    PatchTableG(PatchTableG const & src);
 
     /// \brief Destructor
-    ~PatchTable();
+    ~PatchTableG();
 
     /// \brief True if the patches are of feature adaptive types
     bool IsFeatureAdaptive() const;
@@ -110,13 +113,13 @@ public:
     ConstIndexArray GetPatchVertices(PatchHandle const & handle) const;
 
     /// \brief Returns a PatchParam for the patch identified by \p handle
-    PatchParam GetPatchParam(PatchHandle const & handle) const;
+    PatchParamG<FD> GetPatchParam(PatchHandle const & handle) const;
 
     /// \brief Returns the control vertex indices for \p patch in \p array
     ConstIndexArray GetPatchVertices(int array, int patch) const;
 
     /// \brief Returns the PatchParam for \p patch in \p array
-    PatchParam GetPatchParam(int array, int patch) const;
+    PatchParamG<FD> GetPatchParam(int array, int patch) const;
     //@}
 
 
@@ -144,7 +147,7 @@ public:
     ConstIndexArray GetPatchArrayVertices(int array) const;
 
     /// \brief Returns the PatchParams for the patches in \p array
-    ConstPatchParamArray const GetPatchParams(int array) const;
+    Vtr::ConstArray<PatchParamG<FD> > const GetPatchParams(int array) const;
     //@}
 
 
@@ -173,7 +176,7 @@ public:
     ComputeLocalPointValues(T const *src, T *dst) const;
 
     /// \brief Returns the stencil table to compute local point vertex values
-    StencilTable const *GetLocalPointStencilTable() const {
+    StencilTableG<FD> const *GetLocalPointStencilTable() const {
         return _localPointStencils;
     }
 
@@ -193,7 +196,7 @@ public:
     ComputeLocalPointValuesVarying(T const *src, T *dst) const;
 
     /// \brief Returns the stencil table to compute local point varying values
-    StencilTable const *GetLocalPointVaryingStencilTable() const {
+    StencilTableG<FD> const *GetLocalPointVaryingStencilTable() const {
         return _localPointVaryingStencils;
     }
 
@@ -215,7 +218,7 @@ public:
     ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel = 0) const;
 
     /// \brief Returns the stencil table to compute local point face-varying values
-    StencilTable const *GetLocalPointFaceVaryingStencilTable(int channel = 0) const {
+    StencilTableG<FD> const *GetLocalPointFaceVaryingStencilTable(int channel = 0) const {
         if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
             return _localPointFaceVaryingStencils[channel];
         }
@@ -314,16 +317,16 @@ public:
     ConstIndexArray GetFVarValues(int channel = 0) const;
 
     /// \brief Returns the value indices for a given patch in \p channel
-    PatchParam GetPatchFVarPatchParam(PatchHandle const & handle, int channel = 0) const;
+    PatchParamG<FD> GetPatchFVarPatchParam(PatchHandle const & handle, int channel = 0) const;
 
     /// \brief Returns the face-varying params for a given patch \p channel
-    PatchParam GetPatchFVarPatchParam(int array, int patch, int channel = 0) const;
+    PatchParamG<FD> GetPatchFVarPatchParam(int array, int patch, int channel = 0) const;
 
     /// \brief Returns the face-varying for a given patch in \p array in \p channel
-    ConstPatchParamArray GetPatchArrayFVarPatchParams(int array, int channel = 0) const;
+    Vtr::ConstArray<PatchParamG<FD> > GetPatchArrayFVarPatchParams(int array, int channel = 0) const;
 
     /// \brief Returns an array of face-varying patch param for \p channel
-    ConstPatchParamArray GetFVarPatchParams(int channel = 0) const;
+    Vtr::ConstArray<PatchParamG<FD> > GetFVarPatchParams(int channel = 0) const;
 
     /// \brief Deprecated @see PatchTable#GetFVarPatchDescriptor
     Sdc::Options::FVarLinearInterpolation GetFVarChannelLinearInterpolation(int channel = 0) const;
@@ -343,7 +346,7 @@ public:
     PatchVertsTable const & GetPatchControlVerticesTable() const { return _patchVerts; }
 
     /// \brief Returns the PatchParamTable (PatchParams order matches patch array sorting)
-    PatchParamTable const & GetPatchParamTable() const { return _paramTable; }
+    std::vector<PatchParamG<FD> > const & GetPatchParamTable() const { return _paramTable; }
 
     /// \brief Returns a sharpness index table for each patch (if exists)
     std::vector<Index> const &GetSharpnessIndexTable() const { return _sharpnessIndices; }
@@ -390,9 +393,9 @@ public:
     ///
     /// @param wDvv    Weights (evaluated basis functions) for 2nd derivative wrt v
     ///
-    void EvaluateBasis(PatchHandle const & handle, float u, float v,
-        float wP[], float wDu[] = 0, float wDv[] = 0,
-        float wDuu[] = 0, float wDuv[] = 0, float wDvv[] = 0) const;
+    void EvaluateBasis(PatchHandle const & handle, FD u, FD v,
+        FD wP[], FD wDu[] = 0, FD wDv[] = 0,
+        FD wDuu[] = 0, FD wDuv[] = 0, FD wDvv[] = 0) const;
 
     /// \brief Evaluate basis functions for a varying value and
     /// derivatives at a given (u,v) parametric location of a patch.
@@ -416,9 +419,9 @@ public:
     ///
     /// @param wDvv    Weights (evaluated basis functions) for 2nd derivative wrt v
     ///
-    void EvaluateBasisVarying(PatchHandle const & handle, float u, float v,
-        float wP[], float wDu[] = 0, float wDv[] = 0,
-        float wDuu[] = 0, float wDuv[] = 0, float wDvv[] = 0) const;
+    void EvaluateBasisVarying(PatchHandle const & handle, FD u, FD v,
+        FD wP[], FD wDu[] = 0, FD wDv[] = 0,
+        FD wDuu[] = 0, FD wDuv[] = 0, FD wDvv[] = 0) const;
 
     /// \brief Evaluate basis functions for a face-varying value and
     /// derivatives at a given (u,v) parametric location of a patch.
@@ -444,22 +447,22 @@ public:
     ///
     /// @param channel face-varying channel
     ///
-    void EvaluateBasisFaceVarying(PatchHandle const & handle, float u, float v,
-        float wP[], float wDu[] = 0, float wDv[] = 0,
-        float wDuu[] = 0, float wDuv[] = 0, float wDvv[] = 0,
+    void EvaluateBasisFaceVarying(PatchHandle const & handle, FD u, FD v,
+        FD wP[], FD wDu[] = 0, FD wDv[] = 0,
+        FD wDuu[] = 0, FD wDuv[] = 0, FD wDvv[] = 0,
         int channel = 0) const;
     //@}
 
 protected:
 
-    friend class PatchTableFactory;
+    friend class PatchTableFactoryG<FD>;
 
     // Factory constructor
-    PatchTable(int maxvalence);
+    PatchTableG(int maxvalence);
 
     Index getPatchIndex(int array, int patch) const;
 
-    PatchParamArray getPatchParams(int arrayIndex);
+    Vtr::Array<PatchParamG<FD> > getPatchParams(int arrayIndex);
 
     Index * getSharpnessIndices(Index arrayIndex);
     float * getSharpnessValues(Index arrayIndex);
@@ -515,8 +518,8 @@ private:
     IndexArray getFVarValues(int channel);
     ConstIndexArray getPatchFVarValues(int patch, int channel) const;
 
-    PatchParamArray getFVarPatchParams(int channel);
-    PatchParam getPatchFVarPatchParam(int patch, int channel) const;
+    Vtr::Array<PatchParamG<FD> > getFVarPatchParams(int channel);
+    PatchParamG<FD> getPatchFVarPatchParam(int patch, int channel) const;
 
 private:
 
@@ -531,7 +534,7 @@ private:
 
     std::vector<Index>   _patchVerts;   // Indices of the control vertices of the patches
 
-    PatchParamTable      _paramTable;   // PatchParam bitfields (one per patch)
+    std::vector<PatchParamG<FD> >      _paramTable;   // PatchParam bitfields (one per patch)
 
     //
     // Extraordinary vertex closed-form evaluation / endcap basis conversion
@@ -541,8 +544,8 @@ private:
     //
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
-    StencilTable const * _localPointStencils;  // endcap basis conversion stencils
-    StencilTable const * _localPointVaryingStencils; // endcap varying stencils (for convenience)
+    StencilTableG<FD> const * _localPointStencils;  // endcap basis conversion stencils
+    StencilTableG<FD> const * _localPointVaryingStencils; // endcap varying stencils (for convenience)
 
     //
     // Varying data
@@ -558,7 +561,7 @@ private:
 
     FVarPatchChannelVector _fvarChannels;
 
-    std::vector<StencilTable const *> _localPointFaceVaryingStencils;
+    std::vector<StencilTableG<FD> const *> _localPointFaceVaryingStencils;
 
     //
     // 'single-crease' patch sharpness tables
@@ -568,25 +571,28 @@ private:
     std::vector<float>   _sharpnessValues;  // Sharpness values.
 };
 
+template <class FD>
 template <class T>
 inline void
-PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
+PatchTableG<FD>::ComputeLocalPointValues(T const *src, T *dst) const {
     if (_localPointStencils) {
         _localPointStencils->UpdateValues(src, dst);
     }
 }
 
+template <class FD>
 template <class T>
 inline void
-PatchTable::ComputeLocalPointValuesVarying(T const *src, T *dst) const {
+PatchTableG<FD>::ComputeLocalPointValuesVarying(T const *src, T *dst) const {
     if (_localPointVaryingStencils) {
         _localPointVaryingStencils->UpdateValues(src, dst);
     }
 }
 
+template <class FD>
 template <class T>
 inline void
-PatchTable::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel) const {
+PatchTableG<FD>::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel) const {
     if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
         if (_localPointFaceVaryingStencils[channel]) {
             _localPointFaceVaryingStencils[channel]->UpdateValues(src, dst);
@@ -594,6 +600,8 @@ PatchTable::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel
     }
 }
 
+typedef PatchTableG<float> PatchTable;
+typedef PatchTableG<double> PatchTableDbl;
 
 } // end namespace Far
 

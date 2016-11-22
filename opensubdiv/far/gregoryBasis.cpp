@@ -38,7 +38,11 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-inline float computeCoefficient(int valence) {
+template<class FD>
+inline FD computeCoefficient(int valence);
+
+template<>
+inline float computeCoefficient<float>(int valence) {
     // precomputed coefficient table up to valence 29
     static float efTable[] = {
         0, 0, 0,
@@ -56,6 +60,27 @@ inline float computeCoefficient(int valence) {
     float t = 2.0f * float(M_PI) / float(valence);
     return 1.0f / (valence * (cosf(t) + 5.0f +
                               sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
+}
+template<>
+inline double computeCoefficient<double>(int valence) {
+    // precomputed coefficient table up to valence 29
+    static double efTable[] = {
+        0.8128157290637232, 0.5000000000000000, 0.3636440632914280,
+        0.2875137970607709, 0.2386878668585168, 0.2045436419075610,
+        0.1792290395806116, 0.1596573707998625, 0.1440423344301130,
+        0.1312756841588302, 0.1206317221267584, 0.1116143750667693,
+        0.1038724551611427, 0.09715001909072483, 0.09125591750595065,
+        0.08604437851160268, 0.08140221133679842, 0.07724012951618408,
+        0.07348671975199702, 0.07008415747979798, 0.06698510403072545,
+        0.06415042056981009, 0.06154745763863726, 0.05914875744723399,
+        0.05693105681877696, 0.05487451227925642, 0.05296209143379614
+    };
+    assert(valence > 0);
+    if (valence < 30) return efTable[valence];
+
+    double t = 2.0 * double(M_PI) / double(valence);
+    return 1.0 / (valence * (cos(t) + 5.0 +
+                              sqrt((cos(t) + 9) * (cos(t) + 1)))/16.0);
 }
 
 //
@@ -75,7 +100,8 @@ inline float computeCoefficient(int valence) {
 //      - compute the edge-points
 //      - compute the face-points (which depend on multiple edge-points)
 //
-GregoryBasis::ProtoBasis::ProtoBasis(
+template<class FD>
+GregoryBasisG<FD>::ProtoBasis::ProtoBasis(
     Vtr::internal::Level const & level, Index faceIndex,
     Vtr::internal::Level::VSpan const cornerSpans[],
     int levelVertOffset, int fvarChannel) {
@@ -108,7 +134,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
     int   cornerValences[4];
     int   cornerNumFaces[4];
     int   cornerPatchFace[4];
-    float cornerFaceAngle[4];
+    FD    cornerFaceAngle[4];
 
     //  Sum the number of source vertices contributing to the patch, which define the
     //  size of the stencil for each "point" involved.  We just want an upper bound
@@ -139,7 +165,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             cornerNumFaces[corner] = (ringSize - 1) / 2;
             cornerValences[corner] = cornerNumFaces[corner] + 1;
 
-            cornerFaceAngle[corner] = float(M_PI) / float(cornerNumFaces[corner]);
+            cornerFaceAngle[corner] = (FD)(M_PI) / (FD)(cornerNumFaces[corner]);
 
             //  Necessary to pad the ring to even size for the f[] and r[] computations...
             manifoldRings[corner][ringSize] = manifoldRings[corner][ringSize-1];
@@ -148,7 +174,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             cornerNumFaces[corner] = ringSize / 2;
             cornerValences[corner] = cornerNumFaces[corner];
 
-            cornerFaceAngle[corner] = 2.0f * float(M_PI) / float(cornerNumFaces[corner]);
+            cornerFaceAngle[corner] = 2.0f * (FD)(M_PI) / (FD)(cornerNumFaces[corner]);
         }
 
         //  Identify the patch-face within the ring of faces for the corner (which
@@ -214,19 +240,19 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             Index vEdgePrev = (manifoldRings[corner][2*iPrev]);
             Index vFacePrev = (manifoldRings[corner][2*iPrev + 1]);
 
-            float denom = 1.0f / (float(cornerValence) + 5.0f);
+            FD denom = 1.0f / ((FD)(cornerValence) + 5.0f);
             f[i].Clear(4);
-            f[i].AddWithWeight(vCorner,   float(cornerValence) * denom);
+            f[i].AddWithWeight(vCorner,   FD(cornerValence) * denom);
             f[i].AddWithWeight(vEdgeNext, 2.0f * denom);
             f[i].AddWithWeight(vEdge,     2.0f * denom);
             f[i].AddWithWeight(vFaceNext, denom);
 
             int rid = corner * maxvalence + i;
             r[rid].Clear(4);
-            r[rid].AddWithWeight(vEdgeNext,  1.0f / 3.0f);
-            r[rid].AddWithWeight(vEdgePrev, -1.0f / 3.0f);
-            r[rid].AddWithWeight(vFaceNext,  1.0f / 6.0f);
-            r[rid].AddWithWeight(vFacePrev, -1.0f / 6.0f);
+            r[rid].AddWithWeight(vEdgeNext,  1.0f / (FD)3.0);
+            r[rid].AddWithWeight(vEdgePrev, -1.0f / (FD)3.0);
+            r[rid].AddWithWeight(vFaceNext,  1.0f / (FD)6.0);
+            r[rid].AddWithWeight(vFacePrev, -1.0f / (FD)6.0);
         }
 
         //
@@ -243,16 +269,16 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
             // Approximating these for now, pending future investigation...
             e0[corner].Clear(stencilCapacity);
-            e0[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
-            e0[corner].AddWithWeight(facePoints[(corner+1)%4], 1.0f / 3.0f);
+            e0[corner].AddWithWeight(facePoints[corner],       2.0f / (FD)3.0f);
+            e0[corner].AddWithWeight(facePoints[(corner+1)%4], 1.0f / (FD)3.0f);
 
             e1[corner].Clear(stencilCapacity);
-            e1[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
-            e1[corner].AddWithWeight(facePoints[(corner+3)%4], 1.0f / 3.0f);
+            e1[corner].AddWithWeight(facePoints[corner],       2.0f / (FD)3.0f);
+            e1[corner].AddWithWeight(facePoints[(corner+3)%4], 1.0f / (FD)3.0f);
         } else if (! cornerBoundary[corner]) {
-            float theta    = cornerFaceAngle[corner];
-            float posScale = 1.0f / float(cornerValence);
-            float tanScale = computeCoefficient(cornerValence);
+            FD theta    = cornerFaceAngle[corner];
+            FD posScale = 1.0f / (FD)(cornerValence);
+            FD tanScale = computeCoefficient<FD>(cornerValence);
 
             P[corner].Clear(stencilCapacity);
             e0[corner].Clear(stencilCapacity);
@@ -263,11 +289,11 @@ GregoryBasis::ProtoBasis::ProtoBasis(
 
                 P[corner].AddWithWeight(f[i], posScale);
 
-                float c0 = tanScale * 0.5f * cosf(float(i) * theta);
+                FD c0 = FD(tanScale * 0.5 * cos(FD(i) * theta));
                 e0[corner].AddWithWeight(f[i],     c0);
                 e0[corner].AddWithWeight(f[iPrev], c0);
 
-                float c1 = tanScale * 0.5f * sinf(float(i) * theta);
+                FD c1 = FD(tanScale * 0.5 * sin(FD(i) * theta));
                 e1[corner].AddWithWeight(f[i],     c1);
                 e1[corner].AddWithWeight(f[iPrev], c1);
             }
@@ -276,25 +302,25 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             Index vEdgeTrailing = manifoldRings[corner][2*cornerValence-1];
 
             P[corner].Clear(stencilCapacity);
-            P[corner].AddWithWeight(vEdgeLeading,  1.0f / 6.0f);
-            P[corner].AddWithWeight(vEdgeTrailing, 1.0f / 6.0f);
-            P[corner].AddWithWeight(vCorner,       4.0f / 6.0f);
+            P[corner].AddWithWeight(vEdgeLeading,  1.0f / (FD)6.0);
+            P[corner].AddWithWeight(vEdgeTrailing, 1.0f / (FD)6.0);
+            P[corner].AddWithWeight(vCorner,       4.0f / (FD)6.0);
 
-            float k = float(cornerNumFaces[corner]);
-            float theta = cornerFaceAngle[corner];
-            float c = cosf(theta);
-            float s = sinf(theta);
-            float div3kc = 1.0f / (3.0f*k+c);
-            float gamma = -4.0f * s * div3kc;
-            float alpha_0k = -((1.0f+2.0f*c) * sqrtf(1.0f+c)) * div3kc / sqrtf(1.0f-c);
-            float beta_0 = s * div3kc;
+            FD k = FD(cornerNumFaces[corner]);
+            FD theta = cornerFaceAngle[corner];
+            FD c = cos(theta);
+            FD s = sin(theta);
+            FD div3kc = 1.0f / (3.0f*k+c);
+            FD gamma = -4.0f * s * div3kc;
+            FD alpha_0k = -((1.0f+2.0f*c) * sqrt(1.0f+c)) * div3kc / sqrt(1.0f-c);
+            FD beta_0 = s * div3kc;
 
             Index vEdge = manifoldRings[corner][0];
             Index vFace = manifoldRings[corner][1];
 
             e0[corner].Clear(stencilCapacity);
-            e0[corner].AddWithWeight(vEdgeLeading,   1.0f / 6.0f);
-            e0[corner].AddWithWeight(vEdgeTrailing, -1.0f / 6.0f);
+            e0[corner].AddWithWeight(vEdgeLeading,   1.0f / (FD)6.0);
+            e0[corner].AddWithWeight(vEdgeTrailing, -1.0f / (FD)6.0);
 
             e1[corner].Clear(stencilCapacity);
             e1[corner].AddWithWeight(vCorner,       gamma);
@@ -303,8 +329,8 @@ GregoryBasis::ProtoBasis::ProtoBasis(
             e1[corner].AddWithWeight(vEdgeTrailing, alpha_0k);
 
             for (int i = 1; i < cornerValence - 1; ++i) {
-                float alpha = 4.0f * sinf(float(i)*theta) * div3kc;
-                float beta = (sinf(float(i)*theta) + sinf(float(i+1)*theta)) * div3kc;
+                FD alpha = 4.0f * sin(FD(i)*theta) * div3kc;
+                FD beta = (sin(FD(i)*theta) + sin(FD(i+1)*theta)) * div3kc;
 
                 vEdge = manifoldRings[corner][2*i + 0];
                 vFace = manifoldRings[corner][2*i + 1];
@@ -312,7 +338,7 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                 e1[corner].AddWithWeight(vEdge, alpha);
                 e1[corner].AddWithWeight(vFace, beta);
             }
-            e1[corner] *= 1.0f / 3.0f;
+            e1[corner] *= 1.0f / (FD)3.0f;
         }
     }
 
@@ -338,39 +364,39 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         int iEdgeNext = cornerPatchFace[corner];
         int iEdgePrev = (cornerPatchFace[corner] + 1) % cornerValences[corner];
 
-        float faceAngle = cornerFaceAngle[corner];
+        FD faceAngle = cornerFaceAngle[corner];
 
-        float faceAngleNext = faceAngle * float(iEdgeNext);
-        float faceAnglePrev = faceAngle * float(iEdgePrev);
+        FD faceAngleNext = faceAngle * FD(iEdgeNext);
+        FD faceAnglePrev = faceAngle * FD(iEdgePrev);
 
         if (cornerSpans[corner]._sharp) {
             Ep[corner] = e0[corner];
             Em[corner] = e1[corner];
         } else if (! cornerBoundary[corner]) {
             Ep[corner] = P[corner];
-            Ep[corner].AddWithWeight(e0[corner], cosf(faceAngleNext));
-            Ep[corner].AddWithWeight(e1[corner], sinf(faceAngleNext));
+            Ep[corner].AddWithWeight(e0[corner], cos(faceAngleNext));
+            Ep[corner].AddWithWeight(e1[corner], sin(faceAngleNext));
 
             Em[corner] = P[corner];
-            Em[corner].AddWithWeight(e0[corner], cosf(faceAnglePrev));
-            Em[corner].AddWithWeight(e1[corner], sinf(faceAnglePrev));
+            Em[corner].AddWithWeight(e0[corner], cos(faceAnglePrev));
+            Em[corner].AddWithWeight(e1[corner], sin(faceAnglePrev));
         } else if (cornerNumFaces[corner] > 1) {
             Ep[corner] = P[corner];
-            Ep[corner].AddWithWeight(e0[corner], cosf(faceAngleNext));
-            Ep[corner].AddWithWeight(e1[corner], sinf(faceAngleNext));
+            Ep[corner].AddWithWeight(e0[corner], cos(faceAngleNext));
+            Ep[corner].AddWithWeight(e1[corner], sin(faceAngleNext));
 
             Em[corner] = P[corner];
-            Em[corner].AddWithWeight(e0[corner], cosf(faceAnglePrev));
-            Em[corner].AddWithWeight(e1[corner], sinf(faceAnglePrev));
+            Em[corner].AddWithWeight(e0[corner], cos(faceAnglePrev));
+            Em[corner].AddWithWeight(e1[corner], sin(faceAnglePrev));
         } else {
             //  Edge points are on the control polygon here (with P midway between):
             Ep[corner].Clear(stencilCapacity);
-            Ep[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
-            Ep[corner].AddWithWeight(facePoints[(corner+1)%4], 1.0f / 3.0f);
+            Ep[corner].AddWithWeight(facePoints[corner],       2.0f / (FD)3.0);
+            Ep[corner].AddWithWeight(facePoints[(corner+1)%4], 1.0f / (FD)3.0);
 
             Em[corner].Clear(stencilCapacity);
-            Em[corner].AddWithWeight(facePoints[corner],       2.0f / 3.0f);
-            Em[corner].AddWithWeight(facePoints[(corner+3)%4], 1.0f / 3.0f);
+            Em[corner].AddWithWeight(facePoints[corner],       2.0f / (FD)3.0);
+            Em[corner].AddWithWeight(facePoints[(corner+3)%4], 1.0f / (FD)3.0);
         }
     }
 
@@ -394,45 +420,45 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         Point const & rEdgePrev = rp[(cornerPatchFace[corner] + 1) % cornerValences[corner]];
 
         //  Coefficients to arrange the face points for tangent continuity across edges:
-        float cosCorner = cosf(cornerFaceAngle[corner]);
-        float cosPrev   = cosf(cornerFaceAngle[cornerPrev]);
-        float cosNext   = cosf(cornerFaceAngle[cornerNext]);
+        FD cosCorner = FD(cos(cornerFaceAngle[corner]));
+        FD cosPrev   = FD(cos(cornerFaceAngle[cornerPrev]));
+        FD cosNext   = FD(cos(cornerFaceAngle[cornerNext]));
 
-        float s1 = 3.0f - 2.0f * cosCorner - cosNext;
-        float s2 =        2.0f * cosCorner;
-        float s3 = 3.0f - 2.0f * cosCorner - cosPrev;
+        FD s1 = 3.0f - 2.0f * cosCorner - cosNext;
+        FD s2 =        2.0f * cosCorner;
+        FD s3 = 3.0f - 2.0f * cosCorner - cosPrev;
 
         if (! cornerBoundary[corner]) {
             Fp[corner].Clear(stencilCapacity);
             Fp[corner].AddWithWeight(P[corner],      cosNext / 3.0f);
             Fp[corner].AddWithWeight(Ep[corner],     s1      / 3.0f);
             Fp[corner].AddWithWeight(Em[cornerNext], s2      / 3.0f);
-            Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / 3.0f);
+            Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / (FD)3.0f);
 
             Fm[corner].Clear(stencilCapacity);
             Fm[corner].AddWithWeight(P[corner],      cosPrev / 3.0f);
             Fm[corner].AddWithWeight(Em[corner],     s3      / 3.0f);
             Fm[corner].AddWithWeight(Ep[cornerPrev], s2      / 3.0f);
-            Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / 3.0f);
+            Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / (FD)3.0f);
         } else if (cornerNumFaces[corner] > 1) {
             Fp[corner].Clear(stencilCapacity);
             Fp[corner].AddWithWeight(P[corner],      cosNext / 3.0f);
             Fp[corner].AddWithWeight(Ep[corner],     s1      / 3.0f);
             Fp[corner].AddWithWeight(Em[cornerNext], s2      / 3.0f);
-            Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / 3.0f);
+            Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / (FD)3.0f);
 
             Fm[corner].Clear(stencilCapacity);
             Fm[corner].AddWithWeight(P[corner],      cosPrev / 3.0f);
             Fm[corner].AddWithWeight(Em[corner],     s3      / 3.0f);
             Fm[corner].AddWithWeight(Ep[cornerPrev], s2      / 3.0f);
-            Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / 3.0f);
+            Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / (FD)3.0f);
 
             if (cornerBoundary[cornerPrev]) {
                 Fp[corner].Clear(stencilCapacity);
                 Fp[corner].AddWithWeight(P[corner],      cosNext / 3.0f);
                 Fp[corner].AddWithWeight(Ep[corner],     s1      / 3.0f);
                 Fp[corner].AddWithWeight(Em[cornerNext], s2      / 3.0f);
-                Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / 3.0f);
+                Fp[corner].AddWithWeight(rEdgeNext,      1.0f    / (FD)3.0f);
 
                 Fm[corner] = Fp[corner];
             } else if (cornerBoundary[cornerNext]) {
@@ -440,16 +466,16 @@ GregoryBasis::ProtoBasis::ProtoBasis(
                 Fm[corner].AddWithWeight(P[corner],      cosPrev / 3.0f);
                 Fm[corner].AddWithWeight(Em[corner],     s3      / 3.0f);
                 Fm[corner].AddWithWeight(Ep[cornerPrev], s2      / 3.0f);
-                Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / 3.0f);
+                Fm[corner].AddWithWeight(rEdgePrev,      -1.0f   / (FD)3.0f);
 
                 Fp[corner] = Fm[corner];
             }
         } else {
             Fp[corner].Clear(stencilCapacity);
-            Fp[corner].AddWithWeight(facePoints[corner],     4.0f / 9.0f);
-            Fp[corner].AddWithWeight(facePoints[cornerOpp],  1.0f / 9.0f);
-            Fp[corner].AddWithWeight(facePoints[cornerNext], 2.0f / 9.0f);
-            Fp[corner].AddWithWeight(facePoints[cornerPrev], 2.0f / 9.0f);
+            Fp[corner].AddWithWeight(facePoints[corner],     4.0f / (FD)9.0f);
+            Fp[corner].AddWithWeight(facePoints[cornerOpp],  1.0f / (FD)9.0f);
+            Fp[corner].AddWithWeight(facePoints[cornerNext], 2.0f / (FD)9.0f);
+            Fp[corner].AddWithWeight(facePoints[cornerPrev], 2.0f / (FD)9.0f);
 
             Fm[corner] = Fp[corner];
         }
@@ -471,6 +497,9 @@ GregoryBasis::ProtoBasis::ProtoBasis(
         Fm[corner].OffsetIndices(levelVertOffset);
     }
 }
+
+template struct GregoryBasisG<float>::ProtoBasis;
+template struct GregoryBasisG<double>::ProtoBasis;
 
 } // end namespace Far
 

@@ -33,7 +33,8 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-PatchTable::PatchTable(int maxvalence) :
+template<class FD>
+PatchTableG<FD>::PatchTableG(int maxvalence) :
     _maxValence(maxvalence),
     _localPointStencils(NULL),
     _localPointVaryingStencils(NULL),
@@ -42,7 +43,8 @@ PatchTable::PatchTable(int maxvalence) :
 
 // Copy constructor
 // XXXX manuelk we need to eliminate this constructor (C++11 smart pointers)
-PatchTable::PatchTable(PatchTable const & src) :
+template<class FD>
+PatchTableG<FD>::PatchTableG(PatchTableG<FD> const & src) :
     _maxValence(src._maxValence),
     _numPtexFaces(src._numPtexFaces),
     _patchArrays(src._patchArrays),
@@ -59,22 +61,23 @@ PatchTable::PatchTable(PatchTable const & src) :
 
     if (src._localPointStencils) {
         _localPointStencils =
-            new StencilTable(*src._localPointStencils);
+            new StencilTableG<FD>(*src._localPointStencils);
     }
     if (src._localPointVaryingStencils) {
         _localPointVaryingStencils =
-            new StencilTable(*src._localPointVaryingStencils);
+            new StencilTableG<FD>(*src._localPointVaryingStencils);
     }
     if (! src._localPointFaceVaryingStencils.empty()) {
         _localPointFaceVaryingStencils.resize(src._localPointFaceVaryingStencils.size());
         for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
             _localPointFaceVaryingStencils[fvc] =
-                new StencilTable(*src._localPointFaceVaryingStencils[fvc]);
+                new StencilTableG<FD>(*src._localPointFaceVaryingStencils[fvc]);
 }
     }
 }
 
-PatchTable::~PatchTable() {
+template<class FD>
+PatchTableG<FD>::~PatchTableG() {
     delete _localPointStencils;
     delete _localPointVaryingStencils;
     for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
@@ -85,7 +88,8 @@ PatchTable::~PatchTable() {
 //
 // PatchArrays
 //
-struct PatchTable::PatchArray {
+template<class FD>
+struct PatchTableG<FD>::PatchArray {
 
     PatchArray(PatchDescriptor d, int np, Index v, Index p, Index qo) :
             desc(d), numPatches(np), vertIndex(v),
@@ -104,25 +108,29 @@ struct PatchTable::PatchArray {
 };
 
 // debug helper
+template<class FD>
 void
-PatchTable::PatchArray::print() const {
+PatchTableG<FD>::PatchArray::print() const {
     desc.print();
     printf("    numPatches=%d vertIndex=%d patchIndex=%d "
         "quadOffsetIndex=%d\n", numPatches, vertIndex, patchIndex,
             quadOffsetIndex);
 }
-inline PatchTable::PatchArray &
-PatchTable::getPatchArray(Index arrayIndex) {
+template<class FD>
+inline typename PatchTableG<FD>::PatchArray &
+PatchTableG<FD>::getPatchArray(Index arrayIndex) {
     assert(arrayIndex<(Index)GetNumPatchArrays());
     return _patchArrays[arrayIndex];
 }
-inline PatchTable::PatchArray const &
-PatchTable::getPatchArray(Index arrayIndex) const {
+template<class FD>
+inline typename PatchTableG<FD>::PatchArray const &
+PatchTableG<FD>::getPatchArray(Index arrayIndex) const {
     assert(arrayIndex<(Index)GetNumPatchArrays());
     return _patchArrays[arrayIndex];
 }
+template<class FD>
 void
-PatchTable::reservePatchArrays(int numPatchArrays) {
+PatchTableG<FD>::reservePatchArrays(int numPatchArrays) {
     _patchArrays.reserve(numPatchArrays);
 }
 
@@ -150,47 +158,54 @@ PatchTable::reservePatchArrays(int numPatchArrays) {
 //    similar to single-crease to resolve this condition without requiring
 //    isolation if possible
 //
-struct PatchTable::FVarPatchChannel {
+template<class FD>
+struct PatchTableG<FD>::FVarPatchChannel {
 
     Sdc::Options::FVarLinearInterpolation interpolation;
 
     PatchDescriptor desc;
 
     std::vector<Index> patchValues;
-    std::vector<PatchParam> patchParam;
+    std::vector<PatchParamG<FD> > patchParam;
 };
 
+template<class FD>
 void
-PatchTable::allocateVaryingVertices(
+PatchTableG<FD>::allocateVaryingVertices(
         PatchDescriptor desc, int numPatches) {
     _varyingDesc = desc;
     _varyingVerts.resize(numPatches*desc.GetNumControlVertices());
 }
 
-inline PatchTable::FVarPatchChannel &
-PatchTable::getFVarPatchChannel(int channel) {
+template<class FD>
+inline typename PatchTableG<FD>::FVarPatchChannel &
+PatchTableG<FD>::getFVarPatchChannel(int channel) {
     assert(channel>=0 && channel<(int)_fvarChannels.size());
     return _fvarChannels[channel];
 }
-inline PatchTable::FVarPatchChannel const &
-PatchTable::getFVarPatchChannel(int channel) const {
+template<class FD>
+inline typename PatchTableG<FD>::FVarPatchChannel const &
+PatchTableG<FD>::getFVarPatchChannel(int channel) const {
     assert(channel>=0 && channel<(int)_fvarChannels.size());
     return _fvarChannels[channel];
 }
+template<class FD>
 void
-PatchTable::allocateFVarPatchChannels(int numChannels) {
+PatchTableG<FD>::allocateFVarPatchChannels(int numChannels) {
     _fvarChannels.resize(numChannels);
 }
+template<class FD>
 void
-PatchTable::allocateFVarPatchChannelValues(
+PatchTableG<FD>::allocateFVarPatchChannelValues(
         PatchDescriptor desc, int numPatches, int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.desc = desc;
     c.patchValues.resize(numPatches*desc.GetNumControlVertices());
     c.patchParam.resize(numPatches);
 }
+template<class FD>
 void
-PatchTable::setFVarPatchChannelLinearInterpolation(
+PatchTableG<FD>::setFVarPatchChannelLinearInterpolation(
         Sdc::Options::FVarLinearInterpolation interpolation, int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     c.interpolation = interpolation;
@@ -205,8 +220,9 @@ getPatchSize(PatchDescriptor desc) {
     return desc.GetNumControlVertices();
 }
 
+template<class FD>
 void
-PatchTable::pushPatchArray(PatchDescriptor desc, int npatches,
+PatchTableG<FD>::pushPatchArray(PatchDescriptor desc, int npatches,
     Index * vidx, Index * pidx, Index * qoidx) {
 
     if (npatches>0) {
@@ -222,142 +238,165 @@ PatchTable::pushPatchArray(PatchDescriptor desc, int npatches,
     }
 }
 
+template<class FD>
 int
-PatchTable::getPatchIndex(int arrayIndex, int patchIndex) const {
+PatchTableG<FD>::getPatchIndex(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     assert(patchIndex<pa.numPatches);
     return pa.patchIndex + patchIndex;
 }
+template<class FD>
 Index *
-PatchTable::getSharpnessIndices(int arrayIndex) {
+PatchTableG<FD>::getSharpnessIndices(int arrayIndex) {
     return &_sharpnessIndices[getPatchArray(arrayIndex).patchIndex];
 }
 
+template<class FD>
 float *
-PatchTable::getSharpnessValues(int arrayIndex) {
+PatchTableG<FD>::getSharpnessValues(int arrayIndex) {
     return &_sharpnessValues[getPatchArray(arrayIndex).patchIndex];
 }
 
+template<class FD>
 PatchDescriptor
-PatchTable::GetPatchDescriptor(PatchHandle const & handle) const {
+PatchTableG<FD>::GetPatchDescriptor(PatchHandle const & handle) const {
     return getPatchArray(handle.arrayIndex).desc;
 }
 
+template<class FD>
 PatchDescriptor
-PatchTable::GetPatchArrayDescriptor(int arrayIndex) const {
+PatchTableG<FD>::GetPatchArrayDescriptor(int arrayIndex) const {
     return getPatchArray(arrayIndex).desc;
 }
 
+template<class FD>
 int
-PatchTable::GetNumPatchArrays() const {
+PatchTableG<FD>::GetNumPatchArrays() const {
     return (int)_patchArrays.size();
 }
+template<class FD>
 int
-PatchTable::GetNumPatches(int arrayIndex) const {
+PatchTableG<FD>::GetNumPatches(int arrayIndex) const {
     return getPatchArray(arrayIndex).numPatches;
 }
+template<class FD>
 int
-PatchTable::GetNumPatchesTotal() const {
+PatchTableG<FD>::GetNumPatchesTotal() const {
     // there is one PatchParam record for each patch in the mesh
     return (int)_paramTable.size();
 }
+template<class FD>
 int
-PatchTable::GetNumControlVertices(int arrayIndex) const {
+PatchTableG<FD>::GetNumControlVertices(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     return pa.numPatches * getPatchSize(pa.desc);
 }
 
+template<class FD>
 Index
-PatchTable::findPatchArray(PatchDescriptor desc) {
+PatchTableG<FD>::findPatchArray(PatchDescriptor desc) {
     for (int i=0; i<(int)_patchArrays.size(); ++i) {
         if (_patchArrays[i].desc==desc)
             return i;
     }
     return Vtr::INDEX_INVALID;
 }
+template<class FD>
 IndexArray
-PatchTable::getPatchArrayVertices(int arrayIndex) {
+PatchTableG<FD>::getPatchArrayVertices(int arrayIndex) {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert(pa.vertIndex<(Index)_patchVerts.size());
     return IndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchArrayVertices(int arrayIndex) const {
+PatchTableG<FD>::GetPatchArrayVertices(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert(pa.vertIndex<(Index)_patchVerts.size());
     return ConstIndexArray(&_patchVerts[pa.vertIndex], pa.numPatches * size);
 }
 
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchVertices(PatchHandle const & handle) const {
+PatchTableG<FD>::GetPatchVertices(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
     Index vert = pa.vertIndex + handle.vertIndex;
     return ConstIndexArray(&_patchVerts[vert], getPatchSize(pa.desc));
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchVertices(int arrayIndex, int patchIndex) const {
+PatchTableG<FD>::GetPatchVertices(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int size = getPatchSize(pa.desc);
     assert((pa.vertIndex + patchIndex*size)<(Index)_patchVerts.size());
     return ConstIndexArray(&_patchVerts[pa.vertIndex + patchIndex*size], size);
 }
 
-PatchParam
-PatchTable::GetPatchParam(PatchHandle const & handle) const {
+template<class FD>
+PatchParamG<FD>
+PatchTableG<FD>::GetPatchParam(PatchHandle const & handle) const {
     assert(handle.patchIndex < (Index)_paramTable.size());
     return _paramTable[handle.patchIndex];
 }
-PatchParam
-PatchTable::GetPatchParam(int arrayIndex, int patchIndex) const {
+template<class FD>
+PatchParamG<FD>
+PatchTableG<FD>::GetPatchParam(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     assert((pa.patchIndex + patchIndex) < (int)_paramTable.size());
     return _paramTable[pa.patchIndex + patchIndex];
 }
-PatchParamArray
-PatchTable::getPatchParams(int arrayIndex) {
+template<class FD>
+Vtr::Array<PatchParamG<FD> >
+PatchTableG<FD>::getPatchParams(int arrayIndex) {
     PatchArray const & pa = getPatchArray(arrayIndex);
-    return PatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
+    return Vtr::Array<PatchParamG<FD> >(&_paramTable[pa.patchIndex], pa.numPatches);
 }
-ConstPatchParamArray const
-PatchTable::GetPatchParams(int arrayIndex) const {
+template<class FD>
+Vtr::ConstArray<PatchParamG<FD> > const
+PatchTableG<FD>::GetPatchParams(int arrayIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
-    return ConstPatchParamArray(&_paramTable[pa.patchIndex], pa.numPatches);
+    return Vtr::ConstArray<PatchParamG<FD> >(&_paramTable[pa.patchIndex], pa.numPatches);
 }
 
+template<class FD>
 float
-PatchTable::GetSingleCreasePatchSharpnessValue(PatchHandle const & handle) const {
+PatchTableG<FD>::GetSingleCreasePatchSharpnessValue(PatchHandle const & handle) const {
     assert((handle.patchIndex) < (int)_sharpnessIndices.size());
     Index index = _sharpnessIndices[handle.patchIndex];
     if (index == Vtr::INDEX_INVALID) {
-        return 0.0f;
+        return 0.0;
     }
     assert(index < (Index)_sharpnessValues.size());
     return _sharpnessValues[index];
 }
+template<class FD>
 float
-PatchTable::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) const {
+PatchTableG<FD>::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) const {
     PatchArray const & pa = getPatchArray(arrayIndex);
     assert((pa.patchIndex + patchIndex) < (int)_sharpnessIndices.size());
     Index index = _sharpnessIndices[pa.patchIndex + patchIndex];
     if (index == Vtr::INDEX_INVALID) {
-        return 0.0f;
+        return 0.0;
     }
     assert(index < (Index)_sharpnessValues.size());
     return _sharpnessValues[index];
 }
 
+template<class FD>
 int
-PatchTable::GetNumLocalPoints() const {
+PatchTableG<FD>::GetNumLocalPoints() const {
     return _localPointStencils ? _localPointStencils->GetNumStencils() : 0;
 }
+template<class FD>
 int
-PatchTable::GetNumLocalPointsVarying() const {
+PatchTableG<FD>::GetNumLocalPointsVarying() const {
     return _localPointVaryingStencils ? _localPointVaryingStencils->GetNumStencils() : 0;
 }
+template<class FD>
 int
-PatchTable::GetNumLocalPointsFaceVarying(int channel) const {
+PatchTableG<FD>::GetNumLocalPointsFaceVarying(int channel) const {
     if (channel>=0 && channel<(int)_localPointFaceVaryingStencils.size() &&
         _localPointFaceVaryingStencils[channel]) {
         return _localPointFaceVaryingStencils[channel]->GetNumStencils();
@@ -365,13 +404,15 @@ PatchTable::GetNumLocalPointsFaceVarying(int channel) const {
     return 0;
 }
 
-PatchTable::ConstQuadOffsetsArray
-PatchTable::GetPatchQuadOffsets(PatchHandle const & handle) const {
+template<class FD>
+typename PatchTableG<FD>::ConstQuadOffsetsArray
+PatchTableG<FD>::GetPatchQuadOffsets(PatchHandle const & handle) const {
     PatchArray const & pa = getPatchArray(handle.arrayIndex);
     return Vtr::ConstArray<unsigned int>(&_quadOffsetsTable[pa.quadOffsetIndex + handle.vertIndex], 4);
 }
+template<class FD>
 bool
-PatchTable::IsFeatureAdaptive() const {
+PatchTableG<FD>::IsFeatureAdaptive() const {
 
     // XXX:
     // revisit this function, since we'll add uniform cubic patches later.
@@ -386,12 +427,14 @@ PatchTable::IsFeatureAdaptive() const {
     return false;
 }
 
+template<class FD>
 PatchDescriptor
-PatchTable::GetVaryingPatchDescriptor() const {
+PatchTableG<FD>::GetVaryingPatchDescriptor() const {
     return _varyingDesc;
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchVaryingVertices(PatchHandle const & handle) const {
+PatchTableG<FD>::GetPatchVaryingVertices(PatchHandle const & handle) const {
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -399,8 +442,9 @@ PatchTable::GetPatchVaryingVertices(PatchHandle const & handle) const {
     Index start = handle.patchIndex * numVaryingCVs;
     return ConstIndexArray(&_varyingVerts[start], numVaryingCVs);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchVaryingVertices(int array, int patch) const {
+PatchTableG<FD>::GetPatchVaryingVertices(int array, int patch) const {
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -409,8 +453,9 @@ PatchTable::GetPatchVaryingVertices(int array, int patch) const {
     Index start = (pa.patchIndex + patch) * numVaryingCVs;
     return ConstIndexArray(&_varyingVerts[start], numVaryingCVs);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchArrayVaryingVertices(int array) const {
+PatchTableG<FD>::GetPatchArrayVaryingVertices(int array) const {
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
@@ -420,22 +465,25 @@ PatchTable::GetPatchArrayVaryingVertices(int array) const {
     Index count = pa.numPatches * numVaryingCVs;
     return ConstIndexArray(&_varyingVerts[start], count);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetVaryingVertices() const {
+PatchTableG<FD>::GetVaryingVertices() const {
     if (_varyingVerts.empty()) {
         return ConstIndexArray();
     }
     return ConstIndexArray(&_varyingVerts[0], (int)_varyingVerts.size());
 }
+template<class FD>
 IndexArray
-PatchTable::getPatchArrayVaryingVertices(int arrayIndex) {
+PatchTableG<FD>::getPatchArrayVaryingVertices(int arrayIndex) {
     PatchArray const & pa = getPatchArray(arrayIndex);
     int numVaryingCVs = _varyingDesc.GetNumControlVertices();
     Index start = pa.patchIndex * numVaryingCVs;
     return IndexArray(&_varyingVerts[start], pa.numPatches * numVaryingCVs);
 }
+template<class FD>
 void
-PatchTable::populateVaryingVertices() {
+PatchTableG<FD>::populateVaryingVertices() {
     // In order to support evaluation of varying data we need to access
     // the varying values indexed by the zero ring vertices of the vertex
     // patch. This indexing is redundant for triangles and quads and
@@ -474,48 +522,57 @@ PatchTable::populateVaryingVertices() {
     }
 }
 
+template<class FD>
 int
-PatchTable::GetNumFVarChannels() const {
+PatchTableG<FD>::GetNumFVarChannels() const {
     return (int)_fvarChannels.size();
 }
+template<class FD>
 Sdc::Options::FVarLinearInterpolation
-PatchTable::GetFVarChannelLinearInterpolation(int channel) const {
+PatchTableG<FD>::GetFVarChannelLinearInterpolation(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.interpolation;
 }
+template<class FD>
 PatchDescriptor
-PatchTable::GetFVarPatchDescriptor(int channel) const {
+PatchTableG<FD>::GetFVarPatchDescriptor(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.desc;
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetFVarValues(int channel) const {
+PatchTableG<FD>::GetFVarValues(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstIndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
+template<class FD>
 IndexArray
-PatchTable::getFVarValues(int channel) {
+PatchTableG<FD>::getFVarValues(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
     return IndexArray(&c.patchValues[0], (int)c.patchValues.size());
 }
+template<class FD>
 ConstIndexArray
-PatchTable::getPatchFVarValues(int patch, int channel) const {
+PatchTableG<FD>::getPatchFVarValues(int patch, int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     int ncvsPerPatch = c.desc.GetNumControlVertices();
     int ncvsThisPatch = c.patchParam[patch].IsRegular()
                       ? c.desc.GetRegularPatchSize() : ncvsPerPatch;
     return ConstIndexArray(&c.patchValues[patch * ncvsPerPatch], ncvsThisPatch);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
+PatchTableG<FD>::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
     return getPatchFVarValues(handle.patchIndex, channel);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchFVarValues(int arrayIndex, int patchIndex, int channel) const {
+PatchTableG<FD>::GetPatchFVarValues(int arrayIndex, int patchIndex, int channel) const {
     return getPatchFVarValues(getPatchIndex(arrayIndex, patchIndex), channel);
 }
+template<class FD>
 ConstIndexArray
-PatchTable::GetPatchArrayFVarValues(int array, int channel) const {
+PatchTableG<FD>::GetPatchArrayFVarValues(int array, int channel) const {
     PatchArray const & pa = getPatchArray(array);
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     int ncvs = c.desc.GetNumControlVertices();
@@ -523,39 +580,46 @@ PatchTable::GetPatchArrayFVarValues(int array, int channel) const {
     int count = pa.numPatches * ncvs;
     return ConstIndexArray(&c.patchValues[start], count);
 }
-PatchParam
-PatchTable::getPatchFVarPatchParam(int patch, int channel) const {
+template<class FD>
+PatchParamG<FD>
+PatchTableG<FD>::getPatchFVarPatchParam(int patch, int channel) const {
 
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return c.patchParam[patch];
 }
-PatchParam
-PatchTable::GetPatchFVarPatchParam(PatchHandle const & handle, int channel) const {
+template<class FD>
+PatchParamG<FD>
+PatchTableG<FD>::GetPatchFVarPatchParam(PatchHandle const & handle, int channel) const {
     return getPatchFVarPatchParam(handle.patchIndex, channel);
 }
-PatchParam
-PatchTable::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) const {
+template<class FD>
+PatchParamG<FD>
+PatchTableG<FD>::GetPatchFVarPatchParam(int arrayIndex, int patchIndex, int channel) const {
     return getPatchFVarPatchParam(getPatchIndex(arrayIndex, patchIndex), channel);
 }
-ConstPatchParamArray
-PatchTable::GetPatchArrayFVarPatchParams(int array, int channel) const {
+template<class FD>
+Vtr::ConstArray<PatchParamG<FD> >
+PatchTableG<FD>::GetPatchArrayFVarPatchParams(int array, int channel) const {
     PatchArray const & pa = getPatchArray(array);
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    return ConstPatchParamArray(&c.patchParam[pa.patchIndex], pa.numPatches);
+    return Vtr::ConstArray<PatchParamG<FD> >(&c.patchParam[pa.patchIndex], pa.numPatches);
 }
-ConstPatchParamArray
-PatchTable::GetFVarPatchParams(int channel) const {
+template<class FD>
+Vtr::ConstArray<PatchParamG<FD> >
+PatchTableG<FD>::GetFVarPatchParams(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    return ConstPatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
+    return Vtr::ConstArray<PatchParamG<FD> >(&c.patchParam[0], (int)c.patchParam.size());
 }
-PatchParamArray
-PatchTable::getFVarPatchParams(int channel) {
+template<class FD>
+Vtr::Array<PatchParamG<FD> >
+PatchTableG<FD>::getFVarPatchParams(int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
-    return PatchParamArray(&c.patchParam[0], (int)c.patchParam.size());
+    return Vtr::Array<PatchParamG<FD> >(&c.patchParam[0], (int)c.patchParam.size());
 }
 
+template<class FD>
 void
-PatchTable::print() const {
+PatchTableG<FD>::print() const {
     printf("patchTable (0x%p)\n", this);
     printf("  numPatches = %d\n", GetNumPatchesTotal());
     for (int i=0; i<GetNumPatchArrays(); ++i) {
@@ -568,14 +632,15 @@ PatchTable::print() const {
 //
 //  Evaluate basis functions for vertex and derivatives at (s,t):
 //
+template<class FD>
 void
-PatchTable::EvaluateBasis(
-    PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[],
-    float wDss[], float wDst[], float wDtt[]) const {
+PatchTableG<FD>::EvaluateBasis(
+    PatchHandle const & handle, FD s, FD t,
+    FD wP[], FD wDs[], FD wDt[],
+    FD wDss[], FD wDst[], FD wDtt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
-    PatchParam const & param = _paramTable[handle.patchIndex];
+    PatchParamG<FD> const & param = _paramTable[handle.patchIndex];
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
@@ -591,13 +656,14 @@ PatchTable::EvaluateBasis(
 //
 //  Evaluate basis functions for varying and derivatives at (s,t):
 //
+template<class FD>
 void
-PatchTable::EvaluateBasisVarying(
-    PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[],
-    float wDss[], float wDst[], float wDtt[]) const {
+PatchTableG<FD>::EvaluateBasisVarying(
+    PatchHandle const & handle, FD s, FD t,
+    FD wP[], FD wDs[], FD wDt[],
+    FD wDss[], FD wDst[], FD wDtt[]) const {
 
-    PatchParam const & param = _paramTable[handle.patchIndex];
+    PatchParamG<FD> const & param = _paramTable[handle.patchIndex];
 
     internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 }
@@ -605,14 +671,15 @@ PatchTable::EvaluateBasisVarying(
 //
 //  Evaluate basis functions for face-varying and derivatives at (s,t):
 //
+template<class FD>
 void
-PatchTable::EvaluateBasisFaceVarying(
-    PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[],
-    float wDss[], float wDst[], float wDtt[],
+PatchTableG<FD>::EvaluateBasisFaceVarying(
+    PatchHandle const & handle, FD s, FD t,
+    FD wP[], FD wDs[], FD wDt[],
+    FD wDss[], FD wDst[], FD wDtt[],
     int channel) const {
 
-    PatchParam param = getPatchFVarPatchParam(handle.patchIndex, channel);
+    PatchParamG<FD> param = getPatchFVarPatchParam(handle.patchIndex, channel);
     PatchDescriptor::Type patchType = param.IsRegular()
             ? PatchDescriptor::REGULAR
             : GetFVarPatchDescriptor(channel).GetType();
@@ -628,6 +695,8 @@ PatchTable::EvaluateBasisFaceVarying(
     }
 }
 
+template class PatchTableG<float>;
+template class PatchTableG<double>;
 
 } // end namespace Far
 

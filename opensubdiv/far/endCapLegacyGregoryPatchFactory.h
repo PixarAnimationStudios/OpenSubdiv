@@ -35,7 +35,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Far {
 
-class PatchTable;
+template<class FD> class PatchTableG;
 class TopologyRefiner;
 
 /// \brief    This factory generates legacy (OpenSubdiv 2.x) gregory patches.
@@ -43,9 +43,10 @@ class TopologyRefiner;
 /// note: This is an internal use class in PatchTableFactory.
 ///       will be deprecated at some point.
 ///
-class EndCapLegacyGregoryPatchFactory {
+template<class FD>
+class EndCapLegacyGregoryPatchFactoryG {
 public:
-    EndCapLegacyGregoryPatchFactory(TopologyRefiner const & refiner);
+    EndCapLegacyGregoryPatchFactoryG(TopologyRefiner const & refiner);
 
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that legacy gregory patch points exist in the max level
@@ -66,8 +67,8 @@ public:
         int levelVertOffset, int fvarChannel = -1);
 
     void Finalize(int maxValence, 
-                  PatchTable::QuadOffsetsTable *quadOffsetsTable,
-                  PatchTable::VertexValenceTable *vertexValenceTable,
+                  typename PatchTableG<FD>::QuadOffsetsTable *quadOffsetsTable,
+                  typename PatchTableG<FD>::VertexValenceTable *vertexValenceTable,
                   int fvarChannel = -1);
 
 

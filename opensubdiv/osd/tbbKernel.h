@@ -36,7 +36,8 @@ namespace Osd {
 
 struct PatchArray;
 struct PatchCoord;
-struct PatchParam;
+template<class FD> struct PatchParamG;
+typedef PatchParamG<float> PatchParam;
 struct BufferDescriptor;
 
 void

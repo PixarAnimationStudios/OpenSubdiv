@@ -32,6 +32,7 @@ namespace Far {
 
 
 namespace {
+template<class FD>
     void
     copyStencilData(int numControlVerts,
                     bool includeCoarseVerts,
@@ -42,18 +43,18 @@ namespace {
                     std::vector<int> *        _sizes,
                     std::vector<int> const*    sources,
                     std::vector<int> *        _sources,
-                    std::vector<float> const*  weights,
-                    std::vector<float> *      _weights,
-                    std::vector<float> const*  duWeights=NULL,
-                    std::vector<float> *      _duWeights=NULL,
-                    std::vector<float> const*  dvWeights=NULL,
-                    std::vector<float> *      _dvWeights=NULL,
-                    std::vector<float> const*  duuWeights=NULL,
-                    std::vector<float> *      _duuWeights=NULL,
-                    std::vector<float> const*  duvWeights=NULL,
-                    std::vector<float> *      _duvWeights=NULL,
-                    std::vector<float> const*  dvvWeights=NULL,
-                    std::vector<float> *      _dvvWeights=NULL) {
+                    std::vector<FD> const*  weights,
+                    std::vector<FD> *      _weights,
+                    std::vector<FD> const*  duWeights=NULL,
+                    std::vector<FD> *      _duWeights=NULL,
+                    std::vector<FD> const*  dvWeights=NULL,
+                    std::vector<FD> *      _dvWeights=NULL,
+                    std::vector<FD> const*  duuWeights=NULL,
+                    std::vector<FD> *      _duuWeights=NULL,
+                    std::vector<FD> const*  duvWeights=NULL,
+                    std::vector<FD> *      _duvWeights=NULL,
+                    std::vector<FD> const*  dvvWeights=NULL,
+                    std::vector<FD> *      _dvvWeights=NULL) {
         size_t start = includeCoarseVerts ? 0 : firstOffset;
 
         _offsets->resize(offsets->size());
@@ -94,28 +95,28 @@ namespace {
             std::memcpy(&(*_sources)[curOffset],
                         &(*sources)[off], sz*sizeof(int));
             std::memcpy(&(*_weights)[curOffset],
-                        &(*weights)[off], sz*sizeof(float));
+                        &(*weights)[off], sz*sizeof(FD));
 
             if (_duWeights && !_duWeights->empty()) {
                 std::memcpy(&(*_duWeights)[curOffset],
-                            &(*duWeights)[off], sz*sizeof(float));
+                            &(*duWeights)[off], sz*sizeof(FD));
             }
             if (_dvWeights && !_dvWeights->empty()) {
                 std::memcpy(&(*_dvWeights)[curOffset],
-                        &(*dvWeights)[off], sz*sizeof(float));
+                        &(*dvWeights)[off], sz*sizeof(FD));
             }
 
             if (_duuWeights && !_duuWeights->empty()) {
                 std::memcpy(&(*_duuWeights)[curOffset],
-                        &(*duuWeights)[off], sz*sizeof(float));
+                        &(*duuWeights)[off], sz*sizeof(FD));
             }
             if (_duvWeights && !_duvWeights->empty()) {
                 std::memcpy(&(*_duvWeights)[curOffset],
-                        &(*duvWeights)[off], sz*sizeof(float));
+                        &(*duvWeights)[off], sz*sizeof(FD));
             }
             if (_dvvWeights && !_dvvWeights->empty()) {
                 std::memcpy(&(*_dvvWeights)[curOffset],
-                        &(*dvvWeights)[off], sz*sizeof(float));
+                        &(*dvvWeights)[off], sz*sizeof(FD));
             }
 
             curOffset += sz;
@@ -140,12 +141,12 @@ namespace {
             _dvvWeights->resize(weightCount);
     }
 };
-
-StencilTable::StencilTable(int numControlVerts,
+template<class FD>
+StencilTableG<FD>::StencilTableG(int numControlVerts,
                            std::vector<int> const& offsets,
                            std::vector<int> const& sizes,
                            std::vector<int> const& sources,
-                           std::vector<float> const& weights,
+                           std::vector<FD> const& weights,
                            bool includeCoarseVerts,
                            size_t firstOffset)
     : _numControlVertices(numControlVerts) {
@@ -158,8 +159,9 @@ StencilTable::StencilTable(int numControlVerts,
                     &weights, &_weights);
 }
 
+template<class FD>
 void
-StencilTable::Clear() {
+StencilTableG<FD>::Clear() {
     _numControlVertices=0;
     _sizes.clear();
     _offsets.clear();
@@ -167,19 +169,20 @@ StencilTable::Clear() {
     _weights.clear();
 }
 
-LimitStencilTable::LimitStencilTable(int numControlVerts,
+template<class FD>
+LimitStencilTableG<FD>::LimitStencilTableG(int numControlVerts,
                                      std::vector<int> const& offsets,
                                      std::vector<int> const& sizes,
                                      std::vector<int> const& sources,
-                                     std::vector<float> const& weights,
-                                     std::vector<float> const& duWeights,
-                                     std::vector<float> const& dvWeights,
-                                     std::vector<float> const& duuWeights,
-                                     std::vector<float> const& duvWeights,
-                                     std::vector<float> const& dvvWeights,
+                                     std::vector<FD> const& weights,
+                                     std::vector<FD> const& duWeights,
+                                     std::vector<FD> const& dvWeights,
+                                     std::vector<FD> const& duuWeights,
+                                     std::vector<FD> const& duvWeights,
+                                     std::vector<FD> const& dvvWeights,
                                      bool includeCoarseVerts,
                                      size_t firstOffset)
-    : StencilTable(numControlVerts) {
+    : StencilTableG<FD>(numControlVerts) {
     copyStencilData(numControlVerts,
                     includeCoarseVerts,
                     firstOffset,
@@ -194,9 +197,10 @@ LimitStencilTable::LimitStencilTable(int numControlVerts,
                     &dvvWeights, &_dvvWeights);
 }
 
+template<class FD>
 void
-LimitStencilTable::Clear() {
-    StencilTable::Clear();
+LimitStencilTableG<FD>::Clear() {
+    StencilTableG<FD>::Clear();
     _duWeights.clear();
     _dvWeights.clear();
     _duuWeights.clear();
@@ -204,6 +208,14 @@ LimitStencilTable::Clear() {
     _dvvWeights.clear();
 }
 
+template class StencilG<float>;
+template class StencilG<double>;
+template class LimitStencilG<float>;
+template class LimitStencilG<double>;
+template class StencilTableG<float>;
+template class StencilTableG<double>;
+template class LimitStencilTableG<float>;
+template class LimitStencilTableG<double>;
 
 } // end namespace Far
 

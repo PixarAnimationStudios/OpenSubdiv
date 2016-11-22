@@ -38,14 +38,15 @@ namespace Far {
 
 class TopologyRefiner;
 
-class Stencil;
-class StencilTable;
-class LimitStencil;
-class LimitStencilTable;
+template<class FD> class StencilG;
+template<class FD> class StencilTableG;
+template<class FD> class LimitStencilG;
+template<class FD> class LimitStencilTableG;
 
 /// \brief A specialized factory for StencilTable
 ///
-class StencilTableFactory {
+template<class FD>
+class StencilTableFactoryG {
 
 public:
 
@@ -84,7 +85,7 @@ public:
     ///
     /// @param options  Options controlling the creation of the table
     ///
-    static StencilTable const * Create(TopologyRefiner const & refiner,
+    static StencilTableG<FD> const * Create(TopologyRefiner const & refiner,
         Options options = Options());
 
 
@@ -100,7 +101,7 @@ public:
     ///
     /// @param tables    Array of input StencilTables
     ///
-    static StencilTable const * Create(int numTables, StencilTable const ** tables);
+    static StencilTableG<FD> const * Create(int numTables, StencilTableG<FD> const ** tables);
 
 
     /// \brief Utility function for stencil splicing for local point stencils.
@@ -117,16 +118,16 @@ public:
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
     ///
-    static StencilTable const * AppendLocalPointStencilTable(
+    static StencilTableG<FD> const * AppendLocalPointStencilTable(
         TopologyRefiner const &refiner,
-        StencilTable const *baseStencilTable,
-        StencilTable const *localPointStencilTable,
+        StencilTableG<FD> const *baseStencilTable,
+        StencilTableG<FD> const *localPointStencilTable,
         bool factorize = true);
 
 private:
 
     // Generate stencils for the coarse control-vertices (single weight = 1.0f)
-    static void generateControlVertStencils(int numControlVerts, Stencil & dst);
+    static void generateControlVertStencils(int numControlVerts, StencilG<FD> & dst);
 };
 
 /// \brief A specialized factory for LimitStencilTable
@@ -140,7 +141,8 @@ private:
 /// normalized (s,t) patch coordinates. The factory exposes the LocationArray
 /// struct as a container for these location descriptors.
 ///
-class LimitStencilTableFactory {
+template<class FD>
+class LimitStencilTableFactoryG {
 
 public:
 
@@ -152,7 +154,7 @@ public:
         int ptexIdx,        ///< ptex face index
             numLocations;   ///< number of (u,v) coordinates in the array
 
-        float const * s,    ///< array of u coordinates
+        FD const * s,    ///< array of u coordinates
                     * t;    ///< array of v coordinates
     };
 
@@ -185,14 +187,19 @@ public:
     ///
     /// @param options          Options controlling the creation of the table
     ///
-    static LimitStencilTable const * Create(TopologyRefiner const & refiner,
+    static LimitStencilTableG<FD> const * Create(TopologyRefiner const & refiner,
         LocationArrayVec const & locationArrays,
-            StencilTable const * cvStencils=0,
-              PatchTable const * patchTable=0,
+       StencilTableG<FD> const * cvStencils=0,
+         PatchTableG<FD> const * patchTable=0,
                          Options options=Options());
 
 };
 
+typedef StencilTableFactoryG<float> StencilTableFactory;
+typedef LimitStencilTableFactoryG<float> LimitStencilTableFactory;
+
+typedef StencilTableFactoryG<double> StencilTableFactoryDbl;
+typedef LimitStencilTableFactoryG<double> LimitStencilTableFactoryDbl;
 
 } // end namespace Far
 
