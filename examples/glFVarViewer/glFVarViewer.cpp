@@ -156,34 +156,53 @@ struct FVarData
             glDeleteTextures(1, &textureParamBuffer);
         textureParamBuffer = 0;
     }
-    void Create(OpenSubdiv::Far::PatchTable const *patchTable,
-                int fvarWidth, std::vector<float> const & fvarSrcData) {
+    void Create(OpenSubdiv::Far::TopologyRefiner const *refiner,
+                OpenSubdiv::Far::PatchTable const *patchTable,
+                std::vector<float> const & fvarSrcData,
+                int fvarWidth, int fvarChannel = 0) {
 
         using namespace OpenSubdiv;
 
         Release();
-        Far::ConstIndexArray indices = patchTable->GetFVarValues();
 
-        const float * fvarSrcDataPtr = &fvarSrcData[0];
-        Osd::CpuVertexBuffer *fvarBuffer = NULL;
+        Far::StencilTableFactory::Options soptions;
+        soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_FACE_VARYING;
+        soptions.fvarChannel = fvarChannel;
+        soptions.generateOffsets = true;
+        soptions.generateIntermediateLevels = !refiner->IsUniform();
+        Far::StencilTable const *fvarStencils =
+            Far::StencilTableFactory::Create(*refiner, soptions);
 
-        int numLocalFVarPoints = patchTable->GetNumLocalPointsFaceVarying();
-        if (numLocalFVarPoints > 0) {
-            int numSrcFVarPoints = (int)fvarSrcData.size() / fvarWidth;
-            fvarBuffer = Osd::CpuVertexBuffer::Create(
-                fvarWidth, numSrcFVarPoints + numLocalFVarPoints);
-            fvarBuffer->UpdateData(&fvarSrcData[0], 0, numSrcFVarPoints);
-
-            Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
-            Osd::BufferDescriptor dstDesc(numSrcFVarPoints*fvarWidth,
-                                          fvarWidth, fvarWidth);
-
-            Osd::CpuEvaluator::EvalStencils(fvarBuffer, srcDesc,
-                                            fvarBuffer, dstDesc,
-                                            patchTable->GetLocalPointFaceVaryingStencilTable());
-
-            fvarSrcDataPtr = fvarBuffer->BindCpuBuffer();
+        if (Far::StencilTable const *fvarStencilsWithLocalPoints =
+            Far::StencilTableFactory::AppendLocalPointStencilTableFaceVarying(
+                *refiner,
+                fvarStencils,
+                patchTable->GetLocalPointFaceVaryingStencilTable(),
+                fvarChannel)) {
+            delete fvarStencils;
+            fvarStencils = fvarStencilsWithLocalPoints;
         }
+
+        int numSrcFVarPoints = (int)fvarSrcData.size() / fvarWidth;
+        int numFVarPoints = numSrcFVarPoints
+                          + fvarStencils->GetNumStencils();
+
+        Osd::CpuVertexBuffer *fvarBuffer =
+            Osd::CpuVertexBuffer::Create(fvarWidth, numFVarPoints);
+        fvarBuffer->UpdateData(&fvarSrcData[0], 0, numSrcFVarPoints);
+
+        Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
+        Osd::BufferDescriptor dstDesc(numSrcFVarPoints*fvarWidth,
+                                      fvarWidth, fvarWidth);
+
+        Osd::CpuEvaluator::EvalStencils(fvarBuffer, srcDesc,
+                                        fvarBuffer, dstDesc,
+                                        fvarStencils);
+
+        Far::ConstIndexArray indices = patchTable->GetFVarValues();
+        const float * fvarSrcDataPtr = !refiner->IsUniform()
+            ? fvarBuffer->BindCpuBuffer()
+            : fvarBuffer->BindCpuBuffer() + numSrcFVarPoints * fvarWidth;
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -201,9 +220,7 @@ struct FVarData
         glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
                      &data[0], GL_STATIC_DRAW);
 
-        if (fvarBuffer) {
-            delete fvarBuffer;
-        }
+        delete fvarBuffer;
 
         glGenTextures(1, &textureBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
@@ -435,13 +452,9 @@ rebuildMesh() {
                                            numVaryingElements,
                                            level, bits);
 
-    std::vector<float> fvarData;
-
-    InterpolateFVarData(*refiner, *shape, fvarData);
-
     // set fvardata to texture buffer
-    g_fvarData.Create(g_mesh->GetFarPatchTable(),
-                      shape->GetFVarWidth(), fvarData);
+    g_fvarData.Create(refiner, g_mesh->GetFarPatchTable(),
+                      shape->uvs, shape->GetFVarWidth());
 
     delete shape;
 
