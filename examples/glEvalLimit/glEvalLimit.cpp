@@ -227,6 +227,7 @@ public:
     virtual void UpdateData(const float *src, int startVertex, int numVertices) = 0;
     virtual void UpdateVaryingData(const float *src, int startVertex, int numVertices) = 0;
     virtual void UpdateFaceVaryingData(const float *src, int startVertex, int numVertices) = 0;
+    virtual bool HasFaceVaryingData() const = 0;
     virtual void Refine() = 0;
     virtual void EvalPatches() = 0;
     virtual void EvalPatchesWithDerivatives() = 0;
@@ -251,37 +252,54 @@ public:
     EvalOutput(Far::StencilTable const *vertexStencils,
                Far::StencilTable const *varyingStencils,
                Far::StencilTable const *faceVaryingStencils,
-               int numCoarseVerts, int numTotalVerts,
-               int numCoarseFVarVerts, int numTotalFVarVerts,
+               int fvarChannel, int fvarWidth,
                int numParticles, Far::PatchTable const *patchTable,
                EvaluatorCache *evaluatorCache = NULL,
                DEVICE_CONTEXT *deviceContext = NULL)
         : _srcDesc(       /*offset*/ 0, /*length*/ 3, /*stride*/ 3),
           _srcVaryingDesc(/*offset*/ 0, /*length*/ 3, /*stride*/ 3),
-          _srcFVarDesc(   /*offset*/ 0, /*length*/ 2, /*stride*/ 2),
+          _srcFVarDesc(   /*offset*/ 0, /*length*/ fvarWidth, /*stride*/ fvarWidth),
           _vertexDesc(    /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
           _varyingDesc(   /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
-          _fvarDesc(      /*offset*/ 0, /*legnth*/ 2, /*stride*/ 2),
+          _fvarDesc(      /*offset*/ 0, /*legnth*/ fvarWidth, /*stride*/ fvarWidth),
           _duDesc(        /*offset*/ 0, /*legnth*/ 3, /*stride*/ 6),
           _dvDesc(        /*offset*/ 3, /*legnth*/ 3, /*stride*/ 6),
           _deviceContext(deviceContext) {
+
+        // total number of vertices = coarse points + refined points + local points
+        int numTotalVerts = vertexStencils->GetNumControlVertices()
+                          + vertexStencils->GetNumStencils();
+
         _srcData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
         _srcVaryingData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
-        _srcFVarData = EVAL_VERTEX_BUFFER::Create(2, numTotalFVarVerts, _deviceContext);
         _vertexData = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
         _derivatives = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
-        _fvarData = EVAL_VERTEX_BUFFER::Create(2, numParticles, _deviceContext);
         _patchTable = PATCH_TABLE::Create(patchTable, _deviceContext);
         _patchCoords = NULL;
-        _numCoarseVerts = numCoarseVerts;
-        _numCoarseFVarVerts = numCoarseFVarVerts;
+        _numCoarseVerts = vertexStencils->GetNumControlVertices();
         _vertexStencils =
             Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(vertexStencils, _deviceContext);
         _varyingStencils =
             Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(varyingStencils, _deviceContext);
-        _faceVaryingStencils = (faceVaryingStencils)
-            ? Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(faceVaryingStencils, _deviceContext)
-            : NULL;
+
+        if (faceVaryingStencils) {
+            _numCoarseFVarVerts = faceVaryingStencils->GetNumControlVertices();
+            int numTotalFVarVerts = faceVaryingStencils->GetNumControlVertices()
+                                  + faceVaryingStencils->GetNumStencils();
+            _srcFVarData = EVAL_VERTEX_BUFFER::Create(2, numTotalFVarVerts, _deviceContext);
+            _fvarData = EVAL_VERTEX_BUFFER::Create(fvarWidth, numParticles, _deviceContext);
+            _faceVaryingStencils =
+                Osd::convertToCompatibleStencilTable<STENCIL_TABLE>(faceVaryingStencils, _deviceContext);
+            _fvarChannel = fvarChannel;
+            _fvarWidth = fvarWidth;
+        } else {
+            _numCoarseFVarVerts = 0;
+            _srcFVarData = NULL;
+            _fvarData = NULL;
+            _faceVaryingStencils = NULL;
+            _fvarChannel = 0;
+            _fvarWidth = 0;
+        }
         _evaluatorCache = evaluatorCache;
     }
     ~EvalOutput() {
@@ -321,6 +339,9 @@ public:
     virtual void UpdateFaceVaryingData(const float *src, int startVertex, int numVertices) {
         _srcFVarData->UpdateData(src, startVertex, numVertices, _deviceContext);
     }
+    virtual bool HasFaceVaryingData() const {
+        return _faceVaryingStencils != NULL;
+    }
     virtual void Refine() {
         Osd::BufferDescriptor dstDesc = _srcDesc;
         dstDesc.offset += _numCoarseVerts * _srcDesc.stride;
@@ -345,10 +366,10 @@ public:
                                 evalInstance,
                                 _deviceContext);
 
-        if (_faceVaryingStencils) {
-            int const fvarWidth = 2;
-            Osd::BufferDescriptor dstFVarDesc(_numCoarseFVarVerts*fvarWidth,
-                                              fvarWidth, fvarWidth);
+        if (HasFaceVaryingData()) {
+            Osd::BufferDescriptor dstFVarDesc = _srcFVarDesc;
+            dstFVarDesc.offset += _numCoarseFVarVerts * _srcFVarDesc.stride;
+
             evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
                 _evaluatorCache, _srcFVarDesc, dstFVarDesc, _deviceContext);
 
@@ -404,7 +425,7 @@ public:
             _fvarData, _fvarDesc,
             _patchCoords->GetNumVertices(),
             _patchCoords,
-            _patchTable, /*fvarChannel=*/0, evalInstance, _deviceContext);
+            _patchTable, _fvarChannel, evalInstance, _deviceContext);
     }
     virtual void UpdatePatchCoords(
         std::vector<Osd::PatchCoord> const &patchCoords) {
@@ -443,6 +464,9 @@ private:
     STENCIL_TABLE const *_vertexStencils;
     STENCIL_TABLE const *_varyingStencils;
     STENCIL_TABLE const *_faceVaryingStencils;
+
+    int _fvarChannel;
+    int _fvarWidth;
 
     EvaluatorCache *_evaluatorCache;
     DEVICE_CONTEXT *_deviceContext;
@@ -519,7 +543,7 @@ updateGeom() {
     // color
     if (g_drawMode == kVARYING) {
         g_evalOutput->EvalPatchesVarying();
-    } else if (g_drawMode == kFACEVARYING) {
+    } else if (g_drawMode == kFACEVARYING && g_evalOutput->HasFaceVaryingData()) {
         g_evalOutput->EvalPatchesFaceVarying();
     }
 
@@ -579,8 +603,10 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     Far::StencilTable const * vertexStencils = NULL;
     Far::StencilTable const * varyingStencils = NULL;
     Far::StencilTable const * faceVaryingStencils = NULL;
-    std::vector<float> fvarData;
-    int nverts=0, nTotalfvarVerts=0;
+
+    int fvarChannel = 0;
+    int fvarWidth = shape->GetFVarWidth();
+    bool hasFVarData = !shape->uvs.empty();
 
     {
         bool adaptive = (sdctype == OpenSubdiv::Sdc::SCHEME_CATMARK);
@@ -590,7 +616,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
             // Apply feature adaptive refinement to the mesh so that we can use the
             // limit evaluation API features.
             Far::TopologyRefiner::AdaptiveOptions options(level);
-            options.considerFVarChannels = true;
+            options.considerFVarChannels = hasFVarData;
             options.useInfSharpPatch = doInfSharpPatch;
             topologyRefiner->RefineAdaptive(options);
         } else {
@@ -609,9 +635,15 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
             Far::StencilTableFactory::Create(*topologyRefiner, soptions);
 
         soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_VARYING;
-
         varyingStencils =
             Far::StencilTableFactory::Create(*topologyRefiner, soptions);
+
+        if (hasFVarData) {
+            soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_FACE_VARYING;
+            soptions.fvarChannel = fvarChannel;
+            faceVaryingStencils =
+                Far::StencilTableFactory::Create(*topologyRefiner, soptions);
+        }
 
         // Generate bi-cubic patch table for the limit surface
         Far::PatchTableFactory::Options poptions(level);
@@ -623,7 +655,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                 Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
         }
         poptions.useInfSharpPatch = doInfSharpPatch;
-        poptions.generateFVarTables = true;
+        poptions.generateFVarTables = hasFVarData;
         poptions.generateFVarLegacyLinearPatches = false;
 
         Far::PatchTable const * patchTable =
@@ -649,27 +681,17 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         }
         if (Far::StencilTable const *localPointFaceVaryingStencilTable =
             patchTable->GetLocalPointFaceVaryingStencilTable()) {
-            faceVaryingStencils = localPointFaceVaryingStencilTable;
+            Far::StencilTable const *table =
+                Far::StencilTableFactory::AppendLocalPointStencilTableFaceVarying(
+                    *topologyRefiner,
+                    faceVaryingStencils, localPointFaceVaryingStencilTable);
+            delete faceVaryingStencils;
+            faceVaryingStencils = table;
         }
-
-        // total number of vertices = coarse verts + refined verts + gregory basis verts
-        nverts = vertexStencils->GetNumControlVertices() +
-            vertexStencils->GetNumStencils();
-
-        nTotalfvarVerts = topologyRefiner->GetNumFVarValuesTotal(0) +
-            patchTable->GetNumLocalPointsFaceVarying(0);
-
-        InterpolateFVarData(*topologyRefiner, *shape, fvarData);
 
         if (g_patchTable) delete g_patchTable;
         g_patchTable = patchTable;
     }
-
-    delete shape;
-
-    // note that for patch eval we need coarse+refined combined buffer.
-    int nCoarseVertices = topologyRefiner->GetLevel(0).GetNumVertices();
-    int nCoarseFVarVertices = (int)fvarData.size()/2;
 
     // In following template instantiations, same type of vertex buffers are
     // used for both source and destination (first and second template
@@ -686,8 +708,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::CpuPatchTable,
                                       Osd::CpuEvaluator>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-             nCoarseVertices, nverts,
-             nCoarseFVarVertices, nTotalfvarVerts,
+             fvarChannel, fvarWidth,
              g_nParticles, g_patchTable);
 #ifdef OPENSUBDIV_HAS_OPENMP
     } else if (g_kernel == kOPENMP) {
@@ -697,8 +718,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::CpuPatchTable,
                                       Osd::OmpEvaluator>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-            nCoarseVertices, nverts,
-            nCoarseFVarVertices, nTotalfvarVerts,
+            fvarChannel, fvarWidth,
             g_nParticles, g_patchTable);
 #endif
 #ifdef OPENSUBDIV_HAS_TBB
@@ -709,8 +729,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::CpuPatchTable,
                                       Osd::TbbEvaluator>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-            nCoarseVertices, nverts,
-            nCoarseFVarVertices, nTotalfvarVerts,
+            fvarChannel, fvarWidth,
             g_nParticles, g_patchTable);
 #endif
 #ifdef OPENSUBDIV_HAS_CUDA
@@ -721,8 +740,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::CudaPatchTable,
                                       Osd::CudaEvaluator>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-            nCoarseVertices, nverts,
-            nCoarseFVarVertices, nTotalfvarVerts,
+            fvarChannel, fvarWidth,
             g_nParticles, g_patchTable);
 #endif
 #ifdef OPENSUBDIV_HAS_OPENCL
@@ -735,8 +753,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::CLEvaluator,
                                       CLDeviceContext>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-            nCoarseVertices, nverts,
-            nCoarseFVarVertices, nTotalfvarVerts,
+            fvarChannel, fvarWidth,
             g_nParticles, g_patchTable,
             &clEvaluatorCache, &g_clDeviceContext);
 #endif
@@ -749,8 +766,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::GLPatchTable,
                                       Osd::GLXFBEvaluator>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-            nCoarseVertices, nverts,
-            nCoarseFVarVertices, nTotalfvarVerts,
+            fvarChannel, fvarWidth,
             g_nParticles, g_patchTable,
              &glXFBEvaluatorCache);
 #endif
@@ -763,14 +779,18 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::GLPatchTable,
                                       Osd::GLComputeEvaluator>
             (vertexStencils, varyingStencils, faceVaryingStencils,
-            nCoarseVertices, nverts,
-            nCoarseFVarVertices, nTotalfvarVerts,
+            fvarChannel, fvarWidth,
             g_nParticles, g_patchTable,
              &glComputeEvaluatorCache);
 #endif
     }
 
-    g_evalOutput->UpdateFaceVaryingData(&fvarData[0], 0, (int)fvarData.size()/2);
+    if (g_evalOutput->HasFaceVaryingData()) {
+        g_evalOutput->UpdateFaceVaryingData(
+            &shape->uvs[0], 0, (int)shape->uvs.size()/shape->GetFVarWidth());
+    }
+
+    delete shape;
 
     // Create the 'uv particles' manager - this class manages the limit
     // location samples (ptex face index, (s,t) and updates them between frames.
@@ -903,7 +923,9 @@ drawSamples() {
     glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
     glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
     glEnableVertexAttribArray(g_defaultProgram.attrPatchCoord);
-    glEnableVertexAttribArray(g_defaultProgram.attrFVarData);
+    if (g_evalOutput->HasFaceVaryingData()) {
+        glEnableVertexAttribArray(g_defaultProgram.attrFVarData);
+    }
 
     glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindVertexData());
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
@@ -916,15 +938,19 @@ drawSamples() {
     glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindPatchCoords());
     glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, (float*)12);
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindFaceVaryingData());
-    glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 2, 0);
+    if (g_evalOutput->HasFaceVaryingData()) {
+        glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindFaceVaryingData());
+        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 2, 0);
+    }
 
     glEnableVertexAttribArray(g_defaultProgram.attrPosition);
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
     glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
     glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
     glEnableVertexAttribArray(g_defaultProgram.attrPatchCoord);
-    glEnableVertexAttribArray(g_defaultProgram.attrFVarData);
+    if (g_evalOutput->HasFaceVaryingData()) {
+        glEnableVertexAttribArray(g_defaultProgram.attrFVarData);
+    }
 
     glPointSize(2.0f);
     int nPatchCoords = (int)g_particles->GetPatchCoords().size();

@@ -75,15 +75,22 @@ StencilTable const *
 StencilTableFactory::Create(TopologyRefiner const & refiner,
     Options options) {
 
+    bool interpolateVertex = options.interpolationMode==INTERPOLATE_VERTEX;
+    bool interpolateVarying = options.interpolationMode==INTERPOLATE_VARYING;
+    bool interpolateFaceVarying = options.interpolationMode==INTERPOLATE_FACE_VARYING;
+
+    int numControlVertices = !interpolateFaceVarying
+        ? refiner.GetLevel(0).GetNumVertices()
+        : refiner.GetLevel(0).GetNumFVarValues(options.fvarChannel);
+
     int maxlevel = std::min(int(options.maxLevel), refiner.GetMaxLevel());
     if (maxlevel==0 && (! options.generateControlVerts)) {
         StencilTable * result = new StencilTable;
-        result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
+        result->_numControlVertices = numControlVertices;
         return result;
     }
 
-    bool interpolateVarying = options.interpolationMode==INTERPOLATE_VARYING;
-    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilder builder(numControlVertices,
                                 /*genControlVerts*/ true,
                                 /*compactWeights*/  true);
 
@@ -94,21 +101,25 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
     PrimvarRefiner primvarRefiner(refiner);
 
     internal::StencilBuilder::Index srcIndex(&builder, 0);
-    internal::StencilBuilder::Index dstIndex(&builder, 
-                                    refiner.GetLevel(0).GetNumVertices());
+    internal::StencilBuilder::Index dstIndex(&builder, numControlVertices);
 
     for (int level=1; level<=maxlevel; ++level) {
-        if (! interpolateVarying) {
+        if (interpolateVertex) {
             primvarRefiner.Interpolate(level, srcIndex, dstIndex);
-        } else {
+        } else if (interpolateVarying) {
             primvarRefiner.InterpolateVarying(level, srcIndex, dstIndex);
+        } else {
+            primvarRefiner.InterpolateFaceVarying(level, srcIndex, dstIndex, options.fvarChannel);
         }
 
         if (options.factorizeIntermediateLevels) {
             srcIndex = dstIndex;
         }
 
-        dstIndex = dstIndex[refiner.GetLevel(level).GetNumVertices()];
+        int dstVertex = !interpolateFaceVarying
+            ? refiner.GetLevel(level).GetNumVertices()
+            : refiner.GetLevel(level).GetNumFVarValues(options.fvarChannel);
+        dstIndex = dstIndex[dstVertex];
 
         if (! options.factorizeIntermediateLevels) {
             // All previous verts are considered as coarse verts, as a
@@ -118,14 +129,14 @@ StencilTableFactory::Create(TopologyRefiner const & refiner,
         }
     }
 
-    size_t firstOffset = refiner.GetLevel(0).GetNumVertices();
+    size_t firstOffset = numControlVertices;
     if (! options.generateIntermediateLevels)
         firstOffset = srcIndex.GetOffset();
  
     // Copy stencils from the StencilBuilder into the StencilTable.
     // Always initialize numControlVertices (useful for torus case)
     StencilTable * result = 
-                        new StencilTable(refiner.GetLevel(0).GetNumVertices(),
+                        new StencilTable(numControlVertices,
                                           builder.GetStencilOffsets(),
                                           builder.GetStencilSizes(),
                                           builder.GetStencilSources(),
@@ -210,6 +221,38 @@ StencilTableFactory::AppendLocalPointStencilTable(
     StencilTable const * localPointStencilTable,
     bool factorize) {
 
+    return appendLocalPointStencilTable(
+        refiner,
+        baseStencilTable,
+        localPointStencilTable,
+        /*channel*/-1,
+        factorize);
+}
+
+StencilTable const *
+StencilTableFactory::AppendLocalPointStencilTableFaceVarying(
+    TopologyRefiner const &refiner,
+    StencilTable const * baseStencilTable,
+    StencilTable const * localPointStencilTable,
+    int channel,
+    bool factorize) {
+
+    return appendLocalPointStencilTable(
+        refiner,
+        baseStencilTable,
+        localPointStencilTable,
+        channel,
+        factorize);
+}
+
+StencilTable const *
+StencilTableFactory::appendLocalPointStencilTable(
+    TopologyRefiner const &refiner,
+    StencilTable const * baseStencilTable,
+    StencilTable const * localPointStencilTable,
+    int channel,
+    bool factorize) {
+
     // factorize and append.
     if (baseStencilTable == NULL ||
         localPointStencilTable == NULL ||
@@ -218,11 +261,17 @@ StencilTableFactory::AppendLocalPointStencilTable(
     // baseStencilTable can be built with or without singular stencils
     // (single weight of 1.0f) as place-holders for coarse mesh vertices.
 
+    int nControlVerts = channel < 0
+        ? refiner.GetLevel(0).GetNumVertices()
+        : refiner.GetLevel(0).GetNumFVarValues(channel);
+
     int controlVertsIndexOffset = 0;
     int nBaseStencils = baseStencilTable->GetNumStencils();
     int nBaseStencilsElements = (int)baseStencilTable->_indices.size();
     {
-        int nverts = refiner.GetNumVerticesTotal();
+        int nverts = channel < 0
+            ? refiner.GetNumVerticesTotal()
+            : refiner.GetNumFVarValuesTotal(channel);
         if (nBaseStencils == nverts) {
 
             // the table contain stencils for the control vertices
@@ -240,7 +289,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
             //
             controlVertsIndexOffset = 0;
 
-        } else if (nBaseStencils == (nverts -refiner.GetLevel(0).GetNumVertices())) {
+        } else if (nBaseStencils == (nverts - nControlVerts)) {
 
             // the table does not contain stencils for the control vertices
             //
@@ -256,7 +305,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
             //  <-------------->
             //                 controlVertsIndexOffset
             //
-            controlVertsIndexOffset = refiner.GetLevel(0).GetNumVertices();
+            controlVertsIndexOffset = nControlVerts;
 
         } else {
             // these are not the stencils you are looking for.
@@ -269,7 +318,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
     int nLocalPointStencils = localPointStencilTable->GetNumStencils();
     int nLocalPointStencilsElements = 0;
 
-    internal::StencilBuilder builder(refiner.GetLevel(0).GetNumVertices(),
+    internal::StencilBuilder builder(nControlVerts,
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  factorize);
     internal::StencilBuilder::Index origin(&builder, 0);
@@ -302,7 +351,7 @@ StencilTableFactory::AppendLocalPointStencilTable(
 
     // create new stencil table
     StencilTable * result = new StencilTable;
-    result->_numControlVertices = refiner.GetLevel(0).GetNumVertices();
+    result->_numControlVertices = nControlVerts;
     result->resize(nBaseStencils + nLocalPointStencils,
                    nBaseStencilsElements + nLocalPointStencilsElements);
 
