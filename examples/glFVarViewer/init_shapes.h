@@ -61,6 +61,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound1",      catmark_fvar_bound1,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound2",      catmark_fvar_bound2,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound3",      catmark_fvar_bound3,      kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound4",      catmark_fvar_bound4,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_project0",    catmark_fvar_project0,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test1",    catmark_gregory_test1,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test2",    catmark_gregory_test2,    kCatmark ) );
