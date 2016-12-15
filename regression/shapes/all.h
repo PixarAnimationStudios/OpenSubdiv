@@ -49,6 +49,7 @@
 #include "catmark_fvar_bound1.h"
 #include "catmark_fvar_bound2.h"
 #include "catmark_fvar_bound3.h"
+#include "catmark_fvar_bound4.h"
 #include "catmark_fvar_project0.h"
 #include "catmark_gregory_test0.h"
 #include "catmark_gregory_test1.h"
