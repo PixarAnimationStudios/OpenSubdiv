@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "../osd/opengl.h"
+
 #include "../osd/glComputeEvaluator.h"
 #include "../osd/glslPatchShaderSource.h"
 
