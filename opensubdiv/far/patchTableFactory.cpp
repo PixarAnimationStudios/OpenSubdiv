@@ -674,13 +674,23 @@ PatchTableFactory::BuilderContext::GetRegularPatchBoundaryMask(
     //  patch, and so both of its neighboring corners need to be re-interpreted as
     //  boundaries.
     //
-    //  With the introduction of inf-sharp patches, this may soon change...
+    //  With the introduction of sharp irregular patches, we are now better off
+    //  using irregular patches where appropriate, which will simplify the following
+    //  when this patch was already determined to be regular...
     //
-    if (fTag._nonManifold && (fvcRefiner < 0)) {
+    if (fTag._nonManifold) {
         if (vTags[0]._nonManifold) vBoundaryMask |= (1 << 0) | (vTags[0]._infSharp ? 10 : 0);
         if (vTags[1]._nonManifold) vBoundaryMask |= (1 << 1) | (vTags[1]._infSharp ?  5 : 0);
         if (vTags[2]._nonManifold) vBoundaryMask |= (1 << 2) | (vTags[2]._infSharp ? 10 : 0);
         if (vTags[3]._nonManifold) vBoundaryMask |= (1 << 3) | (vTags[3]._infSharp ?  5 : 0);
+
+        //  Force adjacent edges as boundaries if only one vertex in the resulting mask
+        //  (which would be an irregular boundary for Catmark, but not Loop):
+        if ((vBoundaryMask == (1 << 0)) || (vBoundaryMask == (1 << 2))) {
+            vBoundaryMask |= 10;
+        } else if ((vBoundaryMask == (1 << 1)) || (vBoundaryMask == (1 << 3))) {
+            vBoundaryMask |= 5;
+        }
     }
 
     //  Convert directly from a vertex- to edge-mask (no need to inspect edges):
