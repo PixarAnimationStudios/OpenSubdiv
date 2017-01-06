@@ -530,10 +530,12 @@ else()
 endif()
 
 if (WIN32)
-    add_definitions(
-        # Link against the static version of GLEW.
-        -DGLEW_STATIC
-    )
+    if ("${GLEW_LIBRARY}" MATCHES "glew32s(d|)")
+        # Link against the static version of GLEW
+        add_definitions(
+            -DGLEW_STATIC
+        )
+    endif()
 
     if (DXSDK_FOUND AND NOT NO_DX)
         add_definitions(
