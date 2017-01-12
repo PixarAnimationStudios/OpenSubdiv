@@ -31,6 +31,16 @@
 
 ----
 
+Release 3.1.1
+=============
+
+Release 3.1.1 is a minor bug-fix release.
+
+**Bug Fixes**
+    - Fixed a bug with non-manifold face-varying topology causing a crash during patch table creation
+    - Fixed GLEW compilation and linking with dynamic GLEW libraries on Windows
+    - Fixed GLFW linking with GLFW 3.2 on X11 platforms
+
 Release 3.1.0
 =============
 
