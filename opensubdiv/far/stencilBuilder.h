@@ -53,7 +53,7 @@ public:
 
     void SetCoarseVertCount(int numVerts);
 
-    // Mapping from stencil[i] to it's starting offset in the sources[] and weights[] arrays;
+    // Mapping from stencil[i] to its starting offset in the sources[] and weights[] arrays;
     std::vector<int> const& GetStencilOffsets() const;
 
     // The number of contributing sources and weights in stencil[i]

@@ -130,7 +130,7 @@ getSdcOptions( OpenSubdiv::HbrMesh<T> const & mesh, OpenSubdiv::SdcOptions * opt
 // uniquely. To remedy the problem, the converter uses a std::map to connect
 // Hbr's half-edge pointers to unique indices.
 //
-// This remapping code is provided as an example of efficient implementaiton of
+// This remapping code is provided as an example of efficient implementation of
 // the translation from an arbitrary topo rep to Vtr.
 //
 // Even though Vtr is capable of re-generating edge and vertex relationships on
@@ -178,7 +178,7 @@ public:
         return (int)_edgeset.size();
     }
 
-    // Returns a point to the Hbr halfege of index 'idx'
+    // Returns a pointer to the Hbr halfege of index 'idx'
     OpenSubdiv::HbrHalfedge<T> const * GetEdge(int idx) const {
         return _edgeids[idx];
     }

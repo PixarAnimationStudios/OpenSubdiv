@@ -260,9 +260,8 @@ GetShaderVersion(){
     return shader_version;
 }
 
-/* Generates the version defintion needed by the glsl shaders based on the 
- * opengl string
-*/
+// Generates the version definition needed by the glsl shaders based on the
+// opengl string
 std::string GetShaderVersionInclude(){
     return "#version " + GetShaderVersion() + "\n";
 }
@@ -295,4 +294,4 @@ bool GL_ARBComputeShaderOrGL_VERSION_4_3() {
 
 #undef IS_SUPPORTED
 
-}   // namesapce GLUtils
+}   // namespace GLUtils

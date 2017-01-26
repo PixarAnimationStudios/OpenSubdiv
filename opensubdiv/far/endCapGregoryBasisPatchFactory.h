@@ -72,7 +72,7 @@ public:
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that end patch points are not included in the vertices in
     ///        the topologyRefiner, they're expected to come after the end.
-    ///        The returning indices are offsetted by refiner->GetNumVerticesTotal.
+    ///        The returned indices are offset by refiner->GetNumVerticesTotal.
     ///
     /// @param level            vtr refinement level
     ///
@@ -91,7 +91,7 @@ public:
 private:
 
     /// Creates a basis for the vertices specified in mask on the face and
-    /// accumates it
+    /// accumulates it
     bool addPatchBasis(Vtr::internal::Level const & level, Index faceIndex,
                        Vtr::internal::Level::VSpan const cornerSpans[],
                        bool newVerticesMask[4][5],

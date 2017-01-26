@@ -93,9 +93,9 @@ public:
 
 
     /// \brief Instantiates StencilTable by concatenating an array of existing
-    ///        stencil table.
+    ///        stencil tables.
     ///
-    /// \note This factory checks that the stencil table point to the same set
+    /// \note This factory checks that the stencil tables point to the same set
     ///       of supporting control vertices - no re-indexing is done.
     ///       GetNumControlVertices() *must* return the same value for all input
     ///       tables.
@@ -116,7 +116,7 @@ public:
     /// @param localPointStencilTable
     ///                             StencilTable for the change of basis patch points.
     ///
-    /// @param factorize            If factorize sets to true, endcap stencils will be
+    /// @param factorize            If factorize set to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.

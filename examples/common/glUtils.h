@@ -63,7 +63,7 @@ void WriteScreenshot(int width, int height);
 
 bool SupportsAdaptiveTessellation();
 
-// Helper function that parses the open gl version string, retrieving the
+// Helper function that parses the opengl version string, retrieving the
 // major and minor version from it.
 void GetMajorMinorVersion(int *major, int *minor);
 

@@ -52,7 +52,7 @@ struct Shape {
               ns,            // specular exponent
               ni,            // optical density (1.0=no refraction, glass=1.5)
               sharpness,     // reflection sharpness
-              tf[3],         // transimission filter
+              tf[3],         // transmission filter
               d;             // dissolve factor (1.0 = opaque)
 
         int illum;

@@ -173,7 +173,7 @@ struct PatchParam {
     /// \brief Resets everything to 0
     void Clear() { field0 = field1 = 0; }
 
-    /// \brief Retuns the faceid
+    /// \brief Returns the faceid
     Index GetFaceId() const { return Index(unpack(field0,28,0)); }
 
     /// \brief Returns the log2 value of the u parameter at

@@ -52,7 +52,7 @@ QuadRefinement::~QuadRefinement() {
 
 
 //
-//  Methods for construct the parent-to-child mapping
+//  Methods to construct the parent-to-child mapping
 //
 void
 QuadRefinement::allocateParentChildIndices() {
@@ -125,7 +125,7 @@ void
 QuadRefinement::populateFaceVerticesFromParentFaces() {
 
     //
-    //  This is pretty straight forward, but is a good example for the case of
+    //  This is pretty straightforward, but is a good example for the case of
     //  iterating through the parent faces rather than the child faces, as the
     //  same topology information for the parent faces is required for each of
     //  the child faces.
@@ -195,8 +195,8 @@ void
 QuadRefinement::populateFaceEdgesFromParentFaces() {
 
     //
-    //  This is fairly straight forward, but since we are dealing with edges here, we
-    //  occassionally have to deal with the limition of them being undirected.  Since
+    //  This is fairly straightforward, but since we are dealing with edges here, we
+    //  occasionally have to deal with the limitation of them being undirected.  Since
     //  child faces from the same parent face share much in common, we iterate through
     //  the parent faces.
     //
@@ -288,7 +288,7 @@ void
 QuadRefinement::populateEdgeVerticesFromParentFaces() {
 
     //
-    //  This is straight forward.  All child edges of parent faces are assigned
+    //  This is straightforward.  All child edges of parent faces are assigned
     //  their first vertex from the child vertex of the face -- so it is common
     //  to all.  The second vertex is the child vertex of the parent edge to
     //  which the new child edge is perpendicular.
@@ -313,7 +313,7 @@ void
 QuadRefinement::populateEdgeVerticesFromParentEdges() {
 
     //
-    //  This is straight forward.  All child edges of parent edges are assigned
+    //  This is straightforward.  All child edges of parent edges are assigned
     //  their first vertex from the child vertex of the edge -- so it is common
     //  to both.  The second vertex is the child vertex of the vertex at the
     //  end of the parent edge.
@@ -391,12 +391,12 @@ void
 QuadRefinement::populateEdgeFacesFromParentFaces() {
 
     //
-    //  This is straight forward topologically, but when refinement is sparse the
+    //  This is straightforward topologically, but when refinement is sparse the
     //  contents of the counts/offsets vector is not certain and is populated
     //  incrementally.  So there will be some resizing/trimming here.
     //
     //  Topologically, the child edges from within a parent face will typically
-    //  have two indicent child faces (only one or none if sparse).  These child
+    //  have two incident child faces (only one or none if sparse).  These child
     //  edges and faces are interleaved within the parent and easily identified.
     //  Note that the edge-face "local indices" are also needed here and that
     //  orientation of child faces within their parent depends on it being a quad

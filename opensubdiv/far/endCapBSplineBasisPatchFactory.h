@@ -45,7 +45,7 @@ class TopologyRefiner;
 class EndCapBSplineBasisPatchFactory {
 
 public:
-    /// \brief This factory accumulates vertex for bspline basis end cap
+    /// \brief This factory accumulates vertices for bspline basis end cap
     ///
     /// @param refiner                TopologyRefiner from which to generate patches
     ///
@@ -66,7 +66,7 @@ public:
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that end patch points are not included in the vertices in
     ///        the topologyRefiner, they're expected to come after the end.
-    ///        The returning indices are offsetted by refiner->GetNumVerticesTotal.
+    ///        The returned indices are offset by refiner->GetNumVerticesTotal.
     ///
     /// @param level            vtr refinement level
     ///

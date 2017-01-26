@@ -274,7 +274,7 @@ StencilTableFactory::appendLocalPointStencilTable(
             : refiner.GetNumFVarValuesTotal(channel);
         if (nBaseStencils == nverts) {
 
-            // the table contain stencils for the control vertices
+            // the table contains stencils for the control vertices
             //
             //  <-----------------  nverts ------------------>
             //
@@ -314,7 +314,7 @@ StencilTableFactory::appendLocalPointStencilTable(
         }
     }
 
-    // copy all local points stencils to proto stencils, and factorize if needed.
+    // copy all local point stencils to proto stencils, and factorize if needed.
     int nLocalPointStencils = localPointStencilTable->GetNumStencils();
     int nLocalPointStencilsElements = 0;
 
