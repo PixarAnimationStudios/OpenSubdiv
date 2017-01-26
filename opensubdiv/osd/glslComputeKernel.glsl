@@ -37,11 +37,20 @@ layout(binding=1) buffer dst_buffer      { float    dstVertexBuffer[]; };
 
 // derivative buffers (if needed)
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
 uniform ivec3 duDesc;
 uniform ivec3 dvDesc;
 layout(binding=2) buffer du_buffer   { float duBuffer[]; };
 layout(binding=3) buffer dv_buffer   { float dvBuffer[]; };
+#endif
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+uniform ivec3 duuDesc;
+uniform ivec3 duvDesc;
+uniform ivec3 dvvDesc;
+layout(binding=10) buffer duu_buffer   { float duuBuffer[]; };
+layout(binding=11) buffer duv_buffer   { float duvBuffer[]; };
+layout(binding=12) buffer dvv_buffer   { float dvvBuffer[]; };
 #endif
 
 // stencil buffers
@@ -55,9 +64,15 @@ layout(binding=5) buffer stencilOffsets  { int      _offsets[]; };
 layout(binding=6) buffer stencilIndices  { int      _indices[]; };
 layout(binding=7) buffer stencilWeights  { float    _weights[]; };
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
 layout(binding=8) buffer stencilDuWeights { float  _duWeights[]; };
 layout(binding=9) buffer stencilDvWeights { float  _dvWeights[]; };
+#endif
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+layout(binding=13) buffer stencilDuuWeights { float  _duuWeights[]; };
+layout(binding=14) buffer stencilDuvWeights { float  _duvWeights[]; };
+layout(binding=15) buffer stencilDvvWeights { float  _dvvWeights[]; };
 #endif
 
 #endif
@@ -119,7 +134,7 @@ void addWithWeight(inout Vertex v, const Vertex src, float weight) {
     }
 }
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
 void writeDu(int index, Vertex du) {
     int duIndex = duDesc.x + index * duDesc.z;
     for (int i = 0; i < LENGTH; ++i) {
@@ -131,6 +146,29 @@ void writeDv(int index, Vertex dv) {
     int dvIndex = dvDesc.x + index * dvDesc.z;
     for (int i = 0; i < LENGTH; ++i) {
         dvBuffer[dvIndex + i] = dv.vertexData[i];
+    }
+}
+#endif
+
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+void writeDuu(int index, Vertex duu) {
+    int duuIndex = duuDesc.x + index * duuDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        duuBuffer[duuIndex + i] = duu.vertexData[i];
+    }
+}
+
+void writeDuv(int index, Vertex duv) {
+    int duvIndex = duvDesc.x + index * duvDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        duvBuffer[duvIndex + i] = duv.vertexData[i];
+    }
+}
+
+void writeDvv(int index, Vertex dvv) {
+    int dvvIndex = dvvDesc.x + index * dvvDesc.z;
+    for (int i = 0; i < LENGTH; ++i) {
+        dvvBuffer[dvvIndex + i] = dvv.vertexData[i];
     }
 }
 #endif
@@ -160,7 +198,7 @@ void main() {
 
     writeVertex(current, dst);
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
     Vertex du, dv;
     clear(du);
     clear(dv);
@@ -176,6 +214,29 @@ void main() {
     }
     if (dvDesc.y > 0) {
         writeDv(current, dv);
+    }
+#endif
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+    Vertex duu, duv, dvv;
+    clear(duu);
+    clear(duv);
+    clear(dvv);
+    for (int i=0; i<size; ++i) {
+        // expects the compiler optimizes readVertex out here.
+        Vertex src = readVertex(_indices[offset+i]);
+        addWithWeight(duu, src, _duuWeights[offset+i]);
+        addWithWeight(duv, src, _duvWeights[offset+i]);
+        addWithWeight(dvv, src, _dvvWeights[offset+i]);
+    }
+
+    if (duuDesc.y > 0) { // length
+        writeDuu(current, duu);
+    }
+    if (duvDesc.y > 0) {
+        writeDuv(current, duv);
+    }
+    if (dvvDesc.y > 0) {
+        writeDvv(current, dvv);
     }
 #endif
 }
@@ -260,6 +321,9 @@ void main() {
             wP[i] = wP4[i];
             wDs[i] = wDs4[i];
             wDt[i] = wDt4[i];
+            wDss[i] = wDss4[i];
+            wDst[i] = wDst4[i];
+            wDtt[i] = wDtt4[i];
         }
     } else if (patchType == 6) {
         float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
@@ -269,16 +333,22 @@ void main() {
             wP[i] = wP16[i];
             wDs[i] = wDs16[i];
             wDt[i] = wDt16[i];
+            wDss[i] = wDss16[i];
+            wDst[i] = wDst16[i];
+            wDtt[i] = wDtt16[i];
         }
     } else if (patchType == 9) {
         OsdGetGregoryPatchWeights(uv.s, uv.t, dScale, wP, wDs, wDt, wDss, wDst, wDtt);
         numControlVertices = 20;
     }
 
-    Vertex dst, du, dv;
+    Vertex dst, du, dv, duu, duv, dvv;
     clear(dst);
     clear(du);
     clear(dv);
+    clear(duu);
+    clear(duv);
+    clear(dvv);
 
     int indexStride = getNumControlVertices(array.x);
     int indexBase = array.z + indexStride * (patchIndex - array.w);
@@ -288,15 +358,29 @@ void main() {
         addWithWeight(dst, readVertex(index), wP[cv]);
         addWithWeight(du, readVertex(index), wDs[cv]);
         addWithWeight(dv, readVertex(index), wDt[cv]);
+        addWithWeight(duu, readVertex(index), wDss[cv]);
+        addWithWeight(duv, readVertex(index), wDst[cv]);
+        addWithWeight(dvv, readVertex(index), wDtt[cv]);
     }
     writeVertex(current, dst);
 
-#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES)
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_1ST_DERIVATIVES)
     if (duDesc.y > 0) { // length
         writeDu(current, du);
     }
     if (dvDesc.y > 0) {
         writeDv(current, dv);
+    }
+#endif
+#if defined(OPENSUBDIV_GLSL_COMPUTE_USE_2ND_DERIVATIVES)
+    if (duuDesc.y > 0) { // length
+        writeDuu(current, duu);
+    }
+    if (duvDesc.y > 0) { // length
+        writeDuv(current, duv);
+    }
+    if (dvvDesc.y > 0) {
+        writeDvv(current, dvv);
     }
 #endif
 }
