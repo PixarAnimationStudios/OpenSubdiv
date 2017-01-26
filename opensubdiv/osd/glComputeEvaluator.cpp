@@ -332,9 +332,6 @@ GLComputeEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
           "#define OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES\n"
         : "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_STENCILS\n";
 
-    if (program) {
-        glDeleteProgram(program);
-    }
     program = compileKernel(srcDesc, dstDesc, duDesc, dvDesc, kernelDef,
                             workGroupSize);
     if (program == 0) return false;
@@ -377,9 +374,6 @@ GLComputeEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
           "#define OPENSUBDIV_GLSL_COMPUTE_USE_DERIVATIVES\n"
         : "#define OPENSUBDIV_GLSL_COMPUTE_KERNEL_EVAL_PATCHES\n";
 
-    if (program) {
-        glDeleteProgram(program);
-    }
     program = compileKernel(srcDesc, dstDesc, duDesc, dvDesc, kernelDef,
                             workGroupSize);
     if (program == 0) return false;
