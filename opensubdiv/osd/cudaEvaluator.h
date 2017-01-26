@@ -188,17 +188,17 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer       Output U-derivative buffer
+    /// @param duBuffer       Output buffer derivative wrt u
     ///                       must have BindCudaBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       Output V-derivative buffer
+    /// @param dvBuffer       Output buffer derivative wrt v
     ///                       must have BindCudaBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param stencilTable   stencil table to be applied.
     ///
@@ -218,8 +218,8 @@ public:
         const CudaEvaluator *instance = NULL,
         void * deviceContext = NULL) {
 
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
 
         return EvalStencils(srcBuffer->BindCudaBuffer(), srcDesc,
                             dstBuffer->BindCudaBuffer(), dstDesc,
@@ -249,15 +249,15 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param du             Output U-derivatives pointer. An offset of
+    /// @param du             Output pointer derivative wrt u. An offset of
     ///                       duDesc will be applied internally.
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dv             Output V-derivatives pointer. An offset of
+    /// @param dv             Output pointer derivative wrt v. An offset of
     ///                       dvDesc will be applied internally.
     ///
-    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param sizes          pointer to the sizes buffer of the stencil table
     ///
@@ -333,8 +333,8 @@ public:
         CudaEvaluator const *instance,
         void * deviceContext = NULL) {
 
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
 
         return EvalPatches(srcBuffer->BindCudaBuffer(), srcDesc,
                            dstBuffer->BindCudaBuffer(), dstDesc,
@@ -361,13 +361,13 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer         Output U-derivatives buffer
+    /// @param duBuffer         Output buffer derivative wrt u
     ///                         must have BindCudaBuffer() method returning a
     ///                         float pointer for write
     ///
     /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer         Output V-derivatives buffer
+    /// @param dvBuffer         Output buffer derivative wrt v
     ///                         must have BindCudaBuffer() method returning a
     ///                         float pointer for write
     ///
@@ -460,15 +460,15 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param du               Output U-derivatives pointer. An offset of
+    /// @param du               Output pointer derivative wrt u. An offset of
     ///                         duDesc will be applied internally.
     ///
-    /// @param duDesc           vertex buffer descriptor for the du buffer
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dv               Output V-derivatives pointer. An offset of
+    /// @param dv               Output pointer derivative wrt v. An offset of
     ///                         dvDesc will be applied internally.
     ///
-    /// @param dvDesc           vertex buffer descriptor for the dv buffer
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
     /// @param numPatchCoords   number of patchCoords.
     ///
@@ -587,8 +587,8 @@ public:
         CudaEvaluator const *instance,
         void * deviceContext = NULL) {
 
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
 
         return EvalPatches(srcBuffer->BindCudaBuffer(), srcDesc,
                            dstBuffer->BindCudaBuffer(), dstDesc,

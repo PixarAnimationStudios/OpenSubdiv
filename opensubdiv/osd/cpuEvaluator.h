@@ -26,10 +26,10 @@
 #define OPENSUBDIV3_OSD_CPU_EVALUATOR_H
 
 #include "../version.h"
-
-#include <cstddef>
 #include "../osd/bufferDescriptor.h"
 #include "../osd/types.h"
+
+#include <cstddef>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -107,7 +107,6 @@ public:
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
     /// @param sizes          pointer to the sizes buffer of the stencil table
-    ///                       to apply for the range [start, end)
     ///
     /// @param offsets        pointer to the offsets buffer of the stencil table
     ///
@@ -120,8 +119,8 @@ public:
     /// @param end            end index of stencil table
     ///
     static bool EvalStencils(
-        const float *src,  BufferDescriptor const &srcDesc,
-        float *dst,        BufferDescriptor const &dstDesc,
+        const float *src, BufferDescriptor const &srcDesc,
+        float *dst,       BufferDescriptor const &dstDesc,
         const int * sizes,
         const int * offsets,
         const int * indices,
@@ -145,17 +144,17 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer       Output U-derivative buffer
+    /// @param duBuffer       Output buffer derivative wrt u
     ///                       must have BindCpuBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       Output V-derivative buffer
+    /// @param dvBuffer       Output buffer derivative wrt v
     ///                       must have BindCpuBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param stencilTable   Far::StencilTable or equivalent
     ///
@@ -206,15 +205,15 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param du             Output U-derivatives pointer. An offset of
+    /// @param du             Output pointer derivative wrt u. An offset of
     ///                       duDesc will be applied internally.
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dv             Output V-derivatives pointer. An offset of
+    /// @param dv             Output pointer derivative wrt v. An offset of
     ///                       dvDesc will be applied internally.
     ///
-    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param sizes          pointer to the sizes buffer of the stencil table
     ///
@@ -318,13 +317,13 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer         Output U-derivatives buffer
+    /// @param duBuffer         Output buffer derivative wrt u
     ///                         must have BindCpuBuffer() method returning a
     ///                         float pointer for write
     ///
     /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer         Output V-derivatives buffer
+    /// @param dvBuffer         Output buffer derivative wrt v
     ///                         must have BindCpuBuffer() method returning a
     ///                         float pointer for write
     ///
@@ -354,6 +353,7 @@ public:
         PATCH_TABLE *patchTable,
         CpuEvaluator const *instance = NULL,
         void * deviceContext = NULL) {
+
         (void)instance;       // unused
         (void)deviceContext;  // unused
 
@@ -423,15 +423,15 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param du               Output U-derivatives pointer. An offset of
+    /// @param du               Output pointer derivative wrt u. An offset of
     ///                         duDesc will be applied internally.
     ///
-    /// @param duDesc           vertex buffer descriptor for the du buffer
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dv               Output V-derivatives pointer. An offset of
+    /// @param dv               Output pointer derivative wrt v. An offset of
     ///                         dvDesc will be applied internally.
     ///
-    /// @param dvDesc           vertex buffer descriptor for the dv buffer
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
     /// @param numPatchCoords   number of patchCoords.
     ///

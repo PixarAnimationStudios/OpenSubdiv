@@ -122,14 +122,14 @@ public:
     ///        transparently from OsdMesh template interface.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindVBO() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
@@ -178,28 +178,28 @@ public:
     ///        transparently from OsdMesh template interface.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindVBO() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
-    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    /// @param dstDesc        vertex buffer descriptor for the dstBuffer
     ///
-    /// @param duBuffer       Output U-derivative buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    /// @param duBuffer       Output buffer derivative wrt u
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
-    /// @param duDesc         vertex buffer descriptor for the du output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       Output V-derivative buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    /// @param dvBuffer       Output buffer derivative wrt v
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
-    /// @param dvDesc         vertex buffer descriptor for the dv output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param stencilTable   stencil table to be applied. The table must have
     ///                       Texture Buffer Object interfaces.
@@ -216,8 +216,8 @@ public:
     static bool EvalStencils(
         SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
         DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer, BufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer, BufferDescriptor const &dvDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable,
         GLXFBEvaluator const *instance,
         void * deviceContext = NULL) {
@@ -235,8 +235,8 @@ public:
             if (instance) {
                 bool r = instance->EvalStencils(srcBuffer, srcDesc,
                                                 dstBuffer, dstDesc,
-                                                duBuffer, duDesc,
-                                                dvBuffer, dvDesc,
+                                                duBuffer,  duDesc,
+                                                dvBuffer,  dvDesc,
                                                 stencilTable);
                 delete instance;
                 return r;
@@ -245,7 +245,7 @@ public:
         }
     }
 
-    /// \brief Generic eval stencils function.
+    /// \brief Generic stencil function.
     ///
     /// @param srcBuffer      Input primvar buffer.
     ///                       must have BindVBO() method returning a GL
@@ -255,11 +255,12 @@ public:
     ///
     /// @param dstBuffer      Output primvar buffer
     ///                       must have BindVBO() method returning a GL
-    ///                       buffer object for destination data
+    ///                       buffer object of destination data
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param stencilTable   stencil table to be applied. The table must have
+    ///                       Texture Buffer Object interfaces.
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
@@ -281,7 +282,7 @@ public:
                             /* end   = */ stencilTable->GetNumStencils());
     }
 
-    /// \brief Generic eval stencils function with derivative evaluation.
+    /// \brief Generic stencil function.
     ///
     /// @param srcBuffer      Input primvar buffer.
     ///                       must have BindVBO() method returning a GL
@@ -291,19 +292,24 @@ public:
     ///
     /// @param dstBuffer      Output primvar buffer
     ///                       must have BindVBO() method returning a GL
-    ///                       buffer object for destination data
+    ///                       buffer object of destination data
     ///
-    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    /// @param dstDesc        vertex buffer descriptor for the dstBuffer
     ///
-    /// @param duBuffer       GL buffer of output U-derivatives.
+    /// @param duBuffer       Output buffer derivative wrt u
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
     /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       GL buffer of output V-derivatives.
+    /// @param dvBuffer       Output buffer derivative wrt v
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
     /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param stencilTable   stencil table to be applied. The table must have
+    ///                       Texture Buffer Object interfaces.
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
@@ -327,40 +333,40 @@ public:
                             /* end   = */ stencilTable->GetNumStencils());
     }
 
-    /// \brief dispatch eval stencils function with derivatives.
-    ///        dispatch the GLSL XFB kernel on GPU asynchronously.
+    /// \brief Dispatch the GLSL XFB kernel on on GPU asynchronously
+    /// returns false if the kernel hasn't been compiled yet.
     ///
-    /// @param srcBuffer       GL buffer of input primvars.
+    /// @param srcBuffer        GL buffer of input primvar source data
     ///
-    /// @param srcDesc         vertex buffer descriptor for the srcBuffer
+    /// @param srcDesc          vertex buffer descriptor for the srcBuffer
     ///
-    /// @param dstBuffer       GL buffer of output primvars.
+    /// @param dstBuffer        GL buffer of output primvar destination data
     ///
-    /// @param dstDesc         vertex buffer descriptor for the dstBuffer
+    /// @param dstDesc          vertex buffer descriptor for the dstBuffer
     ///
-    /// @param duBuffer        GL buffer of output U-derivatives.
+    /// @param duBuffer         GL buffer of output derivative wrt u
     ///
-    /// @param duDesc          vertex buffer descriptor for the duBuffer
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer        GL buffer of output V-derivatives.
+    /// @param dvBuffer         GL buffer of output derivative wrt v
     ///
-    /// @param dvDesc          vertex buffer descriptor for the dvBuffer
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
-    /// @param sizesBuffer     GL buffer of the sizes in the stencil table
+    /// @param sizesBuffer      GL buffer of the sizes in the stencil table
     ///
-    /// @param offsetsBuffer   GL buffer of the offsets in the stencil table
+    /// @param offsetsBuffer    GL buffer of the offsets in the stencil table
     ///
-    /// @param indicesBuffer   GL buffer of the indices in the stencil table
+    /// @param indicesBuffer    GL buffer of the indices in the stencil table
     ///
-    /// @param weightsBuffer   GL buffer of the weights in the stencil table
+    /// @param weightsBuffer    GL buffer of the weights in the stencil table
     ///
-    /// @param duWeightsBuffer GL buffer of the du weights in the stencil table
+    /// @param duWeightsBuffer  GL buffer of the du weights in the stencil table
     ///
-    /// @param dvWeightsBuffer GL buffer of the dv weights in the stencil table
+    /// @param dvWeightsBuffer  GL buffer of the dv weights in the stencil table
     ///
-    /// @param start           start index of stencil table
+    /// @param start            start index of stencil table
     ///
-    /// @param end             end index of stencil table
+    /// @param end              end index of stencil table
     ///
     bool EvalStencils(GLuint srcBuffer, BufferDescriptor const &srcDesc,
                       GLuint dstBuffer, BufferDescriptor const &dstDesc,
@@ -463,13 +469,17 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer
+    /// @param duBuffer       Output buffer derivative wrt u
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
-    /// @param duDesc
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer
+    /// @param dvBuffer       Output buffer derivative wrt v
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
-    /// @param dvDesc
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param numPatchCoords number of patchCoords.
     ///
@@ -530,14 +540,14 @@ public:
     ///        in the same way.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindVBO() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
@@ -545,7 +555,7 @@ public:
     ///
     /// @param patchCoords    array of locations to be evaluated.
     ///                       must have BindVBO() method returning an
-    ///                       array of PatchCoord struct in cuda memory.
+    ///                       array of PatchCoord struct in VBO.
     ///
     /// @param patchTable     GLPatchTable or equivalent
     ///
@@ -574,26 +584,26 @@ public:
     ///        called in the same way.
     ///
     /// @param srcBuffer        Input primvar buffer.
-    ///                         must have BindVBO() method returning a
-    ///                         const float pointer for read
+    ///                         must have BindVBO() method returning a GL
+    ///                         buffer object of source data
     ///
     /// @param srcDesc          vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer        Output primvar buffer
-    ///                         must have BindVBO() method returning a
-    ///                         float pointer for write
+    ///                         must have BindVBO() method returning a GL
+    ///                         buffer object of destination data
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer         Output s-derivatives buffer
-    ///                         must have BindVBO() method returning a
-    ///                         float pointer for write
+    /// @param duBuffer         Output buffer derivative wrt u
+    ///                         must have BindVBO() method returning a GL
+    ///                         buffer object of destination data
     ///
     /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer         Output t-derivatives buffer
-    ///                         must have BindVBO() method returning a
-    ///                         float pointer for write
+    /// @param dvBuffer         Output buffer derivative wrt v
+    ///                         must have BindVBO() method returning a GL
+    ///                         buffer object of destination data
     ///
     /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
@@ -627,15 +637,14 @@ public:
 
     bool EvalPatches(GLuint srcBuffer, BufferDescriptor const &srcDesc,
                      GLuint dstBuffer, BufferDescriptor const &dstDesc,
-                     GLuint duBuffer, BufferDescriptor const &duDesc,
-                     GLuint dvBuffer, BufferDescriptor const &dvDesc,
+                     GLuint duBuffer,  BufferDescriptor const &duDesc,
+                     GLuint dvBuffer,  BufferDescriptor const &dvDesc,
                      int numPatchCoords,
                      GLuint patchCoordsBuffer,
                      const PatchArrayVector &patchArrays,
                      GLuint patchIndexBuffer,
                      GLuint patchParamsBuffer) const;
 
-    ///
     /// \brief Generic limit eval function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        in the same way.
@@ -709,14 +718,14 @@ public:
     ///        in the same way.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindVBO() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
@@ -724,7 +733,7 @@ public:
     ///
     /// @param patchCoords    array of locations to be evaluated.
     ///                       must have BindVBO() method returning an
-    ///                       array of PatchCoord struct in cuda memory.
+    ///                       array of PatchCoord struct in VBO.
     ///
     /// @param patchTable     GLPatchTable or equivalent
     ///
@@ -748,7 +757,6 @@ public:
                            patchTable->GetPatchParamTextureBuffer());
     }
 
-    ///
     /// \brief Generic limit eval function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        in the same way.
@@ -825,14 +833,14 @@ public:
     ///        in the same way.
     ///
     /// @param srcBuffer      Input primvar buffer.
-    ///                       must have BindVBO() method returning a
-    ///                       const float pointer for read
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of source data
     ///
     /// @param srcDesc        vertex buffer descriptor for the input buffer
     ///
     /// @param dstBuffer      Output primvar buffer
-    ///                       must have BindVBO() method returning a
-    ///                       float pointer for write
+    ///                       must have BindVBO() method returning a GL
+    ///                       buffer object of destination data
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
@@ -840,7 +848,7 @@ public:
     ///
     /// @param patchCoords    array of locations to be evaluated.
     ///                       must have BindVBO() method returning an
-    ///                       array of PatchCoord struct in cuda memory.
+    ///                       array of PatchCoord struct in VBO.
     ///
     /// @param patchTable     GLPatchTable or equivalent
     ///

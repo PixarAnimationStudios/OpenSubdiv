@@ -26,9 +26,8 @@
 #define OPENSUBDIV3_OSD_TBB_EVALUATOR_H
 
 #include "../version.h"
-#include "../osd/types.h"
 #include "../osd/bufferDescriptor.h"
-#include "../far/patchTable.h"
+#include "../osd/types.h"
 
 #include <cstddef>
 
@@ -61,7 +60,7 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param stencilTable   Far::StencilTable or equivalent
     ///
     /// @param instance       not used in the tbb kernel
     ///                       (declared as a typed pointer to prevent
@@ -77,7 +76,7 @@ public:
         TbbEvaluator const *instance = NULL,
         void *deviceContext = NULL) {
 
-        (void)instance;   // unused
+        (void)instance;       // unused
         (void)deviceContext;  // unused
 
         if (stencilTable->GetNumStencils() == 0)
@@ -108,7 +107,6 @@ public:
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
     /// @param sizes          pointer to the sizes buffer of the stencil table
-    ///                       to apply for the range [start, end)
     ///
     /// @param offsets        pointer to the offsets buffer of the stencil table
     ///
@@ -123,10 +121,10 @@ public:
     static bool EvalStencils(
         const float *src, BufferDescriptor const &srcDesc,
         float *dst,       BufferDescriptor const &dstDesc,
-        const int *sizes,
-        const int *offsets,
-        const int *indices,
-        const float *weights,
+        const int * sizes,
+        const int * offsets,
+        const int * indices,
+        const float * weights,
         int start, int end);
 
     /// \brief Generic static eval stencils function with derivatives.
@@ -146,19 +144,19 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer       Output U-derivative buffer
+    /// @param duBuffer       Output buffer derivative wrt u
     ///                       must have BindCpuBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       Output V-derivative buffer
+    /// @param dvBuffer       Output buffer derivative wrt v
     ///                       must have BindCpuBuffer() method returning a
     ///                       float pointer for write
     ///
-    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
-    /// @param stencilTable   stencil table to be applied.
+    /// @param stencilTable   Far::StencilTable or equivalent
     ///
     /// @param instance       not used in the tbb kernel
     ///                       (declared as a typed pointer to prevent
@@ -176,8 +174,8 @@ public:
         const TbbEvaluator *instance = NULL,
         void * deviceContext = NULL) {
 
-        (void)instance;   // unused
-        (void)deviceContext;   // unused
+        (void)instance;       // unused
+        (void)deviceContext;  // unused
 
         return EvalStencils(srcBuffer->BindCpuBuffer(), srcDesc,
                             dstBuffer->BindCpuBuffer(), dstDesc,
@@ -207,18 +205,17 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param du             Output s-derivatives pointer. An offset of
+    /// @param du             Output pointer derivative wrt u. An offset of
     ///                       duDesc will be applied internally.
     ///
-    /// @param duDesc         vertex buffer descriptor for the output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dv             Output t-derivatives pointer. An offset of
+    /// @param dv             Output pointer derivative wrt v. An offset of
     ///                       dvDesc will be applied internally.
     ///
-    /// @param dvDesc         vertex buffer descriptor for the output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param sizes          pointer to the sizes buffer of the stencil table
-    ///                       to apply for the range [start, end)
     ///
     /// @param offsets        pointer to the offsets buffer of the stencil table
     ///
@@ -226,9 +223,9 @@ public:
     ///
     /// @param weights        pointer to the weights buffer of the stencil table
     ///
-    /// @param duWeights      pointer to the u-weights buffer of the stencil table
+    /// @param duWeights      pointer to the du-weights buffer of the stencil table
     ///
-    /// @param dvWeights      pointer to the v-weights buffer of the stencil table
+    /// @param dvWeights      pointer to the dv-weights buffer of the stencil table
     ///
     /// @param start          start index of stencil table
     ///
@@ -273,7 +270,9 @@ public:
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable
+    /// @param patchTable       CpuPatchTable or equivalent
+    ///                         XXX: currently Far::PatchTable can't be used
+    ///                              due to interface mismatch
     ///
     /// @param instance         not used in the cpu evaluator
     ///
@@ -293,10 +292,8 @@ public:
         (void)instance;       // unused
         (void)deviceContext;  // unused
 
-        return EvalPatches(srcBuffer->BindCpuBuffer(),
-                           srcDesc,
-                           dstBuffer->BindCpuBuffer(),
-                           dstDesc,
+        return EvalPatches(srcBuffer->BindCpuBuffer(), srcDesc,
+                           dstBuffer->BindCpuBuffer(), dstDesc,
                            numPatchCoords,
                            (const PatchCoord*)patchCoords->BindCpuBuffer(),
                            patchTable->GetPatchArrayBuffer(),
@@ -320,13 +317,13 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer         Output s-derivatives buffer
+    /// @param duBuffer         Output buffer derivative wrt u
     ///                         must have BindCpuBuffer() method returning a
     ///                         float pointer for write
     ///
     /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer         Output t-derivatives buffer
+    /// @param dvBuffer         Output buffer derivative wrt v
     ///                         must have BindCpuBuffer() method returning a
     ///                         float pointer for write
     ///
@@ -336,7 +333,9 @@ public:
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable
+    /// @param patchTable       CpuPatchTable or equivalent
+    ///                         XXX: currently Far::PatchTable can't be used
+    ///                              due to interface mismatch
     ///
     /// @param instance         not used in the cpu evaluator
     ///
@@ -358,16 +357,20 @@ public:
         (void)instance;       // unused
         (void)deviceContext;  // unused
 
-        return EvalPatches(
-            srcBuffer->BindCpuBuffer(), srcDesc,
-            dstBuffer->BindCpuBuffer(), dstDesc,
-            duBuffer->BindCpuBuffer(),  duDesc,
-            dvBuffer->BindCpuBuffer(),  dvDesc,
-            numPatchCoords,
-            (const PatchCoord*)patchCoords->BindCpuBuffer(),
-            patchTable->GetPatchArrayBuffer(),
-            patchTable->GetPatchIndexBuffer(),
-            patchTable->GetPatchParamBuffer());
+        // XXX: PatchCoords is somewhat abusing vertex primvar buffer interop.
+        //      ideally all buffer classes should have templated by datatype
+        //      so that downcast isn't needed there.
+        //      (e.g. Osd::CpuBuffer<PatchCoord> )
+        //
+        return EvalPatches(srcBuffer->BindCpuBuffer(), srcDesc,
+                           dstBuffer->BindCpuBuffer(), dstDesc,
+                           duBuffer->BindCpuBuffer(),  duDesc,
+                           dvBuffer->BindCpuBuffer(),  dvDesc,
+                           numPatchCoords,
+                           (const PatchCoord*)patchCoords->BindCpuBuffer(),
+                           patchTable->GetPatchArrayBuffer(),
+                           patchTable->GetPatchIndexBuffer(),
+                           patchTable->GetPatchParamBuffer());
     }
 
     /// \brief Static limit eval function. It takes an array of PatchCoord
@@ -420,15 +423,15 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param du               Output s-derivatives pointer. An offset of
+    /// @param du               Output pointer derivative wrt u. An offset of
     ///                         duDesc will be applied internally.
     ///
-    /// @param duDesc           vertex buffer descriptor for the du buffer
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dv               Output t-derivatives pointer. An offset of
+    /// @param dv               Output pointer derivative wrt v. An offset of
     ///                         dvDesc will be applied internally.
     ///
-    /// @param dvDesc           vertex buffer descriptor for the dv buffer
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
     /// @param numPatchCoords   number of patchCoords.
     ///
@@ -449,10 +452,10 @@ public:
         float *du,        BufferDescriptor const &duDesc,
         float *dv,        BufferDescriptor const &dvDesc,
         int numPatchCoords,
-        const PatchCoord *patchCoords,
-        const PatchArray *patchArrays,
+        PatchCoord const *patchCoords,
+        PatchArray const *patchArrays,
         const int *patchIndexBuffer,
-        const PatchParam *patchParamBuffer);
+        PatchParam const *patchParamBuffer);
 
     /// \brief Generic limit eval function. This function has a same
     ///        signature as other device kernels have so that it can be called
@@ -474,7 +477,9 @@ public:
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable
+    /// @param patchTable       CpuPatchTable or equivalent
+    ///                         XXX: currently Far::PatchTable can't be used
+    ///                              due to interface mismatch
     ///
     /// @param instance         not used in the cpu evaluator
     ///
@@ -494,10 +499,8 @@ public:
         (void)instance;       // unused
         (void)deviceContext;  // unused
 
-        return EvalPatches(srcBuffer->BindCpuBuffer(),
-                           srcDesc,
-                           dstBuffer->BindCpuBuffer(),
-                           dstDesc,
+        return EvalPatches(srcBuffer->BindCpuBuffer(), srcDesc,
+                           dstBuffer->BindCpuBuffer(), dstDesc,
                            numPatchCoords,
                            (const PatchCoord*)patchCoords->BindCpuBuffer(),
                            patchTable->GetVaryingPatchArrayBuffer(),
@@ -525,7 +528,9 @@ public:
     ///
     /// @param patchCoords      array of locations to be evaluated.
     ///
-    /// @param patchTable       Far::PatchTable
+    /// @param patchTable       CpuPatchTable or equivalent
+    ///                         XXX: currently Far::PatchTable can't be used
+    ///                              due to interface mismatch
     ///
     /// @param fvarChannel      face-varying channel
     ///
@@ -548,10 +553,8 @@ public:
         (void)instance;       // unused
         (void)deviceContext;  // unused
 
-        return EvalPatches(srcBuffer->BindCpuBuffer(),
-                           srcDesc,
-                           dstBuffer->BindCpuBuffer(),
-                           dstDesc,
+        return EvalPatches(srcBuffer->BindCpuBuffer(), srcDesc,
+                           dstBuffer->BindCpuBuffer(), dstDesc,
                            numPatchCoords,
                            (const PatchCoord*)patchCoords->BindCpuBuffer(),
                            patchTable->GetFVarPatchArrayBuffer(fvarChannel),

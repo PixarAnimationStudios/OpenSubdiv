@@ -22,8 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_OPENSUBDIV3_OSD_CL_EVALUATOR_H
-#define OPENSUBDIV_OPENSUBDIV3_OSD_CL_EVALUATOR_H
+#ifndef OPENSUBDIV3_OSD_CL_EVALUATOR_H
+#define OPENSUBDIV3_OSD_CL_EVALUATOR_H
 
 #include "../version.h"
 
@@ -35,7 +35,9 @@ namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
+    class PatchTable;
     class StencilTable;
+    class LimitStencilTable;
 }
 
 namespace Osd {
@@ -69,13 +71,13 @@ public:
     ~CLStencilTable();
 
     // interfaces needed for CLComputeKernel
-    cl_mem GetSizesBuffer()     const { return _sizes; }
-    cl_mem GetOffsetsBuffer()   const { return _offsets; }
-    cl_mem GetIndicesBuffer()   const { return _indices; }
-    cl_mem GetWeightsBuffer()   const { return _weights; }
-    cl_mem GetDuWeightsBuffer() const { return _duWeights; }
-    cl_mem GetDvWeightsBuffer() const { return _dvWeights; }
-    int GetNumStencils()        const { return _numStencils; }
+    cl_mem GetSizesBuffer()      const { return _sizes; }
+    cl_mem GetOffsetsBuffer()    const { return _offsets; }
+    cl_mem GetIndicesBuffer()    const { return _indices; }
+    cl_mem GetWeightsBuffer()    const { return _weights; }
+    cl_mem GetDuWeightsBuffer()  const { return _duWeights; }
+    cl_mem GetDvWeightsBuffer()  const { return _dvWeights; }
+    int GetNumStencils()         const { return _numStencils; }
 
 private:
     cl_mem _sizes;
@@ -92,11 +94,6 @@ private:
 class CLEvaluator {
 public:
     typedef bool Instantiatable;
-    /// Constructor.
-    CLEvaluator(cl_context context, cl_command_queue queue);
-
-    /// Destructor.
-    ~CLEvaluator();
 
     /// Generic creator template.
     template <typename DEVICE_CONTEXT>
@@ -116,11 +113,18 @@ public:
                                 BufferDescriptor const &dvDesc,
                                 cl_context clContext,
                                 cl_command_queue clCommandQueue) {
-        CLEvaluator *kernel = new CLEvaluator(clContext, clCommandQueue);
-        if (kernel->Compile(srcDesc, dstDesc, duDesc, dvDesc)) return kernel;
-        delete kernel;
+        CLEvaluator *instance = new CLEvaluator(clContext, clCommandQueue);
+        if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc))
+            return instance;
+        delete instance;
         return NULL;
     }
+
+    /// Constructor.
+    CLEvaluator(cl_context context, cl_command_queue queue);
+
+    /// Destructor.
+    ~CLEvaluator();
 
     /// ----------------------------------------------------------------------
     ///
@@ -128,7 +132,7 @@ public:
     ///
     /// ----------------------------------------------------------------------
 
-    /// \brief Generic static compute function. This function has a same
+    /// \brief Generic static stencil function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        transparently from OsdMesh template interface.
     ///
@@ -165,7 +169,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -206,7 +210,7 @@ public:
         }
     }
 
-    /// \brief Generic static compute function. This function has a same
+    /// \brief Generic static stencil function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        transparently from OsdMesh template interface.
     ///
@@ -222,17 +226,17 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer       Output U-derivative buffer
+    /// @param duBuffer       Output buffer derivative wrt u
     ///                       must have BindCLBuffer() method returning the
     ///                       cl_mem object for du results to be written
     ///
-    /// @param duDesc         vertex buffer descriptor for the du output buffer
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer       Output V-derivative buffer
+    /// @param dvBuffer       Output buffer derivative wrt v
     ///                       must have BindCLBuffer() method returning the
     ///                       cl_mem object for dv results to be written
     ///
-    /// @param dvDesc         vertex buffer descriptor for the dv output buffer
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param stencilTable   stencil table to be applied. The table must have
     ///                       SSBO interfaces.
@@ -255,7 +259,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -266,8 +270,8 @@ public:
     static bool EvalStencils(
         SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
         DST_BUFFER *dstBuffer, BufferDescriptor const &dstDesc,
-        DST_BUFFER *duBuffer, BufferDescriptor const &duDesc,
-        DST_BUFFER *dvBuffer, BufferDescriptor const &dvDesc,
+        DST_BUFFER *duBuffer,  BufferDescriptor const &duDesc,
+        DST_BUFFER *dvBuffer,  BufferDescriptor const &dvDesc,
         STENCIL_TABLE const *stencilTable,
         CLEvaluator const *instance,
         DEVICE_CONTEXT deviceContext,
@@ -300,9 +304,36 @@ public:
         }
     }
 
-    /// Generic compute function.
-    /// Dispatch the CL compute kernel asynchronously.
-    /// Returns false if the kernel hasn't been compiled yet.
+    /// \brief Generic stencil function.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for results to be written
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param stencilTable   stencil table to be applied. The table must have
+    ///                       SSBO interfaces.
+    ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
         SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
@@ -322,9 +353,48 @@ public:
                             numStartEvents, startEvents, endEvent);
     }
 
-    /// Generic compute function.
-    /// Dispatch the CL compute kernel asynchronously.
-    /// Returns false if the kernel hasn't been compiled yet.
+    /// \brief Generic stencil function.
+    ///
+    /// @param srcBuffer      Input primvar buffer.
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for read
+    ///
+    /// @param srcDesc        vertex buffer descriptor for the input buffer
+    ///
+    /// @param dstBuffer      Output primvar buffer
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for results to be written
+    ///
+    /// @param dstDesc        vertex buffer descriptor for the output buffer
+    ///
+    /// @param duBuffer       Output buffer derivative wrt u
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for du results to be written
+    ///
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dvBuffer       Output buffer derivative wrt v
+    ///                       must have BindCLBuffer() method returning the
+    ///                       cl_mem object for dv results to be written
+    ///
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
+    ///
+    /// @param stencilTable   stencil table to be applied. The table must have
+    ///                       SSBO interfaces.
+    ///
+    /// @param numStartEvents the number of events in the array pointed to by
+    ///                       startEvents.
+    ///
+    /// @param startEvents    points to an array of cl_event which will determine
+    ///                       when it is safe for the OpenCL device to begin work
+    ///                       or NULL if it can begin immediately.
+    ///
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
+    ///                       the cl_event which indicates when all work for this
+    ///                       call has completed.  This cl_event has an incremented
+    ///                       reference count and should be released via
+    ///                       clReleaseEvent().  NULL if not required.
+    ///
     template <typename SRC_BUFFER, typename DST_BUFFER, typename STENCIL_TABLE>
     bool EvalStencils(
         SRC_BUFFER *srcBuffer, BufferDescriptor const &srcDesc,
@@ -364,8 +434,54 @@ public:
                       const cl_event* startEvents=NULL,
                       cl_event* endEvent=NULL) const;
 
-    /// Dispatch the CL compute kernel asynchronously.
+    /// \brief Dispatch the CL compute kernel asynchronously.
     /// returns false if the kernel hasn't been compiled yet.
+    ///
+    /// @param src              CL buffer of input primvar source data
+    ///
+    /// @param srcDesc          vertex buffer descriptor for the srcBuffer
+    ///
+    /// @param dst              CL buffer of output primvar destination data
+    ///
+    /// @param dstDesc          vertex buffer descriptor for the dstBuffer
+    ///
+    /// @param du               CL buffer of output derivative wrt u
+    ///
+    /// @param duDesc           vertex buffer descriptor for the duBuffer
+    ///
+    /// @param dv               CL buffer of output derivative wrt v
+    ///
+    /// @param dvDesc           vertex buffer descriptor for the dvBuffer
+    ///
+    /// @param sizes            CL buffer of the sizes in the stencil table
+    ///
+    /// @param offsets          CL buffer of the offsets in the stencil table
+    ///
+    /// @param indices          CL buffer of the indices in the stencil table
+    ///
+    /// @param weights          CL buffer of the weights in the stencil table
+    ///
+    /// @param duWeights        CL buffer of the du weights in the stencil table
+    ///
+    /// @param dvWeights        CL buffer of the dv weights in the stencil table
+    ///
+    /// @param start            start index of stencil table
+    ///
+    /// @param end              end index of stencil table
+    ///
+    /// @param numStartEvents   the number of events in the array pointed to by
+    ///                         startEvents.
+    ///
+    /// @param startEvents      points to an array of cl_event which will determine
+    ///                         when it is safe for the OpenCL device to begin work
+    ///                         or NULL if it can begin immediately.
+    ///
+    /// @param endEvent         pointer to a cl_event which will receive a copy of
+    ///                         the cl_event which indicates when all work for this
+    ///                         call has completed.  This cl_event has an incremented
+    ///                         reference count and should be released via
+    ///                         clReleaseEvent().  NULL if not required.
+    ///
     bool EvalStencils(cl_mem src, BufferDescriptor const &srcDesc,
                       cl_mem dst, BufferDescriptor const &dstDesc,
                       cl_mem du,  BufferDescriptor const &duDesc,
@@ -387,7 +503,7 @@ public:
     ///   Limit evaluations with PatchTable
     ///
     /// ----------------------------------------------------------------------
-    ///
+
     /// \brief Generic limit eval function. This function has a same
     ///        signature as other device kernels have so that it can be called
     ///        in the same way.
@@ -430,7 +546,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -493,13 +609,17 @@ public:
     ///
     /// @param dstDesc        vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer
+    /// @param duBuffer       Output buffer derivative wrt u
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
     ///
-    /// @param duDesc
+    /// @param duDesc         vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer
+    /// @param dvBuffer       Output buffer derivative wrt v
+    ///                       must have BindCLBuffer() method returning a CL
+    ///                       buffer object of destination data
     ///
-    /// @param dvDesc
+    /// @param dvDesc         vertex buffer descriptor for the dvBuffer
     ///
     /// @param numPatchCoords number of patchCoords.
     ///
@@ -527,7 +647,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -608,7 +728,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -654,15 +774,15 @@ public:
     ///
     /// @param dstDesc          vertex buffer descriptor for the output buffer
     ///
-    /// @param duBuffer         Output U-derivatives buffer
+    /// @param duBuffer         Output buffer derivative wrt u
     ///                         must have BindCLBuffer() method returning a CL
-    ///                         buffer object of destination data of Du
+    ///                         buffer object of destination data
     ///
     /// @param duDesc           vertex buffer descriptor for the duBuffer
     ///
-    /// @param dvBuffer         Output V-derivatives buffer
+    /// @param dvBuffer         Output buffer derivative wrt v
     ///                         must have BindCLBuffer() method returning a CL
-    ///                         buffer object of destination data of Dv
+    ///                         buffer object of destination data
     ///
     /// @param dvDesc           vertex buffer descriptor for the dvBuffer
     ///
@@ -672,18 +792,18 @@ public:
     ///
     /// @param patchTable       CLPatchTable or equivalent
     ///
-    /// @param numStartEvents the number of events in the array pointed to by
-    ///                       startEvents.
+    /// @param numStartEvents   the number of events in the array pointed to by
+    ///                         startEvents.
     ///
-    /// @param startEvents    points to an array of cl_event which will determine
-    ///                       when it is safe for the OpenCL device to begin work
-    ///                       or NULL if it can begin immediately.
+    /// @param startEvents      points to an array of cl_event which will determine
+    ///                         when it is safe for the OpenCL device to begin work
+    ///                         or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
-    ///                       the cl_event which indicates when all work for this
-    ///                       call has completed.  This cl_event has an incremented
-    ///                       reference count and should be released via
-    ///                       clReleaseEvent().  NULL if not required.
+    /// @param endEvent         pointer to a cl_event which will receive a copy of
+    ///                         the cl_event which indicates when all work for this
+    ///                         call has completed.  This cl_event has an incremented
+    ///                         reference count and should be released via
+    ///                         clReleaseEvent().  NULL if not required.
     ///
     template <typename SRC_BUFFER, typename DST_BUFFER,
               typename PATCHCOORD_BUFFER, typename PATCH_TABLE>
@@ -766,7 +886,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -846,7 +966,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -920,7 +1040,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -1003,7 +1123,7 @@ public:
     ///                       when it is safe for the OpenCL device to begin work
     ///                       or NULL if it can begin immediately.
     ///
-    /// @param endEvent       pointer to a cl_event which will recieve a copy of
+    /// @param endEvent       pointer to a cl_event which will receive a copy of
     ///                       the cl_event which indicates when all work for this
     ///                       call has completed.  This cl_event has an incremented
     ///                       reference count and should be released via
@@ -1064,7 +1184,6 @@ private:
     cl_kernel _patchKernel;
 };
 
-
 }  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION
@@ -1073,4 +1192,4 @@ using namespace OPENSUBDIV_VERSION;
 }  // end namespace OpenSubdiv
 
 
-#endif  // OPENSUBDIV_OPENSUBDIV3_OSD_CL_EVALUATOR_H
+#endif  // OPENSUBDIV3_OSD_CL_EVALUATOR_H
