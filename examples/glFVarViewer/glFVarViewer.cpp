@@ -407,6 +407,11 @@ rebuildMesh() {
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
+    if (!shape->HasUV()) {
+        printf("Error: shape %s does not contain face-varying UVs\n", shapeDesc.name.c_str());
+        exit(1);
+    }
+
     // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
@@ -1109,7 +1114,7 @@ initHUD() {
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i == 2, 10, 270 + i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i == g_level, 10, 270 + i*20, callbackLevel, i, '0'+(i%10));
     }
 
     typedef OpenSubdiv::Sdc::Options SdcOptions;
@@ -1176,25 +1181,41 @@ callbackErrorGLFW(int error, const char* description) {
 }
 
 //------------------------------------------------------------------------------
+static int
+parseIntArg(const char* argString, int dfltValue = 0) {
+    char *argEndptr;
+    int argValue = strtol(argString, &argEndptr, 10);
+    if (*argEndptr != 0) {
+        printf("Warning: non-integer option parameter '%s' ignored\n", argString);
+        argValue = dfltValue;
+    }
+    return argValue;
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
     bool fullscreen = false;
     std::string str;
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-d"))
-            g_level = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "-c"))
-            g_repeatCount = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "-f"))
+        if (!strcmp(argv[i], "-d")) {
+            if (++i < argc) g_level = parseIntArg(argv[i], g_level);
+        } else if (!strcmp(argv[i], "-c")) {
+            if (++i < argc) g_repeatCount = parseIntArg(argv[i], g_repeatCount);
+        } else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
-        else {
-            std::ifstream ifs(argv[1]);
+        } else if (argv[i][0] == '-') {
+            printf("Warning: unrecognized option '%s' ignored\n", argv[i]);
+        } else {
+            std::ifstream ifs(argv[i]);
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), kCatmark));
+            } else {
+                printf("Warning: cannot open shape file '%s'\n", argv[i]);
             }
         }
     }
