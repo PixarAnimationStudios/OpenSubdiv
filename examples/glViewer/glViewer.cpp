@@ -162,6 +162,7 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
                    kHUD_CB_FREEZE,
                    kHUD_CB_DISPLAY_PATCH_COUNTS,
                    kHUD_CB_ADAPTIVE,
+                   kHUD_CB_SMOOTH_CORNER_PATCH,
                    kHUD_CB_SINGLE_CREASE_PATCH,
                    kHUD_CB_INF_SHARP_PATCH };
 
@@ -182,6 +183,7 @@ int   g_fullscreen = 0,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
+      g_smoothCornerPatch = 0,
       g_singleCreasePatch = 1,
       g_infSharpPatch = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -447,11 +449,13 @@ rebuildMesh() {
     // Adaptive refinement currently supported only for catmull-clark scheme
     bool doAdaptive = (g_adaptive!=0 && scheme==kCatmark);
     bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
+    bool doSmoothCornerPatch = (g_smoothCornerPatch!=0 && scheme==kCatmark);
     bool doSingleCreasePatch = (g_singleCreasePatch!=0 && scheme==kCatmark);
     bool doInfSharpPatch = (g_infSharpPatch!=0 && scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
+    bits.set(Osd::MeshUseSmoothCornerPatch, doSmoothCornerPatch);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(Osd::MeshUseInfSharpPatch, doInfSharpPatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
@@ -1402,6 +1406,10 @@ callbackCheckBox(bool checked, int button) {
             g_adaptive = checked;
             rebuildMesh();
             return;
+        case kHUD_CB_SMOOTH_CORNER_PATCH:
+            g_smoothCornerPatch = checked;
+            rebuildMesh();
+            return;
         case kHUD_CB_SINGLE_CREASE_PATCH:
             g_singleCreasePatch = checked;
             rebuildMesh();
@@ -1541,13 +1549,15 @@ initHUD() {
     if (GLUtils::SupportsAdaptiveTessellation()) {
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0,
                           10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
+        g_hud.AddCheckBox("Smooth Corner Patch (O)", g_smoothCornerPatch!=0,
+                          10, 210, callbackCheckBox, kHUD_CB_SMOOTH_CORNER_PATCH, 'o');
         g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
-                          10, 210, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
+                          10, 230, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
         g_hud.AddCheckBox("Inf Sharp Patch (I)", g_infSharpPatch!=0,
-                          10, 230, callbackCheckBox, kHUD_CB_INF_SHARP_PATCH, 'i');
+                          10, 250, callbackCheckBox, kHUD_CB_INF_SHARP_PATCH, 'i');
 
         int endcap_pulldown = g_hud.AddPullDown(
-            "End cap (E)", 10, 250, 200, callbackEndCap, 'e');
+            "End cap (E)", 10, 270, 200, callbackEndCap, 'e');
         g_hud.AddPullDownButton(endcap_pulldown,"None",
                                 kEndCapNone,
                                 g_endCap == kEndCapNone);
