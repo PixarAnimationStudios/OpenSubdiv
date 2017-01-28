@@ -121,7 +121,8 @@ enum DrawMode { kUV,
                 kVARYING,
                 kNORMAL,
                 kSHADE,
-                kFACEVARYING };
+                kFACEVARYING,
+                kMEAN_CURVATURE };
 
 std::vector<float> g_orgPositions,
                    g_positions,
@@ -192,8 +193,11 @@ struct Program {
     GLuint uniformDrawMode;
     GLuint attrPosition;
     GLuint attrColor;
-    GLuint attrTangentU;
-    GLuint attrTangentV;
+    GLuint attrDu;
+    GLuint attrDv;
+    GLuint attrDuu;
+    GLuint attrDuv;
+    GLuint attrDvv;
     GLuint attrPatchCoord;
     GLuint attrFVarData;
 } g_defaultProgram;
@@ -221,7 +225,8 @@ public:
     virtual ~EvalOutputBase() {}
     virtual GLuint BindSourceData() const = 0;
     virtual GLuint BindVertexData() const = 0;
-    virtual GLuint BindDerivatives() const = 0;
+    virtual GLuint Bind1stDerivatives() const = 0;
+    virtual GLuint Bind2ndDerivatives() const = 0;
     virtual GLuint BindFaceVaryingData() const = 0;
     virtual GLuint BindPatchCoords() const = 0;
     virtual void UpdateData(const float *src, int startVertex, int numVertices) = 0;
@@ -230,7 +235,8 @@ public:
     virtual bool HasFaceVaryingData() const = 0;
     virtual void Refine() = 0;
     virtual void EvalPatches() = 0;
-    virtual void EvalPatchesWithDerivatives() = 0;
+    virtual void EvalPatchesWith1stDerivatives() = 0;
+    virtual void EvalPatchesWith2ndDerivatives() = 0;
     virtual void EvalPatchesVarying() = 0;
     virtual void EvalPatchesFaceVarying() = 0;
     virtual void UpdatePatchCoords(
@@ -264,6 +270,9 @@ public:
           _fvarDesc(      /*offset*/ 0, /*length*/ fvarWidth, /*stride*/ fvarWidth),
           _duDesc(        /*offset*/ 0, /*length*/ 3, /*stride*/ 6),
           _dvDesc(        /*offset*/ 3, /*length*/ 3, /*stride*/ 6),
+          _duuDesc(       /*offset*/ 0, /*length*/ 3, /*stride*/ 9),
+          _duvDesc(       /*offset*/ 3, /*length*/ 3, /*stride*/ 9),
+          _dvvDesc(       /*offset*/ 6, /*length*/ 3, /*stride*/ 9),
           _deviceContext(deviceContext) {
 
         // total number of vertices = coarse points + refined points + local points
@@ -273,7 +282,8 @@ public:
         _srcData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
         _srcVaryingData = SRC_VERTEX_BUFFER::Create(3, numTotalVerts, _deviceContext);
         _vertexData = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
-        _derivatives = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
+        _deriv1 = EVAL_VERTEX_BUFFER::Create(6, numParticles, _deviceContext);
+        _deriv2 = EVAL_VERTEX_BUFFER::Create(9, numParticles, _deviceContext);
         _patchTable = PATCH_TABLE::Create(patchTable, _deviceContext);
         _patchCoords = NULL;
         _numCoarseVerts = vertexStencils->GetNumControlVertices();
@@ -307,7 +317,8 @@ public:
         delete _srcVaryingData;
         delete _srcFVarData;
         delete _vertexData;
-        delete _derivatives;
+        delete _deriv1;
+        delete _deriv2;
         delete _fvarData;
         delete _patchTable;
         delete _patchCoords;
@@ -321,8 +332,11 @@ public:
     virtual GLuint BindVertexData() const {
         return _vertexData->BindVBO();
     }
-    virtual GLuint BindDerivatives() const {
-        return _derivatives->BindVBO();
+    virtual GLuint Bind1stDerivatives() const {
+        return _deriv1->BindVBO();
+    }
+    virtual GLuint Bind2ndDerivatives() const {
+        return _deriv2->BindVBO();
     }
     virtual GLuint BindFaceVaryingData() const {
         return _fvarData->BindVBO();
@@ -392,14 +406,31 @@ public:
             _patchCoords,
             _patchTable, evalInstance, _deviceContext);
     }
-    virtual void EvalPatchesWithDerivatives() {
+    virtual void EvalPatchesWith1stDerivatives() {
         EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
             _evaluatorCache, _srcDesc, _vertexDesc, _duDesc, _dvDesc, _deviceContext);
         EVALUATOR::EvalPatches(
             _srcData, _srcDesc,
             _vertexData, _vertexDesc,
-            _derivatives, _duDesc,
-            _derivatives, _dvDesc,
+            _deriv1, _duDesc,
+            _deriv1, _dvDesc,
+            _patchCoords->GetNumVertices(),
+            _patchCoords,
+            _patchTable, evalInstance, _deviceContext);
+    }
+    virtual void EvalPatchesWith2ndDerivatives() {
+        EVALUATOR const *evalInstance = OpenSubdiv::Osd::GetEvaluator<EVALUATOR>(
+            _evaluatorCache, _srcDesc, _vertexDesc,
+            _duDesc, _dvDesc, _duuDesc, _duvDesc, _dvvDesc,
+            _deviceContext);
+        EVALUATOR::EvalPatches(
+            _srcData, _srcDesc,
+            _vertexData, _vertexDesc,
+            _deriv1, _duDesc,
+            _deriv1, _dvDesc,
+            _deriv2, _duuDesc,
+            _deriv2, _duvDesc,
+            _deriv2, _dvvDesc,
             _patchCoords->GetNumVertices(),
             _patchCoords,
             _patchTable, evalInstance, _deviceContext);
@@ -446,7 +477,8 @@ private:
     SRC_VERTEX_BUFFER *_srcVaryingData;
     EVAL_VERTEX_BUFFER *_srcFVarData;
     EVAL_VERTEX_BUFFER *_vertexData;
-    EVAL_VERTEX_BUFFER *_derivatives;
+    EVAL_VERTEX_BUFFER *_deriv1;
+    EVAL_VERTEX_BUFFER *_deriv2;
     EVAL_VERTEX_BUFFER *_fvarData;
     EVAL_VERTEX_BUFFER *_patchCoords;
     PATCH_TABLE *_patchTable;
@@ -458,6 +490,9 @@ private:
     Osd::BufferDescriptor _fvarDesc;
     Osd::BufferDescriptor _duDesc;
     Osd::BufferDescriptor _dvDesc;
+    Osd::BufferDescriptor _duuDesc;
+    Osd::BufferDescriptor _duvDesc;
+    Osd::BufferDescriptor _dvvDesc;
     int _numCoarseVerts;
     int _numCoarseFVarVerts;
 
@@ -532,9 +567,12 @@ updateGeom() {
     g_evalOutput->UpdatePatchCoords(patchCoords);
 
     // Evaluate the positions of the samples on the limit surface
-    if (g_drawMode == kNORMAL || g_drawMode == kSHADE) {
-        // evaluate positions and derivatives
-        g_evalOutput->EvalPatchesWithDerivatives();
+    if (g_drawMode == kMEAN_CURVATURE) {
+        // evaluate positions and 2nd derivatives
+        g_evalOutput->EvalPatchesWith2ndDerivatives();
+    } else if (g_drawMode == kNORMAL || g_drawMode == kSHADE) {
+        // evaluate positions and 1st derivatives
+        g_evalOutput->EvalPatchesWith1stDerivatives();
     } else {
         // evaluate positions
         g_evalOutput->EvalPatches();
@@ -823,8 +861,11 @@ linkDefaultProgram() {
         GLSL_VERSION_DEFINE
         "in vec3 position;\n"
         "in vec3 color;\n"
-        "in vec3 tangentU;\n"
-        "in vec3 tangentV;\n"
+        "in vec3 du;\n"
+        "in vec3 dv;\n"
+        "in vec3 duu;\n"
+        "in vec3 duv;\n"
+        "in vec3 dvv;\n"
         "in vec2 patchCoord;\n"
         "in vec2 fvarData;\n"
         "out vec4 fragColor;\n"
@@ -833,7 +874,7 @@ linkDefaultProgram() {
         "uniform int DrawMode;\n"
         "void main() {\n"
         "  vec3 normal = (ModelViewMatrix * "
-        "               vec4(normalize(cross(tangentU, tangentV)), 0)).xyz;\n"
+        "               vec4(normalize(cross(du, dv)), 0)).xyz;\n"
         "  gl_Position = ProjectionMatrix * ModelViewMatrix * "
         "                  vec4(position, 1);\n"
         "  if (DrawMode == 0) {\n" // UV
@@ -846,6 +887,16 @@ linkDefaultProgram() {
         "    // generating a checkerboard pattern\n"
         "    int checker = int(floor(20*fvarData.r)+floor(20*fvarData.g))&1;\n"
         "    fragColor = vec4(fvarData.rg*checker, 1-checker, 1);\n"
+        "  } else if (DrawMode == 5) {\n"  // mean curvature
+        "    vec3 N = normalize(cross(du, dv));\n"
+        "    float E = dot(du, du);\n"
+        "    float F = dot(du, dv);\n"
+        "    float G = dot(dv, dv);\n"
+        "    float e = dot(N, duu);\n"
+        "    float f = dot(N, duv);\n"
+        "    float g = dot(N, dvv);\n"
+        "    float H = 0.5 * abs(0.5 * (E*g - 2*F*f - G*e) / (E*G - F*F));\n"
+        "    fragColor = vec4(H, H, H, 1.0);\n"
         "  } else {\n" // varying
         "    fragColor = vec4(color, 1);\n"
         "  }\n"
@@ -868,10 +919,13 @@ linkDefaultProgram() {
 
     glBindAttribLocation(program, 0, "position");
     glBindAttribLocation(program, 1, "color");
-    glBindAttribLocation(program, 2, "tangentU");
-    glBindAttribLocation(program, 3, "tangentV");
-    glBindAttribLocation(program, 4, "patchCoord");
-    glBindAttribLocation(program, 5, "fvarData");
+    glBindAttribLocation(program, 2, "du");
+    glBindAttribLocation(program, 3, "dv");
+    glBindAttribLocation(program, 4, "duu");
+    glBindAttribLocation(program, 5, "duv");
+    glBindAttribLocation(program, 6, "dvv");
+    glBindAttribLocation(program, 7, "patchCoord");
+    glBindAttribLocation(program, 8, "fvarData");
     glBindFragDataLocation(program, 0, "color");
 
     glLinkProgram(program);
@@ -897,8 +951,11 @@ linkDefaultProgram() {
         glGetUniformLocation(program, "DrawMode");
     g_defaultProgram.attrPosition = glGetAttribLocation(program, "position");
     g_defaultProgram.attrColor = glGetAttribLocation(program, "color");
-    g_defaultProgram.attrTangentU = glGetAttribLocation(program, "tangentU");
-    g_defaultProgram.attrTangentV = glGetAttribLocation(program, "tangentV");
+    g_defaultProgram.attrDu = glGetAttribLocation(program, "du");
+    g_defaultProgram.attrDv = glGetAttribLocation(program, "dv");
+    g_defaultProgram.attrDuu = glGetAttribLocation(program, "duu");
+    g_defaultProgram.attrDuv = glGetAttribLocation(program, "duv");
+    g_defaultProgram.attrDvv = glGetAttribLocation(program, "dvv");
     g_defaultProgram.attrPatchCoord = glGetAttribLocation(program, "patchCoord");
     g_defaultProgram.attrFVarData = glGetAttribLocation(program, "fvarData");
 
@@ -920,36 +977,32 @@ drawSamples() {
 
     glEnableVertexAttribArray(g_defaultProgram.attrPosition);
     glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
-    glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
-    glEnableVertexAttribArray(g_defaultProgram.attrPatchCoord);
-    if (g_evalOutput->HasFaceVaryingData()) {
-        glEnableVertexAttribArray(g_defaultProgram.attrFVarData);
-    }
-
     glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindVertexData());
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindDerivatives());
+    glEnableVertexAttribArray(g_defaultProgram.attrDu);
+    glEnableVertexAttribArray(g_defaultProgram.attrDv);
+    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->Bind1stDerivatives());
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, 0);
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 6, (float*)12);
 
-    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindPatchCoords());
-    glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, (float*)12);
+    glEnableVertexAttribArray(g_defaultProgram.attrDuu);
+    glEnableVertexAttribArray(g_defaultProgram.attrDuv);
+    glEnableVertexAttribArray(g_defaultProgram.attrDvv);
+    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->Bind2ndDerivatives());
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 9, 0);
+    glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 9, (float*)12);
+    glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 9, (float*)24);
 
-    if (g_evalOutput->HasFaceVaryingData()) {
-        glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindFaceVaryingData());
-        glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 2, 0);
-    }
-
-    glEnableVertexAttribArray(g_defaultProgram.attrPosition);
-    glEnableVertexAttribArray(g_defaultProgram.attrColor);
-    glEnableVertexAttribArray(g_defaultProgram.attrTangentU);
-    glEnableVertexAttribArray(g_defaultProgram.attrTangentV);
     glEnableVertexAttribArray(g_defaultProgram.attrPatchCoord);
+    glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindPatchCoords());
+    glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 5, (float*)12);
+
     if (g_evalOutput->HasFaceVaryingData()) {
         glEnableVertexAttribArray(g_defaultProgram.attrFVarData);
+        glBindBuffer(GL_ARRAY_BUFFER, g_evalOutput->BindFaceVaryingData());
+        glVertexAttribPointer(8, 2, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 2, 0);
     }
 
     glPointSize(2.0f);
@@ -959,8 +1012,11 @@ drawSamples() {
 
     glDisableVertexAttribArray(g_defaultProgram.attrPosition);
     glDisableVertexAttribArray(g_defaultProgram.attrColor);
-    glDisableVertexAttribArray(g_defaultProgram.attrTangentU);
-    glDisableVertexAttribArray(g_defaultProgram.attrTangentV);
+    glDisableVertexAttribArray(g_defaultProgram.attrDu);
+    glDisableVertexAttribArray(g_defaultProgram.attrDv);
+    glDisableVertexAttribArray(g_defaultProgram.attrDuu);
+    glDisableVertexAttribArray(g_defaultProgram.attrDuv);
+    glDisableVertexAttribArray(g_defaultProgram.attrDvv);
     glDisableVertexAttribArray(g_defaultProgram.attrPatchCoord);
     glDisableVertexAttribArray(g_defaultProgram.attrFVarData);
 
@@ -1323,6 +1379,7 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Normal", kNORMAL, g_drawMode==kNORMAL);
     g_hud.AddPullDownButton(shading_pulldown, "Shade", kSHADE, g_drawMode==kSHADE);
     g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING, g_drawMode==kFACEVARYING);
+    g_hud.AddPullDownButton(shading_pulldown, "Mean Curvature", kMEAN_CURVATURE, g_drawMode==kMEAN_CURVATURE);
 
     for (int i = 1; i < 11; ++i) {
         char level[16];

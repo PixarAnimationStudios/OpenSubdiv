@@ -53,9 +53,12 @@ extern "C" {
         const void *patchParams);
 
     void CudaEvalPatchesWithDerivatives(
-        const float *src, float *dst, float *du, float *dv,
-        int length,
-        int srcStride, int dstStride, int dvStride, int duStride,
+        const float *src, float *dst,
+        float *du, float *dv,
+        float *duu, float *duv, float *dvv,
+        int length, int srcStride, int dstStride,
+        int duStride, int dvStride,
+        int duuStride, int duvStride, int dvvStride,
         int numPatchCoords,
         const void *patchCoords,
         const void *patchArrays,
@@ -71,6 +74,10 @@ namespace Osd {
 
 template <class T> void *
 createCudaBuffer(std::vector<T> const & src) {
+    if (src.empty()) {
+        return NULL;
+    }
+
     void * devicePtr = 0;
 
     size_t size = src.size()*sizeof(T);
@@ -98,9 +105,11 @@ CudaStencilTable::CudaStencilTable(Far::StencilTable const *stencilTable) {
         _indices = createCudaBuffer(stencilTable->GetControlIndices());
         _weights = createCudaBuffer(stencilTable->GetWeights());
         _duWeights = _dvWeights = NULL;
+        _duuWeights = _duvWeights = _dvvWeights = NULL;
     } else {
         _sizes = _offsets = _indices = _weights = NULL;
         _duWeights = _dvWeights = NULL;
+        _duuWeights = _duvWeights = _dvvWeights = NULL;
     }
 }
 
@@ -113,9 +122,13 @@ CudaStencilTable::CudaStencilTable(Far::LimitStencilTable const *limitStencilTab
         _weights = createCudaBuffer(limitStencilTable->GetWeights());
         _duWeights = createCudaBuffer(limitStencilTable->GetDuWeights());
         _dvWeights = createCudaBuffer(limitStencilTable->GetDvWeights());
+        _duuWeights = createCudaBuffer(limitStencilTable->GetDuuWeights());
+        _duvWeights = createCudaBuffer(limitStencilTable->GetDuvWeights());
+        _dvvWeights = createCudaBuffer(limitStencilTable->GetDvvWeights());
     } else {
         _sizes = _offsets = _indices = _weights = NULL;
         _duWeights = _dvWeights = NULL;
+        _duuWeights = _duvWeights = _dvvWeights = NULL;
     }
 }
 
@@ -126,6 +139,9 @@ CudaStencilTable::~CudaStencilTable() {
     if (_weights) cudaFree(_weights);
     if (_duWeights) cudaFree(_duWeights);
     if (_dvWeights) cudaFree(_dvWeights);
+    if (_duuWeights) cudaFree(_duuWeights);
+    if (_duvWeights) cudaFree(_duvWeights);
+    if (_dvvWeights) cudaFree(_dvvWeights);
 }
 
 // ---------------------------------------------------------------------------
@@ -199,6 +215,84 @@ CudaEvaluator::EvalStencils(const float *src, BufferDescriptor const &srcDesc,
 
 /* static */
 bool
+CudaEvaluator::EvalStencils(const float *src, BufferDescriptor const &srcDesc,
+                            float *dst,       BufferDescriptor const &dstDesc,
+                            float *du,        BufferDescriptor const &duDesc,
+                            float *dv,        BufferDescriptor const &dvDesc,
+                            float *duu,       BufferDescriptor const &duuDesc,
+                            float *duv,       BufferDescriptor const &duvDesc,
+                            float *dvv,       BufferDescriptor const &dvvDesc,
+                            const int * sizes,
+                            const int * offsets,
+                            const int * indices,
+                            const float * weights,
+                            const float * duWeights,
+                            const float * dvWeights,
+                            const float * duuWeights,
+                            const float * duvWeights,
+                            const float * dvvWeights,
+                            int start,
+                            int end) {
+    // PERFORMANCE: need to combine 3 launches together
+    if (dst) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         dst + dstDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         dstDesc.stride,
+                         sizes, offsets, indices, weights,
+                         start, end);
+    }
+    if (du) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         du  +  duDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         duDesc.stride,
+                         sizes, offsets, indices, duWeights,
+                         start, end);
+    }
+    if (dv) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         dv  + dvDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         dvDesc.stride,
+                         sizes, offsets, indices, dvWeights,
+                         start, end);
+    }
+    if (duu) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         duu +  duuDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         duuDesc.stride,
+                         sizes, offsets, indices, duuWeights,
+                         start, end);
+    }
+    if (duv) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         duv +  duvDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         duvDesc.stride,
+                         sizes, offsets, indices, duvWeights,
+                         start, end);
+    }
+    if (dvv) {
+        CudaEvalStencils(src + srcDesc.offset,
+                         dvv + dvvDesc.offset,
+                         srcDesc.length,
+                         srcDesc.stride,
+                         dvvDesc.stride,
+                         sizes, offsets, indices, dvvWeights,
+                         start, end);
+    }
+    return true;
+}
+
+/* static */
+bool
 CudaEvaluator::EvalPatches(const float *src,
                            BufferDescriptor const &srcDesc,
                            float *dst,
@@ -237,9 +331,42 @@ CudaEvaluator::EvalPatches(
     if (dv)  dv  += dvDesc.offset;
 
     CudaEvalPatchesWithDerivatives(
-        src, dst, du, dv,
-        srcDesc.length, srcDesc.stride,
-        dstDesc.stride, duDesc.stride, dvDesc.stride,
+        src, dst, du, dv, NULL, NULL, NULL,
+        srcDesc.length, srcDesc.stride, dstDesc.stride,
+        duDesc.stride, dvDesc.stride, 0, 0, 0,
+        numPatchCoords, patchCoords, patchArrays, patchIndices, patchParams);
+    return true;
+}
+
+/* static */
+bool
+CudaEvaluator::EvalPatches(
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
+    float *duu,       BufferDescriptor const &duuDesc,
+    float *duv,       BufferDescriptor const &duvDesc,
+    float *dvv,       BufferDescriptor const &dvvDesc,
+    int numPatchCoords,
+    const PatchCoord *patchCoords,
+    const PatchArray *patchArrays,
+    const int *patchIndices,
+    const PatchParam *patchParams) {
+
+    if (src) src += srcDesc.offset;
+    if (dst) dst += dstDesc.offset;
+    if (du)  du  += duDesc.offset;
+    if (dv)  dv  += dvDesc.offset;
+    if (duu) duu += duuDesc.offset;
+    if (duv) duv += duvDesc.offset;
+    if (dvv) dvv += dvvDesc.offset;
+
+    CudaEvalPatchesWithDerivatives(
+        src, dst, du, dv, duu, duv, dvv,
+        srcDesc.length, srcDesc.stride, dstDesc.stride,
+        duDesc.stride, dvDesc.stride,
+        duuDesc.stride, duvDesc.stride, dvvDesc.stride,
         numPatchCoords, patchCoords, patchArrays, patchIndices, patchParams);
     return true;
 }

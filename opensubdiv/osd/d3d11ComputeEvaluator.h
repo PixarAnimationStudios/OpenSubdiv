@@ -102,6 +102,15 @@ public:
                                           BufferDescriptor const &dvDesc,
                                           ID3D11DeviceContext *deviceContext);
 
+    static D3D11ComputeEvaluator * Create(BufferDescriptor const &srcDesc,
+                                          BufferDescriptor const &dstDesc,
+                                          BufferDescriptor const &duDesc,
+                                          BufferDescriptor const &dvDesc,
+                                          BufferDescriptor const &duuDesc,
+                                          BufferDescriptor const &duvDesc,
+                                          BufferDescriptor const &dvvDesc,
+                                          ID3D11DeviceContext *deviceContext);
+
     /// Constructor.
     D3D11ComputeEvaluator();
 

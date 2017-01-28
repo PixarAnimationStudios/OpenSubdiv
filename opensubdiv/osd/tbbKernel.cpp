@@ -219,6 +219,78 @@ TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
         tbb::blocked_range<int> range(start, end, grain_size);
         tbb::parallel_for(range, kernel);
     }
+
+}
+
+void
+TbbEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * du,        BufferDescriptor const &duDesc,
+                float * dv,        BufferDescriptor const &dvDesc,
+                float * duu,       BufferDescriptor const &duuDesc,
+                float * duv,       BufferDescriptor const &duvDesc,
+                float * dvv,       BufferDescriptor const &dvvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                float const * duuWeights,
+                float const * duvWeights,
+                float const * dvvWeights,
+                int start, int end) {
+
+    if (src) src += srcDesc.offset;
+    if (dst) dst += dstDesc.offset;
+    if (du)  du  += duDesc.offset;
+    if (dv)  dv  += dvDesc.offset;
+    if (duu) duu += duuDesc.offset;
+    if (duv) duv += duvDesc.offset;
+    if (dvv) dvv += dvvDesc.offset;
+
+    // PERFORMANCE: need to combine 3 launches together
+    if (dst) {
+        TBBStencilKernel kernel(src, srcDesc, dst, dstDesc,
+                                sizes, offsets, indices, weights);
+        tbb::blocked_range<int> range(start, end, grain_size);
+        tbb::parallel_for(range, kernel);
+    }
+
+    if (du) {
+        TBBStencilKernel kernel(src, srcDesc, du, duDesc,
+                                sizes, offsets, indices, duWeights);
+        tbb::blocked_range<int> range(start, end, grain_size);
+        tbb::parallel_for(range, kernel);
+    }
+
+    if (dv) {
+        TBBStencilKernel kernel(src, srcDesc, dv, dvDesc,
+                                sizes, offsets, indices, dvWeights);
+        tbb::blocked_range<int> range(start, end, grain_size);
+        tbb::parallel_for(range, kernel);
+    }
+
+    if (duu) {
+        TBBStencilKernel kernel(src, srcDesc, duu, duuDesc,
+                                sizes, offsets, indices, duuWeights);
+        tbb::blocked_range<int> range(start, end, grain_size);
+        tbb::parallel_for(range, kernel);
+    }
+
+    if (duv) {
+        TBBStencilKernel kernel(src, srcDesc, duv, duvDesc,
+                                sizes, offsets, indices, duvWeights);
+        tbb::blocked_range<int> range(start, end, grain_size);
+        tbb::parallel_for(range, kernel);
+    }
+
+    if (dvv) {
+        TBBStencilKernel kernel(src, srcDesc, dvv, dvvDesc,
+                                sizes, offsets, indices, dvvWeights);
+        tbb::blocked_range<int> range(start, end, grain_size);
+        tbb::parallel_for(range, kernel);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -257,10 +329,16 @@ class TbbEvalPatchesKernel {
     BufferDescriptor _dstDesc;
     BufferDescriptor _dstDuDesc;
     BufferDescriptor _dstDvDesc;
+    BufferDescriptor _dstDuuDesc;
+    BufferDescriptor _dstDuvDesc;
+    BufferDescriptor _dstDvvDesc;
     float const * _src;
     float * _dst;
     float * _dstDu;
     float * _dstDv;
+    float * _dstDuu;
+    float * _dstDuv;
+    float * _dstDvv;
     int _numPatchCoords;
     const PatchCoord *_patchCoords;
     const PatchArray *_patchArrayBuffer;
@@ -272,6 +350,9 @@ public:
                          float *dst,       BufferDescriptor dstDesc,
                          float *dstDu,     BufferDescriptor dstDuDesc,
                          float *dstDv,     BufferDescriptor dstDvDesc,
+                         float *dstDuu,    BufferDescriptor dstDuuDesc,
+                         float *dstDuv,    BufferDescriptor dstDuvDesc,
+                         float *dstDvv,    BufferDescriptor dstDvvDesc,
                          int numPatchCoords,
                          const PatchCoord *patchCoords,
                          const PatchArray *patchArrayBuffer,
@@ -279,7 +360,10 @@ public:
                          const PatchParam *patchParamBuffer) :
         _srcDesc(srcDesc), _dstDesc(dstDesc),
         _dstDuDesc(dstDuDesc), _dstDvDesc(dstDvDesc),
-        _src(src), _dst(dst), _dstDu(dstDu), _dstDv(dstDv),
+        _dstDuuDesc(dstDuuDesc), _dstDuvDesc(dstDuvDesc), _dstDvvDesc(dstDvvDesc),
+        _src(src), _dst(dst),
+        _dstDu(dstDu), _dstDv(dstDv),
+        _dstDuu(dstDuu), _dstDuv(dstDuv), _dstDvv(dstDvv),
         _numPatchCoords(numPatchCoords),
         _patchCoords(patchCoords),
         _patchArrayBuffer(patchArrayBuffer),
@@ -290,13 +374,15 @@ public:
     void operator() (tbb::blocked_range<int> const &r) const {
         if (_dstDu == NULL && _dstDv == NULL) {
             compute(r);
+        } else if (_dstDuu == NULL && _dstDuv == NULL && _dstDvv == NULL) {
+            computeWith1stDerivative(r);
         } else {
-            computeWithDerivative(r);
+            computeWith2ndDerivative(r);
         }
     }
 
     void compute(tbb::blocked_range<int> const &r) const {
-        float wP[20], wDs[20], wDt[20];
+        float wP[20], wDu[20], wDv[20];
         BufferAdapter<const float> srcT(_src + _srcDesc.offset,
                                         _srcDesc.length,
                                         _srcDesc.stride);
@@ -305,10 +391,66 @@ public:
                                   _dstDesc.length,
                                   _dstDesc.stride);
 
-        BufferAdapter<float> dstDuT(_dstDu,
+
+        for (int i = r.begin(); i < r.end(); ++i) {
+            PatchCoord const &coord = _patchCoords[i];
+            PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
+
+            Far::PatchParam const & param =
+                _patchParamBuffer[coord.handle.patchIndex];
+            int patchType = param.IsRegular()
+                ? Far::PatchDescriptor::REGULAR
+                : array.GetPatchType();
+
+            int numControlVertices = 0;
+            if (patchType == Far::PatchDescriptor::REGULAR) {
+                Far::internal::GetBSplineWeights(param,
+                                                 coord.s, coord.t, wP,
+                                                 wDu, wDv);
+                numControlVertices = 16;
+            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
+                Far::internal::GetGregoryWeights(param,
+                                                 coord.s, coord.t, wP,
+                                                 wDu, wDv);
+                numControlVertices = 20;
+            } else if (patchType == Far::PatchDescriptor::QUADS) {
+                Far::internal::GetBilinearWeights(param,
+                                                  coord.s, coord.t, wP,
+                                                  wDu, wDv);
+                numControlVertices = 4;
+            } else {
+                assert(0);
+            }
+
+            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
+            int indexBase = array.GetIndexBase() + indexStride *
+                    (coord.handle.patchIndex - array.GetPrimitiveIdBase());
+
+            const int *cvs = &_patchIndexBuffer[indexBase];
+
+            dstT.Clear();
+            for (int j = 0; j < numControlVertices; ++j) {
+                dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
+            }
+            ++dstT;
+        }
+    }
+
+    void computeWith1stDerivative(tbb::blocked_range<int> const &r) const {
+        float wP[20], wDu[20], wDv[20];
+        BufferAdapter<const float> srcT(_src + _srcDesc.offset,
+                                        _srcDesc.length,
+                                        _srcDesc.stride);
+        BufferAdapter<float> dstT(_dst + _dstDesc.offset
+                                       + r.begin() * _dstDesc.stride,
+                                  _dstDesc.length,
+                                  _dstDesc.stride);
+        BufferAdapter<float> dstDuT(_dstDu + _dstDuDesc.offset
+                                       + r.begin() * _dstDuDesc.stride,
                                     _dstDuDesc.length,
                                     _dstDuDesc.stride);
-        BufferAdapter<float> dstDvT(_dstDv,
+        BufferAdapter<float> dstDvT(_dstDv + _dstDvDesc.offset
+                                       + r.begin() * _dstDvDesc.stride,
                                     _dstDvDesc.length,
                                     _dstDvDesc.stride);
 
@@ -325,74 +467,18 @@ public:
             int numControlVertices = 0;
             if (patchType == Far::PatchDescriptor::REGULAR) {
                 Far::internal::GetBSplineWeights(param,
-                                                 coord.s, coord.t, wP, wDs, wDt);
+                                                 coord.s, coord.t, wP,
+                                                 wDu, wDv);
                 numControlVertices = 16;
             } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
                 Far::internal::GetGregoryWeights(param,
-                                                 coord.s, coord.t, wP, wDs, wDt);
+                                                 coord.s, coord.t, wP,
+                                                 wDu, wDv);
                 numControlVertices = 20;
             } else if (patchType == Far::PatchDescriptor::QUADS) {
                 Far::internal::GetBilinearWeights(param,
-                                                  coord.s, coord.t, wP, wDs, wDt);
-                numControlVertices = 4;
-            } else {
-                assert(0);
-            }
-
-            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-            int indexBase = array.GetIndexBase() + indexStride *
-                    (coord.handle.patchIndex - array.GetPrimitiveIdBase());
-
-            const int *cvs = &_patchIndexBuffer[indexBase];
-
-            dstT.Clear();
-            for (int j = 0; j < numControlVertices; ++j) {
-                dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
-            }
-            ++dstT;
-        }
-    }
-
-    void computeWithDerivative(tbb::blocked_range<int> const &r) const {
-        float wP[20], wDs[20], wDt[20];
-        BufferAdapter<const float> srcT(_src + _srcDesc.offset,
-                                        _srcDesc.length,
-                                        _srcDesc.stride);
-        BufferAdapter<float> dstT(_dst + _dstDesc.offset
-                                       + r.begin() * _dstDesc.stride,
-                                  _dstDesc.length,
-                                  _dstDesc.stride);
-        BufferAdapter<float> dstDuT(_dstDu + _dstDuDesc.offset
-                                       + r.begin() * _dstDuDesc.stride,
-                                  _dstDuDesc.length,
-                                  _dstDuDesc.stride);
-        BufferAdapter<float> dstDvT(_dstDv + _dstDvDesc.offset
-                                       + r.begin() * _dstDvDesc.stride,
-                                  _dstDvDesc.length,
-                                  _dstDvDesc.stride);
-
-        for (int i = r.begin(); i < r.end(); ++i) {
-            PatchCoord const &coord = _patchCoords[i];
-            PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
-
-            Far::PatchParam const & param =
-                _patchParamBuffer[coord.handle.patchIndex];
-            int patchType = param.IsRegular()
-                ? Far::PatchDescriptor::REGULAR
-                : array.GetPatchType();
-
-            int numControlVertices = 0;
-            if (patchType == Far::PatchDescriptor::REGULAR) {
-                Far::internal::GetBSplineWeights(param,
-                                                 coord.s, coord.t, wP, wDs, wDt);
-                numControlVertices = 16;
-            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-                Far::internal::GetGregoryWeights(param,
-                                                 coord.s, coord.t, wP, wDs, wDt);
-                numControlVertices = 20;
-            } else if (patchType == Far::PatchDescriptor::QUADS) {
-                Far::internal::GetBilinearWeights(param,
-                                                  coord.s, coord.t, wP, wDs, wDt);
+                                                  coord.s, coord.t,
+                                                  wP, wDu, wDv);
                 numControlVertices = 4;
             } else {
                 assert(0);
@@ -409,12 +495,101 @@ public:
             dstDvT.Clear();
             for (int j = 0; j < numControlVertices; ++j) {
                 dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
-                dstDuT.AddWithWeight(srcT[cvs[j]], wDs[j]);
-                dstDvT.AddWithWeight(srcT[cvs[j]], wDt[j]);
+                dstDuT.AddWithWeight(srcT[cvs[j]], wDu[j]);
+                dstDvT.AddWithWeight(srcT[cvs[j]], wDv[j]);
             }
             ++dstT;
             ++dstDuT;
             ++dstDvT;
+        }
+    }
+
+    void computeWith2ndDerivative(tbb::blocked_range<int> const &r) const {
+        float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+        BufferAdapter<const float> srcT(_src + _srcDesc.offset,
+                                        _srcDesc.length,
+                                        _srcDesc.stride);
+        BufferAdapter<float> dstT(_dst + _dstDesc.offset
+                                       + r.begin() * _dstDesc.stride,
+                                  _dstDesc.length,
+                                  _dstDesc.stride);
+        BufferAdapter<float> dstDuT(_dstDu + _dstDuDesc.offset
+                                       + r.begin() * _dstDuDesc.stride,
+                                  _dstDuDesc.length,
+                                  _dstDuDesc.stride);
+        BufferAdapter<float> dstDvT(_dstDv + _dstDvDesc.offset
+                                       + r.begin() * _dstDvDesc.stride,
+                                  _dstDvDesc.length,
+                                  _dstDvDesc.stride);
+        BufferAdapter<float> dstDuuT(_dstDuu + _dstDuuDesc.offset
+                                       + r.begin() * _dstDuuDesc.stride,
+                                  _dstDuuDesc.length,
+                                  _dstDuuDesc.stride);
+        BufferAdapter<float> dstDuvT(_dstDuv + _dstDuvDesc.offset
+                                       + r.begin() * _dstDuvDesc.stride,
+                                  _dstDuvDesc.length,
+                                  _dstDuvDesc.stride);
+        BufferAdapter<float> dstDvvT(_dstDvv + _dstDvvDesc.offset
+                                       + r.begin() * _dstDvvDesc.stride,
+                                  _dstDvvDesc.length,
+                                  _dstDvvDesc.stride);
+
+        for (int i = r.begin(); i < r.end(); ++i) {
+            PatchCoord const &coord = _patchCoords[i];
+            PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
+
+            Far::PatchParam const & param =
+                _patchParamBuffer[coord.handle.patchIndex];
+            int patchType = param.IsRegular()
+                ? Far::PatchDescriptor::REGULAR
+                : array.GetPatchType();
+
+            int numControlVertices = 0;
+            if (patchType == Far::PatchDescriptor::REGULAR) {
+                Far::internal::GetBSplineWeights(param,
+                                                 coord.s, coord.t, wP,
+                                                 wDu, wDv, wDuu, wDuv, wDvv);
+                numControlVertices = 16;
+            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
+                Far::internal::GetGregoryWeights(param,
+                                                 coord.s, coord.t, wP,
+                                                 wDu, wDv, wDuu, wDuv, wDvv);
+                numControlVertices = 20;
+            } else if (patchType == Far::PatchDescriptor::QUADS) {
+                Far::internal::GetBilinearWeights(param,
+                                                  coord.s, coord.t, wP,
+                                                 wDu, wDv, wDuu, wDuv, wDvv);
+                numControlVertices = 4;
+            } else {
+                assert(0);
+            }
+
+            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
+            int indexBase = array.GetIndexBase() + indexStride *
+                    (coord.handle.patchIndex - array.GetPrimitiveIdBase());
+
+            const int *cvs = &_patchIndexBuffer[indexBase];
+
+            dstT.Clear();
+            dstDuT.Clear();
+            dstDvT.Clear();
+            dstDuuT.Clear();
+            dstDuvT.Clear();
+            dstDvvT.Clear();
+            for (int j = 0; j < numControlVertices; ++j) {
+                dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
+                dstDuT.AddWithWeight(srcT[cvs[j]], wDu[j]);
+                dstDvT.AddWithWeight(srcT[cvs[j]], wDv[j]);
+                dstDuuT.AddWithWeight(srcT[cvs[j]], wDuu[j]);
+                dstDuvT.AddWithWeight(srcT[cvs[j]], wDuv[j]);
+                dstDvvT.AddWithWeight(srcT[cvs[j]], wDvv[j]);
+            }
+            ++dstT;
+            ++dstDuT;
+            ++dstDvT;
+            ++dstDuuT;
+            ++dstDuvT;
+            ++dstDvvT;
         }
     }
 };
@@ -433,6 +608,39 @@ TbbEvalPatches(float const *src, BufferDescriptor const &srcDesc,
 
     TbbEvalPatchesKernel kernel(src, srcDesc, dst, dstDesc,
                                 dstDu, dstDuDesc, dstDv, dstDvDesc,
+                                NULL, BufferDescriptor(),
+                                NULL, BufferDescriptor(),
+                                NULL, BufferDescriptor(),
+                                numPatchCoords, patchCoords,
+                                patchArrayBuffer,
+                                patchIndexBuffer,
+                                patchParamBuffer);
+
+    tbb::blocked_range<int> range(0, numPatchCoords, grain_size);
+    tbb::parallel_for(range, kernel);
+
+}
+
+
+void
+TbbEvalPatches(float const *src, BufferDescriptor const &srcDesc,
+               float *dst,       BufferDescriptor const &dstDesc,
+               float *dstDu,     BufferDescriptor const &dstDuDesc,
+               float *dstDv,     BufferDescriptor const &dstDvDesc,
+               float *dstDuu,    BufferDescriptor const &dstDuuDesc,
+               float *dstDuv,    BufferDescriptor const &dstDuvDesc,
+               float *dstDvv,    BufferDescriptor const &dstDvvDesc,
+               int numPatchCoords,
+               const PatchCoord *patchCoords,
+               const PatchArray *patchArrayBuffer,
+               const int *patchIndexBuffer,
+               const PatchParam *patchParamBuffer) {
+
+    TbbEvalPatchesKernel kernel(src, srcDesc, dst, dstDesc,
+                                dstDu, dstDuDesc, dstDv, dstDvDesc,
+                                dstDuu, dstDuuDesc,
+                                dstDuv, dstDuvDesc,
+                                dstDvv, dstDvvDesc,
                                 numPatchCoords, patchCoords,
                                 patchArrayBuffer,
                                 patchIndexBuffer,
