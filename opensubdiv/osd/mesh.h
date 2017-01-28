@@ -51,12 +51,13 @@ enum MeshBits {
     MeshInterleaveVarying    = 1,
     MeshFVarData             = 2,
     MeshFVarAdaptive         = 3,
-    MeshUseSingleCreasePatch = 4,
-    MeshUseInfSharpPatch     = 5,
-    MeshEndCapBSplineBasis   = 6,  // exclusive
-    MeshEndCapGregoryBasis   = 7,  // exclusive
-    MeshEndCapLegacyGregory  = 8,  // exclusive
-    NUM_MESH_BITS            = 9,
+    MeshUseSmoothCornerPatch = 4,
+    MeshUseSingleCreasePatch = 5,
+    MeshUseInfSharpPatch     = 6,
+    MeshEndCapBSplineBasis   = 7,  // exclusive
+    MeshEndCapGregoryBasis   = 8,  // exclusive
+    MeshEndCapLegacyGregory  = 9,  // exclusive
+    NUM_MESH_BITS            = 10,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -529,6 +530,7 @@ private:
         Far::PatchTableFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.generateFVarLegacyLinearPatches = !bits.test(MeshFVarAdaptive);
+        poptions.generateLegacySharpCornerPatches = !bits.test(MeshUseSmoothCornerPatch);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
         poptions.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
 

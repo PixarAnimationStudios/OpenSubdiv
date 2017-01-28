@@ -65,6 +65,7 @@ public:
              shareEndCapPatchPoints(true),
              generateFVarTables(false),
              generateFVarLegacyLinearPatches(true),
+             generateLegacySharpCornerPatches(true),
              numFVarChannels(-1),
              fvarChannelIndices(0)
         { }
@@ -87,8 +88,12 @@ public:
                                                   ///< currently only work with GregoryBasis.
 
                      // face-varying
-                     generateFVarTables              : 1, ///< Generate face-varying patch tables
-                     generateFVarLegacyLinearPatches : 1; ///< Generate all linear face-varying patches (legacy)
+                     generateFVarTables  : 1, ///< Generate face-varying patch tables
+
+                     // legacy behaviors (default to true)
+                     generateFVarLegacyLinearPatches  : 1, ///< Generate all linear face-varying patches (legacy)
+                     generateLegacySharpCornerPatches : 1; ///< Generate sharp regular patches at smooth corners (legacy)
+
         int          numFVarChannels;          ///< Number of channel indices and interpolation modes passed
         int const *  fvarChannelIndices;       ///< List containing the indices of the channels selected for the factory
     };
