@@ -93,6 +93,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         references.rst
         release_30.rst
         release_31.rst
+        release_32.rst
         release_notes.rst
         release_notes_2x.rst
         sdc_overview.rst
