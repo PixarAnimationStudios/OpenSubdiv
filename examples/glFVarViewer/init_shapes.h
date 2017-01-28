@@ -40,6 +40,10 @@ static std::vector<ShapeDesc> g_defaultShapes;
 //------------------------------------------------------------------------------
 static void initShapes() {
 
+    //
+    //  Note that any shapes added here must have UVs -- loading a shape without UVs is a fatal
+    //  error and will result in termination when it is selected.
+    //
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner0",     catmark_cube_corner0,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner1",     catmark_cube_corner1,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner2",     catmark_cube_corner2,     kCatmark ) );
