@@ -151,9 +151,9 @@ GLStencilTableTBO::~GLStencilTableTBO() {
 
 // ---------------------------------------------------------------------------
 
-GLXFBEvaluator::GLXFBEvaluator(bool sharedDerivativeBuffers)
+GLXFBEvaluator::GLXFBEvaluator(bool interleavedDerivativeBuffers)
     : _srcBufferTexture(0),
-      _sharedDerivativeBuffers(sharedDerivativeBuffers) {
+      _interleavedDerivativeBuffers(interleavedDerivativeBuffers) {
 }
 
 GLXFBEvaluator::~GLXFBEvaluator() {
@@ -171,7 +171,7 @@ compileKernel(BufferDescriptor const &srcDesc,
               BufferDescriptor const &duvDesc,
               BufferDescriptor const &dvvDesc,
               const char *kernelDefine,
-              bool sharedDerivativeBuffers) {
+              bool interleavedDerivativeBuffers) {
 
     GLuint program = glCreateProgram();
 
@@ -192,16 +192,16 @@ compileKernel(BufferDescriptor const &srcDesc,
     bool deriv2 = (duuDesc.length > 0 || duvDesc.length > 0 || dvvDesc.length > 0);
     if (deriv1) {
         defines << "#define OPENSUBDIV_GLSL_XFB_USE_1ST_DERIVATIVES\n";
-        if (sharedDerivativeBuffers) {
+        if (interleavedDerivativeBuffers) {
             defines <<
-                "#define OPENSUBDIV_GLSL_XFB_SHARED_1ST_DERIVATIVE_BUFFERS\n";
+                "#define OPENSUBDIV_GLSL_XFB_INTERLEAVED_1ST_DERIVATIVE_BUFFERS\n";
         }
     }
     if (deriv2) {
         defines << "#define OPENSUBDIV_GLSL_XFB_USE_2ND_DERIVATIVES\n";
-        if (sharedDerivativeBuffers) {
+        if (interleavedDerivativeBuffers) {
             defines <<
-                "#define OPENSUBDIV_GLSL_XFB_SHARED_2ND_DERIVATIVE_BUFFERS\n";
+                "#define OPENSUBDIV_GLSL_XFB_INTERLEAVED_2ND_DERIVATIVE_BUFFERS\n";
         }
     }
 
@@ -247,15 +247,15 @@ compileKernel(BufferDescriptor const &srcDesc,
     // For derivatives, we use another buffer bindings so gl_NextBuffer
     // is inserted here to switch the destination of transform feedback.
     //
-    // Note that the destination buffers may or may not be shared between
+    // Note that the destination buffers may or may not be interleaved between
     // vertex and each derivatives. gl_NextBuffer seems still works well
     // in either case.
     //
-    // If we know that the buffers for derivatives are shared, then we
+    // If we know that the buffers for derivatives are interleaved, then we
     // can use fewer buffer bindings. This can be important, since most GL
     // implementations will support only up to 4 transform feedback bindings.
     //
-    if (deriv1 && sharedDerivativeBuffers) {
+    if (deriv1 && interleavedDerivativeBuffers) {
         outputs.push_back("gl_NextBuffer");
 
         int primvar1Offset = (duDesc.offset % duDesc.stride);
@@ -308,7 +308,7 @@ compileKernel(BufferDescriptor const &srcDesc,
             }
         }
     }
-    if (deriv2 && sharedDerivativeBuffers) {
+    if (deriv2 && interleavedDerivativeBuffers) {
         outputs.push_back("gl_NextBuffer");
 
         int primvar1Offset = (duuDesc.offset % duuDesc.stride);
@@ -428,12 +428,12 @@ GLXFBEvaluator::Compile(BufferDescriptor const &srcDesc,
     // create a stencil kernel
     _stencilKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc,
                            duuDesc, duvDesc, dvvDesc,
-                           _sharedDerivativeBuffers);
+                           _interleavedDerivativeBuffers);
 
     // create a patch kernel
     _patchKernel.Compile(srcDesc, dstDesc, duDesc, dvDesc,
                          duuDesc, duvDesc, dvvDesc,
-                         _sharedDerivativeBuffers);
+                         _interleavedDerivativeBuffers);
 
     // create a texture for input buffer
     if (!_srcBufferTexture) {
@@ -600,7 +600,7 @@ GLXFBEvaluator::EvalStencils(
                       dstBufferBindOffset * sizeof(float),
                       count * dstDesc.stride * sizeof(float));
 
-    if ((duDesc.length > 0) && _sharedDerivativeBuffers) {
+    if ((duDesc.length > 0) && _interleavedDerivativeBuffers) {
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
                           1, duBuffer,
                           duBufferBindOffset * sizeof(float),
@@ -621,7 +621,7 @@ GLXFBEvaluator::EvalStencils(
         }
     }
 
-    if ((duuDesc.length > 0) && _sharedDerivativeBuffers) {
+    if ((duuDesc.length > 0) && _interleavedDerivativeBuffers) {
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
                           2, duuBuffer,
                           duuBufferBindOffset * sizeof(float),
@@ -774,7 +774,7 @@ GLXFBEvaluator::EvalPatches(
                       dstBufferBindOffset * sizeof(float),
                       numPatchCoords * dstDesc.stride * sizeof(float));
 
-    if (deriv1 && _sharedDerivativeBuffers) {
+    if (deriv1 && _interleavedDerivativeBuffers) {
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
                           1, duBuffer,
                           duBufferBindOffset * sizeof(float),
@@ -790,7 +790,7 @@ GLXFBEvaluator::EvalPatches(
                           dvBufferBindOffset * sizeof(float),
                           numPatchCoords * dvDesc.stride * sizeof(float));
     }
-    if (deriv2 && _sharedDerivativeBuffers) {
+    if (deriv2 && _interleavedDerivativeBuffers) {
         glBindBufferRange(GL_TRANSFORM_FEEDBACK_BUFFER,
                           2, duuBuffer,
                           duuBufferBindOffset * sizeof(float),
@@ -856,7 +856,7 @@ GLXFBEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
                                         BufferDescriptor const &duuDesc,
                                         BufferDescriptor const &duvDesc,
                                         BufferDescriptor const &dvvDesc,
-                                        bool sharedDerivativeBuffers) {
+                                        bool interleavedDerivativeBuffers) {
     // create stencil kernel
     if (program) {
         glDeleteProgram(program);
@@ -867,7 +867,7 @@ GLXFBEvaluator::_StencilKernel::Compile(BufferDescriptor const &srcDesc,
 
     program = compileKernel(srcDesc, dstDesc, duDesc, dvDesc,
                             duuDesc, duvDesc, dvvDesc,
-                            kernelDefines, sharedDerivativeBuffers);
+                            kernelDefines, interleavedDerivativeBuffers);
     if (program == 0) return false;
 
     // cache uniform locations (TODO: use uniform block)
@@ -906,7 +906,7 @@ GLXFBEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
                                       BufferDescriptor const &duuDesc,
                                       BufferDescriptor const &duvDesc,
                                       BufferDescriptor const &dvvDesc,
-                                      bool sharedDerivativeBuffers) {
+                                      bool interleavedDerivativeBuffers) {
     // create stencil kernel
     if (program) {
         glDeleteProgram(program);
@@ -917,7 +917,7 @@ GLXFBEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
 
     program = compileKernel(srcDesc, dstDesc, duDesc, dvDesc,
                             duuDesc, duvDesc, dvvDesc,
-                            kernelDefines, sharedDerivativeBuffers);
+                            kernelDefines, interleavedDerivativeBuffers);
     if (program == 0) return false;
 
     // cache uniform locations

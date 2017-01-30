@@ -64,7 +64,7 @@ void writeVertex(Vertex v) {
 //------------------------------------------------------------------------------
 
 #if defined(OPENSUBDIV_GLSL_XFB_USE_1ST_DERIVATIVES) && \
-    defined(OPENSUBDIV_GLSL_XFB_SHARED_1ST_DERIVATIVE_BUFFERS)
+    defined(OPENSUBDIV_GLSL_XFB_INTERLEAVED_1ST_DERIVATIVE_BUFFERS)
 out float outDeriv1Buffer[2*LENGTH];
 
 void writeDu(Vertex v) {
@@ -96,7 +96,7 @@ void writeDv(Vertex v) {
 #endif
 
 #if defined(OPENSUBDIV_GLSL_XFB_USE_2ND_DERIVATIVES) && \
-    defined(OPENSUBDIV_GLSL_XFB_SHARED_2ND_DERIVATIVE_BUFFERS)
+    defined(OPENSUBDIV_GLSL_XFB_INTERLEAVED_2ND_DERIVATIVE_BUFFERS)
 out float outDeriv2Buffer[3*LENGTH];
 
 void writeDuu(Vertex v) {
