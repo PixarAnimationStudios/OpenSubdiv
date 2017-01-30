@@ -211,9 +211,9 @@ CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
     float * result   = (float*)alloca(nOutLength * sizeof(float));
     float * resultDu = result + dstDesc.length;
     float * resultDv = resultDu + dstDuDesc.length;
-    float * resultDuu = resultDv + dstDuuDesc.length;
-    float * resultDuv = resultDuu + dstDuvDesc.length;
-    float * resultDvv = resultDuv + dstDvvDesc.length;
+    float * resultDuu = resultDv + dstDvDesc.length;
+    float * resultDuv = resultDuu + dstDuuDesc.length;
+    float * resultDvv = resultDuv + dstDuvDesc.length;
 
     int nStencils = end - start;
     for (int i = 0; i < nStencils; ++i, ++sizes) {
@@ -234,7 +234,7 @@ CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
         copy(dstDu, i, resultDu, dstDuDesc);
         copy(dstDv, i, resultDv, dstDvDesc);
         copy(dstDuu, i, resultDuu, dstDuuDesc);
-        copy(dstDuv, i, resultDuu, dstDuvDesc);
+        copy(dstDuv, i, resultDuv, dstDuvDesc);
         copy(dstDvv, i, resultDvv, dstDvvDesc);
     }
 }
