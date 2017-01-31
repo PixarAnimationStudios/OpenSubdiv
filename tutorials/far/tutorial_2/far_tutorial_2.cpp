@@ -124,7 +124,7 @@ int main(int, char **) {
 
     Far::TopologyRefiner * refiner = createFarTopologyRefiner();
 
-    // Uniformly refine the topolgy up to 'maxlevel'
+    // Uniformly refine the topology up to 'maxlevel'
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     // Allocate buffers for vertex primvar data.
@@ -140,7 +140,7 @@ int main(int, char **) {
     int nTotalVerts  = refiner->GetNumVerticesTotal();
     int nTempVerts   = nTotalVerts - nCoarseVerts - nFineVerts;
 
-    // Allocate and intialize the primvar data for the original coarse vertices:
+    // Allocate and initialize the primvar data for the original coarse vertices:
     std::vector<VertexPosition> coarsePosBuffer(nCoarseVerts);
     std::vector<VertexColor>    coarseClrBuffer(nCoarseVerts);
 

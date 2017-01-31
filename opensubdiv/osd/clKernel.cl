@@ -99,12 +99,18 @@ __kernel void computeStencilsDerivatives(
     __global float * dst, int dstOffset,
     __global float * du,  int duOffset, int duStride,
     __global float * dv,  int dvOffset, int dvStride,
+    __global float * duu, int duuOffset, int duuStride,
+    __global float * duv, int duvOffset, int duvStride,
+    __global float * dvv, int dvvOffset, int dvvStride,
     __global int * sizes,
     __global int * offsets,
     __global int * indices,
     __global float * weights,
     __global float * duWeights,
     __global float * dvWeights,
+    __global float * duuWeights,
+    __global float * duvWeights,
+    __global float * dvvWeights,
     int batchStart, int batchEnd) {
 
     int current = get_global_id(0) + batchStart;
@@ -113,10 +119,13 @@ __kernel void computeStencilsDerivatives(
         return;
     }
 
-    struct Vertex v, vdu, vdv;
+    struct Vertex v, vdu, vdv, vduu, vduv, vdvv;
     clear(&v);
     clear(&vdu);
     clear(&vdv);
+    clear(&vduu);
+    clear(&vduv);
+    clear(&vdvv);
 
     int size = sizes[current],
         offset = offsets[current];
@@ -125,6 +134,9 @@ __kernel void computeStencilsDerivatives(
     if (dst) dst += dstOffset;
     if (du)  du  += duOffset;
     if (dv)  dv  += dvOffset;
+    if (duu) duu += duuOffset;
+    if (duv) duv += duvOffset;
+    if (dvv) dvv += dvvOffset;
 
     for (int i=0; i<size; ++i) {
         int ofs = offset + i;
@@ -132,11 +144,17 @@ __kernel void computeStencilsDerivatives(
         if (weights)   addWithWeight(  &v, src, vid,   weights[ofs]);
         if (duWeights) addWithWeight(&vdu, src, vid, duWeights[ofs]);
         if (dvWeights) addWithWeight(&vdv, src, vid, dvWeights[ofs]);
+        if (duuWeights) addWithWeight(&vduu, src, vid, duuWeights[ofs]);
+        if (duvWeights) addWithWeight(&vduv, src, vid, duvWeights[ofs]);
+        if (dvvWeights) addWithWeight(&vdvv, src, vid, dvvWeights[ofs]);
     }
 
     if (dst) writeVertex      (dst, current, &v);
     if (du)  writeVertexStride(du,  current, &vdu, duStride);
     if (dv)  writeVertexStride(dv,  current, &vdv, dvStride);
+    if (duu) writeVertexStride(duu, current, &vduu, duuStride);
+    if (duv) writeVertexStride(duv, current, &vduv, duvStride);
+    if (dvv) writeVertexStride(dvv, current, &vdvv, dvvStride);
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +223,9 @@ __kernel void computePatches(__global float *src, int srcOffset,
                              __global float *dst, int dstOffset,
                              __global float *du,  int duOffset, int duStride,
                              __global float *dv,  int dvOffset, int dvStride,
+                             __global float *duu, int duuOffset, int duuStride,
+                             __global float *duv, int duvOffset, int duvStride,
+                             __global float *dvv, int dvvOffset, int dvvStride,
                              __global struct PatchCoord *patchCoords,
                              __global struct PatchArray *patchArrayBuffer,
                              __global int *patchIndexBuffer,
@@ -213,8 +234,11 @@ __kernel void computePatches(__global float *src, int srcOffset,
 
     if (src) src += srcOffset;
     if (dst) dst += dstOffset;
-    if (du)  du += duOffset;
-    if (dv)  dv += dvOffset;
+    if (du)  du  += duOffset;
+    if (dv)  dv  += dvOffset;
+    if (duu) duu += duuOffset;
+    if (duv) duv += duvOffset;
+    if (dvv) dvv += dvvOffset;
 
     struct PatchCoord coord = patchCoords[current];
     struct PatchArray array = patchArrayBuffer[coord.arrayIndex];
@@ -274,5 +298,31 @@ __kernel void computePatches(__global float *src, int srcOffset,
         }
         writeVertexStride(dv, current, &vdv, dvStride);
     }
-
+    if (duu) {
+        struct Vertex vduu;
+        clear(&vduu);
+        for (int i = 0; i < numControlVertices; ++i) {
+            int index = patchIndexBuffer[indexBase + i];
+            addWithWeight(&vduu, src, index, wDss[i]);
+        }
+        writeVertexStride(duu, current, &vduu, duuStride);
+    }
+    if (duv) {
+        struct Vertex vduv;
+        clear(&vduv);
+        for (int i = 0; i < numControlVertices; ++i) {
+            int index = patchIndexBuffer[indexBase + i];
+            addWithWeight(&vduv, src, index, wDst[i]);
+        }
+        writeVertexStride(duv, current, &vduv, duvStride);
+    }
+    if (dvv) {
+        struct Vertex vdvv;
+        clear(&vdvv);
+        for (int i = 0; i < numControlVertices; ++i) {
+            int index = patchIndexBuffer[indexBase + i];
+            addWithWeight(&vdvv, src, index, wDtt[i]);
+        }
+        writeVertexStride(dvv, current, &vdvv, dvvStride);
+    }
 }

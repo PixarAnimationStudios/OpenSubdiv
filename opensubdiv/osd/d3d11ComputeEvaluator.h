@@ -102,6 +102,15 @@ public:
                                           BufferDescriptor const &dvDesc,
                                           ID3D11DeviceContext *deviceContext);
 
+    static D3D11ComputeEvaluator * Create(BufferDescriptor const &srcDesc,
+                                          BufferDescriptor const &dstDesc,
+                                          BufferDescriptor const &duDesc,
+                                          BufferDescriptor const &dvDesc,
+                                          BufferDescriptor const &duuDesc,
+                                          BufferDescriptor const &duvDesc,
+                                          BufferDescriptor const &dvvDesc,
+                                          ID3D11DeviceContext *deviceContext);
+
     /// Constructor.
     D3D11ComputeEvaluator();
 
@@ -148,7 +157,7 @@ public:
                                           stencilTable,
                                           deviceContext);
         } else {
-            // Create an instace on demand (slow)
+            // Create an instance on demand (slow)
             (void)deviceContext;  // unused
             instance = Create(srcDesc, dstDesc,
                               BufferDescriptor(),
@@ -212,7 +221,7 @@ private:
     ID3D11ClassLinkage  * _classLinkage;
     ID3D11ClassInstance * _singleBufferKernel;
     ID3D11ClassInstance * _separateBufferKernel;
-    ID3D11Buffer        * _uniformArgs; // uniform paramaeters for kernels
+    ID3D11Buffer        * _uniformArgs; // uniform parameters for kernels
 
     int _workGroupSize;
 };

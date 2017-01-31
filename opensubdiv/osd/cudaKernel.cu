@@ -305,8 +305,12 @@ int getNumControlVertices(int patchType) {
 }
 
 __global__ void
-computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
-               int length, int srcStride, int dstStride, int dstDuStride, int dstDvStride,
+computePatches(const float *src, float *dst,
+               float *dstDu, float *dstDv,
+               float *dstDuu, float *dstDuv, float *dstDvv,
+               int length, int srcStride, int dstStride,
+               int dstDuStride, int dstDvStride,
+               int dstDuuStride, int dstDuvStride, int dstDvvStride,
                int numPatchCoords, const PatchCoord *patchCoords,
                const PatchArray *patchArrayBuffer,
                const int *patchIndexBuffer,
@@ -374,6 +378,30 @@ computePatches(const float *src, float *dst, float *dstDu, float *dstDv,
             for (int j = 0; j < numControlVertices; ++j) {
                 const float * srcVert = src + cvs[j] * srcStride;
                 addWithWeight(d, srcVert, wDt[j], length);
+            }
+        }
+        if (dstDuu) {
+            float *d = dstDuu + i * dstDuuStride;
+            clear(d, length);
+            for (int j = 0; j < numControlVertices; ++j) {
+                const float * srcVert = src + cvs[j] * srcStride;
+                addWithWeight(d, srcVert, wDss[j], length);
+            }
+        }
+        if (dstDuv) {
+            float *d = dstDuv + i * dstDuvStride;
+            clear(d, length);
+            for (int j = 0; j < numControlVertices; ++j) {
+                const float * srcVert = src + cvs[j] * srcStride;
+                addWithWeight(d, srcVert, wDst[j], length);
+            }
+        }
+        if (dstDvv) {
+            float *d = dstDvv + i * dstDvvStride;
+            clear(d, length);
+            for (int j = 0; j < numControlVertices; ++j) {
+                const float * srcVert = src + cvs[j] * srcStride;
+                addWithWeight(d, srcVert, wDtt[j], length);
             }
         }
     }
@@ -447,14 +475,19 @@ void CudaEvalPatches(
     // PERFORMANCE: not optimized at all
 
     computePatches <<<512, 32>>>(
-        src, dst, NULL, NULL, length, srcStride, dstStride, 0, 0,
+        src, dst, NULL, NULL, NULL, NULL, NULL,
+        length, srcStride, dstStride, 0, 0, 0, 0, 0,
         numPatchCoords, patchCoords,
         patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
 }
 
 void CudaEvalPatchesWithDerivatives(
-    const float *src, float *dst, float *dstDu, float *dstDv,
-    int length, int srcStride, int dstStride, int dstDuStride, int dstDvStride,
+    const float *src, float *dst,
+    float *dstDu, float *dstDv,
+    float *dstDuu, float *dstDuv, float *dstDvv,
+    int length, int srcStride, int dstStride,
+    int dstDuStride, int dstDvStride,
+    int dstDuuStride, int dstDuvStride, int dstDvvStride,
     int numPatchCoords, const PatchCoord *patchCoords,
     const PatchArray *patchArrayBuffer,
     const int *patchIndexBuffer,
@@ -463,7 +496,9 @@ void CudaEvalPatchesWithDerivatives(
     // PERFORMANCE: not optimized at all
 
     computePatches <<<512, 32>>>(
-        src, dst, dstDu, dstDv, length, srcStride, dstStride, dstDuStride, dstDvStride,
+        src, dst, dstDu, dstDv, dstDuu, dstDuv, dstDvv,
+        length, srcStride, dstStride,
+        dstDuStride, dstDvStride, dstDuuStride, dstDuvStride, dstDvvStride,
         numPatchCoords, patchCoords,
         patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
 }

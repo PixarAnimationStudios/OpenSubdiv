@@ -143,7 +143,7 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 set(OSD_COMPILER_FLAGS)
 
-# Disable spurrious warnings in gcc builds and clang
+# Disable spurious warnings in gcc builds and clang
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
 
     # Turn on all warnings
@@ -154,7 +154,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
     endif()
 
     # HBR uses the offsetof macro on a templated struct, which appears
-    # to spurriously set off this warning in both gccc and Clang
+    # to spuriously set off this warning in both gcc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
 
     # HBR uses unions as an optimization for its memory allocation.
@@ -164,7 +164,7 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
     list(APPEND OSD_COMPILER_FLAGS -Wno-strict-aliasing)
 
     # FAR and OSD have templated virtual function implementations that trigger
-    # a lot of hidden virtual function overloads (some of them spurrious).
+    # a lot of hidden virtual function overloads (some of them spurious).
     # Disable those for now in Clang.
     if(CMAKE_COMPILER_IS_CLANGCC)
         list(APPEND OSD_COMPILER_FLAGS -Wno-overloaded-virtual)
@@ -244,11 +244,24 @@ elseif(MSVC)
                     #/D_HAS_ITERATOR_DEBUGGING=0
     )
 
-    # Turn off a duplicate LIBCMT linker warning
-    set(CMAKE_EXE_LINKER_FLAGS
-        "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
-    set(CMAKE_SHARED_LINKER_FLAGS
-        "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+    option(MSVC_STATIC_CRT "Statically link MSVC CRT" OFF)
+
+    if(MSVC_STATIC_CRT)
+        message(STATUS "Using static MSVC CRT")
+        # http://stackoverflow.com/a/32128977/486990
+        add_compile_options(
+            "$<$<CONFIG:Debug>:/MTd>"
+            "$<$<CONFIG:RelWithDebInfo>:/MT>"
+            "$<$<CONFIG:Release>:/MT>"
+            "$<$<CONFIG:MinSizeRel>:/MT>"
+        )
+    else()
+        # Turn off a duplicate LIBCMT linker warning
+        set(CMAKE_EXE_LINKER_FLAGS
+            "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+        set(CMAKE_SHARED_LINKER_FLAGS
+            "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:libcmt.lib")
+    endif()
 
 endif()
 

@@ -110,7 +110,7 @@ PtexMipmapTextureLoader::Block::guttering(PtexMipmapTextureLoader *loader,
                         (everything else, including boundary)
                     Since guttering pixels are placed on the border of each
                     ptex faces, it's not possible to store more than 4 pixels
-                    at a coner for a reasonable interpolation.
+                    at a corner for a reasonable interpolation.
                     In this case, we need to average all corner pixels and
                     overwrite with an averaged value, so that every face
                     vertex picks the same value.
@@ -452,7 +452,7 @@ PtexMipmapTextureLoader::PtexMipmapTextureLoader(PtexTexture *ptex,
     _pageWidth(0), _pageHeight(0),
     _texelBuffer(NULL), _layoutBuffer(NULL), _memoryUsage(0)
 {
-    // byte per pixel
+    // bytes per pixel
     _bpp = ptex->numChannels() * Ptex::DataSize(ptex->dataType());
 
     int numFaces = ptex->numFaces();
@@ -898,7 +898,7 @@ PtexMipmapTextureLoader::optimizePacking(int maxNumPages,
             h = std::max(h, (int)(*it)->height);
         }
 
-        // grow the pagesize to make sure the optimization will not exceed
+        // grow the page size to make sure the optimization will not exceed
         // the maximum number of pages allowed
         int minPageSize = 512;
         int maxPageSize = 4096;  // XXX:should be configurable.

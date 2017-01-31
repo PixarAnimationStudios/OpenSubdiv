@@ -75,8 +75,55 @@ TbbEvaluator::EvalStencils(
                     dst, dstDesc,
                     du,  duDesc,
                     dv,  dvDesc,
+                    NULL, BufferDescriptor(),
+                    NULL, BufferDescriptor(),
+                    NULL, BufferDescriptor(),
+                    sizes, offsets, indices,
+                    weights, duWeights, dvWeights, NULL, NULL, NULL,
+                    start, end);
+
+    return true;
+}
+
+/* static */
+bool
+TbbEvaluator::EvalStencils(
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
+    float *duu,       BufferDescriptor const &duuDesc,
+    float *duv,       BufferDescriptor const &duvDesc,
+    float *dvv,       BufferDescriptor const &dvvDesc,
+    const int * sizes,
+    const int * offsets,
+    const int * indices,
+    const float * weights,
+    const float * duWeights,
+    const float * dvWeights,
+    const float * duuWeights,
+    const float * duvWeights,
+    const float * dvvWeights,
+    int start, int end) {
+
+    if (end <= start) return true;
+    if (srcDesc.length != dstDesc.length) return false;
+    if (srcDesc.length != duDesc.length) return false;
+    if (srcDesc.length != dvDesc.length) return false;
+    if (srcDesc.length != duuDesc.length) return false;
+    if (srcDesc.length != duvDesc.length) return false;
+    if (srcDesc.length != dvvDesc.length) return false;
+
+    TbbEvalStencils(src, srcDesc,
+                    dst, dstDesc,
+                    du,  duDesc,
+                    dv,  dvDesc,
+                    duu, duuDesc,
+                    duv, duvDesc,
+                    dvv, dvvDesc,
                     sizes, offsets, indices,
                     weights, duWeights, dvWeights,
+                    duuWeights, duvWeights, dvvWeights,
                     start, end);
 
     return true;
@@ -96,6 +143,9 @@ TbbEvaluator::EvalPatches(
     if (srcDesc.length != dstDesc.length) return false;
 
     TbbEvalPatches(src, srcDesc, dst, dstDesc,
+                   NULL, BufferDescriptor(),
+                   NULL, BufferDescriptor(),
+                   NULL, BufferDescriptor(),
                    NULL, BufferDescriptor(),
                    NULL, BufferDescriptor(),
                    numPatchCoords, patchCoords,
@@ -121,6 +171,36 @@ TbbEvaluator::EvalPatches(
 
     TbbEvalPatches(src, srcDesc, dst, dstDesc,
                    du,  duDesc,  dv,  dvDesc,
+                   NULL, BufferDescriptor(),
+                   NULL, BufferDescriptor(),
+                   NULL, BufferDescriptor(),
+                   numPatchCoords, patchCoords,
+                   patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
+
+    return true;
+}
+
+/* static */
+bool
+TbbEvaluator::EvalPatches(
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
+    float *duu,       BufferDescriptor const &duuDesc,
+    float *duv,       BufferDescriptor const &duvDesc,
+    float *dvv,       BufferDescriptor const &dvvDesc,
+    int numPatchCoords,
+    const PatchCoord *patchCoords,
+    const PatchArray *patchArrayBuffer,
+    const int *patchIndexBuffer,
+    const PatchParam *patchParamBuffer) {
+
+    if (srcDesc.length != dstDesc.length) return false;
+
+    TbbEvalPatches(src, srcDesc, dst, dstDesc,
+                   du,  duDesc,  dv,  dvDesc,
+                   duu, duuDesc, duv, duvDesc, dvv, dvvDesc,
                    numPatchCoords, patchCoords,
                    patchArrayBuffer, patchIndexBuffer, patchParamBuffer);
 

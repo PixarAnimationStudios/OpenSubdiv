@@ -32,7 +32,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Sdc {
 
 ///
-///  \brief Enumerated type for all subdivisions schemes supported by OpenSubdiv
+///  \brief Enumerated type for all subdivision schemes supported by OpenSubdiv
 ///
 enum SchemeType {
     SCHEME_BILINEAR,
@@ -42,7 +42,7 @@ enum SchemeType {
 
 
 ///
-///  \brief Enumerated type for all face splitting scheme
+///  \brief Enumerated type for all face splitting schemes
 ///
 enum Split {
     SPLIT_TO_QUADS,  ///< Used by Catmark and Bilinear
@@ -51,8 +51,8 @@ enum Split {
 };
 
 ///
-///  \brief Traits associated the types of all subdivision schemes -- parameterized by
-///  the scheme type.  All traits are also defined on the scheme itself.
+///  \brief Traits associated with the types of all subdivision schemes -- parameterized by
+///  the scheme type.  All traits are also defined in the scheme itself.
 ///
 struct SchemeTypeTraits {
 

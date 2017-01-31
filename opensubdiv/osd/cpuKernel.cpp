@@ -169,6 +169,76 @@ CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
     }
 }
 
+void
+CpuEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
+                float * dstDuu,    BufferDescriptor const &dstDuuDesc,
+                float * dstDuv,    BufferDescriptor const &dstDuvDesc,
+                float * dstDvv,    BufferDescriptor const &dstDvvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                float const * duuWeights,
+                float const * duvWeights,
+                float const * dvvWeights,
+                int start, int end) {
+    if (start > 0) {
+        sizes += start;
+        indices += offsets[start];
+        weights += offsets[start];
+        duWeights += offsets[start];
+        dvWeights += offsets[start];
+        duuWeights += offsets[start];
+        duvWeights += offsets[start];
+        dvvWeights += offsets[start];
+    }
+
+    src += srcDesc.offset;
+    dst += dstDesc.offset;
+    dstDu += dstDuDesc.offset;
+    dstDv += dstDvDesc.offset;
+    dstDuu += dstDuuDesc.offset;
+    dstDuv += dstDuvDesc.offset;
+    dstDvv += dstDvvDesc.offset;
+
+    int nOutLength = dstDesc.length + dstDuDesc.length + dstDvDesc.length
+                   + dstDuuDesc.length + dstDuvDesc.length + dstDvvDesc.length;
+    float * result   = (float*)alloca(nOutLength * sizeof(float));
+    float * resultDu = result + dstDesc.length;
+    float * resultDv = resultDu + dstDuDesc.length;
+    float * resultDuu = resultDv + dstDvDesc.length;
+    float * resultDuv = resultDuu + dstDuuDesc.length;
+    float * resultDvv = resultDuv + dstDuvDesc.length;
+
+    int nStencils = end - start;
+    for (int i = 0; i < nStencils; ++i, ++sizes) {
+
+        // clear
+        memset(result, 0, nOutLength * sizeof(float));
+
+        for (int j=0; j<*sizes; ++j) {
+            addWithWeight(result,   src, *indices, *weights++,   srcDesc);
+            addWithWeight(resultDu, src, *indices, *duWeights++, srcDesc);
+            addWithWeight(resultDv, src, *indices, *dvWeights++, srcDesc);
+            addWithWeight(resultDuu, src, *indices, *duuWeights++, srcDesc);
+            addWithWeight(resultDuv, src, *indices, *duvWeights++, srcDesc);
+            addWithWeight(resultDvv, src, *indices, *dvvWeights++, srcDesc);
+            ++indices;
+        }
+        copy(dst,   i, result, dstDesc);
+        copy(dstDu, i, resultDu, dstDuDesc);
+        copy(dstDv, i, resultDv, dstDvDesc);
+        copy(dstDuu, i, resultDuu, dstDuuDesc);
+        copy(dstDuv, i, resultDuv, dstDuvDesc);
+        copy(dstDvv, i, resultDvv, dstDvvDesc);
+    }
+}
+
 }  // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION

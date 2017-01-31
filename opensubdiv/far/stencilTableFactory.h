@@ -50,8 +50,9 @@ class StencilTableFactory {
 public:
 
     enum Mode {
-        INTERPOLATE_VERTEX=0,
-        INTERPOLATE_VARYING
+        INTERPOLATE_VERTEX=0,           ///< vertex primvar stencils
+        INTERPOLATE_VARYING,            ///< varying primvar stencils
+        INTERPOLATE_FACE_VARYING        ///< face-varying primvar stencils
     };
 
     struct Options {
@@ -61,7 +62,8 @@ public:
                     generateControlVerts(false),
                     generateIntermediateLevels(true),
                     factorizeIntermediateLevels(true),
-                    maxLevel(10) { }
+                    maxLevel(10),
+                    fvarChannel(0) { }
 
         unsigned int interpolationMode           : 2, ///< interpolation mode
                      generateOffsets             : 1, ///< populate optional "_offsets" field
@@ -71,6 +73,8 @@ public:
                                                       ///  vertices or from the stencils of the
                                                       ///  previous level
                      maxLevel                    : 4; ///< generate stencils up to 'maxLevel'
+        unsigned int fvarChannel;                     ///< face-varying channel to use
+                                                      ///  when generating face-varying stencils
     };
 
     /// \brief Instantiates StencilTable from TopologyRefiner that have been
@@ -89,9 +93,9 @@ public:
 
 
     /// \brief Instantiates StencilTable by concatenating an array of existing
-    ///        stencil table.
+    ///        stencil tables.
     ///
-    /// \note This factory checks that the stencil table point to the same set
+    /// \note This factory checks that the stencil tables point to the same set
     ///       of supporting control vertices - no re-indexing is done.
     ///       GetNumControlVertices() *must* return the same value for all input
     ///       tables.
@@ -112,7 +116,7 @@ public:
     /// @param localPointStencilTable
     ///                             StencilTable for the change of basis patch points.
     ///
-    /// @param factorize            If factorize sets to true, endcap stencils will be
+    /// @param factorize            If factorize set to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
@@ -123,10 +127,42 @@ public:
         StencilTable const *localPointStencilTable,
         bool factorize = true);
 
+    /// \brief Utility function for stencil splicing for local point
+    /// face-varying stencils.
+    ///
+    /// @param refiner              The TopologyRefiner containing the topology
+    ///
+    /// @param baseStencilTable     Input StencilTable for refined vertices
+    ///
+    /// @param localPointStencilTable
+    ///                             StencilTable for the change of basis patch points.
+    ///
+    /// @param channel              face-varying channel
+    ///
+    /// @param factorize            If factorize sets to true, endcap stencils will be
+    ///                             factorized with supporting vertices from baseStencil
+    ///                             table so that the endcap points can be computed
+    ///                             directly from control vertices.
+    ///
+    static StencilTable const * AppendLocalPointStencilTableFaceVarying(
+        TopologyRefiner const &refiner,
+        StencilTable const *baseStencilTable,
+        StencilTable const *localPointStencilTable,
+        int channel = 0,
+        bool factorize = true);
+
 private:
 
     // Generate stencils for the coarse control-vertices (single weight = 1.0f)
     static void generateControlVertStencils(int numControlVerts, Stencil & dst);
+
+    // Internal method to splice local point stencils
+    static StencilTable const * appendLocalPointStencilTable(
+        TopologyRefiner const &refiner,
+        StencilTable const * baseStencilTable,
+        StencilTable const * localPointStencilTable,
+        int channel,
+        bool factorize);
 };
 
 /// \brief A specialized factory for LimitStencilTable

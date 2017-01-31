@@ -132,7 +132,7 @@ EndCapBSplineBasisPatchFactory::getPatchPointsFromGregoryBasis(
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
-    // other patches as well as to try to make extra ordinary verts watertight.
+    // other patches as well as try to make extra-ordinary verts watertight.
 
     int offset = (fvarChannel < 0)
                ? _refiner->GetNumVerticesTotal()
@@ -298,12 +298,12 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     //
     //  This function assumes the patch is not on boundary
     //  and it contains only 1 extraordinary vertex.
-    //  The location of the extraoridnary vertex can be one of
+    //  The location of the extraordinary vertex can be one of
     //  0-ring quad corner.
     //
-    //  B-Spline control point gathering indice
+    //  B-Spline control point gathering indices
     //
-    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //     [5]   (4)---(15)--(14)    0 : extraordinary vertex
     //            |     |     |
     //            |     |     |      1,2,3,9,10,11,12,13 :
     //     (6)----0-----3-----13       B-Spline control points, gathered by
@@ -467,7 +467,7 @@ EndCapBSplineBasisPatchFactory::getPatchPoints(
     X5.AddWithWeight(X7,                             -1.0f);
     X5.AddWithWeight(X15,                            -1.0f);
 
-    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //     [5]   (4)---(15)--(14)    0 : extraordinary vertex
     //            |     |     |
     //            |     |     |      1,2,3,9,10,11,12,13 :
     //     (6)----0-----3-----13       B-Spline control points, gathered by

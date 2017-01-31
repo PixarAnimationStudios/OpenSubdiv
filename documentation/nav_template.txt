@@ -96,6 +96,7 @@
             <p></p>
             <li><a href="release_notes.html">Releases</a>
                 <ul>
+                    <li><a href="release_32.html">Release 3.2</a></li>
                     <li><a href="release_31.html">Release 3.1</a></li>
                     <li><a href="release_30.html">Release 3.0</a></li>
                         <ul>

@@ -43,7 +43,7 @@ namespace Far {
 /// TopologyLevel provides an interface to data in a specific level of a topology hierarchy.
 /// Instances of TopologyLevel are created and owned by a TopologyRefiner,
 /// which will return const-references to them.  Such references are only valid during the
-/// lifetime of TopologyRefiner that created and returned them, and only for a given refinement,
+/// lifetime of the TopologyRefiner that created and returned them, and only for a given refinement,
 /// i.e. if the TopologyRefiner is re-refined, any references to TopoologyLevels are invalidated.
 ///
 class TopologyLevel {
@@ -167,7 +167,7 @@ public:
     /// unspecified.
     ///
     /// A face-varying channel is composed of a set of values that may be shared
-    /// by faces meeting at a common vertex.  Just as there are set of vertices
+    /// by faces meeting at a common vertex.  Just as there are sets of vertices
     /// that are associated with faces by index (ranging from 0 to
     /// num-vertices - 1), face-varying values are also referenced by index
     /// (ranging from 0 to num-values -1).

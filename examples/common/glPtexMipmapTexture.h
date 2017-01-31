@@ -47,7 +47,7 @@ public:
     /// Returns the texels texture array.
     GLuint GetTexelsTexture() const { return _texels; }
 
-    /// Returns the amount of allocated memory (in byte)
+    /// Returns the amount of allocated memory (in bytes)
     size_t GetMemoryUsage() const { return _memoryUsage; }
 
     ~GLPtexMipmapTexture();
@@ -55,7 +55,7 @@ public:
 private:
     GLPtexMipmapTexture();
 
-    GLsizei _width,   // widht / height / depth of the 3D texel buffer
+    GLsizei _width,   // width / height / depth of the 3D texel buffer
             _height,
             _depth;
 

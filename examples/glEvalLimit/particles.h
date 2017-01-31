@@ -39,7 +39,7 @@
 // particle is assigned a location on the subdivision surface limit that is
 // composed of a unique ptex face index, with a local (s,t) parametric pair.
 //
-// The system also generates an array of parametric velocties (ds, dt) for each
+// The system also generates an array of parametric velocities (ds, dt) for each
 // particle. An Update() function then applies the velocities to the locations and
 // moves the points along the parametric space.
 //
@@ -49,7 +49,7 @@
 // bounces it, if the edge happens to be a boundary.
 // 
 // Note: currently the adjacency code does not handle 'diagonal' crossings, nor
-// crossings between quand and non-quad faces.
+// crossings between quad and non-quad faces.
 //
 class STParticles {
 

@@ -312,9 +312,6 @@ public:
 
     Options const options;
 
-    //  Additional options eventually to be made public in Options above:
-    bool options_approxSmoothCornerWithSharp;
-
     PtexIndices const ptexIndices;
 
     // Counters accumulating each type of patch during topology traversal
@@ -339,9 +336,6 @@ PatchTableFactory::BuilderContext::BuilderContext(
     refiner(ref), options(opts), ptexIndices(refiner),
     numRegularPatches(0), numIrregularPatches(0),
     numIrregularBoundaryPatches(0) {
-
-    //  Eventually to be passed in as Options and assigned to member...
-    options_approxSmoothCornerWithSharp = true;
 
     if (options.generateFVarTables) {
         // If client-code does not select specific channels, default to all
@@ -623,7 +617,7 @@ PatchTableFactory::BuilderContext::IsPatchRegular(
     }
 
     //  Legacy option -- reinterpret an irregular smooth corner as sharp if specified:
-    if (!isRegular && options_approxSmoothCornerWithSharp) {
+    if (!isRegular && options.generateLegacySharpCornerPatches) {
         if (fCompVTag._xordinary && fCompVTag._boundary && !fCompVTag._nonManifold) {
             isRegular = IsPatchSmoothCorner(levelIndex, faceIndex, fvcRefiner);
         }
@@ -756,7 +750,7 @@ PatchTableFactory::BuilderContext::GetIrregularPatchCornerSpans(
         }
 
         //  Legacy option -- reinterpret an irregular smooth corner as sharp if specified:
-        if (!cornerSpans[i]._sharp && options_approxSmoothCornerWithSharp) {
+        if (!cornerSpans[i]._sharp && options.generateLegacySharpCornerPatches) {
             if (vTags[i]._xordinary && vTags[i]._boundary && !vTags[i]._nonManifold) {
                     int nFaces = cornerSpans[i].isAssigned() ? cornerSpans[i]._numFaces
                                : level.getVertexFaces(fVerts[i]).size();
@@ -1414,7 +1408,7 @@ PatchTableFactory::populateAdaptivePatches(
 
             context.GetIrregularPatchCornerSpans(patch.levelIndex, patch.faceIndex, irregCornerSpans);
 
-            // switch endcap patchtype by option
+            // switch endcap patch type by option
             switch(context.options.GetEndCapType()) {
             case Options::ENDCAP_GREGORY_BASIS:
                 arrayBuilder->iptr +=

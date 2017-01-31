@@ -430,7 +430,7 @@ int main(int, char **) {
 
     int maxlevel = 5;
 
-    // Uniformly refine the topolgy up to 'maxlevel'
+    // Uniformly refine the topology up to 'maxlevel'
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 

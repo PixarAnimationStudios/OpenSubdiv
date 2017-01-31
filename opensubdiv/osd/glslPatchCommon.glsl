@@ -304,7 +304,7 @@ uniform samplerBuffer OsdFVarDataBuffer;
     }
 
 // ------ extract from triangles (loop) ---------
-// XXX: no interpolation supproted
+// XXX: no interpolation supported
 
 #define OSD_COMPUTE_FACE_VARYING_TRI_1(result, fvarOffset, triVert)     \
     {                                                                   \
@@ -575,7 +575,7 @@ OsdComputeBSplineBoundaryPoints(inout vec3 cpt[16], ivec3 patchParam)
 // (labeled vv* and ev* respectively).
 //
 // The two segments of each transition edge are labeled Lo and Hi,
-// with the Lo segment occuring before the Hi segment along the
+// with the Lo segment occurring before the Hi segment along the
 // transition edge's domain parameterization. These Lo and Hi segment
 // tessellation levels determine how domain evaluation coordinates
 // are remapped along transition edges. The Hi segment value will
@@ -632,7 +632,7 @@ float OsdComputeTessLevel(vec3 p0, vec3 p1)
 
     // We restrict adaptive tessellation levels to half of the device
     // supported maximum because transition edges are split into two
-    // halfs and the sum of the two corresponding levels must not exceed
+    // halves and the sum of the two corresponding levels must not exceed
     // the device maximum. We impose this limit even for non-transition
     // edges because a non-transition edge must be able to match up with
     // one half of the transition edge of an adjacent transition patch.

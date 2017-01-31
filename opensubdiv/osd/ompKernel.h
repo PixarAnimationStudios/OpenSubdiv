@@ -56,6 +56,25 @@ OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
                 float const * dvWeights,
                 int start, int end);
 
+void
+OmpEvalStencils(float const * src, BufferDescriptor const &srcDesc,
+                float * dst,       BufferDescriptor const &dstDesc,
+                float * dstDu,     BufferDescriptor const &dstDuDesc,
+                float * dstDv,     BufferDescriptor const &dstDvDesc,
+                float * dstDuu,    BufferDescriptor const &dstDuuDesc,
+                float * dstDuv,    BufferDescriptor const &dstDuvDesc,
+                float * dstDvv,    BufferDescriptor const &dstDvvDesc,
+                int const * sizes,
+                int const * offsets,
+                int const * indices,
+                float const * weights,
+                float const * duWeights,
+                float const * dvWeights,
+                float const * duuWeights,
+                float const * duvWeights,
+                float const * dvvWeights,
+                int start, int end);
+
 } // end namespace Osd
 
 }  // end namespace OPENSUBDIV_VERSION

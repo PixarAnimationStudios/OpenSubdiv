@@ -111,7 +111,7 @@ int main(int, char **) {
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
 
-    // Uniformly refine the topolgy up to 'maxlevel'.
+    // Uniformly refine the topology up to 'maxlevel'.
     int maxlevel = 3;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 

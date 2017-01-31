@@ -1937,7 +1937,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     wcex.lpszClassName  = szWindowClass;
     RegisterClass(&wcex);
 
-    // crete window
+    // create window
     RECT rect = { 0, 0, g_width, g_height };
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 

@@ -53,7 +53,7 @@ namespace Sdc {
 ///  users will be expected to provided them -- particularly when they expect the mask queries
 ///  to do all of the work (just determining if a vertex is smooth will require inspection of
 ///  incident edge sharpness).
-///      Mask queries will occassionally require the subdivided sharpness values around the
+///      Mask queries will occasionally require the subdivided sharpness values around the
 ///  child vertex.  So users will be expected to either provide them up front when known, or to be
 ///  gathered on demand.  Any implementation of subdivision with creasing cannot avoid subdividing
 ///  the sharpness values first, so keeping them available for re-use is a worthwhile consideration.
@@ -97,7 +97,7 @@ public:
     //@{
     ///  Optional sharp features:
     ///      Since options treat certain topological features as infinitely sharp -- boundaries
-    ///  or (in future) nonmanifold features -- sharpness values should be adjust before use.
+    ///  or (in future) non-manifold features -- sharpness values should be adjusted before use.
     ///  The following methods will adjust (by return) specific values according to the options
     ///  applied.
     ///
@@ -190,7 +190,7 @@ Crease::SharpenBoundaryEdge(float /* edgeSharpness */) const {
 
     //
     //  Despite the presence of the BOUNDARY_NONE option, boundary edges are always sharpened.
-    //  Much of the code relies on sharpess to indicate boundaries to avoid the more complex
+    //  Much of the code relies on sharpness to indicate boundaries to avoid the more complex
     //  topological inspection
     //
     return SHARPNESS_INFINITE;

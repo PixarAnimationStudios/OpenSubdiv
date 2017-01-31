@@ -109,7 +109,7 @@ Scheme<SCHEME_BILINEAR>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMa
 }
 
 //
-//  Limit masks for tangents -- these are ambibuous around all vertices.  Provide
+//  Limit masks for tangents -- these are ambiguous around all vertices.  Provide
 //  the tangents based on the incident edges of the first face.
 //
 template <>

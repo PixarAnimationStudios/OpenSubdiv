@@ -50,7 +50,7 @@ public:
     /// \brief Returns end patch point indices for \a faceIndex of \a level.
     ///        Note that legacy gregory patch points exist in the max level
     ///        of subdivision in the topologyRefiner.
-    ///        The returning indices are offsetted by levelVertOffset
+    ///        The returned indices are offset by levelVertOffset
     ///
     /// @param level            vtr refinement level
     ///
