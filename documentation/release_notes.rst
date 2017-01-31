@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0 - 3.1 Release Notes
+3.0 - 3.2 Release Notes
 -----------------------
 
 .. contents::
@@ -30,6 +30,24 @@
    :backlinks: none
 
 ----
+
+Release 3.2.0
+=============
+
+Release 3.2.0 is a minor release containing API additions and bug fixes
+
+**New Features**
+    - Extended Far::StencilTableFactory to support face-varying
+    - Extended Osd Evaluator classes to support evaluation of 1st and 2nd derivatives
+    - Added an option to disable generation of legacy sharp corner patches
+
+**Changes**
+    - Corrected numerous spelling errors in doxygen comments
+    - Updated glFVarViewer with improved error detection and command line parsing
+    - Added option to build using MSVC with static CRT
+
+**Bug Fixes**
+    - Fixed a double delete of GL program in Osd::GLComputeEvaluator
 
 Release 3.1.1
 =============
