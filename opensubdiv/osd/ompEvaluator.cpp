@@ -84,6 +84,50 @@ OmpEvaluator::EvalStencils(
     return true;
 }
 
+/* static */
+bool
+OmpEvaluator::EvalStencils(
+    const float *src, BufferDescriptor const &srcDesc,
+    float *dst,       BufferDescriptor const &dstDesc,
+    float *du,        BufferDescriptor const &duDesc,
+    float *dv,        BufferDescriptor const &dvDesc,
+    float *duu,       BufferDescriptor const &duuDesc,
+    float *duv,       BufferDescriptor const &duvDesc,
+    float *dvv,       BufferDescriptor const &dvvDesc,
+    const int * sizes,
+    const int * offsets,
+    const int * indices,
+    const float * weights,
+    const float * duWeights,
+    const float * dvWeights,
+    const float * duuWeights,
+    const float * duvWeights,
+    const float * dvvWeights,
+    int start, int end) {
+
+    if (end <= start) return true;
+    if (srcDesc.length != dstDesc.length) return false;
+    if (srcDesc.length != duDesc.length) return false;
+    if (srcDesc.length != dvDesc.length) return false;
+    if (srcDesc.length != duuDesc.length) return false;
+    if (srcDesc.length != duvDesc.length) return false;
+    if (srcDesc.length != dvvDesc.length) return false;
+
+    OmpEvalStencils(src, srcDesc,
+                    dst, dstDesc,
+                    du,  duDesc,
+                    dv,  dvDesc,
+                    duu, duuDesc,
+                    duv, duvDesc,
+                    dvv, dvvDesc,
+                    sizes, offsets, indices,
+                    weights, duWeights, dvWeights,
+                    duuWeights, duvWeights, dvvWeights,
+                    start, end);
+
+    return true;
+}
+
 template <typename T>
 struct BufferAdapter {
     BufferAdapter(T *p, int length, int stride) :

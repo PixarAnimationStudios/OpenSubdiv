@@ -540,14 +540,12 @@ GLXFBEvaluator::EvalStencils(
         bindTexture(_stencilKernel.uniformDuWeightsTexture, duWeightsTexture, 5);
     if (_stencilKernel.uniformDvWeightsTexture >= 0 && dvWeightsTexture)
         bindTexture(_stencilKernel.uniformDvWeightsTexture, dvWeightsTexture, 6);
-    if (_stencilKernel.uniformDuWeightsTexture >= 0 && duWeightsTexture)
-        bindTexture(_stencilKernel.uniformDuWeightsTexture, duWeightsTexture, 5);
     if (_stencilKernel.uniformDuuWeightsTexture >= 0 && duuWeightsTexture)
-        bindTexture(_stencilKernel.uniformDuuWeightsTexture, duuWeightsTexture, 5);
+        bindTexture(_stencilKernel.uniformDuuWeightsTexture, duuWeightsTexture, 7);
     if (_stencilKernel.uniformDuvWeightsTexture >= 0 && duvWeightsTexture)
-        bindTexture(_stencilKernel.uniformDuvWeightsTexture, duvWeightsTexture, 6);
+        bindTexture(_stencilKernel.uniformDuvWeightsTexture, duvWeightsTexture, 8);
     if (_stencilKernel.uniformDvvWeightsTexture >= 0 && dvvWeightsTexture)
-        bindTexture(_stencilKernel.uniformDvvWeightsTexture, dvvWeightsTexture, 6);
+        bindTexture(_stencilKernel.uniformDvvWeightsTexture, dvvWeightsTexture, 9);
 
     // set batch range
     glUniform1i(_stencilKernel.uniformStart,     start);
