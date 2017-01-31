@@ -98,16 +98,73 @@ private:
 class GLXFBEvaluator {
 public:
     typedef bool Instantiatable;
+
+    /// Generic creator template.
+    template <typename DEVICE_CONTEXT>
+    static GLXFBEvaluator *Create(BufferDescriptor const &srcDesc,
+                                  BufferDescriptor const &dstDesc,
+                                  BufferDescriptor const &duDesc,
+                                  BufferDescriptor const &dvDesc,
+                                  DEVICE_CONTEXT deviceContext) {
+        bool interleavedDerivativeBuffers = deviceContext
+            ? deviceContext->AreInterleavedDerivativeBuffers()
+            : false;
+        return Create(srcDesc, dstDesc, duDesc, dvDesc,
+                      interleavedDerivativeBuffers);
+    }
+
+    /// Specialization to allow creation without a device context.
+    static GLXFBEvaluator *Create(BufferDescriptor const &srcDesc,
+                                  BufferDescriptor const &dstDesc,
+                                  BufferDescriptor const &duDesc,
+                                  BufferDescriptor const &dvDesc,
+                                  void * deviceContext) {
+        (void)deviceContext;  // not used
+        return Create(srcDesc, dstDesc, duDesc, dvDesc);
+    }
+
     static GLXFBEvaluator * Create(BufferDescriptor const &srcDesc,
                                    BufferDescriptor const &dstDesc,
                                    BufferDescriptor const &duDesc,
                                    BufferDescriptor const &dvDesc,
-                                   void * deviceContext = NULL) {
+                                   bool interleavedDerivativeBuffers = false) {
+        GLXFBEvaluator *instance = new GLXFBEvaluator(interleavedDerivativeBuffers);
+        if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc))
+            return instance;
+        delete instance;
+        return NULL;
+    }
+
+    /// Generic creator template.
+    template <typename DEVICE_CONTEXT>
+    static GLXFBEvaluator *Create(BufferDescriptor const &srcDesc,
+                                  BufferDescriptor const &dstDesc,
+                                  BufferDescriptor const &duDesc,
+                                  BufferDescriptor const &dvDesc,
+                                  BufferDescriptor const &duuDesc,
+                                  BufferDescriptor const &duvDesc,
+                                  BufferDescriptor const &dvvDesc,
+                                  DEVICE_CONTEXT deviceContext) {
+        bool interleavedDerivativeBuffers = deviceContext
+            ? deviceContext->AreInterleavedDerivativeBuffers()
+            : false;
         return Create(srcDesc, dstDesc, duDesc, dvDesc,
-                      BufferDescriptor(),
-                      BufferDescriptor(),
-                      BufferDescriptor(),
-                      deviceContext);
+                      duuDesc, duvDesc, dvvDesc,
+                      interleavedDerivativeBuffers);
+    }
+
+    /// Specialization to allow creation without a device context.
+    static GLXFBEvaluator *Create(BufferDescriptor const &srcDesc,
+                                  BufferDescriptor const &dstDesc,
+                                  BufferDescriptor const &duDesc,
+                                  BufferDescriptor const &dvDesc,
+                                  BufferDescriptor const &duuDesc,
+                                  BufferDescriptor const &duvDesc,
+                                  BufferDescriptor const &dvvDesc,
+                                  void * deviceContext) {
+        (void)deviceContext;  // not used
+        return Create(srcDesc, dstDesc, duDesc, dvDesc,
+                      duuDesc, duvDesc, dvvDesc);
     }
 
     static GLXFBEvaluator * Create(BufferDescriptor const &srcDesc,
@@ -117,9 +174,8 @@ public:
                                    BufferDescriptor const &duuDesc,
                                    BufferDescriptor const &duvDesc,
                                    BufferDescriptor const &dvvDesc,
-                                   void * deviceContext = NULL) {
-        (void)deviceContext;  // not used
-        GLXFBEvaluator *instance = new GLXFBEvaluator();
+                                   bool interleavedDerivativeBuffers = false) {
+        GLXFBEvaluator *instance = new GLXFBEvaluator(interleavedDerivativeBuffers);
         if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
                               duuDesc, duvDesc, dvvDesc))
             return instance;
@@ -127,8 +183,20 @@ public:
         return NULL;
     }
 
-    /// Constructor.
-    GLXFBEvaluator(bool sharedDerivativeBuffers = false);
+    /// \brief Constructor.
+    ///
+    /// The transform feedback evaluator can make more sparing use of
+    /// transform feeback buffer bindings when it is known that evaluator
+    /// output buffers are shared and the corresponding buffer descriptors
+    /// are interleaved. When \a interleavedDerivativeBuffers is true
+    /// then evaluation requires that either 1st derivative outputs are
+    /// interleaved and 2nd derivative output are interleaved separately
+    /// or that both 1st derivative and 2nd derivative outputs are
+    /// interleaved together. This reduces the maximum number of required
+    /// transform feedback buffer bindings to 3 instead of 6 which is
+    /// significant, since most transform feedback implementations support
+    /// a maximum of 4 bindings.
+    GLXFBEvaluator(bool interleavedDerivativeBuffers = false);
 
     /// Destructor. note that the GL context must be made current.
     ~GLXFBEvaluator();
@@ -2061,7 +2129,7 @@ public:
 
 private:
     GLuint _srcBufferTexture;
-    bool _sharedDerivativeBuffers;
+    bool _interleavedDerivativeBuffers;
 
     struct _StencilKernel {
         _StencilKernel();
@@ -2073,7 +2141,7 @@ private:
                      BufferDescriptor const &duuDesc,
                      BufferDescriptor const &duvDesc,
                      BufferDescriptor const &dvvDesc,
-                     bool sharedDerivativeBuffers);
+                     bool interleavedDerivativeBuffers);
         GLuint program;
         GLint uniformSrcBufferTexture;
         GLint uniformSrcOffset;    // src buffer offset (in elements)
@@ -2101,7 +2169,7 @@ private:
                      BufferDescriptor const &duuDesc,
                      BufferDescriptor const &duvDesc,
                      BufferDescriptor const &dvvDesc,
-                     bool sharedDerivativeBuffers);
+                     bool interleavedDerivativeBuffers);
         GLuint program;
         GLint uniformSrcBufferTexture;
         GLint uniformSrcOffset;    // src buffer offset (in elements)

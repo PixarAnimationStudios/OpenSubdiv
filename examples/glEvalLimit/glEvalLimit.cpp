@@ -507,6 +507,15 @@ private:
     DEVICE_CONTEXT *_deviceContext;
 };
 
+// This example uses one shared interleaved buffer for evaluated
+// 1st derivatives and a second shared interleaved buffer for
+// evaluated 2nd derivatives. We use this specialized device
+// context to allow the XFB evaluator to take advantage of this
+// and make more efficient use of available XFB buffer bindings.
+struct XFBDeviceContext {
+    bool AreInterleavedDerivativeBuffers() const { return true; }
+} g_xfbDeviceContext;
+
 EvalOutputBase *g_evalOutput = NULL;
 STParticles * g_particles=0;
 
@@ -802,11 +811,12 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
                                       Osd::GLVertexBuffer,
                                       Osd::GLStencilTableTBO,
                                       Osd::GLPatchTable,
-                                      Osd::GLXFBEvaluator>
+                                      Osd::GLXFBEvaluator,
+                                      XFBDeviceContext>
             (vertexStencils, varyingStencils, faceVaryingStencils,
             fvarChannel, fvarWidth,
             g_nParticles, g_patchTable,
-             &glXFBEvaluatorCache);
+             &glXFBEvaluatorCache, &g_xfbDeviceContext);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
     } else if (g_kernel == kGLCompute) {
