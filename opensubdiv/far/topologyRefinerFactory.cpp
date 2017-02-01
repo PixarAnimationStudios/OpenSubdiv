@@ -70,11 +70,9 @@ TopologyRefinerFactoryBase::prepareComponentTopologySizing(TopologyRefiner& refi
     //  Make sure no face was defined that would lead to a valence overflow -- the max
     //  valence has been initialized with the maximum number of face-vertices:
     if (baseLevel.getMaxValence() > Vtr::VALENCE_LIMIT) {
-        char msg[1024];
-        snprintf(msg, 1024, "Failure in TopologyRefinerFactory<>::Create() -- "
-                "face with %d vertices > %d max.",
-                baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
-        Error(FAR_RUNTIME_ERROR, msg);
+        Error(FAR_RUNTIME_ERROR, "Failure in TopologyRefinerFactory<>::Create() -- "
+              "face with %d vertices > %d max.",
+              baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
         return false;
     }
 
@@ -126,11 +124,9 @@ TopologyRefinerFactoryBase::prepareComponentTopologyAssignment(TopologyRefiner& 
     bool completeMissingTopology = (baseLevel.getNumEdges() == 0);
     if (completeMissingTopology) {
         if (! baseLevel.completeTopologyFromFaceVertices()) {
-            char msg[1024];
-            snprintf(msg, 1024, "Failure in TopologyRefinerFactory<>::Create() -- "
-                    "vertex with valence %d > %d max.",
-                    baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
-            Error(FAR_RUNTIME_ERROR, msg);
+            Error(FAR_RUNTIME_ERROR, "Failure in TopologyRefinerFactory<>::Create() -- "
+                  "vertex with valence %d > %d max.",
+                  baseLevel.getMaxValence(), Vtr::VALENCE_LIMIT);
             return false;
         }
     } else {
@@ -341,10 +337,8 @@ TopologyRefinerFactoryBase::prepareFaceVaryingChannels(TopologyRefiner& refiner)
 
     for (int channel=0; channel<refiner.GetNumFVarChannels(); ++channel) {
         if (baseLevel.getNumFVarValues(channel) == 0) {
-            char msg[1024];
-            snprintf(msg, 1024, "Failure in TopologyRefinerFactory<>::Create() -- "
-                    "face-varying channel %d has no values.", channel);
-            Error(FAR_RUNTIME_ERROR, msg);
+            Error(FAR_RUNTIME_ERROR, "Failure in TopologyRefinerFactory<>::Create() -- "
+                  "face-varying channel %d has no values.", channel);
             return false;
         }
         baseLevel.completeFVarChannelTopology(channel, regBoundaryValence);

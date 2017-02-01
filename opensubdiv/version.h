@@ -33,6 +33,12 @@
 #define OPENSUBDIV_VERSION_MINOR 2
 #define OPENSUBDIV_VERSION_PATCH 0
 
+#if __clang__
+#define OPENSUBDIV_ATTRIBUTE(X) __attribute(X)
+#else
+#define OPENSUBDIV_ATTRIBUTE(X)
+#endif
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 

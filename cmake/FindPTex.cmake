@@ -63,13 +63,24 @@ elseif (APPLE)
             "$ENV{PTEX_LOCATION}/include"
         PATHS
             DOC "The directory where Ptexture.h resides")
-    find_library( PTEX_LIBRARY
-        NAMES
-            Ptex libPtex.a
-        PATHS
-            "${PTEX_LOCATION}/lib"
-            "$ENV{PTEX_LOCATION}/lib"
-            DOC "The Ptex Library")
+    if (IOS)
+        #IOS needs to link with the static version of ptex
+        find_library( PTEX_LIBRARY
+            NAMES
+                libPtex.a
+            PATHS
+                "${PTEX_LOCATION}/lib"
+                "$ENV{PTEX_LOCATION}/lib"
+                DOC "The Ptex Library")
+    else ()
+        find_library( PTEX_LIBRARY
+            NAMES
+                Ptex libPtex.a
+            PATHS
+                "${PTEX_LOCATION}/lib"
+                "$ENV{PTEX_LOCATION}/lib"
+                DOC "The Ptex Library")
+    endif()
 else ()
     find_path( PTEX_INCLUDE_DIR
         NAMES
