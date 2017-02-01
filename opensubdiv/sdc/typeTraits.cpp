@@ -41,7 +41,8 @@ struct TraitsEntry {
     int   _localNeighborhood;
 };
 
-static const TraitsEntry staticTraitsTable[3] = {
+static const TraitsEntry (&staticTraitsTable())[3] {
+    static const TraitsEntry staticTraitsTable[3] = {
     { "bilinear", Scheme<SCHEME_BILINEAR>::GetTopologicalSplitType(),
                   Scheme<SCHEME_BILINEAR>::GetRegularFaceSize(),
                   Scheme<SCHEME_BILINEAR>::GetRegularVertexValence(),
@@ -54,7 +55,9 @@ static const TraitsEntry staticTraitsTable[3] = {
                   Scheme<SCHEME_LOOP>::GetRegularFaceSize(),
                   Scheme<SCHEME_LOOP>::GetRegularVertexValence(),
                   Scheme<SCHEME_LOOP>::GetLocalNeighborhoodSize() }
-};
+    };
+    return staticTraitsTable;
+}
 
 //
 //  Static methods for SchemeTypeTraits:
@@ -62,31 +65,31 @@ static const TraitsEntry staticTraitsTable[3] = {
 char const*
 SchemeTypeTraits::GetName(SchemeType schemeType) {
 
-    return staticTraitsTable[schemeType]._name;
+    return staticTraitsTable()[schemeType]._name;
 }
 
 Split
 SchemeTypeTraits::GetTopologicalSplitType(SchemeType schemeType) {
 
-    return staticTraitsTable[schemeType]._splitType;
+    return staticTraitsTable()[schemeType]._splitType;
 }
 
 int
 SchemeTypeTraits::GetRegularFaceSize(SchemeType schemeType) {
 
-    return staticTraitsTable[schemeType]._regularFaceSize;
+    return staticTraitsTable()[schemeType]._regularFaceSize;
 }
 
 int
 SchemeTypeTraits::GetRegularVertexValence(SchemeType schemeType) {
 
-    return staticTraitsTable[schemeType]._regularVertexValence;
+    return staticTraitsTable()[schemeType]._regularVertexValence;
 }
 
 int
 SchemeTypeTraits::GetLocalNeighborhoodSize(SchemeType schemeType) {
 
-    return staticTraitsTable[schemeType]._localNeighborhood;
+    return staticTraitsTable()[schemeType]._localNeighborhood;
 }
 
 } // end namespace sdc

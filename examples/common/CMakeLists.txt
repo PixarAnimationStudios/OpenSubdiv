@@ -25,6 +25,7 @@
 set(EXAMPLES_COMMON_SHADER_FILES
      glslPtexCommon.glsl
      hlslPtexCommon.hlsl
+     mtlPtexCommon.metal
 )
 
 set(EXAMPLES_COMMON_SOURCE_FILES
@@ -120,6 +121,21 @@ if(CUDA_FOUND)
     )
 endif()
 
+if(METAL_FOUND)
+    include_directories("${METAL_INCLUDE_DIR}")
+    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        mtlControlMeshDisplay.mm
+        mtlUtils.mm
+        mtlHud.mm
+    )
+    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        mtlControlMeshDisplay.h
+        mtlUtils.h
+        mtlHud.h
+    )
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+endif()
+
 #-------------------------------------------------------------------------------
 if( PTEX_FOUND )
     list(APPEND EXAMPLES_COMMON_HEADER_FILES
@@ -144,6 +160,14 @@ if( PTEX_FOUND )
             d3d11PtexMipmapTexture.h
         )
     endif()
+    if( METAL_FOUND )
+        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+            mtlPtexMipmapTexture.mm
+        )
+        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+            mtlPtexMipmapTexture.h
+        )
+    endif()
     include_directories( "${PTEX_INCLUDE_DIR}" )
     list(APPEND PLATFORM_CPU_LIBRARIES
         ${PTEX_LIBRARY}
@@ -158,7 +182,7 @@ include_directories(
 
 set(INC_FILES )
 
-if(OPENGL_FOUND OR DXSDK_FOUND)
+if(OPENGL_FOUND OR DXSDK_FOUND OR METAL_FOUND)
 _stringify("${EXAMPLES_COMMON_SHADER_FILES}" INC_FILES)
 
 source_group("Shaders" FILES ${EXAMPLES_COMMON_SHADER_FILES})

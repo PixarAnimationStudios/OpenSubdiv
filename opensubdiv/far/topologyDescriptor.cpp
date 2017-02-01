@@ -176,7 +176,7 @@ template <>
 void
 TopologyRefinerFactory<TopologyDescriptor>::reportInvalidTopology(
     TopologyError /* errCode */, char const * msg, TopologyDescriptor const& /* mesh */) {
-    Warning(msg);
+    Warning("%s", msg);
 }
 
 } // end namespace Far
