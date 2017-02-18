@@ -54,8 +54,14 @@ CpuD3D11VertexBuffer::Create(int numElements, int numVertices,
         new CpuD3D11VertexBuffer(numElements, numVertices);
     ID3D11Device *device;
     deviceContext->GetDevice(&device);
-    if (instance->allocate(device)) return instance;
+    if (instance->allocate(device))
+    {
+        device->Release();
+        return instance;
+    }
     delete instance;
+
+    device->Release();
     return NULL;
 }
 

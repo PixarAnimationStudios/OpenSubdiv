@@ -133,6 +133,7 @@ D3D11PatchTable::allocate(Far::PatchTable const *farPatchTable,
 
     pd3d11DeviceContext->Unmap(_patchParamBuffer, 0);
 
+    pd3d11Device->Release();
     return true;
 }
 

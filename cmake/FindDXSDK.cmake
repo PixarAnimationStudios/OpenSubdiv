@@ -67,7 +67,7 @@ if (WIN32)
 
     set(DXSDK_LIBRARY_DIR ${LIBRARY_DIR})
 
-    foreach(DX_LIB d3d11 d3dcompiler)
+    foreach(DX_LIB d3d11 d3dcompiler dxgi)
 
         find_library(DXSDK_${DX_LIB}_LIBRARY
             NAMES 

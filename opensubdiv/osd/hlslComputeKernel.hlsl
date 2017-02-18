@@ -96,14 +96,14 @@ class SingleBufferCompute : IComputeKernel {
 
         Vertex dst;
         clear(dst);
-
+        
         int offset = offsets[current],
             size = sizes[current];
-
+        
         for (int i=0; i<size; ++i) {
             addWithWeight(dst, readVertex( indices[offset+i] ), weights[offset+i]);
         }
-
+        
         writeVertex(current, dst);
     }
 };
@@ -148,4 +148,21 @@ void cs_main( uint3 ID : SV_DispatchThreadID )
     // call kernel
     kernel.runKernel(ID);
 }
+
+[numthreads(WORK_GROUP_SIZE, 1, 1)]
+void cs_singleBuffer(uint3 ID : SV_DispatchThreadID)
+{
+    // call kernel
+    SingleBufferCompute kernel;
+    kernel.runKernel(ID);
+}
+
+[numthreads(WORK_GROUP_SIZE, 1, 1)]
+void cs_separateBuffer(uint3 ID : SV_DispatchThreadID)
+{
+    // call kernel
+    SeparateBufferCompute kernel;
+    kernel.runKernel(ID);
+}
+
 

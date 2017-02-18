@@ -57,6 +57,8 @@ D3D11VertexBuffer::Create(int numElements, int numVertices,
     deviceContext->GetDevice(&device);
     if (instance->allocate(device)) return instance;
     delete instance;
+
+    device->Release();
     return NULL;
 }
 
