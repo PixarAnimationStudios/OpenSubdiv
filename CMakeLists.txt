@@ -200,6 +200,10 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
             endif()
 
         endforeach()
+        
+        # ICC need the option "-std=c++11" to support c++11
+        list(APPEND OSD_COMPILER_FLAGS -std=c++11)        
+        
     endif()
 
 elseif(MSVC)
