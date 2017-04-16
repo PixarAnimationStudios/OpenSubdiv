@@ -81,7 +81,7 @@ unsigned char *loadHdr(const char *filename, HdrInfo *info, bool convertToFloat)
     while(true) {
         if (! fgets(buffer, MAXLINE, fp)) goto error;
         if (buffer[0] == '\n') break;
-        if (buffer[0] == '\r' && buffer[0] == '\n') break;
+        if (buffer[0] == '\r' || buffer[0] == '\n') break;
         if (strncmp(buffer, "#?", 2) == 0) {
             strncpy(info->magic, buffer+2, 64);
         } else if (strncmp(buffer, "FORMAT=", 7) == 0) {

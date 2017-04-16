@@ -478,7 +478,6 @@ createTopology( Shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
         for(int j=0;j<nv;j++) {
             OpenSubdiv::HbrVertex<T> * origin      = mesh->GetVertex( fv[j] );
             OpenSubdiv::HbrVertex<T> * destination = mesh->GetVertex( fv[(j+1)%nv] );
-            OpenSubdiv::HbrHalfedge<T> * opposite  = destination->GetEdge(origin);
 
             if(origin==NULL || destination==NULL) {
                 printf(" An edge was specified that connected a nonexistent vertex\n");
@@ -491,6 +490,8 @@ createTopology( Shape const * sh, OpenSubdiv::HbrMesh<T> * mesh, Scheme scheme) 
                 valid=false;
                 break;
             }
+
+            OpenSubdiv::HbrHalfedge<T> * opposite = destination->GetEdge(origin);
 
             if(opposite && opposite->GetOpposite() ) {
                 printf(" A non-manifold edge incident to more than 2 faces was found\n");

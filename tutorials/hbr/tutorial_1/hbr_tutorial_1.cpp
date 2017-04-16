@@ -142,7 +142,6 @@ int main(int, char **) {
 
             Hvertex const * origin      = hmesh->GetVertex(fv[j]),
                           * destination = hmesh->GetVertex(fv[(j+1)%nv]);
-            Hhalfedge const * opposite = destination->GetEdge(origin);
 
             // Make sure that the vertices exist in the mesh
             if (origin==NULL || destination==NULL) {
@@ -157,6 +156,8 @@ int main(int, char **) {
                 valid=false;
                 break;
             }
+
+            Hhalfedge const * opposite = destination->GetEdge(origin);
 
             // Check that no more than 2 faces are adjacent to the edge
             if (opposite && opposite->GetOpposite() ) {

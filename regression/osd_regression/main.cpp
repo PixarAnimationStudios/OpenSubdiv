@@ -68,7 +68,7 @@ GLFWwindow* g_window=0;
 //
 #define PRECISION 1e-6
 
-using namespace OpenSubdiv;    
+using namespace OpenSubdiv;
 
 //------------------------------------------------------------------------------
 enum BackendType {
@@ -98,10 +98,10 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
-    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) { 
-        _pos[0]+=weight*src._pos[0]; 
-        _pos[1]+=weight*src._pos[1]; 
-        _pos[2]+=weight*src._pos[2]; 
+    void     AddWithWeight(const xyzVV& src, float weight, void * =0 ) {
+        _pos[0]+=weight*src._pos[0];
+        _pos[1]+=weight*src._pos[1];
+        _pos[2]+=weight*src._pos[2];
     }
 
     void     AddVaryingWithWeight(const xyzVV& , float, void * =0 ) { }
@@ -131,7 +131,7 @@ struct xyzVV {
                  }
              }
 
-    
+
     void     ApplyMovingVertexEdit(const OpenSubdiv::HbrMovingVertexEdit<xyzVV> &) { }
 
     const float * GetPos() const { return _pos; }
@@ -154,9 +154,9 @@ typedef OpenSubdiv::Far::TopologyRefiner FarTopologyRefiner;
 
 
 //------------------------------------------------------------------------------
-int 
-checkVertexBuffer( 
-    const FarTopologyRefiner &refiner, xyzmesh * hmesh, 
+int
+checkVertexBuffer(
+    const FarTopologyRefiner &refiner, xyzmesh * hmesh,
     const float * vbData, int numElements) {
 
     int count=0;
@@ -169,13 +169,13 @@ checkVertexBuffer(
     // Only care about vertex on boundary conditions if the interpolate boundary
     // is 'none'
     std::vector<bool> *hbrVertexOnBoundaryPtr =
-        (hmesh->GetInterpolateBoundaryMethod() == 
+        (hmesh->GetInterpolateBoundaryMethod() ==
             xyzmesh::k_InterpolateBoundaryNone)
         ? &hbrVertexOnBoundaryData
         : NULL;
 
 
-    GetReorderedHbrVertexData(refiner, *hmesh, &hbrVertexData, 
+    GetReorderedHbrVertexData(refiner, *hmesh, &hbrVertexData,
         hbrVertexOnBoundaryPtr);
 
     //int nverts = hmesh->GetNumVertices();
@@ -185,7 +185,7 @@ checkVertexBuffer(
 
         const float * ov = & vbData[ i * numElements ];
 
-        // boundary interpolation rules set to "none" produce "undefined" 
+        // boundary interpolation rules set to "none" produce "undefined"
         // vertices on boundary vertices : far does not match hbr for those,
         // so skip comparison.
         if (hbrVertexOnBoundaryPtr && (*hbrVertexOnBoundaryPtr)[i])
@@ -261,7 +261,7 @@ buildStencilTable(
 
 
 //------------------------------------------------------------------------------
-static int 
+static int
 checkMeshCPU( FarTopologyRefiner *refiner,
               const std::vector<xyzVV>& coarseverts,
               xyzmesh * refmesh) {
@@ -271,18 +271,18 @@ checkMeshCPU( FarTopologyRefiner *refiner,
     buildStencilTable(*refiner, &vertexStencils, &varyingStencils);
 
     assert(coarseverts.size() == (size_t)refiner->GetNumVerticesTotal());
-    
-    Osd::CpuVertexBuffer * vb = 
+
+    Osd::CpuVertexBuffer * vb =
         Osd::CpuVertexBuffer::Create(3, refiner->GetNumVerticesTotal());
-    
+
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
-    
+
     Osd::CpuEvaluator::EvalStencils(
         vb, Osd::BufferDescriptor(0, 3, 3),
         vb, Osd::BufferDescriptor(refiner->GetLevel(0).GetNumVertices()*3, 3, 3),
         vertexStencils);
 
-    int result = checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(), 
+    int result = checkVertexBuffer(*refiner, refmesh, vb->BindCpuBuffer(),
         vb->GetNumElements());
 
     delete vertexStencils;
@@ -293,7 +293,7 @@ checkMeshCPU( FarTopologyRefiner *refiner,
 }
 
 //------------------------------------------------------------------------------
-static int 
+static int
 checkMeshCPUGL(FarTopologyRefiner *refiner,
                const std::vector<xyzVV>& coarseverts,
                xyzmesh * refmesh) {
@@ -301,10 +301,10 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
     Far::StencilTable const *vertexStencils;
     Far::StencilTable const *varyingStencils;
     buildStencilTable(*refiner, &vertexStencils, &varyingStencils);
-    
-    Osd::CpuGLVertexBuffer *vb = Osd::CpuGLVertexBuffer::Create(3, 
+
+    Osd::CpuGLVertexBuffer *vb = Osd::CpuGLVertexBuffer::Create(3,
         refiner->GetNumVerticesTotal());
-    
+
     vb->UpdateData( coarseverts[0].GetPos(), 0, (int)coarseverts.size() );
 
     Osd::CpuEvaluator::EvalStencils(
@@ -312,39 +312,39 @@ checkMeshCPUGL(FarTopologyRefiner *refiner,
         vb, Osd::BufferDescriptor(refiner->GetLevel(0).GetNumVertices()*3, 3, 3),
         vertexStencils);
 
-    int result = checkVertexBuffer(*refiner, refmesh, 
+    int result = checkVertexBuffer(*refiner, refmesh,
         vb->BindCpuBuffer(), vb->GetNumElements());
 
     delete vertexStencils;
     delete varyingStencils;
     delete vb;
-    
+
     return result;
 }
 
 //------------------------------------------------------------------------------
-static int 
+static int
 checkMesh( char const * msg, std::string const & shape, int levels, Scheme scheme, int backend ) {
 
     int result =0;
 
     printf("- %s (scheme=%d)\n", msg, scheme);
 
-    xyzmesh * refmesh = 
+    xyzmesh * refmesh =
         interpolateHbrVertexData<xyzVV>(shape.c_str(), scheme, levels);
 
     std::vector<xyzVV> farVertexData;
 
     FarTopologyRefiner *refiner =
-        InterpolateFarVertexData(shape.c_str(), scheme, levels, 
+        InterpolateFarVertexData(shape.c_str(), scheme, levels,
             farVertexData);
 
     switch (backend) {
         case kBackendCPU:
-            result = checkMeshCPU(refiner, farVertexData, refmesh); 
+            result = checkMeshCPU(refiner, farVertexData, refmesh);
             break;
-        case kBackendCPUGL: 
-            result = checkMeshCPUGL(refiner, farVertexData, refmesh); 
+        case kBackendCPUGL:
+            result = checkMeshCPUGL(refiner, farVertexData, refmesh);
             break;
     }
 
@@ -569,27 +569,27 @@ static void
 usage(char ** argv) {
     printf("%s [<options>]\n\n", argv[0]);
     printf("    Options :\n");
-    
+
     printf("        -compute <backend>\n");
     printf("        Compute backend applied (");
     for (int i=0; i < kBackendCount; ++i)
         printf("%s ", g_BackendNames[i]);
     printf(").\n");
-    
+
     printf("        -help / -h\n");
     printf("        Displays usage information.");
-      
+
 }
 
 //------------------------------------------------------------------------------
-static void 
+static void
 parseArgs(int argc, char ** argv) {
 
     for (int argi=1; argi<argc; ++argi) {
         if (! strcmp(argv[argi],"-compute")) {
-        
+
             const char * backend = NULL;
-            
+
             if (argi<(argc-1))
                 backend = argv[++argi];
 
@@ -624,7 +624,7 @@ parseArgs(int argc, char ** argv) {
 }
 
 //------------------------------------------------------------------------------
-int 
+int
 main(int argc, char ** argv) {
 
     // Run with no args tests default (CPU) backend.
@@ -639,7 +639,7 @@ main(int argc, char ** argv) {
     }
 
     int width=10, height=10;
-    
+
     static const char windowTitle[] = "OpenSubdiv OSD regression";
     if (! (g_window=glfwCreateWindow(width, height, windowTitle, NULL, NULL))) {
         printf("Failed to open window.\n");
@@ -647,9 +647,9 @@ main(int argc, char ** argv) {
         return 1;
     }
     glfwMakeContextCurrent(g_window);
-    
+
 #if defined(OSD_USES_GLEW)
-    if (GLenum r = glewInit() != GLEW_OK) {
+    if (GLenum r = (glewInit() != GLEW_OK)) {
         printf("Failed to initialize glew. error = %d\n", r);
         exit(1);
     }
