@@ -1635,6 +1635,10 @@ int main(int argc, char ** argv) {
     std::string str;
     std::vector<char const *> animobjs;
 
+
+
+    bool disable_glew_experimental = false;
+
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj")) {
             animobjs.push_back(argv[i]);
@@ -1650,6 +1654,10 @@ int main(int argc, char ** argv) {
         }
         else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
+        }
+        else if (strcmp(argv[i], "-x") == 0){
+            //disable it at runtime for certain buggy drivers
+            disable_glew_experimental = true;
         }
         else {
             std::ifstream ifs(argv[1]);
@@ -1731,8 +1739,12 @@ int main(int argc, char ** argv) {
 #if defined(OSD_USES_GLEW)
 #ifdef CORE_PROFILE
     // this is the only way to initialize glew correctly under core profile context.
-    glewExperimental = true;
+    if (!disable_glew_experimental)
+        glewExperimental = true;
 #endif
+#endif
+
+#if defined(OSD_USES_GLEW)
     if (GLenum r = glewInit() != GLEW_OK) {
         printf("Failed to initialize glew. Error = %s\n", glewGetErrorString(r));
         exit(1);
