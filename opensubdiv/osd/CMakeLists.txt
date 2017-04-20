@@ -225,7 +225,6 @@ set(METAL_PUBLIC_HEADERS
     mtlComputeEvaluator.h
     mtlLegacyGregoryPatchTable.h
     mtlPatchTable.h
-    mtlVertexBuffer.h
     mtlMesh.h
     mtlPatchShaderSource.h
     mtlCommon.h
