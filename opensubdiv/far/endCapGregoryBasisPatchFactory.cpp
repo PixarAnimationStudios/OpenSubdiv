@@ -144,8 +144,8 @@ EndCapGregoryBasisPatchFactory::GetPatchPoints(
         //  Simple struct with encoding of <level,face> index as an unsigned int and a
         //  comparison method for use with std::bsearch
         struct LevelAndFaceIndex {
-            static inline unsigned int create(unsigned int levelIndex, Index faceIndex) {
-                return (levelIndex << 28) | (unsigned int) faceIndex;
+            static inline unsigned int create(unsigned int levelIndexArg, Index faceIndexArg) {
+                return (levelIndexArg << 28) | (unsigned int) faceIndexArg;
             }
             static int compare(void const * a, void const * b) {
                 return *(unsigned int const*)a - *(unsigned int const*)b;
