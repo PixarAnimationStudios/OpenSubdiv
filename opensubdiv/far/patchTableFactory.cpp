@@ -235,8 +235,8 @@ public:
             : faceIndex(Vtr::INDEX_INVALID), levelIndex(-1) { }
         PatchTuple(PatchTuple const & p)
             : faceIndex(p.faceIndex), levelIndex(p.levelIndex) { }
-        PatchTuple(Index faceIndex, int levelIndex)
-            : faceIndex(faceIndex), levelIndex(levelIndex) { }
+        PatchTuple(Index faceIndexArg, int levelIndexArg)
+            : faceIndex(faceIndexArg), levelIndex(levelIndexArg) { }
 
         Index faceIndex;
         int   levelIndex;
