@@ -31,7 +31,7 @@
 
 #include "../osd/opengl.h"
 
-class PtexTexture;
+#include <Ptexture.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

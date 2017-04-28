@@ -30,9 +30,9 @@
 #include "../osd/nonCopyable.h"
 #include "../osd/opengl.h"
 
-#include <stdlib.h>
+#include <Ptexture.h>
 
-class PtexTexture;
+#include <stdlib.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

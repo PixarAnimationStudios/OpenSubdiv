@@ -25,7 +25,6 @@
 #include "../osd/ptexMipmapTextureLoader.h"
 #include "../osd/error.h"
 
-#include <Ptexture.h>
 #include <vector>
 #include <list>
 #include <algorithm>

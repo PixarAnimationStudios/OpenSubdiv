@@ -25,7 +25,6 @@
 #include "../osd/error.h"
 #include "../osd/ptexTextureLoader.h"
 
-#include <Ptexture.h>
 #include <algorithm>
 #include <iostream>
 #include <string.h>

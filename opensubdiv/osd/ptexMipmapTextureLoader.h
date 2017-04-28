@@ -27,11 +27,11 @@
 
 #include "../version.h"
 
+#include <Ptexture.h>
+
 #include <stdlib.h>
 #include <stdint.h>
 #include <vector>
-
-class PtexTexture;
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
