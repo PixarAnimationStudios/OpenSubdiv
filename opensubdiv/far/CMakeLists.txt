@@ -31,6 +31,7 @@ set(SOURCE_FILES
     endCapLegacyGregoryPatchFactory.cpp
     gregoryBasis.cpp
     patchBasis.cpp
+    patchBuilder.cpp
     patchDescriptor.cpp
     patchMap.cpp
     patchTable.cpp
@@ -50,6 +51,7 @@ set(PRIVATE_HEADER_FILES
     endCapGregoryBasisPatchFactory.h
     endCapLegacyGregoryPatchFactory.h
     patchBasis.h
+    patchBuilder.h
     stencilBuilder.h
 )
 

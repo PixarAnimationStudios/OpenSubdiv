@@ -47,14 +47,6 @@ public:
     ///
     struct Options {
 
-        enum EndCapType {
-            ENDCAP_NONE = 0,             ///< no endcap
-            ENDCAP_BILINEAR_BASIS,       ///< use bilinear quads (4 cp) as end-caps
-            ENDCAP_BSPLINE_BASIS,        ///< use BSpline basis patches (16 cp) as end-caps
-            ENDCAP_GREGORY_BASIS,        ///< use Gregory basis patches (20 cp) as end-caps
-            ENDCAP_LEGACY_GREGORY        ///< use legacy (2.x) Gregory patches (4 cp + valence table) as end-caps
-        };
-
         Options(unsigned int maxIsolation=10) :
              generateAllLevels(false),
              triangulateQuads(false),

@@ -448,8 +448,7 @@ LimitStencilTableFactory::Create(TopologyRefiner const & refiner,
         // patch table.
 
         PatchTableFactory::Options patchTableOptions;
-        patchTableOptions.SetEndCapType(
-            Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+        patchTableOptions.SetEndCapType(ENDCAP_GREGORY_BASIS);
         patchTableOptions.useInfSharpPatch = !uniform &&
             refiner.GetAdaptiveOptions().useInfSharpPatch;
 

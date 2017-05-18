@@ -52,6 +52,25 @@ inline bool IndexIsValid(Index index) { return Vtr::IndexIsValid(index); }
 static const Index INDEX_INVALID = Vtr::INDEX_INVALID;
 static const int   VALENCE_LIMIT = Vtr::VALENCE_LIMIT;
 
+inline unsigned int packBitfield(unsigned int value, int width, int offset) {
+    return (unsigned int)((value & ((1<<width)-1)) << offset);
+}
+
+inline unsigned int unpackBitfield(unsigned int value, int width, int offset) {
+    return (unsigned short)((value >> offset) & ((1<<width)-1));
+}
+
+///
+/// \brief Enumerated type for all end-cap patch types
+///
+enum EndCapType {
+    ENDCAP_NONE = 0,             ///< no endcap
+    ENDCAP_BILINEAR_BASIS,       ///< use bilinear quads (4 cp) as end-caps
+    ENDCAP_BSPLINE_BASIS,        ///< use BSpline basis patches (16 cp) as end-caps
+    ENDCAP_GREGORY_BASIS,        ///< use Gregory basis patches (20 cp) as end-caps
+    ENDCAP_LEGACY_GREGORY        ///< use legacy (2.x) Gregory patches (4 cp + valence table) as end-caps
+};
+
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION

@@ -134,11 +134,9 @@ SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
     {
         Far::PatchTableFactory::Options poptions(level);
         if (_options.endCap == kEndCapBSplineBasis) {
-            poptions.SetEndCapType(
-                Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
+            poptions.SetEndCapType(Far::ENDCAP_BSPLINE_BASIS);
         } else {
-            poptions.SetEndCapType(
-                Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+            poptions.SetEndCapType(Far::ENDCAP_GREGORY_BASIS);
         }
         patchTable = Far::PatchTableFactory::Create(*refiner, poptions);
     }

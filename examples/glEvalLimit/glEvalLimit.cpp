@@ -695,11 +695,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         // Generate bi-cubic patch table for the limit surface
         Far::PatchTableFactory::Options poptions(level);
         if (g_endCap == kEndCapBSplineBasis) {
-            poptions.SetEndCapType(
-                Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
+            poptions.SetEndCapType(Far::ENDCAP_BSPLINE_BASIS);
         } else {
-            poptions.SetEndCapType(
-                Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+            poptions.SetEndCapType(Far::ENDCAP_GREGORY_BASIS);
         }
         poptions.useInfSharpPatch = doInfSharpPatch;
         poptions.generateFVarTables = hasFVarData;
