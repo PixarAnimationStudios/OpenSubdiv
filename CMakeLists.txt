@@ -48,7 +48,7 @@ endif()
     string(REGEX REPLACE "^v" "" OSD_SONAME ${OSD_SONAME})
 
     add_definitions(
-        -DOPENSUBDIV_VERSION_STRING="${OSD_SONAME}"
+        -DOPENSUBDIV_VERSION_STRING=${OSD_SONAME}
     )
 
 #-------------------------------------------------------------------------------

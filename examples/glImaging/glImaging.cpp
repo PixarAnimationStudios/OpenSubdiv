@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#define STRINGIFY(a) #a
+
 #include "../common/glUtils.h"
 
 #include <iostream>
@@ -529,7 +531,7 @@ int main(int argc, char ** argv) {
     }
 
     static const char windowTitle[] =
-        "OpenSubdiv imaging test " OPENSUBDIV_VERSION_STRING;
+        "OpenSubdiv imaging test " STRINGIFY(OPENSUBDIV_VERSION_STRING);
 
     GLUtils::SetMinimumGLVersion();
 
@@ -616,7 +618,7 @@ int main(int argc, char ** argv) {
         ofs << "<body>\n";
         ofs << "<h3>OpenSubdiv imaging regression test<h3>\n";
         ofs << "<pre>\n";
-        ofs << "OpenSubdiv      : " << OPENSUBDIV_VERSION_STRING << "\n";
+        ofs << "OpenSubdiv      : " << STRINGIFY(OPENSUBDIV_VERSION_STRING) << "\n";
         ofs << "GL Version      : " << glGetString(GL_VERSION)
             << ", " << glGetString(GL_VENDOR)
             << ", " << glGetString(GL_RENDERER)

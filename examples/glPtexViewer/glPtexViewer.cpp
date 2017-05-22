@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#define STRINGIFY(a) #a
+
 #if defined(__APPLE__)
     #if defined(OSD_USES_GLEW)
         #include <GL/glew.h>
@@ -1783,7 +1785,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    static const char windowTitle[] = "OpenSubdiv glPtexViewer" OPENSUBDIV_VERSION_STRING;
+    static const char windowTitle[] = "OpenSubdiv glPtexViewer" STRINGIFY(OPENSUBDIV_VERSION_STRING);
 
     GLUtils::SetMinimumGLVersion();
 
