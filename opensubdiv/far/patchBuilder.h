@@ -73,6 +73,7 @@ public:
     Vtr::internal::Level const & GetVtrLevel(int levelIndex) const;
 
 
+public:
 
     // Methods to query patch properties for classification and construction.
     bool IsPatchEligible(int levelIndex, Index faceIndex) const;
@@ -86,6 +87,7 @@ public:
     void GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
         Vtr::internal::Level::VSpan cornerSpans[4], int fvcFactory = -1) const;
 
+public:
 
     // Additional simple queries -- most regarding face-varying channels that hide
     // the mapping between channels in the source Refiner and corresponding channels
@@ -102,6 +104,11 @@ public:
 
     int GetTransitionMask(int levelIndex, Index faceIndex) const;
 
+public:
+
+    static inline void OffsetAndPermuteIndices(Index const indices[],
+        int count, Index offset, int const permutation[], Index result[]);
+
 protected:
 
     TopologyRefiner const & _refiner;
@@ -114,6 +121,37 @@ protected:
          _generateLegacySharpCornerPatches;  // Generate sharp regular patches at smooth corners (legacy)
 };
 
+void
+PatchBuilder::OffsetAndPermuteIndices(Index const indices[], int count,
+                        Index offset, int const permutation[],
+                        Index result[]) {
+
+    // The patch vertices for boundary and corner patches
+    // are assigned index values even though indices will
+    // be undefined along boundary and corner edges.
+    // When the resulting patch table is going to be used
+    // as indices for drawing, it is convenient for invalid
+    // indices to be replaced with known good values, such
+    // as the first un-permuted index, which is the index
+    // of the first vertex of the patch face.
+    Index knownGoodIndex = indices[0];
+
+    if (permutation) {
+        for (int i = 0; i < count; ++i) {
+            if (permutation[i] < 0) {
+                result[i] = offset + knownGoodIndex;
+            } else {
+                result[i] = offset + indices[permutation[i]];
+            }
+        }
+    } else if (offset) {
+        for (int i = 0; i < count; ++i) {
+            result[i] = offset + indices[i];
+        }
+    } else {
+        std::memcpy(result, indices, count * sizeof(Index));
+    }
+}
 
 } // end namespace internal
 

@@ -63,37 +63,6 @@ inline bool isSharpnessEqual(float s1, float s2) { return (s1 == s2); }
 //
 //  Anonymous helper functions:
 //
-static inline void
-offsetAndPermuteIndices(Far::Index const indices[], int count,
-                        Far::Index offset, int const permutation[],
-                        Far::Index result[]) {
-
-    // The patch vertices for boundary and corner patches
-    // are assigned index values even though indices will
-    // be undefined along boundary and corner edges.
-    // When the resulting patch table is going to be used
-    // as indices for drawing, it is convenient for invalid
-    // indices to be replaced with known good values, such
-    // as the first un-permuted index, which is the index
-    // of the first vertex of the patch face.
-    Far::Index knownGoodIndex = indices[0];
-
-    if (permutation) {
-        for (int i = 0; i < count; ++i) {
-            if (permutation[i] < 0) {
-                result[i] = offset + knownGoodIndex;
-            } else {
-                result[i] = offset + indices[permutation[i]];
-            }
-        }
-    } else if (offset) {
-        for (int i = 0; i < count; ++i) {
-            result[i] = offset + indices[i];
-        }
-    } else {
-        std::memcpy(result, indices, count * sizeof(Far::Index));
-    }
-}
 
 inline int
 assignSharpnessIndex(float sharpness, std::vector<float> & sharpnessValues) {
@@ -272,7 +241,7 @@ PatchTableFactory::BuilderContext::GatherRegularPatchPoints(
         assert(bType <= 2);
     }
 
-    offsetAndPermuteIndices( patchVerts, 16, levelVertOffset, permutation, iptrs);
+    OffsetAndPermuteIndices( patchVerts, 16, levelVertOffset, permutation, iptrs);
     return 16;
 }
 
