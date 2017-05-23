@@ -79,7 +79,7 @@ doPerf(const Shape *shape, int maxlevel, int endCapType)
     Far::PatchTable const * patchTable = NULL;
     {
         Far::PatchTableFactory::Options poptions(maxlevel);
-        poptions.SetEndCapType((Far::PatchTableFactory::Options::EndCapType)endCapType);
+        poptions.SetEndCapType((Far::EndCapType)endCapType);
         patchTable = Far::PatchTableFactory::Create(*refiner, poptions);
     }
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 
     int maxlevel = 8;
     std::string str;
-    int endCapType = Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+    int endCapType = Far::ENDCAP_GREGORY_BASIS;
 
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj")) {
@@ -141,9 +141,9 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "-e")) {
             const char *type = argv[++i];
             if (!strcmp(type, "bspline")) {
-                endCapType = Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS;
+                endCapType = Far::ENDCAP_BSPLINE_BASIS;
             } else if (!strcmp(type, "gregory")) {
-                endCapType = Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+                endCapType = Far::ENDCAP_GREGORY_BASIS;
             } else {
                 printf("Unknown endcap type %s\n", type);
                 return 1;
