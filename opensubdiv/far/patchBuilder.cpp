@@ -154,7 +154,7 @@ PatchBuilder::PatchBuilder(TopologyRefiner const & refiner,
         bool useInfSharpPatch, bool generateLegacySharpCornerPatches) :
             _refiner(refiner),
             _useInfSharpPatch(useInfSharpPatch),
-            _generateLegacySharpCornerPatches(_generateLegacySharpCornerPatches) {
+            _generateLegacySharpCornerPatches(generateLegacySharpCornerPatches) {
 
     // If client-code does not select specific channels, default to all
     // the channels in the refiner.
