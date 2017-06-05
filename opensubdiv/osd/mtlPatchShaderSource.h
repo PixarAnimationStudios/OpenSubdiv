@@ -39,11 +39,14 @@ namespace OpenSubdiv {
 
                 static std::string GetPatchBasisShaderSource();
                 
-                static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type);
+                static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type,
+                                                         Far::PatchDescriptor::Type fvarType);
                 
-                static std::string GetHullShaderSource(Far::PatchDescriptor::Type type);
+                static std::string GetHullShaderSource(Far::PatchDescriptor::Type type,
+                                                       Far::PatchDescriptor::Type fvarType);
                 
-                static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type);
+                static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type,
+                                                         Far::PatchDescriptor::Type fvarType);
             };
             
         }  // end namespace Osd

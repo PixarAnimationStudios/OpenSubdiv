@@ -35,6 +35,15 @@ typedef enum {
 } EndCap;
 
 typedef enum {
+    kFVarLinearNone = 0,
+    kFVarLinearCornersOnly,
+    kFVarLinearCornersPlus1,
+    kFVarLinearCornersPlus2,
+    kFVarLinearBoundaries,
+    kFVarLinearAll
+} FVarBoundary;
+
+typedef enum {
     kCPU = 0,
     kMetal,
 } KernelType;
@@ -49,7 +58,8 @@ typedef enum {
     kShadingMaterial = 0,
     kShadingPatchType,
     kShadingNormal,
-    kShadingPatchCoord
+    kShadingPatchCoord,
+    kShadingFaceVarying,
 } ShadingMode;
 
 
@@ -105,6 +115,7 @@ typedef struct {
 @property (nonatomic) DisplayStyle displayStyle;
 @property (nonatomic) ShadingMode shadingMode;
 @property (nonatomic) EndCap endCapMode;
+@property (nonatomic) FVarBoundary fVarBoundary;
 @property (nonatomic) KernelType kernelType;
 
 @end

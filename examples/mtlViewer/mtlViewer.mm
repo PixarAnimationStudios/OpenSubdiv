@@ -67,8 +67,16 @@
 #define OSD_DRAWINDIRECT_BUFFER_INDEX 14
 #define OSD_KERNELLIMIT_BUFFER_INDEX 15
 
+#define OSD_FVAR_DATA_BUFFER_INDEX 16
+#define OSD_FVAR_INDICES_BUFFER_INDEX 17
+#define OSD_FVAR_PATCHPARAM_BUFFER_INDEX 18
+
 #define FRAME_CONST_BUFFER_INDEX 11
 #define INDICES_BUFFER_INDEX 2
+
+#define USE_FACE_VARYING 1
+
+#define FVAR_SINGLE_BUFFER 1
 
 using namespace OpenSubdiv::OPENSUBDIV_VERSION;
 
@@ -145,12 +153,18 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     id<MTLDepthStencilState> _readWriteDepthStencilState;
     id<MTLDepthStencilState> _readOnlyDepthStencilState;
 
+    id<MTLBuffer> _faceVaryingDataBuffer;
+    id<MTLBuffer> _faceVaryingIndicesBuffer;
+    id<MTLBuffer> _faceVaryingPatchParamBuffer;
+
     
     Camera _cameraData;
     Osd::MTLContext _context;
     
     
     int _numVertexElements;
+    int _numVaryingElements;
+    int _numFaceVaryingElements;
     int _numVertices;
     int _frameCount;
     int _animationFrames;
@@ -199,7 +213,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         _context.device = [delegate deviceFor:self];
         _context.commandQueue = [delegate commandQueueFor:self];
         
-        
         _osdShaderSource = @(shaderSource);
 
         _needsRebuild = true;
@@ -216,13 +229,15 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     if(_needsRebuild) {
         [self _rebuildState];
     }
-    
+
     if(!_freeze) {
         if(_animateVertices) {
             _animatedVertices.resize(_vertexData.size());
             auto p = _vertexData.data();
             auto n = _animatedVertices.data();
             
+            int numElements = _numVertexElements + _numVaryingElements;
+
             float r = sin(_animationFrames*0.01f) * _animateVertices;
             for (int i = 0; i < _numVertices; ++i) {
                 float move = 0.05f*cosf(p[0]*20+_animationFrames*0.01f);
@@ -232,8 +247,12 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                 n[1] = -p[0]*st + p[1]*ct;
                 n[2] = p[2];
                 
-                p += _numVertexElements;
-                n += _numVertexElements;
+                for (int j = 0; j < _numVaryingElements; ++j) {
+                    n[3 + j] = p[3 + j];
+                }
+
+                p += numElements;
+                n += numElements;
             }
             
             _mesh->UpdateVertexBuffer(_animatedVertices.data(), 0, _numVertices);
@@ -283,10 +302,18 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     
     auto pav = _mesh->GetPatchTable()->GetPatchArrays();
     auto pib = _mesh->GetPatchTable()->GetPatchIndexBuffer();
+    auto pfvarav = _mesh->GetPatchTable()->GetFVarPatchArrays();
     
     [renderCommandEncoder setVertexBuffer:buffer offset:0 atIndex:VERTEX_BUFFER_INDEX];
-    [renderCommandEncoder setVertexBuffer: pib offset:0 atIndex:INDICES_BUFFER_INDEX];
+    [renderCommandEncoder setVertexBuffer:pib offset:0 atIndex:INDICES_BUFFER_INDEX];
     [renderCommandEncoder setVertexBuffer:_frameConstantsBuffer offset:0 atIndex:FRAME_CONST_BUFFER_INDEX];
+#if FVAR_SINGLE_BUFFER
+    int faceVaryingDataBufferOffset = _doAdaptive ? 0 : _shape->uvs.size() * sizeof(float);
+    [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:faceVaryingDataBufferOffset atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
+#else
+    [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:0 atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
+#endif
+    [renderCommandEncoder setVertexBuffer:_faceVaryingIndicesBuffer offset:0 atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
     
     if(_doAdaptive)
     {
@@ -294,6 +321,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         [renderCommandEncoder setVertexBuffer:_perPatchDataBuffer offset:0 atIndex:OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX];
         [renderCommandEncoder setVertexBuffer:_mesh->GetPatchTable()->GetPatchParamBuffer() offset:0 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
         [renderCommandEncoder setVertexBuffer:_perPatchDataBuffer offset:0 atIndex:OSD_PERPATCHVERTEXGREGORY_BUFFER_INDEX];
+        [renderCommandEncoder setVertexBuffer:_faceVaryingPatchParamBuffer offset:0 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
     }
     
     if(_endCapMode == kEndCapLegacyGregory)
@@ -323,6 +351,12 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         if(_doAdaptive)
         {
             [renderCommandEncoder setVertexBufferOffset:patch.primitiveIdBase * sizeof(int) * 3 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
+
+            auto& fvarPatch = pfvarav[i];
+            assert(sizeof(Osd::PatchParam) == sizeof(int) * 3);
+
+            [renderCommandEncoder setVertexBufferOffset:fvarPatch.primitiveIdBase * sizeof(int) * 3 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
+            [renderCommandEncoder setVertexBufferOffset:fvarPatch.indexBase * sizeof(unsigned) atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
         }
         
         [renderCommandEncoder setVertexBufferOffset:patch.indexBase * sizeof(unsigned) atIndex:INDICES_BUFFER_INDEX];
@@ -367,7 +401,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
                     if(_displayStyle == kDisplayStyleWireOnShaded)
                     {
-                        simd::float4 shade = {1, 1,1,1};
+                        simd::float4 shade = {1,1,1,1};
                         [renderCommandEncoder setFragmentBytes:&shade length:sizeof(shade) atIndex:2];
                         [renderCommandEncoder setTriangleFillMode:MTLTriangleFillModeLines];
                         [renderCommandEncoder setDepthBias:-5 slopeScale:-1.0 clamp:-100.0];
@@ -440,7 +474,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                 [renderCommandEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:patch.GetNumPatches() * 6];
                 if(_displayStyle == kDisplayStyleWireOnShaded)
                 {
-                    simd::float4 shade = {1, 1,1,1};
+                    simd::float4 shade = {1,1,1,1};
                     [renderCommandEncoder setFragmentBytes:&shade length:sizeof(shade) atIndex:2];
                     [renderCommandEncoder setTriangleFillMode:MTLTriangleFillModeLines];
                     [renderCommandEncoder setDepthBias:-5 slopeScale:-1.0 clamp:-100.0];
@@ -453,7 +487,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                 [renderCommandEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:patch.GetNumPatches() * d.GetNumControlVertices()];
                 if(_displayStyle == kDisplayStyleWireOnShaded)
                 {
-                    simd::float4 shade = {1, 1,1,1};
+                    simd::float4 shade = {1,1,1,1};
                     [renderCommandEncoder setFragmentBytes:&shade length:sizeof(shade) atIndex:2];
                     [renderCommandEncoder setTriangleFillMode:MTLTriangleFillModeLines];
                     [renderCommandEncoder setDepthBias:-5 slopeScale:-1.0 clamp:-100.0];
@@ -569,6 +603,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
             break;
             case Far::PatchDescriptor::GREGORY_BASIS:
                 kernelExecutionLimit = patch.GetNumPatches() * 4;
+                [computeCommandEncoder setBufferOffset:_perPatchDataOffsets[3] atIndex:OSD_PERPATCHVERTEXGREGORY_BUFFER_INDEX];
                 [computeCommandEncoder setBufferOffset:_tessFactorOffsets[3] atIndex:QUAD_TESSFACTORS_INDEX];
             break;
             default: assert("Unsupported patch type" && 0); break;
@@ -593,7 +628,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     using namespace Sdc;
     using namespace Osd;
     using namespace Far;
-    
     auto shapeDesc = &g_defaultShapes[[_loadedModels indexOfObject:_currentModel]];
     _shape.reset(Shape::parseObj(shapeDesc->data.c_str(), shapeDesc->scheme));
     const auto scheme = shapeDesc->scheme;
@@ -601,10 +635,11 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*_shape);
     Sdc::Options sdcoptions = GetSdcOptions(*_shape);
-    
+
+    sdcoptions.SetFVarLinearInterpolation((OpenSubdiv::Sdc::Options::FVarLinearInterpolation)_fVarBoundary);
+
     std::unique_ptr<OpenSubdiv::Far::TopologyRefiner> refiner;
-    refiner.reset(
-                  Far::TopologyRefinerFactory<Shape>::Create(*_shape, Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions)));
+    refiner.reset(Far::TopologyRefinerFactory<Shape>::Create(*_shape, Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions)));
     
     // save coarse topology (used for coarse mesh drawing)
     Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
@@ -626,22 +661,33 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     
     int level = _refinementLevel;
     _numVertexElements = 3;
-    int numVaryingElements = 0;
+
+#if USE_FACE_VARYING
+    _numFaceVaryingElements = _shape->HasUV() ? 2 : 0;
+#else
+    _numFaceVaryingElements = 0;
+#endif
+
+    _numVaryingElements = 0;
+
+    bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, _numVaryingElements > 0);
+    bits.set(OpenSubdiv::Osd::MeshFVarData, _numFaceVaryingElements > 0);
+    bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, _doAdaptive);
+
+    int numElements = _numVertexElements + _numVaryingElements;
     
     if(_kernelType == kCPU)
     {
-        _mesh.reset(new CPUMeshType(
-                                    refiner.release(),
+        _mesh.reset(new CPUMeshType(refiner.get(),
                                     _numVertexElements,
-                                    numVaryingElements,
+                                    _numVaryingElements,
                                     level, bits, nullptr, &_context));
     }
     else
     {
-        _mesh.reset(new mtlMeshType(
-                                    refiner.release(),
+        _mesh.reset(new mtlMeshType(refiner.get(),
                                     _numVertexElements,
-                                    numVaryingElements,
+                                    _numVaryingElements,
                                     level, bits, nullptr, &_context));
     }
     
@@ -650,7 +696,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     [_delegate setupRenderPipelineState:desc for:self];
     
     const auto vertexDescriptor = desc.vertexDescriptor;
-    vertexDescriptor.layouts[0].stride = sizeof(float) * _numVertexElements;
+    vertexDescriptor.layouts[0].stride = sizeof(float) * numElements;
     vertexDescriptor.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     vertexDescriptor.layouts[0].stepRate = 1;
     vertexDescriptor.attributes[0].format = MTLVertexFormatFloat3;
@@ -669,51 +715,111 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                                                                           &_context));
     }
     
-    _vertexData.resize(refBaseLevel.GetNumVertices() * _numVertexElements);
+    _vertexData.resize(refBaseLevel.GetNumVertices() * numElements);
     _meshCenter = simd::float3{0,0,0};
     
-    if(_shape->normals.size())
+    for(int i = 0; i < refBaseLevel.GetNumVertices(); i++)
     {
-        for(int i = 0; i < refBaseLevel.GetNumVertices(); i++)
-        {
-            _vertexData[i * _numVertexElements + 0] = _shape->verts[i * 3 + 0];
-            _vertexData[i * _numVertexElements + 1] = _shape->verts[i * 3 + 1];
-            _vertexData[i * _numVertexElements + 2] = _shape->verts[i * 3 + 2];
-        }
+        _vertexData[i * numElements + 0] = _shape->verts[i * 3 + 0];
+        _vertexData[i * numElements + 1] = _shape->verts[i * 3 + 1];
+        _vertexData[i * numElements + 2] = _shape->verts[i * 3 + 2];
     }
-    else
-    {
-        for(int vertexIdx = 0; vertexIdx < refBaseLevel.GetNumVertices(); vertexIdx++)
-        {
-            _vertexData[vertexIdx * _numVertexElements + 0] = _shape->verts[vertexIdx * 3 + 0];
-            _vertexData[vertexIdx * _numVertexElements + 1] = _shape->verts[vertexIdx * 3 + 1];
-            _vertexData[vertexIdx * _numVertexElements + 2] = _shape->verts[vertexIdx * 3 + 2];
-        }
-        
-        for(auto faceIdx = 0; faceIdx < refBaseLevel.GetNumFaces(); faceIdx++)
-        {
-            auto faceIndices = refBaseLevel.GetFaceVertices(faceIdx);
-            simd::float3 v[4];
-            for(int faceVert = 0; faceVert < faceIndices.size(); faceVert++)
-            {
-                memcpy(v + faceVert, _shape->verts.data() + faceIndices[faceVert] * 3, sizeof(float) * 3);
-            }
-        }
-    }
-    
     
     for(auto vertexIdx = 0; vertexIdx < refBaseLevel.GetNumVertices(); vertexIdx++)
     {
-        _meshCenter[0] += _vertexData[vertexIdx * _numVertexElements + 0];
-        _meshCenter[1] += _vertexData[vertexIdx * _numVertexElements + 1];
-        _meshCenter[2] += _vertexData[vertexIdx * _numVertexElements + 2];
+        _meshCenter[0] += _vertexData[vertexIdx * numElements + 0];
+        _meshCenter[1] += _vertexData[vertexIdx * numElements + 1];
+        _meshCenter[2] += _vertexData[vertexIdx * numElements + 2];
     }
-    
     
     _meshCenter /= (_shape->verts.size() / 3);
     _mesh->UpdateVertexBuffer(_vertexData.data(), 0, refBaseLevel.GetNumVertices());
     _mesh->Refine();
     _mesh->Synchronize();
+
+    if(_numFaceVaryingElements > 0)
+    {
+        Far::StencilTableFactory::Options stencilTableFactoryOptions;
+        stencilTableFactoryOptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_FACE_VARYING;
+        stencilTableFactoryOptions.generateOffsets = true;
+        stencilTableFactoryOptions.generateControlVerts = false;
+        stencilTableFactoryOptions.generateIntermediateLevels = _doAdaptive;
+        stencilTableFactoryOptions.factorizeIntermediateLevels = true;
+        stencilTableFactoryOptions.maxLevel = level;
+        stencilTableFactoryOptions.fvarChannel = 0;
+
+        Far::PatchTable const *farPatchTable = _mesh->GetFarPatchTable();
+        Far::StencilTable const *stencilTable = Far::StencilTableFactory::Create(*refiner, stencilTableFactoryOptions);
+        Far::StencilTable const *stencilTableWithLocalPoints = Far::StencilTableFactory::AppendLocalPointStencilTableFaceVarying(*refiner,
+                                                                                                                                 stencilTable,
+                                                                                                                                 farPatchTable->GetLocalPointFaceVaryingStencilTable(),
+                                                                                                                                 0);
+
+        if(stencilTableWithLocalPoints) {
+            delete stencilTable;
+            stencilTable = stencilTableWithLocalPoints;
+        }
+
+        Osd::MTLStencilTable mtlStencilTable = Osd::MTLStencilTable(stencilTable, &_context);
+
+        uint32_t fvarWidth             = _numFaceVaryingElements;
+        uint32_t coarseFVarValuesCount = _shape->uvs.size() / fvarWidth;
+        uint32_t finalFVarValuesCount  = stencilTable->GetNumStencils();
+
+#if FVAR_SINGLE_BUFFER
+        Osd::CPUMTLVertexBuffer *fvarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, coarseFVarValuesCount + finalFVarValuesCount, &_context);
+        fvarDataBuffer->UpdateData(_shape->uvs.data(), 0, coarseFVarValuesCount, &_context);
+
+        _faceVaryingDataBuffer = fvarDataBuffer->BindMTLBuffer(&_context);
+        _faceVaryingDataBuffer.label = @"OSD FVar data";
+
+        Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
+        Osd::BufferDescriptor dstDesc(coarseFVarValuesCount * fvarWidth, fvarWidth, fvarWidth);
+
+        Osd::MTLComputeEvaluator::EvalStencils(fvarDataBuffer, srcDesc,
+                                               fvarDataBuffer, dstDesc,
+                                               &mtlStencilTable,
+                                               nullptr,
+                                               &_context);
+#else
+        Osd::CPUMTLVertexBuffer *coarseFVarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, coarseFVarValuesCount, &_context);
+        coarseFVarDataBuffer->UpdateData(_shape->uvs.data(), 0, coarseFVarValuesCount, &_context);
+
+        id<MTLBuffer> mtlCoarseFVarDataBuffer = coarseFVarDataBuffer->BindMTLBuffer(&_context);
+        mtlCoarseFVarDataBuffer.label = @"OSD FVar coarse data";
+
+        Osd::CPUMTLVertexBuffer *refinedFVarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, finalFVarValuesCount, &_context);
+        _faceVaryingDataBuffer = refinedFVarDataBuffer->BindMTLBuffer(&_context);
+        _faceVaryingDataBuffer.label = @"OSD FVar data";
+
+        Osd::BufferDescriptor coarseBufferDescriptor(0, fvarWidth, fvarWidth);
+        Osd::BufferDescriptor refinedBufferDescriptor(0, fvarWidth, fvarWidth);
+
+        Osd::MTLComputeEvaluator::EvalStencils(coarseFVarDataBuffer, coarseBufferDescriptor,
+                                               refinedFVarDataBuffer, refinedBufferDescriptor,
+                                               &mtlStencilTable,
+                                               nullptr,
+                                               &_context);
+#endif
+
+        Osd::MTLPatchTable const *patchTable = _mesh->GetPatchTable();
+
+        _faceVaryingIndicesBuffer = patchTable->GetFVarPatchIndexBuffer(0);
+        _faceVaryingIndicesBuffer.label = @"OSD FVar indices";
+
+        _faceVaryingPatchParamBuffer = patchTable->GetFVarPatchParamBuffer(0);
+        _faceVaryingPatchParamBuffer.label = @"OSD FVar patch params";
+
+#if FVAR_SINGLE_BUFFER
+        delete fvarDataBuffer;
+#else
+        delete refinedFVarDataBuffer;
+        delete coarseFVarDataBuffer;
+#endif
+        delete stencilTable;
+    }
+
+    refiner.release();
 }
 
 -(void)_updateState {
@@ -771,11 +877,13 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                     }
                     _tessFactorOffsets[0] = totalPatches * sizeof(MTLQuadTessellationFactorsHalf);
                     _perPatchDataOffsets[0] = totalPatchDataSize;
+
                     float elementFloats = 3;
                     if(_useSingleCrease)
                         elementFloats += 6;
                     
-                    totalPatchDataSize += elementFloats * sizeof(float) * patch.GetNumPatches() * patch.desc.GetNumControlVertices();
+                    totalPatchDataSize += elementFloats * sizeof(float) * patch.GetNumPatches() * patch.desc.GetNumControlVertices(); // OsdPerPatchVertexBezier
+
                 }
                 break;
                 case Far::PatchDescriptor::GREGORY:
@@ -785,8 +893,10 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                 }
                 _tessFactorOffsets[1] = totalPatches * sizeof(MTLQuadTessellationFactorsHalf);
                 _perPatchDataOffsets[1] = totalPatchDataSize;
-                totalPatchDataSize += sizeof(float) * 4 * 8 * patch.GetNumPatches() * patch.desc.GetNumControlVertices();
+                totalPatchDataSize += sizeof(float) * 3 * 5 * patch.GetNumPatches() * patch.desc.GetNumControlVertices();
+
                 break;
+
                 case Far::PatchDescriptor::GREGORY_BOUNDARY:
                 if(_usePatchIndexBuffer)
                 {
@@ -794,7 +904,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                 }
                 _tessFactorOffsets[2] = totalPatches * sizeof(MTLQuadTessellationFactorsHalf);
                 _perPatchDataOffsets[2] = totalPatchDataSize;
-                totalPatchDataSize += sizeof(float) * 4 * 8 * patch.GetNumPatches() * patch.desc.GetNumControlVertices();
+                totalPatchDataSize += sizeof(float) * 3 * 5 * patch.GetNumPatches() * patch.desc.GetNumControlVertices();
+
                 break;
                 case Far::PatchDescriptor::GREGORY_BASIS:
                 if(_usePatchIndexBuffer)
@@ -803,7 +914,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                 }
                 _tessFactorOffsets[3] = totalPatches * sizeof(MTLQuadTessellationFactorsHalf);
                 _perPatchDataOffsets[3] = totalPatchDataSize;
-                //Improved basis doesn't have per-patch-per-vertex data.
+                totalPatchDataSize += sizeof(float) * 3 * patch.GetNumPatches() * patch.desc.GetNumControlVertices(); // OsdPerPatchVertexGregory
+
                 break;
             }
             
@@ -826,13 +938,15 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     }
     
     Osd::MTLPatchShaderSource shaderSource;
-    auto& patchArrays = _mesh->GetPatchTable()->GetPatchArrays();
-    for(auto& patch : patchArrays)
+    auto patchArrays = _mesh->GetPatchTable()->GetPatchArrays();
+    auto pFVarArray = _mesh->GetPatchTable()->GetFVarPatchArrays();
+    for(int i = 0; i < patchArrays.size(); ++i)
     {
-        auto type = patch.GetDescriptor().GetType();
+        auto type = patchArrays[i].GetDescriptor().GetType();
+        auto fvarType = pFVarArray[i].GetDescriptor().GetType();
         auto& threadsPerThreadgroup = _threadgroupSizes[type];
         threadsPerThreadgroup = 32; //Initial guess of 32
-        int usefulControlPoints = patch.GetDescriptor().GetNumControlVertices();
+        int usefulControlPoints = patchArrays[i].GetDescriptor().GetNumControlVertices();
         
         auto compileOptions = [[MTLCompileOptions alloc] init];
         auto preprocessor = [[NSMutableDictionary alloc] init];
@@ -873,20 +987,27 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 #endif
         
         //Need to define the input vertex struct so that it's available everywhere.
-        shaderBuilder << R"(
-                            #include <metal_stdlib>
-        using namespace metal;
+
+        {
+            shaderBuilder << R"(
+                                #include <metal_stdlib>
+                                using namespace metal;
+
+                                struct OsdInputVertexType {
+                                    metal::packed_float3 position;
+                                };
+            )";
+        }
         
-                            struct OsdInputVertexType {
-                                metal::packed_float3 position;
-                            };
-        )";
-        
-        shaderBuilder << shaderSource.GetHullShaderSource(type);
+        shaderBuilder << shaderSource.GetHullShaderSource(type, fvarType);
+        if(_numFaceVaryingElements > 0)
+            shaderBuilder << shaderSource.GetPatchBasisShaderSource();
         shaderBuilder << _osdShaderSource.UTF8String;
         
         const auto str = shaderBuilder.str();
         
+        int numElements = _numVertexElements + _numVaryingElements;
+
         DEFINE(VERTEX_BUFFER_INDEX,VERTEX_BUFFER_INDEX);
         DEFINE(PATCH_INDICES_BUFFER_INDEX,PATCH_INDICES_BUFFER_INDEX);
         DEFINE(CONTROL_INDICES_BUFFER_INDEX,CONTROL_INDICES_BUFFER_INDEX);
@@ -916,15 +1037,18 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         DEFINE(USE_PTVS_SHARPNESS, 1);
         DEFINE(THREADS_PER_THREADGROUP, threadsPerThreadgroup);
         DEFINE(CONTROL_POINTS_PER_THREAD, std::max<int>(1, usefulControlPoints / threadsPerThreadgroup));
-        DEFINE(VERTEX_CONTROL_POINTS_PER_PATCH, patch.desc.GetNumControlVertices());
+        DEFINE(VERTEX_CONTROL_POINTS_PER_PATCH, patchArrays[i].desc.GetNumControlVertices());
         DEFINE(OSD_MAX_VALENCE, _mesh->GetMaxValence());
-        DEFINE(OSD_NUM_ELEMENTS, _numVertexElements);
+        DEFINE(OSD_NUM_ELEMENTS, numElements);
         DEFINE(OSD_ENABLE_BACKPATCH_CULL, _usePatchBackfaceCulling);
         DEFINE(SHADING_TYPE, _shadingMode);
         DEFINE(OSD_USE_PATCH_INDEX_BUFFER, _usePatchIndexBuffer);
         DEFINE(OSD_ENABLE_SCREENSPACE_TESSELLATION, _useScreenspaceTessellation && _useFractionalTessellation);
         DEFINE(OSD_ENABLE_PATCH_CULL, _usePatchClipCulling && _doAdaptive);
-    
+        DEFINE(OSD_FVAR_DATA_BUFFER_INDEX, OSD_FVAR_DATA_BUFFER_INDEX);
+        DEFINE(OSD_FVAR_INDICES_BUFFER_INDEX, OSD_FVAR_INDICES_BUFFER_INDEX);
+        DEFINE(OSD_FVAR_PATCHPARAM_BUFFER_INDEX, OSD_FVAR_PATCHPARAM_BUFFER_INDEX);
+
         compileOptions.preprocessorMacros = preprocessor;
         
         NSError* err = nil;
@@ -974,7 +1098,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                     vertexDesc.layouts[OSD_PATCHPARAM_BUFFER_INDEX].stepRate = 1;
                     vertexDesc.layouts[OSD_PATCHPARAM_BUFFER_INDEX].stride = sizeof(int) * 3;
                     
-                    
+                    // PatchInput :: int3 patchParam [[attribute(10)]];
                     vertexDesc.attributes[10].bufferIndex = OSD_PATCHPARAM_BUFFER_INDEX;
                     vertexDesc.attributes[10].format = MTLVertexFormatInt3;
                     vertexDesc.attributes[10].offset = 0;
@@ -987,33 +1111,45 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                         vertexDesc.layouts[OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX].stepRate = 1;
                         vertexDesc.layouts[OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX].stride = sizeof(float) * 3;
                         
+                        // ControlPoint :: float3 P [[attribute(0)]];
+                        // OsdPerPatchVertexBezier :: packed_float3 P
                         vertexDesc.attributes[0].bufferIndex = OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX;
                         vertexDesc.attributes[0].format = MTLVertexFormatFloat3;
                         vertexDesc.attributes[0].offset = 0;
                         
                         if(_useSingleCrease)
                         {
-                            vertexDesc.layouts[OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX].stride += sizeof(float) * 6;
+                            vertexDesc.layouts[OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX].stride += sizeof(float) * 3 * 2;
                             
+                            // ControlPoint :: float3 P1 [[attribute(1)]];
+                            // OsdPerPatchVertexBezier :: packed_float3 P1
                             vertexDesc.attributes[1].bufferIndex = OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX;
                             vertexDesc.attributes[1].format = MTLVertexFormatFloat3;
                             vertexDesc.attributes[1].offset = sizeof(float) * 3;
                             
+                            // ControlPoint :: float3 P2 [[attribute(2)]];
+                            // OsdPerPatchVertexBezier :: packed_float3 P2
                             vertexDesc.attributes[2].bufferIndex = OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX;
                             vertexDesc.attributes[2].format = MTLVertexFormatFloat3;
                             vertexDesc.attributes[2].offset = sizeof(float) * 6;
+
+                            // USE_PTVS_SHARPNESS is true and so OsdPerPatchVertexBezier :: float2 vSegments is not used
                         }
                         
                         if(_useScreenspaceTessellation)
                         {
                             vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stepFunction = MTLVertexStepFunctionPerPatch;
                             vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stepRate = 1;
-                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stride = sizeof(float) * 8;
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stride = sizeof(float) * 4 * 2;
                             
+                            // PatchInput :: float4 tessOuterLo [[attribute(5)]];
+                            // OsdPerPatchTessFactors :: float4 tessOuterLo;
                             vertexDesc.attributes[5].bufferIndex = OSD_PERPATCHTESSFACTORS_BUFFER_INDEX;
                             vertexDesc.attributes[5].format = MTLVertexFormatFloat4;
                             vertexDesc.attributes[5].offset = 0;
                             
+                            // PatchInput :: float4 tessOuterHi [[attribute(6)]];
+                            // OsdPerPatchTessFactors :: float4 tessOuterHi;
                             vertexDesc.attributes[6].bufferIndex = OSD_PERPATCHTESSFACTORS_BUFFER_INDEX;
                             vertexDesc.attributes[6].format = MTLVertexFormatFloat4;
                             vertexDesc.attributes[6].offset = sizeof(float) * 4;
@@ -1026,6 +1162,11 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                         vertexDesc.layouts[OSD_PERPATCHVERTEXGREGORY_BUFFER_INDEX].stepRate = 1;
                         vertexDesc.layouts[OSD_PERPATCHVERTEXGREGORY_BUFFER_INDEX].stride = sizeof(float) * 3 * 5;
                         
+                        // ControlPoint :: float3 P [[attribute(0)]];
+                        // ControlPoint :: float3 Ep [[attribute(1)]];
+                        // ControlPoint :: float3 Em [[attribute(2)]];
+                        // ControlPoint :: float3 Fp [[attribute(3)]];
+                        // ControlPoint :: float3 Fm [[attribute(4)]];
                         for(int i = 0; i < 5; i++)
                         {
                             vertexDesc.attributes[i].bufferIndex = OSD_PERPATCHVERTEXGREGORY_BUFFER_INDEX;
@@ -1038,9 +1179,11 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                         vertexDesc.layouts[VERTEX_BUFFER_INDEX].stepRate = 1;
                         vertexDesc.layouts[VERTEX_BUFFER_INDEX].stride = sizeof(float) * 3;
                         
+                        // ControlPoint :: float3 position [[attribute(0)]];
                         vertexDesc.attributes[0].bufferIndex = VERTEX_BUFFER_INDEX;
                         vertexDesc.attributes[0].format = MTLVertexFormatFloat3;
                         vertexDesc.attributes[0].offset = 0;
+
                     break;
                     case Far::PatchDescriptor::QUADS:
                         //Quads cannot use stage in, due to the need for re-indexing.
@@ -1210,6 +1353,12 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 -(void)setKernelType:(KernelType)kernelType {
     _needsRebuild |= kernelType != _kernelType;
     _kernelType = kernelType;
+}
+
+
+-(void)setFVarBoundary:(FVarBoundary)fVarBoundary {
+    _needsRebuild |= (fVarBoundary != _fVarBoundary);
+    _fVarBoundary = fVarBoundary;
 }
 
 -(void)setCurrentModel:(NSString *)currentModel {
