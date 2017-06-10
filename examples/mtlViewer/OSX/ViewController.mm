@@ -213,6 +213,18 @@ enum {
         }
     };
     
+    auto callbackBoundary = [=](int boundaryType) {
+        switch((FVarBoundary)boundaryType) {
+            case kFVarLinearNone:
+            case kFVarLinearCornersOnly:
+            case kFVarLinearCornersPlus1:
+            case kFVarLinearCornersPlus2:
+            case kFVarLinearBoundaries:
+            case kFVarLinearAll:
+                self.osdRenderer.fVarBoundary = (FVarBoundary)boundaryType;
+        }
+    };
+
     auto callbackDisplayStyle = [=](int displayStyle) {
         switch((DisplayStyle)displayStyle) {
             case kDisplayStyleWire:
@@ -224,13 +236,14 @@ enum {
                 assert("Unknown displayStyle" && 0);
         }
     };
-    
+
     auto callbackShadingMode = [=](int shadingMode) {
         switch((ShadingMode)shadingMode) {
             case kShadingNormal:
             case kShadingMaterial:
             case kShadingPatchType:
             case kShadingPatchCoord:
+            case kShadingFaceVarying:
                 self.osdRenderer.shadingMode = (ShadingMode)shadingMode;
                 break;
             default:
@@ -282,8 +295,8 @@ enum {
     hud.AddCheckBox("Fractional spacing (T)",  _osdRenderer.useFractionalTessellation,
                       10, y, callbackCheckbox, kHUD_CB_FRACTIONAL_SPACING, 't');
     y += 20;
-    hud.AddCheckBox("Frustum Patch Culling (B)",  _osdRenderer.usePatchClipCulling,
-                      10, y, callbackCheckbox, kHUD_CB_PATCH_CULL, 'b');
+    hud.AddCheckBox("Frustum Patch Culling (F)",  _osdRenderer.usePatchClipCulling,
+                      10, y, callbackCheckbox, kHUD_CB_PATCH_CULL, 'f');
     y += 20;
     hud.AddCheckBox("Backface Culling (L)", _osdRenderer.usePatchBackfaceCulling,
                     10, y, callbackCheckbox, kHUD_CB_BACK_CULL, 'l');
@@ -321,10 +334,34 @@ enum {
     hud.AddPullDownButton(shading_pulldown, "Normal",
                             kShadingNormal,
                             _osdRenderer.shadingMode == kShadingNormal);
-    
-    int compute_pulldown = hud.AddPullDown("Compute (K)", 475, 10, 300, callbackKernel, 'k');
+    hud.AddPullDownButton(shading_pulldown, "Face Varying",
+                          kShadingFaceVarying,
+                          _osdRenderer.shadingMode == kShadingFaceVarying);
+
+    int compute_pulldown = hud.AddPullDown("Compute (K)", 475, 10, 175, callbackKernel, 'k');
     hud.AddPullDownButton(compute_pulldown, "CPU", kCPU, _osdRenderer.kernelType == kCPU);
     hud.AddPullDownButton(compute_pulldown, "Metal", kMetal, _osdRenderer.kernelType == kMetal);
+
+    int boundary_pulldown = hud.AddPullDown("Boundary (B)", 650, 10, 300, callbackBoundary, 'b');
+    hud.AddPullDownButton(boundary_pulldown, "None (edge only)",
+                          kFVarLinearNone,
+                          _osdRenderer.fVarBoundary == kFVarLinearNone);
+    hud.AddPullDownButton(boundary_pulldown, "Corners Only",
+                          kFVarLinearCornersOnly,
+                          _osdRenderer.fVarBoundary == kFVarLinearCornersOnly);
+    hud.AddPullDownButton(boundary_pulldown, "Corners 1 (edge corner)",
+                          kFVarLinearCornersPlus1,
+                          _osdRenderer.fVarBoundary == kFVarLinearCornersPlus1);
+    hud.AddPullDownButton(boundary_pulldown, "Corners 2 (edge corner prop)",
+                          kFVarLinearCornersPlus2,
+                          _osdRenderer.fVarBoundary == kFVarLinearCornersPlus2);
+    hud.AddPullDownButton(boundary_pulldown, "Boundaries (always sharp)",
+                          kFVarLinearBoundaries,
+                          _osdRenderer.fVarBoundary == kFVarLinearBoundaries);
+    hud.AddPullDownButton(boundary_pulldown, "All (bilinear)",
+                          kFVarLinearAll,
+                          _osdRenderer.fVarBoundary == kFVarLinearAll);
+
     {
         hud.AddCheckBox("Adaptive (`)", _osdRenderer.useAdaptive,
                            10, 190, callbackCheckbox, kHUD_CB_ADAPTIVE, '`');

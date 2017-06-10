@@ -31,7 +31,7 @@ using namespace metal;
 #define SHADING_TYPE_PATCH 1
 #define SHADING_TYPE_NORMAL 2
 #define SHADING_TYPE_PATCH_COORD 3
-
+#define SHADING_TYPE_FACE_VARYING 4
 
 struct PerFrameConstants {
     float4x4 ModelViewMatrix;
@@ -46,7 +46,7 @@ struct OutputVertex {
     float3 position;
     float3 normal;
         
-#if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD
+#if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE_FACE_VARYING
     float3 patchColor;
 #endif
 };
@@ -65,6 +65,7 @@ struct SolidColorVertex {
 private:
     uint _color [[flat, user(color)]];
 };
+
 struct PackedInputVertex {
     packed_float3 position;
 };
@@ -190,7 +191,6 @@ getAdaptivePatchColor(int3 patchParam
 #if OSD_PATCH_REGULAR
 struct ControlPoint
 {
-    
     float3 P [[attribute(0)]];
 #if OSD_PATCH_ENABLE_SINGLE_CREASE
     float3 P1 [[attribute(1)]];
@@ -213,7 +213,6 @@ struct PatchInput
 #elif OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
 struct ControlPoint
 {
-    
     float3 P [[attribute(0)]];
     float3 Ep [[attribute(1)]];
     float3 Em [[attribute(2)]];
@@ -399,6 +398,9 @@ vertex OutputVertex vertex_main(
 #else
     const OsdVertexBufferSet patchInput,
 #endif
+    const device float*       osdFaceVaryingData        [[buffer(OSD_FVAR_DATA_BUFFER_INDEX)]],
+    const device int*         osdFaceVaryingIndices     [[buffer(OSD_FVAR_INDICES_BUFFER_INDEX)]],
+    const device packed_int3* osdFaceVaryingPatchParams [[buffer(OSD_FVAR_PATCHPARAM_BUFFER_INDEX)]],
     float2 position_in_patch [[position_in_patch]],
     uint patch_id [[patch_id]]
     )
@@ -430,6 +432,52 @@ vertex OutputVertex vertex_main(
 #elif SHADING_TYPE == SHADING_TYPE_NORMAL
 #elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD
     out.patchColor = patchVertex.patchCoord.xyz;
+#elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+    int patchIndex = OsdGetPatchIndex(patch_id);
+    float2 uv = position_in_patch;
+#if OSD_FACEVARYING_PATCH_REGULAR
+    float wP[16], wDs[16], wDt[16], wDss[16], wDst[16], wDtt[16];
+    int patchCVs = 16;
+    int patchStride = patchCVs;
+
+    int3 fvarPatchParam = osdFaceVaryingPatchParams[patchIndex];
+    int boundaryMask = OsdGetPatchBoundaryMask(fvarPatchParam);
+    OsdGetBSplinePatchWeights(uv.x, uv.y, 1.0f, boundaryMask, wP, wDs, wDt, wDss, wDst, wDtt);
+#elif OSD_FACEVARYING_PATCH_GREGORY_BASIS
+    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
+    int patchCVs = 20;
+    int patchStride = patchCVs;
+    int3 fvarPatchParam = osdFaceVaryingPatchParams[patchIndex];
+    if (OsdGetPatchIsRegular(fvarPatchParam)) {
+        float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
+        patchCVs = 16;
+        int boundaryMask = OsdGetPatchBoundaryMask(fvarPatchParam);
+        OsdGetBSplinePatchWeights(uv.x, uv.y, 1.0f, boundaryMask, wP16, wDs16, wDt16, wDss16, wDst16, wDtt16);
+        for (int i=0; i<patchCVs; ++i) {
+            wP[i] = wP16[i];
+        }
+    } else {
+        OsdGetGregoryPatchWeights(uv.x, uv.y, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
+    }
+#elif OSD_FACEVARYING_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
+    TODO
+#else
+    float wP[4], wDs[4], wDt[4], wDss[4], wDst[4], wDtt[4];
+    int patchCVs = 4;
+    int patchStride = patchCVs;
+    OsdGetBilinearPatchWeights(uv.x, uv.y, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
+#endif
+
+    int primOffset = patchIndex * patchStride;
+
+    float2 fvarUV = float2(0.);
+    for (int i = 0; i < patchCVs; ++i) {
+        int index = osdFaceVaryingIndices[primOffset + i] * 2 /* OSD_FVAR_WIDTH */ + 0 /* fvarOffset */;
+        float2 cv = float2(osdFaceVaryingData[index + 0], osdFaceVaryingData[index + 1]);
+        fvarUV += wP[i] * cv;
+    }
+
+    out.patchColor.rg = fvarUV;
 #endif
     
     return out;
@@ -488,6 +536,7 @@ vertex SolidColorVertex vertex_lines(
     const auto in = osdPerPatchVertexBezier[patch_id * VERTEX_CONTROL_POINTS_PER_PATCH + BSplineControlLineIndices[idx]];
 
     SolidColorVertex out;
+
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(in.P, 1.0);
     out.positionOut.z -= 0.001;
     
@@ -590,6 +639,8 @@ vertex OutputVertex vertex_main(
     device unsigned* indicesBuffer [[buffer(INDICES_BUFFER_INDEX)]],
     device PackedInputVertex* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]],
     const constant PerFrameConstants& frameConsts [[buffer(FRAME_CONST_BUFFER_INDEX)]],
+    const device float2* osdFaceVaryingData[[buffer(OSD_FVAR_DATA_BUFFER_INDEX)]],
+    const device int* osdFaceVaryingIndices[[buffer(OSD_FVAR_INDICES_BUFFER_INDEX)]],
     uint vertex_id [[vertex_id]]
     )
 {
@@ -604,11 +655,13 @@ vertex OutputVertex vertex_main(
     float3 p1 = vertexBuffer[indicesBuffer[quadId * 4 + 1]].position;
     float3 p2 = vertexBuffer[indicesBuffer[quadId * 4 + 2]].position;
     float3 position = vertexBuffer[indicesBuffer[quadId * 4 + triangleIdx[vertex_id % 6]]].position;
+    float2 uv = osdFaceVaryingData[osdFaceVaryingIndices[quadId * 4 + triangleIdx[vertex_id % 6]]].xy;
 #else
     float3 p0 = vertexBuffer[indicesBuffer[primID * 3 + 0]].position;
     float3 p1 = vertexBuffer[indicesBuffer[primID * 3 + 1]].position;
     float3 p2 = vertexBuffer[indicesBuffer[primID * 3 + 2]].position;
     float3 position = vertexBuffer[indicesBuffer[vertex_id]].position;
+    float2 uv = osdFacevaryingData[osdFaceVaryingIndices[vertex_id]].xy;
 #endif
 
     float3 normal = normalize(cross(p2 - p1, p0 - p1));
@@ -617,12 +670,14 @@ vertex OutputVertex vertex_main(
     OutputVertex out;
     out.position = (frameConsts.ModelViewMatrix * float4(position, 1.0)).xyz;
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(position, 1.0);
-    out.normal = (frameConsts.ModelViewMatrix * float4(normal,0.0)).xyz;
+    out.normal = (frameConsts.ModelViewMatrix * float4(normal, 0.0)).xyz;
     
 #if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD
     out.patchColor = out.normal;
+#elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+    out.patchColor.rg = uv;
 #endif
-    
+
     return out;
 }   
 
@@ -669,17 +724,17 @@ fragment float4 fragment_main(OutputVertex in [[stage_in]],
     const float3 diffuseColor = float3(0.4f, 0.4f, 0.8f);
 #elif SHADING_TYPE == SHADING_TYPE_PATCH
     const float3 diffuseColor = in.patchColor;
-#else
 #endif
 #if SHADING_TYPE == SHADING_TYPE_NORMAL
     color.xyz = normalize(in.normal) * 0.5 + 0.5;
-#elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD
-    color.xy = in.patchColor.xy;
-    color.z = 0;
+#elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+    color.xyz = lighting(1.0, lightData, in.position, normalize(in.normal));
+    int checker = int(floor(20*in.patchColor.r)+floor(20*in.patchColor.g))&1;
+    color.xyz *= float3(in.patchColor.rg*checker, 1-checker);
+    color.xyz = pow(color.xyz, 1/2.2);
 #else
     color.xyz = lighting(diffuseColor, lightData, in.position, normalize(in.normal));
 #endif
-    //    color.xyz = pow(color.xyz, 2.2);
     color.w = 1;
     return max(color,shade);
 }

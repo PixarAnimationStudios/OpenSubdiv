@@ -50,19 +50,28 @@ namespace OpenSubdiv {
 #include "mtlPatchGregoryBasis.gen.h"
 );
 
-            static std::string GetPatchTypeDefine(Far::PatchDescriptor::Type type) {
+            static std::string GetPatchTypeDefine(Far::PatchDescriptor::Type type,
+                                                  Far::PatchDescriptor::Type fvarType) {
+                std::stringstream ss;
                 switch(type) {
-                    case Far::PatchDescriptor::LINES: return "#define OSD_PATCH_LINES 1\n";
-                    case Far::PatchDescriptor::TRIANGLES: return "#define OSD_PATCH_TRIANGLES 1\n";
-                    case Far::PatchDescriptor::QUADS: return "#define OSD_PATCH_QUADS 1\n";
-                    case Far::PatchDescriptor::REGULAR: return "#define OSD_PATCH_BSPLINE 1\n#define OSD_PATCH_REGULAR 1\n";
-                    case Far::PatchDescriptor::GREGORY: return "#define OSD_PATCH_GREGORY 1\n";
-                    case Far::PatchDescriptor::GREGORY_BOUNDARY: return "#define OSD_PATCH_GREGORY_BOUNDRY 1\n";
-                    case Far::PatchDescriptor::GREGORY_BASIS: return "#define OSD_PATCH_GREGORY_BASIS 1\n";
+                    case Far::PatchDescriptor::LINES: ss << "#define OSD_PATCH_LINES 1\n"; break;
+                    case Far::PatchDescriptor::TRIANGLES: ss << "#define OSD_PATCH_TRIANGLES 1\n"; break;
+                    case Far::PatchDescriptor::QUADS: ss << "#define OSD_PATCH_QUADS 1\n"; break;
+                    case Far::PatchDescriptor::REGULAR: ss << "#define OSD_PATCH_BSPLINE 1\n#define OSD_PATCH_REGULAR 1\n"; break;
+                    case Far::PatchDescriptor::GREGORY: ss << "#define OSD_PATCH_GREGORY 1\n"; break;
+                    case Far::PatchDescriptor::GREGORY_BOUNDARY: ss << "#define OSD_PATCH_GREGORY_BOUNDRY 1\n"; break;
+                    case Far::PatchDescriptor::GREGORY_BASIS: ss << "#define OSD_PATCH_GREGORY_BASIS 1\n"; break;
                     default:
                         assert("Unknown Far::PatchDescriptor::Type" && 0);
                         return "";
                 }
+                switch(fvarType) {
+                    case Far::PatchDescriptor::REGULAR: ss << "#define OSD_FACEVARYING_PATCH_REGULAR 1\n"; break;
+                    case Far::PatchDescriptor::GREGORY_BASIS: ss << "#define OSD_FACEVARYING_PATCH_GREGORY_BASIS 1\n"; break;
+                    default:
+                        return ss.str();
+                }
+                return ss.str();
             }
 
             static std::string GetPatchTypeSource(Far::PatchDescriptor::Type type) {
@@ -102,9 +111,10 @@ namespace OpenSubdiv {
             
             /*static*/
             std::string
-            MTLPatchShaderSource::GetVertexShaderSource(Far::PatchDescriptor::Type type) {
+            MTLPatchShaderSource::GetVertexShaderSource(Far::PatchDescriptor::Type type,
+                                                        Far::PatchDescriptor::Type fvarType) {
                 std::stringstream ss;
-                ss << GetPatchTypeDefine(type);
+                ss << GetPatchTypeDefine(type, fvarType);
                 ss << GetCommonShaderSource();
                 ss << GetPatchTypeSource(type);
                 return ss.str();
@@ -112,9 +122,10 @@ namespace OpenSubdiv {
             
             /*static*/
             std::string
-            MTLPatchShaderSource::GetHullShaderSource(Far::PatchDescriptor::Type type) {
+            MTLPatchShaderSource::GetHullShaderSource(Far::PatchDescriptor::Type type,
+                                                      Far::PatchDescriptor::Type fvarType) {
                 std::stringstream ss;
-                ss << GetPatchTypeDefine(type);
+                ss << GetPatchTypeDefine(type, fvarType);
                 ss << GetCommonShaderSource();
                 ss << GetPatchTypeSource(type);
                 return ss.str();
@@ -122,9 +133,10 @@ namespace OpenSubdiv {
             
             /*static*/
             std::string
-            MTLPatchShaderSource::GetDomainShaderSource(Far::PatchDescriptor::Type type) {
+            MTLPatchShaderSource::GetDomainShaderSource(Far::PatchDescriptor::Type type,
+                                                        Far::PatchDescriptor::Type fvarType) {
                 std::stringstream ss;
-                ss << GetPatchTypeDefine(type);
+                ss << GetPatchTypeDefine(type, fvarType);
                 ss << GetCommonShaderSource();
                 ss << GetPatchTypeSource(type);
                 return ss.str();
