@@ -25,7 +25,7 @@
 #include "d3d12descriptorHeapManager.h"
 #include "d3d12Util.h"
 #include <d3d12.h>
-#include <d3dx12.h>
+#include "d3dx12.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
