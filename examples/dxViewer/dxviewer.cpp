@@ -66,11 +66,10 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
 #ifdef OPENSUBDIV_HAS_DX12
-#include <D3D12.h>
-#include <D3D11on12.h>
+#include <d3d12.h>
+#include <d3d11on12.h>
 #include <osd/d3d12commandqueuecontext.h>
 #include <osd/d3d12util.h>
-#include <d3d12.h>
 #include <dxgi1_4.h>
 
 #include <osd/d3d12VertexBuffer.h>
