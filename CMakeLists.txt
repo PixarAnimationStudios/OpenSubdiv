@@ -362,9 +362,9 @@ if (WIN32 AND NOT NO_DX12)
    if(DX12SDK_FOUND)
       # The DX12 SDK (Win 10 SDK) is a super-set of the DXSDK
       set(DXSDK_FOUND TRUE)
-	  
-	  set(DXSDK_INCLUDE_DIR $(D3D12_INCLUDE_DIRS))
-	  set(DXSDK_LIBRARIES $(D3D12_LIBRARIES))
+      
+      set(DXSDK_INCLUDE_DIR ${D3D12_INCLUDE_DIRS})
+      set(DXSDK_LIBRARIES ${D3D12_LIBRARIES})
    endif()
 endif()
 
@@ -578,12 +578,12 @@ if (WIN32)
             -DGLEW_STATIC
         )
     endif()
-	
-	if(DX12SDK_FOUND AND NOT NO_DX12)
-		add_definitions(
+    
+    if(DX12SDK_FOUND AND NOT NO_DX12)
+        add_definitions(
             -DOPENSUBDIV_HAS_DX12
         )
-	endif()
+    endif()
 
     if (DXSDK_FOUND AND NOT NO_DX11)
         add_definitions(
