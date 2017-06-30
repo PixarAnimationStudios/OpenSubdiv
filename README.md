@@ -8,9 +8,9 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
-|        |  Linux  |  Windows  |  macOS | iOS |
-|:------:|:-------:|:---------:|:------:|:---:|
-| master | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=master)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/master?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
+|        |  Linux and OSX |  Windows  |
+|:------:|:-------:|:---------:|
+| master | [![Linux and OSX Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=master)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/master?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
 | dev | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=dev)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/dev?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
 
 ## Documents

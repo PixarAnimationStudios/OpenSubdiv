@@ -147,12 +147,14 @@ PrintGLVersion() {
     std::cout << glGetString(GL_RENDERER) << "\n";
     std::cout << glGetString(GL_VERSION) << "\n";
 
-    int i;
+    int i = -1;
     std::cout << "Init OpenGL ";
     glGetIntegerv(GL_MAJOR_VERSION, &i);
     std::cout << i << ".";
     glGetIntegerv(GL_MINOR_VERSION, &i);
     std::cout << i << "\n";
+
+    CheckGLErrors("PrintGLVersion");
 }
 
 void

@@ -623,6 +623,12 @@ parseArgs(int argc, char ** argv) {
     }
 }
 
+void _glfw_error_callback(int error, const char *description)
+{
+    printf("GLFW reported error %d: %s\n",
+            error, description);
+}
+
 //------------------------------------------------------------------------------
 int 
 main(int argc, char ** argv) {
@@ -632,8 +638,11 @@ main(int argc, char ** argv) {
     // "-backend <name>" tests one backend.
     parseArgs(argc, argv);
 
+    glfwSetErrorCallback(_glfw_error_callback);
+
     // Make sure we have an OpenGL context : create dummy GLFW window
     if (! glfwInit()) {
+        printf("DISPLAY set to '%s'\n", getenv("DISPLAY"));
         printf("Failed to initialize GLFW\n");
         return 1;
     }

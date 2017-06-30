@@ -1,5 +1,6 @@
+#!/bin/bash
 #
-#   Copyright 2015 Pixar
+#   Copyright 2017 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -21,49 +22,18 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
-language: cpp
 
-os:
-    - linux
-    - osx
+mkdir build && cd build
 
-osx_image: xcode9
+# On gcc, we can turn on OMP
+# On Linux, we'll also test TBB and Ptex
+cmake \
+    -DNO_CUDA=1 \
+    -DNO_OPENCL=1 \
+    -DPTEX_LOCATION=$HOME/ptex \
+    -DTBB_LOCATION=$HOME/tbb43_20141023oss \
+    .. || exit $?
 
-sudo: required
-dist: trusty
+make || exit $?
 
-compiler:
-    - gcc
-    - clang
-
-branches:
-  only:
-   - master
-   - dev
-
-matrix:
-
-    # On Linux build with gcc and on OSX build with clang
-    exclude:
-        - os: osx
-          compiler: gcc
-        - os: linux
-          compiler: clang
-
-# build environment
-before_script:
-   - if [ $TRAVIS_OS_NAME == osx ] ; then
-        echo "before_script on OSX" ;
-     elif [ $TRAVIS_OS_NAME == linux ] ; then
-        echo "before_script on Linux" ;
-        source build_scripts/travis_before_script_linux.sh ;
-     fi
-
-script:
-   - if [ $TRAVIS_OS_NAME == osx ] ; then
-        echo "script on OSX" ;
-        build_scripts/travis_script_osx.sh ;
-     elif [ $TRAVIS_OS_NAME == linux ] ; then
-        echo "script on Linux" ;
-        source build_scripts/travis_script_linux.sh ;
-     fi
+ctest --output-on-failure || exit $?
