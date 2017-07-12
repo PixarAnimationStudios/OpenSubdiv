@@ -558,7 +558,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     PtexCache *cache = PtexCache::create(1, PTEX_CACHE_SIZE);
     PtexTexture *ptex = cache->get(path.UTF8String, ptexError);
 #else
-    PtexTexture *ptex = PtexTexture::open(path, ptexError, true);
+    PtexTexture *ptex = PtexTexture::open(path.UTF8String, ptexError, true);
 #endif
     
     if (ptex == NULL) {
@@ -901,7 +901,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         };
         )";
         
-        shaderBuilder << shaderSource.GetHullShaderSource(type);
+        auto fvarType = Far::PatchDescriptor::REGULAR;
+        shaderBuilder << shaderSource.GetHullShaderSource(type, fvarType);
         shaderBuilder << MTLPtexMipmapTexture::GetShaderSource();
         shaderBuilder << _osdShaderSource.UTF8String;
         
