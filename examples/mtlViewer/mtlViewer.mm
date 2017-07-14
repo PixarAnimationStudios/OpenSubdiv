@@ -355,8 +355,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
             auto& fvarPatch = pfvarav[i];
             assert(sizeof(Osd::PatchParam) == sizeof(int) * 3);
 
-            [renderCommandEncoder setVertexBufferOffset:fvarPatch.primitiveIdBase * sizeof(int) * 3 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
-            [renderCommandEncoder setVertexBufferOffset:fvarPatch.indexBase * sizeof(unsigned) atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
+            [renderCommandEncoder setVertexBufferOffset:(fvarPatch.primitiveIdBase+patch.primitiveIdBase) * sizeof(int) * 3 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
+            [renderCommandEncoder setVertexBufferOffset:(fvarPatch.indexBase+(patch.primitiveIdBase*fvarPatch.desc.GetNumControlVertices())) * sizeof(unsigned) atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
         }
         
         [renderCommandEncoder setVertexBufferOffset:patch.indexBase * sizeof(unsigned) atIndex:INDICES_BUFFER_INDEX];
