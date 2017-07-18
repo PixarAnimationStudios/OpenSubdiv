@@ -26,8 +26,12 @@
 
 #include <metal_stdlib>
 
-#ifndef OPENSUBDIV_MTL_COMPUTE_USE_DERIVATIVES
-#define OPENSUBDIV_MTL_COMPUTE_USE_DERIVATIVES 0
+#ifndef OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES
+#define OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES 0
+#endif
+
+#ifndef OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES
+#define OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES 0
 #endif
 
 using namespace metal;
@@ -58,6 +62,10 @@ struct KernelUniformArgs
 
     int3 duDesc;
     int3 dvDesc;
+
+    int3 duuDesc;
+    int3 duvDesc;
+    int3 dvvDesc;
 };
 
 struct Vertex {
@@ -99,11 +107,11 @@ void addWithWeight(thread Vertex& v, const Vertex src, float weight) {
     }
 }
 
+#if OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES
 void writeDu(int index, Vertex du, device float* duDerivativeBuffer, KernelUniformArgs args)
 {
     int duIndex = args.duDesc.x + index * args.duDesc.z;
-    for(int i = 0; i < LENGTH; i++)
-    {
+    for(int i = 0; i < LENGTH; i++) {
         duDerivativeBuffer[duIndex + i] = du.vertexData[i];
     }
 }
@@ -111,11 +119,37 @@ void writeDu(int index, Vertex du, device float* duDerivativeBuffer, KernelUnifo
 void writeDv(int index, Vertex dv, device float* dvDerivativeBuffer, KernelUniformArgs args)
 {
     int dvIndex = args.dvDesc.x + index * args.dvDesc.z;
-    for(int i = 0; i < LENGTH; i++)
-    {
+    for(int i = 0; i < LENGTH; i++) {
         dvDerivativeBuffer[dvIndex + i] = dv.vertexData[i];
     }
 }
+#endif
+
+#if OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES
+void writeDuu(int index, Vertex duu, device float* duuDerivativeBuffer, KernelUniformArgs args)
+{
+    int duuIndex = args.duuDesc.x + index * args.duuDesc.z;
+    for(int i = 0; i < LENGTH; i++) {
+        duuDerivativeBuffer[duuIndex + i] = duu.vertexData[i];
+    }
+}
+
+void writeDuv(int index, Vertex duv, device float* duvDerivativeBuffer, KernelUniformArgs args)
+{
+    int duvIndex = args.duvDesc.x + index * args.duvDesc.z;
+    for(int i = 0; i < LENGTH; i++) {
+        duvDerivativeBuffer[duvIndex + i] = duv.vertexData[i];
+    }
+}
+
+void writeDvv(int index, Vertex dvv, device float* dvvDerivativeBuffer, KernelUniformArgs args)
+{
+    int dvvIndex = args.dvvDesc.x + index * args.dvvDesc.z;
+    for(int i = 0; i < LENGTH; i++) {
+        dvvDerivativeBuffer[dvvIndex + i] = dvv.vertexData[i];
+    }
+}
+#endif
 
 // ---------------------------------------------------------------------------
 
@@ -127,10 +161,20 @@ kernel void eval_stencils(
     const device float* weights [[buffer(WEIGHTS_BUFFER_INDEX)]],
     const device float* srcVertices [[buffer(SRC_VERTEX_BUFFER_INDEX)]],
     device float* dstVertexBuffer [[buffer(DST_VERTEX_BUFFER_INDEX)]],
+#if OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES
     const device float* duWeights [[buffer(DU_WEIGHTS_BUFFER_INDEX)]],
     const device float* dvWeights [[buffer(DV_WEIGHTS_BUFFER_INDEX)]],
     device float* duDerivativeBuffer [[buffer(DU_DERIVATIVE_BUFFER_INDEX)]],
     device float* dvDerivativeBuffer [[buffer(DV_DERIVATIVE_BUFFER_INDEX)]],
+#endif
+#if OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES
+    const device float* duuWeights [[buffer(DUU_WEIGHTS_BUFFER_INDEX)]],
+    const device float* duvWeights [[buffer(DUV_WEIGHTS_BUFFER_INDEX)]],
+    const device float* dvvWeights [[buffer(DVV_WEIGHTS_BUFFER_INDEX)]],
+    device float* duuDerivativeBuffer [[buffer(DUU_DERIVATIVE_BUFFER_INDEX)]],
+    device float* duvDerivativeBuffer [[buffer(DUV_DERIVATIVE_BUFFER_INDEX)]],
+    device float* dvvDerivativeBuffer [[buffer(DVV_DERIVATIVE_BUFFER_INDEX)]],
+#endif
     const constant KernelUniformArgs& args [[buffer(PARAMETER_BUFFER_INDEX)]]
 )
 {
@@ -153,7 +197,7 @@ kernel void eval_stencils(
 
     writeVertex(current, dst, dstVertexBuffer, args);
 
-#if OPENSUBDIV_MTL_COMPUTE_USE_DERIVATIVES
+#if OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES
     Vertex du, dv;
     clear(du);
     clear(dv);
@@ -168,6 +212,26 @@ kernel void eval_stencils(
 
     writeDu(current, du, duDerivativeBuffer, args);
     writeDv(current, dv, dvDerivativeBuffer, args);
+#endif
+
+#if OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES
+    Vertex duu, duv, dvv;
+    clear(duu);
+    clear(duv);
+    clear(dvv);
+
+
+    for(auto i = 0; i < size; i++)
+    {
+        auto src = readVertex(indices[offset + i], srcVertices, args);
+        addWithWeight(duu, src, duuWeights[offset + i]);
+        addWithWeight(duv, src, duvWeights[offset + i]);
+        addWithWeight(dvv, src, dvvWeights[offset + i]);
+    }
+
+    writeDuu(current, duu, duuDerivativeBuffer, args);
+    writeDuv(current, duv, duvDerivativeBuffer, args);
+    writeDvv(current, dvv, dvvDerivativeBuffer, args);
 #endif
 }
 
@@ -228,28 +292,45 @@ int getNumControlVertices(int patchType) {
 // ---------------------------------------------------------------------------
 
 kernel void eval_patches(
-                         uint thread_position_in_grid [[thread_position_in_grid]],
-                         const constant uint4* patchArrays [[buffer(PATCH_ARRAYS_BUFFER_INDEX)]],
-                         const device PatchCoord* patchCoords [[buffer(PATCH_COORDS_BUFFER_INDEX)]],
-                         const device int* patchIndices [[buffer(PATCH_INDICES_BUFFER_INDEX)]],
-                         const device PatchParam* patchParams [[buffer(PATCH_PARAMS_BUFFER_INDEX)]],
-                         const device float* srcVertexBuffer [[buffer(SRC_VERTEX_BUFFER_INDEX)]],
-                         device float* dstVertexBuffer [[buffer(DST_VERTEX_BUFFER_INDEX)]],
-                         device float* duDerivativeBuffer [[buffer(DU_DERIVATIVE_BUFFER_INDEX)]],
-                         device float* dvDerivativeBuffer [[buffer(DV_DERIVATIVE_BUFFER_INDEX)]],
-                         const constant KernelUniformArgs& args [[buffer(PARAMETER_BUFFER_INDEX)]]
-                         )
+    uint thread_position_in_grid [[thread_position_in_grid]],
+    const constant uint4* patchArrays [[buffer(PATCH_ARRAYS_BUFFER_INDEX)]],
+    const device int* patchCoords [[buffer(PATCH_COORDS_BUFFER_INDEX)]],
+    const device int* patchIndices [[buffer(PATCH_INDICES_BUFFER_INDEX)]],
+    const device uint* patchParams [[buffer(PATCH_PARAMS_BUFFER_INDEX)]],
+    const device float* srcVertexBuffer [[buffer(SRC_VERTEX_BUFFER_INDEX)]],
+    device float* dstVertexBuffer [[buffer(DST_VERTEX_BUFFER_INDEX)]],
+#if OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES
+    device float* duDerivativeBuffer [[buffer(DU_DERIVATIVE_BUFFER_INDEX)]],
+    device float* dvDerivativeBuffer [[buffer(DV_DERIVATIVE_BUFFER_INDEX)]],
+#endif
+#if OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES
+    device float* duuDerivativeBuffer [[buffer(DUU_DERIVATIVE_BUFFER_INDEX)]],
+    device float* duvDerivativeBuffer [[buffer(DUV_DERIVATIVE_BUFFER_INDEX)]],
+    device float* dvvDerivativeBuffer [[buffer(DVV_DERIVATIVE_BUFFER_INDEX)]],
+#endif
+    const constant KernelUniformArgs& args [[buffer(PARAMETER_BUFFER_INDEX)]]
+)
 {
     auto current = thread_position_in_grid;
-    auto patchCoord = patchCoords[current];
-    auto patchIndex = patchIndices[patchCoord.patchIndex];
+
+    // unpack struct (5 ints unaligned)
+    PatchCoord patchCoord;
+    patchCoord.arrayIndex = patchCoords[current*5+0];
+    patchCoord.patchIndex = patchCoords[current*5+1];
+    patchCoord.vertIndex = patchCoords[current*5+2];
+    patchCoord.s = as_type<float>(patchCoords[current*5+3]);
+    patchCoord.t = as_type<float>(patchCoords[current*5+4]);
+
     auto patchArray = patchArrays[patchCoord.arrayIndex];
-    auto patchBits = patchParams[patchIndex].field1; 
-    auto patchType = select(isRegular(patchBits), 6, patchArray.x);
+
+    // unpack struct (3 uints unaligned)
+    auto patchBits = patchParams[patchCoord.patchIndex*3+1]; // field1
+    auto patchType = select(patchArray.x, uint(6), isRegular(patchBits));
+
     auto numControlVertices = getNumControlVertices(patchType);
     auto uv = normalizePatchCoord(patchBits, float2(patchCoord.s, patchCoord.t));
     auto dScale = float(1 << getDepth(patchBits));
-    auto boundry = int((patchBits >> 8) & 0xFU);
+    auto boundary = int((patchBits >> 8) & 0xFU);
 
     float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 
@@ -257,35 +338,53 @@ kernel void eval_patches(
     if(patchType == 3) {
         OsdGetBilinearPatchWeights(uv.x, uv.y, dScale, wP, wDs, wDt, wDss, wDst, wDtt);
     } else if(patchType == 6) {
-        OsdGetBSplinePatchWeights(uv.x, uv.y, dScale, boundry, wP, wDs, wDt, wDss, wDst, wDtt);
+        OsdGetBSplinePatchWeights(uv.x, uv.y, dScale, boundary, wP, wDs, wDt, wDss, wDst, wDtt);
     } else if(patchType == 9) {
         OsdGetGregoryPatchWeights(uv.x, uv.y, dScale, wP, wDs, wDt, wDss, wDst, wDtt);
     }
 
-    Vertex dst, du, dv;
+    Vertex dst, du, dv, duu, duv, dvv;
     clear(dst);
     clear(du);
     clear(dv);
+    clear(duu);
+    clear(duv);
+    clear(dvv);
 
 
-    auto indexBase = patchArray.z + numControlVertices * (patchCoord.patchIndex - patchArray.w);
+    auto indexStride = getNumControlVertices(patchArray.x);
+    auto indexBase = patchArray.z + indexStride * (patchCoord.patchIndex - patchArray.w);
     for(auto cv = 0; cv < numControlVertices; cv++)
     {
         auto index = patchIndices[indexBase + cv];
         auto src = readVertex(index, srcVertexBuffer, args);
         addWithWeight(dst, src, wP[cv]);
-        addWithWeight(du, src, wDs[cv]);
-        addWithWeight(dv, src, wDt[cv]);
+        addWithWeight(du,  src, wDs[cv]);
+        addWithWeight(dv,  src, wDt[cv]);
+        addWithWeight(duu, src, wDss[cv]);
+        addWithWeight(duv, src, wDst[cv]);
+        addWithWeight(dvv, src, wDtt[cv]);
     }
 
     writeVertex(current, dst, dstVertexBuffer, args);
 
-#if OPENSUBDIV_MTL_COMPUTE_USE_DERIVATIVES
+#if OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES
     if(args.duDesc.y > 0)
         writeDu(current, du, duDerivativeBuffer, args);
 
     if(args.dvDesc.y > 0)
         writeDv(current, dv, dvDerivativeBuffer, args);
+#endif
+
+#if OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES
+    if(args.duuDesc.y > 0)
+        writeDuu(current, duu, duuDerivativeBuffer, args);
+
+    if(args.duvDesc.y > 0)
+        writeDuv(current, duv, duvDerivativeBuffer, args);
+
+    if(args.dvvDesc.y > 0)
+        writeDvv(current, dvv, dvvDerivativeBuffer, args);
 #endif
 
 

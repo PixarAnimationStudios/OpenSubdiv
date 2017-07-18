@@ -47,10 +47,16 @@
 #define DV_WEIGHTS_BUFFER_INDEX 8
 #define DU_DERIVATIVE_BUFFER_INDEX 9
 #define DV_DERIVATIVE_BUFFER_INDEX 10
-#define PATCH_ARRAYS_BUFFER_INDEX 11
-#define PATCH_COORDS_BUFFER_INDEX 12
-#define PATCH_INDICES_BUFFER_INDEX 13
-#define PATCH_PARAMS_BUFFER_INDEX 14
+#define DUU_WEIGHTS_BUFFER_INDEX 11
+#define DUV_WEIGHTS_BUFFER_INDEX 12
+#define DVV_WEIGHTS_BUFFER_INDEX 13
+#define DUU_DERIVATIVE_BUFFER_INDEX 14
+#define DUV_DERIVATIVE_BUFFER_INDEX 15
+#define DVV_DERIVATIVE_BUFFER_INDEX 16
+#define PATCH_ARRAYS_BUFFER_INDEX 17
+#define PATCH_COORDS_BUFFER_INDEX 18
+#define PATCH_INDICES_BUFFER_INDEX 19
+#define PATCH_PARAMS_BUFFER_INDEX 20
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -84,6 +90,10 @@ namespace mtl
 
       simd::int3 duDesc;
       simd::int3 dvDesc;
+
+      simd::int3 duuDesc;
+      simd::int3 duvDesc;
+      simd::int3 dvvDesc;
   };
 } //end namespace mtl
 
@@ -95,6 +105,10 @@ template <typename T>
 static id<MTLBuffer> createBuffer(const std::vector<T> &vec,
                                       MTLContext* context)
 {
+    if (vec.empty()) {
+        return nil;
+    }
+
     const auto length = sizeof(T) * vec.size();
 #if TARGET_OS_IOS || TARGET_OS_TV
     return [context->device newBufferWithBytes:vec.data() length:length options:MTLResourceOptionCPUCacheModeDefault];
@@ -148,6 +162,9 @@ MTLStencilTable::MTLStencilTable(Far::StencilTable const *stencilTable,
 
   _duWeightsBuffer = nil;
   _dvWeightsBuffer = nil;
+  _duuWeightsBuffer = nil;
+  _duvWeightsBuffer = nil;
+  _dvvWeightsBuffer = nil;
 }
 
 MTLStencilTable::MTLStencilTable(Far::LimitStencilTable const *stencilTable,
@@ -167,13 +184,29 @@ MTLStencilTable::MTLStencilTable(Far::LimitStencilTable const *stencilTable,
     _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
     _duWeightsBuffer = createBuffer(stencilTable->GetDuWeights(), context);
     _dvWeightsBuffer = createBuffer(stencilTable->GetDvWeights(), context);
+    _duuWeightsBuffer = createBuffer(stencilTable->GetDuuWeights(), context);
+    _duvWeightsBuffer = createBuffer(stencilTable->GetDuvWeights(), context);
+    _dvvWeightsBuffer = createBuffer(stencilTable->GetDvvWeights(), context);
 
     _sizesBuffer.label = @"StencilTable Sizes";
     _offsetsBuffer.label = @"StencilTable Offsets";
     _indicesBuffer.label = @"StencilTable Indices";
     _weightsBuffer.label = @"StencilTable Weights";
-    _duWeightsBuffer.label = @"StencilTable duWeights";
-    _dvWeightsBuffer.label = @"StencilTable dvWeights";
+    if (_duWeightsBuffer) {
+        _duWeightsBuffer.label = @"StencilTable duWeights";
+    }
+    if (_dvWeightsBuffer) {
+        _dvWeightsBuffer.label = @"StencilTable dvWeights";
+    }
+    if (_duuWeightsBuffer) {
+        _duuWeightsBuffer.label = @"StencilTable duuWeights";
+    }
+    if (_duvWeightsBuffer) {
+        _duvWeightsBuffer.label = @"StencilTable duvWeights";
+    }
+    if (_dvvWeightsBuffer) {
+        _dvvWeightsBuffer.label = @"StencilTable dvvWeights";
+    }
   }
 }
 
@@ -188,7 +221,11 @@ MTLComputeEvaluator *MTLComputeEvaluator::Create(
   assert(context->device != nil && context->commandQueue != nil);
 
   auto instance = new MTLComputeEvaluator();
-  if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc, context))
+  if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
+                        BufferDescriptor(),
+                        BufferDescriptor(),
+                        BufferDescriptor(),
+                        context))
     return instance;
 
   delete instance;
@@ -206,7 +243,8 @@ MTLComputeEvaluator *MTLComputeEvaluator::Create(
   assert(context->device != nil && context->commandQueue != nil);
 
   auto instance = new MTLComputeEvaluator();
-  if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc, context))
+  if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
+                        duuDesc, duvDesc, dvvDesc, context))
     return instance;
 
   delete instance;
@@ -218,6 +256,9 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
                                   BufferDescriptor const &dstDesc,
                                   BufferDescriptor const &duDesc,
                                   BufferDescriptor const &dvDesc,
+                                  BufferDescriptor const &duuDesc,
+                                  BufferDescriptor const &duvDesc,
+                                  BufferDescriptor const &dvvDesc,
                                   MTLContext* context)
 {
     assert(context != nil);
@@ -229,12 +270,8 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     MTLCompileOptions *compileOptions = [[MTLCompileOptions alloc] init];
     compileOptions.preprocessorMacros = nil;
 
-    bool useDeriv = duDesc.length > 0 || dvDesc.length > 0;
-
-    if(useDeriv)
-    {
-      printf("Using OPENSUBDIV_MTL_COMPUTE_USE_DERIVATIVES");
-    }
+    bool deriv1 = duDesc.length > 0 || dvDesc.length > 0;
+    bool deriv2 = duuDesc.length > 0 || duvDesc.length > 0 || dvvDesc.length > 0;
 
 #define DEFINE(x,y) @(#x) : @(y)
     auto preprocessor = @{
@@ -242,7 +279,8 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     DEFINE(SRC_STRIDE, srcDesc.stride),
     DEFINE(DST_STRIDE, dstDesc.stride),
     DEFINE(WORK_GROUP_SIZE, _workGroupSize),
-    DEFINE(OPENSUBDIV_MTL_COMPUTE_USE_DERIVATIVES, useDeriv),
+    DEFINE(OPENSUBDIV_MTL_COMPUTE_USE_1ST_DERIVATIVES, deriv1),
+    DEFINE(OPENSUBDIV_MTL_COMPUTE_USE_2ND_DERIVATIVES, deriv2),
     DEFINE(PARAMETER_BUFFER_INDEX,PARAMETER_BUFFER_INDEX),
     DEFINE(SIZES_BUFFER_INDEX,SIZES_BUFFER_INDEX),
     DEFINE(OFFSETS_BUFFER_INDEX,OFFSETS_BUFFER_INDEX),
@@ -254,6 +292,12 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     DEFINE(DV_WEIGHTS_BUFFER_INDEX,DV_WEIGHTS_BUFFER_INDEX),
     DEFINE(DU_DERIVATIVE_BUFFER_INDEX,DU_DERIVATIVE_BUFFER_INDEX),
     DEFINE(DV_DERIVATIVE_BUFFER_INDEX,DV_DERIVATIVE_BUFFER_INDEX),
+    DEFINE(DUU_WEIGHTS_BUFFER_INDEX,DUU_WEIGHTS_BUFFER_INDEX),
+    DEFINE(DUV_WEIGHTS_BUFFER_INDEX,DUV_WEIGHTS_BUFFER_INDEX),
+    DEFINE(DVV_WEIGHTS_BUFFER_INDEX,DVV_WEIGHTS_BUFFER_INDEX),
+    DEFINE(DUU_DERIVATIVE_BUFFER_INDEX,DUU_DERIVATIVE_BUFFER_INDEX),
+    DEFINE(DUV_DERIVATIVE_BUFFER_INDEX,DUV_DERIVATIVE_BUFFER_INDEX),
+    DEFINE(DVV_DERIVATIVE_BUFFER_INDEX,DVV_DERIVATIVE_BUFFER_INDEX),
     DEFINE(PATCH_ARRAYS_BUFFER_INDEX,PATCH_ARRAYS_BUFFER_INDEX),
     DEFINE(PATCH_COORDS_BUFFER_INDEX,PATCH_COORDS_BUFFER_INDEX),
     DEFINE(PATCH_INDICES_BUFFER_INDEX,PATCH_INDICES_BUFFER_INDEX),
@@ -337,7 +381,7 @@ MTLComputeEvaluator::~MTLComputeEvaluator()
 #endif
 }
 
-void MTLComputeEvaluator::Synchronize(MTLContext* context) { }
+void MTLComputeEvaluator::Synchronize(MTLContext*) { }
 
 bool MTLComputeEvaluator::EvalStencils(
     id<MTLBuffer> srcBuffer, BufferDescriptor const &srcDesc,
@@ -349,7 +393,47 @@ bool MTLComputeEvaluator::EvalStencils(
     id<MTLBuffer> indicesBuffer,
     id<MTLBuffer> weightsBuffer,
     id<MTLBuffer> duWeightsBuffer,
-    id<MTLBuffer> dvWeightsBuffer, int start, int end,
+    id<MTLBuffer> dvWeightsBuffer,
+    int start, int end,
+    MTLContext* context) const
+{
+    return EvalStencils(
+        srcBuffer, srcDesc,
+        dstBuffer, dstDesc,
+        duBuffer, duDesc,
+        dvBuffer, dvDesc,
+        nil, BufferDescriptor(),
+        nil, BufferDescriptor(),
+        nil, BufferDescriptor(),
+        sizesBuffer,
+        offsetsBuffer,
+        indicesBuffer,
+        weightsBuffer,
+        duWeightsBuffer,
+        dvWeightsBuffer,
+        nil, nil, nil,
+        start, end,
+        context);
+}
+
+bool MTLComputeEvaluator::EvalStencils(
+    id<MTLBuffer> srcBuffer, BufferDescriptor const &srcDesc,
+    id<MTLBuffer> dstBuffer, BufferDescriptor const &dstDesc,
+    id<MTLBuffer> duBuffer,  BufferDescriptor const &duDesc,
+    id<MTLBuffer> dvBuffer,  BufferDescriptor const &dvDesc,
+    id<MTLBuffer> duuBuffer, BufferDescriptor const &duuDesc,
+    id<MTLBuffer> duvBuffer, BufferDescriptor const &duvDesc,
+    id<MTLBuffer> dvvBuffer, BufferDescriptor const &dvvDesc,
+    id<MTLBuffer> sizesBuffer,
+    id<MTLBuffer> offsetsBuffer,
+    id<MTLBuffer> indicesBuffer,
+    id<MTLBuffer> weightsBuffer,
+    id<MTLBuffer> duWeightsBuffer,
+    id<MTLBuffer> dvWeightsBuffer,
+    id<MTLBuffer> duuWeightsBuffer,
+    id<MTLBuffer> duvWeightsBuffer,
+    id<MTLBuffer> dvvWeightsBuffer,
+    int start, int end,
     MTLContext* context) const
 {
     if(_evalStencils == nil)
@@ -373,6 +457,9 @@ bool MTLComputeEvaluator::EvalStencils(
     args.dstOffset = dstDesc.offset;
     args.duDesc = (simd::int3){duDesc.offset, duDesc.length, duDesc.stride};
     args.dvDesc = (simd::int3){dvDesc.offset, dvDesc.length, dvDesc.stride};
+    args.duuDesc = (simd::int3){duuDesc.offset, duuDesc.length, duuDesc.stride};
+    args.duvDesc = (simd::int3){duvDesc.offset, duvDesc.length, duvDesc.stride};
+    args.dvvDesc = (simd::int3){dvvDesc.offset, dvvDesc.length, dvvDesc.stride};
 
     memcpy(_parameterBuffer.contents, &args, sizeof(args));
 
@@ -394,6 +481,18 @@ bool MTLComputeEvaluator::EvalStencils(
     }
     [computeEncoder setBuffer:duBuffer offset:0 atIndex:DU_DERIVATIVE_BUFFER_INDEX];
     [computeEncoder setBuffer:dvBuffer offset:0 atIndex:DV_DERIVATIVE_BUFFER_INDEX];
+    if(duuWeightsBuffer && duvWeightsBuffer && dvvWeightsBuffer)
+    {
+        [computeEncoder setBuffer:duuWeightsBuffer offset:0 atIndex:DUU_WEIGHTS_BUFFER_INDEX];
+        [computeEncoder setBuffer:duvWeightsBuffer offset:0 atIndex:DUV_WEIGHTS_BUFFER_INDEX];
+        [computeEncoder setBuffer:dvvWeightsBuffer offset:0 atIndex:DVV_WEIGHTS_BUFFER_INDEX];
+    }
+    if(duuBuffer && duvBuffer && dvvBuffer)
+    {
+        [computeEncoder setBuffer:duuBuffer offset:0 atIndex:DUU_DERIVATIVE_BUFFER_INDEX];
+        [computeEncoder setBuffer:duvBuffer offset:0 atIndex:DUV_DERIVATIVE_BUFFER_INDEX];
+        [computeEncoder setBuffer:dvvBuffer offset:0 atIndex:DVV_DERIVATIVE_BUFFER_INDEX];
+    }
     [computeEncoder setComputePipelineState:_evalStencils];
 
     auto threadgroups = MTLSizeMake((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
@@ -408,19 +507,50 @@ bool MTLComputeEvaluator::EvalStencils(
     return true;
 }
 
+bool
+MTLComputeEvaluator::EvalPatches(
+    id<MTLBuffer> srcBuffer, const BufferDescriptor &srcDesc,
+    id<MTLBuffer> dstBuffer, const BufferDescriptor &dstDesc,
+    id<MTLBuffer> duBuffer, const BufferDescriptor &duDesc,
+    id<MTLBuffer> dvBuffer, const BufferDescriptor &dvDesc,
+    int numPatchCoords,
+    id<MTLBuffer> patchCoordsBuffer,
+    const PatchArrayVector &patchArrays,
+    id<MTLBuffer> patchIndexBuffer,
+    id<MTLBuffer> patchParamsBuffer,
+    MTLContext* context) const
+{
+    return EvalPatches(
+        srcBuffer, srcDesc,
+        dstBuffer, dstDesc,
+        duBuffer, duDesc,
+        dvBuffer, dvDesc,
+        nil, BufferDescriptor(),
+        nil, BufferDescriptor(),
+        nil, BufferDescriptor(),
+        numPatchCoords,
+        patchCoordsBuffer,
+        patchArrays,
+        patchIndexBuffer,
+        patchParamsBuffer,
+        context);
+}
 
 bool
 MTLComputeEvaluator::EvalPatches(
-                                 id<MTLBuffer> srcBuffer, const BufferDescriptor &srcDesc,
-                                 id<MTLBuffer> dstBuffer, const BufferDescriptor &dstDesc,
-                                 id<MTLBuffer> duBuffer, const BufferDescriptor &duDesc,
-                                 id<MTLBuffer> dvBuffer, const BufferDescriptor &dvDesc,
-                                 int numPatchCoords,
-                                 id<MTLBuffer> patchCoordsBuffer,
-                                 const PatchArrayVector &patchArrays,
-                                 id<MTLBuffer> patchIndexBuffer,
-                                 id<MTLBuffer> patchParamsBuffer,
-                                 MTLContext* context) const
+    id<MTLBuffer> srcBuffer, const BufferDescriptor &srcDesc,
+    id<MTLBuffer> dstBuffer, const BufferDescriptor &dstDesc,
+    id<MTLBuffer> duBuffer,  const BufferDescriptor &duDesc,
+    id<MTLBuffer> dvBuffer,  const BufferDescriptor &dvDesc,
+    id<MTLBuffer> duuBuffer, const BufferDescriptor &duuDesc,
+    id<MTLBuffer> duvBuffer, const BufferDescriptor &duvDesc,
+    id<MTLBuffer> dvvBuffer, const BufferDescriptor &dvvDesc,
+    int numPatchCoords,
+    id<MTLBuffer> patchCoordsBuffer,
+    const PatchArrayVector &patchArrays,
+    id<MTLBuffer> patchIndexBuffer,
+    id<MTLBuffer> patchParamsBuffer,
+    MTLContext* context) const
 {
     if(_evalPatches == nil)
         return false;
@@ -442,17 +572,27 @@ MTLComputeEvaluator::EvalPatches(
     args.dstOffset = dstDesc.offset;
     args.duDesc = (simd::int3){duDesc.offset, duDesc.length, duDesc.stride};
     args.dvDesc = (simd::int3){dvDesc.offset, dvDesc.length, dvDesc.stride};
+    args.duuDesc = (simd::int3){duuDesc.offset, duuDesc.length, duuDesc.stride};
+    args.duvDesc = (simd::int3){duvDesc.offset, duvDesc.length, duvDesc.stride};
+    args.dvvDesc = (simd::int3){dvvDesc.offset, dvvDesc.length, dvvDesc.stride};
 
     [computeCommandEncoder setBytes:&args length:sizeof(mtl::KernelUniformArgs) atIndex:PARAMETER_BUFFER_INDEX];
     [computeCommandEncoder setBuffer:srcBuffer offset:0 atIndex:SRC_VERTEX_BUFFER_INDEX];
     [computeCommandEncoder setBuffer:dstBuffer offset:0 atIndex:DST_VERTEX_BUFFER_INDEX];
-    [computeCommandEncoder setBuffer:duBuffer offset:0 atIndex:DU_DERIVATIVE_BUFFER_INDEX];
-    [computeCommandEncoder setBuffer:dvBuffer offset:0 atIndex:DV_DERIVATIVE_BUFFER_INDEX];
+    if (duBuffer && dvBuffer) {
+        [computeCommandEncoder setBuffer:duBuffer offset:0 atIndex:DU_DERIVATIVE_BUFFER_INDEX];
+        [computeCommandEncoder setBuffer:dvBuffer offset:0 atIndex:DV_DERIVATIVE_BUFFER_INDEX];
+    }
+    if (duuBuffer && duvBuffer && dvvBuffer) {
+        [computeCommandEncoder setBuffer:duuBuffer offset:0 atIndex:DUU_DERIVATIVE_BUFFER_INDEX];
+        [computeCommandEncoder setBuffer:duvBuffer offset:0 atIndex:DUV_DERIVATIVE_BUFFER_INDEX];
+        [computeCommandEncoder setBuffer:dvvBuffer offset:0 atIndex:DVV_DERIVATIVE_BUFFER_INDEX];
+    }
     [computeCommandEncoder setBuffer:patchCoordsBuffer offset:0 atIndex:PATCH_COORDS_BUFFER_INDEX];
     [computeCommandEncoder setBuffer:patchIndexBuffer offset:0 atIndex:PATCH_INDICES_BUFFER_INDEX];
     [computeCommandEncoder setBuffer:patchParamsBuffer offset:0 atIndex:PATCH_PARAMS_BUFFER_INDEX];
-    assert(patchArrays.size() == 2);
-    [computeCommandEncoder setBytes:&patchArrays[0] length:sizeof(patchArrays[0]) * 2 atIndex:PATCH_ARRAYS_BUFFER_INDEX];
+    assert(!patchArrays.empty());
+    [computeCommandEncoder setBytes:&patchArrays[0] length:sizeof(patchArrays[0]) * patchArrays.size() atIndex:PATCH_ARRAYS_BUFFER_INDEX];
     [computeCommandEncoder setComputePipelineState:_evalPatches];
 
     auto threadgroups =
