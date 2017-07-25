@@ -31,6 +31,19 @@
 
 ----
 
+Release 3.3.0
+=============
+
+Release 3.3.0 is significant release adding an Osd implementation for Apple's Metal API
+
+**New Features**
+    - Added an Osd implementation for Apple's Metal API
+    - Added the mtlViewer example
+
+**Changes**
+    - Fixed several instances of local variable shadowing that could cause build warnings
+    - Updated continuous-integration build scripts and added testing on macOS
+
 Release 3.2.0
 =============
 
