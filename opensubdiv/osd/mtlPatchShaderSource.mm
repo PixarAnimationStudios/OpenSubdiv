@@ -103,7 +103,7 @@ namespace OpenSubdiv {
                 std::stringstream ss;
                 ss << "#define OSD_PATCH_BASIS_METAL 1\n";
 #if defined(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
-                ss << "define OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES 1\n";
+                ss << "#define OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES 1\n";
 #endif
                 ss << patchBasisShaderSource;
                 return ss.str();
