@@ -117,7 +117,7 @@ set(GL_PUBLIC_HEADERS
     glslPatchShaderSource.h
 )
 
-if( OPENGL_FOUND OR OPENGLES_FOUND )
+if( (NOT NO_OPENGL) AND (OPENGL_FOUND OR OPENGLES_FOUND) )
     list(APPEND GPU_SOURCE_FILES
         cpuGLVertexBuffer.cpp
         glLegacyGregoryPatchTable.cpp
@@ -217,6 +217,54 @@ if( DXSDK_FOUND )
 endif()
 
 list(APPEND DOXY_HEADER_FILES ${DXSDK_PUBLIC_HEADERS})
+
+#-------------------------------------------------------------------------------
+# Metal code & dependencies
+set(METAL_PUBLIC_HEADERS
+    mtlVertexBuffer.h
+    mtlComputeEvaluator.h
+    mtlLegacyGregoryPatchTable.h
+    mtlPatchTable.h
+    mtlMesh.h
+    mtlPatchShaderSource.h
+    mtlCommon.h
+)
+
+
+if( METAL_FOUND )
+    set(METAL_SOURCE_FILES
+        mtlVertexBuffer.mm
+        mtlComputeEvaluator.mm
+        mtlLegacyGregoryPatchTable.mm
+        mtlPatchTable.mm
+        mtlVertexBuffer.mm
+        mtlPatchShaderSource.mm
+    )
+
+    set_source_files_properties(
+        ${METAL_SOURCE_FILES}
+        PROPERTIES
+        COMPILE_FLAGS
+        "-fobjc-arc")
+
+    list(APPEND GPU_SOURCE_FILES ${METAL_SOURCE_FILES})
+
+    
+
+    list(APPEND PUBLIC_HEADER_FILES ${METAL_PUBLIC_HEADERS})
+    list(APPEND KERNEL_FILES
+       mtlComputeKernel.metal
+       mtlPatchCommon.metal
+       mtlPatchBSpline.metal
+       mtlPatchGregory.metal
+       mtlPatchGregoryBasis.metal
+    )
+    list(APPEND PLATFORM_GPU_LIBRARIES
+        ${METAL_LIBRARIES}
+    )
+endif()
+
+list(APPEND DOXY_HEADER_FILES ${METAL_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
 # OpenCL code & dependencies
@@ -330,12 +378,10 @@ if( GPU_SOURCE_FILES )
             ${PUBLIC_HEADER_FILES}
             ${INC_FILES}
     )
-
     set_target_properties(osd_gpu_obj
         PROPERTIES
             FOLDER "opensubdiv"
     )
-    
 endif()
 
 _add_doxy_headers( "${DOXY_HEADER_FILES}" )
@@ -349,7 +395,6 @@ install(
         OWNER_READ
         GROUP_READ
         WORLD_READ )
-
 
 if (ANDROID)
     install(

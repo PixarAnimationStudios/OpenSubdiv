@@ -1,8 +1,9 @@
 
 # ignore build files
-/build*
+/build/*
 /inst*
 
 *.pyc
 osdshim_wrap.cpp
 shim.py
+.DS_Store

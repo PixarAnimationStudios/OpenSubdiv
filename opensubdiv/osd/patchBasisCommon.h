@@ -33,6 +33,7 @@
     #define OSD_OPTIONAL_INIT(a,b) b
     #define OSD_OUT out
     #define OSD_INOUT inout
+    #define OSD_TYPE_ARRAY(elementType, identifier, arraySize) elementType identifier[arraySize]
     #define OSD_ARRAY_8(elementType,a0,a1,a2,a3,a4,a5,a6,a7) \
             elementType[](a0,a1,a2,a3,a4,a5,a6,a7)
     #define OSD_ARRAY_12(elementType,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11) \
@@ -46,6 +47,7 @@
     #define OSD_OPTIONAL_INIT(a,b) b
     #define OSD_OUT out
     #define OSD_INOUT inout
+    #define OSD_TYPE_ARRAY(elementType, identifier, arraySize) elementType identifier[arraySize]
     #define OSD_ARRAY_8(elementType,a0,a1,a2,a3,a4,a5,a6,a7) \
             {a0,a1,a2,a3,a4,a5,a6,a7}
     #define OSD_ARRAY_12(elementType,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11) \
@@ -59,6 +61,7 @@
     #define OSD_OPTIONAL_INIT(a,b) b
     #define OSD_OUT
     #define OSD_INOUT
+    #define OSD_TYPE_ARRAY(elementType, identifier, arraySize) elementType identifier[arraySize]
     #define OSD_ARRAY_8(elementType,a0,a1,a2,a3,a4,a5,a6,a7) \
             {a0,a1,a2,a3,a4,a5,a6,a7}
     #define OSD_ARRAY_12(elementType,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11) \
@@ -72,6 +75,21 @@
     #define OSD_OPTIONAL_INIT(a,b) b
     #define OSD_OUT
     #define OSD_INOUT
+    #define OSD_TYPE_ARRAY(elementType, identifier, arraySize) elementType identifier[arraySize]
+    #define OSD_ARRAY_8(elementType,a0,a1,a2,a3,a4,a5,a6,a7) \
+            {a0,a1,a2,a3,a4,a5,a6,a7}
+    #define OSD_ARRAY_12(elementType,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11) \
+            {a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11}
+
+#elif defined(OSD_PATCH_BASIS_METAL)
+
+    #define OSD_FUNCTION_STORAGE_CLASS
+    #define OSD_DATA_STORAGE_CLASS
+    #define OSD_OPTIONAL(a) true
+    #define OSD_OPTIONAL_INIT(a,b) b
+    #define OSD_OUT
+    #define OSD_INOUT
+    #define OSD_TYPE_ARRAY(elementType, identifier, arraySize) thread elementType* identifier
     #define OSD_ARRAY_8(elementType,a0,a1,a2,a3,a4,a5,a6,a7) \
             {a0,a1,a2,a3,a4,a5,a6,a7}
     #define OSD_ARRAY_12(elementType,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11) \
@@ -85,6 +103,7 @@
     #define OSD_OPTIONAL_INIT(a,b) (a ? b : 0)
     #define OSD_OUT
     #define OSD_INOUT
+    #define OSD_TYPE_ARRAY(elementType, identifier, arraySize) elementType identifier[arraySize]
     #define OSD_ARRAY_8(elementType,a0,a1,a2,a3,a4,a5,a6,a7) \
             {a0,a1,a2,a3,a4,a5,a6,a7}
     #define OSD_ARRAY_12(elementType,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11) \
@@ -95,7 +114,7 @@
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBezierWeights(
-    float t, OSD_OUT float wP[4], OSD_OUT float wDP[4], OSD_OUT float wDP2[4]) {
+    float t, OSD_TYPE_ARRAY(OSD_OUT float, wP, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDP, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDP2, 4)) {
 
     // The four uniform cubic Bezier basis functions (in terms of t and its
     // complement tC) evaluated at t:
@@ -128,7 +147,7 @@ OsdGetBezierWeights(
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBSplineWeights(
-    float t, OSD_OUT float wP[4], OSD_OUT float wDP[4], OSD_OUT float wDP2[4]) {
+    float t, OSD_TYPE_ARRAY(OSD_OUT float, wP, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDP, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDP2, 4)) {
 
     // The four uniform cubic B-Spline basis functions evaluated at t:
     const float one6th = 1.0f / 6.0f;
@@ -160,7 +179,7 @@ OsdGetBSplineWeights(
 
 OSD_FUNCTION_STORAGE_CLASS
 void
-OsdGetBoxSplineWeights(float v, float w, OSD_OUT float wP[12]) {
+OsdGetBoxSplineWeights(float v, float w, OSD_TYPE_ARRAY(OSD_OUT float, wP, 12)) {
 
     float u = 1.0f - v - w;
 
@@ -215,8 +234,8 @@ OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBilinearPatchWeights(
         float s, float t, float dScale,
-        OSD_OUT float wP[4], OSD_OUT float wDs[4], OSD_OUT float wDt[4],
-        OSD_OUT float wDss[4], OSD_OUT float wDst[4], OSD_OUT float wDtt[4]) {
+        OSD_TYPE_ARRAY(OSD_OUT float, wP, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDs, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDt, 4),
+        OSD_TYPE_ARRAY(OSD_OUT float, wDss, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDst, 4), OSD_TYPE_ARRAY(OSD_OUT float, wDtt, 4)) {
 
     float sC = 1.0f - s,
           tC = 1.0f - t;
@@ -259,7 +278,7 @@ OsdGetBilinearPatchWeights(
 OSD_FUNCTION_STORAGE_CLASS
 void OsdAdjustBoundaryWeights(
         int boundary,
-        OSD_INOUT float sWeights[4], OSD_INOUT float tWeights[4]) {
+        OSD_TYPE_ARRAY(OSD_INOUT float, sWeights, 4), OSD_TYPE_ARRAY(OSD_INOUT float, tWeights, 4)) {
 
     if ((boundary & 1) != 0) {
         tWeights[2] -= tWeights[0];
@@ -285,11 +304,11 @@ void OsdAdjustBoundaryWeights(
 
 OSD_FUNCTION_STORAGE_CLASS
 void OsdComputeTensorProductPatchWeights(float dScale, int boundary,
-    float sWeights[4], float tWeights[4],
-    float dsWeights[4], float dtWeights[4],
-    float dssWeights[4], float dttWeights[4],
-    OSD_OUT float wP[16], OSD_OUT float wDs[16], OSD_OUT float wDt[16],
-    OSD_OUT float wDss[16], OSD_OUT float wDst[16], OSD_OUT float wDtt[16]) {
+    OSD_TYPE_ARRAY(float, sWeights, 4), OSD_TYPE_ARRAY(float, tWeights, 4),
+    OSD_TYPE_ARRAY(float, dsWeights, 4), OSD_TYPE_ARRAY(float, dtWeights, 4),
+    OSD_TYPE_ARRAY(float, dssWeights, 4), OSD_TYPE_ARRAY(float, dttWeights, 4),
+    OSD_TYPE_ARRAY(OSD_OUT float, wP, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDs, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDt, 16),
+    OSD_TYPE_ARRAY(OSD_OUT float, wDss, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDst, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDtt, 16)) {
 
     if (OSD_OPTIONAL(wP)) {
         // Compute the tensor product weight of the (s,t) basis function
@@ -338,8 +357,8 @@ void OsdComputeTensorProductPatchWeights(float dScale, int boundary,
 OSD_FUNCTION_STORAGE_CLASS
 void OsdGetBezierPatchWeights(
     float s, float t, float dScale,
-    OSD_OUT float wP[16], OSD_OUT float wDS[16], OSD_OUT float wDT[16],
-    OSD_OUT float wDSS[16], OSD_OUT float wDST[16], OSD_OUT float wDTT[16]) {
+    OSD_TYPE_ARRAY(OSD_OUT float, wP, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDS, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDT, 16),
+    OSD_TYPE_ARRAY(OSD_OUT float, wDSS, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDST, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDTT, 16)) {
 
     float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
 
@@ -352,8 +371,8 @@ void OsdGetBezierPatchWeights(
 OSD_FUNCTION_STORAGE_CLASS
 void OsdGetBSplinePatchWeights(
     float s, float t, float dScale, int boundary,
-    OSD_OUT float wP[16], OSD_OUT float wDs[16], OSD_OUT float wDt[16],
-    OSD_OUT float wDss[16], OSD_OUT float wDst[16], OSD_OUT float wDtt[16]) {
+    OSD_TYPE_ARRAY(OSD_OUT float, wP, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDs, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDt, 16),
+    OSD_TYPE_ARRAY(OSD_OUT float, wDss, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDst, 16), OSD_TYPE_ARRAY(OSD_OUT float, wDtt, 16)) {
 
     float sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
 
@@ -366,8 +385,8 @@ void OsdGetBSplinePatchWeights(
 OSD_FUNCTION_STORAGE_CLASS
 void OsdGetGregoryPatchWeights(
     float s, float t, float dScale,
-    OSD_OUT float wP[20], OSD_OUT float wDs[20], OSD_OUT float wDt[20],
-    OSD_OUT float wDss[20], OSD_OUT float wDst[20], OSD_OUT float wDtt[20]) {
+    OSD_TYPE_ARRAY(OSD_OUT float, wP, 20), OSD_TYPE_ARRAY(OSD_OUT float, wDs, 20), OSD_TYPE_ARRAY(OSD_OUT float, wDt, 20),
+    OSD_TYPE_ARRAY(OSD_OUT float, wDss, 20), OSD_TYPE_ARRAY(OSD_OUT float, wDst, 20), OSD_TYPE_ARRAY(OSD_OUT float, wDtt, 20)) {
 
     //
     //  P3         e3-      e2+         P2

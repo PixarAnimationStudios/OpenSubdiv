@@ -23,44 +23,47 @@
 #
 language: cpp
 
+os:
+    - linux
+    - osx
+
+osx_image: xcode9
+
+sudo: required
+dist: trusty
+
+compiler:
+    - gcc
+    - clang
+
 branches:
   only:
    - master
    - dev
 
+matrix:
+
+    # On Linux build with gcc and on OSX build with clang
+    exclude:
+        - os: osx
+          compiler: gcc
+        - os: linux
+          compiler: clang
+
 # build environment
 before_script:
-   # as of 4/28/2015, travis worker has pre-installed cmake 2.8.7.
-   # opensubdiv needs 2.8.8 or later.
-   # get the latest cmake from PPA
-   - cmake --version
-   - sudo add-apt-repository --yes ppa:dcthomp/smtk
-   - sudo apt-get update -qq
-   # remove existing cmake
-   - sudo dpkg -r cmake cmake-data
-   # install newer version
-   - sudo apt-get install cmake
-   - cmake --version
-
-   # install GL related libs from wily
-   - sudo add-apt-repository 'deb http://us.archive.ubuntu.com/ubuntu/ wily main restricted universe multiverse'
-   - sudo add-apt-repository 'deb http://us.archive.ubuntu.com/ubuntu/ wily-updates main restricted universe multiverse'
-   - sudo apt-get update -qq
-   # install glut and xxf86vm (for GL libs)
-   - sudo apt-get install freeglut3-dev
-   - sudo apt-get install libxxf86vm-dev
-   # install GLEW
-   - sudo apt-get install libglew-dev
-   # install GLFW3
-   - sudo apt-get install libglfw3-dev
-
-   # hopefully we'd like to test basic imaging tests too, using X virtual framebuffer
-   # (not working now)
-   - sudo apt-get install xvfb
+   - if [ $TRAVIS_OS_NAME == osx ] ; then
+        echo "before_script on OSX" ;
+     elif [ $TRAVIS_OS_NAME == linux ] ; then
+        echo "before_script on Linux" ;
+        source build_scripts/travis_before_script_linux.sh ;
+     fi
 
 script:
-   - mkdir build && cd build
-   - cmake -DNO_TBB=1 -DNO_OMP=1 -DNO_CUDA=1 -DNO_OPENCL=1 -DNO_PTEX=1 -DNO_GLTESTS=1 -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
-   - make
-   - make test
-
+   - if [ $TRAVIS_OS_NAME == osx ] ; then
+        echo "script on OSX" ;
+        build_scripts/travis_script_osx.sh ;
+     elif [ $TRAVIS_OS_NAME == linux ] ; then
+        echo "script on Linux" ;
+        source build_scripts/travis_script_linux.sh ;
+     fi
