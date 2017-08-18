@@ -148,7 +148,7 @@ int main(int, char **) {
     // surface limit
     Far::PatchTableFactory::Options patchOptions;
     patchOptions.endCapType =
-        Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+        Far::ENDCAP_GREGORY_BASIS;
 
     Far::PatchTable const * patchTable =
         Far::PatchTableFactory::Create(*refiner, patchOptions);
