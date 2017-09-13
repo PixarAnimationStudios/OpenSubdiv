@@ -987,7 +987,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     Index          * iptr = &table->_patchVerts[0];
     PatchParam     * pptr = &table->_paramTable[0];
-    Index         ** fptr = 0;
+    Index         ** fptr  = 0;
+    PatchParam    ** fpptr = 0;
 
     // we always skip level=0 vertices (control cages)
     Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
@@ -999,8 +1000,10 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         memset(levelFVarVertOffsets, 0, context.fvarChannelIndices.size()*sizeof(Index));
 
         fptr = (Index **)alloca(context.fvarChannelIndices.size()*sizeof(Index *));
+        fpptr = (PatchParam **)alloca(context.fvarChannelIndices.size()*sizeof(PatchParam *));
         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
             fptr[fvc] = table->getFVarValues(fvc).begin();
+            fpptr[fvc] = table->getFVarPatchParams(fvc).begin();
         }
     }
 
@@ -1021,7 +1024,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
 
-                *pptr++ = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
+                PatchParam pparam = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
+                *pptr++ = pparam;
 
                 if (context.RequiresFVarPatches()) {
                     for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
@@ -1033,6 +1037,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                             fptr[fvc][vert] = levelFVarVertOffsets[fvc] + fvalues[vert];
                         }
                         fptr[fvc]+=fvalues.size();
+                        *fpptr[fvc]++ = pparam;
                     }
                 }
 
@@ -1043,8 +1048,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     *iptr = *(iptr - 3); // copy v2 index
                     ++iptr;
 
-                    *pptr = *(pptr - 1); // copy first patch param
-                    ++pptr;
+                    *pptr++ = pparam;
 
                     if (context.RequiresFVarPatches()) {
                         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
@@ -1052,6 +1056,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                             ++fptr[fvc];
                             *fptr[fvc] = *(fptr[fvc]-3); // copy fv2 index
                             ++fptr[fvc];
+
+                            *fpptr[fvc]++ = pparam;
                         }
                     }
                 }
