@@ -921,6 +921,13 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     BuilderContext context(refiner, options);
 
+    // Default behavior is to include base level vertices in the patch vertices for
+    // vertex and varying patches, but not face-varying.  Consider exposing these
+    // as public options in future so that clients can create consistent behavior:
+
+    bool includeBaseLevelIndices     = true;
+    bool includeBaseLevelFVarIndices = false;
+
     // ensure that triangulateQuads is only set for quadrilateral schemes
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR ||
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
@@ -991,7 +998,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     PatchParam    ** fpptr = 0;
 
     // we always skip level=0 vertices (control cages)
-    Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
+    Index levelVertOffset = includeBaseLevelIndices ?
+                            refiner.GetLevel(0).GetNumVertices() : 0;
 
     Index * levelFVarVertOffsets = 0;
     if (context.RequiresFVarPatches()) {
@@ -1002,6 +1010,9 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         fptr = (Index **)alloca(context.fvarChannelIndices.size()*sizeof(Index *));
         fpptr = (PatchParam **)alloca(context.fvarChannelIndices.size()*sizeof(PatchParam *));
         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+            levelFVarVertOffsets[fvc] = includeBaseLevelFVarIndices ?
+                                        refiner.GetLevel(0).GetNumFVarValues(fvc) : 0;
+
             fptr[fvc] = table->getFVarValues(fvc).begin();
             fpptr[fvc] = table->getFVarPatchParams(fvc).begin();
         }
