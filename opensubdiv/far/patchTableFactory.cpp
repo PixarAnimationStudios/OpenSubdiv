@@ -1005,6 +1005,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     if (context.RequiresFVarPatches()) {
 
         levelFVarVertOffsets = (Index *)alloca(context.fvarChannelIndices.size()*sizeof(Index));
+        memset(levelFVarVertOffsets, 0, context.fvarChannelIndices.size()*sizeof(Index));
 
         fptr = (Index **)alloca(context.fvarChannelIndices.size()*sizeof(Index *));
         fpptr = (PatchParam **)alloca(context.fvarChannelIndices.size()*sizeof(PatchParam *));
