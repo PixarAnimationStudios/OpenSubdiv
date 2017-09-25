@@ -30,6 +30,7 @@ mkdir build && cd build
 cmake \
     -DNO_CUDA=1 \
     -DNO_OPENCL=1 \
+    -DNO_GLTESTS=1 \
     -DPTEX_LOCATION=$HOME/ptex \
     -DTBB_LOCATION=$HOME/tbb43_20141023oss \
     .. || exit $?
