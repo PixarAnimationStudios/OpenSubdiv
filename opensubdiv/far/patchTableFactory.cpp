@@ -921,6 +921,13 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     BuilderContext context(refiner, options);
 
+    // Default behavior is to include base level vertices in the patch vertices for
+    // vertex and varying patches, but not face-varying.  Consider exposing these as
+    // public options in future so that clients can create consistent behavior:
+
+    bool includeBaseLevelIndices     = true;
+    bool includeBaseLevelFVarIndices = false;
+
     // ensure that triangulateQuads is only set for quadrilateral schemes
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR ||
                                  refiner.GetSchemeType()==Sdc::SCHEME_CATMARK);
@@ -990,8 +997,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     Index         ** fptr  = 0;
     PatchParam    ** fpptr = 0;
 
-    // we always skip level=0 vertices (control cages)
-    Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
+    Index levelVertOffset = includeBaseLevelIndices ? refiner.GetLevel(0).GetNumVertices() : 0;
 
     Index * levelFVarVertOffsets = 0;
     if (context.RequiresFVarPatches()) {
@@ -1004,6 +1010,11 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
             fptr[fvc] = table->getFVarValues(fvc).begin();
             fpptr[fvc] = table->getFVarPatchParams(fvc).begin();
+
+            if (includeBaseLevelFVarIndices) {
+                int refinerChannel = context.fvarChannelIndices[fvc];
+                levelFVarVertOffsets[fvc] = refiner.GetLevel(0).GetNumFVarValues(refinerChannel);
+            }
         }
     }
 
@@ -1033,7 +1044,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
                         ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, refinerChannel);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
+                            assert((levelFVarVertOffsets[fvc] + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
                             fptr[fvc][vert] = levelFVarVertOffsets[fvc] + fvalues[vert];
                         }
                         fptr[fvc]+=fvalues.size();
@@ -1066,9 +1077,12 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
         if (options.generateAllLevels) {
             levelVertOffset += refiner.GetLevel(level).GetNumVertices();
-            for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
-                int refinerChannel = context.fvarChannelIndices[fvc];
-                levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
+
+            if (context.RequiresFVarPatches()) {
+                for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                    int refinerChannel = context.fvarChannelIndices[fvc];
+                    levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
+                }
             }
         }
     }
