@@ -90,12 +90,8 @@ public:
         using namespace OpenSubdiv;
 
         // compile shader program
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
-        const char *glslVersion = "#version 400\n";
-#else
-        const char *glslVersion = "#version 330\n";
-#endif
-        GLDrawConfig *config = new GLDrawConfig(glslVersion);
+        GLDrawConfig *config =
+            new GLDrawConfig(GLUtils::GetShaderVersionInclude().c_str());
 
         Far::PatchDescriptor::Type type = desc.GetType();
 
@@ -500,29 +496,6 @@ int main(int argc, char ** argv) {
         }
     }
 
-    // by default, test all available kernels
-    if (kernels.empty()) {
-        kernels.push_back("CPU");
-#ifdef OPENSUBDIV_HAS_OPENMP
-        kernels.push_back("OPENMP");
-#endif
-#ifdef OPENSUBDIV_HAS_TBB
-        kernels.push_back("TBB");
-#endif
-#ifdef OPENSUBDIV_HAS_CUDA
-        kernels.push_back("CUDA");
-#endif
-#ifdef OPENSUBDIV_HAS_OPENCL
-        kernels.push_back("CL");
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-        kernels.push_back("XFB");
-#endif
-#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-        kernels.push_back("GLSL");
-#endif
-    }
-
     if (! glfwInit()) {
         std::cout << "Failed to initialize GLFW\n";
         return 1;
@@ -553,6 +526,33 @@ int main(int argc, char ** argv) {
     // clear GL errors generated during glewInit()
     glGetError();
 #endif
+
+    // by default, test all available kernels
+    if (kernels.empty()) {
+        kernels.push_back("CPU");
+#ifdef OPENSUBDIV_HAS_OPENMP
+        kernels.push_back("OPENMP");
+#endif
+#ifdef OPENSUBDIV_HAS_TBB
+        kernels.push_back("TBB");
+#endif
+#ifdef OPENSUBDIV_HAS_CUDA
+        kernels.push_back("CUDA");
+#endif
+#ifdef OPENSUBDIV_HAS_OPENCL
+        kernels.push_back("CL");
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+    if (GLEW_VERSION_4_1) { // check availability in current context
+        kernels.push_back("XFB");
+    }
+#endif
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+    if (GLEW_VERSION_4_3) { // check availability in current context
+        kernels.push_back("GLSL");
+    }
+#endif
+    }
 
     initShapes();
 
