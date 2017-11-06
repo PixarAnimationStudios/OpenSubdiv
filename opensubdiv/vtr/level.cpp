@@ -1599,12 +1599,8 @@ namespace {
             int memberMax = _memberCountPerComp;
             for (int i = 0; i < _compCount; ++i) {
                 int count = _countsAndOffsets[2*i];
-                if (count == 0)
-                {
-                    continue;
-                }
 
-                Index *dstMembers = &dstIndices[_countsAndOffsets[2*i + 1]];
+                Index *dstMembers = &dstIndices[0] + _countsAndOffsets[2*i + 1];
                 Index *srcMembers = 0;
                 
                 if (count <= _memberCountPerComp) {
