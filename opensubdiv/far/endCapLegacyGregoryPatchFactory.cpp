@@ -148,7 +148,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
     const int SizePerVertex = 2*maxValence + 1;
 
     PatchTable::VertexValenceTable & vTable = (*vertexValenceTable);
-    vTable.resize(_refiner.GetNumVerticesTotal() * SizePerVertex);
+    vTable.resize((long)_refiner.GetNumVerticesTotal() * SizePerVertex);
 
     int vOffset = 0;
     int levelLast = _refiner.GetMaxLevel();
@@ -158,7 +158,7 @@ EndCapLegacyGregoryPatchFactory::Finalize(
 
         if (i == levelLast) {
 
-            int vTableOffset = vOffset * SizePerVertex;
+            long vTableOffset = vOffset * SizePerVertex;
 
             for (int vIndex = 0; vIndex < level->getNumVertices(); ++vIndex) {
                 int* vTableEntry = &vTable[vTableOffset];

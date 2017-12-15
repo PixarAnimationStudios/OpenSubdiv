@@ -60,7 +60,7 @@ EndCapGregoryBasisPatchFactory::EndCapGregoryBasisPatchFactory(
 
     int numPatchPointsExpected = numMaxLevelFaces * 20;
     // limits to 100M (=800M bytes) entries for the reserved size.
-    int numStencilsExpected = std::min(numPatchPointsExpected * 16,
+    int numStencilsExpected = (int) std::min<long>((long)numPatchPointsExpected * 16,
                                        100*1024*1024);
     _vertexStencils->reserve(numPatchPointsExpected, numStencilsExpected);
     if (_varyingStencils) {
