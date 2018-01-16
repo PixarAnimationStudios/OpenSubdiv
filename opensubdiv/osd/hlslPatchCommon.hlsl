@@ -1105,113 +1105,187 @@ OsdEvalPatchBezier(int3 patchParam, float2 UV,
                    out float3 P, out float3 dPu, out float3 dPv,
                    out float3 N, out float3 dNu, out float3 dNv)
 {
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-    float B[4], D[4], C[4];
-    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
-           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
-           CUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
-    OsdUnivar4x4(UV.x, B, D, C);
-#else
-    float B[4], D[4];
-    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
-           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
-    OsdUnivar4x4(UV.x, B, D);
-#endif
+    //
+    //  Use the recursive nature of the basis functions to compute a 2x2 set
+    //  of intermediate points (via repeated linear interpolation).  These
+    //  points define a bilinear surface tangent to the desired surface at P
+    //  and so containing dPu and dPv.  The cost of computing P, dPu and dPv
+    //  this way is comparable to that of typical tensor product evaluation
+    //  (if not faster).
+    //
+    //  If N = dPu X dPv degenerates, it often results from an edge of the
+    //  2x2 bilinear hull collapsing or two adjacent edges colinear. In both
+    //  cases, the expected non-planar quad degenerates into a triangle, and
+    //  the tangent plane of that triangle provides the desired normal N.
+    //
 
-    // ----------------------------------------------------------------
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    //  Reduce 4x4 points to 2x4 -- two levels of linear interpolation in U
+    //  and so 3 original rows contributing to each of the 2 resulting rows:
+    float u    = UV.x;
+    float uinv = 1.0f - u;
+
+    float u0 = uinv * uinv;
+    float u1 = u * uinv * 2.0f;
+    float u2 = u * u;
+
+    float3 LROW[4], RROW[4];
+#ifndef OSD_PATCH_ENABLE_SINGLE_CREASE
+    LROW[0] = u0 * cv[ 0].P + u1 * cv[ 1].P + u2 * cv[ 2].P;
+    LROW[1] = u0 * cv[ 4].P + u1 * cv[ 5].P + u2 * cv[ 6].P;
+    LROW[2] = u0 * cv[ 8].P + u1 * cv[ 9].P + u2 * cv[10].P;
+    LROW[3] = u0 * cv[12].P + u1 * cv[13].P + u2 * cv[14].P;
+
+    RROW[0] = u0 * cv[ 1].P + u1 * cv[ 2].P + u2 * cv[ 3].P;
+    RROW[1] = u0 * cv[ 5].P + u1 * cv[ 6].P + u2 * cv[ 7].P;
+    RROW[2] = u0 * cv[ 9].P + u1 * cv[10].P + u2 * cv[11].P;
+    RROW[3] = u0 * cv[13].P + u1 * cv[14].P + u2 * cv[15].P;
+#else
     float2 vSegments = cv[0].vSegments;
     float s = OsdGetPatchSingleCreaseSegmentParameter(patchParam, UV);
 
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-            int k = 4*i + j;
-
-            float3 A = (s <= vSegments.x) ? cv[k].P
-                  :   ((s <= vSegments.y) ? cv[k].P1
-                                          : cv[k].P2);
-
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-            CUCP[i] += A * C[j];
-#endif
+    for (int i = 0; i < 4; ++i) {
+        int j = i*4;
+        if (s <= vSegments.x) {
+            LROW[i] = u0 * cv[ j ].P + u1 * cv[j+1].P + u2 * cv[j+2].P;
+            RROW[i] = u0 * cv[j+1].P + u1 * cv[j+2].P + u2 * cv[j+3].P;
+        } else if (s <= vSegments.y) {
+            LROW[i] = u0 * cv[ j ].P1 + u1 * cv[j+1].P1 + u2 * cv[j+2].P1;
+            RROW[i] = u0 * cv[j+1].P1 + u1 * cv[j+2].P1 + u2 * cv[j+3].P1;
+        } else {
+            LROW[i] = u0 * cv[ j ].P2 + u1 * cv[j+1].P2 + u2 * cv[j+2].P2;
+            RROW[i] = u0 * cv[j+1].P2 + u1 * cv[j+2].P2 + u2 * cv[j+3].P2;
         }
     }
+#endif
+
+    //  Reduce 2x4 points to 2x2 -- two levels of linear interpolation in V
+    //  and so 3 original pairs contributing to each of the 2 resulting:
+    float v    = UV.y;
+    float vinv = 1.0f - v;
+
+    float v0 = vinv * vinv;
+    float v1 = v * vinv * 2.0f;
+    float v2 = v * v;
+
+    float3 LPAIR[2], RPAIR[2];
+    LPAIR[0] = v0 * LROW[0] + v1 * LROW[1] + v2 * LROW[2];
+    RPAIR[0] = v0 * RROW[0] + v1 * RROW[1] + v2 * RROW[2];
+
+    LPAIR[1] = v0 * LROW[1] + v1 * LROW[2] + v2 * LROW[3];
+    RPAIR[1] = v0 * RROW[1] + v1 * RROW[2] + v2 * RROW[3];
+
+    //  Interpolate points on the edges of the 2x2 bilinear hull from which
+    //  both position and partials are trivially determined:
+    float3 DU0 = vinv * LPAIR[0] + v * LPAIR[1];
+    float3 DU1 = vinv * RPAIR[0] + v * RPAIR[1];
+    float3 DV0 = uinv * LPAIR[0] + u * RPAIR[0];
+    float3 DV1 = uinv * LPAIR[1] + u * RPAIR[1];
+
+    int level = OsdGetPatchFaceLevel(patchParam);
+    dPu = (DU1 - DU0) * 3 * level;
+    dPv = (DV1 - DV0) * 3 * level;
+
+    P = u * DU1 + uinv * DU0;
+
+    //  Compute the normal and test for degeneracy:
+    //
+    //  We need a geometric measure of the size of the patch for a suitable
+    //  tolerance.  Magnitudes of the partials are generally proportional to
+    //  that size -- the sum of the partials is readily available, cheap to
+    //  compute, and has proved effective in most cases (though not perfect).
+    //  The size of the bounding box of the patch, or some approximation to
+    //  it, would be better but more costly to compute.
+    //
+    float proportionalNormalTolerance = 0.00001f;
+
+    float nEpsilon = (length(dPu) + length(dPv)) * proportionalNormalTolerance;
+
+    N = cross(dPu, dPv);
+
+    float nLength = length(N);
+    if (nLength > nEpsilon) {
+        N = N / nLength;
+    } else {
+        float3 diagCross = cross(RPAIR[1] - LPAIR[0], LPAIR[1] - RPAIR[0]);
+        float diagCrossLength = length(diagCross);
+        if (diagCrossLength > nEpsilon) {
+            N = diagCross / diagCrossLength;
+        }
+    }
+
+#ifndef OSD_COMPUTE_NORMAL_DERIVATIVES
+    dNu = float3(0,0,0);
+    dNv = float3(0,0,0);
 #else
-    // ----------------------------------------------------------------
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-            float3 A = cv[4*i + j].P;
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-            CUCP[i] += A * C[j];
-#endif
-        }
-    }
-#endif
-    // ----------------------------------------------------------------
+    //
+    //  Compute 2nd order partials of P(u,v) in order to compute 1st order partials
+    //  for the un-normalized n(u,v) = dPu X dPv, then project into the tangent
+    //  plane of normalized N.  With resulting dNu and dNv we can make another
+    //  attempt to resolve a still-degenerate normal.
+    //
+    //  We don't use the Weingarten equations here as they require N != 0 and also
+    //  are a little less numerically stable/accurate in single precision.
+    //
+    float B0u[4], B1u[4], B2u[4];
+    float B0v[4], B1v[4], B2v[4];
 
-    P   = float3(0,0,0);
-    dPu = float3(0,0,0);
-    dPv = float3(0,0,0);
-
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-    // used for weingarten term
-    OsdUnivar4x4(UV.y, B, D, C);
+    OsdUnivar4x4(UV.x, B0u, B1u, B2u);
+    OsdUnivar4x4(UV.y, B0v, B1v, B2v);
 
     float3 dUU = float3(0,0,0);
     float3 dVV = float3(0,0,0);
     float3 dUV = float3(0,0,0);
 
-    for (int k=0; k<4; ++k) {
-        P   += B[k] * BUCP[k];
-        dPu += B[k] * DUCP[k];
-        dPv += D[k] * BUCP[k];
-
-        dUU += B[k] * CUCP[k];
-        dVV += C[k] * BUCP[k];
-        dUV += D[k] * DUCP[k];
+    for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+            int k = 4*i + j;
+            float3 CV = (s <= vSegments.x) ? cv[k].P
+                   :   ((s <= vSegments.y) ? cv[k].P1
+                                           : cv[k].P2);
+#else
+            float3 CV = cv[4*i + j].P;
+#endif
+            dUU += (B0v[i] * B2u[j]) * CV;
+            dVV += (B2v[i] * B0u[j]) * CV;
+            dUV += (B1v[i] * B1u[j]) * CV;
+        }
     }
 
-    int level = OsdGetPatchFaceLevel(patchParam);
-    dPu *= 3 * level;
-    dPv *= 3 * level;
     dUU *= 6 * level;
     dVV *= 6 * level;
     dUV *= 9 * level;
 
-    float3 n = cross(dPu, dPv);
-    N = normalize(n);
+    dNu = cross(dUU, dPv) + cross(dPu, dUV);
+    dNv = cross(dUV, dPv) + cross(dPu, dVV);
 
-    float E = dot(dPu, dPu);
-    float F = dot(dPu, dPv);
-    float G = dot(dPv, dPv);
-    float e = dot(N, dUU);
-    float f = dot(N, dUV);
-    float g = dot(N, dVV);
+    float nLengthInv = 1.0;
+    if (nLength > nEpsilon) {
+        nLengthInv = 1.0 / nLength;
+    } else {
+        //  N may have been resolved above if degenerate, but if N was resolved
+        //  we don't have an accurate length for its un-normalized value, and that
+        //  length is needed to project the un-normalized dNu and dNv into the
+        //  tangent plane of N.
+        //
+        //  So compute N more accurately with available second derivatives, i.e.
+        //  with a 1st order Taylor approximation to un-normalized N(u,v).
 
-    dNu = (f*F-e*G)/(E*G-F*F) * dPu + (e*F-f*E)/(E*G-F*F) * dPv;
-    dNv = (g*F-f*G)/(E*G-F*F) * dPu + (f*F-g*E)/(E*G-F*F) * dPv;
+        float DU = (UV.x == 1.0f) ? -1.0f : 1.0f;
+        float DV = (UV.y == 1.0f) ? -1.0f : 1.0f;
 
-    dNu = dNu/length(n) - n * (dot(dNu,n)/pow(dot(n,n), 1.5));
-    dNv = dNv/length(n) - n * (dot(dNv,n)/pow(dot(n,n), 1.5));
-#else
-    OsdUnivar4x4(UV.y, B, D);
+        N = DU * dNu + DV * dNv;
 
-    for (int k=0; k<4; ++k) {
-        P   += B[k] * BUCP[k];
-        dPu += B[k] * DUCP[k];
-        dPv += D[k] * BUCP[k];
+        nLength = length(N);
+        if (nLength > nEpsilon) {
+            nLengthInv = 1.0f / nLength;
+            N = N * nLengthInv;
+        }
     }
-    int level = OsdGetPatchFaceLevel(patchParam);
-    dPu *= 3 * level;
-    dPv *= 3 * level;
 
-    N = normalize(cross(dPu, dPv));
-    dNu = float3(0,0,0);
-    dNv = float3(0,0,0);
+    //  Project derivatives of non-unit normals into tangent plane of N:
+    dNu = (dNu - dot(dNu,N) * N) * nLengthInv;
+    dNv = (dNv - dot(dNv,N) * N) * nLengthInv;
 #endif
 }
 
@@ -1266,113 +1340,27 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     float d21 = u+V;
     float d22 = U+V;
 
-    float3 q[16];
+    OsdPerPatchVertexBezier bezcv[16];
 
-    q[ 5] = (d11 == 0.0) ? cv[3]  : (u*cv[3] + v*cv[4])/d11;
-    q[ 6] = (d12 == 0.0) ? cv[8]  : (U*cv[9] + v*cv[8])/d12;
-    q[ 9] = (d21 == 0.0) ? cv[18] : (u*cv[19] + V*cv[18])/d21;
-    q[10] = (d22 == 0.0) ? cv[13] : (U*cv[13] + V*cv[14])/d22;
+    bezcv[ 5].P = (d11 == 0.0) ? cv[3]  : (u*cv[3] + v*cv[4])/d11;
+    bezcv[ 6].P = (d12 == 0.0) ? cv[8]  : (U*cv[9] + v*cv[8])/d12;
+    bezcv[ 9].P = (d21 == 0.0) ? cv[18] : (u*cv[19] + V*cv[18])/d21;
+    bezcv[10].P = (d22 == 0.0) ? cv[13] : (U*cv[13] + V*cv[14])/d22;
 
-    q[ 0] = cv[0];
-    q[ 1] = cv[1];
-    q[ 2] = cv[7];
-    q[ 3] = cv[5];
-    q[ 4] = cv[2];
-    q[ 7] = cv[6];
-    q[ 8] = cv[16];
-    q[11] = cv[12];
-    q[12] = cv[15];
-    q[13] = cv[17];
-    q[14] = cv[11];
-    q[15] = cv[10];
+    bezcv[ 0].P = cv[0];
+    bezcv[ 1].P = cv[1];
+    bezcv[ 2].P = cv[7];
+    bezcv[ 3].P = cv[5];
+    bezcv[ 4].P = cv[2];
+    bezcv[ 7].P = cv[6];
+    bezcv[ 8].P = cv[16];
+    bezcv[11].P = cv[12];
+    bezcv[12].P = cv[15];
+    bezcv[13].P = cv[17];
+    bezcv[14].P = cv[11];
+    bezcv[15].P = cv[10];
 
-    P   = float3(0,0,0);
-    dPu = float3(0,0,0);
-    dPv = float3(0,0,0);
-
-#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
-    float B[4], D[4], C[4];
-    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
-           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
-           CUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
-    float3 dUU = float3(0,0,0);
-    float3 dVV = float3(0,0,0);
-    float3 dUV = float3(0,0,0);
-
-    OsdUnivar4x4(UV.x, B, D, C);
-
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-            float3 A = q[4*i + j];
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-            CUCP[i] += A * C[j];
-        }
-    }
-
-    OsdUnivar4x4(UV.y, B, D, C);
-
-    for (int i=0; i<4; ++i) {
-        P   += B[i] * BUCP[i];
-        dPu += B[i] * DUCP[i];
-        dPv += D[i] * BUCP[i];
-        dUU += B[i] * CUCP[i];
-        dVV += C[i] * BUCP[i];
-        dUV += D[i] * DUCP[i];
-    }
-
-    int level = OsdGetPatchFaceLevel(patchParam);
-    dPu *= 3 * level;
-    dPv *= 3 * level;
-    dUU *= 6 * level;
-    dVV *= 6 * level;
-    dUV *= 9 * level;
-
-    float3 n = cross(dPu, dPv);
-    N = normalize(n);
-
-    float E = dot(dPu, dPu);
-    float F = dot(dPu, dPv);
-    float G = dot(dPv, dPv);
-    float e = dot(N, dUU);
-    float f = dot(N, dUV);
-    float g = dot(N, dVV);
-
-    dNu = (f*F-e*G)/(E*G-F*F) * dPu + (e*F-f*E)/(E*G-F*F) * dPv;
-    dNv = (g*F-f*G)/(E*G-F*F) * dPu + (f*F-g*E)/(E*G-F*F) * dPv;
-
-    dNu = dNu/length(n) - n * (dot(dNu,n)/pow(dot(n,n), 1.5));
-    dNv = dNv/length(n) - n * (dot(dNv,n)/pow(dot(n,n), 1.5));
-#else
-    float B[4], D[4];
-    float3 BUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)},
-           DUCP[4] = {float3(0,0,0),float3(0,0,0),float3(0,0,0),float3(0,0,0)};
-
-    OsdUnivar4x4(UV.x, B, D);
-
-    for (int i=0; i<4; ++i) {
-        for (int j=0; j<4; ++j) {
-            float3 A = q[4*i + j];
-            BUCP[i] += A * B[j];
-            DUCP[i] += A * D[j];
-        }
-    }
-
-    OsdUnivar4x4(UV.y, B, D);
-
-    for (int i=0; i<4; ++i) {
-        P += B[i] * BUCP[i];
-        dPu += B[i] * DUCP[i];
-        dPv += D[i] * BUCP[i];
-    }
-    int level = OsdGetPatchFaceLevel(patchParam);
-    dPu *= 3 * level;
-    dPv *= 3 * level;
-
-    N = normalize(cross(dPu, dPv));
-    dNu = float3(0,0,0);
-    dNv = float3(0,0,0);
-#endif
+    OsdEvalPatchBezier(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
 }
 
 // ----------------------------------------------------------------------------
