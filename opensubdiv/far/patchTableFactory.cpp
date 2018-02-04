@@ -854,7 +854,18 @@ PatchTableFactory::computePatchParam(
         v = 0,
         ofs = 1;
 
-    bool nonquad = (refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() != 4);
+    int regularFaceVertexCount =
+            Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType());
+
+    bool irregular =
+        refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() !=
+        regularFaceVertexCount;
+
+    // For triangle refinement, the parameterization is rotated at
+    // the fourth triangle subface at each level. The u and v values
+    // computed for rotated triangles will be negative while we are
+    // walking through the refinement levels.
+    bool rotatedTriangle = false;
 
     for (int i = depth; i > 0; --i) {
         Refinement const& refinement  = refiner.getRefinement(i-1);
@@ -862,7 +873,32 @@ PatchTableFactory::computePatchParam(
 
         Index parentFaceIndex = refinement.getChildFaceParentFace(faceIndex);
 
-        if (parentLevel.getFaceVertices(parentFaceIndex).size() == 4) {
+        irregular =
+            parentLevel.getFaceVertices(parentFaceIndex).size() !=
+            regularFaceVertexCount;
+
+        if (regularFaceVertexCount == 3) {
+            // For now, we don't consider irregular faces for
+            // triangle refinement.
+
+            childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
+            if (rotatedTriangle) {
+                switch ( childIndexInParent ) {
+                    case 0 :                     break;
+                    case 1 : { u-=ofs;         } break;
+                    case 2 : {         v-=ofs; } break;
+                    case 3 : { u+=ofs; v+=ofs; rotatedTriangle = false; } break;
+                }
+            } else {
+                switch ( childIndexInParent ) {
+                    case 0 :                     break;
+                    case 1 : { u+=ofs;         } break;
+                    case 2 : {         v+=ofs; } break;
+                    case 3 : { u-=ofs; v-=ofs; rotatedTriangle = true; } break;
+                }
+            }
+            ofs = (unsigned short)(ofs << 1);
+        } else if (!irregular) {
             childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
             switch ( childIndexInParent ) {
                 case 0 :                     break;
@@ -872,10 +908,10 @@ PatchTableFactory::computePatchParam(
             }
             ofs = (unsigned short)(ofs << 1);
         } else {
-            nonquad = true;
             // If the root face is not a quad, we need to offset the ptex index
             // CCW to match the correct child face
-            Vtr::ConstIndexArray children = refinement.getFaceChildFaces(parentFaceIndex);
+            Vtr::ConstIndexArray children =
+                refinement.getFaceChildFaces(parentFaceIndex);
             for (int j=0; j<children.size(); ++j) {
                 if (children[j]==faceIndex) {
                     childIndexInParent = j;
@@ -889,12 +925,21 @@ PatchTableFactory::computePatchParam(
     Index ptexIndex = context.ptexIndices.GetFaceId(faceIndex);
     assert(ptexIndex!=-1);
 
-    if (nonquad) {
+    if (irregular) {
         ptexIndex+=childIndexInParent;
     }
 
+    // If the triangle is tagged as rotated at this point then the
+    // computed u and v parameters will both be negative and we map
+    // them onto positive values in the opposite diagonal of the
+    // parameter space.
+    if (rotatedTriangle) {
+        u += ofs;
+        v += ofs;
+    }
+
     PatchParam param;
-    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
+    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, irregular,
               (unsigned short) boundaryMask, (unsigned short) transitionMask);
     return param;
 }
