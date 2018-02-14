@@ -854,7 +854,18 @@ PatchTableFactory::computePatchParam(
         v = 0,
         ofs = 1;
 
-    bool nonquad = (refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() != 4);
+    int regularFaceVertexCount =
+            Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType());
+
+    bool irregular =
+        refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() !=
+        regularFaceVertexCount;
+
+    // For triangle refinement, the parameterization is rotated at
+    // the fourth triangle subface at each level. The u and v values
+    // computed for rotated triangles will be negative while we are
+    // walking through the refinement levels.
+    bool rotatedTriangle = false;
 
     for (int i = depth; i > 0; --i) {
         Refinement const& refinement  = refiner.getRefinement(i-1);
@@ -862,7 +873,32 @@ PatchTableFactory::computePatchParam(
 
         Index parentFaceIndex = refinement.getChildFaceParentFace(faceIndex);
 
-        if (parentLevel.getFaceVertices(parentFaceIndex).size() == 4) {
+        irregular =
+            parentLevel.getFaceVertices(parentFaceIndex).size() !=
+            regularFaceVertexCount;
+
+        if (regularFaceVertexCount == 3) {
+            // For now, we don't consider irregular faces for
+            // triangle refinement.
+
+            childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
+            if (rotatedTriangle) {
+                switch ( childIndexInParent ) {
+                    case 0 :                     break;
+                    case 1 : { u-=ofs;         } break;
+                    case 2 : {         v-=ofs; } break;
+                    case 3 : { u+=ofs; v+=ofs; rotatedTriangle = false; } break;
+                }
+            } else {
+                switch ( childIndexInParent ) {
+                    case 0 :                     break;
+                    case 1 : { u+=ofs;         } break;
+                    case 2 : {         v+=ofs; } break;
+                    case 3 : { u-=ofs; v-=ofs; rotatedTriangle = true; } break;
+                }
+            }
+            ofs = (unsigned short)(ofs << 1);
+        } else if (!irregular) {
             childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
             switch ( childIndexInParent ) {
                 case 0 :                     break;
@@ -872,10 +908,10 @@ PatchTableFactory::computePatchParam(
             }
             ofs = (unsigned short)(ofs << 1);
         } else {
-            nonquad = true;
             // If the root face is not a quad, we need to offset the ptex index
             // CCW to match the correct child face
-            Vtr::ConstIndexArray children = refinement.getFaceChildFaces(parentFaceIndex);
+            Vtr::ConstIndexArray children =
+                refinement.getFaceChildFaces(parentFaceIndex);
             for (int j=0; j<children.size(); ++j) {
                 if (children[j]==faceIndex) {
                     childIndexInParent = j;
@@ -889,12 +925,21 @@ PatchTableFactory::computePatchParam(
     Index ptexIndex = context.ptexIndices.GetFaceId(faceIndex);
     assert(ptexIndex!=-1);
 
-    if (nonquad) {
+    if (irregular) {
         ptexIndex+=childIndexInParent;
     }
 
+    // If the triangle is tagged as rotated at this point then the
+    // computed u and v parameters will both be negative and we map
+    // them onto positive values in the opposite diagonal of the
+    // parameter space.
+    if (rotatedTriangle) {
+        u += ofs;
+        v += ofs;
+    }
+
     PatchParam param;
-    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
+    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, irregular,
               (unsigned short) boundaryMask, (unsigned short) transitionMask);
     return param;
 }
@@ -920,6 +965,13 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
     assert(refiner.IsUniform());
 
     BuilderContext context(refiner, options);
+
+    // Default behavior is to include base level vertices in the patch vertices for
+    // vertex and varying patches, but not face-varying.  Consider exposing these as
+    // public options in future so that clients can create consistent behavior:
+
+    bool includeBaseLevelIndices     = true;
+    bool includeBaseLevelFVarIndices = false;
 
     // ensure that triangulateQuads is only set for quadrilateral schemes
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR ||
@@ -987,10 +1039,10 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
     Index          * iptr = &table->_patchVerts[0];
     PatchParam     * pptr = &table->_paramTable[0];
-    Index         ** fptr = 0;
+    Index         ** fptr  = 0;
+    PatchParam    ** fpptr = 0;
 
-    // we always skip level=0 vertices (control cages)
-    Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
+    Index levelVertOffset = includeBaseLevelIndices ? refiner.GetLevel(0).GetNumVertices() : 0;
 
     Index * levelFVarVertOffsets = 0;
     if (context.RequiresFVarPatches()) {
@@ -999,8 +1051,15 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
         memset(levelFVarVertOffsets, 0, context.fvarChannelIndices.size()*sizeof(Index));
 
         fptr = (Index **)alloca(context.fvarChannelIndices.size()*sizeof(Index *));
+        fpptr = (PatchParam **)alloca(context.fvarChannelIndices.size()*sizeof(PatchParam *));
         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
             fptr[fvc] = table->getFVarValues(fvc).begin();
+            fpptr[fvc] = table->getFVarPatchParams(fvc).begin();
+
+            if (includeBaseLevelFVarIndices) {
+                int refinerChannel = context.fvarChannelIndices[fvc];
+                levelFVarVertOffsets[fvc] = refiner.GetLevel(0).GetNumFVarValues(refinerChannel);
+            }
         }
     }
 
@@ -1021,7 +1080,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
 
-                *pptr++ = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
+                PatchParam pparam = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
+                *pptr++ = pparam;
 
                 if (context.RequiresFVarPatches()) {
                     for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
@@ -1029,10 +1089,11 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
                         ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, refinerChannel);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
+                            assert((levelFVarVertOffsets[fvc] + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
                             fptr[fvc][vert] = levelFVarVertOffsets[fvc] + fvalues[vert];
                         }
                         fptr[fvc]+=fvalues.size();
+                        *fpptr[fvc]++ = pparam;
                     }
                 }
 
@@ -1043,8 +1104,7 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                     *iptr = *(iptr - 3); // copy v2 index
                     ++iptr;
 
-                    *pptr = *(pptr - 1); // copy first patch param
-                    ++pptr;
+                    *pptr++ = pparam;
 
                     if (context.RequiresFVarPatches()) {
                         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
@@ -1052,6 +1112,8 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
                             ++fptr[fvc];
                             *fptr[fvc] = *(fptr[fvc]-3); // copy fv2 index
                             ++fptr[fvc];
+
+                            *fpptr[fvc]++ = pparam;
                         }
                     }
                 }
@@ -1060,9 +1122,12 @@ PatchTableFactory::createUniform(TopologyRefiner const & refiner, Options option
 
         if (options.generateAllLevels) {
             levelVertOffset += refiner.GetLevel(level).GetNumVertices();
-            for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
-                int refinerChannel = context.fvarChannelIndices[fvc];
-                levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
+
+            if (context.RequiresFVarPatches()) {
+                for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                    int refinerChannel = context.fvarChannelIndices[fvc];
+                    levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
+                }
             }
         }
     }
