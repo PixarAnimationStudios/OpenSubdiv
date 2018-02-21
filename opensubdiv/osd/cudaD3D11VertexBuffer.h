@@ -38,7 +38,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-/// \brief Concrete vertex buffer class for cuda subvision and D3D11 drawing.
+/// \brief Concrete vertex buffer class for cuda subdivision and D3D11 drawing.
 ///
 /// CudaD3D11VertexBuffer implements CudaVertexBufferInterface and
 /// D3D11VertexBufferInterface.
@@ -85,7 +85,7 @@ protected:
 
     bool allocate(ID3D11Device *device);
 
-    // Acqures a cuda resource from DX11
+    // Acquires a cuda resource from DX11
     void map();
 
     // Releases a cuda resource to DX11

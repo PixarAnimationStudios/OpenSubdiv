@@ -51,12 +51,13 @@ enum MeshBits {
     MeshInterleaveVarying    = 1,
     MeshFVarData             = 2,
     MeshFVarAdaptive         = 3,
-    MeshUseSingleCreasePatch = 4,
-    MeshUseInfSharpPatch     = 5,
-    MeshEndCapBSplineBasis   = 6,  // exclusive
-    MeshEndCapGregoryBasis   = 7,  // exclusive
-    MeshEndCapLegacyGregory  = 8,  // exclusive
-    NUM_MESH_BITS            = 9,
+    MeshUseSmoothCornerPatch = 4,
+    MeshUseSingleCreasePatch = 5,
+    MeshUseInfSharpPatch     = 6,
+    MeshEndCapBSplineBasis   = 7,  // exclusive
+    MeshEndCapGregoryBasis   = 8,  // exclusive
+    MeshEndCapLegacyGregory  = 9,  // exclusive
+    NUM_MESH_BITS            = 10,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -175,7 +176,7 @@ convertToCompatibleStencilTable<Far::StencilTable, Far::StencilTable, ID3D11Devi
 // ---------------------------------------------------------------------------
 
 // Osd evaluator cache: for the GPU backends require compiled instance
-//   (GLXFB, GLCompue, CL)
+//   (GLXFB, GLCompute, CL)
 //
 // note: this is just an example usage and client applications are supposed
 //       to implement their own structure for Evaluator instance.
@@ -197,8 +198,27 @@ public:
               BufferDescriptor const &duDescArg,
               BufferDescriptor const &dvDescArg,
               EVALUATOR *evalArg) : srcDesc(srcDescArg), dstDesc(dstDescArg),
-                              duDesc(duDescArg), dvDesc(dvDescArg), evaluator(evalArg) {}
-        BufferDescriptor srcDesc, dstDesc, duDesc, dvDesc;
+                              duDesc(duDescArg), dvDesc(dvDescArg),
+                              duuDesc(BufferDescriptor()),
+                              duvDesc(BufferDescriptor()),
+                              dvvDesc(BufferDescriptor()),
+                              evaluator(evalArg) {}
+        Entry(BufferDescriptor const &srcDescArg,
+              BufferDescriptor const &dstDescArg,
+              BufferDescriptor const &duDescArg,
+              BufferDescriptor const &dvDescArg,
+              BufferDescriptor const &duuDescArg,
+              BufferDescriptor const &duvDescArg,
+              BufferDescriptor const &dvvDescArg,
+              EVALUATOR *evalArg) : srcDesc(srcDescArg), dstDesc(dstDescArg),
+                              duDesc(duDescArg), dvDesc(dvDescArg),
+                              duuDesc(duuDescArg),
+                              duvDesc(duvDescArg),
+                              dvvDesc(dvvDescArg),
+                              evaluator(evalArg) {}
+        BufferDescriptor srcDesc, dstDesc;
+        BufferDescriptor duDesc, dvDesc;
+        BufferDescriptor duuDesc, duvDesc, dvvDesc;
         EVALUATOR *evaluator;
     };
     typedef std::vector<Entry> Evaluators;
@@ -210,6 +230,9 @@ public:
         return GetEvaluator(srcDesc, dstDesc,
                             BufferDescriptor(),
                             BufferDescriptor(),
+                            BufferDescriptor(),
+                            BufferDescriptor(),
+                            BufferDescriptor(),
                             deviceContext);
     }
 
@@ -219,20 +242,43 @@ public:
                             BufferDescriptor const &duDesc,
                             BufferDescriptor const &dvDesc,
                             DEVICE_CONTEXT *deviceContext) {
+        return GetEvaluator(srcDesc, dstDesc,
+                            duDesc, dvDesc,
+                            BufferDescriptor(),
+                            BufferDescriptor(),
+                            BufferDescriptor(),
+                            deviceContext);
+    }
+
+    template <typename DEVICE_CONTEXT>
+    EVALUATOR *GetEvaluator(BufferDescriptor const &srcDesc,
+                            BufferDescriptor const &dstDesc,
+                            BufferDescriptor const &duDesc,
+                            BufferDescriptor const &dvDesc,
+                            BufferDescriptor const &duuDesc,
+                            BufferDescriptor const &duvDesc,
+                            BufferDescriptor const &dvvDesc,
+                            DEVICE_CONTEXT *deviceContext) {
 
         for(typename Evaluators::iterator it = _evaluators.begin();
             it != _evaluators.end(); ++it) {
             if (isEqual(srcDesc, it->srcDesc) &&
                 isEqual(dstDesc, it->dstDesc) &&
-                isEqual(duDesc, it->duDesc) &&
-                isEqual(dvDesc, it->dvDesc)) {
+                isEqual(duDesc,  it->duDesc) &&
+                isEqual(dvDesc,  it->dvDesc) &&
+                isEqual(duuDesc, it->duuDesc) &&
+                isEqual(duvDesc, it->duvDesc) &&
+                isEqual(dvvDesc, it->dvvDesc)) {
                 return it->evaluator;
             }
         }
         EVALUATOR *e = EVALUATOR::Create(srcDesc, dstDesc,
                                          duDesc, dvDesc,
+                                         duuDesc, duvDesc, dvvDesc,
                                          deviceContext);
-        _evaluators.push_back(Entry(srcDesc, dstDesc, duDesc, dvDesc, e));
+        _evaluators.push_back(Entry(srcDesc, dstDesc,
+                                    duDesc, dvDesc,
+                                    duuDesc, duvDesc, dvvDesc, e));
         return e;
     }
 
@@ -279,6 +325,25 @@ static EVALUATOR *GetEvaluator(
     BufferDescriptor const &dstDesc,
     BufferDescriptor const &duDesc,
     BufferDescriptor const &dvDesc,
+    BufferDescriptor const &duuDesc,
+    BufferDescriptor const &duvDesc,
+    BufferDescriptor const &dvvDesc,
+    DEVICE_CONTEXT deviceContext,
+    typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
+    (void)t;
+    if (cache == NULL) return NULL;
+    return cache->GetEvaluator(srcDesc, dstDesc,
+                               duDesc, dvDesc, duuDesc, duvDesc, dvvDesc,
+                               deviceContext);
+}
+
+template <typename EVALUATOR, typename DEVICE_CONTEXT>
+static EVALUATOR *GetEvaluator(
+    EvaluatorCacheT<EVALUATOR> *cache,
+    BufferDescriptor const &srcDesc,
+    BufferDescriptor const &dstDesc,
+    BufferDescriptor const &duDesc,
+    BufferDescriptor const &dvDesc,
     DEVICE_CONTEXT deviceContext,
     typename enable_if<instantiatable<EVALUATOR>::value, void>::type*t=0) {
     (void)t;
@@ -302,6 +367,22 @@ static EVALUATOR *GetEvaluator(
 }
 
 // fallback
+template <typename EVALUATOR, typename DEVICE_CONTEXT>
+static EVALUATOR *GetEvaluator(
+    EvaluatorCacheT<EVALUATOR> *,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    BufferDescriptor const &,
+    DEVICE_CONTEXT,
+    typename enable_if<!instantiatable<EVALUATOR>::value, void>::type*t=0) {
+    (void)t;
+    return NULL;
+}
+
 template <typename EVALUATOR, typename DEVICE_CONTEXT>
 static EVALUATOR *GetEvaluator(
     EvaluatorCacheT<EVALUATOR> *,
@@ -529,6 +610,7 @@ private:
         Far::PatchTableFactory::Options poptions(level);
         poptions.generateFVarTables = bits.test(MeshFVarData);
         poptions.generateFVarLegacyLinearPatches = !bits.test(MeshFVarAdaptive);
+        poptions.generateLegacySharpCornerPatches = !bits.test(MeshUseSmoothCornerPatch);
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
         poptions.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
 

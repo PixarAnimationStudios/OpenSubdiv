@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0 - 3.1 Release Notes
+3.0 - 3.3 Release Notes
 -----------------------
 
 .. contents::
@@ -31,67 +31,98 @@
 
 ----
 
+Release 3.3.1
+=============
+
+Release 3.3.1 is a minor bug-fix release
+
+**Bug Fixes**
+    - Fixed GLSL/HLSL/Metal patch shader code to resolve degenerate normals (GitHub Issue #947)
+    - Fixed problems with face-varying patches in uniform PatchTables
+    - Fixed integer overflow bugs for large meshes in PatchTable factories
+    - Fixed computation of PatchParam for triangle refinement (GitHub Issue #962)
+
+**Changes**
+    - Added build options: NO_GLFW and NO_GLFW_X11
+    - Added additional shapes with infinitely sharp creases to the Metal and DX11 example viewers
+    - Disabled GL tests during CI runs on Linux
+    - Improved stability of examples/glImaging in CI runs by testing GL version
+
+Release 3.3.0
+=============
+
+Release 3.3.0 is significant release adding an Osd implementation for Apple's Metal API
+
+**New Features**
+    - Added an Osd implementation for Apple's Metal API
+    - Added the mtlViewer example
+
+**Changes**
+    - Fixed several instances of local variable shadowing that could cause build warnings
+    - Updated continuous-integration build scripts and added testing on macOS
+
+Release 3.2.0
+=============
+
+Release 3.2.0 is a minor release containing API additions and bug fixes
+
+**New Features**
+    - Extended Far::StencilTableFactory to support face-varying
+    - Extended Osd Evaluator classes to support evaluation of 1st and 2nd derivatives
+    - Added an option to disable generation of legacy sharp corner patches
+
+**Changes**
+    - Corrected numerous spelling errors in doxygen comments
+    - Updated glFVarViewer with improved error detection and command line parsing
+    - Added option to build using MSVC with static CRT
+
+**Bug Fixes**
+    - Fixed a double delete of GL program in Osd::GLComputeEvaluator
+
+Release 3.1.1
+=============
+
+Release 3.1.1 is a minor bug-fix release.
+
+**Bug Fixes**
+    - Fixed a bug with non-manifold face-varying topology causing a crash during patch table creation
+    - Fixed GLEW compilation and linking with dynamic GLEW libraries on Windows
+    - Fixed GLFW linking with GLFW 3.2 on X11 platforms
+
 Release 3.1.0
 =============
 
-Release 3.1.0 is a significant release with several new features, important bug fixes, and general code and configuration improvements.
+Release 3.1.0 is a significant release with several new features, bug fixes, and general
+code and configuration improvements.  For more information on the following, please see
+`Release 3.1 <release_31.html>`__
 
 **New Features**
-    - Bicubic Face-varying Patches
-
-        - Face-varying channel data that has a linear interpolation other than FVAR_LINEAR_ALL can now produce bicubic patches
-        - Adaptive refinement of face-varying data can be improved by considering face-varying topology during refinement
-        - Client shader code can obtain patch basis weights needed for evaluation by calling methods provided as source by Osd
-
-    - Varying and FaceVarying Evaluation
-
-        - Extended Far::PatchTable and the Osd Evaluator API to allow evaluation of varying and face-varying primvar data at arbitrary limit surface locations
-
-    - 2nd Order Derivative Evaluation
-
-        - Clients can now evaluate 2nd order derivatives using Far and Osd API
-
+    - Bicubic Face-Varying Patches
+    - Varying and Face-Varying Evaluation
+    - Second Order Derivative Evaluation
     - Separate Levels of Feature Isolation
-
-        - Extended feature adaptive refinement with a second, shallower level of refinement at which to represent features not needing greater isolation
-
     - Sharp Patches for Infinitely Sharp Features
 
-        - Infinitely sharp features can now be refined to infinitely sharp patches, both reducing the number of patches required and improving their accuracy
-
 **Changes**
-    - Added numerical valued preprocessor directives (OPENSUBDIV_VERSION_MAJOR, etc.) to <opensubdiv/version.h>
-    - Updated glFVarViewer and glEvalLimit viewer to make use of bicubic face-varying patches
-    - Updated glViewer and dxViewer to add a toggle for InfSharpPatch
-    - Improved documentation for Far::PatchParam and added Unnormalize() to complement Normalize()
-    - Improved far_regression
     - Enabled the use of CMake's folder feature
     - Removed the use of iso646 alternative keywords ('and', 'or', 'not', etc.) to improve portability
-    - Removed mayaPolySmooth example
-    - Removed cmake/FindIlmBase
+    - Added numerical valued preprocessor directives (OPENSUBDIV_VERSION_MAJOR, etc.) to <opensubdiv/version.h>
+    - Improved documentation for Far::PatchParam and added Unnormalize() to complement Normalize()
+    - Added additional topology queries to Far::TopologyLevel
+    - Updated glFVarViewer and glEvalLimit viewer to make use of bicubic face-varying patches
+    - Updated glViewer and dxViewer to add a toggle for InfSharpPatch
+    - Updated dxPtexViewer for improved feature parity with glPtexViewer
+    - Improved far_regression to exercise shapes independent of Hbr compatibility
     - Added support for Appveyor continuous integration testing
+    - Removed cmake/FindIlmBase
+    - Removed mayaPolySmooth example
 
 **Bug Fixes**
-    - Improved Ptex and DX compatibility
-    - Fixed some subtle bugs with Chaikin refinement
+    - Fixed Ptex version parsing and compatibility issues
     - Fixed compatibility issues with VS2015
-    - Fixed some bugs with HUD sliders in the example viewers
-
-Release 3.1.0 RC2
-=================
-
-**Changes**
-    - Added and updated test shapes and updated example viewers
-
-**Bug Fixes**
-    - Fixed the names of some methods added to Far::PatchTable
-    - Fixed issues discovered during testing
-
-Release 3.1.0 RC1
-=================
-
-**Changes**
-    - First Release Candidate
+    - Fixed bug interpolating face-varying data with Bilinear scheme
+    - Fixed bug with refinement using Chaikin creasing
+    - Fixed bugs with HUD sliders in the example viewers
 
 Release 3.0.5
 =============
@@ -183,7 +214,7 @@ Release 3.0.0
 
 Release 3.0.0 is a major release with many significant improvements and
 changes.  For more information on the following, please see
-`Introduction to 3.0 <intro_30.html>`__
+`Release 3.0 <release_30.html>`__
 
 **New Features**
     - Faster subdivision using less memory

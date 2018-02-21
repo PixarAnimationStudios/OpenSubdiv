@@ -237,8 +237,8 @@ public:
             : faceIndex(Vtr::INDEX_INVALID), levelIndex(-1) { }
         PatchTuple(PatchTuple const & p)
             : faceIndex(p.faceIndex), levelIndex(p.levelIndex) { }
-        PatchTuple(Index faceIndex, int levelIndex)
-            : faceIndex(faceIndex), levelIndex(levelIndex) { }
+        PatchTuple(Index faceIndexArg, int levelIndexArg)
+            : faceIndex(faceIndexArg), levelIndex(levelIndexArg) { }
 
         Index faceIndex;
         int   levelIndex;
@@ -314,9 +314,6 @@ public:
 
     Options const options;
 
-    //  Additional options eventually to be made public in Options above:
-    bool options_approxSmoothCornerWithSharp;
-
     PtexIndices const ptexIndices;
 
     // Counters accumulating each type of patch during topology traversal
@@ -342,9 +339,6 @@ PatchTableFactoryG<FD>::BuilderContext::BuilderContext(
     refiner(ref), options(opts), ptexIndices(refiner),
     numRegularPatches(0), numIrregularPatches(0),
     numIrregularBoundaryPatches(0) {
-
-    //  Eventually to be passed in as Options and assigned to member...
-    options_approxSmoothCornerWithSharp = true;
 
     if (options.generateFVarTables) {
         // If client-code does not select specific channels, default to all
@@ -632,7 +626,7 @@ PatchTableFactoryG<FD>::BuilderContext::IsPatchRegular(
     }
 
     //  Legacy option -- reinterpret an irregular smooth corner as sharp if specified:
-    if (!isRegular && options_approxSmoothCornerWithSharp) {
+    if (!isRegular && options.generateLegacySharpCornerPatches) {
         if (fCompVTag._xordinary && fCompVTag._boundary && !fCompVTag._nonManifold) {
             isRegular = IsPatchSmoothCorner(levelIndex, faceIndex, fvcRefiner);
         }
@@ -684,13 +678,23 @@ PatchTableFactoryG<FD>::BuilderContext::GetRegularPatchBoundaryMask(
     //  patch, and so both of its neighboring corners need to be re-interpreted as
     //  boundaries.
     //
-    //  With the introduction of inf-sharp patches, this may soon change...
+    //  With the introduction of sharp irregular patches, we are now better off
+    //  using irregular patches where appropriate, which will simplify the following
+    //  when this patch was already determined to be regular...
     //
-    if (fTag._nonManifold && (fvcRefiner < 0)) {
+    if (fTag._nonManifold) {
         if (vTags[0]._nonManifold) vBoundaryMask |= (1 << 0) | (vTags[0]._infSharp ? 10 : 0);
         if (vTags[1]._nonManifold) vBoundaryMask |= (1 << 1) | (vTags[1]._infSharp ?  5 : 0);
         if (vTags[2]._nonManifold) vBoundaryMask |= (1 << 2) | (vTags[2]._infSharp ? 10 : 0);
         if (vTags[3]._nonManifold) vBoundaryMask |= (1 << 3) | (vTags[3]._infSharp ?  5 : 0);
+
+        //  Force adjacent edges as boundaries if only one vertex in the resulting mask
+        //  (which would be an irregular boundary for Catmark, but not Loop):
+        if ((vBoundaryMask == (1 << 0)) || (vBoundaryMask == (1 << 2))) {
+            vBoundaryMask |= 10;
+        } else if ((vBoundaryMask == (1 << 1)) || (vBoundaryMask == (1 << 3))) {
+            vBoundaryMask |= 5;
+        }
     }
 
     //  Convert directly from a vertex- to edge-mask (no need to inspect edges):
@@ -757,7 +761,7 @@ PatchTableFactoryG<FD>::BuilderContext::GetIrregularPatchCornerSpans(
         }
 
         //  Legacy option -- reinterpret an irregular smooth corner as sharp if specified:
-        if (!cornerSpans[i]._sharp && options_approxSmoothCornerWithSharp) {
+        if (!cornerSpans[i]._sharp && options.generateLegacySharpCornerPatches) {
             if (vTags[i]._xordinary && vTags[i]._boundary && !vTags[i]._nonManifold) {
                     int nFaces = cornerSpans[i].isAssigned() ? cornerSpans[i]._numFaces
                                : level.getVertexFaces(fVerts[i]).size();
@@ -864,7 +868,18 @@ PatchTableFactoryG<FD>::computePatchParam(
         v = 0,
         ofs = 1;
 
-    bool nonquad = (refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() != 4);
+    int regularFaceVertexCount =
+            Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType());
+
+    bool irregular =
+        refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() !=
+        regularFaceVertexCount;
+
+    // For triangle refinement, the parameterization is rotated at
+    // the fourth triangle subface at each level. The u and v values
+    // computed for rotated triangles will be negative while we are
+    // walking through the refinement levels.
+    bool rotatedTriangle = false;
 
     for (int i = depth; i > 0; --i) {
         Refinement const& refinement  = refiner.getRefinement(i-1);
@@ -872,7 +887,32 @@ PatchTableFactoryG<FD>::computePatchParam(
 
         Index parentFaceIndex = refinement.getChildFaceParentFace(faceIndex);
 
-        if (parentLevel.getFaceVertices(parentFaceIndex).size() == 4) {
+        irregular =
+            parentLevel.getFaceVertices(parentFaceIndex).size() !=
+            regularFaceVertexCount;
+
+        if (regularFaceVertexCount == 3) {
+            // For now, we don't consider irregular faces for
+            // triangle refinement.
+
+            childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
+            if (rotatedTriangle) {
+                switch ( childIndexInParent ) {
+                    case 0 :                     break;
+                    case 1 : { u-=ofs;         } break;
+                    case 2 : {         v-=ofs; } break;
+                    case 3 : { u+=ofs; v+=ofs; rotatedTriangle = false; } break;
+                }
+            } else {
+                switch ( childIndexInParent ) {
+                    case 0 :                     break;
+                    case 1 : { u+=ofs;         } break;
+                    case 2 : {         v+=ofs; } break;
+                    case 3 : { u-=ofs; v-=ofs; rotatedTriangle = true; } break;
+                }
+            }
+            ofs = (unsigned short)(ofs << 1);
+        } else if (!irregular) {
             childIndexInParent = refinement.getChildFaceInParentFace(faceIndex);
             switch ( childIndexInParent ) {
                 case 0 :                     break;
@@ -882,10 +922,10 @@ PatchTableFactoryG<FD>::computePatchParam(
             }
             ofs = (unsigned short)(ofs << 1);
         } else {
-            nonquad = true;
             // If the root face is not a quad, we need to offset the ptex index
             // CCW to match the correct child face
-            Vtr::ConstIndexArray children = refinement.getFaceChildFaces(parentFaceIndex);
+            Vtr::ConstIndexArray children =
+                refinement.getFaceChildFaces(parentFaceIndex);
             for (int j=0; j<children.size(); ++j) {
                 if (children[j]==faceIndex) {
                     childIndexInParent = j;
@@ -899,12 +939,21 @@ PatchTableFactoryG<FD>::computePatchParam(
     Index ptexIndex = context.ptexIndices.GetFaceId(faceIndex);
     assert(ptexIndex!=-1);
 
-    if (nonquad) {
+    if (irregular) {
         ptexIndex+=childIndexInParent;
     }
 
+    // If the triangle is tagged as rotated at this point then the
+    // computed u and v parameters will both be negative and we map
+    // them onto positive values in the opposite diagonal of the
+    // parameter space.
+    if (rotatedTriangle) {
+        u += ofs;
+        v += ofs;
+    }
+
     PatchParamG<FD> param;
-    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, nonquad,
+    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, irregular,
               (unsigned short) boundaryMask, (unsigned short) transitionMask);
     return param;
 }
@@ -932,6 +981,13 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
     assert(refiner.IsUniform());
 
     BuilderContext context(refiner, options);
+
+    // Default behavior is to include base level vertices in the patch vertices for
+    // vertex and varying patches, but not face-varying.  Consider exposing these as
+    // public options in future so that clients can create consistent behavior:
+
+    bool includeBaseLevelIndices     = true;
+    bool includeBaseLevelFVarIndices = false;
 
     // ensure that triangulateQuads is only set for quadrilateral schemes
     options.triangulateQuads &= (refiner.GetSchemeType()==Sdc::SCHEME_BILINEAR ||
@@ -997,12 +1053,12 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
     //  Now populate the patches:
     //
 
-    Index          * iptr = &table->_patchVerts[0];
+    Index               * iptr = &table->_patchVerts[0];
     PatchParamG<FD>     * pptr = &table->_paramTable[0];
-    Index         ** fptr = 0;
+    Index              ** fptr  = 0;
+    PatchParamG<FD>    ** fpptr = 0;
 
-    // we always skip level=0 vertices (control cages)
-    Index levelVertOffset = refiner.GetLevel(0).GetNumVertices();
+    Index levelVertOffset = includeBaseLevelIndices ? refiner.GetLevel(0).GetNumVertices() : 0;
 
     Index * levelFVarVertOffsets = 0;
     if (context.RequiresFVarPatches()) {
@@ -1011,8 +1067,15 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
         memset(levelFVarVertOffsets, 0, context.fvarChannelIndices.size()*sizeof(Index));
 
         fptr = (Index **)alloca(context.fvarChannelIndices.size()*sizeof(Index *));
+        fpptr = (PatchParamG<FD> **)alloca(context.fvarChannelIndices.size()*sizeof(PatchParamG<FD> *));
         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
             fptr[fvc] = table->getFVarValues(fvc).begin();
+            fpptr[fvc] = table->getFVarPatchParams(fvc).begin();
+
+            if (includeBaseLevelFVarIndices) {
+                int refinerChannel = context.fvarChannelIndices[fvc];
+                levelFVarVertOffsets[fvc] = refiner.GetLevel(0).GetNumFVarValues(refinerChannel);
+            }
         }
     }
 
@@ -1033,7 +1096,8 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
                     *iptr++ = levelVertOffset + fverts[vert];
                 }
 
-                *pptr++ = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
+                PatchParamG<FD> pparam = computePatchParam(context, level, face, /*boundary*/0, /*transition*/0);
+                *pptr++ = pparam;
 
                 if (context.RequiresFVarPatches()) {
                     for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
@@ -1041,10 +1105,11 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
 
                         ConstIndexArray fvalues = refLevel.GetFaceFVarValues(face, refinerChannel);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelVertOffset + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
+                            assert((levelFVarVertOffsets[fvc] + fvalues[vert]) < (int)table->getFVarValues(fvc).size());
                             fptr[fvc][vert] = levelFVarVertOffsets[fvc] + fvalues[vert];
                         }
                         fptr[fvc]+=fvalues.size();
+                        *fpptr[fvc]++ = pparam;
                     }
                 }
 
@@ -1055,8 +1120,7 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
                     *iptr = *(iptr - 3); // copy v2 index
                     ++iptr;
 
-                    *pptr = *(pptr - 1); // copy first patch param
-                    ++pptr;
+                    *pptr++ = pparam;
 
                     if (context.RequiresFVarPatches()) {
                         for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
@@ -1064,6 +1128,8 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
                             ++fptr[fvc];
                             *fptr[fvc] = *(fptr[fvc]-3); // copy fv2 index
                             ++fptr[fvc];
+
+                            *fpptr[fvc]++ = pparam;
                         }
                     }
                 }
@@ -1072,9 +1138,12 @@ PatchTableFactoryG<FD>::createUniform(TopologyRefiner const & refiner, Options o
 
         if (options.generateAllLevels) {
             levelVertOffset += refiner.GetLevel(level).GetNumVertices();
-            for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
-                int refinerChannel = context.fvarChannelIndices[fvc];
-                levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
+
+            if (context.RequiresFVarPatches()) {
+                for (int fvc=0; fvc<(int)context.fvarChannelIndices.size(); ++fvc) {
+                    int refinerChannel = context.fvarChannelIndices[fvc];
+                    levelFVarVertOffsets[fvc] += refiner.GetLevel(level).GetNumFVarValues(refinerChannel);
+                }
             }
         }
     }
@@ -1423,7 +1492,7 @@ PatchTableFactoryG<FD>::populateAdaptivePatches(
 
             context.GetIrregularPatchCornerSpans(patch.levelIndex, patch.faceIndex, irregCornerSpans);
 
-            // switch endcap patchtype by option
+            // switch endcap patch type by option
             switch(context.options.GetEndCapType()) {
             case Options::ENDCAP_GREGORY_BASIS:
                 arrayBuilder->iptr +=

@@ -31,15 +31,28 @@
 #include <string>
 #include <vector>
 
+#define OSD_HUD_USE_FUNCTION_POINTERS (__cplusplus <= 199711L)
+
+#if !OSD_HUD_USE_FUNCTION_POINTERS
+#include <functional>
+#endif
+
 #include "hud.h"
 
 class Hud
 {
 public:
+#if OSD_HUD_USE_FUNCTION_POINTERS
     typedef void (*RadioButtonCallback)(int c);
     typedef void (*CheckBoxCallback)(bool checked, int data);
     typedef void (*SliderCallback)(float value, int data);
     typedef void (*PullDownCallback)(int value);
+#else
+    typedef std::function<void(int)> RadioButtonCallback;
+    typedef std::function<void(bool,int)> CheckBoxCallback;
+    typedef std::function<void(float, int)> SliderCallback;
+    typedef std::function<void(int)> PullDownCallback;
+#endif
 
     Hud();
     virtual ~Hud();

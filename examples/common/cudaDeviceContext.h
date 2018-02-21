@@ -32,10 +32,10 @@ public:
     CudaDeviceContext();
     ~CudaDeviceContext();
 
-    /// Initialze cuda device from the current GL context
+    /// Initialize cuda device from the current GL context
     bool Initialize();
 
-    /// Initialze cuda device from the ID3D11Device
+    /// Initialize cuda device from the ID3D11Device
     bool Initialize(ID3D11Device *device);
 
     /// Returns true if the cuda device has already been initialized

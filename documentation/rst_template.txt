@@ -12,7 +12,7 @@
     margin-left: 255px;
 }
 ul.creatorFooterNav {
-    margin-left: 100px;
+    margin-left: 250px;
 }
 .navigation {
     background-color: #333333;
@@ -21,6 +21,12 @@ ul.creatorFooterNav {
 }
 ul.creatorMainNav li a {
     font-size: 12px !important;
+}
+.copyrightFooter {
+    font-size: 11px;
+    margin-top: 25px;
+    text-align: center;
+    float: none;
 }
 </style>
 %(body_prefix)s
@@ -83,15 +89,6 @@ ul.creatorMainNav li a {
     </div> <!-- close mainContentContainer -->
 </div> <!-- close center -->
 
-<div class="clearBoth"></div>
-
-
-<div class="center">
-
-    <div class="copyrightFooter">
-    </div>
-
-
 <!-- BOTTOM NAVIGATION MENU -->
     <ul class="creatorFooterNav">
         <li class="" id="navbarId-23704">
@@ -107,5 +104,13 @@ ul.creatorMainNav li a {
             <a href="http://graphics.pixar.com/opensubdiv/forum.html">Forum</a>
         </li>
     </ul><!-- end bottom navigation menu -->
+
+<div class="clearBoth"></div>
+
+<div class="center">
+    <div class="copyrightFooter">
+    TM &amp; &#169; 1986 - 2017 PIXAR. ALL RIGHTS RESERVED. <a class="copyrightFooter" target="_blank" href="https://www.pixar.com/terms-of-use#terms-of-use-1">Terms of Use</a>
+    </div>
+</div>
 
 <div class="clearBoth"></div>

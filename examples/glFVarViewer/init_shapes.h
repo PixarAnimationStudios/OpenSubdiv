@@ -40,6 +40,10 @@ static std::vector<ShapeDesc> g_defaultShapes;
 //------------------------------------------------------------------------------
 static void initShapes() {
 
+    //
+    //  Note that any shapes added here must have UVs -- loading a shape without UVs is a fatal
+    //  error and will result in termination when it is selected.
+    //
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner0",     catmark_cube_corner0,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner1",     catmark_cube_corner1,     kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_corner2",     catmark_cube_corner2,     kCatmark ) );
@@ -61,6 +65,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound1",      catmark_fvar_bound1,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound2",      catmark_fvar_bound2,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound3",      catmark_fvar_bound3,      kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_fvar_bound4",      catmark_fvar_bound4,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fvar_project0",    catmark_fvar_project0,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test1",    catmark_gregory_test1,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test2",    catmark_gregory_test2,    kCatmark ) );

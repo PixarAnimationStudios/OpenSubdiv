@@ -143,7 +143,7 @@ EndCapLegacyGregoryPatchFactoryG<FD>::Finalize(
     //      - it allocates 2*maxvalence+1 for ALL vertices
     //      - it initializes the one-ring for ALL vertices
     //  We use the full size expected (not sure what else relies on that) but 
-    //  we avoiding initializing
+    //  we avoid initializing
     //  the vast majority of vertices that are not associated with gregory 
     //  patches -- by having previously marked those that are associated above
     //  and skipping all others.
@@ -151,7 +151,7 @@ EndCapLegacyGregoryPatchFactoryG<FD>::Finalize(
     const int SizePerVertex = 2*maxValence + 1;
 
     typename PatchTableG<FD>::VertexValenceTable & vTable = (*vertexValenceTable);
-    vTable.resize(_refiner.GetNumVerticesTotal() * SizePerVertex);
+    vTable.resize((long)_refiner.GetNumVerticesTotal() * SizePerVertex);
 
     int vOffset = 0;
     int levelLast = _refiner.GetMaxLevel();
@@ -161,7 +161,7 @@ EndCapLegacyGregoryPatchFactoryG<FD>::Finalize(
 
         if (i == levelLast) {
 
-            int vTableOffset = vOffset * SizePerVertex;
+            long vTableOffset = vOffset * SizePerVertex;
 
             for (int vIndex = 0; vIndex < level->getNumVertices(); ++vIndex) {
                 int* vTableEntry = &vTable[vTableOffset];

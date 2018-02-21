@@ -156,34 +156,53 @@ struct FVarData
             glDeleteTextures(1, &textureParamBuffer);
         textureParamBuffer = 0;
     }
-    void Create(OpenSubdiv::Far::PatchTable const *patchTable,
-                int fvarWidth, std::vector<float> const & fvarSrcData) {
+    void Create(OpenSubdiv::Far::TopologyRefiner const *refiner,
+                OpenSubdiv::Far::PatchTable const *patchTable,
+                std::vector<float> const & fvarSrcData,
+                int fvarWidth, int fvarChannel = 0) {
 
         using namespace OpenSubdiv;
 
         Release();
-        Far::ConstIndexArray indices = patchTable->GetFVarValues();
 
-        const float * fvarSrcDataPtr = &fvarSrcData[0];
-        Osd::CpuVertexBuffer *fvarBuffer = NULL;
+        Far::StencilTableFactory::Options soptions;
+        soptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_FACE_VARYING;
+        soptions.fvarChannel = fvarChannel;
+        soptions.generateOffsets = true;
+        soptions.generateIntermediateLevels = !refiner->IsUniform();
+        Far::StencilTable const *fvarStencils =
+            Far::StencilTableFactory::Create(*refiner, soptions);
 
-        int numLocalFVarPoints = patchTable->GetNumLocalPointsFaceVarying();
-        if (numLocalFVarPoints > 0) {
-            int numSrcFVarPoints = (int)fvarSrcData.size() / fvarWidth;
-            fvarBuffer = Osd::CpuVertexBuffer::Create(
-                fvarWidth, numSrcFVarPoints + numLocalFVarPoints);
-            fvarBuffer->UpdateData(&fvarSrcData[0], 0, numSrcFVarPoints);
-
-            Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
-            Osd::BufferDescriptor dstDesc(numSrcFVarPoints*fvarWidth,
-                                          fvarWidth, fvarWidth);
-
-            Osd::CpuEvaluator::EvalStencils(fvarBuffer, srcDesc,
-                                            fvarBuffer, dstDesc,
-                                            patchTable->GetLocalPointFaceVaryingStencilTable());
-
-            fvarSrcDataPtr = fvarBuffer->BindCpuBuffer();
+        if (Far::StencilTable const *fvarStencilsWithLocalPoints =
+            Far::StencilTableFactory::AppendLocalPointStencilTableFaceVarying(
+                *refiner,
+                fvarStencils,
+                patchTable->GetLocalPointFaceVaryingStencilTable(),
+                fvarChannel)) {
+            delete fvarStencils;
+            fvarStencils = fvarStencilsWithLocalPoints;
         }
+
+        int numSrcFVarPoints = (int)fvarSrcData.size() / fvarWidth;
+        int numFVarPoints = numSrcFVarPoints
+                          + fvarStencils->GetNumStencils();
+
+        Osd::CpuVertexBuffer *fvarBuffer =
+            Osd::CpuVertexBuffer::Create(fvarWidth, numFVarPoints);
+        fvarBuffer->UpdateData(&fvarSrcData[0], 0, numSrcFVarPoints);
+
+        Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
+        Osd::BufferDescriptor dstDesc(numSrcFVarPoints*fvarWidth,
+                                      fvarWidth, fvarWidth);
+
+        Osd::CpuEvaluator::EvalStencils(fvarBuffer, srcDesc,
+                                        fvarBuffer, dstDesc,
+                                        fvarStencils);
+
+        Far::ConstIndexArray indices = patchTable->GetFVarValues();
+        const float * fvarSrcDataPtr = !refiner->IsUniform()
+            ? fvarBuffer->BindCpuBuffer()
+            : fvarBuffer->BindCpuBuffer() + numSrcFVarPoints * fvarWidth;
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -201,9 +220,7 @@ struct FVarData
         glBufferData(GL_ARRAY_BUFFER, data.size()*sizeof(float),
                      &data[0], GL_STATIC_DRAW);
 
-        if (fvarBuffer) {
-            delete fvarBuffer;
-        }
+        delete fvarBuffer;
 
         glGenTextures(1, &textureBuffer);
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
@@ -390,6 +407,11 @@ rebuildMesh() {
 
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
+    if (!shape->HasUV()) {
+        printf("Error: shape %s does not contain face-varying UVs\n", shapeDesc.name.c_str());
+        exit(1);
+    }
+
     // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
@@ -435,13 +457,9 @@ rebuildMesh() {
                                            numVaryingElements,
                                            level, bits);
 
-    std::vector<float> fvarData;
-
-    InterpolateFVarData(*refiner, *shape, fvarData);
-
     // set fvardata to texture buffer
-    g_fvarData.Create(g_mesh->GetFarPatchTable(),
-                      shape->GetFVarWidth(), fvarData);
+    g_fvarData.Create(refiner, g_mesh->GetFarPatchTable(),
+                      shape->uvs, shape->GetFVarWidth());
 
     delete shape;
 
@@ -816,7 +834,7 @@ display() {
 
     glEnable(GL_DEPTH_TEST);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     GLuint vbo = g_mesh->BindVertexBuffer();
 
     glBindVertexArray(g_vao);
@@ -1096,7 +1114,7 @@ initHUD() {
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i == 2, 10, 270 + i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i == g_level, 10, 270 + i*20, callbackLevel, i, '0'+(i%10));
     }
 
     typedef OpenSubdiv::Sdc::Options SdcOptions;
@@ -1163,25 +1181,41 @@ callbackErrorGLFW(int error, const char* description) {
 }
 
 //------------------------------------------------------------------------------
+static int
+parseIntArg(const char* argString, int dfltValue = 0) {
+    char *argEndptr;
+    int argValue = strtol(argString, &argEndptr, 10);
+    if (*argEndptr != 0) {
+        printf("Warning: non-integer option parameter '%s' ignored\n", argString);
+        argValue = dfltValue;
+    }
+    return argValue;
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
     bool fullscreen = false;
     std::string str;
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-d"))
-            g_level = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "-c"))
-            g_repeatCount = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "-f"))
+        if (!strcmp(argv[i], "-d")) {
+            if (++i < argc) g_level = parseIntArg(argv[i], g_level);
+        } else if (!strcmp(argv[i], "-c")) {
+            if (++i < argc) g_repeatCount = parseIntArg(argv[i], g_repeatCount);
+        } else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
-        else {
-            std::ifstream ifs(argv[1]);
+        } else if (argv[i][0] == '-') {
+            printf("Warning: unrecognized option '%s' ignored\n", argv[i]);
+        } else {
+            std::ifstream ifs(argv[i]);
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), kCatmark));
+            } else {
+                printf("Warning: cannot open shape file '%s'\n", argv[i]);
             }
         }
     }
@@ -1250,7 +1284,7 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 #ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
+    // clear GL errors which were generated during glewInit()
     glGetError();
 #endif
 #endif

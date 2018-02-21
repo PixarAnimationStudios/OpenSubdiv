@@ -66,7 +66,7 @@ FVarRefinement::~FVarRefinement() {
 
 //
 // Methods supporting the refinement of face-varying data that has previously
-// been applied to the Refinment member. So these methods already have access
+// been applied to the Refinement member. So these methods already have access
 // to fully refined child components.
 //
 
@@ -188,7 +188,7 @@ FVarRefinement::populateChildValuesForEdgeVertex(Index cVert, Index pEdge) {
     //  This turns out to be very simple.  For FVar refinement to handle all cases
     //  of non-manifold edges, when an edge is discts we generate a FVar value for
     //  each face incident the edge.  So in the uniform refinement case we will
-    //  have as many child values as parent faces indicent the edge.  But even when
+    //  have as many child values as parent faces incident the edge.  But even when
     //  refinement is sparse, if this edge-vertex is not complete, we will still be
     //  guaranteed that a child face exists for each parent face since one of the
     //  edge's end vertices must be complete and therefore include all child faces.

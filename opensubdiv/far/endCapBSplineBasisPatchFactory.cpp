@@ -69,7 +69,7 @@ EndCapBSplineBasisPatchFactoryG<FD>::EndCapBSplineBasisPatchFactoryG(
     // we typically use 7 patch points for each bspline endcap.
     int numPatchPointsExpected = numMaxLevelFaces * 7;
     // limits to 100M (=800M bytes) entries for the reserved size.
-    int numStencilsExpected = std::min(numPatchPointsExpected * 16,
+    int numStencilsExpected = (int) std::min<long>((long)numPatchPointsExpected * 16,
                                        100*1024*1024);
     _vertexStencils->reserve(numPatchPointsExpected, numStencilsExpected);
     if (_varyingStencils) {
@@ -136,7 +136,7 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPointsFromGregoryBasis(
 
     // XXX: For now, always create new 16 indices for each patch.
     // we'll optimize later to share all regular control points with
-    // other patches as well as to try to make extra ordinary verts watertight.
+    // other patches as well as try to make extra-ordinary verts watertight.
 
     int offset = (fvarChannel < 0)
                ? _refiner->GetNumVerticesTotal()
@@ -305,12 +305,12 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
     //
     //  This function assumes the patch is not on boundary
     //  and it contains only 1 extraordinary vertex.
-    //  The location of the extraoridnary vertex can be one of
+    //  The location of the extraordinary vertex can be one of
     //  0-ring quad corner.
     //
-    //  B-Spline control point gathering indice
+    //  B-Spline control point gathering indices
     //
-    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //     [5]   (4)---(15)--(14)    0 : extraordinary vertex
     //            |     |     |
     //            |     |     |      1,2,3,9,10,11,12,13 :
     //     (6)----0-----3-----13       B-Spline control points, gathered by
@@ -367,14 +367,14 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
             int intFaceInVFaces  = (thisFaceInVFaces + 2) & 0x3;
             Index intFace    = vFaces[intFaceInVFaces];
             int   vInIntFace = vInFaces[intFaceInVFaces];
-            ConstIndexArray facePoints = level->getFaceVertices(intFace);
+            ConstIndexArray intFacePoints = level->getFaceVertices(intFace);
 
             patchPoints[pointIndex++] =
-                facePoints[(vInIntFace + 1)&3] + levelVertOffset;
+                intFacePoints[(vInIntFace + 1)&3] + levelVertOffset;
             patchPoints[pointIndex++] =
-                facePoints[(vInIntFace + 2)&3] + levelVertOffset;
+                intFacePoints[(vInIntFace + 2)&3] + levelVertOffset;
             patchPoints[pointIndex++] =
-                facePoints[(vInIntFace + 3)&3] + levelVertOffset;
+                intFacePoints[(vInIntFace + 3)&3] + levelVertOffset;
         } else {
             // irregular corner
             int thisFaceInVFaces = vFaces.FindIndex(thisFace);
@@ -384,9 +384,9 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
                 int intFaceInVFaces  = (thisFaceInVFaces + 1) % valence;
                 Index intFace    = vFaces[intFaceInVFaces];
                 int   vInIntFace = vInFaces[intFaceInVFaces];
-                ConstIndexArray facePoints = level->getFaceVertices(intFace);
+                ConstIndexArray intFacePoints = level->getFaceVertices(intFace);
                 patchPoints[pointIndex++] =
-                    facePoints[(vInIntFace+3)&3] + levelVertOffset;
+                    intFacePoints[(vInIntFace+3)&3] + levelVertOffset;
             }
             {
                 // middle: (n-vertices) needs a limit stencil. skip for now
@@ -397,9 +397,9 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
                 int intFaceInVFaces  = (thisFaceInVFaces + (valence-1)) %valence;
                 Index intFace    = vFaces[intFaceInVFaces];
                 int   vInIntFace = vInFaces[intFaceInVFaces];
-                ConstIndexArray facePoints = level->getFaceVertices(intFace);
+                ConstIndexArray intFacePoints = level->getFaceVertices(intFace);
                 patchPoints[pointIndex++] =
-                    facePoints[(vInIntFace+1)&3] + levelVertOffset;
+                    intFacePoints[(vInIntFace+1)&3] + levelVertOffset;
 
             }
         }
@@ -473,7 +473,7 @@ EndCapBSplineBasisPatchFactoryG<FD>::getPatchPoints(
     X5.AddWithWeight(X7,                            FD( -1.0));
     X5.AddWithWeight(X15,                           FD( -1.0));
 
-    //     [5]   (4)---(15)--(14)    0 : extraoridnary vertex
+    //     [5]   (4)---(15)--(14)    0 : extraordinary vertex
     //            |     |     |
     //            |     |     |      1,2,3,9,10,11,12,13 :
     //     (6)----0-----3-----13       B-Spline control points, gathered by

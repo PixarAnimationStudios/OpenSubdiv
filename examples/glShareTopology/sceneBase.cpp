@@ -169,7 +169,7 @@ SceneBase::createStencilTable(Shape const *shape, int level, bool varying,
 
     _stencilTableSize = createMeshRefiner(vertexStencils, varyingStencils,
                                           numControlVertices);
-    // note: refiner takes ownerships of vertexStencils/ varyingStencils, patchTable
+    // note: refiner takes ownership of vertexStencils, varyingStencils, patchTable
 
     delete refiner;
     return numControlVertices + vertexStencils->GetNumStencils();

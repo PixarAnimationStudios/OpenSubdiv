@@ -34,7 +34,7 @@ namespace OPENSUBDIV_VERSION {
 
 namespace Osd {
 
-/// \brief Concrete vertex buffer class for cpu subvision.
+/// \brief Concrete vertex buffer class for CPU subdivision.
 ///
 /// CpuVertexBuffer implements the VertexBufferInterface. An instance
 /// of this buffer class can be passed to CpuEvaluator

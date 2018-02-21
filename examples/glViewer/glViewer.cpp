@@ -85,10 +85,10 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
 
 /* Function to get the correct shader file based on the opengl version.
-  The implentation varies depending if glew is available or not. In case
+  The implementation varies depending if glew is available or not. In case it
   is available the capabilities are queried during execution and the correct
-  source is returned. If glew in not available during compile time the version
-  is determined*/
+  source is returned. If glew is not available the version is determined at
+  compile time */
 static const char *shaderSource(){
 #if ! defined(OSD_USES_GLEW)
 
@@ -110,7 +110,7 @@ static const char *res =
                 ;
             //Determine the shader file to use. Since some opengl implementations
             //define that an extension is available but not an implementation 
-            //for it you cannnot trust in the glew header definitions to know that is 
+            //for it you cannot trust in the glew header definitions to know that is
             //available, but you need to query it during runtime.
             if (GLUtils::SupportsAdaptiveTessellation())
                 res = gen;
@@ -162,6 +162,7 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
                    kHUD_CB_FREEZE,
                    kHUD_CB_DISPLAY_PATCH_COUNTS,
                    kHUD_CB_ADAPTIVE,
+                   kHUD_CB_SMOOTH_CORNER_PATCH,
                    kHUD_CB_SINGLE_CREASE_PATCH,
                    kHUD_CB_INF_SHARP_PATCH };
 
@@ -182,6 +183,7 @@ int   g_fullscreen = 0,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapBSplineBasis,
+      g_smoothCornerPatch = 0,
       g_singleCreasePatch = 1,
       g_infSharpPatch = 0,
       g_mbutton[3] = {0, 0, 0},
@@ -447,11 +449,13 @@ rebuildMesh() {
     // Adaptive refinement currently supported only for catmull-clark scheme
     bool doAdaptive = (g_adaptive!=0 && scheme==kCatmark);
     bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
+    bool doSmoothCornerPatch = (g_smoothCornerPatch!=0 && scheme==kCatmark);
     bool doSingleCreasePatch = (g_singleCreasePatch!=0 && scheme==kCatmark);
     bool doInfSharpPatch = (g_infSharpPatch!=0 && scheme==kCatmark);
 
     Osd::MeshBitset bits;
     bits.set(Osd::MeshAdaptive, doAdaptive);
+    bits.set(Osd::MeshUseSmoothCornerPatch, doSmoothCornerPatch);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(Osd::MeshUseInfSharpPatch, doInfSharpPatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
@@ -1084,7 +1088,7 @@ display() {
     inverseMatrix(g_transformData.ModelViewInverseMatrix,
                   g_transformData.ModelViewMatrix);
 
-    // make sure that the vertex buffer is interoped back as a GL resources.
+    // make sure that the vertex buffer is interoped back as a GL resource.
     GLuint vbo = g_mesh->BindVertexBuffer();
 
     // vertex texture update for legacy gregory drawing
@@ -1402,6 +1406,10 @@ callbackCheckBox(bool checked, int button) {
             g_adaptive = checked;
             rebuildMesh();
             return;
+        case kHUD_CB_SMOOTH_CORNER_PATCH:
+            g_smoothCornerPatch = checked;
+            rebuildMesh();
+            return;
         case kHUD_CB_SINGLE_CREASE_PATCH:
             g_singleCreasePatch = checked;
             rebuildMesh();
@@ -1541,13 +1549,15 @@ initHUD() {
     if (GLUtils::SupportsAdaptiveTessellation()) {
         g_hud.AddCheckBox("Adaptive (`)", g_adaptive!=0,
                           10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
+        g_hud.AddCheckBox("Smooth Corner Patch (O)", g_smoothCornerPatch!=0,
+                          10, 210, callbackCheckBox, kHUD_CB_SMOOTH_CORNER_PATCH, 'o');
         g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
-                          10, 210, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
+                          10, 230, callbackCheckBox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
         g_hud.AddCheckBox("Inf Sharp Patch (I)", g_infSharpPatch!=0,
-                          10, 230, callbackCheckBox, kHUD_CB_INF_SHARP_PATCH, 'i');
+                          10, 250, callbackCheckBox, kHUD_CB_INF_SHARP_PATCH, 'i');
 
         int endcap_pulldown = g_hud.AddPullDown(
-            "End cap (E)", 10, 250, 200, callbackEndCap, 'e');
+            "End cap (E)", 10, 270, 200, callbackEndCap, 'e');
         g_hud.AddPullDownButton(endcap_pulldown,"None",
                                 kEndCapNone,
                                 g_endCap == kEndCapNone);
@@ -1709,7 +1719,7 @@ int main(int argc, char ** argv) {
     glfwMakeContextCurrent(g_window);
     GLUtils::PrintGLVersion();
 
-    // accommocate high DPI displays (e.g. mac retina displays)
+    // accommodate high DPI displays (e.g. mac retina displays)
     glfwGetFramebufferSize(g_window, &g_width, &g_height);
     glfwSetFramebufferSizeCallback(g_window, reshape);
 
@@ -1728,7 +1738,7 @@ int main(int argc, char ** argv) {
         exit(1);
     }
 #ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
+    // clear GL errors which were generated during glewInit()
     glGetError();
 #endif
 #endif

@@ -35,7 +35,7 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 //
-//  Typedef's for indices that are inherited from the Vtr level -- eventually
+//  Typedefs for indices that are inherited from the Vtr level -- eventually
 //  these primitive Vtr types may be declared at a lower, more public level.
 //
 typedef Vtr::Index       Index;

@@ -26,7 +26,7 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// This tutorial presents in a very succint way the requisite steps to
+// This tutorial presents in a very succinct way the requisite steps to
 // instantiate and refine a mesh with Far from simple topological data.
 //
 
@@ -124,7 +124,7 @@ int main(int, char **) {
 
     int maxlevel = 2;
 
-    // Uniformly refine the topolgy up to 'maxlevel'
+    // Uniformly refine the topology up to 'maxlevel'
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 

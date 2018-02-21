@@ -79,3 +79,10 @@ if (DXSDK_FOUND AND NOT NO_DX)
    endif()
 
 endif()
+
+if (METAL_FOUND AND NOT NO_METAL)
+    add_subdirectory(mtlViewer)
+    if(PTEX_FOUND)
+        add_subdirectory(mtlPtexViewer)
+    endif()
+endif()

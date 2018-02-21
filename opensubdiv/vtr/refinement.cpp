@@ -177,7 +177,7 @@ Refinement::refine(Options refineOptions) {
 
 
 //
-//  Methods for construct the parent-to-child mapping
+//  Methods to construct the parent-to-child mapping
 //
 void
 Refinement::populateParentToChildMapping() {
@@ -227,7 +227,7 @@ Refinement::populateParentChildIndices() {
 
     //
     //  Two vertex orderings are currently supported -- ordering vertices refined
-    //  from vertices first, or those refined from faces first.  Its possible this
+    //  from vertices first, or those refined from faces first.  It's possible this
     //  may be extended to more possibilities.  Once the ordering is defined here,
     //  other than analogous initialization in FVarRefinement, the treatment of
     //  vertices in blocks based on origin should make the rest of the code
