@@ -26,6 +26,7 @@
 # source & headers
 set(SOURCE_FILES
     error.cpp
+    endCapBilinearBasisPatchFactory.cpp
     endCapBSplineBasisPatchFactory.cpp
     endCapGregoryBasisPatchFactory.cpp
     endCapLegacyGregoryPatchFactory.cpp
@@ -46,6 +47,7 @@ set(SOURCE_FILES
 
 set(PRIVATE_HEADER_FILES
     gregoryBasis.h
+    endCapBilinearBasisPatchFactory.h
     endCapBSplineBasisPatchFactory.h
     endCapGregoryBasisPatchFactory.h
     endCapLegacyGregoryPatchFactory.h
