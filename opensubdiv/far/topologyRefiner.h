@@ -209,9 +209,8 @@ protected:
     template <class MESH>
     friend class TopologyRefinerFactory;
     friend class TopologyRefinerFactoryBase;
-    friend class PatchTableFactory;
-    friend class EndCapGregoryBasisPatchFactory;
-    friend class EndCapLegacyGregoryPatchFactory;
+    friend class PatchTableBuilder;
+    friend class PatchBuilder;
     friend class PtexIndices;
     friend class PrimvarRefiner;
 

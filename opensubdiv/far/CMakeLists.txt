@@ -25,12 +25,12 @@
 #-------------------------------------------------------------------------------
 # source & headers
 set(SOURCE_FILES
+    bilinearPatchBuilder.cpp
+    catmarkPatchBuilder.cpp
     error.cpp
-    endCapBSplineBasisPatchFactory.cpp
-    endCapGregoryBasisPatchFactory.cpp
-    endCapLegacyGregoryPatchFactory.cpp
-    gregoryBasis.cpp
+    loopPatchBuilder.cpp
     patchBasis.cpp
+    patchBuilder.cpp
     patchDescriptor.cpp
     patchMap.cpp
     patchTable.cpp
@@ -45,11 +45,12 @@ set(SOURCE_FILES
 )
 
 set(PRIVATE_HEADER_FILES
-    gregoryBasis.h
-    endCapBSplineBasisPatchFactory.h
-    endCapGregoryBasisPatchFactory.h
-    endCapLegacyGregoryPatchFactory.h
+    bilinearPatchBuilder.h
+    catmarkPatchBuilder.h
+    loopPatchBuilder.h
     patchBasis.h
+    patchBuilder.h
+    sparseMatrix.h
     stencilBuilder.h
 )
 
