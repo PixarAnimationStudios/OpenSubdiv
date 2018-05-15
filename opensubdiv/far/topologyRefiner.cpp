@@ -386,10 +386,16 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         lessFeaturesMask.ReduceFeatures(options);
     }
 
+    //
+    //  Features are not relevant to schemes whose influence does not extend beyond the
+    //  face -- only irregular faces matter in such cases so clear all other features.
     //  If face-varying channels are considered, make sure non-linear channels are present
     //  and turn off consideration if none present:
-    if (moreFeaturesMask.selectFVarFeatures) {
-        //  Ignore consideration of face-varying channels if none present are non-linear:
+    //
+    if (Sdc::SchemeTypeTraits::GetLocalNeighborhoodSize(_subdivType) == 0) {
+        moreFeaturesMask.Clear();
+        lessFeaturesMask.Clear();
+    } else if (moreFeaturesMask.selectFVarFeatures) {
         bool nonLinearChannelsPresent = false;
         for (int channel = 0; channel < _levels[0]->getNumFVarChannels(); ++channel) {
             nonLinearChannelsPresent |= !_levels[0]->getFVarLevel(channel).isLinear();
@@ -532,6 +538,8 @@ namespace {
     doesFaceHaveFeatures(Vtr::internal::Level const& level, Index face,
                          internal::FeatureMask const & featureMask) {
 
+        if (featureMask.IsEmpty()) return false;
+
         using Vtr::internal::Level;
 
         ConstIndexArray fVerts = level.getFaceVertices(face);
@@ -663,13 +671,15 @@ void
 TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
                                                  internal::FeatureMask const & featureMask) {
 
-    if (featureMask.IsEmpty()) return;
-
     Vtr::internal::Level const& level = selector.getRefinement().parent();
     int levelDepth = level.getDepth();
 
+    bool selectIrregularFaces = (levelDepth == 0);
+    if (featureMask.IsEmpty() && !selectIrregularFaces) return;
+
     int numFVarChannels = featureMask.selectFVarFeatures ? level.getNumFVarChannels() : 0;
     int regularFaceSize = selector.getRefinement().getRegularFaceSize();
+    int neighborhood    = Sdc::SchemeTypeTraits::GetLocalNeighborhoodSize(_subdivType);
 
     //
     //  Inspect each face and the properties tagged at all of its corners:
@@ -689,14 +699,18 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         //  where other faces are selected as a side effect and somewhat undermines the
         //  whole intent of the per-face traversal.
         //
-        if (levelDepth == 0) {
+        if (selectIrregularFaces) {
             Vtr::ConstIndexArray faceVerts = level.getFaceVertices(face);
 
             if (faceVerts.size() != regularFaceSize) {
-                for (int i = 0; i < faceVerts.size(); ++i) {
-                    ConstIndexArray fVertFaces = level.getVertexFaces(faceVerts[i]);
-                    for (int j = 0; j < fVertFaces.size(); ++j) {
-                        selector.selectFace(fVertFaces[j]);
+                if (neighborhood == 0) {
+                    selector.selectFace(face);
+                } else {
+                    for (int i = 0; i < faceVerts.size(); ++i) {
+                        ConstIndexArray fVertFaces = level.getVertexFaces(faceVerts[i]);
+                        for (int j = 0; j < fVertFaces.size(); ++j) {
+                            selector.selectFace(fVertFaces[j]);
+                        }
                     }
                 }
                 continue;
