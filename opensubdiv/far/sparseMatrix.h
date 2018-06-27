@@ -60,7 +60,7 @@ public:
 
 public:
     //  Declaration and access methods:
-    SparseMatrix() : _numRows(0), _numColumns(0) { }
+    SparseMatrix() : _numRows(0), _numColumns(0), _numElements(0) { }
 
     int GetNumRows() const { return _numRows; }
     int GetNumColumns() const { return _numColumns; }
@@ -122,7 +122,7 @@ template <typename REAL>
 inline int
 SparseMatrix<REAL>::GetCapacity() const {
 
-    return (int) _elements.capacity();
+    return (int) _elements.size();
 }
 
 template <typename REAL>
