@@ -35,7 +35,6 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 
 //  Forward declarations (for internal implementation purposes):
-class PtexIndices;
 class TopologyRefiner;
 
 /// \brief Factory for constructing a PatchTable from a TopologyRefiner
@@ -126,40 +125,6 @@ public:
     ///
     static PatchTable * Create(TopologyRefiner const & refiner,
                                Options options=Options());
-
-private:
-    //
-    // Private helper structures
-    //
-    struct BuilderContext;
-
-    //
-    //  Methods for allocating and managing the patch table data arrays:
-    //
-    static PatchTable * createUniform(TopologyRefiner const & refiner,
-                                      Options options);
-
-    static PatchTable * createAdaptive(TopologyRefiner const & refiner,
-                                       Options options);
-
-    //
-    //  High-level methods for identifying and populating patches associated with faces:
-    //
-
-    static void identifyAdaptivePatches(BuilderContext & context);
-
-    static void populateAdaptivePatches(BuilderContext & context,
-                                        PatchTable * table);
-
-    static void allocateVertexTables(BuilderContext const & context,
-                                     PatchTable * table);
-
-    static void allocateFVarChannels(BuilderContext const & context,
-                                     PatchTable * table);
-
-    static PatchParam computePatchParam(BuilderContext const & context,
-                                        int level, int face,
-                                        int boundaryMask, int transitionMask);
 
 public:
     //  PatchFaceTag

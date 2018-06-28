@@ -452,7 +452,7 @@ public:
 
 protected:
 
-    friend class PatchTableFactory;
+    friend class PatchTableBuilder;
 
     // Factory constructor
     PatchTable(int maxvalence);

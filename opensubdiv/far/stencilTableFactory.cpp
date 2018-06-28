@@ -24,7 +24,6 @@
 
 #include "../far/stencilTableFactory.h"
 #include "../far/stencilBuilder.h"
-#include "../far/endCapGregoryBasisPatchFactory.h"
 #include "../far/patchTable.h"
 #include "../far/patchTableFactory.h"
 #include "../far/patchMap.h"

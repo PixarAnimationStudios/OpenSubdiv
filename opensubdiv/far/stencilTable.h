@@ -221,12 +221,7 @@ protected:
     { }
 
     friend class StencilTableFactory;
-    friend class PatchTableFactory;
-    // XXX: temporarily, GregoryBasis class will go away.
-    friend class GregoryBasis;
-    // XXX: needed to call reserve().
-    friend class EndCapBSplineBasisPatchFactory;
-    friend class EndCapGregoryBasisPatchFactory;
+    friend class PatchTableBuilder;
 
     int _numControlVertices;              // number of control vertices
 
