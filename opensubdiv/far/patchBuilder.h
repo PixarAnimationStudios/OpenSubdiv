@@ -81,7 +81,7 @@ public:
     };
 
 public:
-    SourcePatch() { std::memset(this, sizeof(SourcePatch), 0); }
+    SourcePatch() { std::memset(this, 0, sizeof(SourcePatch)); }
     ~SourcePatch() { }
 
     void Finalize();  //  To be called after all Corners have been initialized
