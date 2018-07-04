@@ -1263,7 +1263,7 @@ PatchTableBuilder::estimateLocalPointCount(
     //  LINEAR_BOUNDARIES, combined with inf-sharp patches can increase the
     //  number of irregularities significantly.
     //
-    if (fvarChannel >= 0) {
+    if ((fvarChannel >= 0) && (_refiner.GetNumLevels() > 1)) {
         //
         //  We're seeing face-varying stencil table sizes about 1/4 the size of
         //  the vertex stencil table for what seem like typical cases...
