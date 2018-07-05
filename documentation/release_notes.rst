@@ -31,6 +31,15 @@
 
 ----
 
+Release 3.3.3
+=============
+
+Release 3.3.3 is a minor bug-fix release
+
+**Bug Fixes**
+    - Fixed a regression in PatchTable construction for face-varying patches
+    - Fixed a bug in the initialization of Far::SourcePatch
+
 Release 3.3.2
 =============
 
