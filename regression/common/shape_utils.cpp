@@ -73,8 +73,10 @@ Shape * Shape::parseObj(char const * shapestr, Scheme shapescheme,
     bool done = false;
     while (! done) {
         done = sgets(line, sizeof(line), &str)==0;
-        char* end = &line[strlen(line)-1];
-        if (*end == '\n') *end = '\0'; // strip trailing nl
+        if (line[0]) {
+          char* end = &line[strlen(line)-1];
+          if (*end == '\n') *end = '\0'; // strip trailing nl
+        }
         float x, y, z, u, v;
         switch (line[0]) {
             case 'v': switch (line[1]) {
