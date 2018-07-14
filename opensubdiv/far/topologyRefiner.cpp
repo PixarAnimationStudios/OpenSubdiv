@@ -263,7 +263,7 @@ namespace internal {
         bool IsEmpty() const { return *((int_type*)this) == 0; }
 
         FeatureMask() { Clear(); }
-        FeatureMask(Options const & options, Sdc::SchemeType sType) { InitializeFeatures(options, sType); }
+        FeatureMask(Options const & options, Sdc::SchemeType sType) { Clear(); InitializeFeatures(options, sType); }
 
         //  These are the two primary methods intended for use -- intialization via a set of Options
         //  and reduction of the subsequent feature set (which presumes prior initialization with the
