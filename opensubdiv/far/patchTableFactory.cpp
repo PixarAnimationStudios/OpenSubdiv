@@ -926,7 +926,7 @@ PatchTableBuilder::populateAdaptivePatches() {
     struct PatchArrayBuilder {
         PatchArrayBuilder()
             : patchType(PatchDescriptor::NON_PATCH), numPatches(0)
-            , iptr(NULL), pptr(NULL), sptr(NULL) { }
+            , iptr(NULL), pptr(NULL), sptr(NULL), vptr(NULL) { }
 
         PatchDescriptor::Type patchType;
         int numPatches;
@@ -934,6 +934,7 @@ PatchTableBuilder::populateAdaptivePatches() {
         Index      *iptr;
         PatchParam *pptr;
         Index      *sptr;
+        Index      *vptr;
 
         StackBuffer<Index*,1>      fptr;   // fvar indices
         StackBuffer<PatchParam*,1> fpptr;  // fvar patch-params
@@ -1019,6 +1020,9 @@ PatchTableBuilder::populateAdaptivePatches() {
         arrayBuilder.pptr = _table->getPatchParams(arrayIndex).begin();
         if (_requiresSharpnessArray) {
             arrayBuilder.sptr = _table->getSharpnessIndices(arrayIndex);
+        }
+        if (_requiresVaryingPatches) {
+            arrayBuilder.vptr = _table->getPatchArrayVaryingVertices(arrayIndex).begin();
         }
 
         if (_requiresFVarPatches) {
@@ -1160,8 +1164,7 @@ PatchTableBuilder::populateAdaptivePatches() {
         }
 
         if (_requiresVaryingPatches) {
-            assignFacePoints(patch, &_table->_varyingVerts[
-                patchIndex * _patchBuilder->GetRegularFaceSize()]);
+            arrayBuilder->vptr += assignFacePoints(patch, arrayBuilder->vptr);
         }
     }
 
