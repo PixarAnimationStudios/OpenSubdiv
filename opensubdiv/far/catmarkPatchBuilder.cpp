@@ -1898,10 +1898,11 @@ namespace {
     };
 }
 
+template <typename REAL>
 int
-CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+CatmarkPatchBuilder::convertSourcePatch(SourcePatch const &   sourcePatch,
                                         PatchDescriptor::Type patchType,
-                                        SparseMatrix<float> & matrix) const {
+                                        SparseMatrix<REAL> &  matrix) const {
 
     assert(_schemeType == Sdc::SCHEME_CATMARK);
 
@@ -1912,15 +1913,28 @@ CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
     //
     
     if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        GregoryConverter<float>(sourcePatch, matrix);
+        GregoryConverter<REAL>(sourcePatch, matrix);
     } else if (patchType == PatchDescriptor::REGULAR) {
-        BSplineConverter<float>(sourcePatch, matrix);
+        BSplineConverter<REAL>(sourcePatch, matrix);
     } else if (patchType == PatchDescriptor::QUADS) {
-        LinearConverter<float>(sourcePatch, matrix);
+        LinearConverter<REAL>(sourcePatch, matrix);
     } else {
         assert("Unknown or unsupported patch type" == 0);
     }
     return matrix.GetNumRows();
+}
+
+int
+CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+                                        PatchDescriptor::Type patchType,
+                                        SparseMatrix<float> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
+}
+int
+CatmarkPatchBuilder::convertToPatchType(SourcePatch const &    sourcePatch,
+                                        PatchDescriptor::Type  patchType,
+                                        SparseMatrix<double> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
 }
 
 CatmarkPatchBuilder::CatmarkPatchBuilder(

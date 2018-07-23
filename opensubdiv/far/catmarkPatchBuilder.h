@@ -53,9 +53,17 @@ protected:
     virtual int convertToPatchType(SourcePatch const &   sourcePatch,
                                    PatchDescriptor::Type patchType,
                                    SparseMatrix<float> & matrix) const;
+    virtual int convertToPatchType(SourcePatch const &    sourcePatch,
+                                   PatchDescriptor::Type  patchType,
+                                   SparseMatrix<double> & matrix) const;
 
 private:
     typedef SparseMatrix<float>   ConversionMatrix;
+
+    template <typename REAL>
+    int convertSourcePatch(SourcePatch const &   sourcePatch,
+                           PatchDescriptor::Type patchType,
+                           SparseMatrix<REAL> &  matrix) const;
 };
 
 } // end namespace Far
