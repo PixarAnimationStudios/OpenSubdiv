@@ -73,10 +73,11 @@ BilinearPatchBuilder::patchTypeFromBasis(BasisType basis) const {
     return patchTypeFromBasisArray[(int)basis];
 }
 
+template <typename REAL>
 int
-BilinearPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+BilinearPatchBuilder::convertSourcePatch(SourcePatch const &   sourcePatch,
                                          PatchDescriptor::Type patchType,
-                                         SparseMatrix<float> & matrix) const {
+                                         SparseMatrix<REAL> &  matrix) const {
 
     assert("Conversion from Bilinear patches to other bases not yet supported" == 0);
 
@@ -85,6 +86,19 @@ BilinearPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
     if (patchType == PatchDescriptor::NON_PATCH) return -1;
     if (matrix.GetNumRows() <= 0) return -1;
     return -1;
+}
+
+int
+BilinearPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+                                         PatchDescriptor::Type patchType,
+                                         SparseMatrix<float> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
+}
+int
+BilinearPatchBuilder::convertToPatchType(SourcePatch const &    sourcePatch,
+                                         PatchDescriptor::Type  patchType,
+                                         SparseMatrix<double> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
 }
 
 } // end namespace Far

@@ -72,10 +72,11 @@ LoopPatchBuilder::patchTypeFromBasis(BasisType basis) const {
     return patchTypeFromBasisArray[(int)basis];
 }
 
+template <typename REAL>
 int
-LoopPatchBuilder::convertToPatchType(SourcePatch const &       sourcePatch,
-                                         PatchDescriptor::Type patchType,
-                                         SparseMatrix<float> & matrix) const {
+LoopPatchBuilder::convertSourcePatch(SourcePatch const &   sourcePatch,
+                                     PatchDescriptor::Type patchType,
+                                     SparseMatrix<REAL> &  matrix) const {
 
     assert("Non-linear patches for Loop not yet supported" == 0);
 
@@ -85,6 +86,20 @@ LoopPatchBuilder::convertToPatchType(SourcePatch const &       sourcePatch,
     if (matrix.GetNumRows() <= 0) return -1;
     return -1;
 }
+
+int
+LoopPatchBuilder::convertToPatchType(SourcePatch const &       sourcePatch,
+                                         PatchDescriptor::Type patchType,
+                                         SparseMatrix<float> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
+}
+int
+LoopPatchBuilder::convertToPatchType(SourcePatch const &        sourcePatch,
+                                         PatchDescriptor::Type  patchType,
+                                         SparseMatrix<double> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
+}
+
 
 } // end namespace Far
 

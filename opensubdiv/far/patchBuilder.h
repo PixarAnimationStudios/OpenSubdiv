@@ -226,9 +226,10 @@ public:
             Index patchPoints[],
             int fvc = -1) const;
 
+    template <typename REAL>
     int GetIrregularPatchConversionMatrix(int level, Index face,
             Vtr::internal::Level::VSpan const cornerSpans[],
-            SparseMatrix<float> &             matrix) const;
+            SparseMatrix<REAL> &              matrix) const;
 
     int GetIrregularPatchSourcePoints(int level, Index face,
             Vtr::internal::Level::VSpan const cornerSpans[],
@@ -293,9 +294,13 @@ protected:
     //
     virtual PatchDescriptor::Type patchTypeFromBasis(BasisType basis) const = 0;
 
+    //  Note overloading of the conversion for SparseMatrix<REAL>:
     virtual int convertToPatchType(SourcePatch const &   sourcePatch,
                                    PatchDescriptor::Type patchType,
                                    SparseMatrix<float> & matrix) const = 0;
+    virtual int convertToPatchType(SourcePatch const &    sourcePatch,
+                                   PatchDescriptor::Type  patchType,
+                                   SparseMatrix<double> & matrix) const = 0;
 
 protected:
     TopologyRefiner const& _refiner;

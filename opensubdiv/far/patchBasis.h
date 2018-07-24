@@ -45,17 +45,21 @@ namespace internal {
 // So this interface will be changing in future.
 //
 
-void GetBilinearWeights(PatchParam const & patchParam,
-    float s, float t, float wP[4], float wDs[4], float wDt[4], float wDss[4] = 0, float wDst[4] = 0, float wDtt[4] = 0);
+template <typename REAL>
+void GetBilinearWeights(PatchParam const & patchParam, REAL s, REAL t,
+    REAL wP[4], REAL wDs[4], REAL wDt[4], REAL wDss[4] = 0, REAL wDst[4] = 0, REAL wDtt[4] = 0);
 
-void GetBezierWeights(PatchParam const & patchParam,
-    float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
+template <typename REAL>
+void GetBezierWeights(PatchParam const & patchParam, REAL s, REAL t,
+    REAL wP[16], REAL wDs[16], REAL wDt[16], REAL wDss[16] = 0, REAL wDst[16] = 0, REAL wDtt[16] = 0);
 
-void GetBSplineWeights(PatchParam const & patchParam,
-    float s, float t, float wP[16], float wDs[16], float wDt[16], float wDss[16] = 0, float wDst[16] = 0, float wDtt[16] = 0);
+template <typename REAL>
+void GetBSplineWeights(PatchParam const & patchParam, REAL s, REAL t,
+    REAL wP[16], REAL wDs[16], REAL wDt[16], REAL wDss[16] = 0, REAL wDst[16] = 0, REAL wDtt[16] = 0);
 
-void GetGregoryWeights(PatchParam const & patchParam,
-    float s, float t, float wP[20], float wDs[20], float wDt[20], float wDss[20] = 0, float wDst[20] = 0, float wDtt[20] = 0);
+template <typename REAL>
+void GetGregoryWeights(PatchParam const & patchParam, REAL s, REAL t,
+    REAL wP[20], REAL wDs[20], REAL wDt[20], REAL wDss[20] = 0, REAL wDst[20] = 0, REAL wDtt[20] = 0);
 
 
 } // end namespace internal

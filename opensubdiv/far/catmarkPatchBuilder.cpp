@@ -22,12 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../far/catmarkPatchBuilder.h"
-#include "../vtr/stackBuffer.h"
-
-#include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <cassert>
+
+#include "../far/catmarkPatchBuilder.h"
+#include "../vtr/stackBuffer.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -53,51 +53,63 @@ namespace Far {
 //  retrieved from Sdc::Scheme to ensure they conform, so future factoring
 //  of the formulae is still necessary.
 //
-//  XXXX (barfowl) - /internal computations are not implemented in terms
-//  of <REAL>, only the interface supports <REAL>.  Need to eventually
-//  remove remaining computations using "float" and define a mechanism
-//  to invoke the appropriate precision math functions, e.g. calling
-//  something like Math<float>::Cos(), etc.
+//  Regarding support for multiple precision, like Sdc, some intermediate
+//  calculations are performed in double and cast to float.  Historically
+//  this conversion code has been purely float and later extended to 
+//  support template <typename REAL>.  For math functions such as cos(),
+//  sin(), etc., we rely on overloading via <cmath> through the use of
+//  std::cos(), std::sin(), etc.
 //
 template <typename REAL>
 struct CatmarkLimits {
 public:
+    typedef REAL Weight;
+
     static void ComputeInteriorPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights);
+                Weight* pWeights, Weight* epWeights, Weight* emWeights);
 
     static void ComputeBoundaryPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights);
+                Weight* pWeights, Weight* epWeights, Weight* emWeights);
 
 private:
-    //
-    //  Lookup table and formula for the scale factor applied to limit
-    //  tangents that arises from eigen values of the subdivision matrix
-    //
-    static inline float computeCoefficient(int valence) {
-        // precomputed coefficient table up to valence 29
-        static float efTable[] = {
-            0, 0, 0,
-            0.812816f, 0.500000f, 0.363644f, 0.287514f,
-            0.238688f, 0.204544f, 0.179229f, 0.159657f,
-            0.144042f, 0.131276f, 0.120632f, 0.111614f,
-            0.103872f, 0.09715f, 0.0912559f, 0.0860444f,
-            0.0814022f, 0.0772401f, 0.0734867f, 0.0700842f,
-            0.0669851f, 0.0641504f, 0.0615475f, 0.0591488f,
-            0.0569311f, 0.0548745f, 0.0529621f
-        };
-        assert(valence > 0);
-        if (valence < 30) return efTable[valence];
-
-        float t = 2.0f * float(M_PI) / float(valence);
-        return 1.0f / (valence * (cosf(t) + 5.0f +
-                                  sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
-    }
+    static double computeCoefficient(int valence);
 };
+
+//
+//  Lookup table and formula for the scale factor applied to limit
+//  tangents that arises from eigen values of the subdivision matrix.
+//  Historically 30 values have been stored -- up to valence 29.
+//
+template <typename REAL>
+inline double
+CatmarkLimits<REAL>::computeCoefficient(int valence) {
+
+    static double const efTable[] = {
+        0.0,                    0.0,                    0.0,                   
+        8.1281572906372312e-01, 0.5,                    3.6364406329142801e-01,
+        2.8751379706077085e-01, 2.3868786685851678e-01, 2.0454364190756097e-01,
+        1.7922903958061159e-01, 1.5965737079986253e-01, 1.4404233443011302e-01,
+        1.3127568415883017e-01, 1.2063172212675841e-01, 1.1161437506676930e-01,
+        1.0387245516114274e-01, 9.7150019090724835e-02, 9.1255917505950648e-02,
+        8.6044378511602668e-02, 8.1402211336798411e-02, 7.7240129516184072e-02,
+        7.3486719751997026e-02, 7.0084157479797987e-02, 6.6985104030725440e-02,
+        6.4150420569810074e-02, 6.1547457638637268e-02, 5.9148757447233989e-02,
+        5.6931056818776957e-02, 5.4874512279256417e-02, 5.2962091433796134e-02
+    };
+    assert(valence > 0);
+    if (valence < 30) return efTable[valence];
+
+    double invValence = 1.0 / valence;
+    double cosT = std::cos(2.0 * M_PI * invValence);
+    double divisor = (cosT + 5.0) + std::sqrt((cosT + 9.0) * (cosT + 1.0));
+
+    return (16.0 * invValence / divisor);
+}
 
 template <typename REAL>
 void
 CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights) {
+                Weight* pWeights, Weight* epWeights, Weight* emWeights) {
 
     //
     //  For the limit tangents of an interior vertex, the second tangent is a
@@ -123,14 +135,14 @@ CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
     //
     bool computeEdgePoints = epWeights && emWeights;
 
-    float fValence        = float(valence);
-    float oneOverValence  = 1.0f / fValence;
-    float oneOverValPlus5 = 1.0f / (fValence + 5.0f);
+    double fValence        = (double) valence;
+    double oneOverValence  = 1.0f / fValence;
+    double oneOverValPlus5 = 1.0f / (fValence + 5.0f);
 
-    float pCoeff   = oneOverValence * oneOverValPlus5;
-    float tanCoeff = computeCoefficient(valence) * 0.5f * oneOverValPlus5;
+    double pCoeff   = oneOverValence * oneOverValPlus5;
+    double tanCoeff = computeCoefficient(valence) * 0.5f * oneOverValPlus5;
 
-    float faceAngle = 2.0f * float(M_PI) * oneOverValence;
+    double faceAngle = 2.0 * M_PI * oneOverValence;
 
     //
     //  Assign position weights directly while accumulating an intermediate set
@@ -139,28 +151,28 @@ CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
     //  have to deal with the off-by-one offset within the loop:
     //
     int weightWidth = 1 + 2 * valence;
-    StackBuffer<REAL, 64, true> tanWeights(weightWidth);
-    std::memset(&tanWeights[0], 0, weightWidth * sizeof(REAL));
+    StackBuffer<Weight, 64, true> tanWeights(weightWidth);
+    std::memset(&tanWeights[0], 0, weightWidth * sizeof(Weight));
 
-    pWeights[0] = fValence * oneOverValPlus5;
+    pWeights[0] = (Weight) (fValence * oneOverValPlus5);
 
-    REAL *pW = &pWeights[1];
-    REAL *tW = &tanWeights[1];
+    Weight *pW = &pWeights[1];
+    Weight *tW = &tanWeights[1];
     for (int i = 0; i < valence; ++i) {
-        pW[2*i]     = pCoeff * 4.0f;
-        pW[2*i + 1] = pCoeff;
+        pW[2*i]     = (Weight) (pCoeff * 4.0f);
+        pW[2*i + 1] = (Weight)  pCoeff;
 
         if (computeEdgePoints) {
             int iPrev = (i + valence - 1) % valence;
             int iNext = (i + 1) % valence;
 
-            float cosICoeff = tanCoeff * cosf(float(i) * faceAngle);
+            double cosICoeff = tanCoeff * std::cos(faceAngle * i);
 
-            tW[2*iPrev]     += cosICoeff * 2.0f;
-            tW[2*iPrev + 1] += cosICoeff;
-            tW[2*i]         += cosICoeff * 4.0f;
-            tW[2*i + 1]     += cosICoeff;
-            tW[2*iNext]     += cosICoeff * 2.0f;
+            tW[2*iPrev]     += (Weight) (cosICoeff * 2.0f);
+            tW[2*iPrev + 1] += (Weight)  cosICoeff;
+            tW[2*i]         += (Weight) (cosICoeff * 4.0f);
+            tW[2*i + 1]     += (Weight)  cosICoeff;
+            tW[2*iNext]     += (Weight) (cosICoeff * 2.0f);
         }
     }
 
@@ -189,10 +201,10 @@ CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
 template <typename REAL>
 void
 CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights) {
+                Weight* pWeights, Weight* epWeights, Weight* emWeights) {
 
-    int   numFaces  = valence - 1;
-    float faceAngle = float(M_PI) / float(numFaces);
+    int    numFaces  = valence - 1;
+    double faceAngle = M_PI / numFaces;
 
     int weightWidth = 2 * valence;
 
@@ -201,11 +213,11 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //
     //  Position weights are trivial:
     //
-    std::memset(&pWeights[0],  0, weightWidth * sizeof(float));
+    std::memset(&pWeights[0],  0, weightWidth * sizeof(Weight));
 
-    pWeights[0] = 4.0f / 6.0f;
-    pWeights[1] = 1.0f / 6.0f;
-    pWeights[N] = 1.0f / 6.0f;
+    pWeights[0] = (Weight) (4.0 / 6.0);
+    pWeights[1] = (Weight) (1.0 / 6.0);
+    pWeights[N] = (Weight) (1.0 / 6.0);
 
     if ((epWeights == 0) && (emWeights == 0)) return;
 
@@ -215,32 +227,36 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //  by two non-zero weights, so allocate and compute weights for the
     //  interior tangent:
     //
-    float tBoundaryWeight_1 =  1.0f / 6.0f;
-    float tBoundaryWeight_N = -1.0f / 6.0f;
+    double tBoundaryCoeff_1 = ( 1.0 / 6.0);
+    double tBoundaryCoeff_N = (-1.0 / 6.0);
 
-    StackBuffer<REAL, 64, true> tanWeights(weightWidth);
+    StackBuffer<Weight, 64, true> tanWeights(weightWidth);
     {
-        float k = float(numFaces);
-        float theta = faceAngle;
-        float c = cosf(theta);
-        float s = sinf(theta);
-        float div3 = 1.0f / 3.0f;
-        float div3kc = 1.0f / (3.0f*k+c);
-        float gamma = -4.0f * s * div3kc;
-        float alpha_0k = -((1.0f+2.0f*c) * sqrtf(1.0f+c)) * div3kc / sqrtf(1.0f-c);
-        float beta_0 = s * div3kc;
+        double k = (double) numFaces;
+        double theta = faceAngle;
+        double c = std::cos(theta);
+        double s = std::sin(theta);
+        double div3 = 1.0 / 3.0;
+        double div3kc = 1.0f / (3.0f * k + c);
+        double gamma = -4.0f * s * div3kc;
+        double alpha_0k = -((1.0f + 2.0f * c) * std::sqrt(1.0f + c)) * div3kc
+                        / std::sqrt(1.0f - c);
+        double beta_0 = s * div3kc;
 
-        tanWeights[0] = gamma * div3;
-        tanWeights[1] = alpha_0k * div3;
-        tanWeights[2] = beta_0 * div3;
-        tanWeights[N] = alpha_0k * div3;
+        tanWeights[0] = (Weight) (gamma * div3);
+        tanWeights[1] = (Weight) (alpha_0k * div3);
+        tanWeights[2] = (Weight) (beta_0 * div3);
+        tanWeights[N] = (Weight) (alpha_0k * div3);
 
         for (int i = 1; i < valence - 1; ++i) {
-            float alpha = 4.0f * sinf(float(i)*theta) * div3kc;
-            float beta = (sinf(float(i)*theta) + sinf(float(i+1)*theta)) * div3kc;
+            double sinThetaI      = std::sin(theta * i);
+            double sinThetaIplus1 = std::sin(theta * (i+1));
 
-            tanWeights[1 + 2*i]     = alpha * div3;
-            tanWeights[1 + 2*i + 1] = beta * div3;
+            double alpha = 4.0f * sinThetaI * div3kc;
+            double beta = (sinThetaI + sinThetaIplus1) * div3kc;
+
+            tanWeights[1 + 2*i]     = (Weight) (alpha * div3);
+            tanWeights[1 + 2*i + 1] = (Weight) (beta * div3);
         }
     }
 
@@ -249,23 +265,23 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //
     if (faceInRing == 0) {
         //  Ep is on boundary edge and has only two weights:  w[1] and w[N]
-        std::memset(&epWeights[0], 0, weightWidth * sizeof(float));
+        std::memset(&epWeights[0], 0, weightWidth * sizeof(Weight));
 
-        epWeights[0] = 2.0f / 3.0f;
-        epWeights[1] = 1.0f / 3.0f;
+        epWeights[0] = (Weight) (2.0 / 3.0);
+        epWeights[1] = (Weight) (1.0 / 3.0);
     } else {
         //  Ep is on interior edge and has all weights
         int iEdgeNext = faceInRing;
-        float faceAngleNext = faceAngle * float(iEdgeNext);
-        float cosAngleNext  = cosf(faceAngleNext);
-        float sinAngleNext  = sinf(faceAngleNext);
+        double faceAngleNext = faceAngle * iEdgeNext;
+        double cosAngleNext  = std::cos(faceAngleNext);
+        double sinAngleNext  = std::sin(faceAngleNext);
 
         for (int i = 0; i < weightWidth; ++i) {
-            epWeights[i] = tanWeights[i] * sinAngleNext;
+            epWeights[i] = (Weight)(tanWeights[i] * sinAngleNext);
         }
         epWeights[0] += pWeights[0];
-        epWeights[1] += pWeights[1] + tBoundaryWeight_1 * cosAngleNext;
-        epWeights[N] += pWeights[N] + tBoundaryWeight_N * cosAngleNext;
+        epWeights[1] += pWeights[1] + (Weight)(tBoundaryCoeff_1 * cosAngleNext);
+        epWeights[N] += pWeights[N] + (Weight)(tBoundaryCoeff_N * cosAngleNext);
     }
 
     //
@@ -273,23 +289,23 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //
     if (faceInRing == (numFaces - 1)) {
         //  Em is on boundary edge and has only two weights:  w[1] and w[N]
-        std::memset(&emWeights[0], 0, weightWidth * sizeof(float));
+        std::memset(&emWeights[0], 0, weightWidth * sizeof(Weight));
 
-        emWeights[0] = 2.0f / 3.0f;
-        emWeights[N] = 1.0f / 3.0f;
+        emWeights[0] = (Weight) (2.0 / 3.0);
+        emWeights[N] = (Weight) (1.0 / 3.0);
     } else {
         //  Em is on interior edge and has all weights
         int iEdgePrev = (faceInRing + 1) % valence;
-        float faceAnglePrev = faceAngle * float(iEdgePrev);
-        float cosAnglePrev  = cosf(faceAnglePrev);
-        float sinAnglePrev  = sinf(faceAnglePrev);
+        double faceAnglePrev = faceAngle * iEdgePrev;
+        double cosAnglePrev  = std::cos(faceAnglePrev);
+        double sinAnglePrev  = std::sin(faceAnglePrev);
 
         for (int i = 0; i < weightWidth; ++i) {
-            emWeights[i] = tanWeights[i] * sinAnglePrev;
+            emWeights[i] = (Weight)(tanWeights[i] * sinAnglePrev);
         }
         emWeights[0] += pWeights[0];
-        emWeights[1] += pWeights[1] + tBoundaryWeight_1 * cosAnglePrev;
-        emWeights[N] += pWeights[N] + tBoundaryWeight_N * cosAnglePrev;
+        emWeights[1] += pWeights[1] + (Weight)(tBoundaryCoeff_1 * cosAnglePrev);
+        emWeights[N] += pWeights[N] + (Weight)(tBoundaryCoeff_N * cosAnglePrev);
     }
 }
 
@@ -711,12 +727,11 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
             corner.cosFaceAngle = 0.0f;
             corner.sinFaceAngle = 1.0f;
         } else {
-            // XXXX (barfowl) - use of sine/cosine here needs to respect <REAL>
             corner.faceAngle =
                 (corner.isBoundary ? REAL(M_PI) : (2.0f * REAL(M_PI)))
                     / REAL(corner.numFaces);
-            corner.cosFaceAngle = cosf(corner.faceAngle);
-            corner.sinFaceAngle = sinf(corner.faceAngle);
+            corner.cosFaceAngle = std::cos(corner.faceAngle);
+            corner.sinFaceAngle = std::sin(corner.faceAngle);
         }
 
         corner.ringPoints.SetSize(sourcePatch.GetCornerRingSize(cIndex));
@@ -1047,11 +1062,11 @@ GregoryConverter<REAL>::computeIrregularEdgePoints(int cIndex,
         p.Append(cIndex, 1.0f);
 
         // Approximating these for now, pending future investigation...
-        ep.Append(cIndex,           2.0f / 3.0f);
-        ep.Append((cIndex+1) & 0x3, 1.0f / 3.0f);
+        ep.Append(cIndex,           (REAL)(2.0 / 3.0));
+        ep.Append((cIndex+1) & 0x3, (REAL)(1.0 / 3.0));
 
-        em.Append(cIndex,           2.0f / 3.0f);
-        em.Append((cIndex+3) & 0x3, 1.0f / 3.0f);
+        em.Append(cIndex,           (REAL)(2.0 / 3.0));
+        em.Append((cIndex+3) & 0x3, (REAL)(1.0 / 3.0));
     } else if (! corner.isBoundary) {
         //
         //  The irregular interior case:
@@ -1066,15 +1081,15 @@ GregoryConverter<REAL>::computeIrregularEdgePoints(int cIndex,
         //
         //  The irregular/smooth corner case:
         //
-        p.Append(cIndex,           4.0f / 6.0f);
-        p.Append((cIndex+1) & 0x3, 1.0f / 6.0f);
-        p.Append((cIndex+3) & 0x3, 1.0f / 6.0f);
+        p.Append(cIndex,           (REAL)(4.0 / 6.0));
+        p.Append((cIndex+1) & 0x3, (REAL)(1.0 / 6.0));
+        p.Append((cIndex+3) & 0x3, (REAL)(1.0 / 6.0));
 
-        ep.Append(cIndex,           2.0f / 3.0f);
-        ep.Append((cIndex+1) & 0x3, 1.0f / 3.0f);
+        ep.Append(cIndex,           (REAL)(2.0 / 3.0));
+        ep.Append((cIndex+1) & 0x3, (REAL)(1.0 / 3.0));
 
-        em.Append(cIndex,           2.0f / 3.0f);
-        em.Append((cIndex+3) & 0x3, 1.0f / 3.0f);
+        em.Append(cIndex,           (REAL)(2.0 / 3.0));
+        em.Append((cIndex+3) & 0x3, (REAL)(1.0 / 3.0));
     }
 
     assert(matrix.GetRowSize(5*cIndex + 0) == p.GetSize());
@@ -1288,17 +1303,17 @@ GregoryConverter<REAL>::assignRegularFacePoints(int cIndex, Matrix & matrix) con
 
     //  Assign regular Fp and/or Fm:
     if (corner.fpIsRegular) {
-        fp.Append(cIndex, 4.0f / 9.0f);
-        fp.Append(cPrev,  2.0f / 9.0f);
-        fp.Append(cNext,  2.0f / 9.0f);
-        fp.Append(cOpp,   1.0f / 9.0f);
+        fp.Append(cIndex, (REAL)(4.0 / 9.0));
+        fp.Append(cPrev,  (REAL)(2.0 / 9.0));
+        fp.Append(cNext,  (REAL)(2.0 / 9.0));
+        fp.Append(cOpp,   (REAL)(1.0 / 9.0));
         assert(matrix.GetRowSize(5*cIndex + 3) == fp.GetSize());
     }
     if (corner.fmIsRegular) {
-        fm.Append(cIndex, 4.0f / 9.0f);
-        fm.Append(cPrev,  2.0f / 9.0f);
-        fm.Append(cNext,  2.0f / 9.0f);
-        fm.Append(cOpp,   1.0f / 9.0f);
+        fm.Append(cIndex, (REAL)(4.0 / 9.0));
+        fm.Append(cPrev,  (REAL)(2.0 / 9.0));
+        fm.Append(cNext,  (REAL)(2.0 / 9.0));
+        fm.Append(cOpp,   (REAL)(1.0 / 9.0));
         assert(matrix.GetRowSize(5*cIndex + 4) == fm.GetSize());
     }
 }
@@ -1692,7 +1707,7 @@ BSplineConverter<REAL>::convertIrregularCorner(int irregularCorner,
     wX0[p3inRing] =  4.0f;
 
     //  Combine weights for all X[] in one iteration through the ring:
-    const REAL oneThird = 1.0f / 3.0f;
+    const REAL oneThird = (REAL) (1.0 / 3.0);
     for (int i = 0; i < ringSizePlusCorner; ++i) {
         wX1[i] = (36.0f * wEp[i] - wX1[i]) * oneThird;
         wX2[i] = (36.0f * wEm[i] - wX2[i]) * oneThird;
@@ -1898,10 +1913,11 @@ namespace {
     };
 }
 
+template <typename REAL>
 int
-CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+CatmarkPatchBuilder::convertSourcePatch(SourcePatch const &   sourcePatch,
                                         PatchDescriptor::Type patchType,
-                                        SparseMatrix<float> & matrix) const {
+                                        SparseMatrix<REAL> &  matrix) const {
 
     assert(_schemeType == Sdc::SCHEME_CATMARK);
 
@@ -1912,15 +1928,28 @@ CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
     //
     
     if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        GregoryConverter<float>(sourcePatch, matrix);
+        GregoryConverter<REAL>(sourcePatch, matrix);
     } else if (patchType == PatchDescriptor::REGULAR) {
-        BSplineConverter<float>(sourcePatch, matrix);
+        BSplineConverter<REAL>(sourcePatch, matrix);
     } else if (patchType == PatchDescriptor::QUADS) {
-        LinearConverter<float>(sourcePatch, matrix);
+        LinearConverter<REAL>(sourcePatch, matrix);
     } else {
         assert("Unknown or unsupported patch type" == 0);
     }
     return matrix.GetNumRows();
+}
+
+int
+CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+                                        PatchDescriptor::Type patchType,
+                                        SparseMatrix<float> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
+}
+int
+CatmarkPatchBuilder::convertToPatchType(SourcePatch const &    sourcePatch,
+                                        PatchDescriptor::Type  patchType,
+                                        SparseMatrix<double> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
 }
 
 CatmarkPatchBuilder::CatmarkPatchBuilder(
