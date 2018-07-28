@@ -22,12 +22,12 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include <cmath>
-#include <cstdio>
-#include <cassert>
-
 #include "../far/catmarkPatchBuilder.h"
 #include "../vtr/stackBuffer.h"
+
+#include <cassert>
+#include <cmath>
+#include <cstdio>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
