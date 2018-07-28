@@ -199,7 +199,7 @@ private:
     void limit(T const & src, U & pos, U1 * tan1, U2 * tan2) const;
 
     template <Sdc::SchemeType SCHEME, class T, class U>
-    void limitFVar(T const & src, U * dst, int channel) const;
+    void limitFVar(T const & src, U & dst, int channel) const;
 
 private:
 
@@ -1136,7 +1136,7 @@ PrimvarRefiner::limit(T const & src, U & dstPos, U1 * dstTan1Ptr, U2 * dstTan2Pt
 
 template <Sdc::SchemeType SCHEME, class T, class U>
 inline void
-PrimvarRefiner::limitFVar(T const & src, U * dst, int channel) const {
+PrimvarRefiner::limitFVar(T const & src, U & dst, int channel) const {
 
     Sdc::Scheme<SCHEME> scheme(_refiner._subdivOptions);
 
