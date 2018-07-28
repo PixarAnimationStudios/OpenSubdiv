@@ -390,9 +390,22 @@ public:
     ///
     /// @param wDvv    Weights (evaluated basis functions) for 2nd derivative wrt v
     ///
+    template <typename REAL>
+    void EvaluateBasis(PatchHandle const & handle, REAL u, REAL v,
+        REAL wP[], REAL wDu[] = 0, REAL wDv[] = 0,
+        REAL wDuu[] = 0, REAL wDuv[] = 0, REAL wDvv[] = 0) const;
+
+    /// \brief  An overloaded version to assist template parameter resolution
+    /// when explicitly declaring unused array arguments as 0.
     void EvaluateBasis(PatchHandle const & handle, float u, float v,
         float wP[], float wDu[] = 0, float wDv[] = 0,
         float wDuu[] = 0, float wDuv[] = 0, float wDvv[] = 0) const;
+
+    /// \brief  An overloaded version to assist template parameter resolution
+    /// when explicitly declaring unused array arguments as 0.
+    void EvaluateBasis(PatchHandle const & handle, double u, double v,
+        double wP[], double wDu[] = 0, double wDv[] = 0,
+        double wDuu[] = 0, double wDuv[] = 0, double wDvv[] = 0) const;
 
     /// \brief Evaluate basis functions for a varying value and
     /// derivatives at a given (u,v) parametric location of a patch.
@@ -416,9 +429,22 @@ public:
     ///
     /// @param wDvv    Weights (evaluated basis functions) for 2nd derivative wrt v
     ///
+    template <typename REAL>
+    void EvaluateBasisVarying(PatchHandle const & handle, REAL u, REAL v,
+        REAL wP[], REAL wDu[] = 0, REAL wDv[] = 0,
+        REAL wDuu[] = 0, REAL wDuv[] = 0, REAL wDvv[] = 0) const;
+
+    /// \brief  An overloaded version to assist template parameter resolution
+    /// when explicitly declaring unused array arguments as 0.
     void EvaluateBasisVarying(PatchHandle const & handle, float u, float v,
         float wP[], float wDu[] = 0, float wDv[] = 0,
         float wDuu[] = 0, float wDuv[] = 0, float wDvv[] = 0) const;
+
+    /// \brief  An overloaded version to assist template parameter resolution
+    /// when explicitly declaring unused array arguments as 0.
+    void EvaluateBasisVarying(PatchHandle const & handle, double u, double v,
+        double wP[], double wDu[] = 0, double wDv[] = 0,
+        double wDuu[] = 0, double wDuv[] = 0, double wDvv[] = 0) const;
 
     /// \brief Evaluate basis functions for a face-varying value and
     /// derivatives at a given (u,v) parametric location of a patch.
@@ -444,9 +470,24 @@ public:
     ///
     /// @param channel face-varying channel
     ///
+    template <typename REAL>
+    void EvaluateBasisFaceVarying(PatchHandle const & handle, REAL u, REAL v,
+        REAL wP[], REAL wDu[] = 0, REAL wDv[] = 0,
+        REAL wDuu[] = 0, REAL wDuv[] = 0, REAL wDvv[] = 0,
+        int channel = 0) const;
+
+    /// \brief  An overloaded version to assist template parameter resolution
+    /// when explicitly declaring unused array arguments as 0.
     void EvaluateBasisFaceVarying(PatchHandle const & handle, float u, float v,
         float wP[], float wDu[] = 0, float wDv[] = 0,
         float wDuu[] = 0, float wDuv[] = 0, float wDvv[] = 0,
+        int channel = 0) const;
+
+    /// \brief  An overloaded version to assist template parameter resolution
+    /// when explicitly declaring unused array arguments as 0.
+    void EvaluateBasisFaceVarying(PatchHandle const & handle, double u, double v,
+        double wP[], double wDu[] = 0, double wDv[] = 0,
+        double wDuu[] = 0, double wDuv[] = 0, double wDvv[] = 0,
         int channel = 0) const;
     //@}
 
@@ -594,6 +635,53 @@ PatchTable::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel
     }
 }
 
+//
+//  Basis evaluation overloads
+//
+inline void
+PatchTable::EvaluateBasis(PatchHandle const & handle, float u, float v,
+    float wP[], float wDu[], float wDv[],
+    float wDuu[], float wDuv[], float wDvv[]) const {
+
+    EvaluateBasis<float>(handle, u, v, wP, wDu, wDv, wDuu, wDuv, wDvv);
+}
+inline void
+PatchTable::EvaluateBasis(PatchHandle const & handle, double u, double v,
+    double wP[], double wDu[], double wDv[],
+    double wDuu[], double wDuv[], double wDvv[]) const {
+
+    EvaluateBasis<double>(handle, u, v, wP, wDu, wDv, wDuu, wDuv, wDvv);
+}
+
+inline void
+PatchTable::EvaluateBasisVarying(PatchHandle const & handle, float u, float v,
+    float wP[], float wDu[], float wDv[],
+    float wDuu[], float wDuv[], float wDvv[]) const {
+
+    EvaluateBasisVarying<float>(handle, u, v, wP, wDu, wDv, wDuu, wDuv, wDvv);
+}
+inline void
+PatchTable::EvaluateBasisVarying(PatchHandle const & handle, double u, double v,
+    double wP[], double wDu[], double wDv[],
+    double wDuu[], double wDuv[], double wDvv[]) const {
+
+    EvaluateBasisVarying<double>(handle, u, v, wP, wDu, wDv, wDuu, wDuv, wDvv);
+}
+
+inline void
+PatchTable::EvaluateBasisFaceVarying(PatchHandle const & handle, float u, float v,
+    float wP[], float wDu[], float wDv[],
+    float wDuu[], float wDuv[], float wDvv[], int channel) const {
+
+    EvaluateBasisFaceVarying<float>(handle, u, v, wP, wDu, wDv, wDuu, wDuv, wDvv, channel);
+}
+inline void
+PatchTable::EvaluateBasisFaceVarying(PatchHandle const & handle, double u, double v,
+    double wP[], double wDu[], double wDv[],
+    double wDuu[], double wDuv[], double wDvv[], int channel) const {
+
+    EvaluateBasisFaceVarying<double>(handle, u, v, wP, wDu, wDv, wDuu, wDuv, wDvv, channel);
+}
 
 } // end namespace Far
 

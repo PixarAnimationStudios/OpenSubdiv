@@ -70,7 +70,7 @@ public:
     /// @return        A patch handle or NULL if the face does not exist or the
     ///                limit surface is tagged as a hole at the given location
     ///
-    Handle const * FindPatch( int faceid, float u, float v ) const;
+    Handle const * FindPatch( int faceid, double u, double v ) const;
 
 private:
 
@@ -146,21 +146,21 @@ PatchMap::resolveQuadrant(T & median, T & u, T & v) {
 
 /// Returns a handle to the sub-patch of the face at the given (u,v).
 inline PatchMap::Handle const *
-PatchMap::FindPatch( int faceid, float u, float v ) const {
+PatchMap::FindPatch( int faceid, double u, double v ) const {
 
     if (faceid>=(int)_quadtree.size())
         return NULL;
 
-    assert( (u>=0.0f) && (u<=1.0f) && (v>=0.0f) && (v<=1.0f) );
+    assert( (u>=0.0) && (u<=1.0) && (v>=0.0) && (v<=1.0) );
 
     QuadNode const * node = &_quadtree[faceid];
 
-    float half = 0.5f;
+    double half = 0.5;
 
     // 0xFF : we should never have depths greater than k_InfinitelySharp
     for (int depth=0; depth<0xFF; ++depth) {
 
-        float delta = half * 0.5f;
+        double delta = half * 0.5;
 
         int quadrant = resolveQuadrant( half, u, v );
         assert(quadrant>=0);

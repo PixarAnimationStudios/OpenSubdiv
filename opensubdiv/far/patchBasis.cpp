@@ -513,8 +513,6 @@ template void GetBSplineWeights<float>(PatchParam const & patchParam, float s, f
 template void GetGregoryWeights<float>(PatchParam const & patchParam, float s, float t,
         float wP[20], float wDs[20], float wDt[20], float wDss[20], float wDst[20], float wDtt[20]);
 
-//  Cannot enable these until PatchParam::Normalize() et al are extended...
-/*
 template void GetBilinearWeights<double>(PatchParam const & patchParam, double s, double t,
         double wP[4], double wDs[4], double wDt[4], double wDss[4], double wDst[4], double wDtt[4]);
 template void GetBezierWeights<double>(PatchParam const & patchParam, double s, double t,
@@ -523,7 +521,6 @@ template void GetBSplineWeights<double>(PatchParam const & patchParam, double s,
         double wP[16], double wDs[16], double wDt[16], double wDss[16], double wDst[16], double wDtt[16]);
 template void GetGregoryWeights<double>(PatchParam const & patchParam, double s, double t,
         double wP[20], double wDs[20], double wDt[20], double wDss[20], double wDst[20], double wDtt[20]);
-*/
 
 } // end namespace internal
 } // end namespace Far

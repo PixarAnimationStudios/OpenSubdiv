@@ -568,11 +568,12 @@ PatchTable::print() const {
 //
 //  Evaluate basis functions for vertex and derivatives at (s,t):
 //
+template <typename REAL>
 void
 PatchTable::EvaluateBasis(
-    PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[],
-    float wDss[], float wDst[], float wDtt[]) const {
+    PatchHandle const & handle, REAL s, REAL t,
+    REAL wP[], REAL wDs[], REAL wDt[],
+    REAL wDss[], REAL wDst[], REAL wDtt[]) const {
 
     PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
     PatchParam const & param = _paramTable[handle.patchIndex];
@@ -591,11 +592,12 @@ PatchTable::EvaluateBasis(
 //
 //  Evaluate basis functions for varying and derivatives at (s,t):
 //
+template <typename REAL>
 void
 PatchTable::EvaluateBasisVarying(
-    PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[],
-    float wDss[], float wDst[], float wDtt[]) const {
+    PatchHandle const & handle, REAL s, REAL t,
+    REAL wP[], REAL wDs[], REAL wDt[],
+    REAL wDss[], REAL wDst[], REAL wDtt[]) const {
 
     PatchParam const & param = _paramTable[handle.patchIndex];
 
@@ -605,11 +607,12 @@ PatchTable::EvaluateBasisVarying(
 //
 //  Evaluate basis functions for face-varying and derivatives at (s,t):
 //
+template <typename REAL>
 void
 PatchTable::EvaluateBasisFaceVarying(
-    PatchHandle const & handle, float s, float t,
-    float wP[], float wDs[], float wDt[],
-    float wDss[], float wDst[], float wDtt[],
+    PatchHandle const & handle, REAL s, REAL t,
+    REAL wP[], REAL wDs[], REAL wDt[],
+    REAL wDss[], REAL wDst[], REAL wDtt[],
     int channel) const {
 
     PatchParam param = getPatchFVarPatchParam(handle.patchIndex, channel);
@@ -628,6 +631,28 @@ PatchTable::EvaluateBasisFaceVarying(
     }
 }
 
+//
+//  Explicit instantiation of EvaluateBasis...() methods for float and double:
+//
+template void PatchTable::EvaluateBasis<float>(PatchHandle const & handle,
+        float s, float t, float wP[], float wDs[], float wDt[],
+        float wDss[], float wDst[], float wDtt[]) const;
+template void PatchTable::EvaluateBasisVarying<float>(PatchHandle const & handle,
+        float s, float t, float wP[], float wDs[], float wDt[],
+        float wDss[], float wDst[], float wDtt[]) const;
+template void PatchTable::EvaluateBasisFaceVarying<float>(PatchHandle const & handle,
+        float s, float t, float wP[], float wDs[], float wDt[],
+        float wDss[], float wDst[], float wDtt[], int channel) const;
+
+template void PatchTable::EvaluateBasis<double>(PatchHandle const & handle,
+        double s, double t, double wP[], double wDs[], double wDt[],
+        double wDss[], double wDst[], double wDtt[]) const;
+template void PatchTable::EvaluateBasisVarying<double>(PatchHandle const & handle,
+        double s, double t, double wP[], double wDs[], double wDt[],
+        double wDss[], double wDst[], double wDtt[]) const;
+template void PatchTable::EvaluateBasisFaceVarying<double>(PatchHandle const & handle,
+        double s, double t, double wP[], double wDs[], double wDt[],
+        double wDss[], double wDst[], double wDtt[], int channel) const;
 
 } // end namespace Far
 
