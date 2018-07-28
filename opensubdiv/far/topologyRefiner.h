@@ -42,6 +42,7 @@ namespace Far { namespace internal { class FeatureMask; } }
 
 namespace Far {
 
+template <typename REAL> class PrimvarRefinerReal;
 template <class MESH> class TopologyRefinerFactory;
 
 ///
@@ -212,7 +213,8 @@ protected:
     friend class PatchTableBuilder;
     friend class PatchBuilder;
     friend class PtexIndices;
-    friend class PrimvarRefiner;
+    template <typename REAL>
+    friend class PrimvarRefinerReal;
 
     Vtr::internal::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::internal::Level const & getLevel(int l) const { return *_levels[l]; }

@@ -35,9 +35,12 @@ namespace Far {
 
 PatchTable::PatchTable(int maxvalence) :
     _maxValence(maxvalence),
-    _localPointStencils(NULL),
-    _localPointVaryingStencils(NULL),
-    _varyingDesc(Far::PatchDescriptor::QUADS) {
+    _localPointStencils(),
+    _localPointVaryingStencils(),
+    _varyingDesc(Far::PatchDescriptor::QUADS),
+    _vertexPrecisionIsDouble(false),
+    _varyingPrecisionIsDouble(false),
+    _faceVaryingPrecisionIsDouble(false) {
 }
 
 // Copy constructor
@@ -55,31 +58,31 @@ PatchTable::PatchTable(PatchTable const & src) :
     _varyingDesc(src._varyingDesc),
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
-    _sharpnessValues(src._sharpnessValues) {
+    _sharpnessValues(src._sharpnessValues),
+    _vertexPrecisionIsDouble(src._vertexPrecisionIsDouble),
+    _varyingPrecisionIsDouble(src._varyingPrecisionIsDouble),
+    _faceVaryingPrecisionIsDouble(src._faceVaryingPrecisionIsDouble) {
 
-    if (src._localPointStencils) {
-        _localPointStencils =
-            new StencilTable(*src._localPointStencils);
+    if (src._localPointStencils.IsSet()) {
+        _localPointStencils = src._localPointStencils.Clone();
     }
-    if (src._localPointVaryingStencils) {
-        _localPointVaryingStencils =
-            new StencilTable(*src._localPointVaryingStencils);
+    if (src._localPointVaryingStencils.IsSet()) {
+        _localPointVaryingStencils = src._localPointVaryingStencils.Clone();
     }
     if (! src._localPointFaceVaryingStencils.empty()) {
         _localPointFaceVaryingStencils.resize(src._localPointFaceVaryingStencils.size());
         for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
-            _localPointFaceVaryingStencils[fvc] =
-                new StencilTable(*src._localPointFaceVaryingStencils[fvc]);
-}
+            _localPointFaceVaryingStencils[fvc] = src._localPointFaceVaryingStencils[fvc].Clone();
+        }
     }
 }
 
 PatchTable::~PatchTable() {
-    delete _localPointStencils;
-    delete _localPointVaryingStencils;
+    _localPointStencils.Delete();
+    _localPointVaryingStencils.Delete();
     for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
-        delete _localPointFaceVaryingStencils[fvc];
-}
+        _localPointFaceVaryingStencils[fvc].Delete();
+    }
 }
 
 //
@@ -350,17 +353,17 @@ PatchTable::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) c
 
 int
 PatchTable::GetNumLocalPoints() const {
-    return _localPointStencils ? _localPointStencils->GetNumStencils() : 0;
+    return _localPointStencils.IsSet() ? _localPointStencils.Size() : 0;
 }
 int
 PatchTable::GetNumLocalPointsVarying() const {
-    return _localPointVaryingStencils ? _localPointVaryingStencils->GetNumStencils() : 0;
+    return _localPointVaryingStencils.IsSet() ? _localPointVaryingStencils.Size() : 0;
 }
 int
 PatchTable::GetNumLocalPointsFaceVarying(int channel) const {
-    if (channel>=0 && channel<(int)_localPointFaceVaryingStencils.size() &&
-        _localPointFaceVaryingStencils[channel]) {
-        return _localPointFaceVaryingStencils[channel]->GetNumStencils();
+    if (channel>=0 && channel<(int)_localPointFaceVaryingStencils.size()) {
+        return _localPointFaceVaryingStencils[channel].IsSet() ?
+            _localPointFaceVaryingStencils[channel].Size() : 0;
     }
     return 0;
 }

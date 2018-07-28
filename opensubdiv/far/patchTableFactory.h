@@ -63,6 +63,8 @@ public:
              endCapType(ENDCAP_GREGORY_BASIS),
              shareEndCapPatchPoints(true),
              generateFVarTables(false),
+             setPatchPrecisionDouble(false),
+             setFVarPatchPrecisionDouble(false),
              generateFVarLegacyLinearPatches(true),
              generateLegacySharpCornerPatches(true),
              numFVarChannels(-1),
@@ -74,6 +76,12 @@ public:
 
         /// \brief Set endcap patch type
         void SetEndCapType(EndCapType e) { endCapType = e; }
+
+        /// \brief Set precision of vertex patches
+        template <typename REAL> void SetPatchPrecision();
+
+        /// \brief Set precision of face-varying patches
+        template <typename REAL> void SetFVarPatchPrecision();
 
         unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      triangulateQuads     : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
@@ -88,6 +96,10 @@ public:
 
                      // face-varying
                      generateFVarTables  : 1, ///< Generate face-varying patch tables
+
+                     // precision
+                     setPatchPrecisionDouble     : 1, ///< Generate double-precision stencils for vertex patches
+                     setFVarPatchPrecisionDouble : 1, ///< Generate double-precision stencils for face-varying patches
 
                      // legacy behaviors (default to true)
                      generateFVarLegacyLinearPatches  : 1, ///< Generate all linear face-varying patches (legacy)
@@ -153,6 +165,22 @@ public:
     };
     typedef std::vector<PatchFaceTag> PatchTagVector;
 };
+
+
+template <> inline void PatchTableFactory::Options::SetPatchPrecision<float>() {
+    setPatchPrecisionDouble = false;
+}
+template <> inline void PatchTableFactory::Options::SetFVarPatchPrecision<float>() {
+    setFVarPatchPrecisionDouble = false;
+}
+
+template <> inline void PatchTableFactory::Options::SetPatchPrecision<double>() {
+    setPatchPrecisionDouble = true;
+}
+template <> inline void PatchTableFactory::Options::SetFVarPatchPrecision<double>() {
+    setFVarPatchPrecisionDouble = true;
+}
+
 
 } // end namespace Far
 
