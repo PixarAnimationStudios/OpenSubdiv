@@ -32,28 +32,29 @@ namespace Far {
 
 
 namespace {
+    template <typename REAL>
     void
     copyStencilData(int numControlVerts,
                     bool includeCoarseVerts,
                     size_t firstOffset,
-                    std::vector<int> const*    offsets,
-                    std::vector<int> *        _offsets,
-                    std::vector<int> const*    sizes,
-                    std::vector<int> *        _sizes,
-                    std::vector<int> const*    sources,
-                    std::vector<int> *        _sources,
-                    std::vector<float> const*  weights,
-                    std::vector<float> *      _weights,
-                    std::vector<float> const*  duWeights=NULL,
-                    std::vector<float> *      _duWeights=NULL,
-                    std::vector<float> const*  dvWeights=NULL,
-                    std::vector<float> *      _dvWeights=NULL,
-                    std::vector<float> const*  duuWeights=NULL,
-                    std::vector<float> *      _duuWeights=NULL,
-                    std::vector<float> const*  duvWeights=NULL,
-                    std::vector<float> *      _duvWeights=NULL,
-                    std::vector<float> const*  dvvWeights=NULL,
-                    std::vector<float> *      _dvvWeights=NULL) {
+                    std::vector<int> const*   offsets,
+                    std::vector<int> *       _offsets,
+                    std::vector<int> const*   sizes,
+                    std::vector<int> *       _sizes,
+                    std::vector<int> const*   sources,
+                    std::vector<int> *       _sources,
+                    std::vector<REAL> const*  weights,
+                    std::vector<REAL> *      _weights,
+                    std::vector<REAL> const*  duWeights=NULL,
+                    std::vector<REAL> *      _duWeights=NULL,
+                    std::vector<REAL> const*  dvWeights=NULL,
+                    std::vector<REAL> *      _dvWeights=NULL,
+                    std::vector<REAL> const*  duuWeights=NULL,
+                    std::vector<REAL> *      _duuWeights=NULL,
+                    std::vector<REAL> const*  duvWeights=NULL,
+                    std::vector<REAL> *      _duvWeights=NULL,
+                    std::vector<REAL> const*  dvvWeights=NULL,
+                    std::vector<REAL> *      _dvvWeights=NULL) {
         size_t start = includeCoarseVerts ? 0 : firstOffset;
 
         _offsets->resize(offsets->size());
@@ -94,28 +95,28 @@ namespace {
             std::memcpy(&(*_sources)[curOffset],
                         &(*sources)[off], sz*sizeof(int));
             std::memcpy(&(*_weights)[curOffset],
-                        &(*weights)[off], sz*sizeof(float));
+                        &(*weights)[off], sz*sizeof(REAL));
 
             if (_duWeights && !_duWeights->empty()) {
                 std::memcpy(&(*_duWeights)[curOffset],
-                            &(*duWeights)[off], sz*sizeof(float));
+                            &(*duWeights)[off], sz*sizeof(REAL));
             }
             if (_dvWeights && !_dvWeights->empty()) {
                 std::memcpy(&(*_dvWeights)[curOffset],
-                        &(*dvWeights)[off], sz*sizeof(float));
+                        &(*dvWeights)[off], sz*sizeof(REAL));
             }
 
             if (_duuWeights && !_duuWeights->empty()) {
                 std::memcpy(&(*_duuWeights)[curOffset],
-                        &(*duuWeights)[off], sz*sizeof(float));
+                        &(*duuWeights)[off], sz*sizeof(REAL));
             }
             if (_duvWeights && !_duvWeights->empty()) {
                 std::memcpy(&(*_duvWeights)[curOffset],
-                        &(*duvWeights)[off], sz*sizeof(float));
+                        &(*duvWeights)[off], sz*sizeof(REAL));
             }
             if (_dvvWeights && !_dvvWeights->empty()) {
                 std::memcpy(&(*_dvvWeights)[curOffset],
-                        &(*dvvWeights)[off], sz*sizeof(float));
+                        &(*dvvWeights)[off], sz*sizeof(REAL));
             }
 
             curOffset += sz;
@@ -141,11 +142,12 @@ namespace {
     }
 };
 
-StencilTable::StencilTable(int numControlVerts,
+template <typename REAL>
+StencilTableReal<REAL>::StencilTableReal(int numControlVerts,
                            std::vector<int> const& offsets,
                            std::vector<int> const& sizes,
                            std::vector<int> const& sources,
-                           std::vector<float> const& weights,
+                           std::vector<REAL> const& weights,
                            bool includeCoarseVerts,
                            size_t firstOffset)
     : _numControlVertices(numControlVerts) {
@@ -158,8 +160,9 @@ StencilTable::StencilTable(int numControlVerts,
                     &weights, &_weights);
 }
 
+template <typename REAL>
 void
-StencilTable::Clear() {
+StencilTableReal<REAL>::Clear() {
     _numControlVertices=0;
     _sizes.clear();
     _offsets.clear();
@@ -167,26 +170,28 @@ StencilTable::Clear() {
     _weights.clear();
 }
 
-LimitStencilTable::LimitStencilTable(int numControlVerts,
+template <typename REAL>
+LimitStencilTableReal<REAL>::LimitStencilTableReal(
+                                     int numControlVerts,
                                      std::vector<int> const& offsets,
                                      std::vector<int> const& sizes,
                                      std::vector<int> const& sources,
-                                     std::vector<float> const& weights,
-                                     std::vector<float> const& duWeights,
-                                     std::vector<float> const& dvWeights,
-                                     std::vector<float> const& duuWeights,
-                                     std::vector<float> const& duvWeights,
-                                     std::vector<float> const& dvvWeights,
+                                     std::vector<REAL> const& weights,
+                                     std::vector<REAL> const& duWeights,
+                                     std::vector<REAL> const& dvWeights,
+                                     std::vector<REAL> const& duuWeights,
+                                     std::vector<REAL> const& duvWeights,
+                                     std::vector<REAL> const& dvvWeights,
                                      bool includeCoarseVerts,
                                      size_t firstOffset)
-    : StencilTable(numControlVerts) {
+    : StencilTableReal<REAL>(numControlVerts) {
     copyStencilData(numControlVerts,
                     includeCoarseVerts,
                     firstOffset,
-                    &offsets, &_offsets,
-                    &sizes, &_sizes,
-                    &sources, &_indices,
-                    &weights, &_weights,
+                    &offsets, &this->_offsets,
+                    &sizes, &this->_sizes,
+                    &sources, &this->_indices,
+                    &weights, &this->_weights,
                     &duWeights, &_duWeights,
                     &dvWeights, &_dvWeights,
                     &duuWeights, &_duuWeights,
@@ -194,9 +199,10 @@ LimitStencilTable::LimitStencilTable(int numControlVerts,
                     &dvvWeights, &_dvvWeights);
 }
 
+template <typename REAL>
 void
-LimitStencilTable::Clear() {
-    StencilTable::Clear();
+LimitStencilTableReal<REAL>::Clear() {
+    StencilTableReal<REAL>::Clear();
     _duWeights.clear();
     _dvWeights.clear();
     _duuWeights.clear();
@@ -205,11 +211,24 @@ LimitStencilTable::Clear() {
 }
 
 
+//
+//  Explicit instantiation for float and double:
+//
+template class StencilReal<float>;
+template class StencilReal<double>;
+
+template class LimitStencilReal<float>;
+template class LimitStencilReal<double>;
+
+template class StencilTableReal<float>;
+template class StencilTableReal<double>;
+
+template class LimitStencilTableReal<float>;
+template class LimitStencilTableReal<double>;
+
 } // end namespace Far
 
 } // end namespace OPENSUBDIV_VERSION
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
-
-

@@ -112,6 +112,8 @@ public:
     PatchTable * GetPatchTable() const { return _table; };
 
 private:
+    typedef PatchTable::StencilTableHandler StencilTableHandler;
+
     //  Simple struct to store <face,level> pair for a patch:
     struct PatchTuple {
         PatchTuple(Index face, int level) : faceIndex(face), levelIndex(level) { }
@@ -135,7 +137,8 @@ private:
         Level::VSpan irregCornerSpans[4];
         int          paramBoundaryMask;
 
-        SparseMatrix<float> matrix;
+        SparseMatrix<float>  fMatrix;
+        SparseMatrix<double> dMatrix;
     };
 
 private:
@@ -161,12 +164,14 @@ private:
             Options() : shareLocalPoints(false),
                         reuseSourcePoints(false),
                         createStencilTable(true),
-                        createVaryingTable(false) { }
+                        createVaryingTable(false),
+                        doubleStencilTable(false) { }
 
             unsigned int shareLocalPoints   : 1;
             unsigned int reuseSourcePoints  : 1;
             unsigned int createStencilTable : 1;
             unsigned int createVaryingTable : 1;
+            unsigned int doubleStencilTable : 1;
         };
 
     public:
@@ -179,36 +184,40 @@ private:
     public:
         int GetNumLocalPoints() const { return _numLocalPoints; }
 
+        template <typename REAL>
         int AppendLocalPatchPoints(int levelIndex, Index faceIndex,
-                                   SparseMatrix<float> const & conversionMatrix,
+                                   SparseMatrix<REAL> const &  conversionMatrix,
                                    PatchDescriptor::Type       patchType,
                                    Index const                 sourcePoints[],
                                    int                         sourcePointOffset,
                                    Index                       patchPoints[]);
 
-        StencilTable * AcquireStencilTable() {
-            return acquireStencilTable(&_stencilTable);
+        StencilTableHandler AcquireStencilTable() {
+            return acquireStencilTable(_stencilTable);
         }
 
     private:
         //  Internal methods:
-        void appendLocalPointStencil(SparseMatrix<float> const & conversionMatrix,
+        template <typename REAL>
+        void appendLocalPointStencil(SparseMatrix<REAL> const &  conversionMatrix,
                                      int                         stencilRow,
                                      Index const                 sourcePoints[],
                                      int                         sourcePointOffset);
 
-        void appendLocalPointStencils(SparseMatrix<float> const & conversionMatrix,
+        template <typename REAL>
+        void appendLocalPointStencils(SparseMatrix<REAL> const &  conversionMatrix,
                                       Index const                 sourcePoints[],
                                       int                         sourcePointOffset);
 
         //  Methods for local point Varying stencils
         //      XXXX -- hope to get rid of these...
+        template <typename REAL>
         void appendLocalPointVaryingStencil(int const *  varyingIndices,
                                             int          patchPointIndex,
                                             Index const  sourcePoints[],
                                             int          sourcePointOffset);
 
-        StencilTable * acquireStencilTable(StencilTable **stencilTableMember);
+        StencilTableHandler acquireStencilTable(StencilTableHandler& stencilTableMember);
 
         Index findSharedCornerPoint(int levelIndex, Index valueIndex,
                                     Index newIndex);
@@ -227,16 +236,16 @@ private:
         std::vector<IndexVector> _sharedCornerPoints;
         std::vector<IndexVector> _sharedEdgePoints;
 
-        StencilTable * _stencilTable;
+        StencilTableHandler _stencilTable;
 
     //  This was hopefully transitional but will persist -- the should be
     //  no need for Varying local points or stencils associated with them.
     public:
-        StencilTable * AcquireStencilTableVarying() {
-            return acquireStencilTable(&_stencilTableVarying);
+        StencilTableHandler AcquireStencilTableVarying() {
+            return acquireStencilTable(_stencilTableVarying);
         }
 
-        StencilTable * _stencilTableVarying;
+        StencilTableHandler _stencilTableVarying;
     };
 
 private:
@@ -428,6 +437,10 @@ PatchTableBuilder::PatchTableBuilder(
 
     _table->_numPtexFaces = _ptexIndices.GetNumFaces();
 
+    _table->_vertexPrecisionIsDouble = _options.setPatchPrecisionDouble;
+    _table->_varyingPrecisionIsDouble = _options.setPatchPrecisionDouble;
+    _table->_faceVaryingPrecisionIsDouble = _options.setFVarPatchPrecisionDouble;
+
     //  State and helper to support LegacyGregory arrays in the PatchTable:
     _requiresLegacyGregoryTables = !_refiner.IsUniform() &&
         (_options.GetEndCapType() == Options::ENDCAP_LEGACY_GREGORY);
@@ -457,6 +470,10 @@ PatchTableBuilder::identifyPatchTopology(PatchTuple const & patch,
     patchInfo.isRegular = _patchBuilder->IsPatchRegular(
         patchLevel, patchFace, fvarInTable);
 
+    bool useDoubleMatrix = (fvarInRefiner < 0)
+                         ? _options.setPatchPrecisionDouble
+                         : _options.setFVarPatchPrecisionDouble;
+
     if (patchInfo.isRegular) {
         patchInfo.regBoundaryMask = _patchBuilder->GetRegularPatchBoundaryMask(
             patchLevel, patchFace, fvarInRefiner);
@@ -467,7 +484,7 @@ PatchTableBuilder::identifyPatchTopology(PatchTuple const & patch,
 
         //  If converting to another basis, get the change-of-basis matrix:
         if (_requiresRegularLocalPoints) {
-            // _patchBuilder->GetRegularConversionMatrix(... patchInfo.matrix);
+            // _patchBuilder->GetRegularConversionMatrix(...);
         }
 
         //
@@ -501,8 +518,13 @@ PatchTableBuilder::identifyPatchTopology(PatchTuple const & patch,
         _patchBuilder->GetIrregularPatchCornerSpans(
             patchLevel, patchFace, patchInfo.irregCornerSpans, fvarInRefiner);
 
-        _patchBuilder->GetIrregularPatchConversionMatrix(
-            patchLevel, patchFace, patchInfo.irregCornerSpans, patchInfo.matrix);
+        if (useDoubleMatrix) {
+            _patchBuilder->GetIrregularPatchConversionMatrix(
+                patchLevel, patchFace, patchInfo.irregCornerSpans, patchInfo.dMatrix);
+        } else {
+            _patchBuilder->GetIrregularPatchConversionMatrix(
+                patchLevel, patchFace, patchInfo.irregCornerSpans, patchInfo.fMatrix);
+        }
 
         patchInfo.paramBoundaryMask = 0;
     }
@@ -539,6 +561,10 @@ PatchTableBuilder::assignPatchPointsAndStencils(PatchTuple const & patch,
                           ? _levelVertOffsets[patch.levelIndex]
                           : _levelFVarValueOffsets[fvarInTable][patch.levelIndex];
 
+    bool useDoubleMatrix = (fvarInTable < 0)
+                         ? _options.setPatchPrecisionDouble
+                         : _options.setFVarPatchPrecisionDouble;
+
     int numPatchPoints = 0;
     if (patchInfo.isRegular) {
         if (!_requiresRegularLocalPoints) {
@@ -571,18 +597,32 @@ PatchTableBuilder::assignPatchPointsAndStencils(PatchTuple const & patch,
             */
         }
     } else if (_requiresIrregularLocalPoints) {
-        StackBuffer<Index,64,true> sourcePoints(patchInfo.matrix.GetNumColumns());
+        int numSourcePoints = 0;
+        if (useDoubleMatrix) {
+            numSourcePoints = patchInfo.dMatrix.GetNumColumns();
+            numPatchPoints  = patchInfo.dMatrix.GetNumRows();
+        } else {
+            numSourcePoints = patchInfo.fMatrix.GetNumColumns();
+            numPatchPoints  = patchInfo.fMatrix.GetNumRows();
+        }
+
+        StackBuffer<Index,64,true> sourcePoints(numSourcePoints);
 
         _patchBuilder->GetIrregularPatchSourcePoints(
                 patch.levelIndex, patch.faceIndex,
                 patchInfo.irregCornerSpans, sourcePoints, fvarInRefiner);
 
-        localHelper.AppendLocalPatchPoints(
-                patch.levelIndex, patch.faceIndex,
-                patchInfo.matrix, _patchBuilder->GetIrregularPatchType(),
-                sourcePoints, sourcePointOffset, patchPoints);
-
-        numPatchPoints = patchInfo.matrix.GetNumRows();
+        if (useDoubleMatrix) {
+            localHelper.AppendLocalPatchPoints(
+                    patch.levelIndex, patch.faceIndex,
+                    patchInfo.dMatrix, _patchBuilder->GetIrregularPatchType(),
+                    sourcePoints, sourcePointOffset, patchPoints);
+        } else {
+            localHelper.AppendLocalPatchPoints(
+                    patch.levelIndex, patch.faceIndex,
+                    patchInfo.fMatrix, _patchBuilder->GetIrregularPatchType(),
+                    sourcePoints, sourcePointOffset, patchPoints);
+        }
     }
     return numPatchPoints;
 }
@@ -1052,6 +1092,7 @@ PatchTableBuilder::populateAdaptivePatches() {
         LocalPointHelper::Options opts;
         opts.createStencilTable = true;
         opts.createVaryingTable = _requiresVaryingLocalPoints;
+        opts.doubleStencilTable = _options.setPatchPrecisionDouble;
         opts.shareLocalPoints   = _options.shareEndCapPatchPoints;
         opts.reuseSourcePoints  = (_patchBuilder->GetIrregularPatchType() ==
                                    _patchBuilder->GetNativePatchType() );
@@ -1062,6 +1103,7 @@ PatchTableBuilder::populateAdaptivePatches() {
         if (_requiresFVarPatches) {
             opts.createStencilTable = true;
             opts.createVaryingTable = false;
+            opts.doubleStencilTable = _options.setFVarPatchPrecisionDouble;
 
             fvarLocalPointHelpers.SetSize((int)_fvarChannelIndices.size());
 
@@ -1080,6 +1122,9 @@ PatchTableBuilder::populateAdaptivePatches() {
     //  associated with a change-of-basis.
     PatchInfo patchInfo;
     PatchInfo fvarPatchInfo;
+
+    bool fvarPrecisionMatches = (_options.setPatchPrecisionDouble ==
+                                 _options.setFVarPatchPrecisionDouble);
 
     for (int patchIndex = 0; patchIndex < (int)_patches.size(); ++patchIndex) {
 
@@ -1138,7 +1183,8 @@ PatchTableBuilder::populateAdaptivePatches() {
                 //  topology of the face in face-varying space matches the
                 //  original patch:
                 //
-                bool fvcTopologyMatches = doesFVarTopologyMatch(patch, fvc);
+                bool fvcTopologyMatches = fvarPrecisionMatches &&
+                                          doesFVarTopologyMatch(patch, fvc);
 
                 PatchInfo & fvcPatchInfo = fvcTopologyMatches
                                          ? patchInfo : fvarPatchInfo;
@@ -1298,16 +1344,23 @@ PatchTableBuilder::LocalPointHelper::LocalPointHelper(
         TopologyRefiner const & refiner, Options const & options,
         int fvarChannel, int numLocalPointsExpected) :
             _refiner(refiner), _options(options), _fvarChannel(fvarChannel),
-            _numLocalPoints(0), _stencilTable(0), _stencilTableVarying(0) {
+            _numLocalPoints(0), _stencilTable(), _stencilTableVarying() {
 
     _localPointOffset = (_fvarChannel < 0)
                       ? _refiner.GetNumVerticesTotal()
                       : _refiner.GetNumFVarValuesTotal(_fvarChannel);
 
     if (_options.createStencilTable) {
-        _stencilTable = new StencilTable(0);
-        if (_options.createVaryingTable) {
-            _stencilTableVarying = new StencilTable(0);
+        if (_options.doubleStencilTable) {
+            _stencilTable.Set(new StencilTableReal<double>(0));
+            if (_options.createVaryingTable) {
+                _stencilTableVarying.Set(new StencilTableReal<double>(0));
+            }
+        } else {
+            _stencilTable.Set(new StencilTableReal<float>(0));
+            if (_options.createVaryingTable) {
+                _stencilTableVarying.Set(new StencilTableReal<float>(0));
+            }
         }
     }
 
@@ -1320,7 +1373,7 @@ PatchTableBuilder::LocalPointHelper::LocalPointHelper(
     //  The average number of entries per stencil has been historically set
     //  at 16, which seemed high and was reduced on further investigation.
     //
-    if (_stencilTable) {
+    if (_stencilTable.IsSet()) {
         //  Historic note:  limits to 100M (=800M bytes) entries for reserved size
         size_t const MaxEntriesToReserve  = 100 * 1024 * 1024;
         size_t const AvgEntriesPerStencil = 9;  // originally 16
@@ -1331,37 +1384,54 @@ PatchTableBuilder::LocalPointHelper::LocalPointHelper(
         size_t numEntriesToReserve = std::min(numStencilEntriesExpected,
                                               MaxEntriesToReserve);
         if (numEntriesToReserve) {
-            _stencilTable->reserve((int)numStencilsExpected,
-                                   (int)numEntriesToReserve);
-            if (_stencilTableVarying) {
+            if (_stencilTable.IsDouble()) {
+                _stencilTable.Get<double>()->reserve(
+                        (int)numStencilsExpected, (int)numEntriesToReserve);
+            } else {
+                _stencilTable.Get<float>()->reserve(
+                        (int)numStencilsExpected, (int)numEntriesToReserve);
+            }
+            if (_stencilTableVarying.IsSet()) {
                 //  Varying stencils have only one entry per point
-                _stencilTableVarying->reserve((int)numStencilsExpected,
-                                              (int)numStencilsExpected);
+                if (_stencilTableVarying.IsDouble()) {
+                    _stencilTableVarying.Get<double>()->reserve(
+                            (int)numStencilsExpected, (int)numStencilsExpected);
+                } else {
+                    _stencilTableVarying.Get<float>()->reserve(
+                            (int)numStencilsExpected, (int)numStencilsExpected);
+                }
             }
         }
     }
 }
 
-StencilTable *
+PatchTableBuilder::StencilTableHandler
 PatchTableBuilder::LocalPointHelper::acquireStencilTable(
-        StencilTable **stencilTableMember) {
+        StencilTableHandler& stencilTableMember) {
 
-    StencilTable * stencilTable = *stencilTableMember;
+    StencilTableHandler stencilTable = stencilTableMember;
 
-    if (stencilTable && (stencilTable->GetNumStencils() > 0)) {
-        stencilTable->finalize();
-    } else {
-        delete stencilTable;
-        stencilTable = 0;
+    if (stencilTable.IsSet()) {
+        if (stencilTable.Size() > 0) {
+            if (stencilTable.IsDouble()) {
+                stencilTable.Get<double>()->finalize();
+            } else {
+                stencilTable.Get<float>()->finalize();
+            }
+        } else {
+            stencilTable.Delete();
+            stencilTable.Clear();
+        }
     }
-    *stencilTableMember = 0;
+
+    stencilTableMember.Clear();
     return stencilTable;
 }
 
 PatchTableBuilder::LocalPointHelper::~LocalPointHelper() {
 
-    delete _stencilTable;
-    delete _stencilTableVarying;
+    _stencilTable.Delete();
+    _stencilTableVarying.Delete();
 }
 
 Index
@@ -1412,28 +1482,32 @@ PatchTableBuilder::LocalPointHelper::findSharedEdgePoint(int levelIndex,
     return assignedIndex;
 }
 
+template <typename REAL>
 void
 PatchTableBuilder::LocalPointHelper::appendLocalPointStencil(
-    SparseMatrix<float> const & conversionMatrix,
+    SparseMatrix<REAL> const &  conversionMatrix,
     int                         stencilRow,
     Index const                 sourcePoints[],
     int                         sourcePointOffset) {
 
     int               stencilSize   = conversionMatrix.GetRowSize(stencilRow);
     ConstArray<int>   matrixColumns = conversionMatrix.GetRowColumns(stencilRow);
-    ConstArray<float> matrixWeights = conversionMatrix.GetRowElements(stencilRow);
+    ConstArray<REAL>  matrixWeights = conversionMatrix.GetRowElements(stencilRow);
 
-    _stencilTable->_sizes.push_back(stencilSize);
+    StencilTableReal<REAL>* stencilTable = _stencilTable.Get<REAL>();
+
+    stencilTable->_sizes.push_back(stencilSize);
     for (int i = 0; i < stencilSize; ++i) {
-        _stencilTable->_weights.push_back(matrixWeights[i]);
-        _stencilTable->_indices.push_back(
+        stencilTable->_weights.push_back(matrixWeights[i]);
+        stencilTable->_indices.push_back(
                 sourcePoints[matrixColumns[i]] + sourcePointOffset);
     }
 }
 
+template <typename REAL>
 void
 PatchTableBuilder::LocalPointHelper::appendLocalPointStencils(
-    SparseMatrix<float> const & conversionMatrix,
+    SparseMatrix<REAL> const &  conversionMatrix,
     Index const                 sourcePoints[],
     int                         sourcePointOffset) {
 
@@ -1441,37 +1515,39 @@ PatchTableBuilder::LocalPointHelper::appendLocalPointStencils(
     //  Resize the StencilTable members to accomodate all rows and elements from
     //  the given set of points represented by the matrix
     //
+    StencilTableReal<REAL>* stencilTable = _stencilTable.Get<REAL>();
+
     int numNewStencils = conversionMatrix.GetNumRows();
     int numNewElements = conversionMatrix.GetNumElements();
 
-    size_t numOldStencils = _stencilTable->_sizes.size();
-    size_t numOldElements = _stencilTable->_indices.size();
+    size_t numOldStencils = stencilTable->_sizes.size();
+    size_t numOldElements = stencilTable->_indices.size();
 
     //  Assign the sizes for the new stencils:
-    _stencilTable->_sizes.resize(numOldStencils + numNewStencils);
+    stencilTable->_sizes.resize(numOldStencils + numNewStencils);
 
-    int * newSizes = &_stencilTable->_sizes[numOldStencils];
+    int * newSizes = &stencilTable->_sizes[numOldStencils];
     for (int i = 0; i < numNewStencils; ++i) {
         newSizes[i] = conversionMatrix.GetRowSize(i);
     }
 
     //  Assign remapped indices for the stencils:
-    _stencilTable->_indices.resize(numOldElements + numNewElements);
+    stencilTable->_indices.resize(numOldElements + numNewElements);
 
     int const * mtxIndices = &conversionMatrix.GetColumns()[0];
-    int *       newIndices = &_stencilTable->_indices[numOldElements];
+    int *       newIndices = &stencilTable->_indices[numOldElements];
 
     for (int i = 0; i < numNewElements; ++i) {
         newIndices[i] = sourcePoints[mtxIndices[i]] + sourcePointOffset;
     }
 
     //  Copy the stencil weights direct from the matrix elements:
-    _stencilTable->_weights.resize(numOldElements + numNewElements);
+    stencilTable->_weights.resize(numOldElements + numNewElements);
 
-    float const * mtxWeights = &conversionMatrix.GetElements()[0];
-    float *       newWeights = &_stencilTable->_weights[numOldElements];
+    REAL const * mtxWeights = &conversionMatrix.GetElements()[0];
+    REAL *       newWeights = &stencilTable->_weights[numOldElements];
 
-    std::memcpy(newWeights, mtxWeights, numNewElements * sizeof(float));
+    std::memcpy(newWeights, mtxWeights, numNewElements * sizeof(REAL));
 }
 
 //
@@ -1505,6 +1581,7 @@ namespace {
     }
 }
 
+template <typename REAL>
 void
 PatchTableBuilder::LocalPointHelper::appendLocalPointVaryingStencil(
     int const * varyingIndices, int patchPointIndex,
@@ -1513,9 +1590,11 @@ PatchTableBuilder::LocalPointHelper::appendLocalPointVaryingStencil(
     Index varyingPoint =
         sourcePoints[varyingIndices[patchPointIndex]] + sourcePointOffset;
 
-    _stencilTableVarying->_sizes.push_back(1);
-    _stencilTableVarying->_indices.push_back(varyingPoint);
-    _stencilTableVarying->_weights.push_back(1.0f);
+    StencilTableReal<REAL>* t = _stencilTableVarying.Get<REAL>();
+
+    t->_sizes.push_back(1);
+    t->_indices.push_back(varyingPoint);
+    t->_weights.push_back((REAL) 1.0);
 }
 
 namespace {
@@ -1547,10 +1626,11 @@ namespace {
     }
 }
 
+template <typename REAL>
 int
 PatchTableBuilder::LocalPointHelper::AppendLocalPatchPoints(
     int levelIndex, Index faceIndex,
-    SparseMatrix<float> const & matrix,
+    SparseMatrix<REAL> const &  matrix,
     PatchDescriptor::Type       patchType,
     Index const                 sourcePoints[],
     int                         sourcePointOffset,
@@ -1571,11 +1651,11 @@ PatchTableBuilder::LocalPointHelper::AppendLocalPatchPoints(
     bool shareLocalPointsForThisPatch = (shareBitsPerPoint != 0);
 
     int const * varyingIndices = 0;
-    if (_stencilTableVarying) {
+    if (_stencilTableVarying.IsSet()) {
         varyingIndices = GetVaryingIndicesPerType(patchType);
     }
 
-    bool applyVertexStencils  = (_stencilTable != 0);
+    bool applyVertexStencils  = _stencilTable.IsSet();
     bool applyVaryingStencils = (varyingIndices != 0);
 
     //
@@ -1592,7 +1672,7 @@ PatchTableBuilder::LocalPointHelper::AppendLocalPatchPoints(
                     matrix, sourcePoints, sourcePointOffset);
                 if (applyVaryingStencils) {
                     for (int i = 0; i < numPatchPoints; ++i) {
-                        appendLocalPointVaryingStencil(
+                        appendLocalPointVaryingStencil<REAL>(
                             varyingIndices, i, sourcePoints, sourcePointOffset);
                     }
                 }
@@ -1611,7 +1691,7 @@ PatchTableBuilder::LocalPointHelper::AppendLocalPatchPoints(
                     appendLocalPointStencil(
                         matrix, i, sourcePoints, sourcePointOffset);
                     if (applyVaryingStencils) {
-                        appendLocalPointVaryingStencil(
+                        appendLocalPointVaryingStencil<REAL>(
                             varyingIndices, i, sourcePoints, sourcePointOffset);
                     }
                 }
@@ -1682,7 +1762,7 @@ PatchTableBuilder::LocalPointHelper::AppendLocalPatchPoints(
                     appendLocalPointStencil(
                         matrix, i, sourcePoints, sourcePointOffset);
                     if (applyVaryingStencils) {
-                        appendLocalPointVaryingStencil(
+                        appendLocalPointVaryingStencil<REAL>(
                             varyingIndices, i, sourcePoints, sourcePointOffset);
                     }
                 }

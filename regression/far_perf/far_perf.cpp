@@ -37,10 +37,14 @@
 #include "init_shapes.h"
 
 //------------------------------------------------------------------------------
+template <typename REAL>
 static void
 doPerf(const Shape *shape, int maxlevel, int endCapType)
 {
     using namespace OpenSubdiv;
+
+    typedef Far::StencilTableReal<REAL>        FarStencilTable;
+    typedef Far::StencilTableFactoryReal<REAL> FarStencilTableFactory;
 
     Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
@@ -65,10 +69,10 @@ doPerf(const Shape *shape, int maxlevel, int endCapType)
     // ----------------------------------------------------------------------
     // Create stencil table
     s.Start();
-    Far::StencilTable const * vertexStencils = NULL;
+    FarStencilTable const * vertexStencils = NULL;
     {
-        Far::StencilTableFactory::Options options;
-        vertexStencils = Far::StencilTableFactory::Create(*refiner, options);
+        typename FarStencilTableFactory::Options options;
+        vertexStencils = FarStencilTableFactory::Create(*refiner, options);
     }
     s.Stop();
     double timeCreateStencil = s.GetElapsed();
@@ -80,6 +84,7 @@ doPerf(const Shape *shape, int maxlevel, int endCapType)
     {
         Far::PatchTableFactory::Options poptions(maxlevel);
         poptions.SetEndCapType((Far::PatchTableFactory::Options::EndCapType)endCapType);
+        poptions.SetPatchPrecision<REAL>();
         patchTable = Far::PatchTableFactory::Create(*refiner, poptions);
     }
 
@@ -90,10 +95,10 @@ doPerf(const Shape *shape, int maxlevel, int endCapType)
     // append local points to stencils
     s.Start();
     {
-        if (Far::StencilTable const *vertexStencilsWithLocalPoints =
-            Far::StencilTableFactory::AppendLocalPointStencilTable(
+        if (FarStencilTable const *vertexStencilsWithLocalPoints =
+            FarStencilTableFactory::AppendLocalPointStencilTable(
                 *refiner, vertexStencils,
-                patchTable->GetLocalPointStencilTable())) {
+                patchTable->GetLocalPointStencilTable<REAL>())) {
             delete vertexStencils;
             vertexStencils = vertexStencilsWithLocalPoints;
         }
@@ -123,6 +128,7 @@ int main(int argc, char **argv)
     int maxlevel = 8;
     std::string str;
     int endCapType = Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+    bool runDouble = false;
 
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj")) {
@@ -149,6 +155,9 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
+        else if (!strcmp(argv[i], "-double")) {
+            runDouble = true;
+        }
     }
 
     if (g_shapes.empty()) {
@@ -163,7 +172,11 @@ int main(int argc, char **argv)
 
         for (int lv = 1; lv <= maxlevel; ++lv) {
             printf("---- %s, level %d ----\n", g_shapes[i].name.c_str(), lv);
-            doPerf(shape, lv, endCapType);
+            if (runDouble) {
+                doPerf<double>(shape, lv, endCapType);
+            } else {
+                doPerf<float>(shape, lv, endCapType);
+            }
         }
     }
 }

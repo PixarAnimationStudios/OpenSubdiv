@@ -205,7 +205,8 @@ struct PatchParam {
     /// @param u  u parameter
     /// @param v  v parameter
     ///
-    void Normalize( float & u, float & v ) const;
+    template <typename REAL>
+    void Normalize( REAL & u, REAL & v ) const;
 
     /// \brief A (u,v) pair in a normalized parametric space is mapped back into the
     /// fraction of parametric space covered by this face.
@@ -213,7 +214,8 @@ struct PatchParam {
     /// @param u  u parameter
     /// @param v  v parameter
     ///
-    void Unnormalize( float & u, float & v ) const;
+    template <typename REAL>
+    void Unnormalize( REAL & u, REAL & v ) const;
 
     /// \brief Returns whether the patch is regular
     bool IsRegular() const { return (unpack(field1,1,5) != 0); }
@@ -254,35 +256,27 @@ PatchParam::Set(Index faceid, short u, short v,
 
 inline float
 PatchParam::GetParamFraction( ) const {
-    if (NonQuadRoot()) {
-        return 1.0f / float( 1 << (GetDepth()-1) );
-    } else {
-        return 1.0f / float( 1 << GetDepth() );
-    }
+    return 1.0f / (float)(1 << (GetDepth() - NonQuadRoot()));
 }
 
+template <typename REAL>
 inline void
-PatchParam::Normalize( float & u, float & v ) const {
+PatchParam::Normalize( REAL & u, REAL & v ) const {
 
-    float frac = GetParamFraction();
+    REAL fracInv = (REAL)(1.0f / GetParamFraction());
 
-    float pu = (float)GetU()*frac;
-    float pv = (float)GetV()*frac;
-
-    u = (u - pu) / frac,
-    v = (v - pv) / frac;
+    u = u * fracInv - (REAL)GetU();
+    v = v * fracInv - (REAL)GetV();
 }
 
+template <typename REAL>
 inline void
-PatchParam::Unnormalize( float & u, float & v ) const {
+PatchParam::Unnormalize( REAL & u, REAL & v ) const {
 
-    float frac = GetParamFraction();
+    REAL frac = (REAL)GetParamFraction();
 
-    float pu = (float)GetU()*frac;
-    float pv = (float)GetV()*frac;
-
-    u = u * frac + pu,
-    v = v * frac + pv;
+    u = (u + (REAL)GetU()) * frac;
+    v = (v + (REAL)GetV()) * frac;
 }
 
 } // end namespace Far

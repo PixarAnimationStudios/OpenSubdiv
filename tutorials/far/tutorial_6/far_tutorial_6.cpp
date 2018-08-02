@@ -53,9 +53,11 @@
 
 using namespace OpenSubdiv;
 
+typedef double Real;
+
 // pyramid geometry from catmark_pyramid_crease0.h
 static int const g_nverts = 5;
-static float const g_verts[24] = { 0.0f,  0.0f, 2.0f,
+static Real  const g_verts[24] = { 0.0f,  0.0f, 2.0f,
                                    0.0f, -2.0f, 0.0f,
                                    2.0f,  0.0f, 0.0f,
                                    0.0f,  2.0f, 0.0f,
@@ -90,13 +92,13 @@ struct Vertex {
          point[0] = point[1] = point[2] = 0.0f;
     }
 
-    void AddWithWeight(Vertex const & src, float weight) {
+    void AddWithWeight(Vertex const & src, Real weight) {
         point[0] += weight * src.point[0];
         point[1] += weight * src.point[1];
         point[2] += weight * src.point[2];
     }
 
-    float point[3];
+    Real point[3];
 };
 
 //------------------------------------------------------------------------------
@@ -112,7 +114,7 @@ struct LimitFrame {
     }
 
     void AddWithWeight(Vertex const & src,
-        float weight, float d1Weight, float d2Weight) {
+        Real weight, Real d1Weight, Real d2Weight) {
 
         point[0] += weight * src.point[0];
         point[1] += weight * src.point[1];
@@ -127,9 +129,9 @@ struct LimitFrame {
         deriv2[2] += d2Weight * src.point[2];
     }
 
-    float point[3],
-          deriv1[3],
-          deriv2[3];
+    Real point[3],
+         deriv1[3],
+         deriv2[3];
 };
 
 //------------------------------------------------------------------------------
@@ -147,6 +149,7 @@ int main(int, char **) {
     // Generate a set of Far::PatchTable that we will use to evaluate the
     // surface limit
     Far::PatchTableFactory::Options patchOptions;
+    patchOptions.SetPatchPrecision<Real>();
     patchOptions.endCapType =
         Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
 
@@ -161,17 +164,19 @@ int main(int, char **) {
     // Create a buffer to hold the position of the refined verts and
     // local points, then copy the coarse positions at the beginning.
     std::vector<Vertex> verts(nRefinerVertices + nLocalPoints);
-    memcpy(&verts[0], g_verts, g_nverts*3*sizeof(float));
+    memcpy(&verts[0], g_verts, g_nverts*3*sizeof(Real));
 
     // Adaptive refinement may result in fewer levels than maxIsolation.
     int nRefinedLevels = refiner->GetNumLevels();
 
     // Interpolate vertex primvar data : they are the control vertices
     // of the limit patches (see far_tutorial_0 for details)
+    Far::PrimvarRefinerReal<Real> primvarRefiner(*refiner);
+
     Vertex * src = &verts[0];
     for (int level = 1; level < nRefinedLevels; ++level) {
         Vertex * dst = src + refiner->GetLevel(level-1).GetNumVertices();
-        Far::PrimvarRefiner(*refiner).Interpolate(level, src, dst);
+        primvarRefiner.Interpolate(level, src, dst);
         src = dst;
     }
 
@@ -192,14 +197,14 @@ int main(int, char **) {
 
     srand( static_cast<int>(2147483647) );
 
-    float pWeights[20], dsWeights[20], dtWeights[20];
+    Real pWeights[20], dsWeights[20], dtWeights[20];
 
     for (int face=0, count=0; face<nfaces; ++face) {
 
         for (int sample=0; sample<nsamples; ++sample, ++count) {
 
-            float s = (float)rand()/(float)RAND_MAX,
-                  t = (float)rand()/(float)RAND_MAX;
+            Real s = (Real)rand()/(Real)RAND_MAX,
+                 t = (Real)rand()/(Real)RAND_MAX;
 
             // Locate the patch corresponding to the face ptex idx and (s,t)
             Far::PatchTable::PatchHandle const * handle =
@@ -230,7 +235,7 @@ int main(int, char **) {
         // Output particle positions for the tangent
         printf("particle -n deriv1 ");
         for (int sample=0; sample<nsamples; ++sample) {
-            float const * pos = samples[sample].point;
+            Real const * pos = samples[sample].point;
             printf("-p %f %f %f\n", pos[0], pos[1], pos[2]);
         }
         printf(";\n");
@@ -238,7 +243,7 @@ int main(int, char **) {
         printf("setAttr \"deriv1.particleRenderType\" 6;\n");
         printf("setAttr \"deriv1.velocity\" -type \"vectorArray\" %d ",nsamples);
         for (int sample=0; sample<nsamples; ++sample) {
-            float const * tan1 = samples[sample].deriv1;
+            Real const * tan1 = samples[sample].deriv1;
             printf("%f %f %f\n", tan1[0], tan1[1], tan1[2]);
         }
         printf(";\n");
@@ -246,14 +251,14 @@ int main(int, char **) {
         // Output particle positions for the bi-tangent
         printf("particle -n deriv2 ");
         for (int sample=0; sample<nsamples; ++sample) {
-            float const * pos = samples[sample].point;
+            Real const * pos = samples[sample].point;
             printf("-p %f %f %f\n", pos[0], pos[1], pos[2]);
         }
         printf(";\n");
         printf("setAttr \"deriv2.particleRenderType\" 6;\n");
         printf("setAttr \"deriv2.velocity\" -type \"vectorArray\" %d ",nsamples);
         for (int sample=0; sample<nsamples; ++sample) {
-            float const * tan2 = samples[sample].deriv2;
+            Real const * tan2 = samples[sample].deriv2;
             printf("%f %f %f\n", tan2[0], tan2[1], tan2[2]);
         }
         printf(";\n");

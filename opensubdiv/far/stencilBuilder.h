@@ -36,8 +36,9 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 namespace internal {
 
-class WeightTable;
+template <typename REAL> class WeightTable;
 
+template <typename REAL>
 class StencilBuilder {
 public:
     StencilBuilder(int coarseVertCount, 
@@ -63,12 +64,12 @@ public:
     std::vector<int> const& GetStencilSources() const;
 
     // The individual vertex weights, each weight is paired with one source.
-    std::vector<float> const& GetStencilWeights() const;
-    std::vector<float> const& GetStencilDuWeights() const;
-    std::vector<float> const& GetStencilDvWeights() const;
-    std::vector<float> const& GetStencilDuuWeights() const;
-    std::vector<float> const& GetStencilDuvWeights() const;
-    std::vector<float> const& GetStencilDvvWeights() const;
+    std::vector<REAL> const& GetStencilWeights() const;
+    std::vector<REAL> const& GetStencilDuWeights() const;
+    std::vector<REAL> const& GetStencilDvWeights() const;
+    std::vector<REAL> const& GetStencilDuuWeights() const;
+    std::vector<REAL> const& GetStencilDuvWeights() const;
+    std::vector<REAL> const& GetStencilDvvWeights() const;
 
     // Vertex Facade.
     class Index {
@@ -79,16 +80,16 @@ public:
         {}
 
         // Add with point/vertex weight only.
-        void AddWithWeight(Index const & src, float weight);
-        void AddWithWeight(Stencil const& src, float weight);
+        void AddWithWeight(Index const & src, REAL weight);
+        void AddWithWeight(StencilReal<REAL> const& src, REAL weight);
 
         // Add with first derivative.
-        void AddWithWeight(Stencil const& src,
-            float weight, float du, float dv);
+        void AddWithWeight(StencilReal<REAL> const& src,
+            REAL weight, REAL du, REAL dv);
 
         // Add with first and second derivatives.
-        void AddWithWeight(Stencil const& src,
-            float weight, float du, float dv, float duu, float duv, float dvv);
+        void AddWithWeight(StencilReal<REAL> const& src,
+            REAL weight, REAL du, REAL dv, REAL duu, REAL duv, REAL dvv);
 
         Index operator[](int index) const {
             return Index(_owner, index+_index);
@@ -103,7 +104,7 @@ public:
     };
 
 private:
-    WeightTable* _weightTable;
+    WeightTable<REAL>* _weightTable;
 };
 
 } // end namespace internal
