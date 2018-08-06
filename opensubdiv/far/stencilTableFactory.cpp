@@ -263,17 +263,27 @@ StencilTableFactoryReal<REAL>::appendLocalPointStencilTable(
     int channel,
     bool factorize) {
 
-    // factorize and append.
-    if (baseStencilTable == NULL ||
-        localPointStencilTable == NULL ||
-        localPointStencilTable->GetNumStencils() == 0) return NULL;
-
-    // baseStencilTable can be built with or without singular stencils
-    // (single weight of 1.0f) as place-holders for coarse mesh vertices.
+    // require the local point stencils exist and be non-empty
+    if ((localPointStencilTable == NULL) ||
+        (localPointStencilTable->GetNumStencils() == 0)) {
+        return NULL;
+    }
 
     int nControlVerts = channel < 0
         ? refiner.GetLevel(0).GetNumVertices()
         : refiner.GetLevel(0).GetNumFVarValues(channel);
+
+    //  if no base stencils or empty, return copy of local point stencils
+    if ((baseStencilTable == NULL) ||
+        (baseStencilTable->GetNumStencils() == 0)) {
+        StencilTableReal<REAL> * result =
+                new StencilTableReal<REAL>(*localPointStencilTable);
+        result->_numControlVertices = nControlVerts;
+        return result;
+    }
+
+    // baseStencilTable can be built with or without singular stencils
+    // (single weight of 1.0f) as place-holders for coarse mesh vertices.
 
     int controlVertsIndexOffset = 0;
     int nBaseStencils = baseStencilTable->GetNumStencils();
