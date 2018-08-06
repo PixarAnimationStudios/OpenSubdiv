@@ -303,13 +303,13 @@ class LimitStencilTable;
 class LimitStencilTableFactory : public LimitStencilTableFactoryReal<float> {
 private:
     typedef LimitStencilTableFactoryReal<float> BaseFactory;
-    typedef LimitStencilTableReal<float>        BaseTable;
+    typedef StencilTableReal<float>             BaseTable;
 
 public:
     static LimitStencilTable const * Create(
                 TopologyRefiner const & refiner,
                 LocationArrayVec const & locationArrays,
-                LimitStencilTable const * cvStencils = 0,
+                StencilTable const * cvStencils = 0,
                 PatchTable const * patchTable = 0,
                 Options options = Options()) {
 

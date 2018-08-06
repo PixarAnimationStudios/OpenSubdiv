@@ -970,20 +970,20 @@ GregoryConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) con
     int const * cRing = corner.ringPoints;
 
     if (! corner.isBoundary) {
-        p.Append(cIndex,   4.0f / 9.0f);
-        p.Append(cRing[0], 1.0f / 9.0f);
-        p.Append(cRing[2], 1.0f / 9.0f);
-        p.Append(cRing[4], 1.0f / 9.0f);
-        p.Append(cRing[6], 1.0f / 9.0f);
-        p.Append(cRing[1], 1.0f / 36.0f);
+        p.Append(cIndex,   (REAL) (4.0 / 9.0));
+        p.Append(cRing[0], (REAL) (1.0 / 9.0));
+        p.Append(cRing[2], (REAL) (1.0 / 9.0));
+        p.Append(cRing[4], (REAL) (1.0 / 9.0));
+        p.Append(cRing[6], (REAL) (1.0 / 9.0));
+        p.Append(cRing[1], (REAL) (1.0 / 36.0));
         if (!corner.val2InRing) {
-            p.Append(cRing[3], 1.0f / 36.0f);
-            p.Append(cRing[5], 1.0f / 36.0f);
-            p.Append(cRing[7], 1.0f / 36.0f);
+            p.Append(cRing[3], (REAL) (1.0 / 36.0));
+            p.Append(cRing[5], (REAL) (1.0 / 36.0));
+            p.Append(cRing[7], (REAL) (1.0 / 36.0));
         } else {
-            p.AddOrAppend(cRing[3], 1.0f / 36.0f);
-            p.AddOrAppend(cRing[5], 1.0f / 36.0f);
-            p.AddOrAppend(cRing[7], 1.0f / 36.0f);
+            p.AddOrAppend(cRing[3], (REAL) (1.0 / 36.0));
+            p.AddOrAppend(cRing[5], (REAL) (1.0 / 36.0));
+            p.AddOrAppend(cRing[7], (REAL) (1.0 / 36.0));
         }
 
         //  Identify the edges along Ep and Em and those opposite them:
@@ -992,26 +992,26 @@ GregoryConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) con
         int iEdgeOp = 2 * ((corner.faceInRing + 2) & 0x3);
         int iEdgeOm = 2 * ((corner.faceInRing + 3) & 0x3);
 
-        ep.Append(cIndex,             4.0f / 9.0f);
-        ep.Append(cRing[iEdgeEp],     2.0f / 9.0f);
-        ep.Append(cRing[iEdgeEm],     1.0f / 9.0f);
-        ep.Append(cRing[iEdgeOm],     1.0f / 9.0f);
-        ep.Append(cRing[iEdgeEp + 1], 1.0f / 18.0f);
+        ep.Append(cIndex,             (REAL) (4.0 / 9.0));
+        ep.Append(cRing[iEdgeEp],     (REAL) (2.0 / 9.0));
+        ep.Append(cRing[iEdgeEm],     (REAL) (1.0 / 9.0));
+        ep.Append(cRing[iEdgeOm],     (REAL) (1.0 / 9.0));
+        ep.Append(cRing[iEdgeEp + 1], (REAL) (1.0 / 18.0));
         if (corner.epAdjToVal2) {
-            ep.AddOrAppend(cRing[iEdgeOm + 1], 1.0f / 18.0f);
+            ep.AddOrAppend(cRing[iEdgeOm + 1], (REAL) (1.0 / 18.0));
         } else {
-            ep.Append(cRing[iEdgeOm + 1], 1.0f / 18.0f);
+            ep.Append(cRing[iEdgeOm + 1], (REAL) (1.0 / 18.0));
         }
 
-        em.Append(cIndex,             4.0f / 9.0f);
-        em.Append(cRing[iEdgeEm],     2.0f / 9.0f);
-        em.Append(cRing[iEdgeEp],     1.0f / 9.0f);
-        em.Append(cRing[iEdgeOp],     1.0f / 9.0f);
-        em.Append(cRing[iEdgeEp + 1], 1.0f / 18.0f);
+        em.Append(cIndex,             (REAL) (4.0 / 9.0));
+        em.Append(cRing[iEdgeEm],     (REAL) (2.0 / 9.0));
+        em.Append(cRing[iEdgeEp],     (REAL) (1.0 / 9.0));
+        em.Append(cRing[iEdgeOp],     (REAL) (1.0 / 9.0));
+        em.Append(cRing[iEdgeEp + 1], (REAL) (1.0 / 18.0));
         if (corner.emAdjToVal2) {
-            em.AddOrAppend(cRing[iEdgeEm + 1], 1.0f / 18.0f);
+            em.AddOrAppend(cRing[iEdgeEm + 1], (REAL) (1.0 / 18.0));
         } else {
-            em.Append(cRing[iEdgeEm + 1], 1.0f / 18.0f);
+            em.Append(cRing[iEdgeEm + 1], (REAL) (1.0 / 18.0));
         }
     } else {
         //  Decide which point corresponds to interior vs exterior tangent:
@@ -1019,19 +1019,19 @@ GregoryConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) con
         Point & eBoundary = corner.faceInRing ? em : ep;
         int     iBoundary = corner.faceInRing ? 4 : 0;
 
-        p.Append(cIndex,   2.0f / 3.0f);
-        p.Append(cRing[0], 1.0f / 6.0f);
-        p.Append(cRing[4], 1.0f / 6.0f);
+        p.Append(cIndex,   (REAL) (2.0 / 3.0));
+        p.Append(cRing[0], (REAL) (1.0 / 6.0));
+        p.Append(cRing[4], (REAL) (1.0 / 6.0));
 
-        eBoundary.Append(cIndex,           2.0f / 3.0f);
-        eBoundary.Append(cRing[iBoundary], 1.0f / 3.0f);
+        eBoundary.Append(cIndex,           (REAL) (2.0 / 3.0));
+        eBoundary.Append(cRing[iBoundary], (REAL) (1.0 / 3.0));
 
-        eInterior.Append(cIndex,   4.0f / 9.0f);
-        eInterior.Append(cRing[2], 2.0f / 9.0f);
-        eInterior.Append(cRing[0], 1.0f / 9.0f);
-        eInterior.Append(cRing[4], 1.0f / 9.0f);
-        eInterior.Append(cRing[1], 1.0f / 18.0f);
-        eInterior.Append(cRing[3], 1.0f / 18.0f);
+        eInterior.Append(cIndex,   (REAL) (4.0 / 9.0));
+        eInterior.Append(cRing[2], (REAL) (2.0 / 9.0));
+        eInterior.Append(cRing[0], (REAL) (1.0 / 9.0));
+        eInterior.Append(cRing[4], (REAL) (1.0 / 9.0));
+        eInterior.Append(cRing[1], (REAL) (1.0 / 18.0));
+        eInterior.Append(cRing[3], (REAL) (1.0 / 18.0));
     }
     assert(matrix.GetRowSize(5*cIndex + 0) == p.GetSize());
     assert(matrix.GetRowSize(5*cIndex + 1) == ep.GetSize());
