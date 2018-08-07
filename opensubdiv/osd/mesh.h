@@ -54,10 +54,11 @@ enum MeshBits {
     MeshUseSmoothCornerPatch = 4,
     MeshUseSingleCreasePatch = 5,
     MeshUseInfSharpPatch     = 6,
-    MeshEndCapBSplineBasis   = 7,  // exclusive
-    MeshEndCapGregoryBasis   = 8,  // exclusive
-    MeshEndCapLegacyGregory  = 9,  // exclusive
-    NUM_MESH_BITS            = 10,
+    MeshEndCapBilinearBasis  = 7,  // exclusive
+    MeshEndCapBSplineBasis   = 8,  // exclusive
+    MeshEndCapGregoryBasis   = 9,  // exclusive
+    MeshEndCapLegacyGregory  = 10, // exclusive
+    NUM_MESH_BITS            = 11,
 };
 typedef std::bitset<NUM_MESH_BITS> MeshBitset;
 
@@ -614,14 +615,18 @@ private:
         poptions.useSingleCreasePatch = bits.test(MeshUseSingleCreasePatch);
         poptions.useInfSharpPatch = bits.test(MeshUseInfSharpPatch);
 
-        if (bits.test(MeshEndCapBSplineBasis)) {
+        // points on bilinear and gregory basis endcap boundaries can be
+        // shared among adjacent patches to save some stencils.
+        if (bits.test(MeshEndCapBilinearBasis)) {
+            poptions.SetEndCapType(
+                Far::PatchTableFactory::Options::ENDCAP_BILINEAR_BASIS);
+            poptions.shareEndCapPatchPoints = true;
+        } else if (bits.test(MeshEndCapBSplineBasis)) {
             poptions.SetEndCapType(
                 Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS);
         } else if (bits.test(MeshEndCapGregoryBasis)) {
             poptions.SetEndCapType(
                 Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
-            // points on gregory basis endcap boundary can be shared among
-            // adjacent patches to save some stencils.
             poptions.shareEndCapPatchPoints = true;
         } else if (bits.test(MeshEndCapLegacyGregory)) {
             poptions.SetEndCapType(
