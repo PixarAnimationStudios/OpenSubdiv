@@ -29,6 +29,8 @@
 
 #include "../vtr/array.h"
 
+#include <algorithm>
+
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -91,6 +93,7 @@ public:
     //  Modification methods
     void Resize(int numRows, int numColumns, int numNonZeroEntriesToReserve);
     void Copy(SparseMatrix const & srcMatrix);
+    void Swap(SparseMatrix & otherMatrix);
 
     void SetRowSize(int rowIndex, int size);
 
@@ -169,8 +172,21 @@ SparseMatrix<REAL>::Copy(SparseMatrix const & src) {
 
     _numElements = src._numElements;
 
-    _columns  = src._elements;
+    _columns  = src._columns;
     _elements = src._elements;
+}
+
+template <typename REAL>
+inline void
+SparseMatrix<REAL>::Swap(SparseMatrix & other) {
+
+    std::swap(_numRows, other._numRows);
+    std::swap(_numColumns, other._numColumns);
+    std::swap(_numElements, other._numElements);
+
+    _rowOffsets.swap(other._rowOffsets);
+    _columns.swap(other._columns);
+    _elements.swap(other._elements);
 }
 
 } // end namespace Far
