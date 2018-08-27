@@ -56,12 +56,16 @@ public:
 
         Options(unsigned int maxIsolation=10) :
              generateAllLevels(false),
+             includeBaseLevelIndices(true),
+             includeFVarBaseLevelIndices(false),
              triangulateQuads(false),
              useSingleCreasePatch(false),
              useInfSharpPatch(false),
              maxIsolationLevel(maxIsolation),
              endCapType(ENDCAP_GREGORY_BASIS),
              shareEndCapPatchPoints(true),
+             generateVaryingTables(true),
+             generateVaryingLocalPoints(true),
              generateFVarTables(false),
              setPatchPrecisionDouble(false),
              setFVarPatchPrecisionDouble(false),
@@ -83,8 +87,11 @@ public:
         /// \brief Set precision of face-varying patches
         template <typename REAL> void SetFVarPatchPrecision();
 
-        unsigned int generateAllLevels    : 1, ///< Include levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
-                     triangulateQuads     : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
+        unsigned int generateAllLevels           : 1, ///< Generate levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
+                     includeBaseLevelIndices     : 1, ///< Include base level in patch point indices (Uniform mode only)
+                     includeFVarBaseLevelIndices : 1, ///< Include base level in face-varying patch point indices (Uniform mode only)
+                     triangulateQuads            : 1, ///< Triangulate 'QUADS' primitives (Uniform mode only)
+
                      useSingleCreasePatch : 1, ///< Use single crease patch
                      useInfSharpPatch     : 1, ///< Use infinitely-sharp patch
                      maxIsolationLevel    : 4, ///< Cap adaptive feature isolation to the given level (max. 10)
@@ -93,6 +100,10 @@ public:
                      endCapType              : 3, ///< EndCapType
                      shareEndCapPatchPoints  : 1, ///< Share endcap patch points among adjacent endcap patches.
                                                   ///< currently only work with GregoryBasis.
+
+                     // varying
+                     generateVaryingTables      : 1, ///< Generate varying patch tables
+                     generateVaryingLocalPoints : 1, ///< Generate local points with varying patches
 
                      // face-varying
                      generateFVarTables  : 1, ///< Generate face-varying patch tables

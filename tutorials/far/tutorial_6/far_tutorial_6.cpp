@@ -150,6 +150,7 @@ int main(int, char **) {
     // surface limit
     Far::PatchTableFactory::Options patchOptions;
     patchOptions.SetPatchPrecision<Real>();
+    patchOptions.generateVaryingTables = false;
     patchOptions.endCapType =
         Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
 
@@ -164,7 +165,7 @@ int main(int, char **) {
     // Create a buffer to hold the position of the refined verts and
     // local points, then copy the coarse positions at the beginning.
     std::vector<Vertex> verts(nRefinerVertices + nLocalPoints);
-    memcpy(&verts[0], g_verts, g_nverts*3*sizeof(Real));
+    std::memcpy(&verts[0], g_verts, g_nverts*3*sizeof(Real));
 
     // Adaptive refinement may result in fewer levels than maxIsolation.
     int nRefinedLevels = refiner->GetNumLevels();
