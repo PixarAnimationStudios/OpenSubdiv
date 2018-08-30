@@ -427,8 +427,9 @@ PatchTableBuilder::PatchTableBuilder(
     _requiresSharpnessArray = _options.useSingleCreasePatch;
     _requiresFVarPatches = ! _fvarChannelIndices.empty();
 
-    _requiresVaryingPatches = true;      // eventually to be made public
-    _requiresVaryingLocalPoints = true;  // currently fixed
+    _requiresVaryingPatches = _options.generateVaryingTables;
+    _requiresVaryingLocalPoints = _options.generateVaryingTables &&
+                                  _options.generateVaryingLocalPoints;
 
     //
     //  Create and initialize the new PatchTable instance to be assembled:
@@ -723,8 +724,8 @@ PatchTableBuilder::BuildUniform() {
     // these as public options in future so that clients can create consistent
     // behavior:
 
-    bool includeBaseLevelIndices     = true;
-    bool includeBaseLevelFVarIndices = false;
+    bool includeBaseLevelIndices     = _options.includeBaseLevelIndices;
+    bool includeBaseLevelFVarIndices = _options.includeFVarBaseLevelIndices;
 
     // ensure that triangulateQuads is only set for quadrilateral schemes
     bool triangulateQuads =
