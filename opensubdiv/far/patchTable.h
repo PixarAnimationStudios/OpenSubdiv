@@ -172,6 +172,10 @@ public:
     template <class T> void
     ComputeLocalPointValues(T const *src, T *dst) const;
 
+    template <class T> void
+    ComputeLocalPointValues(T const *srcBase, int numBase,
+                            T const *srcRefined, T *dst) const;
+
     /// \brief Returns the stencil table to compute local point vertex values
     StencilTable const *GetLocalPointStencilTable() const;
 
@@ -197,6 +201,10 @@ public:
     ///
     template <class T> void
     ComputeLocalPointValuesVarying(T const *src, T *dst) const;
+
+    template <class T> void
+    ComputeLocalPointValuesVarying(T const *srcBase, int numBase,
+                                   T const *srcRefined, T *dst) const;
 
     /// \brief Returns the stencil table to compute local point varying values
     StencilTable const *GetLocalPointVaryingStencilTable() const;
@@ -225,6 +233,10 @@ public:
     ///
     template <class T> void
     ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel = 0) const;
+
+    template <class T> void
+    ComputeLocalPointValuesFaceVarying(T const *srcBase, int numBase,
+                                       T const *srcRefined, T *dst, int channel = 0) const;
 
     /// \brief Returns the stencil table to compute local point face-varying values
     StencilTable const *GetLocalPointFaceVaryingStencilTable(int channel = 0) const;
@@ -781,6 +793,20 @@ PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
         }
     }
 }
+template <class T>
+inline void
+PatchTable::ComputeLocalPointValues(T const *srcBase, int numBase,
+                                    T const *srcRefined, T *dst) const {
+    if (_localPointStencils.IsSet()) {
+        if (_vertexPrecisionIsDouble) {
+            _localPointStencils.Get<double>()->UpdateValues(
+                    srcBase, numBase, srcRefined, dst);
+        } else {
+            _localPointStencils.Get<float>()->UpdateValues(
+                    srcBase, numBase, srcRefined, dst);
+        }
+    }
+}
 
 template <class T>
 inline void
@@ -790,6 +816,20 @@ PatchTable::ComputeLocalPointValuesVarying(T const *src, T *dst) const {
             _localPointVaryingStencils.Get<double>()->UpdateValues(src, dst);
         } else {
             _localPointVaryingStencils.Get<float>()->UpdateValues(src, dst);
+        }
+    }
+}
+template <class T>
+inline void
+PatchTable::ComputeLocalPointValuesVarying(T const *srcBase, int numBase,
+                                           T const *srcRefined, T *dst) const {
+    if (_localPointVaryingStencils.IsSet()) {
+        if (_varyingPrecisionIsDouble) {
+            _localPointVaryingStencils.Get<double>()->UpdateValues(
+                    srcBase, numBase, srcRefined, dst);
+        } else {
+            _localPointVaryingStencils.Get<float>()->UpdateValues(
+                    srcBase, numBase, srcRefined, dst);
         }
     }
 }
@@ -803,6 +843,22 @@ PatchTable::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel
                 _localPointFaceVaryingStencils[channel].Get<double>()->UpdateValues(src, dst);
             } else {
                 _localPointFaceVaryingStencils[channel].Get<float>()->UpdateValues(src, dst);
+            }
+        }
+    }
+}
+template <class T>
+inline void
+PatchTable::ComputeLocalPointValuesFaceVarying(T const *srcBase, int numBase,
+                                               T const *srcRefined, T *dst, int channel) const {
+    if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
+        if (_localPointFaceVaryingStencils[channel].IsSet()) {
+            if (_faceVaryingPrecisionIsDouble) {
+                _localPointFaceVaryingStencils[channel].Get<double>()->UpdateValues(
+                        srcBase, numBase, srcRefined, dst);
+            } else {
+                _localPointFaceVaryingStencils[channel].Get<float>()->UpdateValues(
+                        srcBase, numBase, srcRefined, dst);
             }
         }
     }

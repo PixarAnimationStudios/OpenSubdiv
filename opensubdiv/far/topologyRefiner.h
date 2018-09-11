@@ -174,11 +174,14 @@ public:
                                                     ///< instead of child vertices of vertices
     };
 
-    /// \brief Feature Adaptive topology refinement (restricted to scheme Catmark)
+    /// \brief Feature Adaptive topology refinement
     ///
-    /// @param options   Options controlling adaptive refinement
+    /// @param options         Options controlling adaptive refinement
     ///
-    void RefineAdaptive(AdaptiveOptions options);
+    /// @param selectedFaces   Limit adaptive refinement to the specified faces
+    ///
+    void RefineAdaptive(AdaptiveOptions options,
+                        ConstIndexArray selectedFaces = ConstIndexArray());
 
     /// \brief Returns the options specified on refinement
     AdaptiveOptions GetAdaptiveOptions() const { return _adaptiveOptions; }
@@ -216,6 +219,9 @@ protected:
     template <typename REAL>
     friend class PrimvarRefinerReal;
 
+    //  Copy constructor exposed via the factory class:
+    TopologyRefiner(TopologyRefiner const & source);
+
     Vtr::internal::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::internal::Level const & getLevel(int l) const { return *_levels[l]; }
 
@@ -225,11 +231,11 @@ protected:
 private:
     //  Not default constructible or copyable:
     TopologyRefiner() : _uniformOptions(0), _adaptiveOptions(0) { }
-    TopologyRefiner(TopologyRefiner const &) : _uniformOptions(0), _adaptiveOptions(0) { }
     TopologyRefiner & operator=(TopologyRefiner const &) { return *this; }
 
     void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
-                                         internal::FeatureMask const & mask);
+                                         internal::FeatureMask const & mask,
+                                         ConstIndexArray selectedFaces);
 
     void initializeInventory();
     void updateInventory(Vtr::internal::Level const & newLevel);
@@ -258,7 +264,9 @@ private:
     int _totalFaceVertices;
     int _maxValence;
 
-    //  There is some redundancy here -- to be reduced later
+    //  Note the base level may be shared with another instance
+    bool _baseLevelOwned;
+
     std::vector<Vtr::internal::Level *>      _levels;
     std::vector<Vtr::internal::Refinement *> _refinements;
 

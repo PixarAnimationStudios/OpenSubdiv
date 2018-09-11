@@ -193,18 +193,24 @@ public:
     /// \note The destination buffers are assumed to have allocated at least
     ///       \c GetNumStencils() elements.
     ///
-    /// @param controlValues  Buffer with primvar data for the control vertices
+    /// @param srcValues  Buffer with primvar data for the control vertices
     ///
-    /// @param values         Destination buffer for the interpolated primvar
-    ///                       data
+    /// @param dstValues  Destination buffer for the interpolated primvar data
     ///
-    /// @param start          index of first value to update
+    /// @param start      Index of first destination value to update
     ///
-    /// @param end            Index of last value to update
+    /// @param end        Index of last destination value to update
     ///
     template <class T>
-    void UpdateValues(T const *controlValues, T *values, Index start=-1, Index end=-1) const {
-        this->update(controlValues, values, _weights, start, end);
+    void UpdateValues(T const *srcValues, T *dstValues, Index start=-1, Index end=-1) const {
+        this->update(srcValues, dstValues, _weights, start, end);
+    }
+
+    template <class T>
+    void UpdateValues(T const *srcBaseValues, int numBaseValues, T const *srcNonBaseValues,
+        T *dstValues, Index start=-1, Index end=-1) const {
+        this->update(srcBaseValues, numBaseValues, srcNonBaseValues,
+            dstValues, _weights, start, end);
     }
 
     /// \brief Clears the stencils from the table
@@ -214,7 +220,11 @@ protected:
 
     // Update values by applying cached stencil weights to new control values
     template <class T>
-    void update( T const *controlValues, T *values,
+    void update( T const *srcValues, T *dstValues,
+        std::vector<REAL> const & valueWeights, Index start, Index end) const;
+    template <class T>
+    void update( T const *srcBaseValues, int numBaseValues,
+        T const *srcNonBaseValues, T *dstalues,
         std::vector<REAL> const & valueWeights, Index start, Index end) const;
 
     // Populate the offsets table from the stencil sizes in _sizes (factory helper)
@@ -441,24 +451,35 @@ public:
     /// \note The destination buffers ('uderivs' & 'vderivs') are assumed to
     ///       have allocated at least \c GetNumStencils() elements.
     ///
-    /// @param controlValues  Buffer with primvar data for the control vertices
+    /// @param srcValues  Buffer with primvar data for the control vertices
     ///
-    /// @param uderivs        Destination buffer for the interpolated 'u'
-    ///                       derivative primvar data
+    /// @param uderivs    Destination buffer for the interpolated 'u'
+    ///                   derivative primvar data
     ///
-    /// @param vderivs        Destination buffer for the interpolated 'v'
-    ///                       derivative primvar data
+    /// @param vderivs    Destination buffer for the interpolated 'v'
+    ///                   derivative primvar data
     ///
-    /// @param start          index of first value to update
+    /// @param start      Index of first destination derivative to update
     ///
-    /// @param end            Index of last value to update
+    /// @param end        Index of last destination derivative to update
     ///
     template <class T>
-    void UpdateDerivs(T const *controlValues, T *uderivs, T *vderivs,
+    void UpdateDerivs(T const *srcValues, T *uderivs, T *vderivs,
         int start=-1, int end=-1) const {
 
-        this->update(controlValues, uderivs, _duWeights, start, end);
-        this->update(controlValues, vderivs, _dvWeights, start, end);
+        this->update(srcValues, uderivs, _duWeights, start, end);
+        this->update(srcValues, vderivs, _dvWeights, start, end);
+    }
+
+    template <class T>
+    void UpdateDerivs(T const *srcBaseValues, int numBaseValues,
+        T const *srcNonBaseValues, T *uderivs, T *vderivs,
+        int start=-1, int end=-1) const {
+
+        this->update(srcBaseValues, numBaseValues, srcNonBaseValues,
+            uderivs, _duWeights, start, end);
+        this->update(srcBaseValues, numBaseValues, srcNonBaseValues,
+            vderivs, _dvWeights, start, end);
     }
 
     /// \brief Updates 2nd derivative values based on the control values
@@ -466,28 +487,41 @@ public:
     /// \note The destination buffers ('uuderivs', 'uvderivs', & 'vderivs') are
     ///       assumed to have allocated at least \c GetNumStencils() elements.
     ///
-    /// @param controlValues  Buffer with primvar data for the control vertices
+    /// @param srcValues  Buffer with primvar data for the control vertices
     ///
-    /// @param uuderivs       Destination buffer for the interpolated 'uu'
-    ///                       derivative primvar data
+    /// @param uuderivs   Destination buffer for the interpolated 'uu'
+    ///                   derivative primvar data
     ///
-    /// @param uvderivs       Destination buffer for the interpolated 'uv'
-    ///                       derivative primvar data
+    /// @param uvderivs   Destination buffer for the interpolated 'uv'
+    ///                   derivative primvar data
     ///
-    /// @param vvderivs       Destination buffer for the interpolated 'vv'
-    ///                       derivative primvar data
+    /// @param vvderivs   Destination buffer for the interpolated 'vv'
+    ///                   derivative primvar data
     ///
-    /// @param start          index of first value to update
+    /// @param start      Index of first destination derivative to update
     ///
-    /// @param end            Index of last value to update
+    /// @param end        Index of last destination derivative to update
     ///
     template <class T>
-    void Update2ndDerivs(T const *controlValues, T *uuderivs, T *uvderivs, T *vvderivs,
+    void Update2ndDerivs(T const *srcValues, T *uuderivs, T *uvderivs, T *vvderivs,
         int start=-1, int end=-1) const {
 
-        this->update(controlValues, uuderivs, _duuWeights, start, end);
-        this->update(controlValues, uvderivs, _duvWeights, start, end);
-        this->update(controlValues, vvderivs, _dvvWeights, start, end);
+        this->update(srcValues, uuderivs, _duuWeights, start, end);
+        this->update(srcValues, uvderivs, _duvWeights, start, end);
+        this->update(srcValues, vvderivs, _dvvWeights, start, end);
+    }
+
+    template <class T>
+    void Update2ndDerivs(T const *srcBaseValues, int numBaseValues,
+        T const *srcOtherValues, T *uuderivs, T *uvderivs, T *vvderivs,
+        int start=-1, int end=-1) const {
+
+        this->update(srcBaseValues, numBaseValues, srcOtherValues,
+            uuderivs, _duuWeights, start, end);
+        this->update(srcBaseValues, numBaseValues, srcOtherValues,
+            uvderivs, _duvWeights, start, end);
+        this->update(srcBaseValues, numBaseValues, srcOtherValues,
+            vvderivs, _dvvWeights, start, end);
     }
 
     /// \brief Clears the stencils from the table
@@ -544,7 +578,8 @@ protected:
 // Update values by applying cached stencil weights to new control values
 template <typename REAL>
 template <class T> void
-StencilTableReal<REAL>::update(T const *controlValues, T *values,
+StencilTableReal<REAL>::update(T const *srcBaseValues, int numBaseValues,
+    T const *srcNonBaseValues, T *dstValues,
     std::vector<REAL> const &valueWeights, Index start, Index end) const {
 
     int const * sizes = &_sizes.at(0);
@@ -556,7 +591,7 @@ StencilTableReal<REAL>::update(T const *controlValues, T *values,
         sizes += start;
         indices += _offsets[start];
         weights += _offsets[start];
-        values += start;
+        dstValues += start;
     }
 
     if (end<start || end<0) {
@@ -564,16 +599,33 @@ StencilTableReal<REAL>::update(T const *controlValues, T *values,
     }
 
     int nstencils = end - std::max(0, start);
-    for (int i=0; i<nstencils; ++i, ++sizes) {
 
-        // Zero out the result accumulators
-        values[i].Clear();
-
-        // For each element in the array, add the coef's contribution
-        for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
-            values[i].AddWithWeight( controlValues[*indices], *weights );
+    // Use separate loops for single and split buffers
+    if (srcNonBaseValues == 0) {
+        for (int i=0; i<nstencils; ++i, ++sizes) {
+            dstValues[i].Clear();
+            for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
+                dstValues[i].AddWithWeight( srcBaseValues[*indices], *weights );
+            }
+        }
+    } else {
+        for (int i=0; i<nstencils; ++i, ++sizes) {
+            dstValues[i].Clear();
+            for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
+                T const & srcValue = (*indices < numBaseValues)
+                                   ? srcBaseValues[*indices]
+                                   : srcNonBaseValues[*indices - numBaseValues];
+                dstValues[i].AddWithWeight( srcValue, *weights );
+            }
         }
     }
+}
+template <typename REAL>
+template <class T> void
+StencilTableReal<REAL>::update(T const *srcValues, T *dstValues,
+    std::vector<REAL> const &valueWeights, Index start, Index end) const {
+
+    this->update(srcValues, 0, (T const *)0, dstValues, valueWeights, start, end);
 }
 
 template <typename REAL>
