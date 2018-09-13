@@ -182,7 +182,10 @@ int main(int, char **) {
     }
 
     // Evaluate local points from interpolated vertex primvars.
-    patchTable->ComputeLocalPointValues(&verts[0], &verts[nRefinerVertices]);
+    if (nLocalPoints) {
+        patchTable->GetLocalPointStencilTable<Real>()->UpdateValues(
+            &verts[0], &verts[nRefinerVertices]);
+    }
 
     // Create a Far::PatchMap to help locating patches in the table
     Far::PatchMap patchmap(*patchTable);

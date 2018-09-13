@@ -86,10 +86,10 @@ namespace {
         //  Clear() and AddWithWeight() required for interpolation:
         void Clear( void * =0 ) { p[0] = p[1] = p[2] = 0.0f; }
 
-        void AddWithWeight(Pos const & src, double weight) {
-            p[0] += (float)weight * src.p[0];
-            p[1] += (float)weight * src.p[1];
-            p[2] += (float)weight * src.p[2];
+        void AddWithWeight(Pos const & src, float weight) {
+            p[0] += weight * src.p[0];
+            p[1] += weight * src.p[1];
+            p[2] += weight * src.p[2];
         }
 
         float p[3];
@@ -376,8 +376,9 @@ PatchGroup::PatchGroup(Far::PatchTableFactory::Options patchOptions,
         }
     }
     if (nLocalPoints) {
-        patchTable->ComputeLocalPointValues(&basePositions[0], nBaseVertices,
-                &localPositions[0], &localPositions[nRefinedVertices]);
+        patchTable->GetLocalPointStencilTable()->UpdateValues(
+                &basePositions[0], nBaseVertices, &localPositions[0],
+                &localPositions[nRefinedVertices]);
     }
 
     delete localRefiner;
