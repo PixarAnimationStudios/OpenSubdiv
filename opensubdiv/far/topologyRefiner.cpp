@@ -53,7 +53,8 @@ TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options scheme
     _totalEdges(0),
     _totalFaces(0),
     _totalFaceVertices(0),
-    _maxValence(0) {
+    _maxValence(0),
+    _baseLevelOwned(true) {
 
     //  Need to revisit allocation scheme here -- want to use smart-ptrs for these
     //  but will probably have to settle for explicit new/delete...
@@ -63,10 +64,35 @@ TopologyRefiner::TopologyRefiner(Sdc::SchemeType schemeType, Sdc::Options scheme
     assembleFarLevels();
 }
 
+//
+//  The copy constructor is protected and used by the factory to create a new instance
+//  from only the base level of the given instance -- it does not create a full copy.
+//  So members reflecting any refinement are default-initialized while those dependent
+//  on the base level are copied or explicitly initialized after its assignment.
+//
+TopologyRefiner::TopologyRefiner(TopologyRefiner const & source) :
+    _subdivType(source._subdivType),
+    _subdivOptions(source._subdivOptions),
+    _isUniform(true),
+    _hasHoles(source._hasHoles),
+    _maxLevel(0),
+    _uniformOptions(0),
+    _adaptiveOptions(0),
+    _baseLevelOwned(false) {
+
+    _levels.reserve(10);
+    _levels.push_back(source._levels[0]);
+    initializeInventory();
+
+    _farLevels.reserve(10);
+    assembleFarLevels();
+}
+
+
 TopologyRefiner::~TopologyRefiner() {
 
     for (int i=0; i<(int)_levels.size(); ++i) {
-        delete _levels[i];
+        if ((i > 0) || _baseLevelOwned) delete _levels[i];
     }
 
     for (int i=0; i<(int)_refinements.size(); ++i) {
@@ -345,7 +371,8 @@ namespace internal {
 } // end namespace internal
 
 void
-TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
+TopologyRefiner::RefineAdaptive(AdaptiveOptions options,
+                                ConstIndexArray baseFacesToRefine) {
 
     if (_levels[0]->getNumVertices() == 0) {
         Error(FAR_RUNTIME_ERROR,
@@ -436,7 +463,15 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options) {
         //
         Vtr::internal::SparseSelector selector(*refinement);
 
-        selectFeatureAdaptiveComponents(selector, (i <= shallowLevel) ? moreFeaturesMask : lessFeaturesMask);
+        internal::FeatureMask const & levelFeatures = (i <= shallowLevel) ? moreFeaturesMask
+                                                                          : lessFeaturesMask;
+
+        if (i == 1) {
+            selectFeatureAdaptiveComponents(selector, levelFeatures, baseFacesToRefine);
+        } else {
+            selectFeatureAdaptiveComponents(selector, levelFeatures, ConstIndexArray());
+        }
+
         if (selector.isSelectionEmpty()) {
             delete refinement;
             delete &childLevel;
@@ -667,9 +702,32 @@ namespace {
 //   and will select all relevant topological features for inclusion in the subsequent sparse
 //   refinement.
 //
+namespace {
+    bool
+    faceNextToIrregFace(Vtr::internal::Level const& level, Index faceIndex, int regFaceSize) {
+
+        //  Wish there was a better way to determine this -- we must inspect the sizes
+        //  of all incident faces of all corners of the face...
+        //
+        Vtr::ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
+
+        for (int i = 0; i < faceVerts.size(); ++i) {
+            ConstIndexArray vertFaces = level.getVertexFaces(faceVerts[i]);
+
+            for (int j = 0; j < vertFaces.size(); ++j) {
+                if (level.getFaceVertices(vertFaces[j]).size() != regFaceSize) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+}
+
 void
 TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
-                                                 internal::FeatureMask const & featureMask) {
+                                                 internal::FeatureMask const & featureMask,
+                                                 ConstIndexArray facesToRefine) {
 
     Vtr::internal::Level const& level = selector.getRefinement().parent();
     int levelDepth = level.getDepth();
@@ -684,7 +742,11 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
     //
     //  Inspect each face and the properties tagged at all of its corners:
     //
-    for (Vtr::Index face = 0; face < level.getNumFaces(); ++face) {
+    int numFacesToRefine = facesToRefine.size() ? facesToRefine.size() : level.getNumFaces();
+
+    for (int fIndex = 0; fIndex < numFacesToRefine; ++fIndex) {
+
+        Vtr::Index face = facesToRefine.size() ? facesToRefine[fIndex] : (Index) fIndex;
 
         if (level.isFaceHole(face)) {
             continue;
@@ -694,18 +756,18 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         //  Testing irregular faces is only necessary at level 0, and potentially warrants
         //  separating out as the caller can detect these.
         //
-        //  We need to also ensure that all adjacent faces to this are selected, so we
-        //  select every face incident every vertex of the face.  This is the only place
-        //  where other faces are selected as a side effect and somewhat undermines the
-        //  whole intent of the per-face traversal.
-        //
         if (selectIrregularFaces) {
             Vtr::ConstIndexArray faceVerts = level.getFaceVertices(face);
 
             if (faceVerts.size() != regularFaceSize) {
-                if (neighborhood == 0) {
-                    selector.selectFace(face);
-                } else {
+                selector.selectFace(face);
+
+                //  For non-linear schemes, if the faces to refine were not explicitly
+                //  specified, select all faces adjacent to this irregular face.  (This
+                //  is the only place where other faces are selected as a side effect
+                //  and somewhat undermines the whole intent of the per-face traversal.)
+                //
+                if ((neighborhood > 0) && facesToRefine.empty()) {
                     for (int i = 0; i < faceVerts.size(); ++i) {
                         ConstIndexArray fVertFaces = level.getVertexFaces(faceVerts[i]);
                         for (int j = 0; j < fVertFaces.size(); ++j) {
@@ -714,6 +776,18 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
                     }
                 }
                 continue;
+            } else {
+                //  For non-linear schemes, if the faces to refine were explicitly
+                //  specified, we can't count on this regular face be selected as
+                //  adjacent to an irregular face above, so see if any of its
+                //  neighboring faces are irregular and select if so:
+                //
+                if ((neighborhood > 0) && !facesToRefine.empty()) {
+                    if (faceNextToIrregFace(level, face, regularFaceSize)) {
+                        selector.selectFace(face);
+                        continue;
+                    }
+                }
             }
         }
 

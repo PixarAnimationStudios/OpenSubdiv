@@ -129,7 +129,11 @@ public:
     ///
     ///  For adaptively refined patches, patches are defined at different levels,
     ///  including the base level, so the indices of patch vertices include
-    ///  vertices from all levels.
+    ///  vertices from all levels.  A sparse set of patches can be created by
+    ///  restricting the patches generated to those descending from a given set
+    ///  of faces at the base level.  This sparse set of base faces is expected
+    ///  to be a subset of the faces that were adaptively refined in the given
+    ///  TopologyRefiner, otherwise results are undefined.
     ///
     ///  For uniformly refined patches, all patches are completely defined within
     ///  the last level.  There is often no use for intermediate levels and they
@@ -140,23 +144,30 @@ public:
     ///  the base level in addition to the last level while indices for face-varying
     ///  patches include only the last level.
     ///
-    /// @param refiner              TopologyRefiner from which to generate patches
+    /// @param refiner        TopologyRefiner from which to generate patches
     ///
-    /// @param options              Options controlling the creation of the table
+    /// @param options        Options controlling the creation of the table
     ///
-    /// @return                     A new instance of PatchTable
+    /// @param selectedFaces  Only create patches for the given set of base faces.
+    ///
+    /// @return               A new instance of PatchTable
     ///
     static PatchTable * Create(TopologyRefiner const & refiner,
-                               Options options=Options());
+                               Options options = Options(),
+                               ConstIndexArray selectedFaces = ConstIndexArray());
 
 public:
     //  PatchFaceTag
+    //
     //  This simple struct was previously used within the factory to take inventory of
     //  various kinds of patches to fully allocate buffers prior to populating them.  It
     //  was not intended to be exposed as part of the public interface.
     //
     //  It is no longer used internally and is being kept here to respect preservation
     //  of the public interface, but it will be deprecated at the earliest opportunity.
+    //
+    /// \brief Obsolete internal struct accidentally exposed for public use -- due to
+    /// be deprecated.
     //
     struct PatchFaceTag {
     public:

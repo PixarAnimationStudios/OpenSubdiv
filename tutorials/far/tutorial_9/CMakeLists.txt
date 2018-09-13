@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2018 DreamWorks Animation LLC.
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,21 +22,17 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-
-include_directories(
-    "${PROJECT_SOURCE_DIR}/"
-    "${OPENSUBDIV_INCLUDE_DIR}/"
+set(SOURCE_FILES
+    far_tutorial_9.cpp
 )
 
-add_subdirectory(hbr)
-
-add_subdirectory(far)
-
-add_subdirectory(osd)
-
-add_custom_target(tutorials
-    DEPENDS
-        hbr_tutorials
-        far_tutorials
-        osd_tutorials
+_add_executable(far_tutorial_9 "tutorials/far"
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
+    $<TARGET_OBJECTS:regression_common_obj>
 )
+
+install(TARGETS far_tutorial_9 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+

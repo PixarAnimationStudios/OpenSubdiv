@@ -103,7 +103,8 @@ public:
     //
     typedef PatchTableFactory::Options Options;
 
-    PatchTableBuilder(TopologyRefiner const & refiner, Options options);
+    PatchTableBuilder(TopologyRefiner const & refiner, Options options,
+                      ConstIndexArray selectedFaces);
     ~PatchTableBuilder();
 
     void BuildUniform();
@@ -313,6 +314,8 @@ private:
 
     //  High level methods for assembling the table:
     void identifyAdaptivePatches();
+    void appendAdaptivePatch(int levelIndex, Index faceIndex);
+    void testAdaptivePatchRecursive(int levelIndex, Index faceIndex);
     void populateAdaptivePatches();
 
     void allocateVertexTables();
@@ -325,6 +328,7 @@ private:
     //  Refiner and Options passed on construction:
     TopologyRefiner const & _refiner;
     Options const           _options;
+    ConstIndexArray         _selectedFaces;
 
     // Flags indicating the need for processing based on provided options
     unsigned int _requiresLocalPoints          : 1;
@@ -361,8 +365,8 @@ private:
 
 // Constructor
 PatchTableBuilder::PatchTableBuilder(
-    TopologyRefiner const & refiner, Options opts) :
-    _refiner(refiner), _options(opts),
+    TopologyRefiner const & refiner, Options opts, ConstIndexArray faces) :
+    _refiner(refiner), _options(opts), _selectedFaces(faces),
     _table(0), _patchBuilder(0), _ptexIndices(refiner),
     _numRegularPatches(0), _numIrregularPatches(0),
     _legacyGregoryHelper(0) {
@@ -898,16 +902,48 @@ PatchTableBuilder::BuildAdaptive() {
 //  <level,face> pairs to identify each patch for later construction, while
 //  accumulating the number of regular vs irregular patches to size tables.
 //
+inline void
+PatchTableBuilder::appendAdaptivePatch(int levelIndex, Index faceIndex) {
+
+    _patches.push_back(PatchTuple(faceIndex, levelIndex));
+
+    // Count the patches here to simplify subsequent allocation.
+    if (_patchBuilder->IsPatchRegular(levelIndex, faceIndex)) {
+        ++_numRegularPatches;
+    } else {
+        ++_numIrregularPatches;
+
+        //  LegacyGregory needs to distinguish boundary vs interior
+        if (_requiresLegacyGregoryTables) {
+            _legacyGregoryHelper->AddPatchFace(levelIndex, faceIndex);
+        }
+    }
+}
+
+inline void
+PatchTableBuilder::testAdaptivePatchRecursive(int levelIndex, Index faceIndex) {
+
+    if (_patchBuilder->IsFaceALeaf(levelIndex, faceIndex)) {
+        if (_patchBuilder->IsFaceAPatch(levelIndex, faceIndex)) {
+            appendAdaptivePatch(levelIndex, faceIndex);
+        }
+    } else {
+        TopologyLevel const & level = _refiner.GetLevel(levelIndex);
+        ConstIndexArray childFaces = level.GetFaceChildFaces(faceIndex);
+        for (int i = 0; i < childFaces.size(); ++i) {
+            if (Vtr::IndexIsValid(childFaces[i])) {
+                testAdaptivePatchRecursive(levelIndex + 1, childFaces[i]);
+            }
+        }
+    }
+}
+
 void
 PatchTableBuilder::identifyAdaptivePatches() {
 
     //
-    //  Iterate through the levels of refinement.  Accumulate index offsets
-    //  for each level while inspecting faces for patches:
+    //  First initialize the offsets for all levels
     //
-    int reservePatches = _refiner.GetNumFacesTotal();
-    _patches.reserve(reservePatches);
-
     _levelVertOffsets.push_back(0);
     _levelFVarValueOffsets.resize(_fvarChannelIndices.size());
     for (int fvc=0; fvc<(int)_fvarChannelIndices.size(); ++fvc) {
@@ -926,24 +962,33 @@ PatchTableBuilder::identifyAdaptivePatches() {
                 _levelFVarValueOffsets[fvc].back()
                 + level.getNumFVarValues(refinerChannel));
         }
+    }
 
-        for (int faceIndex = 0; faceIndex < level.getNumFaces(); ++faceIndex) {
+    //
+    //  If a set of selected base faces is present, identify the patches
+    //  depth first.  Otherwise search breadth first through the levels:
+    //
+    _patches.reserve(_refiner.GetNumFacesTotal());
 
-            if (_patchBuilder->IsFaceAPatch(levelIndex, faceIndex) &&
-                _patchBuilder->IsFaceALeaf(levelIndex, faceIndex)) {
+    //  This depth-first-all test is intended for development testing only
+    bool depthFirstTestForAll = false;
+    if (_selectedFaces.size()) {
+        for (int i = 0; i < (int)_selectedFaces.size(); ++i) {
+            testAdaptivePatchRecursive(0, _selectedFaces[i]);
+        }
+    } else if (depthFirstTestForAll) {
+        for (int baseFace = 0; baseFace < _refiner.getLevel(0).getNumFaces(); ++baseFace) {
+            testAdaptivePatchRecursive(0, baseFace);
+        }
+    } else {
+        for (int levelIndex=0; levelIndex<_refiner.GetNumLevels(); ++levelIndex) {
+            int numFaces = _refiner.getLevel(levelIndex).getNumFaces();
 
-                _patches.push_back(PatchTuple(faceIndex, levelIndex));
+            for (int faceIndex = 0; faceIndex < numFaces; ++faceIndex) {
 
-                // Count the patches here to simplify subsequent allocation.
-                if (_patchBuilder->IsPatchRegular(levelIndex, faceIndex)) {
-                    ++_numRegularPatches;
-                } else {
-                    ++_numIrregularPatches;
-
-                    //  LegacyGregory needs to distinguish boundary vs interior
-                    if (_requiresLegacyGregoryTables) {
-                        _legacyGregoryHelper->AddPatchFace(levelIndex, faceIndex);
-                    }
+                if (_patchBuilder->IsFaceAPatch(levelIndex, faceIndex) &&
+                    _patchBuilder->IsFaceALeaf(levelIndex, faceIndex)) {
+                    appendAdaptivePatch(levelIndex, faceIndex);
                 }
             }
         }
@@ -1889,9 +1934,11 @@ PatchTableBuilder::LegacyGregoryHelper::FinalizeVertexValence(
 //  to the PatchTableBuilder implementation
 //
 PatchTable *
-PatchTableFactory::Create(TopologyRefiner const & refiner, Options options) {
+PatchTableFactory::Create(TopologyRefiner const & refiner,
+                          Options options,
+                          ConstIndexArray selectedFaces) {
 
-    PatchTableBuilder builder(refiner, options);
+    PatchTableBuilder builder(refiner, options, selectedFaces);
 
     if (refiner.IsUniform()) {
         builder.BuildUniform();
