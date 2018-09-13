@@ -186,8 +186,8 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
         Far::PatchParam const & param =
             patchParamBuffer[coord.handle.patchIndex];
         int patchType = param.IsRegular()
-            ? Far::PatchDescriptor::REGULAR
-            : array.GetPatchType();
+            ? array.GetPatchTypeRegular()
+            : array.GetPatchTypeIrregular();
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -207,8 +207,7 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
             return false;
         }
 
-        int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-        int indexBase = array.GetIndexBase() + indexStride *
+        int indexBase = array.GetIndexBase() + array.GetStride() *
                 (coord.handle.patchIndex - array.GetPrimitiveIdBase());
 
         const int *cvs = &patchIndexBuffer[indexBase];
@@ -265,8 +264,8 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
         Far::PatchParam const & param =
             patchParamBuffer[coord.handle.patchIndex];
         int patchType = param.IsRegular()
-            ? Far::PatchDescriptor::REGULAR
-            : array.GetPatchType();
+            ? array.GetPatchTypeRegular()
+            : array.GetPatchTypeIrregular();
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -285,8 +284,7 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
             assert(0);
         }
 
-        int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-        int indexBase = array.GetIndexBase() + indexStride *
+        int indexBase = array.GetIndexBase() + array.GetStride() *
                 (coord.handle.patchIndex - array.GetPrimitiveIdBase());
 
         const int *cvs = &patchIndexBuffer[indexBase];
@@ -367,8 +365,8 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
         Far::PatchParam const & param =
             patchParamBuffer[coord.handle.patchIndex];
         int patchType = param.IsRegular()
-            ? Far::PatchDescriptor::REGULAR
-            : array.GetPatchType();
+            ? array.GetPatchTypeRegular()
+            : array.GetPatchTypeIrregular();
 
         int numControlVertices = 0;
         if (patchType == Far::PatchDescriptor::REGULAR) {
@@ -390,8 +388,7 @@ CpuEvaluator::EvalPatches(const float *src, BufferDescriptor const &srcDesc,
             assert(0);
         }
 
-        int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-        int indexBase = array.GetIndexBase() + indexStride *
+        int indexBase = array.GetIndexBase() + array.GetStride() *
                 (coord.handle.patchIndex - array.GetPrimitiveIdBase());
 
         const int *cvs = &patchIndexBuffer[indexBase];

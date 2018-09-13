@@ -325,7 +325,13 @@ public:
     /// \brief Returns the number of face-varying channels
     int GetNumFVarChannels() const;
 
-    /// \brief Returns the patch descriptor for \p channel
+    /// \brief Returns the regular patch descriptor for \p channel
+    PatchDescriptor GetFVarPatchDescriptorRegular(int channel = 0) const;
+
+    /// \brief Returns the irregular patch descriptor for \p channel
+    PatchDescriptor GetFVarPatchDescriptorIrregular(int channel = 0) const;
+
+    /// \brief Returns the default/irregular patch descriptor for \p channel
     PatchDescriptor GetFVarPatchDescriptor(int channel = 0) const;
 
     /// \brief Returns the value indices for a given patch in \p channel
@@ -339,6 +345,9 @@ public:
 
     /// \brief Returns an array of value indices for the patches in \p channel
     ConstIndexArray GetFVarValues(int channel = 0) const;
+
+    /// \brief Returns the stride between patches in the value index array of \p channel
+    int GetFVarValueStride(int channel = 0) const;
 
     /// \brief Returns the value indices for a given patch in \p channel
     PatchParam GetPatchFVarPatchParam(PatchHandle const & handle, int channel = 0) const;
@@ -574,7 +583,8 @@ private:
 
     void allocateFVarPatchChannels(int numChannels);
     void allocateFVarPatchChannelValues(
-        PatchDescriptor desc, int numPatches, int channel);
+        PatchDescriptor regDesc, PatchDescriptor irregDesc,
+        int numPatches, int channel);
 
     // deprecated
     void setFVarPatchChannelLinearInterpolation(

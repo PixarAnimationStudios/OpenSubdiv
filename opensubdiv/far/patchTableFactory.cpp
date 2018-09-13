@@ -703,18 +703,22 @@ PatchTableBuilder::allocateFVarChannels() {
 
         _table->setFVarPatchChannelLinearInterpolation(interpolation, fvc);
 
-        PatchDescriptor::Type fvarPatchType = _patchBuilder->GetLinearPatchType();
+        PatchDescriptor::Type regPatchType   = _patchBuilder->GetLinearPatchType();
+        PatchDescriptor::Type irregPatchType = regPatchType;
         if (_refiner.IsUniform()) {
             if (_options.triangulateQuads) {
-                fvarPatchType = PatchDescriptor::TRIANGLES;
+                regPatchType   = PatchDescriptor::TRIANGLES;
+                irregPatchType = regPatchType;
             }
         } else {
             if (!isFVarChannelLinear(fvc)) {
-                fvarPatchType = _patchBuilder->GetIrregularPatchType();
+                regPatchType   = _patchBuilder->GetRegularPatchType();
+                irregPatchType = _patchBuilder->GetIrregularPatchType();
             }
         }
         _table->allocateFVarPatchChannelValues(
-                PatchDescriptor(fvarPatchType), npatches, fvc);
+                PatchDescriptor(regPatchType), PatchDescriptor(irregPatchType),
+                npatches, fvc);
     }
 }
 
@@ -1114,10 +1118,8 @@ PatchTableBuilder::populateAdaptivePatches() {
 
             for (int fvc=0; fvc<(int)_fvarChannelIndices.size(); ++fvc) {
 
-                PatchDescriptor desc = _table->GetFVarPatchDescriptor(fvc);
-
                 Index pidx = _table->getPatchIndex(arrayIndex, 0);
-                int   ofs  = pidx * desc.GetNumControlVertices();
+                int   ofs  = pidx * _table->GetFVarValueStride(fvc);
 
                 arrayBuilder.fptr[fvc] = &_table->getFVarValues(fvc)[ofs];
                 arrayBuilder.fpptr[fvc] = &_table->getFVarPatchParams(fvc)[pidx];
@@ -1253,8 +1255,7 @@ PatchTableBuilder::populateAdaptivePatches() {
                    fvcPatchInfo.isRegular);
             }
             arrayBuilder->fpptr[fvc] ++;
-            arrayBuilder->fptr[fvc] +=
-                _table->GetFVarPatchDescriptor(fvc).GetNumControlVertices();
+            arrayBuilder->fptr[fvc] += _table->GetFVarValueStride(fvc);
         }
 
         if (_requiresVaryingPatches) {
