@@ -25,6 +25,7 @@
 #include "../far/patchTable.h"
 #include "../far/patchBasis.h"
 
+#include <algorithm>
 #include <cstring>
 #include <cstdio>
 

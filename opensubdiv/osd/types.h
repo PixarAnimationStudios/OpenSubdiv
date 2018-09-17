@@ -28,6 +28,8 @@
 #include "../version.h"
 #include "../far/patchTable.h"
 
+#include <algorithm>
+
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
