@@ -380,7 +380,7 @@ private:
 
 /// \brief Limit point stencil class wrapping the template for compatibility.
 ///
-class LimitStencil : LimitStencilReal<float> {
+class LimitStencil : public LimitStencilReal<float> {
 protected:
     typedef LimitStencilReal<float>   BaseStencil;
 
