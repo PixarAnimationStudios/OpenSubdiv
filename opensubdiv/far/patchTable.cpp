@@ -25,6 +25,7 @@
 #include "../far/patchTable.h"
 #include "../far/patchBasis.h"
 
+#include <algorithm>
 #include <cstring>
 #include <cstdio>
 
@@ -157,7 +158,10 @@ struct PatchTable::FVarPatchChannel {
 
     Sdc::Options::FVarLinearInterpolation interpolation;
 
-    PatchDescriptor desc;
+    PatchDescriptor regDesc;
+    PatchDescriptor irregDesc;
+
+    int stride;
 
     std::vector<Index> patchValues;
     std::vector<PatchParam> patchParam;
@@ -186,10 +190,16 @@ PatchTable::allocateFVarPatchChannels(int numChannels) {
 }
 void
 PatchTable::allocateFVarPatchChannelValues(
-        PatchDescriptor desc, int numPatches, int channel) {
+        PatchDescriptor regDesc, PatchDescriptor irregDesc,
+        int numPatches, int channel) {
     FVarPatchChannel & c = getFVarPatchChannel(channel);
-    c.desc = desc;
-    c.patchValues.resize(numPatches*desc.GetNumControlVertices());
+    c.regDesc   = regDesc;
+    c.irregDesc = irregDesc;
+
+    c.stride = std::max(regDesc.GetNumControlVertices(),
+                        irregDesc.GetNumControlVertices());
+
+    c.patchValues.resize(numPatches * c.stride);
     c.patchParam.resize(numPatches);
 }
 void
@@ -487,14 +497,29 @@ PatchTable::GetFVarChannelLinearInterpolation(int channel) const {
     return c.interpolation;
 }
 PatchDescriptor
+PatchTable::GetFVarPatchDescriptorRegular(int channel) const {
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return c.regDesc;
+}
+PatchDescriptor
+PatchTable::GetFVarPatchDescriptorIrregular(int channel) const {
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return c.irregDesc;
+}
+PatchDescriptor
 PatchTable::GetFVarPatchDescriptor(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    return c.desc;
+    return c.irregDesc;
 }
 ConstIndexArray
 PatchTable::GetFVarValues(int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
     return ConstIndexArray(&c.patchValues[0], (int)c.patchValues.size());
+}
+int
+PatchTable::GetFVarValueStride(int channel) const {
+    FVarPatchChannel const & c = getFVarPatchChannel(channel);
+    return c.stride;
 }
 IndexArray
 PatchTable::getFVarValues(int channel) {
@@ -504,10 +529,10 @@ PatchTable::getFVarValues(int channel) {
 ConstIndexArray
 PatchTable::getPatchFVarValues(int patch, int channel) const {
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    int ncvsPerPatch = c.desc.GetNumControlVertices();
     int ncvsThisPatch = c.patchParam[patch].IsRegular()
-                      ? c.desc.GetRegularPatchSize() : ncvsPerPatch;
-    return ConstIndexArray(&c.patchValues[patch * ncvsPerPatch], ncvsThisPatch);
+                      ? c.regDesc.GetNumControlVertices()
+                      : c.irregDesc.GetNumControlVertices();
+    return ConstIndexArray(&c.patchValues[patch * c.stride], ncvsThisPatch);
 }
 ConstIndexArray
 PatchTable::GetPatchFVarValues(PatchHandle const & handle, int channel) const {
@@ -521,7 +546,7 @@ ConstIndexArray
 PatchTable::GetPatchArrayFVarValues(int array, int channel) const {
     PatchArray const & pa = getPatchArray(array);
     FVarPatchChannel const & c = getFVarPatchChannel(channel);
-    int ncvs = c.desc.GetNumControlVertices();
+    int ncvs = c.stride;
     int start = pa.patchIndex * ncvs;
     int count = pa.numPatches * ncvs;
     return ConstIndexArray(&c.patchValues[start], count);
@@ -620,8 +645,8 @@ PatchTable::EvaluateBasisFaceVarying(
 
     PatchParam param = getPatchFVarPatchParam(handle.patchIndex, channel);
     PatchDescriptor::Type patchType = param.IsRegular()
-            ? PatchDescriptor::REGULAR
-            : GetFVarPatchDescriptor(channel).GetType();
+            ? GetFVarPatchDescriptorRegular(channel).GetType()
+            : GetFVarPatchDescriptorIrregular(channel).GetType();
 
     if (patchType == PatchDescriptor::REGULAR) {
         internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);

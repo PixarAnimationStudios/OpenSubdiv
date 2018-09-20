@@ -57,7 +57,7 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
     for (int fvc=0; fvc<farPatchTable->GetNumFVarChannels(); ++fvc) {
         _fvarPatchArrays[fvc].reserve(nPatchArrays);
         _fvarIndexBuffers[fvc].reserve(
-            numPatches*farPatchTable->GetFVarPatchDescriptor(fvc).GetNumControlVertices());
+            numPatches * farPatchTable->GetFVarValueStride(fvc));
         _fvarParamBuffers[fvc].reserve(numPatches);
     }
     _patchParamBuffer.reserve(numPatches);
@@ -86,7 +86,9 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
         // face-varying
         for (int fvc=0; fvc<farPatchTable->GetNumFVarChannels(); ++fvc) {
             PatchArray fvarPatchArray(
-                farPatchTable->GetFVarPatchDescriptor(fvc), numPatches, 0, 0);
+                farPatchTable->GetFVarPatchDescriptorRegular(fvc),
+                farPatchTable->GetFVarPatchDescriptorIrregular(fvc),
+                numPatches, 0, 0);
             _fvarPatchArrays[fvc].push_back(fvarPatchArray);
 
             Far::ConstIndexArray
