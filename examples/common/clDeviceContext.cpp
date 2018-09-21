@@ -220,7 +220,7 @@ CLDeviceContext::Initialize() {
                             0, NULL, &devicesSize);
     int numDevices = int(devicesSize / sizeof(cl_device_id));
     if (numDevices == 0) {
-        error("No sharable devices.\n");
+        error("No shareable devices.\n");
         return false;
     }
     cl_device_id *clDevices = new cl_device_id[numDevices];

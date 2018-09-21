@@ -86,15 +86,15 @@ OPTIONS
   A ptex file containing RGB channels read as material albedo color.
   
 *ptex displacement file*
-  A single-channel ptex file (preferrably float precision) containing the 
+  A single-channel ptex file (preferably float precision) containing the 
   displacement values.
 
 *ptex occlusion file*
-  A single-channel ptex file (preferrably 8 bits precision) containing a 
+  A single-channel ptex file (preferably 8 bits precision) containing a 
   pre-computed ambient occlusion signal.
 
 *ptex specular file*
-  A single-channel ptex file (preferrably 8 bits precision) applied to modulate
+  A single-channel ptex file (preferably 8 bits precision) applied to modulate
   the specular reflectance of the material
   
 *objfile(s)*

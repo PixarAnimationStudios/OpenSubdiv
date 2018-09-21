@@ -125,7 +125,7 @@ SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path) cmake -D NO_PTEX=1 -D NO_DOC=1 \
       ..
 ```
 
-  * This will produce an "OpenSubdiv.xcodeproj" that can be open and the targets 'mtlViewer' and 'mtlPtexViewer' (if NO_PTEX is ommitted and libPtex.a is installed in the iOS SDK) that can be run
+  * This will produce an "OpenSubdiv.xcodeproj" that can be open and the targets 'mtlViewer' and 'mtlPtexViewer' (if NO_PTEX is omitted and libPtex.a is installed in the iOS SDK) that can be run
 
 ### Useful cmake options and environment variables
 

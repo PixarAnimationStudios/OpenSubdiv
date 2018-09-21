@@ -235,7 +235,7 @@ Cross-Platform Implementation
 
 One of the key goals of OpenSubdiv is to achieve as much cross-platform flexibility
 as possible and leverage all optimized hardware paths where available. This can
-be very challenging as there is a very large variety of plaftorms and APIs 
+be very challenging as there is a very large variety of platforms and APIs 
 available, with very distinct capabilities.
 
 In **Osd**, Evaluators don't care about interops between those APIs. All Evaluators

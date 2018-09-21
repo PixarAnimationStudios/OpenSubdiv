@@ -213,7 +213,7 @@ public:
     // around this vertex
     void ApplyOperatorSurroundingVertices(HbrVertexOperator<T> &op) const;
 
-    // Applys an operator to the ring of faces around this vertex
+    // Applies an operator to the ring of faces around this vertex
     void ApplyOperatorSurroundingFaces(HbrFaceOperator<T> &op) const;
 
     // Returns the parent, which can be a edge, face, or vertex

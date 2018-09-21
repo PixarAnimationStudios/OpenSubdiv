@@ -186,7 +186,7 @@ public:
     /// \brief Constructor.
     ///
     /// The transform feedback evaluator can make more sparing use of
-    /// transform feeback buffer bindings when it is known that evaluator
+    /// transform feedback buffer bindings when it is known that evaluator
     /// output buffers are shared and the corresponding buffer descriptors
     /// are interleaved. When \a interleavedDerivativeBuffers is true
     /// then evaluation requires that either 1st derivative outputs are

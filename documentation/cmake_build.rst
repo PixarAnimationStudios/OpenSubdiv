@@ -138,7 +138,7 @@ through the following environment variables:
 Automated Script
 ________________
 
-The GUI solution will probably become a burden for active developpers who tend to
+The GUI solution will probably become a burden for active developers who tend to
 re-run the configuration step fairly often. A scripted solution can save a lot of
 time. Here is a typical workflow:
 
@@ -218,14 +218,14 @@ Using Intel's C++ Studio XE
 ___________________________
 
 OpenSubdiv can be also be built with `Intel's C++ compiler <http://software.intel.com/en-us/intel-compilers>`__
-(icc). The default compiler can be overriden in CMake with the following configuration options:
+(icc). The default compiler can be overridden in CMake with the following configuration options:
 
 .. code:: c++
 
     -DCMAKE_CXX_COMPILER=[path to icc executable]
     -DCMAKE_C_COMPILER=[path to icc executable]
 
-The installation location of the C++ Studio XE can be overriden with:
+The installation location of the C++ Studio XE can be overridden with:
 
 .. code:: c++
 
@@ -235,7 +235,7 @@ The installation location of the C++ Studio XE can be overriden with:
 Using Clang
 ___________
 
-CMake can also be overriden to use the `clang <http://clang.llvm.org/>`__ compilers by configuring the following options:
+CMake can also be overridden to use the `clang <http://clang.llvm.org/>`__ compilers by configuring the following options:
 
 .. code:: c++
 

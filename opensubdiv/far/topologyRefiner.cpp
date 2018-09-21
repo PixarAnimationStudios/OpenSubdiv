@@ -291,7 +291,7 @@ namespace internal {
         FeatureMask() { Clear(); }
         FeatureMask(Options const & options, Sdc::SchemeType sType) { Clear(); InitializeFeatures(options, sType); }
 
-        //  These are the two primary methods intended for use -- intialization via a set of Options
+        //  These are the two primary methods intended for use -- initialization via a set of Options
         //  and reduction of the subsequent feature set (which presumes prior initialization with the
         //  same set as give)
         //
@@ -326,7 +326,7 @@ namespace internal {
         //
         //  The inf-sharp single-crease case now corresponds to an inf-sharp regular crease
         //  in the interior -- and since such regular creases on the boundary are never
-        //  considered for selection (just as interior smoot regular faces are not), this
+        //  considered for selection (just as interior smooth regular faces are not), this
         //  feature is only relevant for the interior case.  So aside from it being used
         //  when regular inf-sharp features are all selected, it can also be used for the
         //  single-crease case.
@@ -508,7 +508,7 @@ namespace {
     //  Strictly speaking we should be testing all features and not returning based on
     //  the selection status of the most likely feature that warrants selection, but in
     //  practice, the separation of features and the typically common settings to groups
-    //  of features (i.e. it not yet possible, or even desireable, to select irregular
+    //  of features (i.e. it not yet possible, or even desirable, to select irregular
     //  creases deeper than irregular corners) makes that unnecessary.
     //
     inline bool

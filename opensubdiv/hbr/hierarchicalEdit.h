@@ -92,10 +92,10 @@ public:
     // face in question
     bool IsRelevantToFace(HbrFace<T>* face) const;
 
-    // Applys edit to face. All subclasses may override this method
+    // Applies edit to face. All subclasses may override this method
     virtual void ApplyEditToFace(HbrFace<T>* /* face */) {}
 
-    // Applys edit to vertex. Subclasses may override this method.
+    // Applies edit to vertex. Subclasses may override this method.
     virtual void ApplyEditToVertex(HbrFace<T>* /* face */, HbrVertex<T>* /* vertex */) {}
 
 #ifdef PRMAN
