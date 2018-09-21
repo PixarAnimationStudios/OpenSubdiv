@@ -1900,7 +1900,7 @@ void usage(const char *program) {
     printf("          -yup                    : Y-up model\n");
     printf("          -m level                : max mimmap level (default=10)\n");
     printf("          -x <ptex limit MB>      : ptex target memory size\n");
-    printf("          --disp <scale>          : Displacment scale\n");
+    printf("          --disp <scale>          : Displacement scale\n");
 }
 
 //------------------------------------------------------------------------------

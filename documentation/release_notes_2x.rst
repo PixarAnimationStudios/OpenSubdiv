@@ -60,7 +60,7 @@ Release 2.6.0
     - Fix a bug in the CUDA computeRestrictedEdge kernel
     - Fix duplicate variables with identical name
     - Fix osdutil build errors
-    - Fix cmake diagnostic messsage
+    - Fix cmake diagnostic message
 
 Release 2.5.1
 =============
@@ -103,7 +103,7 @@ Release 2.5.0
       Moved transient states (current vertex buffer etc) to controller
     - Fix adaptive isolation of sharp corner vertices
     - Fix incorrect FarMeshFactory logic for isolating multiple corner vertices in corner patches
-    - Change EvalLimit Gregory patch kernels to the large weights table to accomodate higher valences
+    - Change EvalLimit Gregory patch kernels to the large weights table to accommodate higher valences
     - Fix calculation of screen space LOD tess factors for transition corner patches.
     - Add a public constructor to OsdMesh
     - Decrease compiler warning thresholds and fix outstanding warnings
@@ -203,7 +203,7 @@ Release 2.3.5
 **New Features**
     - Add the ability to read obj files to the dxViewer example
     - Add screen-capture function to ptexViewer
-    - Update documention for Xcode builds
+    - Update documentation for Xcode builds
     - Add documentation (boundary interpolation rules and face-varying boundary interpolation rules)
 
 **Changes**
@@ -324,7 +324,7 @@ Release 2.3.1
     - Optimize a bit of ptex mipmap lookup.
     - Show ptex memory usage in GL and DX11 ptexViewers
     - Improve ptex guttering
-    - Addding some video links to our collection of external resources
+    - Adding some video links to our collection of external resources
 
 **Bug Fixes**
     - Fix edge-only face-varying interpolation
@@ -448,7 +448,7 @@ Release 1.2.4
 **New Features**
 
     - Adding support for fractional tessellation of patches
-    - Adding a much needed API documention system based on Docutils RST markup
+    - Adding a much needed API documentation system based on Docutils RST markup
     - Adding support for face-varying interpolation in GLSL APIs
     - Adding varying data buffers to OsdMesh
     - Adding accessors to the vertex buffers in OsdGlMesh
@@ -496,7 +496,7 @@ Release 1.2.3
     - Face-varying data bug fixes : making sure the data is carried around appropriately
       Fixes for OpenCL use with the new batching APIs
     - GLSL general shader code cleanup & fixes for better portability
-    - GLSL Tranform Feedback initialization fix
+    - GLSL Transform Feedback initialization fix
     - Critical fix for FarMultiMesh batching (indexing was incorrect)
     - Fix osdutil CL implementation (protect #includes on systems with no OpenCL SDK
       installed)

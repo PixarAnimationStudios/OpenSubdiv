@@ -46,7 +46,7 @@ namespace Far {
 //  format (CSR) is used as it provides us with stencils for points that
 //  correspond to rows and so can be more directly and efficiently copied.
 //
-//  It has potential for other uses and so may eventually warrant a seperate
+//  It has potential for other uses and so may eventually warrant a separate
 //  header file of its own.  For now, in keeping with the trend of exposing
 //  classes only where used, it is defined with the PatchBuilder.
 //
