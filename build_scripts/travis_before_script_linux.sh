@@ -27,13 +27,14 @@
 cmake --version
 
 ###############################################################################
+
+sudo apt-get update -qq
+
 # Install X11 dev libraries
 sudo apt-get install libxrandr-dev
 sudo apt-get install libxcursor-dev
 sudo apt-get install libxinerama-dev
 sudo apt-get install libxi-dev
-
-sudo apt-get update -qq
 
 # install glut and xxf86vm (for GL libs)
 sudo apt-get install freeglut3

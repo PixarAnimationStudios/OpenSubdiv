@@ -25,6 +25,7 @@
 
 include_directories(
     "${PROJECT_SOURCE_DIR}/"
+    "${OPENSUBDIV_INCLUDE_DIR}/"
 )
 
 add_subdirectory(hbr)

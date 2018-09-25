@@ -798,11 +798,16 @@ PatchBuilder::GetIrregularPatchSourcePoints(
         cornerSpans, sourcePatch, sourcePoints, fvarChannel);
 }
 
+//
+//  Template conversion methods for the matrix type -- explicit instantiation
+//  for float and double is required and follows the definition:
+//
+template <typename REAL>
 int
 PatchBuilder::GetIrregularPatchConversionMatrix(
         int levelIndex, Index faceIndex,
         Level::VSpan const cornerSpans[],
-        SparseMatrix<float> & conversionMatrix) const {
+        SparseMatrix<REAL> & conversionMatrix) const {
 
     assertTriangularPatchesNotYetSupportedHere();
 
@@ -813,6 +818,12 @@ PatchBuilder::GetIrregularPatchConversionMatrix(
     return convertToPatchType(
         sourcePatch, GetIrregularPatchType(), conversionMatrix);
 }
+template int PatchBuilder::GetIrregularPatchConversionMatrix<float>(
+        int levelIndex, Index faceIndex, Level::VSpan const cornerSpans[],
+        SparseMatrix<float> & conversionMatrix) const;
+template int PatchBuilder::GetIrregularPatchConversionMatrix<double>(
+        int levelIndex, Index faceIndex, Level::VSpan const cornerSpans[],
+        SparseMatrix<double> & conversionMatrix) const;
 
 
 bool

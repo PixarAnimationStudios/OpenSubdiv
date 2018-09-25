@@ -44,13 +44,11 @@
             <p></p>
             <li><a href="subdivision_surfaces.html">Subdivision Surfaces</a>
                 <ul>
-                    <li><a href="subdivision_surfaces.html#introduction">Introduction</a></li>
-                    <li><a href="subdivision_surfaces.html#arbitrary-topology">Topology</a></li>
-                    <li><a href="subdivision_surfaces.html#uniform-subdivision">Uniform</a></li>
-                    <li><a href="subdivision_surfaces.html#feature-adaptive-subdivision">Feature Adaptive</a></li>
-                    <li><a href="subdivision_surfaces.html#boundary-interpolation-rules">Boundary Interpolation</a></li>
-                    <li><a href="subdivision_surfaces.html#face-varying-interpolation-rules">Face-Varying Interpolation</a></li>
-                    <li><a href="subdivision_surfaces.html#semi-sharp-creases">Semi-Sharp Creases</a></li>
+                    <li><a href="subdivision_surfaces.html#piecewise-parametric-surfaces">Piecewise Parametric Surfaces</a></li>
+                    <li><a href="subdivision_surfaces.html#arbitrary-topology">Arbitrary Topology</a></li>
+                    <li><a href="subdivision_surfaces.html#subdivision-versus-tessellation">Subdivision versus Tessellation</a></li>
+                    <li><a href="subdivision_surfaces.html#mesh-data-and-topology">Mesh Data and Topology</a></li>
+                    <li><a href="subdivision_surfaces.html#schemes-and-options">Schemes and Options</a></li>
                     <li><a href="mod_notes.html">Modeling Tips</a></li>
                 </ul>
             </li>
@@ -58,6 +56,7 @@
             <li><a href="api_overview.html">OpenSubdiv User Guide</a>
                 <ul>
                     <li><a href="api_overview.html">API Overview</a>
+                    <ul>
                         <li><a href="sdc_overview.html">Sdc</a></li>
                         <li><a href="vtr_overview.html">Vtr</a></li>
                         <li><a href="far_overview.html">Far</a></li>
@@ -72,10 +71,9 @@
                         <ul>
                             <li><a href="osd_shader_interface.html">Shader Interface</a></li>
                         </ul>
+                    </ul>
                     </li>
-                    <p></p>
                     <li><a href="tutorials.html">Tutorials</a>
-                    <p></p>
                     <li><a href="hbr_overview.html">Historical But Relevant</a></li>
                     <ul>
                         <li><a href="hbr_overview.html">Hbr</a></li>

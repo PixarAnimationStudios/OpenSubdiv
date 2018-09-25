@@ -112,6 +112,21 @@ public:
     ///
     static TopologyRefiner* Create(MESH const& mesh, Options options = Options());
 
+    /// \brief Instantiates a TopologyRefiner from the base level of an
+    ///        existing instance.
+    ///
+    ///  This allows lightweight copies of the same topology to be refined
+    ///  differently for each new instance.  As with other classes that refer
+    ///  to an existing TopologyRefiner, it must generally exist for the entire
+    ///  lifetime of the new instance.  In this case, the base level of the
+    ///  original instance must be preserved.
+    ///
+    /// @param baseLevel  An existing TopologyRefiner to share base level.
+    ///
+    /// @return           A new instance of TopologyRefiner or 0 for failure
+    ///
+    static TopologyRefiner* Create(TopologyRefiner const & sourceOfBaseLevel);
+
 protected:
     typedef Vtr::internal::Level::TopologyError TopologyError;
 
@@ -329,6 +344,13 @@ TopologyRefinerFactory<MESH>::Create(MESH const& mesh, Options options) {
     //  features (e.g. holes, etc.) it is better off deferred to here.
 
     return refiner;
+}
+
+template <class MESH>
+TopologyRefiner*
+TopologyRefinerFactory<MESH>::Create(TopologyRefiner const & source) {
+
+    return new TopologyRefiner(source);
 }
 
 template <class MESH>

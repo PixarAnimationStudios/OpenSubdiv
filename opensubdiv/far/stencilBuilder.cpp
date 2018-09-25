@@ -37,25 +37,27 @@ namespace {
 #pragma warning disable 1572
 #endif
 
-    inline bool isWeightZero(float w) { return (w == 0.0f); }
+    template <typename REAL>
+    inline bool isWeightZero(REAL w) { return (w == (REAL)0.0); }
 
 #ifdef __INTEL_COMPILER
 #pragma warning (pop)
 #endif
 }
 
+template <typename REAL>
 struct Point1stDerivWeight {
-    float p;
-    float du;
-    float dv;
+    REAL p;
+    REAL du;
+    REAL dv;
 
     Point1stDerivWeight()
         : p(0.0f), du(0.0f), dv(0.0f)
     { }
-    Point1stDerivWeight(float w)
+    Point1stDerivWeight(REAL w)
         : p(w), du(w), dv(w)
     { }
-    Point1stDerivWeight(float w, float wDu, float wDv)
+    Point1stDerivWeight(REAL w, REAL wDu, REAL wDv)
         : p(w), du(wDu), dv(wDv)
     { }
 
@@ -74,22 +76,23 @@ struct Point1stDerivWeight {
     }
 };
 
+template <typename REAL>
 struct Point2ndDerivWeight {
-    float p;
-    float du;
-    float dv;
-    float duu;
-    float duv;
-    float dvv;
+    REAL p;
+    REAL du;
+    REAL dv;
+    REAL duu;
+    REAL duv;
+    REAL dvv;
 
     Point2ndDerivWeight()
         : p(0.0f), du(0.0f), dv(0.0f), duu(0.0f), duv(0.0f), dvv(0.0f)
     { }
-    Point2ndDerivWeight(float w)
+    Point2ndDerivWeight(REAL w)
         : p(w), du(w), dv(w), duu(w), duv(w), dvv(w)
     { }
-    Point2ndDerivWeight(float w, float wDu, float wDv,
-                        float wDuu, float wDuv, float wDvv)
+    Point2ndDerivWeight(REAL w, REAL wDu, REAL wDv,
+                        REAL wDuu, REAL wDuv, REAL wDvv)
         : p(w), du(wDu), dv(wDv), duu(wDuu), duv(wDuv), dvv(wDvv)
     { }
 
@@ -116,6 +119,7 @@ struct Point2ndDerivWeight {
 
 /// Stencil table constructor set.
 ///
+template <typename REAL>
 class WeightTable {
 public:
     WeightTable(int coarseVerts,
@@ -198,20 +202,20 @@ public:
     public:
         Point1stDerivAccumulator(WeightTable* tbl) : _tbl(tbl)
         { }
-        void PushBack(Point1stDerivWeight weight) {
+        void PushBack(Point1stDerivWeight<REAL> weight) {
             _tbl->_weights.push_back(weight.p);
             _tbl->_duWeights.push_back(weight.du);
             _tbl->_dvWeights.push_back(weight.dv);
         }
-        void Add(size_t i, Point1stDerivWeight weight) {
+        void Add(size_t i, Point1stDerivWeight<REAL> weight) {
             _tbl->_weights[i] += weight.p;
             _tbl->_duWeights[i] += weight.du;
             _tbl->_dvWeights[i] += weight.dv;
         }
-        Point1stDerivWeight Get(size_t index) {
-            return Point1stDerivWeight(_tbl->_weights[index],
-                                       _tbl->_duWeights[index],
-                                       _tbl->_dvWeights[index]);
+        Point1stDerivWeight<REAL> Get(size_t index) {
+            return Point1stDerivWeight<REAL>(_tbl->_weights[index],
+                                             _tbl->_duWeights[index],
+                                             _tbl->_dvWeights[index]);
         }
     };
     Point1stDerivAccumulator GetPoint1stDerivAccumulator() {
@@ -223,7 +227,7 @@ public:
     public:
         Point2ndDerivAccumulator(WeightTable* tbl) : _tbl(tbl)
         { }
-        void PushBack(Point2ndDerivWeight weight) {
+        void PushBack(Point2ndDerivWeight<REAL> weight) {
             _tbl->_weights.push_back(weight.p);
             _tbl->_duWeights.push_back(weight.du);
             _tbl->_dvWeights.push_back(weight.dv);
@@ -231,7 +235,7 @@ public:
             _tbl->_duvWeights.push_back(weight.duv);
             _tbl->_dvvWeights.push_back(weight.dvv);
         }
-        void Add(size_t i, Point2ndDerivWeight weight) {
+        void Add(size_t i, Point2ndDerivWeight<REAL> weight) {
             _tbl->_weights[i] += weight.p;
             _tbl->_duWeights[i] += weight.du;
             _tbl->_dvWeights[i] += weight.dv;
@@ -239,13 +243,13 @@ public:
             _tbl->_duvWeights[i] += weight.duv;
             _tbl->_dvvWeights[i] += weight.dvv;
         }
-        Point2ndDerivWeight Get(size_t index) {
-            return Point2ndDerivWeight(_tbl->_weights[index],
-                                       _tbl->_duWeights[index],
-                                       _tbl->_dvWeights[index],
-                                       _tbl->_duuWeights[index],
-                                       _tbl->_duvWeights[index],
-                                       _tbl->_dvvWeights[index]);
+        Point2ndDerivWeight<REAL> Get(size_t index) {
+            return Point2ndDerivWeight<REAL>(_tbl->_weights[index],
+                                             _tbl->_duWeights[index],
+                                             _tbl->_dvWeights[index],
+                                             _tbl->_duuWeights[index],
+                                             _tbl->_duvWeights[index],
+                                             _tbl->_dvvWeights[index]);
         }
     };
     Point2ndDerivAccumulator GetPoint2ndDerivAccumulator() {
@@ -257,13 +261,13 @@ public:
     public:
         ScalarAccumulator(WeightTable* tbl) : _tbl(tbl)
         { }
-        void PushBack(float weight) {
+        void PushBack(REAL weight) {
             _tbl->_weights.push_back(weight);
         }
-        void Add(size_t i, float w) {
+        void Add(size_t i, REAL w) {
             _tbl->_weights[i] += w;
         }
-        float Get(size_t index) {
+        REAL Get(size_t index) {
             return _tbl->_weights[index];
         }
     };
@@ -280,22 +284,22 @@ public:
     std::vector<int> const&
     GetSources() const { return _sources; }
 
-    std::vector<float> const&
+    std::vector<REAL> const&
     GetWeights() const { return _weights; }
 
-    std::vector<float> const&
+    std::vector<REAL> const&
     GetDuWeights() const { return _duWeights; }
 
-    std::vector<float> const&
+    std::vector<REAL> const&
     GetDvWeights() const { return _dvWeights; }
 
-    std::vector<float> const&
+    std::vector<REAL> const&
     GetDuuWeights() const { return _duuWeights; }
 
-    std::vector<float> const&
+    std::vector<REAL> const&
     GetDuvWeights() const { return _duvWeights; }
 
-    std::vector<float> const&
+    std::vector<REAL> const&
     GetDvvWeights() const { return _dvvWeights; }
 
     void SetCoarseVertCount(int numVerts) {
@@ -387,12 +391,12 @@ private:
 
     // The actual stencil data.
     std::vector<int> _sources;
-    std::vector<float> _weights;
-    std::vector<float> _duWeights;
-    std::vector<float> _dvWeights;
-    std::vector<float> _duuWeights;
-    std::vector<float> _duvWeights;
-    std::vector<float> _dvvWeights;
+    std::vector<REAL> _weights;
+    std::vector<REAL> _duWeights;
+    std::vector<REAL> _dvWeights;
+    std::vector<REAL> _duuWeights;
+    std::vector<REAL> _duvWeights;
+    std::vector<REAL> _dvvWeights;
 
     // Index data used to recover stencil-to-vertex mapping.
     std::vector<int> _indices;
@@ -405,29 +409,33 @@ private:
     bool _compactWeights;
 };
 
-StencilBuilder::StencilBuilder(int coarseVertCount,
+template <typename REAL>
+StencilBuilder<REAL>::StencilBuilder(int coarseVertCount,
                                bool genCtrlVertStencils,
                                bool compactWeights)
-        : _weightTable(new WeightTable(coarseVertCount,
+        : _weightTable(new WeightTable<REAL>(coarseVertCount,
                                    genCtrlVertStencils,
                                    compactWeights))
 {
 }
 
-StencilBuilder::~StencilBuilder()
+template <typename REAL>
+StencilBuilder<REAL>::~StencilBuilder()
 {
     delete _weightTable;
 }
 
+template <typename REAL>
 size_t
-StencilBuilder::GetNumVerticesTotal() const
+StencilBuilder<REAL>::GetNumVerticesTotal() const
 {
     return _weightTable->GetWeights().size();
 }
 
 
+template <typename REAL>
 int 
-StencilBuilder::GetNumVertsInStencil(size_t stencilIndex) const
+StencilBuilder<REAL>::GetNumVertsInStencil(size_t stencilIndex) const
 {
     if (stencilIndex > _weightTable->GetSizes().size() - 1)
         return 0;
@@ -435,59 +443,70 @@ StencilBuilder::GetNumVertsInStencil(size_t stencilIndex) const
     return (int)_weightTable->GetSizes()[stencilIndex];
 }
 
+template <typename REAL>
 void
-StencilBuilder::SetCoarseVertCount(int numVerts)
+StencilBuilder<REAL>::SetCoarseVertCount(int numVerts)
 {
     _weightTable->SetCoarseVertCount(numVerts);
 }
 
+template <typename REAL>
 std::vector<int> const&
-StencilBuilder::GetStencilOffsets() const {
+StencilBuilder<REAL>::GetStencilOffsets() const {
     return _weightTable->GetOffsets();
 }
 
+template <typename REAL>
 std::vector<int> const& 
-StencilBuilder::GetStencilSizes() const {
+StencilBuilder<REAL>::GetStencilSizes() const {
     return _weightTable->GetSizes();
 }
 
+template <typename REAL>
 std::vector<int> const&
-StencilBuilder::GetStencilSources() const {
+StencilBuilder<REAL>::GetStencilSources() const {
     return _weightTable->GetSources();
 }
 
-std::vector<float> const&
-StencilBuilder::GetStencilWeights() const {
+template <typename REAL>
+std::vector<REAL> const&
+StencilBuilder<REAL>::GetStencilWeights() const {
     return _weightTable->GetWeights();
 }
 
-std::vector<float> const&
-StencilBuilder::GetStencilDuWeights() const {
+template <typename REAL>
+std::vector<REAL> const&
+StencilBuilder<REAL>::GetStencilDuWeights() const {
     return _weightTable->GetDuWeights();
 }
 
-std::vector<float> const&
-StencilBuilder::GetStencilDvWeights() const {
+template <typename REAL>
+std::vector<REAL> const&
+StencilBuilder<REAL>::GetStencilDvWeights() const {
     return _weightTable->GetDvWeights();
 }
 
-std::vector<float> const&
-StencilBuilder::GetStencilDuuWeights() const {
+template <typename REAL>
+std::vector<REAL> const&
+StencilBuilder<REAL>::GetStencilDuuWeights() const {
     return _weightTable->GetDuuWeights();
 }
 
-std::vector<float> const&
-StencilBuilder::GetStencilDuvWeights() const {
+template <typename REAL>
+std::vector<REAL> const&
+StencilBuilder<REAL>::GetStencilDuvWeights() const {
     return _weightTable->GetDuvWeights();
 }
 
-std::vector<float> const&
-StencilBuilder::GetStencilDvvWeights() const {
+template <typename REAL>
+std::vector<REAL> const&
+StencilBuilder<REAL>::GetStencilDvvWeights() const {
     return _weightTable->GetDvvWeights();
 }
 
+template <typename REAL>
 void
-StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
+StencilBuilder<REAL>::Index::AddWithWeight(Index const & src, REAL weight)
 {
     // Ignore no-op weights.
     if (isWeightZero(weight)) {
@@ -497,8 +516,9 @@ StencilBuilder::Index::AddWithWeight(Index const & src, float weight)
                                 _owner->_weightTable->GetScalarAccumulator());
 }
 
+template <typename REAL>
 void
-StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
+StencilBuilder<REAL>::Index::AddWithWeight(StencilReal<REAL> const& src, REAL weight)
 {
     if (isWeightZero(weight)) {
         return;
@@ -506,25 +526,26 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src, float weight)
 
     int srcSize = *src.GetSizePtr();
     Vtr::Index const * srcIndices = src.GetVertexIndices();
-    float const * srcWeights = src.GetWeights();
+    REAL const * srcWeights = src.GetWeights();
 
     for (int i = 0; i < srcSize; ++i) {
-        float w = srcWeights[i];
+        REAL w = srcWeights[i];
         if (isWeightZero(w)) {
             continue;
         }
 
         Vtr::Index srcIndex = srcIndices[i];
 
-        float wgt = weight * w;
+        REAL wgt = weight * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                             _owner->_weightTable->GetScalarAccumulator());
     }  
 }
 
+template <typename REAL>
 void
-StencilBuilder::Index::AddWithWeight(Stencil const& src,
-    float weight, float du, float dv)
+StencilBuilder<REAL>::Index::AddWithWeight(StencilReal<REAL> const& src,
+    REAL weight, REAL du, REAL dv)
 {
     if (isWeightZero(weight) && isWeightZero(du) && isWeightZero(dv)) {
         return;
@@ -532,25 +553,26 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
 
     int srcSize = *src.GetSizePtr();
     Vtr::Index const * srcIndices = src.GetVertexIndices();
-    float const * srcWeights = src.GetWeights();
+    REAL const * srcWeights = src.GetWeights();
 
     for (int i = 0; i < srcSize; ++i) {
-        float w = srcWeights[i];
+        REAL w = srcWeights[i];
         if (isWeightZero(w)) {
             continue;
         }
 
         Vtr::Index srcIndex = srcIndices[i];
 
-        Point1stDerivWeight wgt = Point1stDerivWeight(weight, du, dv) * w;
+        Point1stDerivWeight<REAL> wgt = Point1stDerivWeight<REAL>(weight, du, dv) * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                            _owner->_weightTable->GetPoint1stDerivAccumulator());
     }
 }
 
+template <typename REAL>
 void
-StencilBuilder::Index::AddWithWeight(Stencil const& src,
-    float weight, float du, float dv, float duu, float duv, float dvv)
+StencilBuilder<REAL>::Index::AddWithWeight(StencilReal<REAL> const& src,
+    REAL weight, REAL du, REAL dv, REAL duu, REAL duv, REAL dvv)
 {
     if (isWeightZero(weight) && isWeightZero(du) && isWeightZero(dv) &&
         isWeightZero(duu) && isWeightZero(duv) && isWeightZero(dvv)) {
@@ -559,24 +581,26 @@ StencilBuilder::Index::AddWithWeight(Stencil const& src,
 
     int srcSize = *src.GetSizePtr();
     Vtr::Index const * srcIndices = src.GetVertexIndices();
-    float const * srcWeights = src.GetWeights();
+    REAL const * srcWeights = src.GetWeights();
 
     for (int i = 0; i < srcSize; ++i) {
-        float w = srcWeights[i];
+        REAL w = srcWeights[i];
         if (isWeightZero(w)) {
             continue;
         }
 
         Vtr::Index srcIndex = srcIndices[i];
 
-        Point2ndDerivWeight wgt = Point2ndDerivWeight(weight, du, dv, duu, duv, dvv) * w;
+        Point2ndDerivWeight<REAL> wgt = Point2ndDerivWeight<REAL>(weight, du, dv, duu, duv, dvv) * w;
         _owner->_weightTable->AddWithWeight(srcIndex, _index, wgt,
                            _owner->_weightTable->GetPoint2ndDerivAccumulator());
     }
 }
 
+template class StencilBuilder<float>;
+template class StencilBuilder<double>;
+
 } // end namespace internal
 } // end namespace Far
 } // end namespace OPENSUBDIV_VERSION
 } // end namespace OpenSubdiv
-

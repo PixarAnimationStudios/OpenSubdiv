@@ -29,6 +29,7 @@
 #include "../sdc/scheme.h"
 
 #include <cassert>
+#include <cmath>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -194,13 +195,16 @@ Scheme<SCHEME_LOOP>::assignSmoothMaskForVertex(VERTEX const& vertex, MASK& mask)
     if (valence != 6) {
         //  From HbrLoopSubdivision<T>::Subdivide(mesh, vertex):
         //     - could use some lookup tables here for common irregular valence (5, 7, 8)
-        //       or all of these cosf() calls will be adding up...
+        //       or all of these cosine calls will be adding up...
 
-        Weight invValence = 1.0f / (Weight) valence;
-        Weight beta       = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
+        double dValence   = (double) valence;
+        double invValence = 1.0f / dValence;
+        double cosTheta   = std::cos(M_PI * 2.0f * invValence);
 
-        eWeight = (0.625f - (beta * beta)) * invValence;;
-        vWeight = 1.0f - (eWeight * (Weight)valence);
+        double beta = 0.25f * cosTheta + 0.375f;
+
+        eWeight = (Weight) ((0.625f - (beta * beta)) * invValence);
+        vWeight = (Weight) (1.0f - (eWeight * dValence));
     }
 
     mask.VertexWeight(0) = vWeight;
@@ -252,8 +256,8 @@ Scheme<SCHEME_LOOP>::assignCreaseLimitMask(VERTEX const& vertex, MASK& posMask,
     //  is based on an alternate refinement mask for the edge -- (3/8, 5/8) versus
     //  the usual (1/2, 1/2) -- and will not produce the B-spline curve desired.
     //
-    Weight vWeight = 4.0f / 6.0f;
-    Weight eWeight = 1.0f / 6.0f;
+    Weight vWeight = (Weight) (4.0 / 6.0);
+    Weight eWeight = (Weight) (1.0 / 6.0);
 
     posMask.VertexWeight(0) = vWeight;
     for (int i = 0; i < valence; ++i) {
@@ -271,7 +275,6 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
     typedef typename MASK::Weight Weight;
 
     int valence = vertex.GetNumFaces();
-    assert(valence != 2);
 
     posMask.SetNumVertexWeights(1);
     posMask.SetNumEdgeWeights(valence);
@@ -280,7 +283,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
 
     //  Specialize for the regular case:  1/12 per edge-vert, 1/2 for the vert itself:
     if (valence == 6) {
-        Weight eWeight = 1.0f / 12.0f;
+        Weight eWeight = (Weight) (1.0 / 12.0);
         Weight vWeight = 0.5f;
 
         posMask.VertexWeight(0) = vWeight;
@@ -293,13 +296,15 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMask) 
         posMask.EdgeWeight(5) = eWeight;
 
     } else {
-        Weight invValence = 1.0f / valence;
+        double dValence   = (double) valence;
+        double invValence = 1.0f / dValence;
+        double cosTheta   = std::cos(M_PI * 2.0f * invValence);
 
-        Weight beta = 0.25f * cosf((Weight)M_PI * 2.0f * invValence) + 0.375f;
-        beta = (0.625f - (beta * beta)) * invValence;;
+        double beta  = 0.25f * cosTheta + 0.375f;
+        double gamma = (0.625f - (beta * beta)) * invValence;
 
-        Weight eWeight = 1.0f / (valence + 3.0f / (8.0f * beta));
-        Weight vWeight = (Weight)(1.0f - (eWeight * valence));
+        Weight eWeight = (Weight) (1.0f / (dValence + 3.0f / (8.0f * gamma)));
+        Weight vWeight = (Weight) (1.0f - (eWeight * dValence));
 
         posMask.VertexWeight(0) = vWeight;
         for (int i = 0; i < valence; ++i) {
@@ -472,7 +477,7 @@ Scheme<SCHEME_LOOP>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
     if (interiorEdgeCount == 2) {
         //  See note above regarding scale factor of (sin(60 degs) == sqrt(3)/2:
 
-        static Weight const Root3    = (Weight) 1.73205080756887729352f;
+        static Weight const Root3    = (Weight) 1.73205080756887729352;
         static Weight const Root3by2 = (Weight) (Root3 * 0.5);
 
         tan2Mask.VertexWeight(0) = -Root3;
@@ -489,16 +494,15 @@ Scheme<SCHEME_LOOP>::assignCreaseLimitTangentMasks(VERTEX const& vertex,
 
         double theta = M_PI / (interiorEdgeCount + 1);
 
-        Weight cWeight      = -3.0f * (Weight) std::sin(theta);
-        Weight eWeightCoeff = -3.0f * (2.0f * (Weight) std::cos(theta) - 2.0f);
-
         tan2Mask.VertexWeight(0) = 0.0f;
 
+        Weight cWeight = (Weight) (-3.0f * std::sin(theta));
         tan2Mask.EdgeWeight(creaseEnds[0]) = cWeight;
         tan2Mask.EdgeWeight(creaseEnds[1]) = cWeight;
 
+        double eCoeff  = -3.0f * 2.0f * (std::cos(theta) - 1.0f);
         for (int i = 1; i <= interiorEdgeCount; ++i) {
-            tan2Mask.EdgeWeight(creaseEnds[0] + i) = eWeightCoeff * (Weight) std::sin(i * theta);
+            tan2Mask.EdgeWeight(creaseEnds[0] + i) = (Weight) (eCoeff * std::sin(i * theta));
         }
     } else if (interiorEdgeCount == 1) {
         //  See notes above regarding scale factor of 3.0:
@@ -531,7 +535,6 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
     typedef typename MASK::Weight Weight;
 
     int valence = vertex.GetNumFaces();
-    assert(valence != 2);
 
     tan1Mask.SetNumVertexWeights(1);
     tan1Mask.SetNumEdgeWeights(valence);
@@ -547,7 +550,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
     tan2Mask.VertexWeight(0) = 0.0f;
 
     if (valence == 6) {
-        static Weight const Root3by2 = (Weight)(0.5f * 1.73205080756887729352f);
+        static Weight const Root3by2 = (Weight)(0.5 * 1.73205080756887729352);
 
         tan1Mask.EdgeWeight(0) =  1.0f;
         tan1Mask.EdgeWeight(1) =  0.5f;
@@ -563,7 +566,7 @@ Scheme<SCHEME_LOOP>::assignSmoothLimitTangentMasks(VERTEX const& vertex,
         tan2Mask.EdgeWeight(4) = -Root3by2;
         tan2Mask.EdgeWeight(5) = -Root3by2;
     } else {
-        Weight alpha = (Weight) (2.0f * M_PI / valence);
+        double alpha = 2.0f * M_PI / valence;
         for (int i = 0; i < valence; ++i) {
             double alphaI = alpha * i;
             tan1Mask.EdgeWeight(i) = (Weight) std::cos(alphaI);

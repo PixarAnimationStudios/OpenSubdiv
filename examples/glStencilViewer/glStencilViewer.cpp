@@ -948,9 +948,11 @@ callbackCheckBox(bool checked, int button) {
     case kHUD_CB_ADAPTIVE:
         g_adaptive = checked;
         rebuildMesh();
+        break;
     case kHUD_CB_INF_SHARP_PATCH:
         g_infSharpPatch = checked;
         rebuildMesh();
+        break;
     }
 }
 

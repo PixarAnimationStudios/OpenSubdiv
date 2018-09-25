@@ -53,51 +53,63 @@ namespace Far {
 //  retrieved from Sdc::Scheme to ensure they conform, so future factoring
 //  of the formulae is still necessary.
 //
-//  XXXX (barfowl) - /internal computations are not implemented in terms
-//  of <REAL>, only the interface supports <REAL>.  Need to eventually
-//  remove remaining computations using "float" and define a mechanism
-//  to invoke the appropriate precision math functions, e.g. calling
-//  something like Math<float>::Cos(), etc.
+//  Regarding support for multiple precision, like Sdc, some intermediate
+//  calculations are performed in double and cast to float.  Historically
+//  this conversion code has been purely float and later extended to 
+//  support template <typename REAL>.  For math functions such as cos(),
+//  sin(), etc., we rely on overloading via <cmath> through the use of
+//  std::cos(), std::sin(), etc.
 //
 template <typename REAL>
 struct CatmarkLimits {
 public:
+    typedef REAL Weight;
+
     static void ComputeInteriorPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights);
+                Weight* pWeights, Weight* epWeights, Weight* emWeights);
 
     static void ComputeBoundaryPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights);
+                Weight* pWeights, Weight* epWeights, Weight* emWeights);
 
 private:
-    //
-    //  Lookup table and formula for the scale factor applied to limit
-    //  tangents that arises from eigen values of the subdivision matrix
-    //
-    static inline float computeCoefficient(int valence) {
-        // precomputed coefficient table up to valence 29
-        static float efTable[] = {
-            0, 0, 0,
-            0.812816f, 0.500000f, 0.363644f, 0.287514f,
-            0.238688f, 0.204544f, 0.179229f, 0.159657f,
-            0.144042f, 0.131276f, 0.120632f, 0.111614f,
-            0.103872f, 0.09715f, 0.0912559f, 0.0860444f,
-            0.0814022f, 0.0772401f, 0.0734867f, 0.0700842f,
-            0.0669851f, 0.0641504f, 0.0615475f, 0.0591488f,
-            0.0569311f, 0.0548745f, 0.0529621f
-        };
-        assert(valence > 0);
-        if (valence < 30) return efTable[valence];
-
-        float t = 2.0f * float(M_PI) / float(valence);
-        return 1.0f / (valence * (cosf(t) + 5.0f +
-                                  sqrtf((cosf(t) + 9) * (cosf(t) + 1)))/16.0f);
-    }
+    static double computeCoefficient(int valence);
 };
+
+//
+//  Lookup table and formula for the scale factor applied to limit
+//  tangents that arises from eigen values of the subdivision matrix.
+//  Historically 30 values have been stored -- up to valence 29.
+//
+template <typename REAL>
+inline double
+CatmarkLimits<REAL>::computeCoefficient(int valence) {
+
+    static double const efTable[] = {
+        0.0,                    0.0,                    0.0,                   
+        8.1281572906372312e-01, 0.5,                    3.6364406329142801e-01,
+        2.8751379706077085e-01, 2.3868786685851678e-01, 2.0454364190756097e-01,
+        1.7922903958061159e-01, 1.5965737079986253e-01, 1.4404233443011302e-01,
+        1.3127568415883017e-01, 1.2063172212675841e-01, 1.1161437506676930e-01,
+        1.0387245516114274e-01, 9.7150019090724835e-02, 9.1255917505950648e-02,
+        8.6044378511602668e-02, 8.1402211336798411e-02, 7.7240129516184072e-02,
+        7.3486719751997026e-02, 7.0084157479797987e-02, 6.6985104030725440e-02,
+        6.4150420569810074e-02, 6.1547457638637268e-02, 5.9148757447233989e-02,
+        5.6931056818776957e-02, 5.4874512279256417e-02, 5.2962091433796134e-02
+    };
+    assert(valence > 0);
+    if (valence < 30) return efTable[valence];
+
+    double invValence = 1.0 / valence;
+    double cosT = std::cos(2.0 * M_PI * invValence);
+    double divisor = (cosT + 5.0) + std::sqrt((cosT + 9.0) * (cosT + 1.0));
+
+    return (16.0 * invValence / divisor);
+}
 
 template <typename REAL>
 void
 CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights) {
+                Weight* pWeights, Weight* epWeights, Weight* emWeights) {
 
     //
     //  For the limit tangents of an interior vertex, the second tangent is a
@@ -123,14 +135,14 @@ CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
     //
     bool computeEdgePoints = epWeights && emWeights;
 
-    float fValence        = float(valence);
-    float oneOverValence  = 1.0f / fValence;
-    float oneOverValPlus5 = 1.0f / (fValence + 5.0f);
+    double fValence        = (double) valence;
+    double oneOverValence  = 1.0f / fValence;
+    double oneOverValPlus5 = 1.0f / (fValence + 5.0f);
 
-    float pCoeff   = oneOverValence * oneOverValPlus5;
-    float tanCoeff = computeCoefficient(valence) * 0.5f * oneOverValPlus5;
+    double pCoeff   = oneOverValence * oneOverValPlus5;
+    double tanCoeff = computeCoefficient(valence) * 0.5f * oneOverValPlus5;
 
-    float faceAngle = 2.0f * float(M_PI) * oneOverValence;
+    double faceAngle = 2.0 * M_PI * oneOverValence;
 
     //
     //  Assign position weights directly while accumulating an intermediate set
@@ -139,28 +151,28 @@ CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
     //  have to deal with the off-by-one offset within the loop:
     //
     int weightWidth = 1 + 2 * valence;
-    StackBuffer<REAL, 64, true> tanWeights(weightWidth);
-    std::memset(&tanWeights[0], 0, weightWidth * sizeof(REAL));
+    StackBuffer<Weight, 64, true> tanWeights(weightWidth);
+    std::memset(&tanWeights[0], 0, weightWidth * sizeof(Weight));
 
-    pWeights[0] = fValence * oneOverValPlus5;
+    pWeights[0] = (Weight) (fValence * oneOverValPlus5);
 
-    REAL *pW = &pWeights[1];
-    REAL *tW = &tanWeights[1];
+    Weight *pW = &pWeights[1];
+    Weight *tW = &tanWeights[1];
     for (int i = 0; i < valence; ++i) {
-        pW[2*i]     = pCoeff * 4.0f;
-        pW[2*i + 1] = pCoeff;
+        pW[2*i]     = (Weight) (pCoeff * 4.0f);
+        pW[2*i + 1] = (Weight)  pCoeff;
 
         if (computeEdgePoints) {
             int iPrev = (i + valence - 1) % valence;
             int iNext = (i + 1) % valence;
 
-            float cosICoeff = tanCoeff * cosf(float(i) * faceAngle);
+            double cosICoeff = tanCoeff * std::cos(faceAngle * i);
 
-            tW[2*iPrev]     += cosICoeff * 2.0f;
-            tW[2*iPrev + 1] += cosICoeff;
-            tW[2*i]         += cosICoeff * 4.0f;
-            tW[2*i + 1]     += cosICoeff;
-            tW[2*iNext]     += cosICoeff * 2.0f;
+            tW[2*iPrev]     += (Weight) (cosICoeff * 2.0f);
+            tW[2*iPrev + 1] += (Weight)  cosICoeff;
+            tW[2*i]         += (Weight) (cosICoeff * 4.0f);
+            tW[2*i + 1]     += (Weight)  cosICoeff;
+            tW[2*iNext]     += (Weight) (cosICoeff * 2.0f);
         }
     }
 
@@ -189,10 +201,10 @@ CatmarkLimits<REAL>::ComputeInteriorPointWeights(int valence, int faceInRing,
 template <typename REAL>
 void
 CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
-                REAL* pWeights, REAL* epWeights, REAL* emWeights) {
+                Weight* pWeights, Weight* epWeights, Weight* emWeights) {
 
-    int   numFaces  = valence - 1;
-    float faceAngle = float(M_PI) / float(numFaces);
+    int    numFaces  = valence - 1;
+    double faceAngle = M_PI / numFaces;
 
     int weightWidth = 2 * valence;
 
@@ -201,11 +213,11 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //
     //  Position weights are trivial:
     //
-    std::memset(&pWeights[0],  0, weightWidth * sizeof(float));
+    std::memset(&pWeights[0],  0, weightWidth * sizeof(Weight));
 
-    pWeights[0] = 4.0f / 6.0f;
-    pWeights[1] = 1.0f / 6.0f;
-    pWeights[N] = 1.0f / 6.0f;
+    pWeights[0] = (Weight) (4.0 / 6.0);
+    pWeights[1] = (Weight) (1.0 / 6.0);
+    pWeights[N] = (Weight) (1.0 / 6.0);
 
     if ((epWeights == 0) && (emWeights == 0)) return;
 
@@ -215,32 +227,36 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //  by two non-zero weights, so allocate and compute weights for the
     //  interior tangent:
     //
-    float tBoundaryWeight_1 =  1.0f / 6.0f;
-    float tBoundaryWeight_N = -1.0f / 6.0f;
+    double tBoundaryCoeff_1 = ( 1.0 / 6.0);
+    double tBoundaryCoeff_N = (-1.0 / 6.0);
 
-    StackBuffer<REAL, 64, true> tanWeights(weightWidth);
+    StackBuffer<Weight, 64, true> tanWeights(weightWidth);
     {
-        float k = float(numFaces);
-        float theta = faceAngle;
-        float c = cosf(theta);
-        float s = sinf(theta);
-        float div3 = 1.0f / 3.0f;
-        float div3kc = 1.0f / (3.0f*k+c);
-        float gamma = -4.0f * s * div3kc;
-        float alpha_0k = -((1.0f+2.0f*c) * sqrtf(1.0f+c)) * div3kc / sqrtf(1.0f-c);
-        float beta_0 = s * div3kc;
+        double k = (double) numFaces;
+        double theta = faceAngle;
+        double c = std::cos(theta);
+        double s = std::sin(theta);
+        double div3 = 1.0 / 3.0;
+        double div3kc = 1.0f / (3.0f * k + c);
+        double gamma = -4.0f * s * div3kc;
+        double alpha_0k = -((1.0f + 2.0f * c) * std::sqrt(1.0f + c)) * div3kc
+                        / std::sqrt(1.0f - c);
+        double beta_0 = s * div3kc;
 
-        tanWeights[0] = gamma * div3;
-        tanWeights[1] = alpha_0k * div3;
-        tanWeights[2] = beta_0 * div3;
-        tanWeights[N] = alpha_0k * div3;
+        tanWeights[0] = (Weight) (gamma * div3);
+        tanWeights[1] = (Weight) (alpha_0k * div3);
+        tanWeights[2] = (Weight) (beta_0 * div3);
+        tanWeights[N] = (Weight) (alpha_0k * div3);
 
         for (int i = 1; i < valence - 1; ++i) {
-            float alpha = 4.0f * sinf(float(i)*theta) * div3kc;
-            float beta = (sinf(float(i)*theta) + sinf(float(i+1)*theta)) * div3kc;
+            double sinThetaI      = std::sin(theta * i);
+            double sinThetaIplus1 = std::sin(theta * (i+1));
 
-            tanWeights[1 + 2*i]     = alpha * div3;
-            tanWeights[1 + 2*i + 1] = beta * div3;
+            double alpha = 4.0f * sinThetaI * div3kc;
+            double beta = (sinThetaI + sinThetaIplus1) * div3kc;
+
+            tanWeights[1 + 2*i]     = (Weight) (alpha * div3);
+            tanWeights[1 + 2*i + 1] = (Weight) (beta * div3);
         }
     }
 
@@ -249,23 +265,23 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //
     if (faceInRing == 0) {
         //  Ep is on boundary edge and has only two weights:  w[1] and w[N]
-        std::memset(&epWeights[0], 0, weightWidth * sizeof(float));
+        std::memset(&epWeights[0], 0, weightWidth * sizeof(Weight));
 
-        epWeights[0] = 2.0f / 3.0f;
-        epWeights[1] = 1.0f / 3.0f;
+        epWeights[0] = (Weight) (2.0 / 3.0);
+        epWeights[1] = (Weight) (1.0 / 3.0);
     } else {
         //  Ep is on interior edge and has all weights
         int iEdgeNext = faceInRing;
-        float faceAngleNext = faceAngle * float(iEdgeNext);
-        float cosAngleNext  = cosf(faceAngleNext);
-        float sinAngleNext  = sinf(faceAngleNext);
+        double faceAngleNext = faceAngle * iEdgeNext;
+        double cosAngleNext  = std::cos(faceAngleNext);
+        double sinAngleNext  = std::sin(faceAngleNext);
 
         for (int i = 0; i < weightWidth; ++i) {
-            epWeights[i] = tanWeights[i] * sinAngleNext;
+            epWeights[i] = (Weight)(tanWeights[i] * sinAngleNext);
         }
         epWeights[0] += pWeights[0];
-        epWeights[1] += pWeights[1] + tBoundaryWeight_1 * cosAngleNext;
-        epWeights[N] += pWeights[N] + tBoundaryWeight_N * cosAngleNext;
+        epWeights[1] += pWeights[1] + (Weight)(tBoundaryCoeff_1 * cosAngleNext);
+        epWeights[N] += pWeights[N] + (Weight)(tBoundaryCoeff_N * cosAngleNext);
     }
 
     //
@@ -273,109 +289,65 @@ CatmarkLimits<REAL>::ComputeBoundaryPointWeights(int valence, int faceInRing,
     //
     if (faceInRing == (numFaces - 1)) {
         //  Em is on boundary edge and has only two weights:  w[1] and w[N]
-        std::memset(&emWeights[0], 0, weightWidth * sizeof(float));
+        std::memset(&emWeights[0], 0, weightWidth * sizeof(Weight));
 
-        emWeights[0] = 2.0f / 3.0f;
-        emWeights[N] = 1.0f / 3.0f;
+        emWeights[0] = (Weight) (2.0 / 3.0);
+        emWeights[N] = (Weight) (1.0 / 3.0);
     } else {
         //  Em is on interior edge and has all weights
         int iEdgePrev = (faceInRing + 1) % valence;
-        float faceAnglePrev = faceAngle * float(iEdgePrev);
-        float cosAnglePrev  = cosf(faceAnglePrev);
-        float sinAnglePrev  = sinf(faceAnglePrev);
+        double faceAnglePrev = faceAngle * iEdgePrev;
+        double cosAnglePrev  = std::cos(faceAnglePrev);
+        double sinAnglePrev  = std::sin(faceAnglePrev);
 
         for (int i = 0; i < weightWidth; ++i) {
-            emWeights[i] = tanWeights[i] * sinAnglePrev;
+            emWeights[i] = (Weight)(tanWeights[i] * sinAnglePrev);
         }
         emWeights[0] += pWeights[0];
-        emWeights[1] += pWeights[1] + tBoundaryWeight_1 * cosAnglePrev;
-        emWeights[N] += pWeights[N] + tBoundaryWeight_N * cosAnglePrev;
+        emWeights[1] += pWeights[1] + (Weight)(tBoundaryCoeff_1 * cosAnglePrev);
+        emWeights[N] += pWeights[N] + (Weight)(tBoundaryCoeff_N * cosAnglePrev);
     }
 }
 
 //
-//  SparseMatrixPoint
+//  SparseMatrixRow
 //
 //  This is a utility class representing a row of a SparseMatrix -- which
-//  in turn corresponds to a point of a resulting patch.
+//  in turn corresponds to a point of a resulting patch.  Instances of this
+//  class are intended to encapsulate the contributions of a point and be
+//  passed to functions as such.
 //
-//  This interface was originally transitional (supporting a migration away
-//  from the former GregoryBasis::Point class) and its unclear if it will
-//  persist.  Its needs have been simplified and given the usual pre-sizing
-//  of a sparse row, a simple Assign() method may be all that is necessary.
+//  (Consider moving this to PatchBuilder as a protected class or maybe a
+//  public class within SparseMatrix itself, e.g. SparseMatrix<REAL>::Row.)
 //
-//  Use of the AddOrAppend() method is highly discouraged as it requires
-//  iteration and testing of potentially all entries, before appending if
-//  the specified entry does not exist.  It is currently only used to
-//  simplify the awkward case of valence-2 interior vertices -- where the
-//  1-ring of neighboring vertices overlaps and has duplicate entries.
-//  Alternative to simplify this without resorting to AddOrAppend() are
-//  under consideration.
-//
-template <typename REAL>
-class SparseMatrixPoint {
-public:
-    typedef Index index_type;
-    typedef REAL  weight_type;
+namespace {
+    template <typename REAL>
+    class SparseMatrixRow {
+    public:
+        SparseMatrixRow(SparseMatrix<REAL> & matrix, int row) :
+            _size(matrix.GetRowSize(row)),
+            _indices(matrix.SetRowColumns(row).begin()),
+            _weights(matrix.SetRowElements(row).begin()) { }
 
-    typedef SparseMatrix<weight_type> matrix_type;
-public:
-    SparseMatrixPoint(matrix_type & matrix, int row, int size = -1);
+        int GetSize() const { return _size; }
 
-    int GetSize() const { return _size; }
-    int GetCapacity() const { return _indices.size(); }
-
-    void Append(              index_type index, weight_type weight);
-    void AddOrAppend(         index_type index, weight_type weight);
-    void Assign(int rowEntry, index_type index, weight_type weight);
-
-    void Copy(SparseMatrixPoint<weight_type> const & other);
-public:
-    int _size;
-    Array<index_type> _indices;
-    Array<weight_type> _weights;
-};
-
-template <typename REAL>
-inline
-SparseMatrixPoint<REAL>::SparseMatrixPoint(matrix_type & matrix, int row, int size) {
-    _indices = matrix.SetRowColumns(row);
-    _weights = matrix.SetRowElements(row);
-    _size    = (size < 0) ? _weights.size() : size;
-}
-template <typename REAL>
-inline void
-SparseMatrixPoint<REAL>::Assign(int rowEntry, index_type index, weight_type weight) {
-    _indices[rowEntry] = index;
-    _weights[rowEntry] = weight;
-}
-template <typename REAL>
-inline void
-SparseMatrixPoint<REAL>::Append(index_type index, weight_type weight) {
-    assert(GetSize() < GetCapacity());
-    _indices[_size] = index;
-    _weights[_size] = weight;
-    _size ++;
-}
-template <typename REAL>
-inline void
-SparseMatrixPoint<REAL>::AddOrAppend(index_type index, weight_type weight) {
-    for (int i = 0; i < GetSize(); ++i) {
-        if (_indices[i] == index) {
-            _weights[i] += weight;
-            return;
+        void Assign(int rowEntry, Index index, REAL weight) {
+            _indices[rowEntry] = index;
+            _weights[rowEntry] = weight;
         }
-    }
-    Append(index, weight);
-}
-template <typename REAL>
-inline void
-SparseMatrixPoint<REAL>::Copy(SparseMatrixPoint const & other) {
-    assert(GetCapacity() == other.GetCapacity());
-    _size = other._size;
-    std::memcpy(&_indices[0], &other._indices[0], _size * sizeof(index_type));
-    std::memcpy(&_weights[0], &other._weights[0], _size * sizeof(weight_type));
-}
+
+        void Copy(SparseMatrixRow<REAL> const & other) {
+            assert(GetSize() == other.GetSize());
+            std::memcpy(_indices, other._indices, _size * sizeof(Index));
+            std::memcpy(_weights, other._weights, _size * sizeof(REAL));
+        }
+
+    public:
+        int     _size;
+        Index * _indices;
+        REAL *  _weights;
+    };
+} // end namespace
 
 
 //
@@ -450,7 +422,7 @@ namespace {
     template <typename REAL>
     void
     _addSparsePointToFullRow(REAL * fullRow,
-                             SparseMatrixPoint<REAL> const & p,
+                             SparseMatrixRow<REAL> const & p,
                              REAL s, int * indexMask) {
 
         for (int i = 0; i < p.GetSize(); ++i) {
@@ -508,6 +480,85 @@ namespace {
             prefix, M.GetNumRows(), M.GetNumColumns(), fullSize,
             sparseSize, nonZeroSize, (REAL)nonZeroSize * 100.0f / (REAL)fullSize);
     }
+
+
+    //
+    //  The valence-2 interior case poses problems for the way patch points
+    //  are computed as combinations of source points and stored as a row in
+    //  a SparseMatrix.  An interior vertex of valence-2 causes duplicate
+    //  vertices to appear in the 1-rings of its neighboring vertices and we
+    //  want the entries of a SparseMatrix row to be unique.
+    //
+    //  For the most part, this does not pose a problem while the matrix (set
+    //  of patch points) is being constructed, so we leave those duplicate
+    //  entries in place and deal with them as a post-process here.
+    //
+    //  The SourcePatch is also sensitive to the presence of such valence-2
+    //  vertices for its own reasons (it needs to identifiy a unique set of
+    //  source points from a set of corner rings), so a simple query of its
+    //  corners indicates when this post-process is necessary.  (And since
+    //  this case is a rare occurrence, efficiency is not a major concern.)
+    //
+    template <typename REAL>
+    void _removeValence2Duplicates(SparseMatrix<REAL> & M) {
+
+        //  This will later be determined by the PatchBuilder member:
+        int regFaceSize = 4;
+
+        SparseMatrix<REAL> T;
+        T.Resize(M.GetNumRows(), M.GetNumColumns(), M.GetNumElements());
+
+        int nRows = M.GetNumRows();
+        for (int row = 0; row < nRows; ++row) {
+            int srcRowSize = M.GetRowSize(row);
+
+            int const *  srcIndices = M.GetRowColumns(row).begin();
+            REAL const * srcWeights = M.GetRowElements(row).begin();
+
+            //  Scan the entries to see if there are duplicates -- copy
+            //  the row if not, otherwise, need to compress it:
+            bool cornerUsed[4] = { false, false, false, false };
+
+            int srcDupCount = 0;
+            for (int i = 0; i < srcRowSize; ++i) {
+                int srcIndex = srcIndices[i];
+                if (srcIndex < regFaceSize) {
+                    srcDupCount += (int) cornerUsed[srcIndex];
+                    cornerUsed[srcIndex] = true;
+                }
+            }
+
+            //  Size this row for the destination and copy or compress:
+            T.SetRowSize(row, srcRowSize - srcDupCount);
+
+            int*  dstIndices = T.SetRowColumns(row).begin();
+            REAL* dstWeights = T.SetRowElements(row).begin();
+
+            if (srcDupCount) {
+                REAL * cornerDstPtr[4] = { 0, 0, 0, 0 };
+
+                for (int i = 0; i < srcRowSize; ++i) {
+                    int  srcIndex  = *srcIndices++;
+                    REAL srcWeight = *srcWeights++;
+
+                    if (srcIndex < regFaceSize) {
+                        if (cornerDstPtr[srcIndex]) {
+                            *cornerDstPtr[srcIndex] += srcWeight;
+                            continue;
+                        } else {
+                            cornerDstPtr[srcIndex] = dstWeights;
+                        }
+                    }
+                    *dstIndices++ = srcIndex;
+                    *dstWeights++ = srcWeight;
+                }
+            } else {
+                std::memcpy(&dstIndices[0], &srcIndices[0], srcRowSize * sizeof(Index));
+                std::memcpy(&dstWeights[0], &srcWeights[0], srcRowSize * sizeof(REAL));
+            }
+        }
+        M.Swap(T);
+    }
 } // end namespace for SparseMatrix utilities
 
 
@@ -552,7 +603,7 @@ class GregoryConverter {
 public:
     typedef REAL                      Weight;
     typedef SparseMatrix<Weight>      Matrix;
-    typedef SparseMatrixPoint<Weight> Point;
+    typedef SparseMatrixRow<Weight>   Point;
 public:
     GregoryConverter() : _numSourcePoints(0) { }
     GregoryConverter(SourcePatch const & sourcePatch);
@@ -561,6 +612,7 @@ public:
     void Initialize(SourcePatch const & sourcePatch);
 
     bool IsIsolatedInteriorPatch() const { return _isIsolatedInteriorPatch; }
+    bool HasVal2InteriorCorner() const { return _hasVal2InteriorCorner; }
     int  GetIsolatedInteriorCorner() const { return _isolatedCorner; }
     int  GetIsolatedInteriorValence() const { return _isolatedValence; }
 
@@ -588,10 +640,6 @@ private:
         unsigned int fmIsRegular : 1;
         unsigned int fpIsCopied  : 1;
         unsigned int fmIsCopied  : 1;
-
-        unsigned int val2InRing  : 1;
-        unsigned int epAdjToVal2 : 1;
-        unsigned int emAdjToVal2 : 1;
 
         //  Other values stored for repeated use:
         int  valence;
@@ -644,6 +692,7 @@ private:
     int _maxValence;
 
     bool _isIsolatedInteriorPatch;
+    bool _hasVal2InteriorCorner;
     int  _isolatedCorner;
     int  _isolatedValence;
 
@@ -689,6 +738,7 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
     int irregularCorner = -1;
     int irregularValence = -1;
     int sharpCount = 0;
+    int val2IntCount = 0;
 
     for (int cIndex = 0; cIndex < 4; ++cIndex) {
         SourcePatch::Corner srcCorner = sourcePatch._corners[cIndex];
@@ -701,7 +751,6 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
         corner.numFaces   = srcCorner._numFaces;
         corner.faceInRing = srcCorner._patchFace;
         corner.isVal2Int  = srcCorner._val2Interior;
-        corner.val2InRing = srcCorner._val2Adjacent;
         corner.valence    = corner.numFaces + corner.isBoundary;
 
         corner.isRegular = ((corner.numFaces << corner.isBoundary) == 4)
@@ -711,12 +760,11 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
             corner.cosFaceAngle = 0.0f;
             corner.sinFaceAngle = 1.0f;
         } else {
-            // XXXX (barfowl) - use of sine/cosine here needs to respect <REAL>
             corner.faceAngle =
                 (corner.isBoundary ? REAL(M_PI) : (2.0f * REAL(M_PI)))
                     / REAL(corner.numFaces);
-            corner.cosFaceAngle = cosf(corner.faceAngle);
-            corner.sinFaceAngle = sinf(corner.faceAngle);
+            corner.cosFaceAngle = std::cos(corner.faceAngle);
+            corner.sinFaceAngle = std::sin(corner.faceAngle);
         }
 
         corner.ringPoints.SetSize(sourcePatch.GetCornerRingSize(cIndex));
@@ -730,6 +778,7 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
             irregularValence = corner.valence;
         }
         sharpCount += corner.isSharp;
+        val2IntCount += corner.isVal2Int;
     }
 
     //  Make a second pass to assign tags dependent on adjacent corners
@@ -738,9 +787,6 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
 
         int cNext = (cIndex + 1) & 0x3;
         int cPrev = (cIndex + 3) & 0x3;
-
-        corner.epAdjToVal2 = _corners[cNext].isVal2Int;
-        corner.emAdjToVal2 = _corners[cPrev].isVal2Int;
 
         //
         //  Identify if the face points are regular or shared/copied from
@@ -778,6 +824,7 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
         _isolatedCorner  = irregularCorner;
         _isolatedValence = irregularValence;
     }
+    _hasVal2InteriorCorner = (val2IntCount > 0);
 }
 
 template <typename REAL>
@@ -822,6 +869,9 @@ GregoryConverter<REAL>::Convert(Matrix & matrix) const {
         if (!_corners[cIndex].fpIsRegular || !_corners[cIndex].fmIsRegular) {
             computeIrregularFacePoints(cIndex, matrix, weightBuffer, indexBuffer);
         }
+    }
+    if (_hasVal2InteriorCorner) {
+        _removeValence2Duplicates(matrix);
     }
 }
 
@@ -889,9 +939,9 @@ GregoryConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
         //  First, the corner and pair of edge points:
         if (corner.isRegular) {
             if (! corner.isBoundary) {
-                rowSize[0] = 9 - corner.val2InRing;
-                rowSize[1] = 6 - corner.epAdjToVal2;
-                rowSize[2] = 6 - corner.emAdjToVal2;
+                rowSize[0] = 9;
+                rowSize[1] = 6;
+                rowSize[2] = 6;
             } else {
                 rowSize[0] = 3;
                 rowSize[1] = corner.faceInRing ? 6 : 2;
@@ -903,12 +953,12 @@ GregoryConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
                 rowSize[1] = 2;
                 rowSize[2] = 2;
             } else if (! corner.isBoundary) {
-                int ringSize = 1 + 2 * corner.valence - corner.val2InRing;
+                int ringSize = 1 + 2 * corner.valence;
                 rowSize[0] = ringSize;
                 rowSize[1] = ringSize;
                 rowSize[2] = ringSize;
             } else if (corner.numFaces > 1) {
-                int ringSize = 1 + corner.valence + corner.numFaces - corner.val2InRing;
+                int ringSize = 1 + corner.valence + corner.numFaces;
                 rowSize[0] = 3;
                 rowSize[1] = (corner.faceInRing > 0) ? ringSize : 2;
                 rowSize[2] = (corner.faceInRing < (corner.numFaces - 1)) ? ringSize : 2;
@@ -945,31 +995,25 @@ template <typename REAL>
 void
 GregoryConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) const {
 
-    //  Declare with 0 size for use with Append()
-    Point p (matrix, 5*cIndex + 0, 0);
-    Point ep(matrix, 5*cIndex + 1, 0);
-    Point em(matrix, 5*cIndex + 2, 0);
+    Point p (matrix, 5*cIndex + 0);
+    Point ep(matrix, 5*cIndex + 1);
+    Point em(matrix, 5*cIndex + 2);
 
     CornerTopology const & corner = _corners[cIndex];
 
     int const * cRing = corner.ringPoints;
 
     if (! corner.isBoundary) {
-        p.Append(cIndex,   4.0f / 9.0f);
-        p.Append(cRing[0], 1.0f / 9.0f);
-        p.Append(cRing[2], 1.0f / 9.0f);
-        p.Append(cRing[4], 1.0f / 9.0f);
-        p.Append(cRing[6], 1.0f / 9.0f);
-        p.Append(cRing[1], 1.0f / 36.0f);
-        if (!corner.val2InRing) {
-            p.Append(cRing[3], 1.0f / 36.0f);
-            p.Append(cRing[5], 1.0f / 36.0f);
-            p.Append(cRing[7], 1.0f / 36.0f);
-        } else {
-            p.AddOrAppend(cRing[3], 1.0f / 36.0f);
-            p.AddOrAppend(cRing[5], 1.0f / 36.0f);
-            p.AddOrAppend(cRing[7], 1.0f / 36.0f);
-        }
+        p.Assign(0, cIndex,   (REAL) (4.0 / 9.0));
+        p.Assign(1, cRing[0], (REAL) (1.0 / 9.0));
+        p.Assign(2, cRing[2], (REAL) (1.0 / 9.0));
+        p.Assign(3, cRing[4], (REAL) (1.0 / 9.0));
+        p.Assign(4, cRing[6], (REAL) (1.0 / 9.0));
+        p.Assign(5, cRing[1], (REAL) (1.0 / 36.0));
+        p.Assign(6, cRing[3], (REAL) (1.0 / 36.0));
+        p.Assign(7, cRing[5], (REAL) (1.0 / 36.0));
+        p.Assign(8, cRing[7], (REAL) (1.0 / 36.0));
+        assert(p.GetSize() == 9);
 
         //  Identify the edges along Ep and Em and those opposite them:
         int iEdgeEp = 2 *   corner.faceInRing;
@@ -977,50 +1021,44 @@ GregoryConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) con
         int iEdgeOp = 2 * ((corner.faceInRing + 2) & 0x3);
         int iEdgeOm = 2 * ((corner.faceInRing + 3) & 0x3);
 
-        ep.Append(cIndex,             4.0f / 9.0f);
-        ep.Append(cRing[iEdgeEp],     2.0f / 9.0f);
-        ep.Append(cRing[iEdgeEm],     1.0f / 9.0f);
-        ep.Append(cRing[iEdgeOm],     1.0f / 9.0f);
-        ep.Append(cRing[iEdgeEp + 1], 1.0f / 18.0f);
-        if (corner.epAdjToVal2) {
-            ep.AddOrAppend(cRing[iEdgeOm + 1], 1.0f / 18.0f);
-        } else {
-            ep.Append(cRing[iEdgeOm + 1], 1.0f / 18.0f);
-        }
+        ep.Assign(0, cIndex,             (REAL) (4.0 / 9.0));
+        ep.Assign(1, cRing[iEdgeEp],     (REAL) (2.0 / 9.0));
+        ep.Assign(2, cRing[iEdgeEm],     (REAL) (1.0 / 9.0));
+        ep.Assign(3, cRing[iEdgeOm],     (REAL) (1.0 / 9.0));
+        ep.Assign(4, cRing[iEdgeEp + 1], (REAL) (1.0 / 18.0));
+        ep.Assign(5, cRing[iEdgeOm + 1], (REAL) (1.0 / 18.0));
+        assert(ep.GetSize() == 6);
 
-        em.Append(cIndex,             4.0f / 9.0f);
-        em.Append(cRing[iEdgeEm],     2.0f / 9.0f);
-        em.Append(cRing[iEdgeEp],     1.0f / 9.0f);
-        em.Append(cRing[iEdgeOp],     1.0f / 9.0f);
-        em.Append(cRing[iEdgeEp + 1], 1.0f / 18.0f);
-        if (corner.emAdjToVal2) {
-            em.AddOrAppend(cRing[iEdgeEm + 1], 1.0f / 18.0f);
-        } else {
-            em.Append(cRing[iEdgeEm + 1], 1.0f / 18.0f);
-        }
+        em.Assign(0, cIndex,             (REAL) (4.0 / 9.0));
+        em.Assign(1, cRing[iEdgeEm],     (REAL) (2.0 / 9.0));
+        em.Assign(2, cRing[iEdgeEp],     (REAL) (1.0 / 9.0));
+        em.Assign(3, cRing[iEdgeOp],     (REAL) (1.0 / 9.0));
+        em.Assign(4, cRing[iEdgeEp + 1], (REAL) (1.0 / 18.0));
+        em.Assign(5, cRing[iEdgeEm + 1], (REAL) (1.0 / 18.0));
+        assert(em.GetSize() == 6);
     } else {
         //  Decide which point corresponds to interior vs exterior tangent:
         Point & eInterior = corner.faceInRing ? ep : em;
         Point & eBoundary = corner.faceInRing ? em : ep;
         int     iBoundary = corner.faceInRing ? 4 : 0;
 
-        p.Append(cIndex,   2.0f / 3.0f);
-        p.Append(cRing[0], 1.0f / 6.0f);
-        p.Append(cRing[4], 1.0f / 6.0f);
+        p.Assign(0, cIndex,   (REAL) (2.0 / 3.0));
+        p.Assign(1, cRing[0], (REAL) (1.0 / 6.0));
+        p.Assign(2, cRing[4], (REAL) (1.0 / 6.0));
+        assert(p.GetSize() == 3);
 
-        eBoundary.Append(cIndex,           2.0f / 3.0f);
-        eBoundary.Append(cRing[iBoundary], 1.0f / 3.0f);
+        eBoundary.Assign(0, cIndex,           (REAL) (2.0 / 3.0));
+        eBoundary.Assign(1, cRing[iBoundary], (REAL) (1.0 / 3.0));
+        assert(eBoundary.GetSize() == 2);
 
-        eInterior.Append(cIndex,   4.0f / 9.0f);
-        eInterior.Append(cRing[2], 2.0f / 9.0f);
-        eInterior.Append(cRing[0], 1.0f / 9.0f);
-        eInterior.Append(cRing[4], 1.0f / 9.0f);
-        eInterior.Append(cRing[1], 1.0f / 18.0f);
-        eInterior.Append(cRing[3], 1.0f / 18.0f);
+        eInterior.Assign(0, cIndex,   (REAL) (4.0 / 9.0));
+        eInterior.Assign(1, cRing[2], (REAL) (2.0 / 9.0));
+        eInterior.Assign(2, cRing[0], (REAL) (1.0 / 9.0));
+        eInterior.Assign(3, cRing[4], (REAL) (1.0 / 9.0));
+        eInterior.Assign(4, cRing[1], (REAL) (1.0 / 18.0));
+        eInterior.Assign(5, cRing[3], (REAL) (1.0 / 18.0));
+        assert(eInterior.GetSize() == 6);
     }
-    assert(matrix.GetRowSize(5*cIndex + 0) == p.GetSize());
-    assert(matrix.GetRowSize(5*cIndex + 1) == ep.GetSize());
-    assert(matrix.GetRowSize(5*cIndex + 2) == em.GetSize());
 }
 
 template <typename REAL>
@@ -1028,10 +1066,9 @@ void
 GregoryConverter<REAL>::computeIrregularEdgePoints(int cIndex,
         Matrix & matrix, Weight *weightBuffer) const {
 
-    //  Declare with 0 size for use with Append()
-    Point p (matrix, 5*cIndex + 0, 0);
-    Point ep(matrix, 5*cIndex + 1, 0);
-    Point em(matrix, 5*cIndex + 2, 0);
+    Point p (matrix, 5*cIndex + 0);
+    Point ep(matrix, 5*cIndex + 1);
+    Point em(matrix, 5*cIndex + 2);
 
     //
     //  The corner and edge points P, Ep and Em  are completely determined
@@ -1044,14 +1081,17 @@ GregoryConverter<REAL>::computeIrregularEdgePoints(int cIndex,
         //
         //  The sharp case -- both interior and boundary...
         //
-        p.Append(cIndex, 1.0f);
+        p.Assign(0, cIndex, 1.0f);
+        assert(p.GetSize() == 1);
 
         // Approximating these for now, pending future investigation...
-        ep.Append(cIndex,           2.0f / 3.0f);
-        ep.Append((cIndex+1) & 0x3, 1.0f / 3.0f);
+        ep.Assign(0, cIndex,           (REAL)(2.0 / 3.0));
+        ep.Assign(1, (cIndex+1) & 0x3, (REAL)(1.0 / 3.0));
+        assert(ep.GetSize() == 2);
 
-        em.Append(cIndex,           2.0f / 3.0f);
-        em.Append((cIndex+3) & 0x3, 1.0f / 3.0f);
+        em.Assign(0, cIndex,           (REAL)(2.0 / 3.0));
+        em.Assign(1, (cIndex+3) & 0x3, (REAL)(1.0 / 3.0));
+        assert(em.GetSize() == 2);
     } else if (! corner.isBoundary) {
         //
         //  The irregular interior case:
@@ -1066,20 +1106,19 @@ GregoryConverter<REAL>::computeIrregularEdgePoints(int cIndex,
         //
         //  The irregular/smooth corner case:
         //
-        p.Append(cIndex,           4.0f / 6.0f);
-        p.Append((cIndex+1) & 0x3, 1.0f / 6.0f);
-        p.Append((cIndex+3) & 0x3, 1.0f / 6.0f);
+        p.Assign(0, cIndex,           (REAL)(4.0 / 6.0));
+        p.Assign(1, (cIndex+1) & 0x3, (REAL)(1.0 / 6.0));
+        p.Assign(2, (cIndex+3) & 0x3, (REAL)(1.0 / 6.0));
+        assert(p.GetSize() == 3);
 
-        ep.Append(cIndex,           2.0f / 3.0f);
-        ep.Append((cIndex+1) & 0x3, 1.0f / 3.0f);
+        ep.Assign(0, cIndex,           (REAL)(2.0 / 3.0));
+        ep.Assign(1, (cIndex+1) & 0x3, (REAL)(1.0 / 3.0));
+        assert(ep.GetSize() == 2);
 
-        em.Append(cIndex,           2.0f / 3.0f);
-        em.Append((cIndex+3) & 0x3, 1.0f / 3.0f);
+        em.Assign(0, cIndex,           (REAL)(2.0 / 3.0));
+        em.Assign(1, (cIndex+3) & 0x3, (REAL)(1.0 / 3.0));
+        assert(em.GetSize() == 2);
     }
-
-    assert(matrix.GetRowSize(5*cIndex + 0) == p.GetSize());
-    assert(matrix.GetRowSize(5*cIndex + 1) == ep.GetSize());
-    assert(matrix.GetRowSize(5*cIndex + 2) == em.GetSize());
 }
 
 
@@ -1112,36 +1151,20 @@ GregoryConverter<REAL>::computeIrregularInteriorEdgePoints(
     //  since Ep and Em depend on it, there should be no need to filter weights
     //  with value 0:
     //
-    //  The presence of overlapping contributions in the ring when a neighboring
-    //  vertex is valence-2 interior is a nuisance and highly unlikely but still
-    //  possible if we have a triangle near a valence-2 interior vertex -- they
-    //  will still not be isolated at level 1.
-    //
-    //  For now just use the much-less-efficient AddOrAppend() in this case
-    //  until we can identify the overlap more specifically and have a more
-    //  general mechanism availble to deal with it.
-    //
-    p.Append( cIndex, pWeights[0]);
-    ep.Append(cIndex, epWeights[0]);
-    em.Append(cIndex, emWeights[0]);
+    p.Assign( 0, cIndex, pWeights[0]);
+    ep.Assign(0, cIndex, epWeights[0]);
+    em.Assign(0, cIndex, emWeights[0]);
 
-    if (!corner.val2InRing) {
-        for (int i = 1; i < weightWidth; ++i) {
-            int pRingPoint = corner.ringPoints[i-1];
+    for (int i = 1; i < weightWidth; ++i) {
+        int pRingPoint = corner.ringPoints[i-1];
 
-            p.Append( pRingPoint, pWeights[i]);
-            ep.Append(pRingPoint, epWeights[i]);
-            em.Append(pRingPoint, emWeights[i]);
-        }
-    } else {
-        for (int i = 1; i < weightWidth; ++i) {
-            int pRingPoint = corner.ringPoints[i-1];
-
-            p.AddOrAppend( pRingPoint, pWeights[i]);
-            ep.AddOrAppend(pRingPoint, epWeights[i]);
-            em.AddOrAppend(pRingPoint, emWeights[i]);
-        }
+        p.Assign( i, pRingPoint, pWeights[i]);
+        ep.Assign(i, pRingPoint, epWeights[i]);
+        em.Assign(i, pRingPoint, emWeights[i]);
     }
+    assert(p.GetSize() == weightWidth);
+    assert(ep.GetSize() == weightWidth);
+    assert(em.GetSize() == weightWidth);
 }
 
 
@@ -1178,29 +1201,36 @@ GregoryConverter<REAL>::computeIrregularBoundaryEdgePoints(
     int p1 = corner.ringPoints[0];
     int pN = corner.ringPoints[2*(valence-1)];
 
-    p.Append(p0, pWeights[0]);
-    p.Append(p1, pWeights[1]);
-    p.Append(pN, pWeights[N]);
+    p.Assign(0, p0, pWeights[0]);
+    p.Assign(1, p1, pWeights[1]);
+    p.Assign(2, pN, pWeights[N]);
+    assert(p.GetSize() == 3);
 
     //  If Ep is on the boundary edge, it has only two non-zero weights along
     //  that edge:
-    ep.Append(p0, epWeights[0]);
-    ep.Append(p1, epWeights[1]);
-    if (corner.faceInRing > 0) {
-        for (int i = 2; i < weightWidth; ++i) {
-            ep.Append(corner.ringPoints[i-1], epWeights[i]);
+    ep.Assign(0, p0, epWeights[0]);
+    if (corner.faceInRing == 0) {
+        ep.Assign(1, p1, epWeights[1]);
+        assert(ep.GetSize() == 2);
+    } else {
+        for (int i = 1; i < weightWidth; ++i) {
+            ep.Assign(i, corner.ringPoints[i-1], epWeights[i]);
         }
+        assert(ep.GetSize() == weightWidth);
     }
 
     //  If Em is on the boundary edge, it has only two non-zero weights along
     //  that edge:
-    em.Append(p0, emWeights[0]);
-    if (corner.faceInRing < (corner.numFaces - 1)) {
-        for (int i = 1; i < N; ++i) {
-            em.Append(corner.ringPoints[i-1], emWeights[i]);
+    em.Assign(0, p0, emWeights[0]);
+    if (corner.faceInRing == (corner.numFaces - 1)) {
+        em.Assign(1, pN, emWeights[N]);
+        assert(em.GetSize() == 2);
+    } else {
+        for (int i = 1; i <= weightWidth; ++i) {
+            em.Assign(i, corner.ringPoints[i-1], emWeights[i]);
         }
+        assert(em.GetSize() == weightWidth);
     }
-    em.Append(pN, emWeights[N]);
 }
 
 
@@ -1213,10 +1243,10 @@ GregoryConverter<REAL>::getIrregularFacePointSize(
     CornerTopology const & adjCorner = _corners[cIndexFar];
 
     int thisSize = corner.isSharp
-                 ? (6 - (corner.valence == 2))
-                 : (1 + corner.ringPoints.GetSize() - corner.val2InRing);
+                 ? 6
+                 : (1 + corner.ringPoints.GetSize());
 
-    int adjSize = (adjCorner.isRegular || adjCorner.isSharp || (adjCorner.valence == 2))
+    int adjSize = (adjCorner.isRegular || adjCorner.isSharp)
                 ? 0
                 : (1 + adjCorner.ringPoints.GetSize() - 6);
 
@@ -1253,9 +1283,6 @@ GregoryConverter<REAL>::computeIrregularFacePoint(
     //  Remember that R is to be computed about an interior edge and is
     //  comprised of the two pairs of points opposite the interior edge
     //
-    //  Remember also that val-2-overlap may cause two of these to be the
-    //  same -- doesn't matter if we accumulate here will if we assign:
-    //
     int iEdgeInterior = edgeInNearCornerRing;
     int iEdgePrev     = (iEdgeInterior + valence - 1) % valence;
     int iEdgeNext     = (iEdgeInterior + 1) % valence;
@@ -1265,20 +1292,28 @@ GregoryConverter<REAL>::computeIrregularFacePoint(
     rowWeights[cornerNear.ringPoints[2*iEdgeInterior + 1]] +=  signForSideOfEdge / 18.0f;
     rowWeights[cornerNear.ringPoints[2*iEdgeNext]]         +=  signForSideOfEdge /  9.0f;
 
+    int nWeights = 0;
     for (int i = 0; i < fullRowSize; ++i) {
         if (columnMask[i]) {
-            fNear.Append(columnMask[i] - 1, rowWeights[i]);
+            fNear.Assign(nWeights++, columnMask[i] - 1, rowWeights[i]);
         }
     }
+
+    //  Complete the expected row size when val-2 interior corners induce duplicates:
+    if (_hasVal2InteriorCorner && (nWeights < fNear.GetSize())) {
+        while (nWeights < fNear.GetSize()) {
+            fNear.Assign(nWeights++, cIndexNear, 0.0f);
+        }
+    }
+    assert(fNear.GetSize() == nWeights);
 }
 
 template <typename REAL>
 void
 GregoryConverter<REAL>::assignRegularFacePoints(int cIndex, Matrix & matrix) const {
 
-    //  Declare with 0 size for use with Append()
-    Point fp(matrix, 5*cIndex + 3, 0);
-    Point fm(matrix, 5*cIndex + 4, 0);
+    Point fp(matrix, 5*cIndex + 3);
+    Point fm(matrix, 5*cIndex + 4);
 
     CornerTopology const & corner = _corners[cIndex];
 
@@ -1288,18 +1323,18 @@ GregoryConverter<REAL>::assignRegularFacePoints(int cIndex, Matrix & matrix) con
 
     //  Assign regular Fp and/or Fm:
     if (corner.fpIsRegular) {
-        fp.Append(cIndex, 4.0f / 9.0f);
-        fp.Append(cPrev,  2.0f / 9.0f);
-        fp.Append(cNext,  2.0f / 9.0f);
-        fp.Append(cOpp,   1.0f / 9.0f);
-        assert(matrix.GetRowSize(5*cIndex + 3) == fp.GetSize());
+        fp.Assign(0, cIndex, (REAL)(4.0 / 9.0));
+        fp.Assign(1, cPrev,  (REAL)(2.0 / 9.0));
+        fp.Assign(2, cNext,  (REAL)(2.0 / 9.0));
+        fp.Assign(3, cOpp,   (REAL)(1.0 / 9.0));
+        assert(fp.GetSize() == 4);
     }
     if (corner.fmIsRegular) {
-        fm.Append(cIndex, 4.0f / 9.0f);
-        fm.Append(cPrev,  2.0f / 9.0f);
-        fm.Append(cNext,  2.0f / 9.0f);
-        fm.Append(cOpp,   1.0f / 9.0f);
-        assert(matrix.GetRowSize(5*cIndex + 4) == fm.GetSize());
+        fm.Assign(0, cIndex, (REAL)(4.0 / 9.0));
+        fm.Assign(1, cPrev,  (REAL)(2.0 / 9.0));
+        fm.Assign(2, cNext,  (REAL)(2.0 / 9.0));
+        fm.Assign(3, cOpp,   (REAL)(1.0 / 9.0));
+        assert(fm.GetSize() == 4);
     }
 }
 
@@ -1320,9 +1355,8 @@ GregoryConverter<REAL>::computeIrregularFacePoints(int cIndex,
     Point ep    (matrix, 5*cIndex + 1);
     Point emNext(matrix, 5*cNext  + 2);
 
-    //  Declare with 0 size for use with Append()
-    Point fp(matrix, 5*cIndex + 3, 0);
-    Point fm(matrix, 5*cIndex + 4, 0);
+    Point fp(matrix, 5*cIndex + 3);
+    Point fm(matrix, 5*cIndex + 4);
 
     //
     //  Compute the face points Fp and Fm in terms of the corner (P) and edge
@@ -1692,7 +1726,7 @@ BSplineConverter<REAL>::convertIrregularCorner(int irregularCorner,
     wX0[p3inRing] =  4.0f;
 
     //  Combine weights for all X[] in one iteration through the ring:
-    const REAL oneThird = 1.0f / 3.0f;
+    const REAL oneThird = (REAL) (1.0 / 3.0);
     for (int i = 0; i < ringSizePlusCorner; ++i) {
         wX1[i] = (36.0f * wEp[i] - wX1[i]) * oneThird;
         wX2[i] = (36.0f * wEm[i] - wX2[i]) * oneThird;
@@ -1780,7 +1814,6 @@ class LinearConverter {
 public:
     typedef REAL                      Weight;
     typedef SparseMatrix<Weight>      Matrix;
-    typedef SparseMatrixPoint<Weight> MatrixPoint;
 public:
     LinearConverter() : _sourcePatch(0) { }
     LinearConverter(SourcePatch const & sourcePatch);
@@ -1823,6 +1856,8 @@ LinearConverter<REAL>::Convert(Matrix & matrix) const {
 
     matrix.Resize(4, _sourcePatch->GetNumSourcePoints(), numElements);
 
+    bool hasVal2InteriorCorner = false;
+
     for (int cIndex = 0; cIndex < 4; ++cIndex) {
         //  Deal with the trivial sharp case first:
         if (_sourcePatch->_corners[cIndex]._sharp) {
@@ -1838,7 +1873,7 @@ LinearConverter<REAL>::Convert(Matrix & matrix) const {
         if (sourceCorner._boundary) {
             matrix.SetRowSize(cIndex, 3);
         } else {
-            matrix.SetRowSize(cIndex, 1 + ringSize - sourceCorner._val2Adjacent);
+            matrix.SetRowSize(cIndex, 1 + ringSize);
         }
 
         Array<Index>  rowIndices = matrix.SetRowColumns(cIndex);
@@ -1864,18 +1899,13 @@ LinearConverter<REAL>::Convert(Matrix & matrix) const {
                 sourceCorner._numFaces, sourceCorner._patchFace,
                 &weightBuffer[0], 0, 0);
 
-            if (sourceCorner._val2Adjacent) {
-                MatrixPoint row(matrix, cIndex, 0);
-                for (int i = 0; i <= ringSize; ++i) {
-                    row.AddOrAppend(indexBuffer[i], weightBuffer[i]);
-                }
-            } else {
-                std::memcpy(
-                    &rowIndices[0], indexBuffer, (1 + ringSize) * sizeof(Index));
-                std::memcpy(
-                    &rowWeights[0], weightBuffer, (1 + ringSize) * sizeof(Weight));
-            }
+            std::memcpy(&rowIndices[0], indexBuffer, (1 + ringSize) * sizeof(Index));
+            std::memcpy(&rowWeights[0], weightBuffer, (1 + ringSize) * sizeof(Weight));
         }
+        hasVal2InteriorCorner |= sourceCorner._val2Interior;
+    }
+    if (hasVal2InteriorCorner) {
+        _removeValence2Duplicates(matrix);
     }
 }
 
@@ -1898,10 +1928,11 @@ namespace {
     };
 }
 
+template <typename REAL>
 int
-CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+CatmarkPatchBuilder::convertSourcePatch(SourcePatch const &   sourcePatch,
                                         PatchDescriptor::Type patchType,
-                                        SparseMatrix<float> & matrix) const {
+                                        SparseMatrix<REAL> &  matrix) const {
 
     assert(_schemeType == Sdc::SCHEME_CATMARK);
 
@@ -1912,15 +1943,28 @@ CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
     //
     
     if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        GregoryConverter<float>(sourcePatch, matrix);
+        GregoryConverter<REAL>(sourcePatch, matrix);
     } else if (patchType == PatchDescriptor::REGULAR) {
-        BSplineConverter<float>(sourcePatch, matrix);
+        BSplineConverter<REAL>(sourcePatch, matrix);
     } else if (patchType == PatchDescriptor::QUADS) {
-        LinearConverter<float>(sourcePatch, matrix);
+        LinearConverter<REAL>(sourcePatch, matrix);
     } else {
         assert("Unknown or unsupported patch type" == 0);
     }
     return matrix.GetNumRows();
+}
+
+int
+CatmarkPatchBuilder::convertToPatchType(SourcePatch const &   sourcePatch,
+                                        PatchDescriptor::Type patchType,
+                                        SparseMatrix<float> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
+}
+int
+CatmarkPatchBuilder::convertToPatchType(SourcePatch const &    sourcePatch,
+                                        PatchDescriptor::Type  patchType,
+                                        SparseMatrix<double> & matrix) const {
+    return convertSourcePatch(sourcePatch, patchType, matrix);
 }
 
 CatmarkPatchBuilder::CatmarkPatchBuilder(
