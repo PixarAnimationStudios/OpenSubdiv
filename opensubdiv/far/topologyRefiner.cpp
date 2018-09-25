@@ -384,11 +384,6 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options,
             "Failure in TopologyRefiner::RefineAdaptive() -- previous refinements already applied.");
         return;
     }
-    if (_subdivType != Sdc::SCHEME_CATMARK) {
-        Error(FAR_RUNTIME_ERROR,
-            "Failure in TopologyRefiner::RefineAdaptive() -- currently only supported for Catmark scheme.");
-        return;
-    }
 
     //
     //  Initialize member and local variables from the adaptive options:
@@ -493,28 +488,35 @@ TopologyRefiner::RefineAdaptive(AdaptiveOptions options,
 //
 namespace {
     //
-    //  First is a low-level utility method to perform the same analysis on a set of
-    //  VTags for a face given a FeatureMask.  This is shared between the analysis of
-    //  the main face and face-varying channels.
+    //  First are a couple of low-level utility methods to perform the same analysis
+    //  at a corner or the entire face for specific detection of inf-sharp or boundary
+    //  features.  These are shared between the analysis of the main face and those in
+    //  face-varying channels (which only differ from the main face in the presence of
+    //  face-varying boundaries).
     //
-    //  If any inf-sharp features are to be selected, identify them first as irregular
-    //  or not, then qualify them more spe
+    //  The first can be applied equally to an individual corner or to the entire face
+    //  (using its composite tag).  The second applies to the entire face, making use
+    //  of the first, and is the main entry point for dealng with inf-sharp features.
     //
     //  Note we can use the composite tag here even though it arises from all corners
-    //  of the face and so does not represent a specific corner.  We are guaranteed at
-    //  least one smooth interior vertex, which limits the combinations that can exist
-    //  on the remaining corners.
+    //  of the face and so does not represent a specific corner.  When at least one
+    //  smooth interior vertex exists, it limits the combinations that can exist on the
+    //  remaining corners (though quads and tris cannot be treated equally here).
     //
-    //  Strictly speaking we should be testing all features and not returning based on
-    //  the selection status of the most likely feature that warrants selection, but in
-    //  practice, the separation of features and the typically common settings to groups
-    //  of features (i.e. it not yet possible, or even desireable, to select irregular
-    //  creases deeper than irregular corners) makes that unnecessary.
+    //  If any inf-sharp features are to be selected, identify them first as irregular
+    //  or not, then qualify them more specifically.  (Remember that a regular vertex
+    //  may have its neighboring faces partitioned into irregular regions in the
+    //  presence of inf-sharp edges.  Similarly an irregular vertex may have its
+    //  neighborhood partitioned into regular regions.)
     //
     inline bool
-    doesInfSharpFaceHaveFeatures(Vtr::internal::Level::VTag compVTag,
+    doesInfSharpVTagHaveFeatures(Vtr::internal::Level::VTag compVTag,
                                  internal::FeatureMask const & featureMask) {
 
+        //  Note that even though the given VTag may represent an individual corner, we
+        //  use more general bitwise tests here (particularly the Rule) so that we can
+        //  pass in a composite tag for the entire face and have the same tests applied:
+        //
         if (compVTag._infIrregular) {
             if (compVTag._rule & Sdc::Crease::RULE_CORNER) {
                 return featureMask.selectInfSharpIrregularCorner;
@@ -541,6 +543,59 @@ namespace {
             }
         }
         return false;
+    }
+
+    inline bool
+    doesInfSharpFaceHaveFeatures(Vtr::internal::Level::VTag compVTag,
+                                 Vtr::internal::Level::VTag vTags[], int numVerts,
+                                 internal::FeatureMask const & featureMask) {
+        //
+        //  For quads, if at least one smooth corner of a regular face, features
+        //  are isolated enough to make use of the composite tag alone.
+        //
+        //  For tris, the presence of boundaries creates more ambiguity, so we
+        //  need to exclude that case and inspect corner features individually.
+        //
+        bool atLeastOneSmoothCorner = (compVTag._rule & Sdc::Crease::RULE_SMOOTH);
+        if (numVerts == 4) {
+            if (atLeastOneSmoothCorner) {
+                return doesInfSharpVTagHaveFeatures(compVTag, featureMask);
+            } else {
+                //  Construction of quad patches was originally written to require
+                //  isolation of boundary features -- some of the core dependencies
+                //  are being removed but other subtle dependencies remain and need
+                //  a more concerted effort to deal with.  Once all such dependencies
+                //  have been removed, the condition to immediately select the face
+                //  here can be removed in favor of closer inspection of each corner.
+                //
+                bool quadPatchesRequireBoundaryIsolation = true;
+                if (quadPatchesRequireBoundaryIsolation) {
+                    return true;
+                } else {
+                    for (int i = 0; i < 4; ++i) {
+                        if (!(vTags[i]._rule & Sdc::Crease::RULE_SMOOTH)) {
+                            if (doesInfSharpVTagHaveFeatures(vTags[i], featureMask)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+            }
+        } else {
+            if (atLeastOneSmoothCorner && !compVTag._boundary) {
+                return doesInfSharpVTagHaveFeatures(compVTag, featureMask);
+            } else {
+                for (int i = 0; i < 3; ++i) {
+                    if (!(vTags[i]._rule & Sdc::Crease::RULE_SMOOTH)) {
+                        if (doesInfSharpVTagHaveFeatures(vTags[i], featureMask)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
     }
 
     //
@@ -612,11 +667,6 @@ namespace {
             return false;
         }
 
-        //  If no smooth corners, too many boundaries/sharp-features and need to isolate:
-        if (!(compFaceVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
-            return true;
-        }
-
         //  Semi-sharp features -- select all immediately or test the single-crease case:
         if (compFaceVTag._semiSharp || compFaceVTag._semiSharpEdges) {
             if (featureMask.selectSemiSharpSingle && featureMask.selectSemiSharpNonSingle) {
@@ -628,9 +678,9 @@ namespace {
             }
         }
 
-        //  Inf-sharp features -- delegate to shared method:
+        //  Inf-sharp features (including boundaries) -- delegate to shared method:
         if (compFaceVTag._infSharp || compFaceVTag._infSharpEdges) {
-            return doesInfSharpFaceHaveFeatures(compFaceVTag, featureMask);
+            return doesInfSharpFaceHaveFeatures(compFaceVTag, vTags, fVerts.size(), featureMask);
         }
         return false;
     }
@@ -683,13 +733,8 @@ namespace {
             return true;
         }
 
-        //  If no smooth corners, too many boundaries/sharp-features and need to isolate:
-        if (!(compVTag._rule & Sdc::Crease::RULE_SMOOTH)) {
-            return true;
-        }
-
         //  Given faces with differing FVar topology are on boundaries, defer to inf-sharp:
-        return doesInfSharpFaceHaveFeatures(compVTag, featureMask);
+        return doesInfSharpFaceHaveFeatures(compVTag, vTags, fVerts.size(), featureMask);
     }
 
 } // end namespace
