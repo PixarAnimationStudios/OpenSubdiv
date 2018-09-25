@@ -64,31 +64,38 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
 
     // for each patchArray
     for (int j = 0; j < nPatchArrays; ++j) {
-        PatchArray patchArray(farPatchTable->GetPatchArrayDescriptor(j),
-                              farPatchTable->GetNumPatches(j),
-                              (int)_indexBuffer.size(),
-                              (int)_patchParamBuffer.size());
+        int numPatchesThisArray = farPatchTable->GetNumPatches(j);
+
+        // create vertex array and append indices to buffer:
+        PatchArray patchArray(
+            farPatchTable->GetPatchArrayDescriptor(j),
+            numPatchesThisArray,
+            (int)_indexBuffer.size(), (int)_patchParamBuffer.size());
         _patchArrays.push_back(patchArray);
 
-        // indices
         Far::ConstIndexArray indices = farPatchTable->GetPatchArrayVertices(j);
         _indexBuffer.insert(_indexBuffer.end(), indices.begin(), indices.end());
 
-        // varying
+        // create varying array and append indices to buffer:
         PatchArray varyingPatchArray(
-            farPatchTable->GetVaryingPatchDescriptor(), numPatches, 0, 0);
+            farPatchTable->GetVaryingPatchDescriptor(),
+            numPatchesThisArray, 
+            (int)_varyingIndexBuffer.size(), (int)_patchParamBuffer.size());
         _varyingPatchArrays.push_back(varyingPatchArray);
+
         Far::ConstIndexArray
             varyingIndices = farPatchTable->GetPatchArrayVaryingVertices(j);
         _varyingIndexBuffer.insert(_varyingIndexBuffer.end(),
                 varyingIndices.begin(), varyingIndices.end());
 
-        // face-varying
+        // create face-varying arrays for each channel:
         for (int fvc=0; fvc<farPatchTable->GetNumFVarChannels(); ++fvc) {
+            // create face-varying array and append indices to buffer:
             PatchArray fvarPatchArray(
                 farPatchTable->GetFVarPatchDescriptorRegular(fvc),
                 farPatchTable->GetFVarPatchDescriptorIrregular(fvc),
-                numPatches, 0, 0);
+                numPatchesThisArray, 
+                (int)_fvarIndexBuffers[fvc].size(), (int)_fvarParamBuffers[fvc].size());
             _fvarPatchArrays[fvc].push_back(fvarPatchArray);
 
             Far::ConstIndexArray
@@ -96,10 +103,11 @@ CpuPatchTable::CpuPatchTable(const Far::PatchTable *farPatchTable) {
             _fvarIndexBuffers[fvc].insert(_fvarIndexBuffers[fvc].end(),
                     fvarIndices.begin(), fvarIndices.end());
 
-            // face-varying param
+            // append face-varying patch params (converting Far PatchParams to Osd)
             Far::ConstPatchParamArray
                 fvarParam = farPatchTable->GetPatchArrayFVarPatchParams(j, fvc);
-            for (int k = 0; k < numPatches; ++k) {
+
+            for (int k = 0; k < numPatchesThisArray; ++k) {
                 PatchParam param;
                 //param.patchParam = patchParamTable[patchIndex];
                 param.field0 = fvarParam[k].field0;
