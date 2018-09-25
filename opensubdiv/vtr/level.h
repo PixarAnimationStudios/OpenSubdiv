@@ -119,6 +119,10 @@ public:
         VTagSize _infSharpCrease  : 1;  // fixed
         VTagSize _infIrregular    : 1;  // fixed
 
+        //  Alternate constructor and accessor for dealing with integer bits directly:
+        explicit VTag(VTagSize bits) { *this = *reinterpret_cast<VTag const *>(&bits); }
+        VTagSize getBits() const { return *reinterpret_cast<VTagSize const *>(this); }
+
         static VTag BitwiseOr(VTag const vTags[], int size = 4);
     };
     struct ETag {
@@ -133,6 +137,10 @@ public:
         ETagSize _boundary     : 1;  // fixed
         ETagSize _infSharp     : 1;  // fixed
         ETagSize _semiSharp    : 1;  // variable
+
+        //  Alternate constructor and accessor for dealing with integer bits directly:
+        explicit ETag(ETagSize bits) { *this = *reinterpret_cast<ETag const *>(&bits); }
+        ETagSize getBits() const { return *reinterpret_cast<ETagSize const *>(this); }
 
         static ETag BitwiseOr(ETag const eTags[], int size = 4);
     };
