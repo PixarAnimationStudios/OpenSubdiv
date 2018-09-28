@@ -98,50 +98,82 @@ private:
     // adds a child to a parent node and pushes it back on the tree
     static QuadNode * addChild( QuadTree & quadtree, QuadNode * parent, int quadrant );
 
-    // given a median, transforms the (u,v) to the quadrant they point to, and
-    // return the quadrant index.
-    //
-    // Quadrants indexing:
-    //
-    //   (0,0) o-----o-----o
-    //         |     |     |
-    //         |  0  |  3  |
-    //         |     |     |
-    //         o-----o-----o
-    //         |     |     |
-    //         |  1  |  2  |
-    //         |     |     |
-    //         o-----o-----o (1,1)
-    //
-    template <class T> static int resolveQuadrant(T & median, T & u, T & v);
+    // identify and transform a (u,v) pair by its containing quadrant
+    template <class T>
+    static int transformToQuadQuadrant(T const & median, T & u, T & v);
+    template <class T>
+    static int transformToTriQuadrant(T const & median, T & u, T & v, bool & rotated);
+
+private:
+
+    bool _patchesAreTriangular;
 
     std::vector<Handle>   _handles;  // all the patches in the PatchTable
     std::vector<QuadNode> _quadtree; // quadtree nodes
 };
 
-// given a median, transforms the (u,v) to the quadrant they point to, and
-// return the quadrant index.
-template <class T> int
-PatchMap::resolveQuadrant(T & median, T & u, T & v) {
-    int quadrant = -1;
+//
+//  Given a median value for both U and V, these methods transform a (u,v) pair
+//  into the quadrant that contains them and returns the quadrant index.
+//
+//  Quadrant indexing for tri and quad patches -- consistent with PatchParam's
+//  usage of UV bits:
+//
+//      (0,1) o                       (0,1) o-----o-----o (1,1)
+//            |\                            |     |     |
+//            |  \                          |  2  |  3  |
+//            | 2  \                        |     |     |
+//            o-----o                       o-----o-----o
+//            |\  3 |\                      |     |     |
+//            |  \  |  \                    |  0  |  1  |
+//            | 0  \| 1  \                  |     |     |
+//      (0,0) o-----o-----o (1,0)     (0,0) o-----o-----o (1,0)
+//
+//  The triangular case also takes and returns/affects the rotation of the
+//  quadrant being searched and identified (quadrant 3 imparts a rotation).
+//
+template <class T>
+inline int
+PatchMap::transformToQuadQuadrant(T const & median, T & u, T & v) {
 
-    if (u<median) {
-        if (v<median) {
-            quadrant = 0;
-        } else {
-            quadrant = 1;
-            v-=median;
+    int uHalf = (u >= median);
+    if (uHalf) u -= median;
+
+    int vHalf = (v >= median);
+    if (vHalf) v -= median;
+
+    return (vHalf << 1) | uHalf;
+}
+    
+template <class T>
+int inline
+PatchMap::transformToTriQuadrant(T const & median, T & u, T & v, bool & rotated) {
+    
+    if (!rotated) {
+        if (u >= median) {
+            u -= median;
+            return 1;
         }
+        if (v >= median) {
+            v -= median;
+            return 2;
+        }
+        if ((u + v) >= median) {
+            rotated = !rotated;
+            return 3;
+        }
+        return 0;
     } else {
-        if (v<median) {
-            quadrant = 3;
-        } else {
-            quadrant = 2;
-            v-=median;
+        if (u < median) return 1;
+        if (v < median) return 2;
+        u -= median;
+        v -= median;
+        if ((u + v) >= median) {
+            rotated = !rotated;
+            return 0;
         }
-        u-=median;
+        return 3;
     }
-    return quadrant;
 }
 
 /// Returns a handle to the sub-patch of the face at the given (u,v).
@@ -149,21 +181,23 @@ inline PatchMap::Handle const *
 PatchMap::FindPatch( int faceid, double u, double v ) const {
 
     if (faceid>=(int)_quadtree.size())
-        return NULL;
+        return 0;
 
     assert( (u>=0.0) && (u<=1.0) && (v>=0.0) && (v<=1.0) );
 
     QuadNode const * node = &_quadtree[faceid];
 
+    bool triRotated = false;
+
     double half = 0.5;
 
-    // 0xFF : we should never have depths greater than k_InfinitelySharp
-    for (int depth=0; depth<0xFF; ++depth) {
+    // Patch depth is limited to 4 bits by PatchParam
+    int maxDepth = (1 << 4);
+    for (int depth = 0; depth < maxDepth; ++depth, half *= 0.5) {
 
-        double delta = half * 0.5;
-
-        int quadrant = resolveQuadrant( half, u, v );
-        assert(quadrant>=0);
+        int quadrant = _patchesAreTriangular
+                     ? transformToTriQuadrant(half, u, v, triRotated)
+                     : transformToQuadQuadrant(half, u, v);
 
         // is the quadrant a hole ?
         if (! node->children[quadrant].isSet)
@@ -174,10 +208,7 @@ PatchMap::FindPatch( int faceid, double u, double v ) const {
         } else {
             node = &_quadtree[node->children[quadrant].idx];
         }
-
-        half = delta;
     }
-
     assert(0);
     return 0;
 }
