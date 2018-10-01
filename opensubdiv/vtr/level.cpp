@@ -604,47 +604,33 @@ Level::getFaceETags(Index fIndex, ETag eTags[], int fvarChannel) const {
     }
 }
 
-namespace {
-    template <typename TAG_TYPE, typename INT_TYPE>
-    void
-    combineTags(TAG_TYPE& dstTag, TAG_TYPE const& srcTag) {
-
-        assert(sizeof(TAG_TYPE) == sizeof(INT_TYPE));
-
-        INT_TYPE const & srcInt = *(reinterpret_cast<INT_TYPE const*>(&srcTag));
-        INT_TYPE &       dstInt = *(reinterpret_cast<INT_TYPE *>     (&dstTag));
-
-        dstInt |= srcInt;
-    }
-}
-
 Level::VTag
 Level::VTag::BitwiseOr(VTag const vTags[], int size) {
 
-    VTag compTag = vTags[0];
+    VTag::VTagSize tagBits = vTags[0].getBits();
     for (int i = 1; i < size; ++i) {
-        combineTags<VTag, VTag::VTagSize>(compTag, vTags[i]);
+        tagBits |= vTags[i].getBits();
     }
-    return compTag;
+    return VTag(tagBits);
 }
 Level::ETag
 Level::ETag::BitwiseOr(ETag const eTags[], int size) {
 
-    ETag compTag = eTags[0];
+    ETag::ETagSize tagBits = eTags[0].getBits();
     for (int i = 1; i < size; ++i) {
-        combineTags<ETag, ETag::ETagSize>(compTag, eTags[i]);
+        tagBits |= eTags[i].getBits();
     }
-    return compTag;
+    return ETag(tagBits);
 }
 
 Level::VTag
 Level::getFaceCompositeVTag(ConstIndexArray & fVerts) const {
 
-    VTag compTag = _vertTags[fVerts[0]];
+    VTag::VTagSize tagBits = _vertTags[fVerts[0]].getBits();
     for (int i = 1; i < fVerts.size(); ++i) {
-        combineTags<VTag, VTag::VTagSize>(compTag, _vertTags[fVerts[i]]);
+        tagBits |= _vertTags[fVerts[i]].getBits();
     }
-    return compTag;
+    return VTag(tagBits);
 }
 Level::VTag
 Level::getFaceCompositeVTag(Index fIndex, int fvarChannel) const {
@@ -657,12 +643,11 @@ Level::getFaceCompositeVTag(Index fIndex, int fvarChannel) const {
         internal::StackBuffer<FVarLevel::ValueTag,64> fvarTags(fVerts.size());
         fvarLevel.getFaceValueTags(fIndex, fvarTags);
 
-        VTag compTag = fvarTags[0].combineWithLevelVTag(_vertTags[fVerts[0]]);
+        VTag::VTagSize tagBits = fvarTags[0].combineWithLevelVTag(_vertTags[fVerts[0]]).getBits();
         for (int i = 1; i < fVerts.size(); ++i) {
-            combineTags<VTag, VTag::VTagSize>(compTag,
-                        fvarTags[i].combineWithLevelVTag(_vertTags[fVerts[i]]));
+            tagBits |= fvarTags[i].combineWithLevelVTag(_vertTags[fVerts[i]]).getBits();
         }
-        return compTag;
+        return VTag(tagBits);
     }
 }
 
@@ -675,11 +660,11 @@ Level::getVertexCompositeFVarVTag(Index vIndex, int fvarChannel) const {
 
     VTag vTag = getVertexTag(vIndex);
     if (fvTags[0].isMismatch()) {
-        VTag compVTag = fvTags[0].combineWithLevelVTag(vTag);
+        VTag::VTagSize tagBits = fvTags[0].combineWithLevelVTag(vTag).getBits();
         for (int i = 1; i < fvTags.size(); ++i) {
-            combineTags<VTag, VTag::VTagSize>(compVTag, fvTags[i].combineWithLevelVTag(vTag));
+            tagBits |= fvTags[i].combineWithLevelVTag(vTag).getBits();
         }
-        return compVTag;
+        return VTag(tagBits);
     } else {
         return vTag;
     }
