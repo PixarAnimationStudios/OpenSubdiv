@@ -249,7 +249,7 @@ __kernel void computePatches(__global float *src, int srcOffset,
     float uv[2] = {coord.s, coord.t};
     normalizePatchCoord(patchBits, uv);
     float dScale = (float)(1 << getDepth(patchBits));
-    int boundary = (patchBits >> 8) & 0xf;
+    int boundary = (patchBits >> 7) & 0x1f;
 
     float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 

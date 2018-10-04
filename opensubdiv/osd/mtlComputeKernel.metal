@@ -330,7 +330,7 @@ kernel void eval_patches(
     auto numControlVertices = getNumControlVertices(patchType);
     auto uv = normalizePatchCoord(patchBits, float2(patchCoord.s, patchCoord.t));
     auto dScale = float(1 << getDepth(patchBits));
-    auto boundary = int((patchBits >> 8) & 0xFU);
+    auto boundary = int((patchBits >> 7) & 0x1FU);
 
     float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 

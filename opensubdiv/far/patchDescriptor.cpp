@@ -44,6 +44,7 @@ PatchDescriptor::GetAdaptivePatchDescriptors(Sdc::SchemeType type) {
     static PatchDescriptor _loopDescriptors[] = {
         // XXXX work in progress !
         PatchDescriptor(LOOP),
+        PatchDescriptor(GREGORY_TRIANGLE),
     };
 
     static PatchDescriptor _catmarkDescriptors[] = {
@@ -72,7 +73,8 @@ void
 PatchDescriptor::print() const {
     static char const * types[13] = {
         "NON_PATCH", "POINTS", "LINES", "QUADS", "TRIANGLES", "LOOP",
-            "REGULAR", "GREGORY", "GREGORY_BOUNDARY", "GREGORY_BASIS" };
+            "REGULAR", "GREGORY", "GREGORY_BOUNDARY", "GREGORY_BASIS",
+            "GREGORY_TRIANGLE"};
 
     printf("    type %s\n",
         types[_type]);

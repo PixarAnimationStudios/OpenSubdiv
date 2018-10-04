@@ -596,6 +596,30 @@ PatchTable::print() const {
 //
 //  Evaluate basis functions for vertex and derivatives at (s,t):
 //
+namespace {
+    template <typename REAL>
+    void evaluatePatchBasis(PatchDescriptor::Type patchType, PatchParam const & param,
+        REAL s, REAL t, REAL wP[], REAL wDs[], REAL wDt[],
+        REAL wDss[], REAL wDst[], REAL wDtt[]) {
+
+        if (patchType == PatchDescriptor::REGULAR) {
+            internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
+            internal::GetGregoryWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        } else if (patchType == PatchDescriptor::QUADS) {
+            internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        } else if (patchType == PatchDescriptor::TRIANGLES) {
+            internal::GetLinearTriWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        } else if (patchType == PatchDescriptor::LOOP) {
+            internal::GetBoxSplineTriWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        } else if (patchType == PatchDescriptor::GREGORY_TRIANGLE) {
+            internal::GetGregoryTriWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        } else {
+            assert(0);
+        }
+    }
+} // end namespace
+
 template <typename REAL>
 void
 PatchTable::EvaluateBasis(
@@ -603,18 +627,10 @@ PatchTable::EvaluateBasis(
     REAL wP[], REAL wDs[], REAL wDt[],
     REAL wDss[], REAL wDst[], REAL wDtt[]) const {
 
-    PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
     PatchParam const & param = _paramTable[handle.patchIndex];
+    PatchDescriptor::Type patchType = GetPatchArrayDescriptor(handle.arrayIndex).GetType();
 
-    if (patchType == PatchDescriptor::REGULAR) {
-        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else if (patchType == PatchDescriptor::QUADS) {
-        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else {
-        assert(0);
-    }
+    evaluatePatchBasis(patchType, param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 }
 
 //
@@ -628,8 +644,15 @@ PatchTable::EvaluateBasisVarying(
     REAL wDss[], REAL wDst[], REAL wDtt[]) const {
 
     PatchParam const & param = _paramTable[handle.patchIndex];
+    PatchDescriptor::Type patchType = GetVaryingPatchDescriptor().GetType();
 
-    internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    if (patchType == PatchDescriptor::QUADS) {
+        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else if (patchType == PatchDescriptor::TRIANGLES) {
+        internal::GetLinearTriWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else {
+        assert(0);
+    }
 }
 
 //
@@ -648,16 +671,9 @@ PatchTable::EvaluateBasisFaceVarying(
             ? GetFVarPatchDescriptorRegular(channel).GetType()
             : GetFVarPatchDescriptorIrregular(channel).GetType();
 
-    if (patchType == PatchDescriptor::REGULAR) {
-        internal::GetBSplineWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
-        internal::GetGregoryWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else if (patchType == PatchDescriptor::QUADS) {
-        internal::GetBilinearWeights(param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else {
-        assert(0);
-    }
+    evaluatePatchBasis(patchType, param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 }
+
 
 //
 //  Explicit instantiation of EvaluateBasis...() methods for float and double:

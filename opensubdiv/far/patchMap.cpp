@@ -67,6 +67,9 @@ PatchMap::addChild( QuadTree & quadtree, QuadNode * parent, int quadrant ) {
 void
 PatchMap::initialize( PatchTable const & patchTable ) {
 
+    _patchesAreTriangular =
+        patchTable.GetVaryingPatchDescriptor().GetNumControlVertices() == 3;
+
     int nfaces = 0,
         narrays = (int)patchTable.GetNumPatchArrays(),
         npatches = (int)patchTable.GetNumPatchesTotal();
@@ -115,35 +118,39 @@ PatchMap::initialize( PatchTable const & patchTable ) {
 
             PatchParam const & param = params[i];
 
-            unsigned short depth = param.GetDepth();
+            QuadNode * node = &quadtree[ param.GetFaceId() ];
 
-            QuadNode * node = &quadtree[ params[i].GetFaceId() ];
+            int rootDepth = param.NonQuadRoot();
+            int depth = param.GetDepth();
 
-            if (depth==(param.NonQuadRoot() ? 1 : 0)) {
-                // special case : regular BSpline face w/ no sub-patches
+            if (depth == rootDepth) {
+                // special case : root level face with no sub-patches
                 node->SetChild( handleIndex );
                 continue;
             }
 
-            int u = param.GetU(),
-                v = param.GetV(),
-                pdepth = param.NonQuadRoot() ? depth-2 : depth-1,
-                half = 1 << pdepth;
+            //  We can use the PatchParam bits directly to determine the quadrants
+            //  in which to place the patch -- just need to adjust the UV bits for
+            //  the special case of a rotated triangular patch:
+            //
+            int u = param.GetU();
+            int v = param.GetV();
 
-            for (unsigned char j=0; j<depth; ++j) {
+            if (_patchesAreTriangular && param.IsTriangleRotated()) {
+                u = (1 << depth) - u;
+                v = (1 << depth) - v;
+            }
 
-                int delta = half >> 1;
+            for (int j = rootDepth + 1; j<= depth; ++j) {
+                int uBit = (u >> (depth - j)) & 1;
+                int vBit = (v >> (depth - j)) & 1;
 
-                int quadrant = resolveQuadrant(half, u, v);
-                assert(quadrant>=0);
+                int quadrant = (vBit << 1) | uBit;
 
-                half = delta;
-
-                if (j==pdepth) {
+                if (j == depth) {
                    // we have reached the depth of the sub-patch : add a leaf
                    assert( ! node->children[quadrant].isSet );
                    node->SetChild(quadrant, handleIndex, true);
-                   break;
                 } else {
                     // travel down the child node of the corresponding quadrant
                     if (! node->children[quadrant].isSet) {

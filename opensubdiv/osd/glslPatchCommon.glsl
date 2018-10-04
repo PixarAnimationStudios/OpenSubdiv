@@ -172,7 +172,7 @@ int OsdGetPatchRefinementLevel(ivec3 patchParam)
 
 int OsdGetPatchBoundaryMask(ivec3 patchParam)
 {
-    return ((patchParam.y >> 8) & 0xf);
+    return ((patchParam.y >> 7) & 0x1f);
 }
 
 int OsdGetPatchTransitionMask(ivec3 patchParam)

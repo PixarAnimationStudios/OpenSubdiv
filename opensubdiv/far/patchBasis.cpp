@@ -26,6 +26,8 @@
 
 #include <cassert>
 #include <cstring>
+#include <cmath>
+#include <cstdio>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -33,129 +35,28 @@ namespace OPENSUBDIV_VERSION {
 namespace Far {
 namespace internal {
 
-namespace {
+
 //
-//  Evaluation functions for curves used to assemble tensor product bases:
+//  Basis support for quadrilateral patches:
+//
+//  Quadrilateral patches are parameterized in terms of (s,t) as follows:
+//
+//      (1,0) *---------* (1,1)
+//            | 3     2 |
+//          t |         |
+//            |         |
+//            | 0     1 |
+//      (0,0) *---------* (1,0)
+//                 s
+//
+
+
+//
+//  Simple bilinear quad:
 //
 template <typename REAL>
-void evalBezierCurve(REAL t, REAL wP[4], REAL wDP[4], REAL wDP2[4]) {
-
-    // The four uniform cubic Bezier basis functions (in terms of t and its
-    // complement tC) evaluated at t:
-    REAL t2 = t*t;
-    REAL tC = 1.0f - t;
-    REAL tC2 = tC * tC;
-
-    wP[0] = tC2 * tC;
-    wP[1] = tC2 * t * 3.0f;
-    wP[2] = t2 * tC * 3.0f;
-    wP[3] = t2 * t;
-
-    // Derivatives of the above four basis functions at t:
-    if (wDP) {
-       wDP[0] = -3.0f * tC2;
-       wDP[1] =  9.0f * t2 - 12.0f * t + 3.0f;
-       wDP[2] = -9.0f * t2 +  6.0f * t;
-       wDP[3] =  3.0f * t2;
-    }
-
-    // Second derivatives of the basis functions at t:
-    if (wDP2) {
-        wDP2[0] =   6.0f * tC;
-        wDP2[1] =  18.0f * t - 12.0f;
-        wDP2[2] = -18.0f * t +  6.0f;
-        wDP2[3] =   6.0f * t;
-    }
-}
-
-template <typename REAL>
-void evalBSplineCurve(REAL t, REAL wP[4], REAL wDP[4], REAL wDP2[4]) {
-
-    // The four uniform cubic B-Spline basis functions evaluated at t:
-    REAL const one6th = (REAL)(1.0 / 6.0);
-
-    REAL t2 = t * t;
-    REAL t3 = t * t2;
-
-    wP[0] = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
-    wP[1] = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
-    wP[2] = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
-    wP[3] = one6th * (                                 t3);
-
-    // Derivatives of the above four basis functions at t:
-    if (wDP) {
-        wDP[0] = -0.5f*t2 +      t - 0.5f;
-        wDP[1] =  1.5f*t2 - 2.0f*t;
-        wDP[2] = -1.5f*t2 +      t + 0.5f;
-        wDP[3] =  0.5f*t2;
-    }
-
-    // Second derivatives of the basis functions at t:
-    if (wDP2) {
-        wDP2[0] = -       t + 1.0f;
-        wDP2[1] =  3.0f * t - 2.0f;
-        wDP2[2] = -3.0f * t + 1.0f;
-        wDP2[3] =         t;
-    }
-}
-}
-
-template <typename REAL>
-void GetBoxSplineWeights(PatchParam const & param, REAL s, REAL t, REAL wP[12]) {
-
-    float u = s;
-    float v = t;
-    float w = 1.0f - u - v;
-
-    //
-    //  The 12 basis functions of the quartic box spline (unscaled by their common
-    //  factor of 1/12 until later, and formatted to make it easy to spot any
-    //  typing errors):
-    //
-    //      15 terms for the 3 points above the triangle corners
-    //       9 terms for the 3 points on faces opposite the triangle edges
-    //       2 terms for the 6 points on faces opposite the triangle corners
-    //
-    //  Powers of each variable for notational convenience:
-    float u2 = u*u;
-    float u3 = u*u2;
-    float u4 = u*u3;
-    float v2 = v*v;
-    float v3 = v*v2;
-    float v4 = v*v3;
-    float w2 = w*w;
-    float w3 = w*w2;
-    float w4 = w*w3;
-
-    //  And now the basis functions:
-    wP[ 0] = u4 + 2.0f*u3*v;
-    wP[ 1] = u4 + 2.0f*u3*w;
-    wP[ 8] = w4 + 2.0f*w3*u;
-    wP[11] = w4 + 2.0f*w3*v;
-    wP[ 9] = v4 + 2.0f*v3*w;
-    wP[ 5] = v4 + 2.0f*v3*u;
-
-    wP[ 2] = u4 + 2.0f*u3*w + 6.0f*u3*v + 6.0f*u2*v*w + 12.0f*u2*v2 +
-                v4 + 2.0f*v3*w + 6.0f*v3*u + 6.0f*v2*u*w;
-    wP[ 4] = w4 + 2.0f*w3*v + 6.0f*w3*u + 6.0f*w2*u*v + 12.0f*w2*u2 +
-                u4 + 2.0f*u3*v + 6.0f*u3*w + 6.0f*u2*v*w;
-    wP[10] = v4 + 2.0f*v3*u + 6.0f*v3*w + 6.0f*v2*w*u + 12.0f*v2*w2 +
-                w4 + 2.0f*w3*u + 6.0f*w3*v + 6.0f*w3*u*v;
-
-    wP[ 3] = v4 + 6*v3*w + 8*v3*u + 36*v2*w*u + 24*v2*u2 + 24*v*u3 +
-                w4 + 6*w3*v + 8*w3*u + 36*w2*v*u + 24*w2*u2 + 24*w*u3 + 6*u4 + 60*u2*v*w + 12*v2*w2;
-    wP[ 6] = w4 + 6*w3*u + 8*w3*v + 36*w2*u*v + 24*w2*v2 + 24*w*v3 +
-                u4 + 6*u3*w + 8*u3*v + 36*u2*v*w + 24*u2*v2 + 24*u*v3 + 6*v4 + 60*v2*w*u + 12*w2*u2;
-    wP[ 7] = u4 + 6*u3*v + 8*u3*w + 36*u2*v*w + 24*u2*w2 + 24*u*w3 +
-                v4 + 6*v3*u + 8*v3*w + 36*v2*u*w + 24*v2*w2 + 24*v*w3 + 6*w4 + 60*w2*u*v + 12*u2*v2;
-
-    for (int i = 0; i < 12; ++i) {
-        wP[i] *= 1.0f / 12.0f;
-    }
-}
-
-template <typename REAL>
-void GetBilinearWeights(PatchParam const & param, REAL s, REAL t,
+int
+GetBilinearWeights(PatchParam const & param, REAL s, REAL t,
     REAL wP[4], REAL wDs[4], REAL wDt[4],
     REAL wDss[4], REAL wDst[4], REAL wDtt[4]) {
 
@@ -198,56 +99,113 @@ void GetBilinearWeights(PatchParam const & param, REAL s, REAL t,
             wDst[3] =  d2Scale;
         }
     }
+    return 4;
 }
 
 //
-//  BSpline patch evaluation -- involves adjustments to weights when boundary
-//  points are missing and implicitly extrapolated.
+//  Bicubic BSpline patch:
+//
+//     12-----13------14-----15
+//      |      |      |      |
+//      |      |      |      |
+//      8------9------10-----11
+//      |      | t    |      |
+//      |      |   s  |      |
+//      4------5------6------7
+//      |      |      |      |
+//      |      |      |      |
+//      O------1------2------3
+//
+//  The basis if a bicubic BSpline patch is a tensor product, which we make
+//  use of here by evaluating, differentiating and combining basis functions
+//  in each of the two parametric directions.
+//
+//  Not all 16 points will be present.  The boundary mask indicates boundary
+//  edges beyond which phantom points are implicitly extrapolated.  Weights
+//  for missing points are set to zero while those contributing to their
+//  implicit extrapolation will be adjusted.
 //
 namespace {
+    //
+    //  Cubic BSpline curve basis evaluation:
+    //
+    template <typename REAL>
+    void
+    evalBSplineCurve(REAL t, REAL wP[4], REAL wDP[4], REAL wDP2[4]) {
+
+        REAL const one6th = (REAL)(1.0 / 6.0);
+
+        REAL t2 = t * t;
+        REAL t3 = t * t2;
+
+        wP[0] = one6th * (1.0f - 3.0f*(t -      t2) -      t3);
+        wP[1] = one6th * (4.0f           - 6.0f*t2  + 3.0f*t3);
+        wP[2] = one6th * (1.0f + 3.0f*(t +      t2  -      t3));
+        wP[3] = one6th * (                                 t3);
+
+        if (wDP) {
+            wDP[0] = -0.5f*t2 +      t - 0.5f;
+            wDP[1] =  1.5f*t2 - 2.0f*t;
+            wDP[2] = -1.5f*t2 +      t + 0.5f;
+            wDP[3] =  0.5f*t2;
+        }
+        if (wDP2) {
+            wDP2[0] = -       t + 1.0f;
+            wDP2[1] =  3.0f * t - 2.0f;
+            wDP2[2] = -3.0f * t + 1.0f;
+            wDP2[3] =         t;
+        }
+    }
+
+    //
+    //  Weight adjustments to curve weights to account for phantom end points:
+    //
+    template <typename REAL>
+    void
+    adjustBSplineBoundaryWeights(int boundary, REAL sWeights[4], REAL tWeights[4]) {
+
+        if ((boundary & 1) != 0) {
+            tWeights[2] -= tWeights[0];
+            tWeights[1] += tWeights[0] * 2.0f;
+            tWeights[0]  = 0.0f;
+        }
+        if ((boundary & 2) != 0) {
+            sWeights[1] -= sWeights[3];
+            sWeights[2] += sWeights[3] * 2.0f;
+            sWeights[3]  = 0.0f;
+        }
+        if ((boundary & 4) != 0) {
+            tWeights[1] -= tWeights[3];
+            tWeights[2] += tWeights[3] * 2.0f;
+            tWeights[3]  = 0.0f;
+        }
+        if ((boundary & 8) != 0) {
+            sWeights[2] -= sWeights[0];
+            sWeights[1] += sWeights[0] * 2.0f;
+            sWeights[0]  = 0.0f;
+        }
+    }
+} // end namespace
+
 template <typename REAL>
-void adjustBSplineBoundaryWeights(PatchParam const & param, REAL sWeights[4], REAL tWeights[4]) {
-
-    int boundary = param.GetBoundary();
-
-    if ((boundary & 1) != 0) {
-        tWeights[2] -= tWeights[0];
-        tWeights[1] += tWeights[0] * 2.0f;
-        tWeights[0]  = 0.0f;
-    }
-    if ((boundary & 2) != 0) {
-        sWeights[1] -= sWeights[3];
-        sWeights[2] += sWeights[3] * 2.0f;
-        sWeights[3]  = 0.0f;
-    }
-    if ((boundary & 4) != 0) {
-        tWeights[1] -= tWeights[3];
-        tWeights[2] += tWeights[3] * 2.0f;
-        tWeights[3]  = 0.0f;
-    }
-    if ((boundary & 8) != 0) {
-        sWeights[2] -= sWeights[0];
-        sWeights[1] += sWeights[0] * 2.0f;
-        sWeights[0]  = 0.0f;
-    }
-}
-}
-
-template <typename REAL>
-void GetBSplineWeights(PatchParam const & param, REAL s, REAL t,
+int
+GetBSplineWeights(PatchParam const & param, REAL s, REAL t,
     REAL wP[16], REAL wDs[16], REAL wDt[16],
     REAL wDss[16], REAL wDst[16], REAL wDtt[16]) {
 
-    REAL sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
-
     param.Normalize(s,t);
+
+    REAL sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
 
     evalBSplineCurve(s, wP ? sWeights : 0, wDs ? dsWeights : 0, wDss ? dssWeights : 0);
     evalBSplineCurve(t, wP ? tWeights : 0, wDt ? dtWeights : 0, wDtt ? dttWeights : 0);
 
-    if (wP) {
-        adjustBSplineBoundaryWeights(param, sWeights, tWeights);
+    int boundaryMask = param.GetBoundary();
 
+    if (wP) {
+        if (boundaryMask) {
+            adjustBSplineBoundaryWeights(boundaryMask, sWeights, tWeights);
+        }
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
                 wP[4*i+j] = sWeights[j] * tWeights[i];
@@ -258,8 +216,9 @@ void GetBSplineWeights(PatchParam const & param, REAL s, REAL t,
     if (wDs && wDt) {
         REAL dScale = (REAL)(1 << param.GetDepth());
 
-        adjustBSplineBoundaryWeights(param, dsWeights, dtWeights);
-
+        if (boundaryMask) {
+            adjustBSplineBoundaryWeights(boundaryMask, dsWeights, dtWeights);
+        }
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
                 wDs[4*i+j] = dsWeights[j] * tWeights[i] * dScale;
@@ -270,8 +229,9 @@ void GetBSplineWeights(PatchParam const & param, REAL s, REAL t,
         if (wDss && wDst && wDtt) {
             REAL d2Scale = dScale * dScale;
 
-            adjustBSplineBoundaryWeights(param, dssWeights, dttWeights);
-
+            if (boundaryMask) {
+                adjustBSplineBoundaryWeights(boundaryMask, dssWeights, dttWeights);
+            }
             for (int i = 0; i < 4; ++i) {
                 for (int j = 0; j < 4; ++j) {
                     wDss[4*i+j] = dssWeights[j] * tWeights[i] * d2Scale;
@@ -281,16 +241,73 @@ void GetBSplineWeights(PatchParam const & param, REAL s, REAL t,
             }
         }
     }
+    return 16;
 }
 
+//
+//  Bicubic Bezier patch:
+//
+//     12-----13------14-----15
+//      |      |      |      |
+//      |      |      |      |
+//      8------9------10-----11
+//      |      |      |      |
+//      |      |      |      |
+//      4------5------6------7
+//      | t    |      |      |
+//      |   s  |      |      |
+//      O------1------2------3
+//
+//  As was the case with the BSpline patch, a bicubic Bezier patch can also
+//  make use of its tensor product property by evaluating, differentiating
+//  and combining basis functions in each of the two parametric directions.
+//
+namespace {
+    //
+    //  Cubic Bezier curve basis evaluation:
+    //
+    template <typename REAL>
+    void
+    evalBezierCurve(REAL t, REAL wP[4], REAL wDP[4], REAL wDP2[4]) {
+
+        // The four uniform cubic Bezier basis functions (in terms of t and its
+        // complement tC) evaluated at t:
+        REAL t2 = t*t;
+        REAL tC = 1.0f - t;
+        REAL tC2 = tC * tC;
+
+        wP[0] = tC2 * tC;
+        wP[1] = tC2 * t * 3.0f;
+        wP[2] = t2 * tC * 3.0f;
+        wP[3] = t2 * t;
+
+        // Derivatives of the above four basis functions at t:
+        if (wDP) {
+           wDP[0] = -3.0f * tC2;
+           wDP[1] =  9.0f * t2 - 12.0f * t + 3.0f;
+           wDP[2] = -9.0f * t2 +  6.0f * t;
+           wDP[3] =  3.0f * t2;
+        }
+
+        // Second derivatives of the basis functions at t:
+        if (wDP2) {
+            wDP2[0] =   6.0f * tC;
+            wDP2[1] =  18.0f * t - 12.0f;
+            wDP2[2] = -18.0f * t +  6.0f;
+            wDP2[3] =   6.0f * t;
+        }
+    }
+} // end namespace
+
 template <typename REAL>
-void GetBezierWeights(PatchParam const & param, REAL s, REAL t,
+int
+GetBezierWeights(PatchParam const & param, REAL s, REAL t,
     REAL wP[16], REAL wDs[16], REAL wDt[16],
     REAL wDss[16], REAL wDst[16], REAL wDtt[16]) {
 
-    REAL sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
-
     param.Normalize(s,t);
+
+    REAL sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
 
     evalBezierCurve(s, wP ? sWeights : 0, wDs ? dsWeights : 0, wDss ? dssWeights : 0);
     evalBezierCurve(t, wP ? tWeights : 0, wDt ? dtWeights : 0, wDtt ? dttWeights : 0);
@@ -323,33 +340,46 @@ void GetBezierWeights(PatchParam const & param, REAL s, REAL t,
             }
         }
     }
+    return 16;
 }
 
+//
+//  Cubic Gregory patch:
+//
+//      P3         e3-      e2+         P2
+//         15------17-------11--------10
+//         |        |        |        |
+//         |        |        |        |
+//         |        | f3-    | f2+    |
+//         |       19       13        |
+//     e3+ 16-----18           14-----12 e2-
+//         |     f3+          f2-     |
+//         |                          |
+//         |                          |
+//         |      f0-         f1+     |
+//     e0- 2------4            8------6 e1+
+//         |        3        9        |
+//         |        | f0+    | f1-    |
+//         | t      |        |        |
+//         |   s    |        |        |
+//         O--------1--------7--------5
+//      P0         e0+      e1-         P1
+//
+//  The 20-point cubic Gregory patch is an extension of the 16-point bicubic
+//  Bezier patch with the 4 interior points of the Bezier patch replaced with
+//  pairs of points (face points -- fi+ and fi-) that are rationally combined.
+//
+//  The point ordering of the Gregory patch deviates considerably from the
+//  BSpline and Bezier patches by grouping the 5 points at each corner and
+//  ordering the groups by corner index.
+//
 template <typename REAL>
-void GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
+int
+GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
     REAL point[20], REAL wDs[20], REAL wDt[20],
     REAL wDss[20], REAL wDst[20], REAL wDtt[20]) {
 
-    //
-    //  P3         e3-      e2+         P2
-    //     15------17-------11--------10
-    //     |        |        |        |
-    //     |        |        |        |
-    //     |        | f3-    | f2+    |
-    //     |       19       13        |
-    // e3+ 16-----18           14-----12 e2-
-    //     |     f3+          f2-     |
-    //     |                          |
-    //     |                          |
-    //     |      f0-         f1+     |
-    // e0- 2------4            8------6 e1+
-    //     |        3        9        |
-    //     |        | f0+    | f1-    |
-    //     |        |        |        |
-    //     |        |        |        |
-    //     O--------1--------7--------5
-    //  P0         e0+      e1-         P1
-    //
+    param.Normalize(s,t);
 
     //  Indices of boundary and interior points and their corresponding Bezier points
     //  (this can be reduced with more direct indexing and unrolling of loops):
@@ -369,8 +399,6 @@ void GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
     //  Directional Bezier basis functions B at s and t:
     REAL Bs[4], Bds[4], Bdss[4];
     REAL Bt[4], Bdt[4], Bdtt[4];
-
-    param.Normalize(s,t);
 
     evalBezierCurve(s, Bs, wDs ? Bds : 0, wDss ? Bdss : 0);
     evalBezierCurve(t, Bt, wDt ? Bdt : 0, wDtt ? Bdtt : 0);
@@ -428,8 +456,9 @@ void GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
             }
         }
 
-        // dclyde's note: skipping half of the product rule like this does seem to change the result a lot in my tests.
-        // This is not a runtime bottleneck for cloth sims anyway so I'm just using the accurate version.
+        // dclyde's note: skipping half of the product rule like this does seem to change the
+        // result a lot in my tests.  This is not a runtime bottleneck for cloth sims anyway
+        // so I'm just using the accurate version.
 #ifndef OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES
         //  Approximation to the true Gregory derivatives by differentiating the Bezier patch
         //  unique to the given (s,t), i.e. having F = (g^+ * f^+) + (g^- * f^-) as its four
@@ -498,29 +527,799 @@ void GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
         }
 #endif
     }
+    return 20;
+}
+
+
+//
+//  Basis support for triangular patches:
+//
+//  Triangular patches may be evaluated in barycentric (trivariate) or
+//  bivariate form, depending on the complexity of their basis functions.
+//  The parametric orientation for a triangle is as follows:
+//
+//            (1,0)
+//              *
+//             . .
+//          t . 2 .
+//           .     .
+//          . 0   1 .
+//   (0,0) *---------* (1,0)
+//              s
+//
+//  With the origin (0,0) -- barycentric (0,0,w = 1) -- oriented at the
+//  corner V0, the corners V0, V1, and V2 correspond to barycentric
+//  coordinates W, U and V.  This is consistent with GPU tessellation
+//  shaders, but not with many publications where the corners correspond
+//  more intuitively to U, V and W.
+//
+
+
+//
+//  Simple linear triangle:
+//
+template <typename REAL>
+int
+GetLinearTriWeights(PatchParam const & param, REAL s, REAL t,
+    REAL wP[3], REAL wDs[3], REAL wDt[3],
+    REAL wDss[3], REAL wDst[3], REAL wDtt[3]) {
+
+    param.NormalizeTriangle(s,t);
+
+    if (wP) {
+        wP[0] = 1.0f - s - t;
+        wP[1] = s;
+        wP[2] = t;
+    }
+
+    if (wDs && wDt) {
+        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
+        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
+
+        wDs[0] = -dScale;
+        wDs[1] =  dScale;
+        wDs[2] =  0.0f;
+
+        wDt[0] = -dScale;
+        wDt[1] =  0.0f;
+        wDt[2] =  dScale;
+
+        if (wDss && wDst && wDtt) {
+            wDss[0] = wDss[1] = wDss[2] = 0.0f;
+            wDst[0] = wDst[1] = wDst[2] = 0.0f;
+            wDtt[0] = wDtt[1] = wDtt[2] = 0.0f;
+        }
+    }
+    return 3;
+}
+
+
+//
+//  Quartic Box spline triangle:
+//
+//  Points for the quartic triangular Box spline (representing regular
+//  patches for Loop subdivision) are as follows:
+//
+//         10-----11
+//         . .   . .
+//        .   . .   .
+//       7-----8-----9
+//      . .   . .   . .
+//     .   . .   . .   .
+//    3-----4-----5-----6
+//     .   . .   . .   .
+//      . .   . .   . /
+//       0-----1-----2
+//
+//  Stam provided the basis functions for these patches in terms of barycentric
+//  coordinates (u,v,w) (see Stam's "Evaluation of Loop Subdivision Surfaces").
+//  Unfortunately, unlike the basis functions for a quartic Bezier triangle,
+//  they are not very compact -- 3 functions involving 9 quartic terms and 3
+//  others involving 15 quartic terms.  (In contrast, the maximum number of
+//  terms in bivariate form is 15.)
+//
+//  Since we also need to differentiate with respect to u and v, we eliminate w
+//  and use the coefficient matrix C multiplied by the set of monomials M
+//  evaluated at (u,v), i.e. the full set of basis functions is:
+//
+//      B(u,v) = C * M(u,v)
+//
+//  where
+//
+//      M(u,v) = { 1, u,v, uu,uv,vv, uuu,uuv,uvv,vvv, uuuu,uuuv,uuvv,uvvv,vvvv }
+//
+//  and the 12 x 15 matrix C is as follows, scaled by a common factor of 1/12:
+//
+//      { 1, -2,-4,    0,  6,  6,   2,  0, -6, -4,  -1, -2, 0,  2,  1 },
+//      { 1,  2,-2,    0, -6,  0,  -4,  0,  6,  2,   2,  4, 0, -2, -1 },
+//      { 0,  0, 0,    0,  0,  0,   2,  0,  0,  0,  -1, -2, 0,  0,  0 },
+//      { 1, -4,-2,    6,  6,  0,  -4, -6,  0,  2,   1,  2, 0, -2, -1 },
+//      { 6,  0, 0,  -12,-12,-12,   8, 12, 12,  8,  -1, -2, 0, -2, -1 },
+//      { 1,  4, 2,    6,  6,  0,  -4, -6,-12, -4,  -1, -2, 0,  4,  2 },
+//      { 0,  0, 0,    0,  0,  0,   0,  0,  0,  0,   1,  2, 0,  0,  0 },
+//      { 1, -2, 2,    0, -6,  0,   2,  6,  0, -4,  -1, -2, 0,  4,  2 },
+//      { 1,  2, 4,    0,  6,  6,  -4,-12, -6, -4,   2,  4, 0, -2, -1 },
+//      { 0,  0, 0,    0,  0,  0,   2,  6,  6,  2,  -1, -2, 0, -2, -1 },
+//      { 0,  0, 0,    0,  0,  0,   0,  0,  0,  2,   0,  0, 0, -2, -1 },
+//      { 0,  0, 0,    0,  0,  0,   0,  0,  0,  0,   0,  0, 0,  2,  1 } 
+//
+//  Differentiating the monomials and refactoring yields a unique set of
+//  coefficients for each of the derivatives, which we multiply by M(u,v).
+//
+namespace {
+    template <typename REAL>
+    inline void
+    evalBivariateMonomialsQuartic(REAL s, REAL t, REAL M[]) {
+
+        M[0] = 1.0;
+
+        M[1] = s;
+        M[2] = t;
+
+        M[3] = s * s;
+        M[4] = s * t;
+        M[5] = t * t;
+
+        M[6] = M[3] * s;
+        M[7] = M[4] * s;
+        M[8] = M[4] * t;
+        M[9] = M[5] * t;
+
+        M[10] = M[6] * s;
+        M[11] = M[7] * s;
+        M[12] = M[3] * M[5];
+        M[13] = M[8] * t;
+        M[14] = M[9] * t;
+    }
+
+    template <typename REAL>
+    void
+    evalBoxSplineTriDerivWeights(REAL const stMonomials[], int ds, int dt, REAL w[], REAL scale) {
+
+        REAL const * M = stMonomials;
+
+        REAL S = scale;
+
+        int totalOrder = ds + dt;
+        if (totalOrder == 0) {
+            S *= (REAL) (1.0 / 12.0);
+
+            w[0]  = S * (1 - 2*M[1] - 4*M[2]          + 6*M[4] + 6*M[5] + 2*M[6]          - 6*M[8] - 4*M[9] -   M[10] - 2*M[11] + 2*M[13] +   M[14]);
+            w[1]  = S * (1 + 2*M[1] - 2*M[2]          - 6*M[4]          - 4*M[6]          + 6*M[8] + 2*M[9] + 2*M[10] + 4*M[11] - 2*M[13] -   M[14]);
+            w[2]  = S * (                                                 2*M[6]                            -   M[10] - 2*M[11]                    );
+            w[3]  = S * (1 - 4*M[1] - 2*M[2] + 6*M[3] + 6*M[4]          - 4*M[6] - 6*M[7]          + 2*M[9] +   M[10] + 2*M[11] - 2*M[13] -   M[14]);
+            w[4]  = S * (6                   -12*M[3] -12*M[4] -12*M[5] + 8*M[6] +12*M[7] +12*M[8] + 8*M[9] -   M[10] - 2*M[11] - 2*M[13] -   M[14]);
+            w[5]  = S * (1 + 4*M[1] + 2*M[2] + 6*M[3] + 6*M[4]          - 4*M[6] - 6*M[7] -12*M[8] - 4*M[9] -   M[10] - 2*M[11] + 4*M[13] + 2*M[14]);
+            w[6]  = S * (                                                                                       M[10] + 2*M[11]                    );
+            w[7]  = S * (1 - 2*M[1] + 2*M[2]          - 6*M[4]          + 2*M[6] + 6*M[7]          - 4*M[9] -   M[10] - 2*M[11] + 4*M[13] + 2*M[14]);
+            w[8]  = S * (1 + 2*M[1] + 4*M[2]          + 6*M[4] + 6*M[5] - 4*M[6] -12*M[7] - 6*M[8] - 4*M[9] + 2*M[10] + 4*M[11] - 2*M[13] -   M[14]);
+            w[9]  = S * (                                                 2*M[6] + 6*M[7] + 6*M[8] + 2*M[9] -   M[10] - 2*M[11] - 2*M[13] -   M[14]);
+            w[10] = S * (                                                                            2*M[9]                     - 2*M[13] -   M[14]);
+            w[11] = S * (                                                                                                         2*M[13] +   M[14]);
+        } else if (totalOrder == 1) {
+            S *= (REAL) (1.0 / 6.0);
+
+            if (ds) {
+                w[0]  = S * (-1          + 3*M[2] + 3*M[3]          - 3*M[5] - 2*M[6] - 3*M[7] +   M[9]);
+                w[1]  = S * ( 1          - 3*M[2] - 6*M[3]          + 3*M[5] + 4*M[6] + 6*M[7] -   M[9]);
+                w[2]  = S * (                       3*M[3]                   - 2*M[6] - 3*M[7]         );
+                w[3]  = S * (-2 + 6*M[1] + 3*M[2] - 6*M[3] - 6*M[4]          + 2*M[6] + 3*M[7] -   M[9]);
+                w[4]  = S * (   -12*M[1] - 6*M[2] +12*M[3] +12*M[4] + 6*M[5] - 2*M[6] - 3*M[7] -   M[9]);
+                w[5]  = S * ( 2 + 6*M[1] + 3*M[2] - 6*M[3] - 6*M[4] - 6*M[5] - 2*M[6] - 3*M[7] + 2*M[9]);
+                w[6]  = S * (                                                  2*M[6] + 3*M[7]         );
+                w[7]  = S * (-1          - 3*M[2] + 3*M[3] + 6*M[4]          - 2*M[6] - 3*M[7] + 2*M[9]);
+                w[8]  = S * ( 1          + 3*M[2] - 6*M[3] -12*M[4] - 3*M[5] + 4*M[6] + 6*M[7] -   M[9]);
+                w[9]  = S * (                       3*M[3] + 6*M[4] + 3*M[5] - 2*M[6] - 3*M[7] -   M[9]);
+                w[10] = S * (                                                                  -   M[9]);
+                w[11] = S * (                                                                      M[9]);
+            } else {
+                w[0]  = S * (-2 + 3*M[1] + 6*M[2]          - 6*M[4] - 6*M[5]  -   M[6] + 3*M[8] + 2*M[9]);
+                w[1]  = S * (-1 - 3*M[1]                   + 6*M[4] + 3*M[5]  + 2*M[6] - 3*M[8] - 2*M[9]);
+                w[2]  = S * (                                                 -   M[6]                  );
+                w[3]  = S * (-1 + 3*M[1]          - 3*M[3]          + 3*M[5]  +   M[6] - 3*M[8] - 2*M[9]);
+                w[4]  = S * (   - 6*M[1] -12*M[2] + 6*M[3] +12*M[4] +12*M[5]  -   M[6] - 3*M[8] - 2*M[9]);
+                w[5]  = S * ( 1 + 3*M[1]          - 3*M[3] -12*M[4] - 6*M[5]  -   M[6] + 6*M[8] + 4*M[9]);
+                w[6]  = S * (                                                 +   M[6]                  );
+                w[7]  = S * ( 1 - 3*M[1]          + 3*M[3]          - 6*M[5]  -   M[6] + 6*M[8] + 4*M[9]);
+                w[8]  = S * ( 2 + 3*M[1] + 6*M[2] - 6*M[3] - 6*M[4] - 6*M[5]  + 2*M[6] - 3*M[8] - 2*M[9]);
+                w[9]  = S * (                     + 3*M[3] + 6*M[4] + 3*M[5]  -   M[6] - 3*M[8] - 2*M[9]);
+                w[10] = S * (                                         3*M[5]           - 3*M[8] - 2*M[9]);
+                w[11] = S * (                                                            3*M[8] + 2*M[9]);
+            }
+        } else if (totalOrder == 2) {
+            if (ds == 2) {
+                w[0]  = S * (   +   M[1]          -   M[3] -   M[4]);
+                w[1]  = S * (   - 2*M[1]          + 2*M[3] + 2*M[4]);
+                w[2]  = S * (       M[1]          -   M[3] -   M[4]);
+                w[3]  = S * ( 1 - 2*M[1] -   M[2] +   M[3] +   M[4]);
+                w[4]  = S * (-2 + 4*M[1] + 2*M[2] -   M[3] -   M[4]);
+                w[5]  = S * ( 1 - 2*M[1] -   M[2] -   M[3] -   M[4]);
+                w[6]  = S * (                         M[3] +   M[4]);
+                w[7]  = S * (   +   M[1] +   M[2] -   M[3] -   M[4]);
+                w[8]  = S * (   - 2*M[1] - 2*M[2] + 2*M[3] + 2*M[4]);
+                w[9]  = S * (       M[1] +   M[2] -   M[3] -   M[4]);
+                w[10] =     0;
+                w[11] =     0;
+            } else if (dt == 2) {
+                w[0]  = S * ( 1 -   M[1] - 2*M[2] +   M[4] +   M[5]);
+                w[1]  = S * (   +   M[1] +   M[2] -   M[4] -   M[5]);
+                w[2]  =     0;
+                w[3]  = S * (            +   M[2] -   M[4] -   M[5]);
+                w[4]  = S * (-2 + 2*M[1] + 4*M[2] -   M[4] -   M[5]);
+                w[5]  = S * (   - 2*M[1] - 2*M[2] + 2*M[4] + 2*M[5]);
+                w[6]  =     0;
+                w[7]  = S * (            - 2*M[2] + 2*M[4] + 2*M[5]);
+                w[8]  = S * ( 1 -   M[1] - 2*M[2] -   M[4] -   M[5]);
+                w[9]  = S * (   +   M[1] +   M[2] -   M[4] -   M[5]);
+                w[10] = S * (                M[2] -   M[4] -   M[5]);
+                w[11] = S * (                         M[4] +   M[5]);
+            } else {
+                S *= (REAL) (1.0 / 2.0);
+
+                w[0]  = S * ( 1          - 2*M[2] -   M[3] +   M[5]);
+                w[1]  = S * (-1          + 2*M[2] + 2*M[3] -   M[5]);
+                w[2]  = S * (                     -   M[3]         );
+                w[3]  = S * ( 1 - 2*M[1]          +   M[3] -   M[5]);
+                w[4]  = S * (-2 + 4*M[1] + 4*M[2] -   M[3] -   M[5]);
+                w[5]  = S * ( 1 - 2*M[1] - 4*M[2] -   M[3] + 2*M[5]);
+                w[6]  = S * (                     +   M[3]         );
+                w[7]  = S * (-1 + 2*M[1]          -   M[3] + 2*M[5]);
+                w[8]  = S * ( 1 - 4*M[1] - 2*M[2] + 2*M[3] -   M[5]);
+                w[9]  = S * (   + 2*M[1] + 2*M[2] -   M[3] -   M[5]);
+                w[10] = S * (                              -   M[5]);
+                w[11] = S * (                                  M[5]);
+            }
+        } else {
+            assert(totalOrder <= 2);
+        }
+    }
+
+    template <typename REAL>
+    void
+    adjustBoxSplineTriBoundaryWeights(int boundaryMask, REAL weights[]) {
+
+        if (boundaryMask == 0) return;
+
+        //
+        //  Determine boundary edges and vertices from the lower 3 and upper
+        //  2 bits of the 5-bit mask:
+        //
+        bool edgeIsBoundary[3 + 2];  // +2 filled in to avoid +1 and +2 mod 3
+        bool vertexIsBoundary[3];
+
+        bool lowerBits[3];
+        lowerBits[0] = (boundaryMask & 0x1) != 0;
+        lowerBits[1] = (boundaryMask & 0x2) != 0;
+        lowerBits[2] = (boundaryMask & 0x4) != 0;
+
+        int upperBits = (boundaryMask >> 3) & 0x3;
+        if (upperBits == 0) {
+            //  Boundary edges only:
+            for (int i = 0; i < 3; ++i) {
+                edgeIsBoundary[i] = lowerBits[i];
+                vertexIsBoundary[i] = false;
+            }
+        } else if (upperBits == 1) {
+            //  Boundary vertices only:
+            for (int i = 0; i < 3; ++i) {
+                vertexIsBoundary[i] = lowerBits[i];
+                edgeIsBoundary[i] = false;
+            }
+        } else if (upperBits == 2) {
+            //  Boundary edge and opposite boundary vertex:
+            edgeIsBoundary[0] = vertexIsBoundary[2] = lowerBits[0];
+            edgeIsBoundary[1] = vertexIsBoundary[0] = lowerBits[1];
+            edgeIsBoundary[2] = vertexIsBoundary[1] = lowerBits[2];
+        }
+        //  Wrap the 2 additional values to avoid modulo 3 in the edge tests:
+        edgeIsBoundary[3] = edgeIsBoundary[0];
+        edgeIsBoundary[4] = edgeIsBoundary[1];
+
+        //
+        //  Adjust weights for the 4 boundary points (eB) and 3 interior points
+        //  (eI) to account for the 3 phantom points (eP) adjacent to each
+        //  boundary edge:
+        //
+        int const eP[3][3] = { {  0, 1, 2 }, {  6, 9, 11  }, {  10, 7, 3 } };
+        int const eB[3][4] = { {3, 4, 5, 6}, {2, 5, 8, 10 }, {11, 8, 4, 0} };
+        int const eI[3][3] = { {  7, 8, 9 }, {  1, 4, 7   }, {   9, 5, 1 } };
+
+        for (int i = 0; i < 3; ++i) {
+            if (edgeIsBoundary[i]) {
+                int const * iPhantom  = eP[i];
+                int const * iBoundary = eB[i];
+                int const * iInterior = eI[i];
+
+                //  Adjust weights for points contributing to phantom point
+                //  P0 -- extrapolated according to the presence of adj edge:
+                REAL w0 = weights[iPhantom[0]];
+                if (edgeIsBoundary[i + 2]) {
+                    //  P0 = B1 + (B1 - I1)
+                    weights[iBoundary[1]] += w0;
+                    weights[iBoundary[1]] += w0;
+                    weights[iInterior[1]] -= w0;
+                } else {
+                    //  P0 = B1 + (B0 - I0)
+                    weights[iBoundary[1]] += w0;
+                    weights[iBoundary[0]] += w0;
+                    weights[iInterior[0]] -= w0;
+                }
+
+                //  Adjust weights for points contributing to phantom point
+                //  P1 = B1 + (B2 - I1)
+                REAL w1 = weights[iPhantom[1]];
+                weights[iBoundary[1]] += w1;
+                weights[iBoundary[2]] += w1;
+                weights[iInterior[1]] -= w1;
+
+                //  Adjust weights for points contributing to phantom point
+                //  P2 -- extrapolated according to the presence of adj edge:
+                REAL w2 = weights[iPhantom[2]];
+                if (edgeIsBoundary[i + 1]) {
+                    //  P2 = B2 + (B2 - I1)
+                    weights[iBoundary[2]] += w2;
+                    weights[iBoundary[2]] += w2;
+                    weights[iInterior[1]] -= w2;
+                } else {
+                    //  P2 = B2 + (B3 - I2)
+                    weights[iBoundary[2]] += w2;
+                    weights[iBoundary[3]] += w2;
+                    weights[iInterior[2]] -= w2;
+                }
+
+                //  Clear weights for the phantom points:
+                weights[iPhantom[0]] = 0.0f;
+                weights[iPhantom[1]] = 0.0f;
+                weights[iPhantom[2]] = 0.0f;
+            }
+        }
+
+        //
+        //  Adjust weights for the 3 boundary points (vB) and the 2 interior
+        //  points (vI) to account for the 2 phantom points (vP) adjacent to
+        //  each boundary vertex:
+        //
+        int const vP[3][2] = { {   3, 0  }, {   2, 6  }, {  11, 10  } };
+        int const vB[3][3] = { { 7, 4, 1 }, { 1, 5, 9 }, { 9,  8, 7 } };
+        int const vI[3][2] = { {   8, 5  }, {   4, 8  }, {   5,  4  } };
+
+        for (int i = 0; i < 3; ++i) {
+            if (vertexIsBoundary[i]) {
+                int const * iPhantom  = vP[i];
+                int const * iBoundary = vB[i];
+                int const * iInterior = vI[i];
+
+                //  Adjust weights for points contributing to phantom point
+                //  P0 = B1 + (B0 - I0)
+                REAL w0 = weights[iPhantom[0]];
+                weights[iBoundary[1]] += w0;
+                weights[iBoundary[0]] += w0;
+                weights[iInterior[0]] -= w0;
+
+                //  Adjust weights for points contributing to phantom point
+                //  P1 = B1 + (B2 - I1)
+                REAL w1 = weights[iPhantom[1]];
+                weights[iBoundary[1]] += w1;
+                weights[iBoundary[2]] += w1;
+                weights[iInterior[1]] -= w1;
+
+                //  Clear weights for the phantom points:
+                weights[iPhantom[0]] = 0.0f;
+                weights[iPhantom[1]] = 0.0f;
+            }
+        }
+    }
+}  // namespace
+
+template <typename REAL>
+int GetBoxSplineTriWeights(PatchParam const & param, REAL s, REAL t,
+    REAL wP[12], REAL wDs[12], REAL wDt[12],
+    REAL wDss[12], REAL wDst[12], REAL wDtt[12]) {
+
+    param.NormalizeTriangle(s,t);
+
+    REAL stMonomials[15];
+    evalBivariateMonomialsQuartic(s, t, stMonomials);
+
+    int boundaryMask = param.GetBoundary();
+
+    if (wP) {
+        evalBoxSplineTriDerivWeights<REAL>(stMonomials, 0, 0, wP, 1.0f);
+        if (boundaryMask) {
+            adjustBoxSplineTriBoundaryWeights(boundaryMask, wP);
+        }
+    }
+    if (wDs && wDt) {
+        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
+        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
+
+        evalBoxSplineTriDerivWeights(stMonomials, 1, 0, wDs, dScale);
+        evalBoxSplineTriDerivWeights(stMonomials, 0, 1, wDt, dScale);
+        if (boundaryMask) {
+            adjustBoxSplineTriBoundaryWeights(boundaryMask, wDs);
+            adjustBoxSplineTriBoundaryWeights(boundaryMask, wDt);
+        }
+
+        if (wDss && wDst && wDtt) {
+            REAL d2Scale = dScale * dScale * dSign;
+
+            evalBoxSplineTriDerivWeights(stMonomials, 2, 0, wDss, d2Scale);
+            evalBoxSplineTriDerivWeights(stMonomials, 1, 1, wDst, d2Scale);
+            evalBoxSplineTriDerivWeights(stMonomials, 0, 2, wDtt, d2Scale);
+            if (boundaryMask) {
+                adjustBoxSplineTriBoundaryWeights(boundaryMask, wDss);
+                adjustBoxSplineTriBoundaryWeights(boundaryMask, wDst);
+                adjustBoxSplineTriBoundaryWeights(boundaryMask, wDtt);
+            }
+        }
+    }
+    return 12;
+}
+
+
+//
+//  Hybrid (cubic-quartic) Bezier triangle:
+//
+//  The regular patch for Loop subdivision is a quartic triangular Box spline
+//  with cubic boundaries.  So we need a quartic Bezier patch to represent it
+//  faithfully, but we use a cubic-quartic hybrid to keep the representation
+//  of boundaries as cubic -- useful for a number of purposes, in addition to
+//  reducing the number points required from 15 to 12.
+//
+//  Ultimately this patch is quartic and its basis functions are of maximum
+//  quartic degree.  The formulae for the 15 true quartic basis functions are:
+//
+//                       4!        i   j   k
+//      B   (u,v,w) =  ------- * (u * v * w )
+//       ijk           i!j!k!
+//
+//  for each i + j + k = 4, and the quartic points and corresponding p<i,j,k>
+//  are oriented as follows:
+//
+//                    Q14                                   p040
+//                Q12     Q13                           p031    p130
+//            Q9      Q10     Q11                   p022    p121    p220
+//        Q5      Q6      Q7      Q8            p013    p112    p211    p310
+//    Q0      Q1      Q2      Q3      Q4    p004    p103    p202    p301    p400
+//
+//  The points for the corresponding hybrid patch are oriented and numbered:
+//
+//                    H11
+//               H8        H10
+//                    H9
+//        H4      H5      H6      H7
+//    H0       H1            H2       H3
+//
+//  Their corresponding basis functions h(u,v,w) are derived by combining the
+//  quartic basis functions according to degree elevation of their boundary
+//  curves.  This leads to the 12 basis functions:
+//
+//      h[0]  = w^3
+//      h[3]  = u^3
+//      h[11] = v^3
+//
+//      h[1]  =  3 * u   * w^2 * (u + w)
+//      h[2]  =  3 * u^2 * w   * (u + w)
+//
+//      h[7]  =  3 * u^2 * v   * (u + v)
+//      h[10] =  3 * u   * v^2 * (u + v)
+//
+//      h[8]  =  3 * v^2 * w    * (w + v)
+//      h[10] =  3 * v   * w^2  * (v + w)
+//
+//      h[5]  = 12 * u   * v   * w^2;
+//      h[6]  = 12 * u^2 * v   * w;
+//      h[9]  = 12 * u   * v^2 * w;
+//
+//  These remain compact with at most two trivariate terms, and so relatively
+//  easy to differentiate in this form while keeping the number of terms low.
+//
+namespace {
+    template <typename REAL>
+    void
+    evalBezierTriDerivWeights(REAL s, REAL t, int ds, int dt, REAL wB[], REAL scale) {
+
+        REAL u  = s;
+        REAL v  = t;
+        REAL w  = 1 - u - v;
+
+        REAL u2 = u * u;
+        REAL v2 = v * v;
+        REAL w2 = w * w;
+
+        REAL uv = u * v;
+        REAL vw = v * w;
+        REAL uw = u * w;
+
+        int totalOrder = ds + dt;
+        if (totalOrder == 0) {
+            wB[0]  = w*w2;
+            wB[3]  = u*u2;
+            wB[11] = v*v2;
+
+            wB[1]  =  3 * uw * (uw + w2);
+            wB[2]  =  3 * uw * (uw + u2);
+
+            wB[7]  =  3 * uv * (uv + u2);
+            wB[10] =  3 * uv * (uv + v2);
+
+            wB[8]  =  3 * vw * (vw + v2);
+            wB[4]  =  3 * vw * (vw + w2);
+
+            wB[5]  = 12 * w2 * uv;
+            wB[6]  = 12 * u2 * vw;
+            wB[9]  = 12 * v2 * uw;
+        } else if (totalOrder == 1) {
+            if (ds) {
+                wB[0]  = -3 * w2;
+                wB[3]  =  3 * u2;
+                wB[11] =  0;
+
+                wB[1]  =  3 * w * (w2 - uw - 2*u2);
+                wB[2]  = -3 * u * (u2 - uw - 2*w2);
+
+                wB[7]  =  9 * u2*v + 6 * u*v2;
+                wB[10] =  3 * v*v2 + 6 * u*v2;
+
+                wB[8]  = -3 * v*v2 - 6 * v2*w;
+                wB[4]  = -9 * v*w2 - 6 * v2*w;
+
+                wB[5]  = 12 * vw * (w - 2*u);
+                wB[6]  = 12 * uv * (2*w - u);
+                wB[9]  = 12 * v2 * (w - u);
+            } else {
+                wB[0]  = -3 * w2;
+                wB[3]  =  0;
+                wB[11] =  3 * v2;
+
+                wB[1]  = -9 * u*w2 - 6 * u2*w;
+                wB[2]  = -3 * u*u2 - 6 * u2*w;
+
+                wB[7]  =  3 * u*u2 + 6 * u2*v;
+                wB[10] =  9 * u*v2 + 6 * u2*v;
+
+                wB[8]  = -3 * v * (v2 - vw - 2*w2);
+                wB[4]  =  3 * w * (w2 - vw - 2*v2);
+
+                wB[5]  = 12 * uw * (w - 2*v);
+                wB[6]  = 12 * u2 * (w - v);
+                wB[9]  = 12 * uv * (2*w - v);
+            }
+        } else if (totalOrder == 2) {
+            if (ds == 2) {
+                wB[0]  =  6 * w;
+                wB[3]  =  6 * u;
+                wB[11] =  0;
+
+                wB[1]  =  6 * (u2 - uw - 2*w2);
+                wB[2]  =  6 * (w2 - uw - 2*u2);
+
+                wB[7]  =  6 * v2 + 18 * uv;
+                wB[10] =  6 * v2;
+
+                wB[8]  =  6 * v2;
+                wB[4]  =  6 * v2 + 18 * vw;
+
+                wB[5]  =  24 * (uv - 2*vw);
+                wB[6]  =  24 * (vw - 2*uv);
+                wB[9]  = -24 *  v2;
+            } else if (dt == 2) {
+                wB[0]  =  6 * w;
+                wB[3]  =  0;
+                wB[11] =  6 * v;
+
+                wB[1]  =  6 * u2 + 18 * uw;
+                wB[2]  =  6 * u2;
+
+                wB[7]  =  6 * u2;
+                wB[10] =  6 * u2 + 18 * uv;
+
+                wB[8]  =  6 * (w2 - vw - 2*v2);
+                wB[4]  =  6 * (v2 - vw - 2*w2);
+
+                wB[5]  =  24 * (uv - 2*uw);
+                wB[6]  = -24 *  u2;
+                wB[9]  =  24 * (uw - 2*uv);
+            } else {
+                wB[0]  =  6 * w;
+                wB[3]  =  0;
+                wB[11] =  0;
+
+                wB[1]  =  6 * (u2 +   uw - 1.5f*w2);
+                wB[2]  = -3 * (u2 + 4*uw);
+
+                wB[7]  =  9 * u2 + 12 * uv;
+                wB[10] =  9 * v2 + 12 * uv;
+
+                wB[8]  = -3 * (v2 + 4*vw);
+                wB[4]  =  6 * (v2 +   vw - 1.5f*w2);
+
+                wB[5]  =  24 * (uv - vw - uw + 0.5f*w2);
+                wB[6]  = -24 * (uv - uw      + 0.5f*u2);
+                wB[9]  = -24 * (uv - vw      + 0.5f*v2);
+            }
+        } else {
+            assert(totalOrder <= 2);
+        }
+        for (int i = 0; i < 12; ++i) {
+            wB[i] *= scale;
+        }
+    }
+} // end namespace
+
+template <typename REAL>
+int
+GetBezierTriWeights(PatchParam const & param, REAL s, REAL t,
+    REAL wP[12], REAL wDs[12], REAL wDt[12],
+    REAL wDss[12], REAL wDst[12], REAL wDtt[12]) {
+
+    param.NormalizeTriangle(s,t);
+
+    if (wP) {
+        evalBezierTriDerivWeights<REAL>(s, t, 0, 0, wP, 1.0f);
+    }
+    if (wDs && wDt) {
+        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
+        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
+
+        evalBezierTriDerivWeights(s, t, 1, 0, wDs, dScale);
+        evalBezierTriDerivWeights(s, t, 0, 1, wDt, dScale);
+
+        if (wDss && wDst && wDtt) {
+            REAL d2Scale = dScale * dScale * dSign;
+
+            evalBezierTriDerivWeights(s, t, 2, 0, wDss, d2Scale);
+            evalBezierTriDerivWeights(s, t, 1, 1, wDst, d2Scale);
+            evalBezierTriDerivWeights(s, t, 0, 2, wDtt, d2Scale);
+        }
+    }
+    return 12;
+}
+
+
+//
+//  Hybrid (cubic-quartic) Gregory triangle:
+//
+//  As with the Bezier triangle, and consistent with Loop, Schaefer at al (in
+//  ("Approximating Subdivision Surfaces with Gregory Patches for Hardware
+//  Tessellation") we use a cubic-quartic hybrid Gregory patch.  Like the
+//  quad Gregory patch, this patch uses Bezier basis functions (from the
+//  cubic-quartic hybrid above) and rational multipliers to blend pairs of
+//  interior points (face points).
+//
+namespace {
+    //
+    //  Expanding a set of 12 Bezier basis functions for the 6 (3 pairs) of 
+    //  rational weights for the 15 Gregory basis functions:
+    //
+    template <typename REAL>
+    void
+    convertBezierWeightsToGregory(REAL const wB[12], REAL const rG[6], REAL wG[15]) {
+
+        wG[0]  = wB[0];
+        wG[1]  = wB[1];
+        wG[2]  = wB[4];
+        wG[3]  = wB[5] * rG[0];
+        wG[4]  = wB[5] * rG[1];
+
+        wG[5]  = wB[3];
+        wG[6]  = wB[7];
+        wG[7]  = wB[2];
+        wG[8]  = wB[6] * rG[2];
+        wG[9]  = wB[6] * rG[3];
+
+        wG[10] = wB[11];
+        wG[11] = wB[8];
+        wG[12] = wB[10];
+        wG[13] = wB[9] * rG[4];
+        wG[14] = wB[9] * rG[5];
+    }
+} // end namespace
+
+template <typename REAL>
+int
+GetGregoryTriWeights(PatchParam const & param, REAL s, REAL t,
+    REAL wP[15], REAL wDs[15], REAL wDt[15],
+    REAL wDss[15], REAL wDst[15], REAL wDtt[15]) {
+
+    param.NormalizeTriangle(s,t);
+
+    //
+    //  Bezier basis functions are denoted with B while the rational multipliers for the
+    //  interior points will be denoted G -- so we have B(s,t) and G(s,t) (though we
+    //  switch to barycentric (u,v,w) briefly to compute G)
+    //
+    REAL BP[12], BDs[12], BDt[12], BDss[12], BDst[12], BDtt[12];
+
+    REAL G[6] = { 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f };
+    REAL u = s;
+    REAL v = t;
+    REAL w = 1 - u - v;
+
+    if ((u + v) > 0) {
+        G[0]  = u / (u + v);
+        G[1]  = v / (u + v);
+    }
+    if ((v + w) > 0) {
+        G[2] = v / (v + w);
+        G[3] = w / (v + w);
+    }
+    if ((w + u) > 0) {
+        G[4] = w / (w + u);
+        G[5] = u / (w + u);
+    }
+
+    //
+    //  Compute Bezier basis functions and convert, adjusting interior points:
+    //
+    if (wP) {
+        evalBezierTriDerivWeights<REAL>(s, t, 0, 0, BP, 1.0f);
+        convertBezierWeightsToGregory(BP, G, wP);
+    }
+    if (wDs && wDt) {
+        //  TBD -- ifdef OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES
+
+        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
+        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
+
+        evalBezierTriDerivWeights(s, t, 1, 0, BDs, dScale);
+        evalBezierTriDerivWeights(s, t, 0, 1, BDt, dScale);
+
+        convertBezierWeightsToGregory(BDs, G, wDs);
+        convertBezierWeightsToGregory(BDt, G, wDt);
+
+        if (wDss && wDst && wDtt) {
+            REAL d2Scale = dScale * dScale * dSign;
+
+            evalBezierTriDerivWeights(s, t, 2, 0, BDss, d2Scale);
+            evalBezierTriDerivWeights(s, t, 1, 1, BDst, d2Scale);
+            evalBezierTriDerivWeights(s, t, 0, 2, BDtt, d2Scale);
+
+            convertBezierWeightsToGregory(BDss, G, wDss);
+            convertBezierWeightsToGregory(BDst, G, wDst);
+            convertBezierWeightsToGregory(BDtt, G, wDtt);
+        }
+    }
+    return 15;
 }
 
 
 //
 //  Explicit float and double instantiations:
 //
-template void GetBilinearWeights<float>(PatchParam const & patchParam, float s, float t,
+template int GetBilinearWeights<float>(PatchParam const & param, float s, float t,
         float wP[4], float wDs[4], float wDt[4], float wDss[4], float wDst[4], float wDtt[4]);
-template void GetBezierWeights<float>(PatchParam const & patchParam, float s, float t,
+template int GetBezierWeights<float>(PatchParam const & param, float s, float t,
         float wP[16], float wDs[16], float wDt[16], float wDss[16], float wDst[16], float wDtt[16]);
-template void GetBSplineWeights<float>(PatchParam const & patchParam, float s, float t,
+template int GetBSplineWeights<float>(PatchParam const & param, float s, float t,
         float wP[16], float wDs[16], float wDt[16], float wDss[16], float wDst[16], float wDtt[16]);
-template void GetGregoryWeights<float>(PatchParam const & patchParam, float s, float t,
+template int GetGregoryWeights<float>(PatchParam const & param, float s, float t,
         float wP[20], float wDs[20], float wDt[20], float wDss[20], float wDst[20], float wDtt[20]);
+template int GetLinearTriWeights<float>(PatchParam const & param, float s, float t,
+        float wP[3], float wDs[3], float wDt[3], float wDss[3], float wDst[3], float wDtt[3]);
+template int GetBezierTriWeights<float>(PatchParam const & param, float s, float t,
+        float wP[12], float wDs[12], float wDt[12], float wDss[12], float wDst[12], float wDtt[12]);
+template int GetBoxSplineTriWeights<float>(PatchParam const & param, float s, float t,
+        float wP[12], float wDs[12], float wDt[12], float wDss[12], float wDst[12], float wDtt[12]);
+template int GetGregoryTriWeights<float>(PatchParam const & param, float s, float t,
+        float wP[15], float wDs[15], float wDt[15], float wDss[15], float wDst[15], float wDtt[15]);
 
-template void GetBilinearWeights<double>(PatchParam const & patchParam, double s, double t,
+template int GetBilinearWeights<double>(PatchParam const & param, double s, double t,
         double wP[4], double wDs[4], double wDt[4], double wDss[4], double wDst[4], double wDtt[4]);
-template void GetBezierWeights<double>(PatchParam const & patchParam, double s, double t,
+template int GetBezierWeights<double>(PatchParam const & param, double s, double t,
         double wP[16], double wDs[16], double wDt[16], double wDss[16], double wDst[16], double wDtt[16]);
-template void GetBSplineWeights<double>(PatchParam const & patchParam, double s, double t,
+template int GetBSplineWeights<double>(PatchParam const & param, double s, double t,
         double wP[16], double wDs[16], double wDt[16], double wDss[16], double wDst[16], double wDtt[16]);
-template void GetGregoryWeights<double>(PatchParam const & patchParam, double s, double t,
+template int GetGregoryWeights<double>(PatchParam const & param, double s, double t,
         double wP[20], double wDs[20], double wDt[20], double wDss[20], double wDst[20], double wDtt[20]);
+template int GetLinearTriWeights<double>(PatchParam const & param, double s, double t,
+        double wP[3], double wDs[3], double wDt[3], double wDss[3], double wDst[3], double wDtt[3]);
+template int GetBezierTriWeights<double>(PatchParam const & param, double s, double t,
+        double wP[12], double wDs[12], double wDt[12], double wDss[12], double wDst[12], double wDtt[12]);
+template int GetBoxSplineTriWeights<double>(PatchParam const & param, double s, double t,
+        double wP[12], double wDs[12], double wDt[12], double wDss[12], double wDst[12], double wDtt[12]);
+template int GetGregoryTriWeights<double>(PatchParam const & param, double s, double t,
+        double wP[15], double wDs[15], double wDt[15], double wDss[15], double wDst[15], double wDtt[15]);
 
 } // end namespace internal
 } // end namespace Far

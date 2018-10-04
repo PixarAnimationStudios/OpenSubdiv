@@ -1597,31 +1597,42 @@ PatchTableBuilder::LocalPointHelper::appendLocalPointStencils(
     std::memcpy(newWeights, mtxWeights, numNewElements * sizeof(REAL));
 }
 
+
 //
-//  XXXX (barfowl) - still unsure of how best to deal with varying stencils for
-//  the new local points (or why they are even necessary)...  Assigning any
-//  legitmate value seems to suffice (probably computed but no longer accessed).
-//  These have historically been assigned using the face-vertex for the corner
-//  of the face that is most associated with this patch-point.
-//
-//  If eventually warranted, consider a lookup table for each patch type that
-//  returns the corner index most associated with each patch point.
+//  Its unfortunate that varying stencils for local points were ever created
+//  and external dependency on them forces a certain coordination here.  Each
+//  patch type is expected to have a varying value computed for each patch
+//  point and shaders retrieve the varying value associated with particular
+//  points.  So we need to store that mapping from control point to varying
+//  point (or corner of the patch) somewhere.  We are trying to avoid adding
+//  more to the PatchDescriptor interface, so we'll keep it here for now in
+//  the hope we may be able to eliminate the need for it.
 //
 namespace {
     inline int const *
     GetVaryingIndicesPerType(PatchDescriptor::Type type) {
 
+        //  Note that we can use the linear and gregory vectors here for
+        //  both quads and tris
         static int const linearIndices[4] = { 0, 1, 2, 3 };
         static int const bsplineIndices[] =
                 { 0, 0, 1, 1, 0, 0, 1, 1, 3, 3, 2, 2, 3, 3, 2, 2 };
+        static int const boxsplineIndices[] =
+                { 0, 0, 1, 0, 0, 1, 1, 2, 2, 1, 2, 2 };
         static int const gregoryIndices[] =
                 { 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3 };
 
         if (type == PatchDescriptor::GREGORY_BASIS) {
             return gregoryIndices;
+        } else if (type == PatchDescriptor::GREGORY_TRIANGLE) {
+            return gregoryIndices;
         } else if (type == PatchDescriptor::REGULAR) {
             return bsplineIndices;
+        } else if (type == PatchDescriptor::LOOP) {
+            return boxsplineIndices;
         } else if (type == PatchDescriptor::QUADS) {
+            return linearIndices;
+        } else if (type == PatchDescriptor::TRIANGLES) {
             return linearIndices;
         }
         return 0;

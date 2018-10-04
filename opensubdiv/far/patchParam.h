@@ -90,8 +90,8 @@ namespace Far {
 ///  level      | 4    | the subdivision level of the patch
 ///  nonquad    | 1    | whether patch is refined from a non-quad face
 ///  regular    | 1    | whether patch is regular
-///  unused     | 2    | unused
-///  boundary   | 4    | boundary edge mask encoding
+///  unused     | 1    | unused
+///  boundary   | 5    | boundary edge mask encoding
 ///  v          | 10   | log2 value of u parameter at first patch corner
 ///  u          | 10   | log2 value of v parameter at first patch corner
 ///
@@ -160,7 +160,7 @@ struct PatchParam {
     /// @param depth subdivision level of the patch
     /// @param nonquad true if the root face is not a quad
     ///
-    /// @param boundary 4-bits identifying boundary edges
+    /// @param boundary 5-bits identifying boundary edges (and verts for tris)
     /// @param transition 4-bits identifying transition edges
     ///
     /// @param regular whether the patch is regular
@@ -188,7 +188,7 @@ struct PatchParam {
     unsigned short GetTransition() const { return (unsigned short)unpack(field0,4,28); }
 
     /// \brief Returns the boundary edge encoding for the patch.
-    unsigned short GetBoundary() const { return (unsigned short)unpack(field1,4,8); }
+    unsigned short GetBoundary() const { return (unsigned short)unpack(field1,5,7); }
 
     /// \brief True if the parent base face is a non-quad
     bool NonQuadRoot() const { return (unpack(field1,1,4) != 0); }
@@ -207,6 +207,8 @@ struct PatchParam {
     ///
     template <typename REAL>
     void Normalize( REAL & u, REAL & v ) const;
+    template <typename REAL>
+    void NormalizeTriangle( REAL & u, REAL & v ) const;
 
     /// \brief A (u,v) pair in a normalized parametric space is mapped back into the
     /// fraction of parametric space covered by this face.
@@ -216,6 +218,11 @@ struct PatchParam {
     ///
     template <typename REAL>
     void Unnormalize( REAL & u, REAL & v ) const;
+    template <typename REAL>
+    void UnnormalizeTriangle( REAL & u, REAL & v ) const;
+
+    /// \brief Returns if a triangular patch is parametrically rotated 180 degrees
+    bool IsTriangleRotated() const;
 
     /// \brief Returns whether the patch is regular
     bool IsRegular() const { return (unpack(field1,1,5) != 0); }
@@ -248,7 +255,7 @@ PatchParam::Set(Index faceid, short u, short v,
 
     field1 = pack(u,         10, 22) |
              pack(v,         10, 12) |
-             pack(boundary,   4,  8) |
+             pack(boundary,   5,  7) |
              pack(regular,    1,  5) |
              pack(nonquad,    1,  4) |
              pack(depth,      4,  0);
@@ -277,6 +284,42 @@ PatchParam::Unnormalize( REAL & u, REAL & v ) const {
 
     u = (u + (REAL)GetU()) * frac;
     v = (v + (REAL)GetV()) * frac;
+}
+
+inline bool
+PatchParam::IsTriangleRotated() const {
+
+    return (GetU() + GetV()) >= (1 << GetDepth());
+}
+
+template <typename REAL>
+inline void
+PatchParam::NormalizeTriangle( REAL & u, REAL & v ) const {
+
+    if (IsTriangleRotated()) {
+        REAL fracInv = (REAL)(1.0f / GetParamFraction());
+
+        int depthFactor = 1 << GetDepth();
+        u = (REAL)(depthFactor - GetU()) - (u * fracInv);
+        v = (REAL)(depthFactor - GetV()) - (v * fracInv);
+    } else {
+        Normalize(u, v);
+    }
+}
+
+template <typename REAL>
+inline void
+PatchParam::UnnormalizeTriangle( REAL & u, REAL & v ) const {
+
+    if (IsTriangleRotated()) {
+        REAL frac = GetParamFraction();
+
+        int depthFactor = 1 << GetDepth();
+        u = ((REAL)(depthFactor - GetU()) - u) * frac;
+        v = ((REAL)(depthFactor - GetV()) - v) * frac;
+    } else {
+        Unnormalize(u, v);
+    }
 }
 
 } // end namespace Far

@@ -335,7 +335,7 @@ computePatches(const float *src, float *dst,
         float t = coord.t;
         normalizePatchCoord(patchBits, &s, &t);
         float dScale = (float)(1 << getDepth(patchBits));
-        int boundary = int((patchBits >> 8) & 0xfU);
+        int boundary = int((patchBits >> 7) & 0x1fU);
 
         int numControlVertices = 0;
         if (patchType == 3) {

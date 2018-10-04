@@ -147,7 +147,7 @@ int OsdGetPatchRefinementLevel(int3 patchParam)
 
 int OsdGetPatchBoundaryMask(int3 patchParam)
 {
-    return ((patchParam.y >> 8) & 0xf);
+    return ((patchParam.y >> 7) & 0x1f);
 }
 
 int OsdGetPatchTransitionMask(int3 patchParam)

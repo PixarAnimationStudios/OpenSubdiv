@@ -288,7 +288,7 @@ void main() {
     // normalize
     coord = normalizePatchCoord(patchBits, coord);
     float dScale = float(1 << getDepth(patchBits));
-    int boundary = int((patchBits >> 8) & 0xfU);
+    int boundary = int((patchBits >> 7) & 0x1fU);
 
     float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
 

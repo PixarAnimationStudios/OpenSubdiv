@@ -65,7 +65,8 @@ public:
         REGULAR,           ///< feature-adaptive bicubic patches
         GREGORY,
         GREGORY_BOUNDARY,
-        GREGORY_BASIS
+        GREGORY_BASIS,
+        GREGORY_TRIANGLE
     };
 
 public:
@@ -89,7 +90,7 @@ public:
 
     /// \brief Returns true if the type is an adaptive patch
     static inline bool IsAdaptive(Type type) {
-        return (type>=LOOP && type<=GREGORY_BASIS);
+        return (type>=LOOP && type<=GREGORY_TRIANGLE);
     }
 
     /// \brief Returns true if the type is an adaptive patch
@@ -149,10 +150,12 @@ inline short
 PatchDescriptor::GetNumControlVertices( Type type ) {
     switch (type) {
         case REGULAR           : return GetRegularPatchSize();
+        case LOOP              : return 12;
         case QUADS             : return 4;
         case GREGORY           :
         case GREGORY_BOUNDARY  : return GetGregoryPatchSize();
         case GREGORY_BASIS     : return GetGregoryBasisPatchSize();
+        case GREGORY_TRIANGLE  : return 15;
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;
