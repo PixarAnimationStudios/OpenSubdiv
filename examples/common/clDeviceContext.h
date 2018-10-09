@@ -25,7 +25,7 @@
 #ifndef OSD_EXAMPLES_COMMON_CL_DEVICE_CONTEXT_H
 #define OSD_EXAMPLES_COMMON_CL_DEVICE_CONTEXT_H
 
-#include "osd/opencl.h"
+#include <opensubdiv/osd/opencl.h>
 
 class CLDeviceContext {
 public:

@@ -24,7 +24,7 @@
 
 #include "d3d11PtexMipmapTexture.h"
 #include "ptexMipmapTextureLoader.h"
-#include <far/error.h>  // XXX: to be replaced
+#include <opensubdiv/far/error.h>  // XXX: to be replaced
 
 #include <D3D11.h>
 #include <cassert>

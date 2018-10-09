@@ -25,7 +25,7 @@
 #ifndef CMP_UTILS_H
 #define CMP_UTILS_H
 
-#include <far/topologyRefinerFactory.h>
+#include <opensubdiv/far/topologyRefinerFactory.h>
 
 #include "hbr_utils.h"
 

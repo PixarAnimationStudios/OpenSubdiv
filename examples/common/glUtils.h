@@ -41,7 +41,7 @@
     #endif
 #endif
 
-#include <osd/opengl.h>
+#include <opensubdiv/osd/opengl.h>
 
 #include <cstdio>
 #include <string>

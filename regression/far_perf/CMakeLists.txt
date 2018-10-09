@@ -23,8 +23,7 @@
 #
 
 include_directories(
-    "${OPENSUBDIV_INCLUDE_DIR}/"
-    "${PROJECT_SOURCE_DIR}/"
+    "${OPENSUBDIV_INCLUDE_DIR}"
 )
 
 set(SOURCE_FILES
