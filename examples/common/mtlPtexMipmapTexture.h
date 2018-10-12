@@ -25,8 +25,8 @@
 #ifndef OPENSUBDIV_EXAMPLES_MTL_PTEX_MIPMAP_TEXTURE_H
 #define OPENSUBDIV_EXAMPLES_MTL_PTEX_MIPMAP_TEXTURE_H
 
-#include <osd/mtlCommon.h>
-#include <osd/nonCopyable.h>
+#include <opensubdiv/osd/mtlCommon.h>
+#include <opensubdiv/osd/nonCopyable.h>
 #include <Ptexture.h>
 
 

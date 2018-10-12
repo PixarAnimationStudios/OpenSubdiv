@@ -25,13 +25,14 @@
 #ifndef FAR_UTILS_H
 #define FAR_UTILS_H
 
-#include <far/topologyRefinerFactory.h>
-#include <far/primvarRefiner.h>
-#include <far/types.h>
+#include "shape_utils.h"
+
+#include <opensubdiv/far/topologyRefinerFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
+#include <opensubdiv/far/types.h>
 
 #include <cstdio>
 
-#include "shape_utils.h"
 
 //------------------------------------------------------------------------------
 

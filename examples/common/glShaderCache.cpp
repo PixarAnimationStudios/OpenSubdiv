@@ -26,8 +26,8 @@
 #include "glUtils.h"
 
 #include <vector>
-#include <osd/opengl.h>
-#include <far/error.h>
+#include <opensubdiv/osd/opengl.h>
+#include <opensubdiv/far/error.h>
 
 GLDrawConfig::GLDrawConfig(const std::string &version)
     : _version(version), _numShaders(0) {

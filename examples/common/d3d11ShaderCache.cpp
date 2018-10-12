@@ -27,7 +27,7 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <far/error.h>
+#include <opensubdiv/far/error.h>
 
 D3D11DrawConfig::D3D11DrawConfig()
     : _vertexShader(NULL), _hullShader(NULL), _domainShader(NULL),

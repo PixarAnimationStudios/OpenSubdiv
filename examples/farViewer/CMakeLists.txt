@@ -32,6 +32,7 @@ set(SHADER_FILES
 
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
+    "${OPENSUBDIV_INCLUDE_DIR}/opensubdiv"
     "${GLFW_INCLUDE_DIR}"
 )
 

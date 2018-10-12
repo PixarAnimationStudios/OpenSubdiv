@@ -25,7 +25,7 @@
 #include "glPtexMipmapTexture.h"
 #include "ptexMipmapTextureLoader.h"
 
-#include <osd/opengl.h>
+#include <opensubdiv/osd/opengl.h>
 
 GLPtexMipmapTexture::GLPtexMipmapTexture()
     : _width(0), _height(0), _depth(0), _layout(0), _texels(0), _memoryUsage(0)

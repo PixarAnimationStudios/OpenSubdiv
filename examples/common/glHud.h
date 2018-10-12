@@ -27,7 +27,7 @@
 
 #include "hud.h"
 
-#include <osd/opengl.h>
+#include <opensubdiv/osd/opengl.h>
 
 class GLhud : public Hud {
 

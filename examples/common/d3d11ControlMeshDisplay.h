@@ -26,7 +26,7 @@
 #define OPENSUBDIV_EXAMPLES_D3D11_CONTROL_MESH_DISPLAY_H
 
 #include <d3d11.h>
-#include <far/topologyLevel.h>
+#include <opensubdiv/far/topologyLevel.h>
 
 class D3D11ControlMeshDisplay {
 public:

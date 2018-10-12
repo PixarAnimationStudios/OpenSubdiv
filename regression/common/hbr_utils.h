@@ -29,15 +29,15 @@
 #define HBR_ADAPTIVE
 #endif
 
-#include <hbr/mesh.h>
-#include <hbr/bilinear.h>
-#include <hbr/loop.h>
-#include <hbr/catmark.h>
-#include <hbr/vertexEdit.h>
-#include <hbr/cornerEdit.h>
-#include <hbr/holeEdit.h>
-
 #include "shape_utils.h"
+
+#include <opensubdiv/hbr/mesh.h>
+#include <opensubdiv/hbr/bilinear.h>
+#include <opensubdiv/hbr/loop.h>
+#include <opensubdiv/hbr/catmark.h>
+#include <opensubdiv/hbr/vertexEdit.h>
+#include <opensubdiv/hbr/cornerEdit.h>
+#include <opensubdiv/hbr/holeEdit.h>
 
 #include <sstream>
 

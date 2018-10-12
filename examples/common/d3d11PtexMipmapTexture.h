@@ -25,7 +25,7 @@
 #ifndef OPENSUBDIV_EXAMPLES_D3D11_PTEX_MIPMAP_TEXTURE_H
 #define OPENSUBDIV_EXAMPLES_D3D11_PTEX_MIPMAP_TEXTURE_H
 
-#include <osd/nonCopyable.h>
+#include <opensubdiv/osd/nonCopyable.h>
 
 #include <Ptexture.h>
 

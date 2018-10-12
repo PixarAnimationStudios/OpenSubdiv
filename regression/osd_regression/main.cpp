@@ -46,10 +46,10 @@ GLFWwindow* g_window=0;
 #include <stdio.h>
 #include <cassert>
 
-#include <osd/cpuEvaluator.h>
-#include <osd/cpuVertexBuffer.h>
-#include <osd/cpuGLVertexBuffer.h>
-#include <far/stencilTableFactory.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
+#include <opensubdiv/osd/cpuVertexBuffer.h>
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 
 #include "../common/cmp_utils.h"
 #include "../common/hbr_utils.h"
