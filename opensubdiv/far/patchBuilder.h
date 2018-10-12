@@ -84,7 +84,9 @@ public:
     SourcePatch() { std::memset(this, 0, sizeof(SourcePatch)); }
     ~SourcePatch() { }
 
-    void Finalize();  //  To be called after all Corners have been initialized
+    //  To be called after all Corners have been initialized (hope to
+    //  replace this with alternative constructor at some point)
+    void Finalize(int size3or4);
 
     int GetNumSourcePoints() const { return _numSourcePoints; }
     int GetMaxValence() const { return _maxValence; }
@@ -93,13 +95,12 @@ public:
     int GetCornerRingSize(int corner) const { return _ringSizes[corner]; }
     int GetCornerRingPoints(int corner, int points[]) const;
 
-    void Print(const char * label, const Index * patchPoints = 0);
-
 //  public/private access needs to be reviewed when/if used more publicly
 //private:
 public:
     //  The SourcePatch is fully defined by its Corner members
     Corner _corners[4];
+    int    _numCorners;
 
     //  Additional members (derived from Corners) to help assemble corner rings:
     int _numSourcePoints;
@@ -284,9 +285,6 @@ protected:
             Vtr::internal::Level::VSpan const cornerSpans[],
             SourcePatch &  sourcePatch,
             Index patchPoints[], int fvc) const;
-
-    //  Internal methods asserting features not yet completed:
-    void assertTriangularPatchesNotYetSupportedHere() const;
 
 protected:
     //
