@@ -50,6 +50,23 @@ namespace Far {
 //  Local helper functions for topology queries:
 //
 namespace {
+
+    //
+    //  Inline methods to encapsulate fast and specific modulus operations.
+    //  The mod-4 case is trivial.  For mod-N, since we are always doing
+    //  the test (i + 1) % N, or (i - 1 + N) % N, the subtraction suffices.
+    //
+    inline int fastMod4(int x) {
+        return x & 0x3;
+    }
+    inline int fastMod3(int x) {
+        static int const mod3Array[] = { 0, 1, 2, 0, 1, 2 };
+        return mod3Array[x];
+    }
+    inline int fastModN(int x, int N) {
+        return (x < N) ? x : (x - N);
+    }
+
     //
     //  Local helper functions for identifying the subset of a ring around a
     //  corner that contributes to a patch -- parameterized by a mask that
@@ -108,7 +125,7 @@ namespace {
         int             nEdges = vEdges.size();
 
         int iLeadingStart  = vEdges.FindIndex(fEdges[fCorner]);
-        int iTrailingStart = (iLeadingStart + 1) % nEdges;
+        int iTrailingStart = fastModN(iLeadingStart + 1, nEdges);
 
         vSpan.clear();
         vSpan._numFaces = 1;
@@ -116,14 +133,14 @@ namespace {
         int iLeading  = iLeadingStart;
         while (! isEdgeSingular(level, fvarLevel, vEdges[iLeading], eTagMask)) {
             ++vSpan._numFaces;
-            iLeading = (iLeading + nEdges - 1) % nEdges;
+            iLeading = fastModN(iLeading + nEdges - 1, nEdges);
             if (iLeading == iTrailingStart) break;
         }
 
         int iTrailing = iTrailingStart;
         while (!isEdgeSingular(level, fvarLevel, vEdges[iTrailing], eTagMask)) {
             ++vSpan._numFaces;
-            iTrailing = (iTrailing + 1) % nEdges;
+            iTrailing = fastModN(iTrailing + 1, nEdges);
             if (iTrailing == iLeadingStart) break;
         }
         vSpan._startFace = (LocalIndex) iLeading;
@@ -159,6 +176,225 @@ namespace {
         }
         assert(vSpan._numFaces == 1);
     }
+
+
+    //
+    //  Gathering the one-ring of vertices from triangles surrounding a vertex:
+    //      - the neighborhood of the vertex is assumed to be tri-regular (manifold)
+    //
+    //  Ordering of resulting vertices:
+    //      The surrounding one-ring follows the ordering of the incident faces.  For each
+    //  incident tri, the vertex opposite its leading edge is added.  If the vertex is on a
+    //  boundary, a second vertex on the boundary edge will be contributed from the last face.
+    //
+    int
+    gatherTriRegularRingAroundVertex(Level const& level,
+        Index vIndex, int ringPoints[], int fvarChannel) {
+
+        ConstIndexArray vEdges = level.getVertexEdges(vIndex);
+
+        ConstIndexArray vFaces = level.getVertexFaces(vIndex);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
+
+        bool isBoundary = (vEdges.size() > vFaces.size());
+
+        int ringIndex = 0;
+        for (int i = 0; i < vFaces.size(); ++i) {
+            //
+            //  For each tri, we want the the vertex at the end of the leading edge:
+            //
+            ConstIndexArray fPoints = (fvarChannel < 0)
+                                    ? level.getFaceVertices(vFaces[i])
+                                    : level.getFaceFVarValues(vFaces[i], fvarChannel);
+
+            int vInThisFace = vInFaces[i];
+
+            ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 1)];
+
+            if (isBoundary && (i == (vFaces.size() - 1))) {
+                ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 2)];
+            }
+        }
+        return ringIndex;
+    }
+
+    int
+    gatherTriRegularPartialRingAroundVertex(Level const& level,
+        Index vIndex, Level::VSpan const & span, int ringPoints[], int fvarChannel) {
+
+        assert(! level.isVertexNonManifold(vIndex));
+
+        ConstIndexArray      vFaces   = level.getVertexFaces(vIndex);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
+
+        int nFaces    = span._numFaces;
+        int startFace = span._startFace;
+
+        int ringIndex = 0;
+        for (int i = 0; i < nFaces; ++i) {
+            //
+            //  For each tri, we want the the vertex at the end of the leading edge:
+            //
+            int fIncident = fastModN(startFace + i, vFaces.size());
+
+            ConstIndexArray fPoints = (fvarChannel < 0)
+                                    ? level.getFaceVertices(vFaces[fIncident])
+                                    : level.getFaceFVarValues(vFaces[fIncident], fvarChannel);
+
+            int vInThisFace = vInFaces[fIncident];
+
+            ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 1)];
+
+            if ((i == nFaces - 1) && !span._periodic) {
+                ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 2)];
+            }
+        }
+        return ringIndex;
+    }
+
+    //
+    //  Functions to encode/decode the 5-bit boundary mask for a triangular patch
+    //  from the two 3-bit boundary vertex and bounday edge masks.  When referring
+    //  to a "boundary vertex" in the encoded bits, we are referring to a vertex on
+    //  a boundary while its incident edges of the triangle are not boundaries --
+    //  topologically distinct from a vertex at the end of a boundary edge.
+    //
+    //  The 5-bit encoding is as follows:
+    //
+    //      - the upper 2 bits indicate how to interpret the lower 3 bits:
+    //          0 - as boundary edges only (all boundary vertices are implicit)
+    //          1 - as "boundary vertices" only (no boundary edges)
+    //          2 - a single boundary edge with opposite "boundary vertex"
+    //
+    //      - the lower 3 bits are set according to boundary features present
+    //
+    //  There are a total of 18 possible boundary configurations:
+    //
+    //      - no boundaries at all (1 case)
+    //      - one boundary edge (3 cases)
+    //      - two boundary edges (3 cases)
+    //      - three boundary edges (1 case)
+    //      - one boundary vertex (3 cases)
+    //      - two boundary vertices (3 cases)
+    //      - three boundarey vertices (1 case)
+    //      - one boundary edge with opposite boundary vertex (3 cases)
+    //
+    inline int unpackTriBoundaryMaskLower(int mask) { return mask & 0x7; }
+    inline int unpackTriBoundaryMaskUpper(int mask) { return (mask >> 3) & 0x3; }
+
+    inline int packTriBoundaryMask(int upper, int lower) { return (upper << 3) | lower; }
+
+    int
+    encodeTriBoundaryMask(int eBits, int vBits)
+    {
+        int upperBits = 0;
+        int lowerBits = eBits;
+
+        if (vBits) {
+            if (eBits == 0) {
+                upperBits = 1;
+                lowerBits = vBits;
+            } else if ((vBits == 7) && ((eBits == 1) || (eBits == 2) || (eBits == 4))) {
+                upperBits = 2;
+                lowerBits = eBits;
+            }
+        }
+        return packTriBoundaryMask(upperBits, lowerBits);
+    }
+    void
+    decodeTriBoundaryMask(int mask, int & eBits, int & vBits)
+    {
+        static int const eBitsToVBits[] = { 0, 3, 6, 7, 5, 7, 7, 7 };
+
+        int lowerBits = unpackTriBoundaryMaskLower(mask);
+        int upperBits = unpackTriBoundaryMaskUpper(mask);
+
+        switch (upperBits) {
+        case 0:
+            eBits = lowerBits;
+            vBits = eBitsToVBits[eBits];
+            break;
+        case 1:
+            eBits = 0;
+            vBits = lowerBits;
+            break;
+        case 2:
+            eBits = lowerBits;
+            vBits = 0x7;
+            break;
+        }
+    }
+
+    inline Index
+    getNextFaceInVertFaces(Level const & level, int thisFaceInVFaces,
+                           ConstIndexArray const & vFaces,
+                           ConstLocalIndexArray const & vInFaces,
+                           bool manifold, int & vInNextFace) {
+
+        Index nextFace;
+        if (manifold) {
+            int nextFaceInVFaces = fastModN(thisFaceInVFaces + 1, vFaces.size());
+
+            nextFace    = vFaces[nextFaceInVFaces];
+            vInNextFace = vInFaces[nextFaceInVFaces];
+        } else {
+            Index thisFace    = vFaces[thisFaceInVFaces];
+            int   vInThisFace = vInFaces[thisFaceInVFaces];
+
+            ConstIndexArray fEdges = level.getFaceEdges(thisFace);
+
+            Index nextEdge = fEdges[fastModN((vInThisFace + fEdges.size() - 1), fEdges.size())];
+
+            ConstIndexArray eFaces = level.getEdgeFaces(nextEdge);
+            assert(eFaces.size() == 2);
+
+            nextFace = (eFaces[0] == thisFace) ? eFaces[1] : eFaces[0];
+
+            int edgeInNextFace = level.getFaceEdges(nextFace).FindIndex(nextEdge);
+
+            vInNextFace = edgeInNextFace;
+        }
+        return nextFace;
+    }
+    inline Index
+    getPrevFaceInVertFaces(Level const & level, int thisFaceInVFaces,
+                           ConstIndexArray const & vFaces,
+                           ConstLocalIndexArray const & vInFaces,
+                           bool manifold, int & vInPrevFace) {
+
+        Index prevFace;
+        if (manifold) {
+            int prevFaceInVFaces = (thisFaceInVFaces ? thisFaceInVFaces : vFaces.size()) - 1;
+
+            prevFace    = vFaces[prevFaceInVFaces];
+            vInPrevFace = vInFaces[prevFaceInVFaces];
+        } else {
+            Index thisFace    = vFaces[thisFaceInVFaces];
+            int   vInThisFace = vInFaces[thisFaceInVFaces];
+
+            ConstIndexArray fEdges = level.getFaceEdges(thisFace);
+
+            Index prevEdge = fEdges[vInThisFace];
+
+            ConstIndexArray eFaces = level.getEdgeFaces(prevEdge);
+            assert(eFaces.size() == 2);
+
+            prevFace = (eFaces[0] == thisFace) ? eFaces[1] : eFaces[0];
+
+            int edgeInPrevFace = level.getFaceEdges(prevFace).FindIndex(prevEdge);
+
+            vInPrevFace = fastModN(edgeInPrevFace + 1, fEdges.size());
+        }
+        return prevFace;
+    }
+
+    inline ConstIndexArray
+    getFacePoints(Level const& level, Index faceIndex, int fvarChannel)
+    {
+        return (fvarChannel < 0) ? level.getFaceVertices(faceIndex)
+                                 : level.getFaceFVarValues(faceIndex, fvarChannel);
+    }
+
 } // namespace anon
 
 
@@ -199,21 +435,6 @@ PatchBuilder::PatchBuilder(
 PatchBuilder::~PatchBuilder() {
 }
 
-//
-//  This inline assertion is invoked in code that is intended to support
-//  triangular patches, but has not yet been fully validated as doing so --
-//  typically the public methods used by clients.
-//
-//  This is in contrast to code that is never intended to support triangles,
-//  i.e. code for which a test for quads is a pre-condition, where the
-//  explicit assertion should be used instead of this method (as it will be
-//  completely removed once planned support for triangular patches is done).
-//
-inline void
-PatchBuilder::assertTriangularPatchesNotYetSupportedHere() const {
-
-    assert(_schemeRegFaceSize == 4);
-}
 
 //
 //  Topology inspections methods for a particular face in the hierarchy:
@@ -231,8 +452,12 @@ PatchBuilder::IsFaceAPatch(int levelIndex, Index faceIndex) const {
     if (fVerts.size() != _schemeRegFaceSize) return false;
 
     //  Fail if the face lacks its complete neighborhood of support
-    if (level.getFaceCompositeVTag(fVerts)._incomplete) return false;
-
+    //      - preserving the historical test for 4-sided faces
+    if ((_schemeRegFaceSize == 4) || (levelIndex == 0)) {
+        if (level.getFaceCompositeVTag(fVerts)._incomplete) return false;
+    } else {
+        if (_refiner.getRefinement(levelIndex - 1).getChildFaceTag(faceIndex)._incomplete) return false;
+    }
     return true;
 }
 
@@ -253,8 +478,6 @@ PatchBuilder::IsFaceALeaf(int levelIndex, Index faceIndex) const {
 bool
 PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
     int fvarChannel) const {
-
-    assertTriangularPatchesNotYetSupportedHere();
 
     if (_schemeNeighborhood == 0) {
         //  The previous face-is-a-patch test precludes an irregular patch
@@ -294,6 +517,8 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
             //   of the neighborhood delimited by inf-sharp edges will suffice
             //   (and be comparable in all but cases of high valence)
             //
+            int regBoundaryFaces = 2 + (_schemeRegFaceSize == 3);
+
             Level::VTag vTags[4];
             level.getFaceVTags(faceIndex, vTags, fvarChannel);
 
@@ -301,13 +526,13 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
             Level::ETag eMask = getSingularEdgeMask(true);
 
             isRegular = true;
-            for (int i = 0; i < 4; ++i) {
+            for (int i = 0; i < _schemeRegFaceSize; ++i) {
                 if (vTags[i]._infIrregular) {
                     identifyManifoldCornerSpan(
                         level, faceIndex, i, eMask, vSpan, fvarChannel);
 
                     isRegular = (vSpan._numFaces ==
-                                    (vTags[i]._infSharpCrease ? 2 : 1));
+                                    (vTags[i]._infSharpCrease ? regBoundaryFaces : 1));
                     if (!isRegular) break;
                 }
             }
@@ -319,7 +544,7 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
         if (fCompVTag._xordinary && (levelIndex < 2)) {
             Level::VTag vTags[4];
             level.getFaceVTags(faceIndex, vTags, fvarChannel);
-            for (int i = 0; i < 4; ++i) {
+            for (int i = 0; i < _schemeRegFaceSize; ++i) {
                 if (vTags[i]._xordinary &&
                        (vTags[i]._rule == Sdc::Crease::RULE_SMOOTH)) {
                     isRegular = false;
@@ -344,7 +569,7 @@ PatchBuilder::isPatchSmoothCorner(int levelIndex, Index faceIndex,
     Level const & level = _refiner.getLevel(levelIndex);
 
     ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
-    if (fVerts.size() != 4) return false;
+    bool isQuad = (fVerts.size() == 4);
 
     Level::VTag vTags[4];
     level.getFaceVTags(faceIndex, vTags, fvarChannel);
@@ -360,26 +585,32 @@ PatchBuilder::isPatchSmoothCorner(int levelIndex, Index faceIndex,
         boundaryCount =
             (vTags[0]._infSharpEdges && (vTags[0]._rule == Sdc::Crease::RULE_CREASE)) +
             (vTags[1]._infSharpEdges && (vTags[1]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[2]._infSharpEdges && (vTags[2]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[3]._infSharpEdges && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
+            (vTags[2]._infSharpEdges && (vTags[2]._rule == Sdc::Crease::RULE_CREASE));
+        if (isQuad) {
+            boundaryCount +=
+                (vTags[3]._infSharpEdges && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
+        }
     } else {
         boundaryCount =
             (vTags[0]._boundary && (vTags[0]._rule == Sdc::Crease::RULE_CREASE)) +
             (vTags[1]._boundary && (vTags[1]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[2]._boundary && (vTags[2]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[3]._boundary && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
+            (vTags[2]._boundary && (vTags[2]._rule == Sdc::Crease::RULE_CREASE));
+        if (isQuad) {
+            boundaryCount +=
+                (vTags[3]._boundary && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
+        }
     }
-    int xordinaryCount = vTags[0]._xordinary
-                       + vTags[1]._xordinary
-                       + vTags[2]._xordinary
-                       + vTags[3]._xordinary;
+    int xordinaryCount = vTags[0]._xordinary + vTags[1]._xordinary + vTags[2]._xordinary;
+    if (isQuad) {
+        xordinaryCount += vTags[3]._xordinary;
+    }
     
     if ((boundaryCount == 3) && (xordinaryCount == 1)) {
         //  This must be an isolated xordinary corner above level 1, otherwise
         //  we still need to assure the xordinary vertex is opposite a smooth
         //  interior vertex:
         //
-        if (levelIndex > 1) return true;
+        if (!isQuad || (levelIndex > 1)) return true;
     
         if (vTags[0]._xordinary) return (vTags[2]._rule == Sdc::Crease::RULE_SMOOTH);
         if (vTags[1]._xordinary) return (vTags[3]._rule == Sdc::Crease::RULE_SMOOTH);
@@ -393,8 +624,6 @@ int
 PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     int fvarChannel) const {
 
-    assertTriangularPatchesNotYetSupportedHere();
-
     if (_schemeNeighborhood == 0) {
         //  Boundaries for patches not dependent on the 1-ring are ignored
         return 0;
@@ -407,26 +636,45 @@ PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     //  we can infer all that we need need from tags for the corner vertices:
     //
     Level::VTag vTags[4];
+    Level::ETag eTags[4];
+
     level.getFaceVTags(faceIndex, vTags, fvarChannel);
+    level.getFaceETags(faceIndex, eTags, fvarChannel);
 
-    Level::VTag fTag = Level::VTag::BitwiseOr(vTags);
+    Level::VTag fTag = Level::VTag::BitwiseOr(vTags, _schemeRegFaceSize);
 
     //
-    //  Identify vertex tags for inf-sharp edges and/or boundaries, depending
-    //  on whether or not inf-sharp patches are in use:
+    //  For quads it is sufficient to inspect only edge tags.  For tris,
+    //  vertices may lie on boundaries with no incident boundary edges in
+    //  the tri itself.
     //
-    int vBoundaryMask = 0;
+    bool isQuad = ( _schemeRegFaceSize == 4);
+
+    int vBits = 0;
+    int eBits = 0;
     if (fTag._infSharpEdges) {
         if (!_options.approxInfSharpWithSmooth) {
-            vBoundaryMask |= (vTags[0]._infSharpEdges << 0) |
-                             (vTags[1]._infSharpEdges << 1) |
-                             (vTags[2]._infSharpEdges << 2) |
-                             (vTags[3]._infSharpEdges << 3);
-        } else if (fTag._boundary) {
-            vBoundaryMask |= (vTags[0]._boundary << 0) |
-                             (vTags[1]._boundary << 1) |
-                             (vTags[2]._boundary << 2) |
-                             (vTags[3]._boundary << 3);
+            eBits = (eTags[0]._infSharp << 0) |
+                    (eTags[1]._infSharp << 1) |
+                    (eTags[2]._infSharp << 2);
+            if (isQuad) eBits |= (eTags[3]._infSharp << 3);
+        } else {
+            eBits = (eTags[0]._boundary << 0) |
+                    (eTags[1]._boundary << 1) |
+                    (eTags[2]._boundary << 2);
+            if (isQuad) eBits |= (eTags[3]._boundary << 3);
+        }
+
+        if (!isQuad) {
+            if (!_options.approxInfSharpWithSmooth) {
+                vBits = (vTags[0]._infSharpEdges << 0) |
+                        (vTags[1]._infSharpEdges << 1) |
+                        (vTags[2]._infSharpEdges << 2);
+            } else if (fTag._boundary) {
+                vBits = (vTags[0]._boundary << 0) |
+                        (vTags[1]._boundary << 1) |
+                        (vTags[2]._boundary << 2);
+            }
         }
     }
 
@@ -441,41 +689,50 @@ PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     //  the following when this patch was already determined to be regular.
     //
     if (fTag._nonManifold) {
-        if (vTags[0]._nonManifold)
-            vBoundaryMask |= (1 << 0) | (vTags[0]._infSharp ? 10 : 0);
-        if (vTags[1]._nonManifold)
-            vBoundaryMask |= (1 << 1) | (vTags[1]._infSharp ?  5 : 0);
-        if (vTags[2]._nonManifold)
-            vBoundaryMask |= (1 << 2) | (vTags[2]._infSharp ? 10 : 0);
-        if (vTags[3]._nonManifold)
-            vBoundaryMask |= (1 << 3) | (vTags[3]._infSharp ?  5 : 0);
+        eBits |= (eTags[0]._nonManifold << 0) |
+                 (eTags[1]._nonManifold << 1) |
+                 (eTags[2]._nonManifold << 2);
 
-        //  Force adjacent edges as boundaries if only one vertex in the
-        //  resulting mask (which would be an irregular boundary for Catmark,
-        //  but not Loop):
-        if ((vBoundaryMask == (1 << 0)) || (vBoundaryMask == (1 << 2))) {
-            vBoundaryMask |= 10;
-        } else if ((vBoundaryMask == (1 << 1)) || (vBoundaryMask == (1 << 3))) {
-            vBoundaryMask |= 5;
+        if (isQuad) {
+            eBits |= (eTags[3]._nonManifold << 3);
+
+            if (vTags[0]._nonManifold && vTags[0]._infSharp) eBits |= 9;
+            if (vTags[1]._nonManifold && vTags[1]._infSharp) eBits |= 3;
+            if (vTags[2]._nonManifold && vTags[2]._infSharp) eBits |= 6;
+            if (vTags[3]._nonManifold && vTags[3]._infSharp) eBits |= 12;
+
+            //  This handles faces that touch a non-manifold edge without
+            //  its edges being incident that non-manifold edge -- these
+            //  are essentially irregular boundary vertices and will be
+            //  dealt with differently in future (not considered regular)
+            //
+            if (eBits == 0) {
+                if (vTags[0]._nonManifold) eBits |= 9;
+                if (vTags[1]._nonManifold) eBits |= 3;
+                if (vTags[2]._nonManifold) eBits |= 6;
+                if (vTags[3]._nonManifold) eBits |= 12;
+            }
+        } else {
+            if (vTags[0]._nonManifold && vTags[0]._infSharp) eBits |= 5;
+            if (vTags[1]._nonManifold && vTags[1]._infSharp) eBits |= 3;
+            if (vTags[2]._nonManifold && vTags[2]._infSharp) eBits |= 6;
         }
     }
 
-    //  Convert directly from a vertex- to edge-mask (no need to inspect edges):
-    int eBoundaryMask = 0;
-    if (vBoundaryMask) {
-        static int const vBoundaryMaskToEMask[16] =
-                { 0, -1, -1, 1, -1, -1, 2, 3, -1, 8, -1, 9, 4, 12, 6, -1 };
-        eBoundaryMask = vBoundaryMaskToEMask[vBoundaryMask];
-        assert(eBoundaryMask != -1);
+    int boundaryMask = 0;
+    if (eBits || vBits) {
+        if (isQuad) {
+            boundaryMask = eBits;
+        } else {
+            boundaryMask = encodeTriBoundaryMask(eBits, vBits);
+        }
     }
-    return eBoundaryMask;
+    return boundaryMask;
 }
 
 void
 PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
         Level::VSpan cornerSpans[4], int fvarChannel) const {
-
-    assertTriangularPatchesNotYetSupportedHere();
 
     Level const & level = _refiner.getLevel(levelIndex);
 
@@ -559,73 +816,183 @@ PatchBuilder::getQuadRegularPatchPoints(int levelIndex, Index faceIndex,
     if (regBoundaryMask < 0) {
         regBoundaryMask = GetRegularPatchBoundaryMask(levelIndex, faceIndex);
     }
+    bool interiorPatch = (regBoundaryMask == 0);
 
-    int bType  = 0;
-    int bIndex = 0;
-    if (regBoundaryMask) {
-        static int const boundaryEdgeMaskToType[16] =
-            { 0, 1, 1, 2, 1, -1, 2, -1, 1, 2, -1, -1, 2, -1, -1, -1 };
-        static int const boundaryEdgeMaskToFeature[16] =
-            { -1, 0, 1, 1, 2, -1, 2, -1, 3, 0, -1, -1, 3, -1, -1,-1 };
+    static int const patchPointsPerCorner[4][4] = { {  5,  4,  0,  1 },
+                                                    {  6,  2,  3,  7 },
+                                                    { 10, 11, 15, 14 },
+                                                    {  9, 13, 12,  8 } };
 
-        bType  = boundaryEdgeMaskToType[regBoundaryMask];
-        bIndex = boundaryEdgeMaskToFeature[regBoundaryMask];
+    int eMask = regBoundaryMask;
+
+    Level const & level = _refiner.getLevel(levelIndex);
+
+    ConstIndexArray fVerts  = level.getFaceVertices(faceIndex);
+    ConstIndexArray fPoints = getFacePoints(level, faceIndex, fvarChannel);
+
+    Index boundaryPoint = INDEX_INVALID;
+    if (!interiorPatch && _options.fillMissingBoundaryPoints) {
+        boundaryPoint = fPoints[0];
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        Index v = fVerts[i];
+
+        const int* cornerPointIndices = patchPointsPerCorner[i];
+
+        ConstIndexArray      vFaces   = level.getVertexFaces(v);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
+
+        Index f = faceIndex;
+        int fInVFaces = vFaces.FindIndex(f);
+        assert(vInFaces[fInVFaces] == i);  // Beware non-manifold vert in face twice...
+
+        bool interiorCorner = interiorPatch || (((eMask & (1 << i)) |
+                                                 (eMask & (1 << fastMod4(i+3)))) == 0);
+        if (interiorCorner) {
+            int fOppInVFaces = fastMod4(fInVFaces + 2);
+
+            Index fOpp = vFaces[fOppInVFaces];
+            int vInFOpp = vInFaces[fOppInVFaces];
+            ConstIndexArray fOppPoints = getFacePoints(level, fOpp, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = fOppPoints[fastMod4(vInFOpp + 1)];
+            patchPoints[cornerPointIndices[2]] = fOppPoints[fastMod4(vInFOpp + 2)];
+            patchPoints[cornerPointIndices[3]] = fOppPoints[fastMod4(vInFOpp + 3)];
+        } else if ((eMask & (1 << i)) && (eMask & (1 << fastMod4(i+3)))) {
+            //  Two indicent boundary edges -- no incident faces
+            patchPoints[cornerPointIndices[1]] = boundaryPoint;
+            patchPoints[cornerPointIndices[2]] = boundaryPoint;
+            patchPoints[cornerPointIndices[3]] = boundaryPoint;
+        } else if (eMask & (1 << i)) {
+            //  Leading/outgoing boundary edge -- need next face:
+            int vInFNext;
+            Index fNext = getNextFaceInVertFaces(level, fInVFaces, vFaces, vInFaces,
+                                   !level.getVertexTag(v)._nonManifold, vInFNext);
+
+            ConstIndexArray fNextPoints = getFacePoints(level, fNext, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = fNextPoints[fastMod4(vInFNext + 3)];
+            patchPoints[cornerPointIndices[2]] = boundaryPoint;
+            patchPoints[cornerPointIndices[3]] = boundaryPoint;
+        } else {
+            //  Trailing/incoming boundary edge -- need previous face:
+            int vInFPrev;
+            Index fPrev = getPrevFaceInVertFaces(level, fInVFaces, vFaces, vInFaces,
+                                   !level.getVertexTag(v)._nonManifold, vInFPrev);
+
+            ConstIndexArray fPrevPoints = getFacePoints(level, fPrev, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = boundaryPoint;
+            patchPoints[cornerPointIndices[2]] = boundaryPoint;
+            patchPoints[cornerPointIndices[3]] = fPrevPoints[fastMod4(vInFPrev + 1)];
+        }
+        patchPoints[cornerPointIndices[0]] = fPoints[i];
+    }
+    return 16;
+}
+
+int
+PatchBuilder::getTriRegularPatchPoints(int levelIndex, Index faceIndex,
+        int regBoundaryMask, Index patchPoints[],
+        int fvarChannel) const {
+
+    if (regBoundaryMask < 0) {
+        regBoundaryMask = GetRegularPatchBoundaryMask(levelIndex, faceIndex);
+    }
+    bool interiorPatch = (regBoundaryMask == 0);
+
+    static int const patchPointsPerCorner[3][4] = { { 4, 7, 3, 0 },
+                                                    { 5, 1, 2, 6 },
+                                                    { 8, 9, 11, 10 } };
+
+    int vMask = 0;
+    int eMask = 0;
+    if (!interiorPatch) {
+        decodeTriBoundaryMask(regBoundaryMask, eMask, vMask);
     }
 
     Level const & level = _refiner.getLevel(levelIndex);
 
-    Index sourcePoints[16];
+    ConstIndexArray fVerts  = level.getFaceVertices(faceIndex);
+    ConstIndexArray fPoints = getFacePoints(level, faceIndex, fvarChannel);
 
-    int const * permutation = 0;
-    if (bType == 0) {
-        static int const permuteRegular[16] =
-            { 5, 6, 7, 8, 4, 0, 1, 9, 15, 3, 2, 10, 14, 13, 12, 11 };
-        permutation = permuteRegular;
-        level.gatherQuadRegularInteriorPatchPoints(
-                faceIndex, sourcePoints, /*rotation=*/0, fvarChannel);
-    } else if (bType == 1) {
-        // Expand boundary patch vertices and rotate to
-        // restore correct orientation.
-        static int const permuteBoundary[4][16] = {
-            { -1, -1, -1, -1, 11, 3, 0, 4, 10, 2, 1, 5, 9, 8, 7, 6 },
-            { 9, 10, 11, -1, 8, 2, 3, -1, 7, 1, 0, -1, 6, 5, 4, -1 },
-            { 6, 7, 8, 9, 5, 1, 2, 10, 4, 0, 3, 11, -1, -1, -1, -1 },
-            { -1, 4, 5, 6, -1, 0, 1, 7, -1, 3, 2, 8, -1, 11, 10, 9 } };
-        permutation = permuteBoundary[bIndex];
-        level.gatherQuadRegularBoundaryPatchPoints(
-                faceIndex, sourcePoints, bIndex, fvarChannel);
-    } else if (bType == 2) {
-        // Expand corner patch vertices and rotate to
-        // restore correct orientation.
-        static int const permuteCorner[4][16] = {
-            { -1, -1, -1, -1, -1, 0, 1, 4, -1, 3, 2, 5, -1, 8, 7, 6 },
-            { -1, -1, -1, -1, 8, 3, 0, -1, 7, 2, 1, -1, 6, 5, 4, -1 },
-            { 6, 7, 8, -1, 5, 2, 3, -1, 4, 1, 0, -1, -1, -1, -1, -1 },
-            { -1, 4, 5, 6, -1, 1, 2, 7, -1, 0, 3, 8, -1, -1, -1, -1 } };
-        permutation = permuteCorner[bIndex];
-        level.gatherQuadRegularCornerPatchPoints(
-                faceIndex, sourcePoints, bIndex, fvarChannel);
+    Index boundaryPoint = INDEX_INVALID;
+    if (!interiorPatch && _options.fillMissingBoundaryPoints) {
+        boundaryPoint = fPoints[0];
     }
-    assert(permutation != 0);
 
-    //  Re-orient the points into a row-wise order and (optionally) fill in any
-    //  missing boundary points with a known point (first of the source points)
-    if (regBoundaryMask == 0) {
-        for (int i = 0; i < 16; ++i) {
-            patchPoints[i] = sourcePoints[permutation[i]];
+    for (int i = 0; i < 3; ++i) {
+        Index v = fVerts[i];
+
+        const int* cornerPointIndices = patchPointsPerCorner[i];
+
+        ConstIndexArray      vFaces   = level.getVertexFaces(v);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
+
+        Index f = faceIndex;
+        int fInVFaces = vFaces.FindIndex(f);
+
+        bool interiorCorner = interiorPatch || ((vMask & (1 << i)) == 0);
+        if (interiorCorner) {
+            int f2InVFaces = fastModN(fInVFaces + 2, 6);
+            int f3InVFaces = fastModN(fInVFaces + 3, 6);
+
+            Index f2 = vFaces[f2InVFaces];
+            Index f3 = vFaces[f3InVFaces];
+
+            int vInf2 = vInFaces[f2InVFaces];
+            int vInf3 = vInFaces[f3InVFaces];
+
+            ConstIndexArray f2Points = getFacePoints(level, f2, fvarChannel);
+            ConstIndexArray f3Points = getFacePoints(level, f3, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = f2Points[fastMod3(vInf2 + 1)];
+            patchPoints[cornerPointIndices[2]] = f3Points[fastMod3(vInf3 + 1)];
+            patchPoints[cornerPointIndices[3]] = f3Points[fastMod3(vInf3 + 2)];
+        } else if ((eMask & (1 << i)) && (eMask & (1 << fastMod3(i+2)))) {
+            //  Test for two indicent boundary edges -- no incident faces
+
+            patchPoints[cornerPointIndices[1]] = boundaryPoint;
+            patchPoints[cornerPointIndices[2]] = boundaryPoint;
+            patchPoints[cornerPointIndices[3]] = boundaryPoint;
+        } else if (eMask & (1 << i)) {
+            //  Test for leading/outgoing boundary edge:
+            int f2InVFaces = fastModN(fInVFaces + 2, vFaces.size());
+
+            Index f2 = vFaces[f2InVFaces];
+            int vInf2 = vInFaces[f2InVFaces];
+            ConstIndexArray f2Points = getFacePoints(level, f2, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = f2Points[fastMod3(vInf2 + 1)];
+            patchPoints[cornerPointIndices[2]] = f2Points[fastMod3(vInf2 + 2)];
+            patchPoints[cornerPointIndices[3]] = boundaryPoint;
+        } else if (eMask & (1 << fastMod3(i+2))) {
+            //  Test for trailing/incoming boundary edge:
+            int f0InVFaces = fastModN(fInVFaces + vFaces.size() - 2, vFaces.size());
+
+            Index f0 = vFaces[f0InVFaces];
+            int vInf0 = vInFaces[f0InVFaces];
+            ConstIndexArray f0Points = getFacePoints(level, f0, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = boundaryPoint;
+            patchPoints[cornerPointIndices[2]] = boundaryPoint;
+            patchPoints[cornerPointIndices[3]] = f0Points[fastMod3(vInf0 + 1)];
+        } else {
+            //  Test for boundary vertex:
+            int f2InVFaces = fastModN(fInVFaces + 1, vFaces.size());
+
+            Index f2 = vFaces[f2InVFaces];
+            int vInf2 = vInFaces[f2InVFaces];
+            ConstIndexArray f2Points = getFacePoints(level, f2, fvarChannel);
+
+            patchPoints[cornerPointIndices[1]] = f2Points[fastMod3(vInf2 + 2)];
+            patchPoints[cornerPointIndices[2]] = boundaryPoint;
+            patchPoints[cornerPointIndices[3]] = boundaryPoint;
         }
-    } else {
-        for (int i = 0; i < 16; ++i) {
-            if (permutation[i] >= 0) {
-                patchPoints[i] = sourcePoints[permutation[i]];
-            } else if (_options.fillMissingBoundaryPoints) {
-                patchPoints[i] = sourcePoints[0];
-            } else {
-                patchPoints[i] = INDEX_INVALID;
-            }
-        }
+        patchPoints[cornerPointIndices[0]] = fPoints[i];
     }
-    return 16;
+    return 12;
 }
 
 int
@@ -640,9 +1007,8 @@ PatchBuilder::GetRegularPatchPoints(int levelIndex, Index faceIndex,
         return getQuadRegularPatchPoints(
             levelIndex, faceIndex, regBoundaryMask, patchPoints, fvarChannel);
     } else {
-        assertTriangularPatchesNotYetSupportedHere();
-        //  return getTriRegularPatchPoints(
-        //      levelIndex, faceIndex, regBoundaryMask, patchPoints, fvarChannel);
+        return getTriRegularPatchPoints(
+            levelIndex, faceIndex, regBoundaryMask, patchPoints, fvarChannel);
     }
     return 0;
 }
@@ -659,7 +1025,7 @@ PatchBuilder::assembleIrregularSourcePatch(
 
     ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
-    for (int corner = 0; corner < 4; ++corner) {
+    for (int corner = 0; corner < fVerts.size(); ++corner) {
         ConstIndexArray vFaces = level.getVertexFaces(fVerts[corner]);
 
         //
@@ -689,7 +1055,7 @@ PatchBuilder::assembleIrregularSourcePatch(
 
         int patchFace = 0;
         for ( ; patchFace < numFaces; ++patchFace) {
-            int vFaceIndex = (firstFace + patchFace) % vFaces.size();
+            int vFaceIndex = fastModN(firstFace + patchFace, vFaces.size());
             if (vFaces[vFaceIndex] == faceIndex) {
                 break;
             }
@@ -702,7 +1068,8 @@ PatchBuilder::assembleIrregularSourcePatch(
         sourcePatch._corners[corner]._numFaces  = numFaces;
         sourcePatch._corners[corner]._patchFace = patchFace;
     }
-    sourcePatch.Finalize();
+    sourcePatch.Finalize(fVerts.size());
+
     return sourcePatch.GetNumSourcePoints();
 }
 
@@ -727,9 +1094,8 @@ int
 PatchBuilder::gatherIrregularSourcePoints(
         int levelIndex, Index faceIndex,
         Level::VSpan const cornerSpans[4], SourcePatch & sourcePatch,
-        Index patchVerts[], int fvarChannel) const
+        Index patchVerts[], int fvarChannel) const {
 
-{
     //
     //  Allocate temporary space for rings around the corners in both the Level
     //  and the Patch, then retrieve corresponding rings and assign the source
@@ -749,19 +1115,31 @@ PatchBuilder::gatherIrregularSourcePoints(
     Level const & level = _refiner.getLevel(levelIndex);
 
     ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
-    for (int corner = 0; corner < 4; ++corner) {
+    for (int corner = 0; corner < sourcePatch._numCorners; ++corner) {
         Index cornerVertex = faceVerts[corner];
         
         //  Gather the ring of source points from the Vtr level:
         int sourceRingSize = 0;
         if (!cornerSpans[corner].isAssigned()) {
-            sourceRingSize = level.gatherQuadRegularRingAroundVertex(
-                cornerVertex, sourceRingVertices,
-                fvarChannel);
+            if (sourcePatch._numCorners == 4) {
+                sourceRingSize = level.gatherQuadRegularRingAroundVertex(
+                    cornerVertex, sourceRingVertices,
+                    fvarChannel);
+            } else {
+                sourceRingSize = gatherTriRegularRingAroundVertex(level,
+                    cornerVertex, sourceRingVertices,
+                    fvarChannel);
+            }
         } else {
-            sourceRingSize = level.gatherQuadRegularPartialRingAroundVertex(
-                cornerVertex, cornerSpans[corner], sourceRingVertices,
-                fvarChannel);
+            if (sourcePatch._numCorners == 4) {
+                sourceRingSize = level.gatherQuadRegularPartialRingAroundVertex(
+                    cornerVertex, cornerSpans[corner], sourceRingVertices,
+                    fvarChannel);
+            } else {
+                sourceRingSize = gatherTriRegularPartialRingAroundVertex(level,
+                    cornerVertex, cornerSpans[corner], sourceRingVertices,
+                    fvarChannel);
+            }
         }
 
         //  Gather the ring of local points from the patch:
@@ -788,8 +1166,6 @@ PatchBuilder::GetIrregularPatchSourcePoints(
         int levelIndex, Index faceIndex, Level::VSpan const cornerSpans[],
         Index sourcePoints[], int fvarChannel) const {
 
-    assertTriangularPatchesNotYetSupportedHere();
-
     SourcePatch sourcePatch;
     assembleIrregularSourcePatch(
             levelIndex, faceIndex, cornerSpans, sourcePatch);
@@ -808,8 +1184,6 @@ PatchBuilder::GetIrregularPatchConversionMatrix(
         int levelIndex, Index faceIndex,
         Level::VSpan const cornerSpans[],
         SparseMatrix<REAL> & conversionMatrix) const {
-
-    assertTriangularPatchesNotYetSupportedHere();
 
     SourcePatch sourcePatch;
     assembleIrregularSourcePatch(
@@ -830,7 +1204,7 @@ bool
 PatchBuilder::IsRegularSingleCreasePatch(int levelIndex, Index faceIndex,
         SingleCreaseInfo & creaseInfo) const {
 
-    assertTriangularPatchesNotYetSupportedHere();
+    if (_schemeRegFaceSize != 4) return false;
 
     Level const & level = _refiner.getLevel(levelIndex);
 
@@ -852,7 +1226,7 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
 
     int regFaceSize = _schemeRegFaceSize;
 
-    bool irregular =
+    bool irregBase =
         _refiner.GetLevel(depth).GetFaceVertices(faceIndex).size() !=
         regFaceSize;
 
@@ -870,7 +1244,7 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
         Index parentFaceIndex =
             refinement.getChildFaceParentFace(childFaceIndex);
 
-        irregular =
+        irregBase =
             parentLevel.getFaceVertices(parentFaceIndex).size() !=
             regFaceSize;
 
@@ -897,7 +1271,7 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
                 }
             }
             ofs = (unsigned short)(ofs << 1);
-        } else if (!irregular) {
+        } else if (!irregBase) {
             childIndexInParent =
                 refinement.getChildFaceInParentFace(childFaceIndex);
 
@@ -936,7 +1310,7 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
     //  Need to store ptex index from base face and child of an irregular face:
     Index ptexIndex = ptexIndices.GetFaceId(baseFaceIndex);
     assert(ptexIndex != -1);
-    if (irregular) {
+    if (irregBase) {
         ptexIndex += childIndexInParent;
     }
 
@@ -948,7 +1322,7 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
     }
 
     PatchParam param;
-    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, irregular,
+    param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, irregBase,
               (unsigned short) boundaryMask, (unsigned short) transitionMask);
     return param;
 }
@@ -1027,23 +1401,27 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
 //  dealt with in the constructor.
 //
 void
-SourcePatch::Finalize() {
+SourcePatch::Finalize(int size) {
 
     //
     //  Determine the sizes of the rings and the total number of points
     //  involved.  In the process, identify which corners share ring points
     //  with their neighbors and accumulate maximal ring sizes and valence:
     //
+    bool isQuad = (size == 4);
+
+    _numCorners = size;
+
     _maxValence = 0;
     _maxRingSize = 0;
-    _numSourcePoints = 4;
+    _numSourcePoints = _numCorners;
 
-    for (int cIndex = 0; cIndex < 4; ++cIndex) {
+    for (int cIndex = 0; cIndex < _numCorners; ++cIndex) {
         //
         //  Need valence-2 information for neighbors as it affects sizing:
         //
-        int cPrev = (cIndex + 3) & 0x3;
-        int cNext = (cIndex + 1) & 0x3;
+        int cPrev = fastModN(cIndex + 2 + isQuad, _numCorners);
+        int cNext = fastModN(cIndex + 1,          _numCorners);
 
         bool prevIsVal2Interior = ((_corners[cPrev]._numFaces == 2) &&
                                    !_corners[cPrev]._boundary);
@@ -1052,41 +1430,50 @@ SourcePatch::Finalize() {
         bool nextIsVal2Interior = ((_corners[cNext]._numFaces == 2) &&
                                    !_corners[cNext]._boundary);
 
-        _corners[cIndex]._val2Interior = thisIsVal2Interior;
-        _corners[cIndex]._val2Adjacent = prevIsVal2Interior || nextIsVal2Interior;
+        Corner & corner = _corners[cIndex];
+
+        corner._val2Interior = thisIsVal2Interior;
+        corner._val2Adjacent = prevIsVal2Interior || nextIsVal2Interior;
 
         //
         //  General cases are >= 3-face interior and >= 2-face boundary:
         //
-        Corner & corner = _corners[cIndex];
-
         if ((corner._numFaces + corner._boundary) > 2) {
+            //
+            //  Quads generally share with both prev and next, but triangles
+            //  never share with prev because of the necessary asymmetry of
+            //  the local ring points.
+            //
             if (corner._boundary) {
-                corner._sharesWithPrev = (corner._patchFace != (corner._numFaces - 1));
+                corner._sharesWithPrev = isQuad && (corner._patchFace != (corner._numFaces - 1));
                 corner._sharesWithNext = (corner._patchFace != 0);
             } else if (corner._dart) {
-                corner._sharesWithPrev = !_corners[cPrev]._boundary;
+                corner._sharesWithPrev = isQuad && !_corners[cPrev]._boundary;
                 corner._sharesWithNext = !_corners[cNext]._boundary;
             } else {
-                corner._sharesWithPrev = true;
+                corner._sharesWithPrev = isQuad;
                 corner._sharesWithNext = true;
             }
 
-            _ringSizes[cIndex]      = corner._numFaces * 2 + corner._boundary;
-            _localRingSizes[cIndex] = _ringSizes[cIndex] - 3
-                                    - corner._sharesWithPrev - corner._sharesWithNext
-                                    - prevIsVal2Interior - nextIsVal2Interior;
+            _ringSizes[cIndex]      = corner._numFaces * (1 + isQuad) + corner._boundary;
+            _localRingSizes[cIndex] = _ringSizes[cIndex] - (_numCorners - 1)
+                                    - corner._sharesWithPrev - corner._sharesWithNext;
+
+            if (corner._val2Adjacent) {
+                _localRingSizes[cIndex] -= prevIsVal2Interior;
+                _localRingSizes[cIndex] -= (nextIsVal2Interior && isQuad);
+            }
         } else {
             corner._sharesWithPrev = false;
             corner._sharesWithNext = false;
 
-            //  Single-face boundary and valence-2 interior:
+            //  Single-face boundary/corner and valence-2 interior:
             if (corner._numFaces == 1) {
-                _ringSizes[cIndex]      = 3;
+                _ringSizes[cIndex]      = _numCorners - 1;
                 _localRingSizes[cIndex] = 0;
             } else {
-                _ringSizes[cIndex]      = 4;
-                _localRingSizes[cIndex] = 1;
+                _ringSizes[cIndex]      = 2 * (1 + isQuad);
+                _localRingSizes[cIndex] = isQuad;
             }
         }
         _localRingOffsets[cIndex] = _numSourcePoints;
@@ -1098,41 +1485,57 @@ SourcePatch::Finalize() {
     }
 }
 
+
 int
 SourcePatch::GetCornerRingPoints(int corner, int ringPoints[]) const {
 
-    int cNext = (corner + 1) & 0x3;
-    int cOpp  = (corner + 2) & 0x3;
-    int cPrev = (corner + 3) & 0x3;
+    bool isQuad = (_numCorners == 4);
+
+    int cNext = fastModN(corner + 1,          _numCorners);
+    int cOpp  = fastModN(corner + 1 + isQuad, _numCorners);
+    int cPrev = fastModN(corner + 2 + isQuad, _numCorners);
 
     //
     //  Assemble the ring in a canonical ordering beginning with the points of
-    //  the three other corners of the face followed by the local ring -- with
+    //  the 2 or 3 other corners of the face followed by the local ring -- with
     //  any shared or compensating points (for valence-2 interior) preceding
     //  and following the points local to the ring.
     //
     int ringSize = 0;
 
+    //  The adjacent corner points:
     ringPoints[ringSize++] = cNext;
-    ringPoints[ringSize++] = cOpp;
+    if (isQuad) {
+        ringPoints[ringSize++] = cOpp;
+    }
     ringPoints[ringSize++] = cPrev;
 
+    //  Shared points preceding the local ring points:
     if (_corners[cPrev]._val2Interior) {
-        ringPoints[ringSize++] = cOpp;
+        ringPoints[ringSize++] = isQuad ? cOpp : cNext;
     }
     if (_corners[corner]._sharesWithPrev) {
         ringPoints[ringSize++] = _localRingOffsets[cPrev] + _localRingSizes[cPrev] - 1;
     }
 
+    //  The local ring points:
     for (int i = 0; i < _localRingSizes[corner]; ++i) {
         ringPoints[ringSize++] = _localRingOffsets[corner] + i;
     }
 
-    if (_corners[corner]._sharesWithNext) {
-        ringPoints[ringSize++] = _localRingOffsets[cNext];
-    }
-    if (_corners[cNext]._val2Interior) {
-        ringPoints[ringSize++] = cOpp;
+    //  Shared points following the local ring points:
+    if (isQuad) {
+        if (_corners[corner]._sharesWithNext) {
+            ringPoints[ringSize++] = _localRingOffsets[cNext];
+        }
+        if (_corners[cNext]._val2Interior) {
+            ringPoints[ringSize++] = cOpp;
+        }
+    } else {
+        if (_corners[corner]._sharesWithNext) {
+            ringPoints[ringSize++] = _corners[cNext]._val2Interior
+                                   ? cPrev : _localRingOffsets[cNext];
+        }
     }
     assert(ringSize == _ringSizes[corner]);
 
@@ -1140,7 +1543,7 @@ SourcePatch::GetCornerRingPoints(int corner, int ringPoints[]) const {
     //  is first, so rotate the assembled ring if that's not the case:
     //
     if (_corners[corner]._patchFace) {
-        int rotationOffset = ringSize - 2*_corners[corner]._patchFace;
+        int rotationOffset = ringSize - (1 + isQuad) * _corners[corner]._patchFace;
         std::rotate(ringPoints, ringPoints + rotationOffset, ringPoints + ringSize);
     }
     return ringSize;
