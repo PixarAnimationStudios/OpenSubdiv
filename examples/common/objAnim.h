@@ -25,16 +25,17 @@
 #ifndef OBJ_ANIM_H
 #define OBJ_ANIM_H
 
-#include <vector>
+#include "../../regression/common/shape_utils.h"
 
-struct Shape;
+#include <vector>
 
 class ObjAnim {
 
 public:
 
     // Factory function
-    static ObjAnim const * Create(std::vector<char const *> objFiles, bool axis=true);
+    static ObjAnim const * Create(std::vector<char const *> objFiles, bool axis=true,
+                                  Scheme scheme=kCatmark);
 
     // Destructor
     ~ObjAnim();

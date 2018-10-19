@@ -239,6 +239,7 @@ namespace {
     //
     Far::TopologyRefiner *
     createTopologyRefinerFromObj(std::string const & objFileName,
+                                 Sdc::SchemeType schemeType,
                                  PosVector & posVector) {
 
         const char *  filename = objFileName.c_str();
@@ -251,7 +252,8 @@ namespace {
             ifs.close();
             std::string shapeString = ss.str();
 
-            shape = Shape::parseObj(shapeString.c_str(), kCatmark, false);
+            shape = Shape::parseObj(
+                shapeString.c_str(), ConvertSdcTypeToShapeScheme(schemeType), false);
             if (shape == 0) {
                 fprintf(stderr, "Error:  Cannot create Shape from .obj file '%s'\n", filename);
                 return 0;
@@ -553,7 +555,8 @@ main(int argc, char **argv) {
 
     Far::TopologyRefiner * baseRefinerPtr = args.inputObjFile.empty() ?
             createTopologyRefinerDefault(args.geoMultiplier, basePositions) :
-            createTopologyRefinerFromObj(args.inputObjFile, basePositions);
+            createTopologyRefinerFromObj(args.inputObjFile, args.schemeType,
+                                         basePositions);
     assert(baseRefinerPtr);
     Far::TopologyRefiner & baseRefiner = *baseRefinerPtr;
 

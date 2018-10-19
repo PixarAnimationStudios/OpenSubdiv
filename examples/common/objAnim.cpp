@@ -88,7 +88,7 @@ ObjAnim::InterpolatePositions(float time, float * positions, int stride) const {
 }
 
 ObjAnim const *
-ObjAnim::Create(std::vector<char const *> objFiles, bool axis) {
+ObjAnim::Create(std::vector<char const *> objFiles, bool axis, Scheme scheme) {
 
     ObjAnim * anim=0;
 
@@ -118,7 +118,7 @@ ObjAnim::Create(std::vector<char const *> objFiles, bool axis) {
                 fflush(stdout);
                 std::string str = ss.str();
 
-                shape = Shape::parseObj(str.c_str(), kCatmark, false, axis);
+                shape = Shape::parseObj(str.c_str(), scheme, false, axis);
 
                 if (i==0) {
 
