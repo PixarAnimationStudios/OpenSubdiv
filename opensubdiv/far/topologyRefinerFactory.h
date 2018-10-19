@@ -125,7 +125,7 @@ public:
     ///
     /// @return           A new instance of TopologyRefiner or 0 for failure
     ///
-    static TopologyRefiner* Create(TopologyRefiner const & sourceOfBaseLevel);
+    static TopologyRefiner* Create(TopologyRefiner const & baseLevel);
 
 protected:
     typedef Vtr::internal::Level::TopologyError TopologyError;
