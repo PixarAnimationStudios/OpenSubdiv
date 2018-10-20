@@ -446,6 +446,8 @@ PatchTableBuilder::PatchTableBuilder(
     _table->_varyingPrecisionIsDouble = _options.setPatchPrecisionDouble;
     _table->_faceVaryingPrecisionIsDouble = _options.setFVarPatchPrecisionDouble;
 
+    _table->_varyingDesc = PatchDescriptor(_patchBuilder->GetLinearPatchType());
+
     //  State and helper to support LegacyGregory arrays in the PatchTable:
     _requiresLegacyGregoryTables = !_refiner.IsUniform() &&
         (_options.GetEndCapType() == Options::ENDCAP_LEGACY_GREGORY);
