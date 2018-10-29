@@ -201,16 +201,26 @@ public:
     ///
     /// @param end        Index of last destination value to update
     ///
-    template <class T>
-    void UpdateValues(T const *srcValues, T *dstValues, Index start=-1, Index end=-1) const {
+    template <class T, class U>
+    void UpdateValues(T const &srcValues, U &dstValues, Index start=-1, Index end=-1) const {
         this->update(srcValues, dstValues, _weights, start, end);
     }
 
-    template <class T>
-    void UpdateValues(T const *srcBaseValues, int numBaseValues, T const *srcNonBaseValues,
-        T *dstValues, Index start=-1, Index end=-1) const {
-        this->update(srcBaseValues, numBaseValues, srcNonBaseValues,
-            dstValues, _weights, start, end);
+    template <class T1, class T2, class U>
+    void UpdateValues(T1 const &srcBase, int numBase, T2 const &srcRef,
+        U &dstValues, Index start=-1, Index end=-1) const {
+        this->update(srcBase, numBase, srcRef, dstValues, _weights, start, end);
+    }
+
+    //  Pointer interface for backward compatibility
+    template <class T, class U>
+    void UpdateValues(T const *src, U *dst, Index start=-1, Index end=-1) const {
+        this->update(src, dst, _weights, start, end);
+    }
+    template <class T1, class T2, class U>
+    void UpdateValues(T1 const *srcBase, int numBase, T2 const *srcRef,
+        U *dst, Index start=-1, Index end=-1) const {
+        this->update(srcBase, numBase, srcRef, dst, _weights, start, end);
     }
 
     /// \brief Clears the stencils from the table
@@ -219,12 +229,11 @@ public:
 protected:
 
     // Update values by applying cached stencil weights to new control values
-    template <class T>
-    void update( T const *srcValues, T *dstValues,
+    template <class T, class U>
+    void update( T const &srcValues, U &dstValues,
         std::vector<REAL> const & valueWeights, Index start, Index end) const;
-    template <class T>
-    void update( T const *srcBaseValues, int numBaseValues,
-        T const *srcNonBaseValues, T *dstalues,
+    template <class T1, class T2, class U>
+    void update( T1 const &srcBase, int numBase, T2 const &srcRef, U &dstValues,
         std::vector<REAL> const & valueWeights, Index start, Index end) const;
 
     // Populate the offsets table from the stencil sizes in _sizes (factory helper)
@@ -463,23 +472,36 @@ public:
     ///
     /// @param end        Index of last destination derivative to update
     ///
-    template <class T>
-    void UpdateDerivs(T const *srcValues, T *uderivs, T *vderivs,
+    template <class T, class U>
+    void UpdateDerivs(T const & srcValues, U & uderivs, U & vderivs,
         int start=-1, int end=-1) const {
 
         this->update(srcValues, uderivs, _duWeights, start, end);
         this->update(srcValues, vderivs, _dvWeights, start, end);
     }
 
-    template <class T>
-    void UpdateDerivs(T const *srcBaseValues, int numBaseValues,
-        T const *srcNonBaseValues, T *uderivs, T *vderivs,
+    template <class T1, class T2, class U>
+    void UpdateDerivs(T1 const & srcBase, int numBase, T2 const & srcRef,
+        U & uderivs, U & vderivs, int start=-1, int end=-1) const {
+
+        this->update(srcBase, numBase, srcRef, uderivs, _duWeights, start, end);
+        this->update(srcBase, numBase, srcRef, vderivs, _dvWeights, start, end);
+    }
+
+    //  Pointer interface for backward compatibility
+    template <class T, class U>
+    void UpdateDerivs(T const *src, U *uderivs, U *vderivs,
         int start=-1, int end=-1) const {
 
-        this->update(srcBaseValues, numBaseValues, srcNonBaseValues,
-            uderivs, _duWeights, start, end);
-        this->update(srcBaseValues, numBaseValues, srcNonBaseValues,
-            vderivs, _dvWeights, start, end);
+        this->update(src, uderivs, _duWeights, start, end);
+        this->update(src, vderivs, _dvWeights, start, end);
+    }
+    template <class T1, class T2, class U>
+    void UpdateDerivs(T1 const *srcBase, int numBase, T2 const *srcRef,
+        U *uderivs, U *vderivs, int start=-1, int end=-1) const {
+
+        this->update(srcBase, numBase, srcRef, uderivs, _duWeights, start, end);
+        this->update(srcBase, numBase, srcRef, vderivs, _dvWeights, start, end);
     }
 
     /// \brief Updates 2nd derivative values based on the control values
@@ -502,8 +524,9 @@ public:
     ///
     /// @param end        Index of last destination derivative to update
     ///
-    template <class T>
-    void Update2ndDerivs(T const *srcValues, T *uuderivs, T *uvderivs, T *vvderivs,
+    template <class T, class U>
+    void Update2ndDerivs(T const & srcValues,
+        U & uuderivs, U & uvderivs, U & vvderivs,
         int start=-1, int end=-1) const {
 
         this->update(srcValues, uuderivs, _duuWeights, start, end);
@@ -511,17 +534,31 @@ public:
         this->update(srcValues, vvderivs, _dvvWeights, start, end);
     }
 
-    template <class T>
-    void Update2ndDerivs(T const *srcBaseValues, int numBaseValues,
-        T const *srcOtherValues, T *uuderivs, T *uvderivs, T *vvderivs,
+    template <class T1, class T2, class U>
+    void Update2ndDerivs(T1 const & srcBase, int numBase, T2 const & srcRef,
+        U & uuderivs, U & uvderivs, U & vvderivs, int start=-1, int end=-1) const {
+
+        this->update(srcBase, numBase, srcRef, uuderivs, _duuWeights, start, end);
+        this->update(srcBase, numBase, srcRef, uvderivs, _duvWeights, start, end);
+        this->update(srcBase, numBase, srcRef, vvderivs, _dvvWeights, start, end);
+    }
+
+    //  Pointer interface for backward compatibility
+    template <class T, class U>
+    void Update2ndDerivs(T const *src, T *uuderivs, U *uvderivs, U *vvderivs,
         int start=-1, int end=-1) const {
 
-        this->update(srcBaseValues, numBaseValues, srcOtherValues,
-            uuderivs, _duuWeights, start, end);
-        this->update(srcBaseValues, numBaseValues, srcOtherValues,
-            uvderivs, _duvWeights, start, end);
-        this->update(srcBaseValues, numBaseValues, srcOtherValues,
-            vvderivs, _dvvWeights, start, end);
+        this->update(src, uuderivs, _duuWeights, start, end);
+        this->update(src, uvderivs, _duvWeights, start, end);
+        this->update(src, vvderivs, _dvvWeights, start, end);
+    }
+    template <class T1, class T2, class U>
+    void Update2ndDerivs(T1 const *srcBase, int numBase, T2 const *srcRef,
+        U *uuderivs, U *uvderivs, U *vvderivs, int start=-1, int end=-1) const {
+
+        this->update(srcBase, numBase, srcRef, uuderivs, _duuWeights, start, end);
+        this->update(srcBase, numBase, srcRef, uvderivs, _duvWeights, start, end);
+        this->update(srcBase, numBase, srcRef, vvderivs, _dvvWeights, start, end);
     }
 
     /// \brief Clears the stencils from the table
@@ -577,55 +614,63 @@ protected:
 
 // Update values by applying cached stencil weights to new control values
 template <typename REAL>
-template <class T> void
-StencilTableReal<REAL>::update(T const *srcBaseValues, int numBaseValues,
-    T const *srcNonBaseValues, T *dstValues,
+template <class T1, class T2, class U> void
+StencilTableReal<REAL>::update(T1 const &srcBase, int numBase,
+    T2 const &srcRef, U &dstValues,
     std::vector<REAL> const &valueWeights, Index start, Index end) const {
 
     int const * sizes = &_sizes.at(0);
     Index const * indices = &_indices.at(0);
     REAL const * weights = &valueWeights.at(0);
 
-    if (start>0) {
-        assert(start<(Index)_offsets.size());
+    if (start > 0) {
+        assert(start < (Index)_offsets.size());
         sizes += start;
         indices += _offsets[start];
         weights += _offsets[start];
-        dstValues += start;
-    }
-
-    if (end<start || end<0) {
-        end = GetNumStencils();
-    }
-
-    int nstencils = end - std::max(0, start);
-
-    // Use separate loops for single and split buffers
-    if (srcNonBaseValues == 0) {
-        for (int i=0; i<nstencils; ++i, ++sizes) {
-            dstValues[i].Clear();
-            for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
-                dstValues[i].AddWithWeight( srcBaseValues[*indices], *weights );
-            }
-        }
     } else {
-        for (int i=0; i<nstencils; ++i, ++sizes) {
-            dstValues[i].Clear();
-            for (int j=0; j<*sizes; ++j, ++indices, ++weights) {
-                T const & srcValue = (*indices < numBaseValues)
-                                   ? srcBaseValues[*indices]
-                                   : srcNonBaseValues[*indices - numBaseValues];
-                dstValues[i].AddWithWeight( srcValue, *weights );
+        start = 0;
+    }
+
+    int nstencils = ((end < start) ? GetNumStencils() : end) - start;
+
+    for (int i = 0; i < nstencils; ++i, ++sizes) {
+        dstValues[start + i].Clear();
+        for (int j = 0; j < *sizes; ++j, ++indices, ++weights) {
+            if (*indices < numBase) {
+                dstValues[start + i].AddWithWeight(srcBase[*indices], *weights);
+            } else {
+                dstValues[start + i].AddWithWeight(srcRef[*indices - numBase], *weights);
             }
         }
     }
 }
 template <typename REAL>
-template <class T> void
-StencilTableReal<REAL>::update(T const *srcValues, T *dstValues,
+template <class T, class U> void
+StencilTableReal<REAL>::update(T const &srcValues, U &dstValues,
     std::vector<REAL> const &valueWeights, Index start, Index end) const {
 
-    this->update(srcValues, 0, (T const *)0, dstValues, valueWeights, start, end);
+    int const * sizes = &_sizes.at(0);
+    Index const * indices = &_indices.at(0);
+    REAL const * weights = &valueWeights.at(0);
+
+    if (start > 0) {
+        assert(start < (Index)_offsets.size());
+        sizes += start;
+        indices += _offsets[start];
+        weights += _offsets[start];
+    } else {
+        start = 0;
+    }
+
+    int nstencils = ((end < start) ? GetNumStencils() : end) - start;
+
+    for (int i = 0; i < nstencils; ++i, ++sizes) {
+        dstValues[start + i].Clear();
+        for (int j = 0; j < *sizes; ++j, ++indices, ++weights) {
+            dstValues[start + i].AddWithWeight(srcValues[*indices], *weights);
+        }
+    }
 }
 
 template <typename REAL>
