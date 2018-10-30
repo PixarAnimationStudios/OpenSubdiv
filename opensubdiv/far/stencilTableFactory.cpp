@@ -427,74 +427,109 @@ LimitStencilTableFactoryReal<REAL>::Create(TopologyRefiner const & refiner,
         return 0;
     }
 
-    bool uniform = refiner.IsUniform();
+    bool uniform  = refiner.IsUniform();
+    int  maxlevel = refiner.GetMaxLevel();
 
-    int maxlevel = refiner.GetMaxLevel();
+    bool interpolateVertex      = (options.interpolationMode == INTERPOLATE_VERTEX);
+    bool interpolateVarying     = (options.interpolationMode == INTERPOLATE_VARYING);
+    bool interpolateFaceVarying = (options.interpolationMode == INTERPOLATE_FACE_VARYING);
+    int  fvarChannel            = options.fvarChannel;
 
+    //
+    //  Quick sanity checks for given PatchTable and/or StencilTables -- more to
+    //  come once a PatchTable is built and the number of local points known:
+    //
+    int nRefinedStencils = 0;
+    if (uniform) {
+        nRefinedStencils = refiner.GetLevel(maxlevel).GetNumVertices();
+    } else if (!interpolateFaceVarying) {
+        nRefinedStencils = refiner.GetNumVerticesTotal();
+    } else {
+        nRefinedStencils = refiner.GetNumFVarValuesTotal(fvarChannel);
+    }
+    if (cvStencilsIn && (cvStencilsIn->GetNumStencils() < nRefinedStencils)) {
+        //  Too few stencils in given StencilTable
+        return 0;
+    }
+    if (patchTableIn && (patchTableIn->IsFeatureAdaptive() == uniform)) {
+        //  Adaptive/uniform mismatch with given PatchTable and refiner
+        return 0;
+    }
+
+    // If an appropriate StencilTable was given, use it, otherwise, create a new one
     StencilTableReal<REAL> const * cvstencils = cvStencilsIn;
     if (! cvstencils) {
+        //
         // Generate stencils for the control vertices - this is necessary to
         // properly factorize patches with control vertices at level 0 (natural
         // regular patches, such as in a torus)
         // note: the control vertices of the mesh are added as single-index
         //       stencils of weight 1.0f
+        //
         typename StencilTableFactoryReal<REAL>::Options stencilTableOptions;
         stencilTableOptions.generateIntermediateLevels = uniform ? false :true;
         stencilTableOptions.generateControlVerts = true;
         stencilTableOptions.generateOffsets = true;
+        stencilTableOptions.interpolationMode = options.interpolationMode;
+        stencilTableOptions.fvarChannel = options.fvarChannel;
 
-        // PERFORMANCE: We could potentially save some mem-copies by not
-        // instantiating the stencil tables and work directly off the source
-        // data.
         cvstencils = StencilTableFactoryReal<REAL>::Create(refiner, stencilTableOptions);
-    } else {
-        // Sanity checks
-        //
-        // Note that the input cvStencils could be larger than the number of
-        // refiner's vertices, due to the existence of the end cap stencils.
-        if (cvstencils->GetNumStencils() < (uniform ?
-            refiner.GetLevel(maxlevel).GetNumVertices() :
-                refiner.GetNumVerticesTotal())) {
-                return 0;
-        }
+        assert(cvstencils->GetNumStencils() == nRefinedStencils);
     }
 
-    // If a stencil table was given, use it, otherwise, create a new one
+    // If an appropriate PatchTable was given, use it, otherwise, create a new one
     PatchTable const * patchtable = patchTableIn;
-
     if (! patchtable) {
-        // XXXX (manuelk) If no patch-table was passed, we should be able to
-        // infer the patches fairly easily from the refiner. Once more tags
-        // have been added to the refiner, maybe we can remove the need for the
-        // patch table.
-
+        //
+        // Ideally we could create a sparse PatchTable here for the given
+        // Locations, but that requires inverting the ptex/base-face relation.
+        // so the caller must deal with that and provide such a PatchTable
+        //
         PatchTableFactory::Options patchTableOptions;
         patchTableOptions.SetPatchPrecision<REAL>();
+        patchTableOptions.generateVaryingTables = interpolateVarying;
+        patchTableOptions.generateFVarTables = interpolateFaceVarying;
+        if (interpolateFaceVarying) {
+            patchTableOptions.numFVarChannels = 1;
+            patchTableOptions.fvarChannelIndices = &fvarChannel;
+            patchTableOptions.generateFVarLegacyLinearPatches = uniform ||
+                !refiner.GetAdaptiveOptions().considerFVarChannels;
+        }
         patchTableOptions.SetEndCapType(
             Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
         patchTableOptions.useInfSharpPatch = !uniform &&
             refiner.GetAdaptiveOptions().useInfSharpPatch;
 
         patchtable = PatchTableFactory::Create(refiner, patchTableOptions);
+    }
 
-        if (! cvStencilsIn) {
-            // if cvstencils is just created above, append endcap stencils
-            if (StencilTableReal<REAL> const *localPointStencilTable =
-                patchtable->GetLocalPointStencilTable<REAL>()) {
-                StencilTableReal<REAL> const *table =
-                    StencilTableFactoryReal<REAL>::AppendLocalPointStencilTable(
-                        refiner, cvstencils, localPointStencilTable);
-                delete cvstencils;
-                cvstencils = table;
-            }
-        }
+    // Append local point stencils and further verfiy size of given StencilTable:
+    StencilTableReal<REAL> const * localstencils = 0;
+    if (interpolateVertex) {
+        localstencils = patchtable->GetLocalPointStencilTable<REAL>();
+    } else if (interpolateFaceVarying) {
+        localstencils = patchtable->GetLocalPointFaceVaryingStencilTable<REAL>(fvarChannel);
     } else {
-        // Sanity checks
-        if (patchtable->IsFeatureAdaptive()==uniform) {
-            if (! cvStencilsIn) {
-                assert(cvstencils && cvstencils!=cvStencilsIn);
-                delete cvstencils;
-            }
+        localstencils = patchtable->GetLocalPointVaryingStencilTable<REAL>();
+    }
+
+    if (localstencils && (cvstencils->GetNumStencils() == nRefinedStencils)) {
+        StencilTableReal<REAL> const *refinedstencils = cvstencils;
+        if (interpolateFaceVarying) {
+            cvstencils = StencilTableFactoryReal<REAL>::AppendLocalPointStencilTableFaceVarying(
+                    refiner, refinedstencils, localstencils, fvarChannel);
+        } else {
+            cvstencils = StencilTableFactoryReal<REAL>::AppendLocalPointStencilTable(
+                    refiner, refinedstencils, localstencils);
+        }
+        if (!cvStencilsIn) delete refinedstencils;
+    } else if (cvStencilsIn) {
+        int nLocalStencils = localstencils ? localstencils->GetNumStencils() : 0;
+        if (cvstencils->GetNumStencils() != (nRefinedStencils + nLocalStencils)) {
+            //  Stencil count mismatch with PatchTable and given StencilTable
+            //  (previously undetected and subject to crashing)
+
+            if (!patchTableIn) delete patchtable;
             return 0;
         }
     }
@@ -507,7 +542,9 @@ LimitStencilTableFactoryReal<REAL>::Create(TopologyRefiner const & refiner,
     //
     // Generate limit stencils for locations
     //
-    StencilBuilder<REAL> builder(refiner.GetLevel(0).GetNumVertices(),
+    StencilBuilder<REAL> builder(!interpolateFaceVarying
+                                    ? refiner.GetLevel(0).GetNumVertices()
+                                    : refiner.GetLevel(0).GetNumFVarValues(fvarChannel),
                                 /*genControlVerts*/ false,
                                 /*compactWeights*/  true);
     typename StencilBuilder<REAL>::Index origin(&builder, 0);
@@ -526,27 +563,61 @@ LimitStencilTableFactoryReal<REAL>::Create(TopologyRefiner const & refiner,
             PatchMap::Handle const * handle = 
                                         patchmap.FindPatch(array.ptexIdx, s, t);
             if (handle) {
-                ConstIndexArray cvs = patchtable->GetPatchVertices(*handle);
+                ConstIndexArray cvs;
+                if (interpolateVertex) {
+                    cvs = patchtable->GetPatchVertices(*handle);
+                } else if (interpolateFaceVarying) {
+                    cvs = patchtable->GetPatchFVarValues(*handle, fvarChannel);
+                } else {
+                    cvs = patchtable->GetPatchVaryingVertices(*handle);
+                }
 
                 StencilTableReal<REAL> const & src = *cvstencils;
                 dst = origin[numLimitStencils];
 
                 if (options.generate2ndDerivatives) {
-                    patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+                    if (interpolateVertex) {
+                        patchtable->EvaluateBasis<REAL>(
+                                *handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+                    } else if (interpolateFaceVarying) {
+                        patchtable->EvaluateBasisFaceVarying<REAL>(
+                                *handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt, fvarChannel);
+                    } else {
+                        patchtable->EvaluateBasisVarying<REAL>(
+                                *handle, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+                    }
 
                     dst.Clear();
                     for (int k = 0; k < cvs.size(); ++k) {
                         dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k], wDss[k], wDst[k], wDtt[k]);
                     }
                 } else if (options.generate1stDerivatives) {
-                    patchtable->EvaluateBasis(*handle, s, t, wP, wDs, wDt);
+                    if (interpolateVertex) {
+                        patchtable->EvaluateBasis<REAL>(
+                                *handle, s, t, wP, wDs, wDt);
+                    } else if (interpolateFaceVarying) {
+                        patchtable->EvaluateBasisFaceVarying<REAL>(
+                                *handle, s, t, wP, wDs, wDt, 0, 0, 0, fvarChannel);
+                    } else {
+                        patchtable->EvaluateBasisVarying<REAL>(
+                                *handle, s, t, wP, wDs, wDt);
+                    }
 
                     dst.Clear();
                     for (int k = 0; k < cvs.size(); ++k) {
                         dst.AddWithWeight(src[cvs[k]], wP[k], wDs[k], wDt[k]);
                     }
                 } else {
-                    patchtable->EvaluateBasis(*handle, s, t, wP);
+                    if (interpolateVertex) {
+                        patchtable->EvaluateBasis<REAL>(
+                                *handle, s, t, wP);
+                    } else if (interpolateFaceVarying) {
+                        patchtable->EvaluateBasisFaceVarying<REAL>(
+                                *handle, s, t, wP, 0, 0, 0, 0, 0, fvarChannel);
+                    } else {
+                        patchtable->EvaluateBasisVarying<REAL>(
+                                *handle, s, t, wP);
+                    }
 
                     dst.Clear();
                     for (int k = 0; k < cvs.size(); ++k) {

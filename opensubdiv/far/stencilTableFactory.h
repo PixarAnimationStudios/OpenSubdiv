@@ -131,6 +131,29 @@ public:
                 StencilTableReal<REAL> const *localPointStencilTable,
                 bool factorize = true);
 
+    /// \brief Utility function for stencil splicing for local point varying stencils.
+    ///
+    /// @param refiner              The TopologyRefiner containing the topology
+    ///
+    /// @param baseStencilTable     Input StencilTable for refined vertices
+    ///
+    /// @param localPointStencilTable
+    ///                             StencilTable for the change of basis patch points.
+    ///
+    /// @param factorize            If factorize set to true, endcap stencils will be
+    ///                             factorized with supporting vertices from baseStencil
+    ///                             table so that the endcap points can be computed
+    ///                             directly from control vertices.
+    ///
+    static StencilTableReal<REAL> const * AppendLocalPointStencilTableVarying(
+                TopologyRefiner const &refiner,
+                StencilTableReal<REAL> const *baseStencilTable,
+                StencilTableReal<REAL> const *localPointStencilTable,
+                bool factorize = true) {
+        return AppendLocalPointStencilTable(
+                refiner, baseStencilTable, localPointStencilTable, factorize);
+    }
+
     /// \brief Utility function for stencil splicing for local point
     /// face-varying stencils.
     ///
@@ -187,6 +210,25 @@ class LimitStencilTableFactoryReal {
 
 public:
 
+    enum Mode {
+        INTERPOLATE_VERTEX=0,           ///< vertex primvar stencils
+        INTERPOLATE_VARYING,            ///< varying primvar stencils
+        INTERPOLATE_FACE_VARYING        ///< face-varying primvar stencils
+    };
+
+    struct Options {
+
+        Options() : interpolationMode(INTERPOLATE_VERTEX),
+                    generate1stDerivatives(true),
+                    generate2ndDerivatives(false),
+                    fvarChannel(0) { }
+
+        unsigned int interpolationMode           : 2, ///< interpolation mode
+                     generate1stDerivatives      : 1, ///< Generate weights for 1st derivatives
+                     generate2ndDerivatives      : 1; ///< Generate weights for 2nd derivatives
+        unsigned int fvarChannel;                     ///< face-varying channel to use
+    };
+
     /// \brief Descriptor for limit surface locations
     struct LocationArray {
 
@@ -201,15 +243,6 @@ public:
 
     typedef std::vector<LocationArray> LocationArrayVec;
 
-    struct Options {
-
-        Options() : generate1stDerivatives(true),
-                    generate2ndDerivatives(false) { }
-
-        unsigned int generate1stDerivatives      : 1, ///< Generate weights for 1st derivatives
-                     generate2ndDerivatives      : 1; ///< Generate weights for 2nd derivatives
-    };
-
     /// \brief Instantiates LimitStencilTable from a TopologyRefiner that has
     ///        been refined either uniformly or adaptively.
     ///
@@ -218,13 +251,18 @@ public:
     /// @param locationArrays   An array of surface location descriptors
     ///                         (see LocationArray)
     ///
-    /// @param cvStencils       A set of StencilTable generated from the
-    ///                         TopologyRefiner (optional: prevents redundant
-    ///                         instantiation of the table if available)
+    /// @param cvStencils       A StencilTable generated from the TopologyRefiner
+    ///                         (Optional: prevents redundant instantiation of the
+    ///                         table if available. The given table must at least
+    ///                         contain stencils for all control points and all
+    ///                         refined points -- any stencils for local points of
+    ///                         a PatchTable must match the PatchTable provided or
+    ///                         internally generated)
     ///
-    /// @param patchTable       A set of PatchTable generated from the
-    ///                         TopologyRefiner (optional: prevents redundant
-    ///                         instantiation of the table if available)
+    /// @param patchTable       A PatchTable generated from the TopologyRefiner
+    ///                         (Optional: prevents redundant instantiation of the
+    ///                         table if available. The given table must match
+    ///                         the optional StencilTable if also provided)
     ///
     /// @param options          Options controlling the creation of the table
     ///
@@ -275,6 +313,19 @@ public:
 
         return static_cast<StencilTable const *>(
                 BaseFactory::AppendLocalPointStencilTable(refiner,
+                        static_cast<BaseTable const *>(baseStencilTable),
+                        static_cast<BaseTable const *>(localPointStencilTable),
+                        factorize));
+    }
+
+    static StencilTable const * AppendLocalPointStencilTableVarying(
+                TopologyRefiner const &refiner,
+                StencilTable const *baseStencilTable,
+                StencilTable const *localPointStencilTable,
+                bool factorize = true) {
+
+        return static_cast<StencilTable const *>(
+                BaseFactory::AppendLocalPointStencilTableVarying(refiner,
                         static_cast<BaseTable const *>(baseStencilTable),
                         static_cast<BaseTable const *>(localPointStencilTable),
                         factorize));
