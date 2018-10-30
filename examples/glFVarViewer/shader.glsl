@@ -167,48 +167,32 @@ out block {
 } outpt;
 
 uniform isamplerBuffer OsdFVarParamBuffer;
+layout(std140) uniform FVarArrayData {
+    OsdPatchArray fvarPatchArray[2];
+};
 
 vec2
 interpolateFaceVarying(vec2 uv, int fvarOffset)
 {
     int patchIndex = OsdGetPatchIndex(gl_PrimitiveID);
 
-#if defined(SHADING_FACEVARYING_SMOOTH_BSPLINE_BASIS)
-    float wP[16], wDs[16], wDt[16], wDss[16], wDst[16], wDtt[16];
-    int patchCVs = 16;
-    int patchStride = patchCVs;
+    OsdPatchArray array = fvarPatchArray[0];
+
     ivec3 fvarPatchParam = texelFetch(OsdFVarParamBuffer, patchIndex).xyz;
-    int boundaryMask = OsdGetPatchBoundaryMask(fvarPatchParam);
-    OsdGetBSplinePatchWeights(uv.s, uv.t, 1.0f, boundaryMask, wP, wDs, wDt, wDss, wDst, wDtt);
+    OsdPatchParam param = OsdPatchParamInit(fvarPatchParam.x,
+                                            fvarPatchParam.y,
+                                            fvarPatchParam.z);
 
-#elif defined(SHADING_FACEVARYING_SMOOTH_GREGORY_BASIS)
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
-    int patchCVs = 20;
-    int patchStride = patchCVs;
-    ivec3 fvarPatchParam = texelFetch(OsdFVarParamBuffer, patchIndex).xyz;
-    if (OsdGetPatchIsRegular(fvarPatchParam)) {
-        float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
-        patchCVs = 16;
-        int boundaryMask = OsdGetPatchBoundaryMask(fvarPatchParam);
-        OsdGetBSplinePatchWeights(uv.s, uv.t, 1.0f, boundaryMask, wP16, wDs16, wDt16, wDss16, wDst16, wDtt16);
-        for (int i=0; i<patchCVs; ++i) {
-            wP[i] = wP16[i];
-        }
-    } else {
-        OsdGetGregoryPatchWeights(uv.s, uv.t, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
-    }
+    int patchType = OsdPatchParamIsRegular(param) ? array.regDesc : array.desc;
 
-#else
-    float wP[4], wDs[4], wDt[4], wDss[4], wDst[4], wDtt[4];
-    int patchCVs = 4;
-    int patchStride = patchCVs;
-    OsdGetBilinearPatchWeights(uv.s, uv.t, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
-#endif
+    float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+    int numPoints = OsdEvaluatePatchBasisNormalized(patchType, param,
+                uv.s, uv.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
 
-    int primOffset = patchIndex * patchStride;
+    int primOffset = patchIndex * array.stride;
 
     vec2 result = vec2(0);
-    for (int i=0; i<patchCVs; ++i) {
+    for (int i=0; i<numPoints; ++i) {
         int index = (primOffset+i)*OSD_FVAR_WIDTH + fvarOffset;
         vec2 cv = vec2(texelFetch(OsdFVarDataBuffer, index).s,
                        texelFetch(OsdFVarDataBuffer, index + 1).s);
@@ -228,8 +212,13 @@ void emit(int index, vec3 normal)
 #endif
 
 #ifdef LOOP  // ----- scheme : LOOP
-    vec2 uv;
-    OSD_COMPUTE_FACE_VARYING_TRI_2(uv, /*fvarOffste=*/0, index);
+    vec2 trist[3] = vec2[](vec2(0,0), vec2(1,0), vec2(0,1));
+#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
+    vec2 st = trist[index];
+#else
+    vec2 st = inpt[index].v.tessCoord;
+#endif
+    vec2 uv = interpolateFaceVarying(st, /*fvarOffset*/0);
 
 #else        // ----- scheme : CATMARK / BILINEAR
 

@@ -117,7 +117,9 @@ int g_tessLevelMin = 1;
 GLuint g_transformUB = 0,
        g_transformBinding = 0,
        g_tessellationUB = 0,
-       g_tessellationBinding = 0;
+       g_tessellationBinding = 0,
+       g_fvarArrayDataUB = 0,
+       g_fvarArrayDataBinding = 0;
 
 struct Transform {
     float ModelViewMatrix[16];
@@ -685,6 +687,11 @@ public:
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
 
+        g_fvarArrayDataBinding = 2;
+        uboIndex = glGetUniformBlockIndex(program, "FVarArrayData");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_fvarArrayDataBinding);
+
         // assign texture locations
         GLint loc;
         glUseProgram(program);
@@ -708,6 +715,9 @@ ShaderCache g_shaderCache;
 //------------------------------------------------------------------------------
 static void
 updateUniformBlocks() {
+
+    using namespace OpenSubdiv;
+
     if (!g_transformUB) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
@@ -740,6 +750,28 @@ updateUniformBlocks() {
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_tessellationBinding, g_tessellationUB);
+
+    // Update and bind fvar patch array state
+    Osd::PatchArrayVector const &fvarPatchArrays =
+        g_mesh->GetPatchTable()->GetFVarPatchArrays();
+    if (! fvarPatchArrays.empty()) {
+	// bind patch arrays UBO (std140 struct size padded to vec4 alignment)
+	int patchArraySize =
+	    sizeof(GLint) * ((sizeof(Osd::PatchArray)/sizeof(GLint) + 3) & ~3);
+        if (!g_fvarArrayDataUB) {
+            glGenBuffers(1, &g_fvarArrayDataUB);
+        }
+	glBindBuffer(GL_UNIFORM_BUFFER, g_fvarArrayDataUB);
+	glBufferData(GL_UNIFORM_BUFFER,
+	    fvarPatchArrays.size()*patchArraySize, NULL, GL_STATIC_DRAW);
+	for (int i=0; i<(int)fvarPatchArrays.size(); ++i) {
+	    glBufferSubData(GL_UNIFORM_BUFFER,
+		i*patchArraySize, sizeof(Osd::PatchArray), &fvarPatchArrays[i]);
+	}
+
+        glBindBufferBase(GL_UNIFORM_BUFFER,
+                g_fvarArrayDataBinding, g_fvarArrayDataUB);
+    }
 }
 
 static void

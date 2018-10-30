@@ -26,7 +26,9 @@
 #include "../osd/tbbKernel.h"
 #include "../osd/types.h"
 #include "../osd/bufferDescriptor.h"
-#include "../far/patchBasis.h"
+#include "../osd/patchBasisCommonTypes.h"
+#include "../osd/patchBasisCommon.h"
+#include "../osd/patchBasisCommonEval.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -382,7 +384,7 @@ public:
     }
 
     void compute(tbb::blocked_range<int> const &r) const {
-        float wP[20], wDu[20], wDv[20];
+        float wP[20];
         BufferAdapter<const float> srcT(_src + _srcDesc.offset,
                                         _srcDesc.length,
                                         _srcDesc.stride);
@@ -396,23 +398,25 @@ public:
             PatchCoord const &coord = _patchCoords[i];
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
-            Far::PatchParam const & param =
+            Osd::PatchParam const & paramStruct =
                 _patchParamBuffer[coord.handle.patchIndex];
-            int patchType = param.IsRegular()
-                ? Far::PatchDescriptor::REGULAR
-                : array.GetPatchType();
+            OsdPatchParam param = OsdPatchParamInit(
+                paramStruct.field0, paramStruct.field1, paramStruct.sharpness);
 
-            int numControlVertices = Far::internal::EvaluatePatchBasis(patchType,
-                    param, coord.s, coord.t, wP, wDu, wDv);
+            int patchType = OsdPatchParamIsRegular(param)
+                ? array.GetPatchTypeRegular()
+                : array.GetPatchTypeIrregular();
 
-            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-            int indexBase = array.GetIndexBase() + indexStride *
+            int nPoints = OsdEvaluatePatchBasis(patchType, param,
+                    coord.s, coord.t, wP, 0, 0, 0, 0, 0);
+
+            int indexBase = array.GetIndexBase() + array.GetStride() *
                     (coord.handle.patchIndex - array.GetPrimitiveIdBase());
 
             const int *cvs = &_patchIndexBuffer[indexBase];
 
             dstT.Clear();
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
             }
             ++dstT;
@@ -441,17 +445,19 @@ public:
             PatchCoord const &coord = _patchCoords[i];
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
-            Far::PatchParam const & param =
+            Osd::PatchParam const & paramStruct =
                 _patchParamBuffer[coord.handle.patchIndex];
-            int patchType = param.IsRegular()
-                ? Far::PatchDescriptor::REGULAR
-                : array.GetPatchType();
+            OsdPatchParam param = OsdPatchParamInit(
+                paramStruct.field0, paramStruct.field1, paramStruct.sharpness);
 
-            int numControlVertices = Far::internal::EvaluatePatchBasis(patchType,
-                    param, coord.s, coord.t, wP, wDu, wDv);
+            int patchType = OsdPatchParamIsRegular(param)
+                ? array.GetPatchTypeRegular()
+                : array.GetPatchTypeIrregular();
 
-            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-            int indexBase = array.GetIndexBase() + indexStride *
+            int nPoints = OsdEvaluatePatchBasis(patchType, param,
+                    coord.s, coord.t, wP, wDu, wDv, 0, 0, 0);
+
+            int indexBase = array.GetIndexBase() + array.GetStride() *
                     (coord.handle.patchIndex - array.GetPrimitiveIdBase());
 
             const int *cvs = &_patchIndexBuffer[indexBase];
@@ -459,7 +465,7 @@ public:
             dstT.Clear();
             dstDuT.Clear();
             dstDvT.Clear();
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
                 dstDuT.AddWithWeight(srcT[cvs[j]], wDu[j]);
                 dstDvT.AddWithWeight(srcT[cvs[j]], wDv[j]);
@@ -504,17 +510,19 @@ public:
             PatchCoord const &coord = _patchCoords[i];
             PatchArray const &array = _patchArrayBuffer[coord.handle.arrayIndex];
 
-            Far::PatchParam const & param =
+            Osd::PatchParam const & paramStruct =
                 _patchParamBuffer[coord.handle.patchIndex];
-            int patchType = param.IsRegular()
-                ? Far::PatchDescriptor::REGULAR
-                : array.GetPatchType();
+            OsdPatchParam param = OsdPatchParamInit(
+                paramStruct.field0, paramStruct.field1, paramStruct.sharpness);
 
-            int numControlVertices = Far::internal::EvaluatePatchBasis(patchType,
-                    param, coord.s, coord.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
+            int patchType = OsdPatchParamIsRegular(param)
+                ? array.GetPatchTypeRegular()
+                : array.GetPatchTypeIrregular();
 
-            int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
-            int indexBase = array.GetIndexBase() + indexStride *
+            int nPoints = OsdEvaluatePatchBasis(patchType, param,
+                    coord.s, coord.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
+
+            int indexBase = array.GetIndexBase() + array.GetStride() *
                     (coord.handle.patchIndex - array.GetPrimitiveIdBase());
 
             const int *cvs = &_patchIndexBuffer[indexBase];
@@ -525,7 +533,7 @@ public:
             dstDuuT.Clear();
             dstDuvT.Clear();
             dstDvvT.Clear();
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 dstT.AddWithWeight(srcT[cvs[j]], wP[j]);
                 dstDuT.AddWithWeight(srcT[cvs[j]], wDu[j]);
                 dstDvT.AddWithWeight(srcT[cvs[j]], wDv[j]);

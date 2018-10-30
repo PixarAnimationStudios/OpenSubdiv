@@ -153,12 +153,16 @@ GLStencilTableTBO::~GLStencilTableTBO() {
 
 GLXFBEvaluator::GLXFBEvaluator(bool interleavedDerivativeBuffers)
     : _srcBufferTexture(0),
+      _patchArraysUBO(0),
       _interleavedDerivativeBuffers(interleavedDerivativeBuffers) {
 }
 
 GLXFBEvaluator::~GLXFBEvaluator() {
     if (_srcBufferTexture) {
         glDeleteTextures(1, &_srcBufferTexture);
+    }
+    if (_patchArraysUBO) {
+        glDeleteBuffers(1, &_patchArraysUBO);
     }
 }
 
@@ -438,6 +442,9 @@ GLXFBEvaluator::Compile(BufferDescriptor const &srcDesc,
     // create a texture for input buffer
     if (!_srcBufferTexture) {
         glGenTextures(1, &_srcBufferTexture);
+    }
+    if (!_patchArraysUBO) {
+        glGenBuffers(1, &_patchArraysUBO);
     }
     return true;
 }
@@ -735,9 +742,20 @@ GLXFBEvaluator::EvalPatches(
     bindTexture(_patchKernel.uniformPatchParamTexture, patchParamTexture, 1);
     bindTexture(_patchKernel.uniformPatchIndexTexture, patchIndexTexture, 2);
 
+    // bind patch arrays UBO (std140 struct size padded to vec4 alignment)
+    int patchArraySize =
+        sizeof(GLint) * ((sizeof(PatchArray)/sizeof(GLint) + 3) & ~3);
+    glBindBuffer(GL_UNIFORM_BUFFER, _patchArraysUBO);
+    glBufferData(GL_UNIFORM_BUFFER,
+        patchArrays.size()*patchArraySize, NULL, GL_STATIC_DRAW);
+    for (int i=0; i<(int)patchArrays.size(); ++i) {
+        glBufferSubData(GL_UNIFORM_BUFFER,
+            i*patchArraySize, sizeof(PatchArray), &patchArrays[i]);
+    }
+    glBindBufferBase(GL_UNIFORM_BUFFER,
+        _patchKernel.uniformPatchArraysUBOBinding, _patchArraysUBO);
+
     // set other uniforms
-    glUniform4iv(_patchKernel.uniformPatchArray, (int)patchArrays.size(),
-                 (const GLint*)&patchArrays[0]);
     glUniform1i(_patchKernel.uniformSrcOffset, srcDesc.offset);
 
     // input patchcoords
@@ -821,6 +839,10 @@ GLXFBEvaluator::EvalPatches(
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
     }
+
+    // unbind UBO
+    glBindBufferBase(GL_UNIFORM_BUFFER,
+        _patchKernel.uniformPatchArraysUBOBinding, 0);
 
     glDisable(GL_RASTERIZER_DISCARD);
     glUseProgram(0);
@@ -921,9 +943,12 @@ GLXFBEvaluator::_PatchKernel::Compile(BufferDescriptor const &srcDesc,
     // cache uniform locations
     uniformSrcBufferTexture  = glGetUniformLocation(program, "vertexBuffer");
     uniformSrcOffset         = glGetUniformLocation(program, "srcOffset");
-    uniformPatchArray        = glGetUniformLocation(program, "patchArray");
     uniformPatchParamTexture = glGetUniformLocation(program, "patchParamBuffer");
     uniformPatchIndexTexture = glGetUniformLocation(program, "patchIndexBuffer");
+
+    uniformPatchArraysUBOBinding = 1;
+    int uboIndex  = glGetUniformBlockIndex(program, "PatchArrays");
+    glUniformBlockBinding(program, uboIndex , uniformPatchArraysUBOBinding);
 
     return true;
 }

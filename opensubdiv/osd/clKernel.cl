@@ -159,66 +159,6 @@ __kernel void computeStencilsDerivatives(
 
 // ---------------------------------------------------------------------------
 
-struct PatchArray {
-    int patchType;
-    int numPatches;
-    int indexBase;        // an offset within the index buffer
-    int primitiveIdBase;  // an offset within the patch param buffer
-};
-
-struct PatchCoord {
-   int arrayIndex;
-   int patchIndex;
-   int vertIndex;
-   float s;
-   float t;
-};
-
-struct PatchParam {
-    uint field0;
-    uint field1;
-    float sharpness;
-};
-
-static int getDepth(uint patchBits) {
-    return (patchBits & 0xf);
-}
-
-static float getParamFraction(uint patchBits) {
-    bool nonQuadRoot = (patchBits >> 4) & 0x1;
-    int depth = getDepth(patchBits);
-    if (nonQuadRoot) {
-        return 1.0f / (float)( 1 << (depth-1) );
-    } else {
-        return 1.0f / (float)( 1 << depth );
-    }
-}
-
-static void normalizePatchCoord(uint patchBits, float *uv) {
-    float frac = getParamFraction(patchBits);
-
-    int iu = (patchBits >> 22) & 0x3ff;
-    int iv = (patchBits >> 12) & 0x3ff;
-
-    // top left corner
-    float pu = (float)iu*frac;
-    float pv = (float)iv*frac;
-
-    // normalize u,v coordinates
-    uv[0] = (uv[0] - pu) / frac;
-    uv[1] = (uv[1] - pv) / frac;
-}
-
-static bool isRegular(uint patchBits) {
-    return ((patchBits >> 5) & 0x1) != 0;
-}
-
-static int getNumControlVertices(int patchType) {
-    return (patchType == 3) ? 4 :
-           (patchType == 6) ? 16 :
-           (patchType == 9) ? 20 : 0;
-}
-
 __kernel void computePatches(__global float *src, int srcOffset,
                              __global float *dst, int dstOffset,
                              __global float *du,  int duOffset, int duStride,
@@ -226,10 +166,10 @@ __kernel void computePatches(__global float *src, int srcOffset,
                              __global float *duu, int duuOffset, int duuStride,
                              __global float *duv, int duvOffset, int duvStride,
                              __global float *dvv, int dvvOffset, int dvvStride,
-                             __global struct PatchCoord *patchCoords,
-                             __global struct PatchArray *patchArrayBuffer,
+                             __global struct OsdPatchCoord *patchCoords,
+                             __global struct OsdPatchArray *patchArrayBuffer,
                              __global int *patchIndexBuffer,
-                             __global struct PatchParam *patchParamBuffer) {
+                             __global struct OsdPatchParam *patchParamBuffer) {
     int current = get_global_id(0);
 
     if (src) src += srcOffset;
@@ -240,41 +180,22 @@ __kernel void computePatches(__global float *src, int srcOffset,
     if (duv) duv += duvOffset;
     if (dvv) dvv += dvvOffset;
 
-    struct PatchCoord coord = patchCoords[current];
-    struct PatchArray array = patchArrayBuffer[coord.arrayIndex];
+    struct OsdPatchCoord coord = patchCoords[current];
+    struct OsdPatchArray array = patchArrayBuffer[coord.arrayIndex];
+    struct OsdPatchParam param = patchParamBuffer[coord.patchIndex];
 
-    uint patchBits = patchParamBuffer[coord.patchIndex].field1;
-    int patchType = isRegular(patchBits) ? 6 : array.patchType;
+    int patchType = OsdPatchParamIsRegular(param) ? array.regDesc : array.desc;
 
-    float uv[2] = {coord.s, coord.t};
-    normalizePatchCoord(patchBits, uv);
-    float dScale = (float)(1 << getDepth(patchBits));
-    int boundary = (patchBits >> 7) & 0x1f;
+    float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+    int nPoints = OsdEvaluatePatchBasis(patchType, param,
+        coord.s, coord.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
 
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
-
-    int numControlVertices = 0;
-    if (patchType == 3) {
-        OsdGetBilinearPatchWeights(uv[0], uv[1], dScale,
-            wP, wDs, wDt, wDss, wDst, wDtt);
-        numControlVertices = 4;
-    } else if (patchType == 6) {
-        OsdGetBSplinePatchWeights(uv[0], uv[1], dScale, boundary,
-            wP, wDs, wDt, wDss, wDst, wDtt);
-        numControlVertices = 16;
-    } else if (patchType == 9) {
-        OsdGetGregoryPatchWeights(uv[0], uv[1], dScale,
-            wP, wDs, wDt, wDss, wDst, wDtt);
-        numControlVertices = 20;
-    }
-
-    int indexStride = getNumControlVertices(array.patchType);
-    int indexBase = array.indexBase + indexStride *
+    int indexBase = array.indexBase + array.stride *
             (coord.patchIndex - array.primitiveIdBase);
 
     struct Vertex v;
     clear(&v);
-    for (int i = 0; i < numControlVertices; ++i) {
+    for (int i = 0; i < nPoints; ++i) {
         int index = patchIndexBuffer[indexBase + i];
         addWithWeight(&v, src, index, wP[i]);
     }
@@ -283,45 +204,45 @@ __kernel void computePatches(__global float *src, int srcOffset,
     if (du) {
         struct Vertex vdu;
         clear(&vdu);
-        for (int i = 0; i < numControlVertices; ++i) {
+        for (int i = 0; i < nPoints; ++i) {
             int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(&vdu, src, index, wDs[i]);
+            addWithWeight(&vdu, src, index, wDu[i]);
         }
         writeVertexStride(du, current, &vdu, duStride);
     }
     if (dv) {
         struct Vertex vdv;
         clear(&vdv);
-        for (int i = 0; i < numControlVertices; ++i) {
+        for (int i = 0; i < nPoints; ++i) {
             int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(&vdv, src, index, wDt[i]);
+            addWithWeight(&vdv, src, index, wDv[i]);
         }
         writeVertexStride(dv, current, &vdv, dvStride);
     }
     if (duu) {
         struct Vertex vduu;
         clear(&vduu);
-        for (int i = 0; i < numControlVertices; ++i) {
+        for (int i = 0; i < nPoints; ++i) {
             int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(&vduu, src, index, wDss[i]);
+            addWithWeight(&vduu, src, index, wDuu[i]);
         }
         writeVertexStride(duu, current, &vduu, duuStride);
     }
     if (duv) {
         struct Vertex vduv;
         clear(&vduv);
-        for (int i = 0; i < numControlVertices; ++i) {
+        for (int i = 0; i < nPoints; ++i) {
             int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(&vduv, src, index, wDst[i]);
+            addWithWeight(&vduv, src, index, wDuv[i]);
         }
         writeVertexStride(duv, current, &vduv, duvStride);
     }
     if (dvv) {
         struct Vertex vdvv;
         clear(&vdvv);
-        for (int i = 0; i < numControlVertices; ++i) {
+        for (int i = 0; i < nPoints; ++i) {
             int index = patchIndexBuffer[indexBase + i];
-            addWithWeight(&vdvv, src, index, wDtt[i]);
+            addWithWeight(&vdvv, src, index, wDvv[i]);
         }
         writeVertexStride(dvv, current, &vdvv, dvvStride);
     }

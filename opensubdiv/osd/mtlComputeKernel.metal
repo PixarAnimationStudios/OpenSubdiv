@@ -36,29 +36,13 @@
 
 using namespace metal;
 
-struct PatchCoord
-{
-    int arrayIndex;
-    int patchIndex;
-    int vertIndex;
-    float s;
-    float t;
-};
-
-struct PatchParam
-{
-    uint field0;
-    uint field1;
-    float sharpness;
-};
-
 struct KernelUniformArgs
 {
-	int batchStart;
-	int batchEnd;
+    int batchStart;
+    int batchEnd;
 
     int srcOffset;
-	int dstOffset;
+    int dstOffset;
 
     int3 duDesc;
     int3 dvDesc;
@@ -179,7 +163,7 @@ kernel void eval_stencils(
 )
 {
     auto current  = thread_position_in_grid + args.batchStart;
-    if(current >= args.batchEnd)
+    if(current >= (unsigned int)args.batchEnd)
         return;
 
     Vertex dst;
@@ -240,60 +224,11 @@ kernel void eval_stencils(
 
 // PERFORMANCE: stride could be constant, but not as significant as length
 
-//struct PatchArray {
-//    int patchType;
-//    int numPatches;
-//    int indexBase;        // an offset within the index buffer
-//    int primitiveIdBase;  // an offset within the patch param buffer
-//};
-// # of patcharrays is 1 or 2.
-
-uint getDepth(uint patchBits) {
-    return (patchBits & 0xf);
-}
-
-float getParamFraction(uint patchBits) {
-    uint nonQuadRoot = (patchBits >> 4) & 0x1;
-    uint depth = getDepth(patchBits);
-    if (nonQuadRoot == 1) {
-        return 1.0f / float( 1 << (depth-1) );
-    } else {
-        return 1.0f / float( 1 << depth );
-    }
-}
-
-float2 normalizePatchCoord(uint patchBits, float2 uv) {
-    float frac = getParamFraction(patchBits);
-
-    uint iu = (patchBits >> 22) & 0x3ff;
-    uint iv = (patchBits >> 12) & 0x3ff;
-
-    // top left corner
-    float pu = float(iu*frac);
-    float pv = float(iv*frac);
-
-    // normalize u,v coordinates
-    return float2((uv.x - pu) / frac, (uv.y - pv) / frac);
-}
-
-bool isRegular(uint patchBits) {
-    return (((patchBits >> 5) & 0x1u) != 0);
-}
-
-int getNumControlVertices(int patchType) {
-    switch(patchType) {
-        case 3: return 4;
-        case 6: return 16;
-        case 9: return 20;
-        default: return 0;
-    }
-}
-
 // ---------------------------------------------------------------------------
 
 kernel void eval_patches(
     uint thread_position_in_grid [[thread_position_in_grid]],
-    const constant uint4* patchArrays [[buffer(PATCH_ARRAYS_BUFFER_INDEX)]],
+    const constant int* patchArrays [[buffer(PATCH_ARRAYS_BUFFER_INDEX)]],
     const device int* patchCoords [[buffer(PATCH_COORDS_BUFFER_INDEX)]],
     const device int* patchIndices [[buffer(PATCH_INDICES_BUFFER_INDEX)]],
     const device uint* patchParams [[buffer(PATCH_PARAMS_BUFFER_INDEX)]],
@@ -314,34 +249,29 @@ kernel void eval_patches(
     auto current = thread_position_in_grid;
 
     // unpack struct (5 ints unaligned)
-    PatchCoord patchCoord;
-    patchCoord.arrayIndex = patchCoords[current*5+0];
-    patchCoord.patchIndex = patchCoords[current*5+1];
-    patchCoord.vertIndex = patchCoords[current*5+2];
-    patchCoord.s = as_type<float>(patchCoords[current*5+3]);
-    patchCoord.t = as_type<float>(patchCoords[current*5+4]);
+    OsdPatchCoord patchCoord = OsdPatchCoordInit(patchCoords[current*5+0],
+                                                 patchCoords[current*5+1],
+                                                 patchCoords[current*5+2],
+                                  as_type<float>(patchCoords[current*5+3]),
+                                  as_type<float>(patchCoords[current*5+4]));
 
-    auto patchArray = patchArrays[patchCoord.arrayIndex];
+    OsdPatchArray patchArray = OsdPatchArrayInit(patchArrays[current*6+0],
+                                                 patchArrays[current*6+1],
+                                                 patchArrays[current*6+2],
+                                                 patchArrays[current*6+3],
+                                                 patchArrays[current*6+4],
+                                                 patchArrays[current*6+5]);
 
-    // unpack struct (3 uints unaligned)
-    auto patchBits = patchParams[patchCoord.patchIndex*3+1]; // field1
-    auto patchType = select(patchArray.x, uint(6), isRegular(patchBits));
+    OsdPatchParam patchParam = OsdPatchParamInit(patchParams[current*3+0],
+                                                 patchParams[current*3+1],
+                                  as_type<float>(patchParams[current*3+2]));
 
-    auto numControlVertices = getNumControlVertices(patchType);
-    auto uv = normalizePatchCoord(patchBits, float2(patchCoord.s, patchCoord.t));
-    auto dScale = float(1 << getDepth(patchBits));
-    auto boundary = int((patchBits >> 7) & 0x1FU);
+    int patchType = OsdPatchParamIsRegular(patchParam)
+        ? patchArray.regDesc : patchArray.desc;
 
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
-
-
-    if(patchType == 3) {
-        OsdGetBilinearPatchWeights(uv.x, uv.y, dScale, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else if(patchType == 6) {
-        OsdGetBSplinePatchWeights(uv.x, uv.y, dScale, boundary, wP, wDs, wDt, wDss, wDst, wDtt);
-    } else if(patchType == 9) {
-        OsdGetGregoryPatchWeights(uv.x, uv.y, dScale, wP, wDs, wDt, wDss, wDst, wDtt);
-    }
+    float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+    int nPoints = OsdEvaluatePatchBasis(patchType, patchParam,
+        patchCoord.s, patchCoord.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
 
     Vertex dst, du, dv, duu, duv, dvv;
     clear(dst);
@@ -351,19 +281,18 @@ kernel void eval_patches(
     clear(duv);
     clear(dvv);
 
-
-    auto indexStride = getNumControlVertices(patchArray.x);
-    auto indexBase = patchArray.z + indexStride * (patchCoord.patchIndex - patchArray.w);
-    for(auto cv = 0; cv < numControlVertices; cv++)
+    auto indexBase = patchArray.indexBase + patchArray.stride *
+                (patchCoord.patchIndex - patchArray.primitiveIdBase);
+    for(auto cv = 0; cv < nPoints; cv++)
     {
         auto index = patchIndices[indexBase + cv];
         auto src = readVertex(index, srcVertexBuffer, args);
         addWithWeight(dst, src, wP[cv]);
-        addWithWeight(du,  src, wDs[cv]);
-        addWithWeight(dv,  src, wDt[cv]);
-        addWithWeight(duu, src, wDss[cv]);
-        addWithWeight(duv, src, wDst[cv]);
-        addWithWeight(dvv, src, wDtt[cv]);
+        addWithWeight(du,  src, wDu[cv]);
+        addWithWeight(dv,  src, wDv[cv]);
+        addWithWeight(duu, src, wDuu[cv]);
+        addWithWeight(duv, src, wDuv[cv]);
+        addWithWeight(dvv, src, wDvv[cv]);
     }
 
     writeVertex(current, dst, dstVertexBuffer, args);
