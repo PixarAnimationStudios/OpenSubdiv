@@ -180,6 +180,7 @@ public:
 
         LocalIndex _numFaces;
         LocalIndex _startFace;
+        LocalIndex _cornerInSpan;
 
         unsigned short _periodic : 1;
         unsigned short _sharp    : 1;
