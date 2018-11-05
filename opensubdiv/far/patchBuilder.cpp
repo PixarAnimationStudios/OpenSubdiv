@@ -102,13 +102,7 @@ namespace {
         if (fvarLevel) {
             eTag = fvarLevel->getEdgeTag(eIndex).combineWithLevelETag(eTag);
         }
-
-        Level::ETag::ETagSize * iTag  =
-                reinterpret_cast<Level::ETag::ETagSize*>(&eTag);
-        Level::ETag::ETagSize * iMask =
-                reinterpret_cast<Level::ETag::ETagSize*>(&eTagMask);
-
-        return (*iTag & *iMask) > 0;
+        return (eTag.getBits() & eTagMask.getBits()) > 0;
     }
 
     void
@@ -129,52 +123,130 @@ namespace {
 
         vSpan.clear();
         vSpan._numFaces = 1;
+        vSpan._cornerInSpan = 0;
 
         int iLeading  = iLeadingStart;
         while (! isEdgeSingular(level, fvarLevel, vEdges[iLeading], eTagMask)) {
             ++vSpan._numFaces;
+            ++vSpan._cornerInSpan;
             iLeading = fastModN(iLeading + nEdges - 1, nEdges);
             if (iLeading == iTrailingStart) break;
         }
 
         int iTrailing = iTrailingStart;
-        while (!isEdgeSingular(level, fvarLevel, vEdges[iTrailing], eTagMask)) {
-            ++vSpan._numFaces;
-            iTrailing = fastModN(iTrailing + 1, nEdges);
-            if (iTrailing == iLeadingStart) break;
+        if (iTrailing != iLeading) {
+            while (!isEdgeSingular(level, fvarLevel, vEdges[iTrailing], eTagMask)) {
+                ++vSpan._numFaces;
+                iTrailing = fastModN(iTrailing + 1, nEdges);
+                if (iTrailing == iLeadingStart) break;
+            }
         }
         vSpan._startFace = (LocalIndex) iLeading;
     }
 
     void
     identifyNonManifoldCornerSpan(Level const & level, Index fIndex,
-                                  int fCorner, Level::ETag /* eTagMask */,
-                                  Level::VSpan & vSpan, int /* fvc */ = -1)
+                                  int fCorner, Level::ETag eTagMask,
+                                  Level::VSpan & vSpan, int fvc = -1)
     {
-        //  For now, non-manifold patches revert to regular patches -- just
-        //  identify the single face now for a sharp corner patch.
-        //
-        //  Remember that the face may be incident the vertex multiple times
-        //  when non-manifold, so make sure the local index of the corner
-        //  vertex in the face identified additionally matches the corner.
-        //
-        //FVarLevel * fvarLevel = (fvc < 0) ? 0 : &level.getFVarChannel(fvc);
+        FVarLevel const * fvarLevel = (fvc < 0) ? 0 : &level.getFVarLevel(fvc);
 
-        Index vIndex = level.getFaceVertices(fIndex)[fCorner];
+        ConstIndexArray fEdges = level.getFaceEdges(fIndex);
 
-        ConstIndexArray      vFaces  = level.getVertexFaces(vIndex);
-        ConstLocalIndexArray vInFace = level.getVertexFaceLocalIndices(vIndex);
+        Index eLeadingStart  = fEdges[fCorner];
+        Index eTrailingStart = fEdges[(fCorner + fEdges.size() - 1) % fEdges.size()];
 
         vSpan.clear();
-        for (int i = 0; i < vFaces.size(); ++i) {
-            if ((vFaces[i] == fIndex) && ((int)vInFace[i] == fCorner)) {
-                vSpan._startFace = (LocalIndex) i;
-                vSpan._numFaces = 1;
-                vSpan._sharp = true;
+        vSpan._numFaces = 1;
+        vSpan._cornerInSpan = 0;
+
+        Index startFace   = fIndex;
+        int   startCorner = fCorner;
+
+        //  Traverse clockwise to find the leading edge of the span -- keeping
+        //  track of the starting face and corner to use later:
+        Index fLeading = fIndex;
+        Index eLeading = eLeadingStart;
+        while (!isEdgeSingular(level, fvarLevel, eLeading, eTagMask)) {
+            ++vSpan._numFaces;
+            ++vSpan._cornerInSpan;
+
+            //  Identify the face opposite the current leading edge, identify
+            //  the edges of the next face, and then the next leading edge:
+            //
+            ConstIndexArray eFaces = level.getEdgeFaces(eLeading);
+            assert(eFaces.size() == 2);
+            fLeading = (eFaces[0] == fLeading) ? eFaces[1] : eFaces[0];
+            fEdges = level.getFaceEdges(fLeading);
+
+            startFace   = fLeading;
+            startCorner = (fEdges.FindIndex(eLeading) + 1) % fEdges.size();
+
+            eLeading = fEdges[startCorner];
+            if (eLeading == eTrailingStart) {
+                vSpan._periodic = !isEdgeSingular(level, fvarLevel, eLeading, eTagMask);
                 break;
             }
         }
-        assert(vSpan._numFaces == 1);
+
+        //  Traverse counter-clockwise to find the trailing edge of the span (unless
+        //  the above traversal reached where it started):
+        Index fTrailing = fIndex;
+        Index eTrailing = eTrailingStart;
+        if (eTrailing != eLeading) {
+            while (!isEdgeSingular(level, fvarLevel, eTrailing, eTagMask)) {
+                ++vSpan._numFaces;
+
+                //  Identify the face opposite the current trailing edge, identify
+                //  the edges of the next face, and then the next trailing edge:
+                //
+                ConstIndexArray eFaces = level.getEdgeFaces(eTrailing);
+                assert(eFaces.size() == 2);
+                fTrailing = (eFaces[0] == fTrailing) ? eFaces[1] : eFaces[0];
+                fEdges = level.getFaceEdges(fTrailing);
+
+                eTrailing = fEdges[(fEdges.FindIndex(eTrailing) + fEdges.size() - 1) % fEdges.size()];
+                if (eTrailing == eLeadingStart) {
+                    vSpan._periodic = !isEdgeSingular(level, fvarLevel, eTrailing, eTagMask);
+                    break;
+                }
+            }
+        }
+
+        //  Identify the span's starting point relative to the incident components
+        //  of the vertex, using the start face and corner of the leading edge:
+        //
+        Index vIndex = level.getFaceVertices(fIndex)[fCorner];
+
+        ConstIndexArray      vFaces   = level.getVertexFaces(vIndex);
+        ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
+
+        vSpan._startFace = vFaces.size();
+        for (int i = 0; i < vFaces.size(); ++i) {
+            if ((vFaces[i] == startFace) && (vInFaces[i] == startCorner)) {
+                vSpan._startFace = i;
+                break;
+            }
+        }
+        assert(vSpan._startFace < vFaces.size());
+    }
+
+    //  Simple conveniences for the span search functions:
+    inline int
+    countManifoldCornerSpan(Level const & level, Index fIndex, int fCorner,
+                            Level::ETag eTagMask, int fvc = -1)
+    {
+        Level::VSpan vSpan;
+        identifyManifoldCornerSpan(level, fIndex, fCorner, eTagMask, vSpan, fvc);
+        return vSpan._numFaces;
+    }
+    inline int
+    countNonManifoldCornerSpan(Level const & level, Index fIndex, int fCorner,
+                               Level::ETag eTagMask, int fvc = -1)
+    {
+        Level::VSpan vSpan;
+        identifyNonManifoldCornerSpan(level, fIndex, fCorner, eTagMask, vSpan, fvc);
+        return vSpan._numFaces;
     }
 
 
@@ -219,10 +291,10 @@ namespace {
     }
 
     int
-    gatherTriRegularPartialRingAroundVertex(Level const& level,
+    gatherRegularPartialRingAroundVertex(Level const& level,
         Index vIndex, Level::VSpan const & span, int ringPoints[], int fvarChannel) {
 
-        assert(! level.isVertexNonManifold(vIndex));
+        bool isManifold = !level.isVertexNonManifold(vIndex);
 
         ConstIndexArray      vFaces   = level.getVertexFaces(vIndex);
         ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
@@ -230,23 +302,47 @@ namespace {
         int nFaces    = span._numFaces;
         int startFace = span._startFace;
 
+        Index nextFace    = vFaces[startFace];
+        int   vInNextFace = vInFaces[startFace];
+
         int ringIndex = 0;
         for (int i = 0; i < nFaces; ++i) {
-            //
-            //  For each tri, we want the the vertex at the end of the leading edge:
-            //
-            int fIncident = fastModN(startFace + i, vFaces.size());
+            Index thisFace    = nextFace;
+            int   vInThisFace = vInNextFace;
 
             ConstIndexArray fPoints = (fvarChannel < 0)
-                                    ? level.getFaceVertices(vFaces[fIncident])
-                                    : level.getFaceFVarValues(vFaces[fIncident], fvarChannel);
+                                    ? level.getFaceVertices(thisFace)
+                                    : level.getFaceFVarValues(thisFace, fvarChannel);
 
-            int vInThisFace = vInFaces[fIncident];
+            bool isQuad = (fPoints.size() == 4);
+            if (isQuad) {
+                ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 1)];
+                ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 2)];
+            } else {
+                ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 1)];
+            }
 
-            ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 1)];
+            if (i == (nFaces - 1)) {
+                if (!span._periodic) {
+                    if (isQuad) {
+                        ringPoints[ringIndex++] = fPoints[fastMod4(vInThisFace + 3)];
+                    } else {
+                        ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 2)];
+                    }
+                }
+            } else if (isManifold) {
+                int iNext = fastModN(startFace + i + 1, vFaces.size());
 
-            if ((i == nFaces - 1) && !span._periodic) {
-                ringPoints[ringIndex++] = fPoints[fastMod3(vInThisFace + 2)];
+                nextFace    = vFaces[iNext];
+                vInNextFace = vInFaces[iNext];
+            } else {
+                int nextInThisFace = fastModN(vInThisFace + fPoints.size() - 1, fPoints.size());
+
+                Index nextEdge = level.getFaceEdges(thisFace)[nextInThisFace];
+                ConstIndexArray eFaces = level.getEdgeFaces(nextEdge);
+
+                nextFace    = (eFaces[0] == thisFace) ? eFaces[1] : eFaces[0];
+                vInNextFace = level.getFaceEdges(nextFace).FindIndex(nextEdge);
             }
         }
         return ringIndex;
@@ -486,72 +582,78 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
 
     Level const & level = _refiner.getLevel(levelIndex);
 
-    //  Retrieve the composite VTag for the four corners:
-    Level::VTag fCompVTag = level.getFaceCompositeVTag(faceIndex, fvarChannel);
+    //  Retrieve individual VTags for the four corners and combine:
+    Level::VTag vTags[4];
+    level.getFaceVTags(faceIndex, vTags, fvarChannel);
 
-    //  All patches around non-manifold features are currently regular:
-    bool isRegular = ! fCompVTag._xordinary || fCompVTag._nonManifold;
+    Level::VTag fCompVTag = Level::VTag::BitwiseOr(vTags, _schemeRegFaceSize);
 
-    //  Reconsider when using inf-sharp patches at inf-sharp features:
-    if (!_options.approxInfSharpWithSmooth &&
-            (fCompVTag._infSharp || fCompVTag._infSharpEdges)) {
+    //  Immediately return regular status if completely smooth at all corners
+    //  (all corners smooth rules out presence of non-manifold vertices)
+    bool hasXOrdinary = fCompVTag._xordinary;
 
-        if (fCompVTag._nonManifold || !fCompVTag._infIrregular) {
-            isRegular = true;
-        } else if (!fCompVTag._infSharpEdges) {
-            isRegular = false;
-        } else {
-            //
-            //   This is unfortunately a relatively complex case to determine...
-            //   if a corner vertex has been tagged has having an inf-sharp
-            //   irregularity about it, the neighborhood of the corner is
-            //   partitioned into both regular and irregular regions and the
-            //   face must be more closely inspected to determine in which it
-            //   lies.
-            //
-            //   There could be a simpler test here to quickly accept/reject
-            //   regularity given how local it is -- involving no more than
-            //   one or two (in the case of Loop) adjacent faces -- but it will
-            //   likely be messy and will need to inspect adjacent faces and/or
-            //   edges.  In the meantime, gathering and inspecting the subset
-            //   of the neighborhood delimited by inf-sharp edges will suffice
-            //   (and be comparable in all but cases of high valence)
-            //
-            int regBoundaryFaces = 2 + (_schemeRegFaceSize == 3);
+    if (fCompVTag._rule == Sdc::Crease::RULE_SMOOTH) {
+        return !hasXOrdinary;
+    }
 
-            Level::VTag vTags[4];
-            level.getFaceVTags(faceIndex, vTags, fvarChannel);
+    //  See if any features warrant inspection of the corners individually:
+    bool hasIrregFaces = (_schemeRegFaceSize == 4);
+    int  minIsoLevel   = 1 + (hasXOrdinary && hasIrregFaces);
 
-            Level::VSpan vSpan;
-            Level::ETag eMask = getSingularEdgeMask(true);
+    bool hasNonManifold = fCompVTag._nonManifold;
 
-            isRegular = true;
-            for (int i = 0; i < _schemeRegFaceSize; ++i) {
-                if (vTags[i]._infIrregular) {
-                    identifyManifoldCornerSpan(
-                        level, faceIndex, i, eMask, vSpan, fvarChannel);
+    bool hasInfSharp  = fCompVTag._infSharp || fCompVTag._infSharpEdges;
+    bool testInfSharp = hasInfSharp && !_options.approxInfSharpWithSmooth;
+    bool testInfIrreg = testInfSharp && fCompVTag._infIrregular;
 
-                    isRegular = (vSpan._numFaces ==
-                                    (vTags[i]._infSharpCrease ? regBoundaryFaces : 1));
-                    if (!isRegular) break;
+    bool testAllCorners = (levelIndex < minIsoLevel) || hasNonManifold || testInfIrreg;
+    if (testAllCorners) {
+        Level::ETag eMask = getSingularEdgeMask(testInfSharp);
+
+        int regBoundaryFaces = 2 + (_schemeRegFaceSize == 3);
+
+        for (int i = 0; i < _schemeRegFaceSize; ++i) {
+            Level::VTag vTag = vTags[i];
+
+            if (vTag._nonManifold) {
+                int n = countNonManifoldCornerSpan(
+                            level, faceIndex, i, eMask, fvarChannel);
+                if ((vTag._infSharp       && (n != 1)) ||
+                    (vTag._infSharpCrease && (n != regBoundaryFaces))) {
+                    return false;
                 }
-            }
-        }
-
-        //  When inf-sharp and extra-ordinary features are not isolated, need
-        //  to inspect more closely -- any smooth extra-ordinary corner makes
-        //  the patch irregular:
-        if (fCompVTag._xordinary && (levelIndex < 2)) {
-            Level::VTag vTags[4];
-            level.getFaceVTags(faceIndex, vTags, fvarChannel);
-            for (int i = 0; i < _schemeRegFaceSize; ++i) {
-                if (vTags[i]._xordinary &&
-                       (vTags[i]._rule == Sdc::Crease::RULE_SMOOTH)) {
-                    isRegular = false;
+            } else {
+                if (vTag._xordinary) {
+                    if (vTag._rule == Sdc::Crease::RULE_SMOOTH) {
+                        return false;
+                    }
+                }
+                if (testInfIrreg && vTag._infIrregular) {
+                    if (vTag._infSharpEdges) {
+                        int n = countManifoldCornerSpan(
+                                    level, faceIndex, i, eMask, fvarChannel);
+                        if (!vTag._infSharpCrease) {
+                            if (n != 1) return false;
+                        } else if (n > 1) {
+                            if (n != regBoundaryFaces) return false;
+                        } else if (_options.approxSmoothCornerWithSharp) {
+                            if (!vTag._boundary) return false;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
                 }
             }
         }
     }
+
+    //  Irregularities not detected above occur at sharp features.  Determine if
+    //  still regular from xordinary corners -- unless using inf-sharp features
+    //  and no inf-sharp irregularities are present:
+    //
+    bool isRegular = !hasXOrdinary || (testInfSharp && !fCompVTag._infIrregular);
 
     //  Legacy option -- reinterpret smooth corner as sharp if specified:
     if (!isRegular && _options.approxSmoothCornerWithSharp) {
@@ -631,17 +733,21 @@ PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
 
     Level const & level = _refiner.getLevel(levelIndex);
 
-    //  Gather the VTags for the four corners.  Regardless of the options
-    //  for treating non-manifold or inf-sharp patches, for a regular patch
-    //  we can infer all that we need need from tags for the corner vertices:
+    //  Gather tags for the four corners and edges.  Regardless of the
+    //  options for treating non-manifold or inf-sharp patches, for a
+    //  regular patch we can infer all that we need from these tags:
     //
     Level::VTag vTags[4];
     Level::ETag eTags[4];
 
     level.getFaceVTags(faceIndex, vTags, fvarChannel);
-    level.getFaceETags(faceIndex, eTags, fvarChannel);
 
     Level::VTag fTag = Level::VTag::BitwiseOr(vTags, _schemeRegFaceSize);
+    if (!fTag._infSharpEdges) {
+        return 0;
+    }
+
+    level.getFaceETags(faceIndex, eTags, fvarChannel);
 
     //
     //  For quads it is sufficient to inspect only edge tags.  For tris,
@@ -650,72 +756,40 @@ PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     //
     bool isQuad = ( _schemeRegFaceSize == 4);
 
-    int vBits = 0;
     int eBits = 0;
-    if (fTag._infSharpEdges) {
-        if (!_options.approxInfSharpWithSmooth) {
-            eBits = (eTags[0]._infSharp << 0) |
-                    (eTags[1]._infSharp << 1) |
-                    (eTags[2]._infSharp << 2);
-            if (isQuad) eBits |= (eTags[3]._infSharp << 3);
-        } else {
-            eBits = (eTags[0]._boundary << 0) |
-                    (eTags[1]._boundary << 1) |
-                    (eTags[2]._boundary << 2);
-            if (isQuad) eBits |= (eTags[3]._boundary << 3);
-        }
-
-        if (!isQuad) {
-            if (!_options.approxInfSharpWithSmooth) {
-                vBits = (vTags[0]._infSharpEdges << 0) |
-                        (vTags[1]._infSharpEdges << 1) |
-                        (vTags[2]._infSharpEdges << 2);
-            } else if (fTag._boundary) {
-                vBits = (vTags[0]._boundary << 0) |
-                        (vTags[1]._boundary << 1) |
-                        (vTags[2]._boundary << 2);
-            }
-        }
+    if (!_options.approxInfSharpWithSmooth) {
+        eBits = (eTags[0]._infSharp << 0) |
+                (eTags[1]._infSharp << 1) |
+                (eTags[2]._infSharp << 2);
+        if (isQuad) eBits |= (eTags[3]._infSharp << 3);
+    } else {
+        eBits = (eTags[0]._boundary << 0) |
+                (eTags[1]._boundary << 1) |
+                (eTags[2]._boundary << 2);
+        if (isQuad) eBits |= (eTags[3]._boundary << 3);
     }
-
-    //
-    //  Non-manifold patches have been historically represented as regular
-    //  in all cases -- when a non-manifold vertex is sharp, it requires a
-    //  regular corner patch, and so both of its neighboring corners need to
-    //  be re-interpreted as boundaries.
-    //
-    //  With the introduction of sharp irregular patches, we are now better
-    //  off using irregular patches where appropriate, which will simplify
-    //  the following when this patch was already determined to be regular.
-    //
     if (fTag._nonManifold) {
         eBits |= (eTags[0]._nonManifold << 0) |
                  (eTags[1]._nonManifold << 1) |
                  (eTags[2]._nonManifold << 2);
+        if (isQuad) eBits |= (eTags[3]._nonManifold << 3);
+    }
 
-        if (isQuad) {
-            eBits |= (eTags[3]._nonManifold << 3);
-
-            if (vTags[0]._nonManifold && vTags[0]._infSharp) eBits |= 9;
-            if (vTags[1]._nonManifold && vTags[1]._infSharp) eBits |= 3;
-            if (vTags[2]._nonManifold && vTags[2]._infSharp) eBits |= 6;
-            if (vTags[3]._nonManifold && vTags[3]._infSharp) eBits |= 12;
-
-            //  This handles faces that touch a non-manifold edge without
-            //  its edges being incident that non-manifold edge -- these
-            //  are essentially irregular boundary vertices and will be
-            //  dealt with differently in future (not considered regular)
-            //
-            if (eBits == 0) {
-                if (vTags[0]._nonManifold) eBits |= 9;
-                if (vTags[1]._nonManifold) eBits |= 3;
-                if (vTags[2]._nonManifold) eBits |= 6;
-                if (vTags[3]._nonManifold) eBits |= 12;
-            }
-        } else {
-            if (vTags[0]._nonManifold && vTags[0]._infSharp) eBits |= 5;
-            if (vTags[1]._nonManifold && vTags[1]._infSharp) eBits |= 3;
-            if (vTags[2]._nonManifold && vTags[2]._infSharp) eBits |= 6;
+    int vBits = 0;
+    if (!isQuad) {
+        if (!_options.approxInfSharpWithSmooth) {
+            vBits = (vTags[0]._infSharpEdges << 0) |
+                    (vTags[1]._infSharpEdges << 1) |
+                    (vTags[2]._infSharpEdges << 2);
+        } else if (fTag._boundary) {
+            vBits = (vTags[0]._boundary << 0) |
+                    (vTags[1]._boundary << 1) |
+                    (vTags[2]._boundary << 2);
+        }
+        if (fTag._nonManifold) {
+            vBits |= (vTags[0]._nonManifold << 0) |
+                     (vTags[1]._nonManifold << 1) |
+                     (vTags[2]._nonManifold << 2);
         }
     }
 
@@ -745,6 +819,8 @@ PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
         level.getFVarLevel(fvarChannel).getFaceValueTags(faceIndex, fvarTags);
     }
 
+    bool testInfSharp = !_options.approxInfSharpWithSmooth;
+
     //
     //  For each corner vertex, use the complete neighborhood when possible
     //  (which does not require a search, otherwise identify the span of
@@ -758,14 +834,15 @@ PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
     for (int i = 0; i < fVerts.size(); ++i) {
         bool noFVarMisMatch = (fvarChannel < 0) || !fvarTags[i]._mismatch;
 
-        bool testInfSharp = !_options.approxInfSharpWithSmooth &&
-                            vTags[i]._infSharpEdges &&
-                            (vTags[i]._rule != Sdc::Crease::RULE_DART);
+        bool isManifold = !vTags[i]._nonManifold;
 
-        if (noFVarMisMatch && !testInfSharp) {
+        bool testInfSharpEdges = testInfSharp && vTags[i]._infSharpEdges &&
+                                 (vTags[i]._rule != Sdc::Crease::RULE_DART);
+
+        if (noFVarMisMatch && !testInfSharpEdges && isManifold) {
             cornerSpans[i].clear();
         } else {
-            if (!vTags[i]._nonManifold) {
+            if (isManifold) {
                 identifyManifoldCornerSpan(level, faceIndex,
                         i, singularEdgeMask, cornerSpans[i], fvarChannel);
             } else {
@@ -775,9 +852,9 @@ PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
         }
         if (vTags[i]._corner) {
             cornerSpans[i]._sharp = true;
-        } else if (!_options.approxInfSharpWithSmooth) {
-            cornerSpans[i]._sharp = vTags[i]._infIrregular &&
-                                   (vTags[i]._rule == Sdc::Crease::RULE_CORNER);
+        } else if (testInfSharp) {
+            cornerSpans[i]._sharp = testInfSharpEdges
+                    ? !vTags[i]._infSharpCrease : vTags[i]._infSharp;
         }
 
         //  Legacy option -- reinterpret smooth corner as sharp if specified:
@@ -1026,10 +1103,9 @@ PatchBuilder::assembleIrregularSourcePatch(
     ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
     for (int corner = 0; corner < fVerts.size(); ++corner) {
-        ConstIndexArray vFaces = level.getVertexFaces(fVerts[corner]);
-
         //
-        //  Identify the face for the patch within the given ring or sub-ring.
+        //  Identify the face for the patch within the given ring when the
+        //  full ring is implicitly specified.
         //
         //  Note also that specifying a sub-ring in a VSpan currently implies
         //  it is a boundary or dart (if all faces present) -- we need a
@@ -1039,34 +1115,21 @@ PatchBuilder::assembleIrregularSourcePatch(
         // 
         Level::VTag vTag = level.getVertexTag(fVerts[corner]);
 
-        int  numFaces   = 0;
-        int  firstFace  = 0;
-        bool isBoundary = false;
+        SourcePatch::Corner & patchCorner = sourcePatch._corners[corner];
 
-        if (cornerSpans[corner]._numFaces == 0) {
-            numFaces   = vFaces.size();
-            firstFace  = 0;
-            isBoundary = vTag._boundary;
+        if (cornerSpans[corner].isAssigned()) {
+            patchCorner._numFaces  = cornerSpans[corner]._numFaces;
+            patchCorner._patchFace = cornerSpans[corner]._cornerInSpan;
+            patchCorner._boundary  = true;
         } else {
-            numFaces   = cornerSpans[corner]._numFaces;
-            firstFace  = cornerSpans[corner]._startFace;
-            isBoundary = true;
-        }
+            ConstIndexArray vFaces = level.getVertexFaces(fVerts[corner]);
 
-        int patchFace = 0;
-        for ( ; patchFace < numFaces; ++patchFace) {
-            int vFaceIndex = fastModN(firstFace + patchFace, vFaces.size());
-            if (vFaces[vFaceIndex] == faceIndex) {
-                break;
-            }
+            patchCorner._numFaces  = vFaces.size();
+            patchCorner._patchFace = vFaces.FindIndex(faceIndex);
+            patchCorner._boundary  = vTag._boundary;
         }
-        assert(patchFace < numFaces);
-
-        sourcePatch._corners[corner]._boundary  = isBoundary;
-        sourcePatch._corners[corner]._sharp     = cornerSpans[corner]._sharp;
-        sourcePatch._corners[corner]._dart      = (vTag._rule == Sdc::Crease::RULE_DART);
-        sourcePatch._corners[corner]._numFaces  = numFaces;
-        sourcePatch._corners[corner]._patchFace = patchFace;
+        patchCorner._sharp = cornerSpans[corner]._sharp;
+        patchCorner._dart  = (vTag._rule == Sdc::Crease::RULE_DART) && vTag._infSharpEdges;
     }
     sourcePatch.Finalize(fVerts.size());
 
@@ -1120,26 +1183,18 @@ PatchBuilder::gatherIrregularSourcePoints(
         
         //  Gather the ring of source points from the Vtr level:
         int sourceRingSize = 0;
-        if (!cornerSpans[corner].isAssigned()) {
-            if (sourcePatch._numCorners == 4) {
-                sourceRingSize = level.gatherQuadRegularRingAroundVertex(
-                    cornerVertex, sourceRingVertices,
-                    fvarChannel);
-            } else {
-                sourceRingSize = gatherTriRegularRingAroundVertex(level,
-                    cornerVertex, sourceRingVertices,
-                    fvarChannel);
-            }
+        if (cornerSpans[corner].isAssigned()) {
+            sourceRingSize = gatherRegularPartialRingAroundVertex(level,
+                cornerVertex, cornerSpans[corner], sourceRingVertices,
+                fvarChannel);
+        } else if (sourcePatch._numCorners == 4) {
+            sourceRingSize = level.gatherQuadRegularRingAroundVertex(
+                cornerVertex, sourceRingVertices,
+                fvarChannel);
         } else {
-            if (sourcePatch._numCorners == 4) {
-                sourceRingSize = level.gatherQuadRegularPartialRingAroundVertex(
-                    cornerVertex, cornerSpans[corner], sourceRingVertices,
-                    fvarChannel);
-            } else {
-                sourceRingSize = gatherTriRegularPartialRingAroundVertex(level,
-                    cornerVertex, cornerSpans[corner], sourceRingVertices,
-                    fvarChannel);
-            }
+            sourceRingSize = gatherTriRegularRingAroundVertex(level,
+                cornerVertex, sourceRingVertices,
+                fvarChannel);
         }
 
         //  Gather the ring of local points from the patch:
@@ -1448,8 +1503,14 @@ SourcePatch::Finalize(int size) {
                 corner._sharesWithPrev = isQuad && (corner._patchFace != (corner._numFaces - 1));
                 corner._sharesWithNext = (corner._patchFace != 0);
             } else if (corner._dart) {
-                corner._sharesWithPrev = isQuad && !_corners[cPrev]._boundary;
-                corner._sharesWithNext = !_corners[cNext]._boundary;
+                Corner & cP = _corners[cPrev];
+                Corner & cN = _corners[cNext];
+
+                bool cPrevOnDartEdge = cP._boundary && (cP._patchFace == 0);
+                bool cNextOnDartEdge = cN._boundary && (cN._patchFace == cN._numFaces - 1);
+
+                corner._sharesWithPrev = isQuad && !cPrevOnDartEdge;
+                corner._sharesWithNext = !cNextOnDartEdge;
             } else {
                 corner._sharesWithPrev = isQuad;
                 corner._sharesWithNext = true;

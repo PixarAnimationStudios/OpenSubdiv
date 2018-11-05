@@ -252,12 +252,14 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         vTag._rule = (Vtr::internal::Level::VTag::VTagSize)creasing.DetermineVertexVertexRule(vSharpness, sharpEdgeCount);
 
         //
-        //  Assign topological tags -- note that the "xordinary" tag is not strictly
-        //  correct (or relevant) if non-manifold:
+        //  Assign topological tags -- note that the "xordinary" tag is not assigned
+        //  if non-manifold:
         //
         vTag._boundary = (boundaryEdgeCount > 0);
         vTag._corner = isTopologicalCorner && vTag._infSharp;
-        if (vTag._corner) {
+        if (vTag._nonManifold) {
+            vTag._xordinary = false;
+        } else if (vTag._corner) {
             vTag._xordinary = false;
         } else if (vTag._boundary) {
             vTag._xordinary = (vFaces.size() != schemeRegularBoundaryValence);
