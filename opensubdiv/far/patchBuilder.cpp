@@ -626,7 +626,7 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex, int fvc) const {
     //  closer inspection of the single irregular feature:
     //
     bool mayHaveIrregFaces  = (_schemeRegFaceSize == 4);
-    bool needsExtraIsoLevel = fCompVTag._xordinary && mayHaveIrregFaces;
+    int  needsExtraIsoLevel = fCompVTag._xordinary && mayHaveIrregFaces;
 
     bool featureIsIsolated = levelIndex > needsExtraIsoLevel;
     if (featureIsIsolated) {
