@@ -23,6 +23,7 @@
 //
 
 #include "../far/patchBasis.h"
+#include "../far/patchDescriptor.h"
 
 #include <cassert>
 #include <cstring>
@@ -56,11 +57,9 @@ namespace internal {
 //
 template <typename REAL>
 int
-GetBilinearWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisLinear(REAL s, REAL t,
     REAL wP[4], REAL wDs[4], REAL wDt[4],
     REAL wDss[4], REAL wDst[4], REAL wDtt[4]) {
-
-    param.Normalize(s,t);
 
     REAL sC = 1.0f - s;
     REAL tC = 1.0f - t;
@@ -71,32 +70,27 @@ GetBilinearWeights(PatchParam const & param, REAL s, REAL t,
         wP[2] =  s * t;
         wP[3] = sC * t;
     }
-
     if (wDs && wDt) {
-        REAL dScale = (REAL)(1 << param.GetDepth());
+        wDs[0] = -tC;
+        wDs[1] =  tC;
+        wDs[2] =   t;
+        wDs[3] =  -t;
 
-        wDs[0] = -tC * dScale;
-        wDs[1] =  tC * dScale;
-        wDs[2] =   t * dScale;
-        wDs[3] =  -t * dScale;
-
-        wDt[0] = -sC * dScale;
-        wDt[1] =  -s * dScale;
-        wDt[2] =   s * dScale;
-        wDt[3] =  sC * dScale;
+        wDt[0] = -sC;
+        wDt[1] =  -s;
+        wDt[2] =   s;
+        wDt[3] =  sC;
 
         if (wDss && wDst && wDtt) {
-            REAL d2Scale = dScale * dScale;
-
-            for(int i=0;i<4;i++) {
+            for(int i = 0; i < 4; ++i) {
                 wDss[i] = 0.0f;
                 wDtt[i] = 0.0f;
             }
 
-            wDst[0] =  d2Scale;
-            wDst[1] = -d2Scale;
-            wDst[2] = -d2Scale;
-            wDst[3] =  d2Scale;
+            wDst[0] =  1.0f;
+            wDst[1] = -1.0f;
+            wDst[2] = -1.0f;
+            wDst[3] =  1.0f;
         }
     }
     return 4;
@@ -158,85 +152,97 @@ namespace {
     }
 
     //
-    //  Weight adjustments to curve weights to account for phantom end points:
+    //  Weight adjustments to account for phantom end points:
     //
     template <typename REAL>
     void
-    adjustBSplineBoundaryWeights(int boundary, REAL sWeights[4], REAL tWeights[4]) {
+    adjustBSplineBoundaryWeights(int boundary, REAL w[16]) {
 
         if ((boundary & 1) != 0) {
-            tWeights[2] -= tWeights[0];
-            tWeights[1] += tWeights[0] * 2.0f;
-            tWeights[0]  = 0.0f;
+            for (int i = 0; i < 4; ++i) {
+                w[i + 8] -= w[i + 0];
+                w[i + 4] += w[i + 0] * 2.0f;
+                w[i + 0]  = 0.0f;
+            }
         }
         if ((boundary & 2) != 0) {
-            sWeights[1] -= sWeights[3];
-            sWeights[2] += sWeights[3] * 2.0f;
-            sWeights[3]  = 0.0f;
+            for (int i = 0; i < 16; i += 4) {
+                w[i + 1] -= w[i + 3];
+                w[i + 2] += w[i + 3] * 2.0f;
+                w[i + 3]  = 0.0f;
+            }
         }
         if ((boundary & 4) != 0) {
-            tWeights[1] -= tWeights[3];
-            tWeights[2] += tWeights[3] * 2.0f;
-            tWeights[3]  = 0.0f;
+            for (int i = 0; i < 4; ++i) {
+                w[i +  4] -= w[i + 12];
+                w[i +  8] += w[i + 12] * 2.0f;
+                w[i + 12]  = 0.0f;
+            }
         }
         if ((boundary & 8) != 0) {
-            sWeights[2] -= sWeights[0];
-            sWeights[1] += sWeights[0] * 2.0f;
-            sWeights[0]  = 0.0f;
+            for (int i = 0; i < 16; i += 4) {
+                w[i + 2] -= w[i + 0];
+                w[i + 1] += w[i + 0] * 2.0f;
+                w[i + 0]  = 0.0f;
+            }
         }
     }
+
+    template <typename REAL>
+    void
+    boundBasisBSpline(int boundary,
+        REAL wP[16], REAL wDs[16], REAL wDt[16],
+        REAL wDss[16], REAL wDst[16], REAL wDtt[16]) {
+
+        if (wP) {
+            adjustBSplineBoundaryWeights(boundary, wP);
+        }
+        if (wDs && wDt) {
+            adjustBSplineBoundaryWeights(boundary, wDs);
+            adjustBSplineBoundaryWeights(boundary, wDt);
+
+            if (wDss && wDst && wDtt) {
+                adjustBSplineBoundaryWeights(boundary, wDss);
+                adjustBSplineBoundaryWeights(boundary, wDst);
+                adjustBSplineBoundaryWeights(boundary, wDtt);
+            }
+        }
+    }
+
 } // end namespace
 
 template <typename REAL>
 int
-GetBSplineWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisBSpline(REAL s, REAL t,
     REAL wP[16], REAL wDs[16], REAL wDt[16],
     REAL wDss[16], REAL wDst[16], REAL wDtt[16]) {
-
-    param.Normalize(s,t);
 
     REAL sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
 
     evalBSplineCurve(s, wP ? sWeights : 0, wDs ? dsWeights : 0, wDss ? dssWeights : 0);
     evalBSplineCurve(t, wP ? tWeights : 0, wDt ? dtWeights : 0, wDtt ? dttWeights : 0);
 
-    int boundaryMask = param.GetBoundary();
-
     if (wP) {
-        if (boundaryMask) {
-            adjustBSplineBoundaryWeights(boundaryMask, sWeights, tWeights);
-        }
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
                 wP[4*i+j] = sWeights[j] * tWeights[i];
             }
         }
     }
-
     if (wDs && wDt) {
-        REAL dScale = (REAL)(1 << param.GetDepth());
-
-        if (boundaryMask) {
-            adjustBSplineBoundaryWeights(boundaryMask, dsWeights, dtWeights);
-        }
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                wDs[4*i+j] = dsWeights[j] * tWeights[i] * dScale;
-                wDt[4*i+j] = sWeights[j] * dtWeights[i] * dScale;
+                wDs[4*i+j] = dsWeights[j] * tWeights[i];
+                wDt[4*i+j] = sWeights[j] * dtWeights[i];
             }
         }
 
         if (wDss && wDst && wDtt) {
-            REAL d2Scale = dScale * dScale;
-
-            if (boundaryMask) {
-                adjustBSplineBoundaryWeights(boundaryMask, dssWeights, dttWeights);
-            }
             for (int i = 0; i < 4; ++i) {
                 for (int j = 0; j < 4; ++j) {
-                    wDss[4*i+j] = dssWeights[j] * tWeights[i] * d2Scale;
-                    wDst[4*i+j] = dsWeights[j] * dtWeights[i] * d2Scale;
-                    wDtt[4*i+j] = sWeights[j] * dttWeights[i] * d2Scale;
+                    wDss[4*i+j] = dssWeights[j] * tWeights[i];
+                    wDst[4*i+j] = dsWeights[j] * dtWeights[i];
+                    wDtt[4*i+j] = sWeights[j] * dttWeights[i];
                 }
             }
         }
@@ -301,11 +307,9 @@ namespace {
 
 template <typename REAL>
 int
-GetBezierWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisBezier(REAL s, REAL t,
     REAL wP[16], REAL wDs[16], REAL wDt[16],
     REAL wDss[16], REAL wDst[16], REAL wDtt[16]) {
-
-    param.Normalize(s,t);
 
     REAL sWeights[4], tWeights[4], dsWeights[4], dtWeights[4], dssWeights[4], dttWeights[4];
 
@@ -320,22 +324,19 @@ GetBezierWeights(PatchParam const & param, REAL s, REAL t,
         }
     }
     if (wDs && wDt) {
-        REAL dScale = (REAL)(1 << param.GetDepth());
-
         for (int i = 0; i < 4; ++i) {
             for (int j = 0; j < 4; ++j) {
-                wDs[4*i+j] = dsWeights[j] * tWeights[i] * dScale;
-                wDt[4*i+j] = sWeights[j] * dtWeights[i] * dScale;
+                wDs[4*i+j] = dsWeights[j] * tWeights[i];
+                wDt[4*i+j] = sWeights[j] * dtWeights[i];
             }
         }
-        if (wDss && wDst && wDtt) {
-            REAL d2Scale = dScale * dScale;
 
+        if (wDss && wDst && wDtt) {
             for (int i = 0; i < 4; ++i) {
                 for (int j = 0; j < 4; ++j) {
-                    wDss[4*i+j] = dssWeights[j] * tWeights[i] * d2Scale;
-                    wDst[4*i+j] = dsWeights[j] * dtWeights[i] * d2Scale;
-                    wDtt[4*i+j] = sWeights[j] * dttWeights[i] * d2Scale;
+                    wDss[4*i+j] = dssWeights[j] * tWeights[i];
+                    wDst[4*i+j] = dsWeights[j] * dtWeights[i];
+                    wDtt[4*i+j] = sWeights[j] * dttWeights[i];
                 }
             }
         }
@@ -375,11 +376,9 @@ GetBezierWeights(PatchParam const & param, REAL s, REAL t,
 //
 template <typename REAL>
 int
-GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisGregory(REAL s, REAL t,
     REAL point[20], REAL wDs[20], REAL wDt[20],
     REAL wDss[20], REAL wDst[20], REAL wDtt[20]) {
-
-    param.Normalize(s,t);
 
     //  Indices of boundary and interior points and their corresponding Bezier points
     //  (this can be reduced with more direct indexing and unrolling of loops):
@@ -430,53 +429,50 @@ GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
     //  though, the approximation using the 16 Bezier points arising from the G(s,t) has
     //  proved adequate (and is what the GPU shaders use) so we continue to use that here.
     //
-    //  An implementation of the true derivatives is provided for future reference -- it is
-    //  unclear if the approximations will hold up under surface analysis involving higher
-    //  order differentiation.
+    //  An implementation of the true derivatives is provided and conditionally compiled for
+    //  those that require it, e.g.:
+    //
+    //    dclyde's note: skipping half of the product rule like this does seem to change the
+    //    result a lot in my tests.  This is not a runtime bottleneck for cloth sims anyway
+    //    so I'm just using the accurate version.
     //
     if (wDs && wDt) {
         bool find_second_partials = wDs && wDst && wDtt;
-        //  Remember to include derivative scaling in all assignments below:
-        REAL dScale = (REAL)(1 << param.GetDepth());
-        REAL d2Scale = dScale * dScale;
 
-        //  Combined weights for boundary points -- simple (scaled) tensor products:
+        //  Combined weights for boundary points -- simple tensor products:
         for (int i = 0; i < 12; ++i) {
             int iDst = boundaryGregory[i];
             int tRow = boundaryBezTRow[i];
             int sCol = boundaryBezSCol[i];
 
-            wDs[iDst] = Bds[sCol] * Bt[tRow] * dScale;
-            wDt[iDst] = Bdt[tRow] * Bs[sCol] * dScale;
+            wDs[iDst] = Bds[sCol] * Bt[tRow];
+            wDt[iDst] = Bdt[tRow] * Bs[sCol];
 
             if (find_second_partials) {
-                wDss[iDst] = Bdss[sCol] * Bt[tRow] * d2Scale;
-                wDst[iDst] = Bds[sCol] * Bdt[tRow] * d2Scale;
-                wDtt[iDst] = Bs[sCol] * Bdtt[tRow] * d2Scale;
+                wDss[iDst] = Bdss[sCol] * Bt[tRow];
+                wDst[iDst] = Bds[sCol] * Bdt[tRow];
+                wDtt[iDst] = Bs[sCol] * Bdtt[tRow];
             }
         }
 
-        // dclyde's note: skipping half of the product rule like this does seem to change the
-        // result a lot in my tests.  This is not a runtime bottleneck for cloth sims anyway
-        // so I'm just using the accurate version.
 #ifndef OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES
         //  Approximation to the true Gregory derivatives by differentiating the Bezier patch
         //  unique to the given (s,t), i.e. having F = (g^+ * f^+) + (g^- * f^-) as its four
         //  interior points:
         //
-        //  Combined weights for interior points -- (scaled) tensor products with G+ or G-:
+        //  Combined weights for interior points -- tensor products with G+ or G-:
         for (int i = 0; i < 8; ++i) {
             int iDst = interiorGregory[i];
             int tRow = interiorBezTRow[i];
             int sCol = interiorBezSCol[i];
 
-            wDs[iDst] = Bds[sCol] * Bt[tRow] * G[i] * dScale;
-            wDt[iDst] = Bdt[tRow] * Bs[sCol] * G[i] * dScale;
+            wDs[iDst] = Bds[sCol] * Bt[tRow] * G[i];
+            wDt[iDst] = Bdt[tRow] * Bs[sCol] * G[i];
 
             if (find_second_partials) {
-                wDss[iDst] = Bdss[sCol] * Bt[tRow] * G[i] * d2Scale;
-                wDst[iDst] = Bds[sCol] * Bdt[tRow] * G[i] * d2Scale;
-                wDtt[iDst] = Bs[sCol] * Bdtt[tRow] * G[i] * d2Scale;
+                wDss[iDst] = Bdss[sCol] * Bt[tRow] * G[i];
+                wDst[iDst] = Bds[sCol] * Bdt[tRow] * G[i];
+                wDtt[iDst] = Bs[sCol] * Bdtt[tRow] * G[i];
             }
         }
 #else
@@ -499,7 +495,7 @@ GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
         static REAL const Dds[8] = {  1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f,  1.0f,  1.0f };
         static REAL const Ddt[8] = {  1.0f,  1.0f,  1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f };
 
-        //  Combined weights for interior points -- (scaled) combinations of B, B', G and G':
+        //  Combined weights for interior points -- combinations of B, B', G and G':
         for (int i = 0; i < 8; ++i) {
             int iDst = interiorGregory[i];
             int tRow = interiorBezTRow[i];
@@ -509,9 +505,9 @@ GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
             REAL Gds = (Nds[i] - Dds[i] * G[i]) * D[i];
             REAL Gdt = (Ndt[i] - Ddt[i] * G[i]) * D[i];
 
-            //  Product rule combining B and B' with G and G' (and scaled):
-            wDs[iDst] = (Bds[sCol] * G[i] + Bs[sCol] * Gds) * Bt[tRow] * dScale;
-            wDt[iDst] = (Bdt[tRow] * G[i] + Bt[tRow] * Gdt) * Bs[sCol] * dScale;
+            //  Product rule combining B and B' with G and G':
+            wDs[iDst] = (Bds[sCol] * G[i] + Bs[sCol] * Gds) * Bt[tRow];
+            wDt[iDst] = (Bdt[tRow] * G[i] + Bt[tRow] * Gdt) * Bs[sCol];
 
             if (find_second_partials) {
                 REAL Dsqr_inv = D[i]*D[i];
@@ -520,9 +516,10 @@ GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
                 REAL Gdst = Dsqr_inv * (2.0f * G[i] * Dds[i] * Ddt[i] - Nds[i] * Ddt[i] - Ndt[i] * Dds[i]);
                 REAL Gdtt = 2.0f * Ddt[i] * Dsqr_inv * (G[i] * Ddt[i] - Ndt[i]);
 
-                wDss[iDst] = (Bdss[sCol] * G[i] + 2.0f * Bds[sCol] * Gds + Bs[sCol] * Gdss) * Bt[tRow] * d2Scale;
-                wDst[iDst] = (Bt[tRow] * (Bs[sCol] * Gdst + Bds[sCol] * Gdt) + Bdt[tRow] * (Bds[sCol] * G[i] + Bs[sCol] * Gds)) * d2Scale;
-                wDtt[iDst] = (Bdtt[tRow] * G[i] + 2.0f * Bdt[tRow] * Gdt + Bt[tRow] * Gdtt) * Bs[sCol] * d2Scale;
+                wDss[iDst] = (Bdss[sCol] * G[i] + 2.0f * Bds[sCol] * Gds + Bs[sCol] * Gdss) * Bt[tRow];
+                wDst[iDst] =  Bt[tRow] * (Bs[sCol] * Gdst + Bds[sCol] * Gdt) +
+                             Bdt[tRow] * (Bds[sCol] * G[i] + Bs[sCol] * Gds);
+                wDtt[iDst] = (Bdtt[tRow] * G[i] + 2.0f * Bdt[tRow] * Gdt + Bt[tRow] * Gdtt) * Bs[sCol];
             }
         }
 #endif
@@ -560,29 +557,23 @@ GetGregoryWeights(PatchParam const & param, REAL s, REAL t,
 //
 template <typename REAL>
 int
-GetLinearTriWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisLinearTri(REAL s, REAL t,
     REAL wP[3], REAL wDs[3], REAL wDt[3],
     REAL wDss[3], REAL wDst[3], REAL wDtt[3]) {
-
-    param.NormalizeTriangle(s,t);
 
     if (wP) {
         wP[0] = 1.0f - s - t;
         wP[1] = s;
         wP[2] = t;
     }
-
     if (wDs && wDt) {
-        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
-        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
-
-        wDs[0] = -dScale;
-        wDs[1] =  dScale;
+        wDs[0] = -1.0f;
+        wDs[1] =  1.0f;
         wDs[2] =  0.0f;
 
-        wDt[0] = -dScale;
+        wDt[0] = -1.0f;
         wDt[1] =  0.0f;
-        wDt[2] =  dScale;
+        wDt[2] =  1.0f;
 
         if (wDss && wDst && wDtt) {
             wDss[0] = wDss[1] = wDss[2] = 0.0f;
@@ -674,11 +665,11 @@ namespace {
 
     template <typename REAL>
     void
-    evalBoxSplineTriDerivWeights(REAL const stMonomials[], int ds, int dt, REAL w[], REAL scale) {
+    evalBoxSplineTriDerivWeights(REAL const stMonomials[], int ds, int dt, REAL w[]) {
 
         REAL const * M = stMonomials;
 
-        REAL S = scale;
+        REAL S = 1.0;
 
         int totalOrder = ds + dt;
         if (totalOrder == 0) {
@@ -909,48 +900,48 @@ namespace {
             }
         }
     }
+
+    template <typename REAL>
+    void
+    boundBasisBoxSplineTri(int boundary,
+        REAL wP[12], REAL wDs[12], REAL wDt[12],
+        REAL wDss[12], REAL wDst[12], REAL wDtt[12]) {
+
+        if (wP) {
+            adjustBoxSplineTriBoundaryWeights(boundary, wP);
+        }
+        if (wDs && wDt) {
+            adjustBoxSplineTriBoundaryWeights(boundary, wDs);
+            adjustBoxSplineTriBoundaryWeights(boundary, wDt);
+
+            if (wDss && wDst && wDtt) {
+                adjustBoxSplineTriBoundaryWeights(boundary, wDss);
+                adjustBoxSplineTriBoundaryWeights(boundary, wDst);
+                adjustBoxSplineTriBoundaryWeights(boundary, wDtt);
+            }
+        }
+    }
 }  // namespace
 
 template <typename REAL>
-int GetBoxSplineTriWeights(PatchParam const & param, REAL s, REAL t,
+int EvalBasisBoxSplineTri(REAL s, REAL t,
     REAL wP[12], REAL wDs[12], REAL wDt[12],
     REAL wDss[12], REAL wDst[12], REAL wDtt[12]) {
-
-    param.NormalizeTriangle(s,t);
 
     REAL stMonomials[15];
     evalBivariateMonomialsQuartic(s, t, stMonomials);
 
-    int boundaryMask = param.GetBoundary();
-
     if (wP) {
-        evalBoxSplineTriDerivWeights<REAL>(stMonomials, 0, 0, wP, 1.0f);
-        if (boundaryMask) {
-            adjustBoxSplineTriBoundaryWeights(boundaryMask, wP);
-        }
+        evalBoxSplineTriDerivWeights<REAL>(stMonomials, 0, 0, wP);
     }
     if (wDs && wDt) {
-        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
-        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
-
-        evalBoxSplineTriDerivWeights(stMonomials, 1, 0, wDs, dScale);
-        evalBoxSplineTriDerivWeights(stMonomials, 0, 1, wDt, dScale);
-        if (boundaryMask) {
-            adjustBoxSplineTriBoundaryWeights(boundaryMask, wDs);
-            adjustBoxSplineTriBoundaryWeights(boundaryMask, wDt);
-        }
+        evalBoxSplineTriDerivWeights(stMonomials, 1, 0, wDs);
+        evalBoxSplineTriDerivWeights(stMonomials, 0, 1, wDt);
 
         if (wDss && wDst && wDtt) {
-            REAL d2Scale = dScale * dScale * dSign;
-
-            evalBoxSplineTriDerivWeights(stMonomials, 2, 0, wDss, d2Scale);
-            evalBoxSplineTriDerivWeights(stMonomials, 1, 1, wDst, d2Scale);
-            evalBoxSplineTriDerivWeights(stMonomials, 0, 2, wDtt, d2Scale);
-            if (boundaryMask) {
-                adjustBoxSplineTriBoundaryWeights(boundaryMask, wDss);
-                adjustBoxSplineTriBoundaryWeights(boundaryMask, wDst);
-                adjustBoxSplineTriBoundaryWeights(boundaryMask, wDtt);
-            }
+            evalBoxSplineTriDerivWeights(stMonomials, 2, 0, wDss);
+            evalBoxSplineTriDerivWeights(stMonomials, 1, 1, wDst);
+            evalBoxSplineTriDerivWeights(stMonomials, 0, 2, wDtt);
         }
     }
     return 12;
@@ -1017,7 +1008,7 @@ int GetBoxSplineTriWeights(PatchParam const & param, REAL s, REAL t,
 namespace {
     template <typename REAL>
     void
-    evalBezierTriDerivWeights(REAL s, REAL t, int ds, int dt, REAL wB[], REAL scale) {
+    evalBezierTriDerivWeights(REAL s, REAL t, int ds, int dt, REAL wB[]) {
 
         REAL u  = s;
         REAL v  = t;
@@ -1141,36 +1132,26 @@ namespace {
         } else {
             assert(totalOrder <= 2);
         }
-        for (int i = 0; i < 12; ++i) {
-            wB[i] *= scale;
-        }
     }
 } // end namespace
 
 template <typename REAL>
 int
-GetBezierTriWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisBezierTri(REAL s, REAL t,
     REAL wP[12], REAL wDs[12], REAL wDt[12],
     REAL wDss[12], REAL wDst[12], REAL wDtt[12]) {
 
-    param.NormalizeTriangle(s,t);
-
     if (wP) {
-        evalBezierTriDerivWeights<REAL>(s, t, 0, 0, wP, 1.0f);
+        evalBezierTriDerivWeights<REAL>(s, t, 0, 0, wP);
     }
     if (wDs && wDt) {
-        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
-        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
-
-        evalBezierTriDerivWeights(s, t, 1, 0, wDs, dScale);
-        evalBezierTriDerivWeights(s, t, 0, 1, wDt, dScale);
+        evalBezierTriDerivWeights(s, t, 1, 0, wDs);
+        evalBezierTriDerivWeights(s, t, 0, 1, wDt);
 
         if (wDss && wDst && wDtt) {
-            REAL d2Scale = dScale * dScale * dSign;
-
-            evalBezierTriDerivWeights(s, t, 2, 0, wDss, d2Scale);
-            evalBezierTriDerivWeights(s, t, 1, 1, wDst, d2Scale);
-            evalBezierTriDerivWeights(s, t, 0, 2, wDtt, d2Scale);
+            evalBezierTriDerivWeights(s, t, 2, 0, wDss);
+            evalBezierTriDerivWeights(s, t, 1, 1, wDst);
+            evalBezierTriDerivWeights(s, t, 0, 2, wDtt);
         }
     }
     return 12;
@@ -1218,11 +1199,9 @@ namespace {
 
 template <typename REAL>
 int
-GetGregoryTriWeights(PatchParam const & param, REAL s, REAL t,
+EvalBasisGregoryTri(REAL s, REAL t,
     REAL wP[15], REAL wDs[15], REAL wDt[15],
     REAL wDss[15], REAL wDst[15], REAL wDtt[15]) {
-
-    param.NormalizeTriangle(s,t);
 
     //
     //  Bezier basis functions are denoted with B while the rational multipliers for the
@@ -1253,27 +1232,22 @@ GetGregoryTriWeights(PatchParam const & param, REAL s, REAL t,
     //  Compute Bezier basis functions and convert, adjusting interior points:
     //
     if (wP) {
-        evalBezierTriDerivWeights<REAL>(s, t, 0, 0, BP, 1.0f);
+        evalBezierTriDerivWeights<REAL>(s, t, 0, 0, BP);
         convertBezierWeightsToGregory(BP, G, wP);
     }
     if (wDs && wDt) {
         //  TBD -- ifdef OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES
 
-        REAL dSign  = param.IsTriangleRotated() ? -1.0f : 1.0f;
-        REAL dScale = (REAL)(1 << param.GetDepth()) * dSign;
-
-        evalBezierTriDerivWeights(s, t, 1, 0, BDs, dScale);
-        evalBezierTriDerivWeights(s, t, 0, 1, BDt, dScale);
+        evalBezierTriDerivWeights(s, t, 1, 0, BDs);
+        evalBezierTriDerivWeights(s, t, 0, 1, BDt);
 
         convertBezierWeightsToGregory(BDs, G, wDs);
         convertBezierWeightsToGregory(BDt, G, wDt);
 
         if (wDss && wDst && wDtt) {
-            REAL d2Scale = dScale * dScale * dSign;
-
-            evalBezierTriDerivWeights(s, t, 2, 0, BDss, d2Scale);
-            evalBezierTriDerivWeights(s, t, 1, 1, BDst, d2Scale);
-            evalBezierTriDerivWeights(s, t, 0, 2, BDtt, d2Scale);
+            evalBezierTriDerivWeights(s, t, 2, 0, BDss);
+            evalBezierTriDerivWeights(s, t, 1, 1, BDst);
+            evalBezierTriDerivWeights(s, t, 0, 2, BDtt);
 
             convertBezierWeightsToGregory(BDss, G, wDss);
             convertBezierWeightsToGregory(BDst, G, wDst);
@@ -1283,43 +1257,112 @@ GetGregoryTriWeights(PatchParam const & param, REAL s, REAL t,
     return 15;
 }
 
+//
+//  Higher level basis evaluation functions that deal with parameterization and
+//  boundary issues (reflected in PatchParam) for all patch types:
+//
+template <typename REAL>
+int
+EvaluatePatchBasisNormalized(int patchType, PatchParam const & param, REAL s, REAL t,
+    REAL wP[], REAL wDs[], REAL wDt[],
+    REAL wDss[], REAL wDst[], REAL wDtt[]) {
+
+    int boundaryMask = param.GetBoundary();
+
+    int nPoints = 0;
+    if (patchType == PatchDescriptor::REGULAR) {
+        nPoints = EvalBasisBSpline(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        if (boundaryMask) {
+            boundBasisBSpline(boundaryMask, wP, wDs, wDt, wDss, wDst, wDtt);
+        }
+    } else if (patchType == PatchDescriptor::LOOP) {
+        nPoints = EvalBasisBoxSplineTri(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+        if (boundaryMask) {
+            boundBasisBoxSplineTri(boundaryMask, wP, wDs, wDt, wDss, wDst, wDtt);
+        }
+    } else if (patchType == PatchDescriptor::GREGORY_BASIS) {
+        nPoints = EvalBasisGregory(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else if (patchType == PatchDescriptor::GREGORY_TRIANGLE) {
+        nPoints = EvalBasisGregoryTri(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else if (patchType == PatchDescriptor::QUADS) {
+        nPoints = EvalBasisLinear(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else if (patchType == PatchDescriptor::TRIANGLES) {
+        nPoints = EvalBasisLinearTri(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+    } else {
+        assert(0);
+    }
+    return nPoints;
+}
+
+template <typename REAL>
+int
+EvaluatePatchBasis(int patchType, PatchParam const & param, REAL s, REAL t,
+    REAL wP[], REAL wDs[], REAL wDt[],
+    REAL wDss[], REAL wDst[], REAL wDtt[]) {
+
+    REAL derivSign = 1.0f;
+
+    if ((patchType == PatchDescriptor::LOOP) ||
+        (patchType == PatchDescriptor::GREGORY_TRIANGLE) ||
+        (patchType == PatchDescriptor::TRIANGLES)) {
+        param.NormalizeTriangle(s, t);
+        if (param.IsTriangleRotated()) {
+            derivSign = -1.0f;
+        }
+    } else {
+        param.Normalize(s, t);
+    }
+
+    int nPoints = EvaluatePatchBasisNormalized(
+        patchType, param, s, t, wP, wDs, wDt, wDss, wDst, wDtt);
+
+    if (wDs && wDt) {
+        REAL d1Scale = derivSign * (REAL)(1 << param.GetDepth());
+
+        for (int i = 0; i < nPoints; ++i) {
+            wDs[i] *= d1Scale;
+            wDt[i] *= d1Scale;
+        }
+
+        if (wDss && wDst && wDtt) {
+            REAL d2Scale = derivSign * d1Scale * d1Scale;
+
+            for (int i = 0; i < nPoints; ++i) {
+                wDss[i] *= d2Scale;
+                wDst[i] *= d2Scale;
+                wDtt[i] *= d2Scale;
+            }
+        }
+    }
+    return nPoints;
+}
 
 //
 //  Explicit float and double instantiations:
 //
-template int GetBilinearWeights<float>(PatchParam const & param, float s, float t,
-        float wP[4], float wDs[4], float wDt[4], float wDss[4], float wDst[4], float wDtt[4]);
-template int GetBezierWeights<float>(PatchParam const & param, float s, float t,
-        float wP[16], float wDs[16], float wDt[16], float wDss[16], float wDst[16], float wDtt[16]);
-template int GetBSplineWeights<float>(PatchParam const & param, float s, float t,
-        float wP[16], float wDs[16], float wDt[16], float wDss[16], float wDst[16], float wDtt[16]);
-template int GetGregoryWeights<float>(PatchParam const & param, float s, float t,
-        float wP[20], float wDs[20], float wDt[20], float wDss[20], float wDst[20], float wDtt[20]);
-template int GetLinearTriWeights<float>(PatchParam const & param, float s, float t,
-        float wP[3], float wDs[3], float wDt[3], float wDss[3], float wDst[3], float wDtt[3]);
-template int GetBezierTriWeights<float>(PatchParam const & param, float s, float t,
-        float wP[12], float wDs[12], float wDt[12], float wDss[12], float wDst[12], float wDtt[12]);
-template int GetBoxSplineTriWeights<float>(PatchParam const & param, float s, float t,
-        float wP[12], float wDs[12], float wDt[12], float wDss[12], float wDst[12], float wDtt[12]);
-template int GetGregoryTriWeights<float>(PatchParam const & param, float s, float t,
-        float wP[15], float wDs[15], float wDt[15], float wDss[15], float wDst[15], float wDtt[15]);
+template int EvaluatePatchBasisNormalized<float>(int patchType, PatchParam const & param,
+    float s, float t, float wP[], float wDs[], float wDt[], float wDss[], float wDst[], float wDtt[]);
+template int EvaluatePatchBasis<float>(int patchType, PatchParam const & param,
+    float s, float t, float wP[], float wDs[], float wDt[], float wDss[], float wDst[], float wDtt[]);
 
-template int GetBilinearWeights<double>(PatchParam const & param, double s, double t,
-        double wP[4], double wDs[4], double wDt[4], double wDss[4], double wDst[4], double wDtt[4]);
-template int GetBezierWeights<double>(PatchParam const & param, double s, double t,
-        double wP[16], double wDs[16], double wDt[16], double wDss[16], double wDst[16], double wDtt[16]);
-template int GetBSplineWeights<double>(PatchParam const & param, double s, double t,
-        double wP[16], double wDs[16], double wDt[16], double wDss[16], double wDst[16], double wDtt[16]);
-template int GetGregoryWeights<double>(PatchParam const & param, double s, double t,
-        double wP[20], double wDs[20], double wDt[20], double wDss[20], double wDst[20], double wDtt[20]);
-template int GetLinearTriWeights<double>(PatchParam const & param, double s, double t,
-        double wP[3], double wDs[3], double wDt[3], double wDss[3], double wDst[3], double wDtt[3]);
-template int GetBezierTriWeights<double>(PatchParam const & param, double s, double t,
-        double wP[12], double wDs[12], double wDt[12], double wDss[12], double wDst[12], double wDtt[12]);
-template int GetBoxSplineTriWeights<double>(PatchParam const & param, double s, double t,
-        double wP[12], double wDs[12], double wDt[12], double wDss[12], double wDst[12], double wDtt[12]);
-template int GetGregoryTriWeights<double>(PatchParam const & param, double s, double t,
-        double wP[15], double wDs[15], double wDt[15], double wDss[15], double wDst[15], double wDtt[15]);
+template int EvaluatePatchBasisNormalized<double>(int patchType, PatchParam const & param,
+    double s, double t, double wP[], double wDs[], double wDt[], double wDss[], double wDst[], double wDtt[]);
+template int EvaluatePatchBasis<double>(int patchType, PatchParam const & param,
+    double s, double t, double wP[], double wDs[], double wDt[], double wDss[], double wDst[], double wDtt[]);
+
+//
+//   Most basis evaluation functions are implicitly instantiated above -- Bezier
+//   require explicit instantiation as they are not invoked via a patch type:
+//
+template int EvalBasisBezier<float>(float s, float t,
+    float wP[16], float wDs[16], float wDt[16], float wDss[16], float wDst[16], float wDtt[16]);
+template int EvalBasisBezierTri<float>(float s, float t,
+    float wP[12], float wDs[12], float wDt[12], float wDss[12], float wDst[12], float wDtt[12]);
+
+template int EvalBasisBezier<double>(double s, double t,
+    double wP[16], double wDs[16], double wDt[16], double wDss[16], double wDst[16], double wDtt[16]);
+template int EvalBasisBezierTri<double>(double s, double t,
+    double wP[12], double wDs[12], double wDt[12], double wDss[12], double wDst[12], double wDtt[12]);
 
 } // end namespace internal
 } // end namespace Far

@@ -402,25 +402,8 @@ public:
                 ? Far::PatchDescriptor::REGULAR
                 : array.GetPatchType();
 
-            int numControlVertices = 0;
-            if (patchType == Far::PatchDescriptor::REGULAR) {
-                Far::internal::GetBSplineWeights(param,
-                                                 coord.s, coord.t, wP,
-                                                 wDu, wDv);
-                numControlVertices = 16;
-            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-                Far::internal::GetGregoryWeights(param,
-                                                 coord.s, coord.t, wP,
-                                                 wDu, wDv);
-                numControlVertices = 20;
-            } else if (patchType == Far::PatchDescriptor::QUADS) {
-                Far::internal::GetBilinearWeights(param,
-                                                  coord.s, coord.t, wP,
-                                                  wDu, wDv);
-                numControlVertices = 4;
-            } else {
-                assert(0);
-            }
+            int numControlVertices = Far::internal::EvaluatePatchBasis(patchType,
+                    param, coord.s, coord.t, wP, wDu, wDv);
 
             int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
             int indexBase = array.GetIndexBase() + indexStride *
@@ -464,25 +447,8 @@ public:
                 ? Far::PatchDescriptor::REGULAR
                 : array.GetPatchType();
 
-            int numControlVertices = 0;
-            if (patchType == Far::PatchDescriptor::REGULAR) {
-                Far::internal::GetBSplineWeights(param,
-                                                 coord.s, coord.t, wP,
-                                                 wDu, wDv);
-                numControlVertices = 16;
-            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-                Far::internal::GetGregoryWeights(param,
-                                                 coord.s, coord.t, wP,
-                                                 wDu, wDv);
-                numControlVertices = 20;
-            } else if (patchType == Far::PatchDescriptor::QUADS) {
-                Far::internal::GetBilinearWeights(param,
-                                                  coord.s, coord.t,
-                                                  wP, wDu, wDv);
-                numControlVertices = 4;
-            } else {
-                assert(0);
-            }
+            int numControlVertices = Far::internal::EvaluatePatchBasis(patchType,
+                    param, coord.s, coord.t, wP, wDu, wDv);
 
             int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
             int indexBase = array.GetIndexBase() + indexStride *
@@ -544,25 +510,8 @@ public:
                 ? Far::PatchDescriptor::REGULAR
                 : array.GetPatchType();
 
-            int numControlVertices = 0;
-            if (patchType == Far::PatchDescriptor::REGULAR) {
-                Far::internal::GetBSplineWeights(param,
-                                                 coord.s, coord.t, wP,
-                                                 wDu, wDv, wDuu, wDuv, wDvv);
-                numControlVertices = 16;
-            } else if (patchType == Far::PatchDescriptor::GREGORY_BASIS) {
-                Far::internal::GetGregoryWeights(param,
-                                                 coord.s, coord.t, wP,
-                                                 wDu, wDv, wDuu, wDuv, wDvv);
-                numControlVertices = 20;
-            } else if (patchType == Far::PatchDescriptor::QUADS) {
-                Far::internal::GetBilinearWeights(param,
-                                                  coord.s, coord.t, wP,
-                                                 wDu, wDv, wDuu, wDuv, wDvv);
-                numControlVertices = 4;
-            } else {
-                assert(0);
-            }
+            int numControlVertices = Far::internal::EvaluatePatchBasis(patchType,
+                    param, coord.s, coord.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
 
             int indexStride = Far::PatchDescriptor(array.GetPatchType()).GetNumControlVertices();
             int indexBase = array.GetIndexBase() + indexStride *
