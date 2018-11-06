@@ -265,8 +265,6 @@ protected:
     PatchBuilder(TopologyRefiner const& refiner, Options const& options);
 
     //  Internal methods supporting topology queries:
-    bool isPatchSmoothCorner(int level, Index face, int fvc) const;
-
     int getRegularFacePoints(int level, Index face,
             Index patchPoints[], int fvc) const;
 

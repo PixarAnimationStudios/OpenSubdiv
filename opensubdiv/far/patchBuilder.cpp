@@ -572,8 +572,7 @@ PatchBuilder::IsFaceALeaf(int levelIndex, Index faceIndex) const {
 }
 
 bool
-PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
-    int fvarChannel) const {
+PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex, int fvc) const {
 
     if (_schemeNeighborhood == 0) {
         //  The previous face-is-a-patch test precludes an irregular patch
@@ -582,144 +581,131 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex,
 
     Level const & level = _refiner.getLevel(levelIndex);
 
-    //  Retrieve individual VTags for the four corners and combine:
+    //
+    //  Retrieve individual VTags for the four corners and combine, as we may
+    //  need the individual VTags for closer inspection.
+    //
+    //  Immediately return regular status based on xordinary bit if completely
+    //  smooth at all corners, i.e. no inf-sharp corners or boundaries present
+    //  (which also rules out the presence of non-manifold vertices)
+    //
     Level::VTag vTags[4];
-    level.getFaceVTags(faceIndex, vTags, fvarChannel);
+    level.getFaceVTags(faceIndex, vTags, fvc);
 
     Level::VTag fCompVTag = Level::VTag::BitwiseOr(vTags, _schemeRegFaceSize);
 
-    //  Immediately return regular status if completely smooth at all corners
-    //  (all corners smooth rules out presence of non-manifold vertices)
-    bool hasXOrdinary = fCompVTag._xordinary;
-
-    if (fCompVTag._rule == Sdc::Crease::RULE_SMOOTH) {
-        return !hasXOrdinary;
+    if (!fCompVTag._infSharp && !fCompVTag._infSharpEdges) {
+        return !fCompVTag._xordinary;
     }
 
-    //  See if any features warrant inspection of the corners individually:
-    bool hasIrregFaces = (_schemeRegFaceSize == 4);
-    int  minIsoLevel   = 1 + (hasXOrdinary && hasIrregFaces);
+    //
+    //  Irregular features will exist at corners that are either non-manifold,
+    //  extra-ordinary, or that are tagged with inf-sharp irregularities (may
+    //  be regular even if extra-ordinary or vice versa -- depending on the
+    //  specific inf-sharp edges present around the vertex).
+    //
+    //  Build a bit-mask for the irregular features -- if the composite tag
+    //  has no irregular features, we can immediately return.
+    //
+    bool testInfSharpFeatures = !_options.approxInfSharpWithSmooth;
 
-    bool hasNonManifold = fCompVTag._nonManifold;
+    Level::VTag irregFeatureTag(0);
+    irregFeatureTag._nonManifold  = true;
+    irregFeatureTag._xordinary    = true;
+    irregFeatureTag._infIrregular = testInfSharpFeatures;
 
-    bool hasInfSharp  = fCompVTag._infSharp || fCompVTag._infSharpEdges;
-    bool testInfSharp = hasInfSharp && !_options.approxInfSharpWithSmooth;
-    bool testInfIrreg = testInfSharp && fCompVTag._infIrregular;
+    int irregFeatureMask = irregFeatureTag.getBits(); 
 
-    bool testAllCorners = (levelIndex < minIsoLevel) || hasNonManifold || testInfIrreg;
-    if (testAllCorners) {
-        Level::ETag eMask = getSingularEdgeMask(testInfSharp);
+    if ((fCompVTag.getBits() & irregFeatureMask) == 0) {
+        return true;
+    }
 
-        int regBoundaryFaces = 2 + (_schemeRegFaceSize == 3);
+    //
+    //  If the irregular feature is isolated, we can use the combined corner
+    //  tags to determine regularity -- unless specified options require a
+    //  closer inspection of the single irregular feature:
+    //
+    bool mayHaveIrregFaces  = (_schemeRegFaceSize == 4);
+    bool needsExtraIsoLevel = fCompVTag._xordinary && mayHaveIrregFaces;
 
-        for (int i = 0; i < _schemeRegFaceSize; ++i) {
-            Level::VTag vTag = vTags[i];
+    bool featureIsIsolated = levelIndex > needsExtraIsoLevel;
+    if (featureIsIsolated) {
+        bool featureRequiresFurtherInspection = fCompVTag._nonManifold ||
+                (_options.approxSmoothCornerWithSharp &&
+                        fCompVTag._xordinary && fCompVTag._boundary) ||
+                (testInfSharpFeatures &&
+                        fCompVTag._infIrregular && fCompVTag._infSharpEdges);
 
-            if (vTag._nonManifold) {
-                int n = countNonManifoldCornerSpan(
-                            level, faceIndex, i, eMask, fvarChannel);
-                if ((vTag._infSharp       && (n != 1)) ||
-                    (vTag._infSharpCrease && (n != regBoundaryFaces))) {
-                    return false;
-                }
+        if (!featureRequiresFurtherInspection) {
+            if (testInfSharpFeatures) {
+                return !fCompVTag._infIrregular;
             } else {
-                if (vTag._xordinary) {
-                    if (vTag._rule == Sdc::Crease::RULE_SMOOTH) {
-                        return false;
-                    }
-                }
-                if (testInfIrreg && vTag._infIrregular) {
-                    if (vTag._infSharpEdges) {
-                        int n = countManifoldCornerSpan(
-                                    level, faceIndex, i, eMask, fvarChannel);
-                        if (!vTag._infSharpCrease) {
-                            if (n != 1) return false;
-                        } else if (n > 1) {
-                            if (n != regBoundaryFaces) return false;
-                        } else if (_options.approxSmoothCornerWithSharp) {
-                            if (!vTag._boundary) return false;
-                        } else {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
+                return !fCompVTag._xordinary;
             }
         }
     }
-
-    //  Irregularities not detected above occur at sharp features.  Determine if
-    //  still regular from xordinary corners -- unless using inf-sharp features
-    //  and no inf-sharp irregularities are present:
-    //
-    bool isRegular = !hasXOrdinary || (testInfSharp && !fCompVTag._infIrregular);
-
-    //  Legacy option -- reinterpret smooth corner as sharp if specified:
-    if (!isRegular && _options.approxSmoothCornerWithSharp) {
-        if (fCompVTag._xordinary && fCompVTag._boundary && !fCompVTag._nonManifold) {
-            isRegular = isPatchSmoothCorner(levelIndex, faceIndex, fvarChannel);
-        }
-    }
-    return isRegular;
-}
-
-bool
-PatchBuilder::isPatchSmoothCorner(int levelIndex, Index faceIndex,
-    int fvarChannel) const {
-
-    Level const & level = _refiner.getLevel(levelIndex);
-
-    ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
-    bool isQuad = (fVerts.size() == 4);
-
-    Level::VTag vTags[4];
-    level.getFaceVTags(faceIndex, vTags, fvarChannel);
-
-    //
-    //  Test the subdivision rules for the corners, rather than just the
-    //  boundary/interior tags, to ensure that inf-sharp vertices or edges
-    //  are properly accounted for (and the cases appropriately excluded)
-    //  if inf-sharp patches are enabled:
-    //
-    int boundaryCount = 0;
-    if (!_options.approxInfSharpWithSmooth) {
-        boundaryCount =
-            (vTags[0]._infSharpEdges && (vTags[0]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[1]._infSharpEdges && (vTags[1]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[2]._infSharpEdges && (vTags[2]._rule == Sdc::Crease::RULE_CREASE));
-        if (isQuad) {
-            boundaryCount +=
-                (vTags[3]._infSharpEdges && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
-        }
-    } else {
-        boundaryCount =
-            (vTags[0]._boundary && (vTags[0]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[1]._boundary && (vTags[1]._rule == Sdc::Crease::RULE_CREASE)) +
-            (vTags[2]._boundary && (vTags[2]._rule == Sdc::Crease::RULE_CREASE));
-        if (isQuad) {
-            boundaryCount +=
-                (vTags[3]._boundary && (vTags[3]._rule == Sdc::Crease::RULE_CREASE));
-        }
-    }
-    int xordinaryCount = vTags[0]._xordinary + vTags[1]._xordinary + vTags[2]._xordinary;
-    if (isQuad) {
-        xordinaryCount += vTags[3]._xordinary;
-    }
     
-    if ((boundaryCount == 3) && (xordinaryCount == 1)) {
-        //  This must be an isolated xordinary corner above level 1, otherwise
-        //  we still need to assure the xordinary vertex is opposite a smooth
-        //  interior vertex:
-        //
-        if (!isQuad || (levelIndex > 1)) return true;
-    
-        if (vTags[0]._xordinary) return (vTags[2]._rule == Sdc::Crease::RULE_SMOOTH);
-        if (vTags[1]._xordinary) return (vTags[3]._rule == Sdc::Crease::RULE_SMOOTH);
-        if (vTags[2]._xordinary) return (vTags[0]._rule == Sdc::Crease::RULE_SMOOTH);
-        if (vTags[3]._xordinary) return (vTags[1]._rule == Sdc::Crease::RULE_SMOOTH);
+    //
+    //  Inspect all or the single isolated corner.  Use the irregular feature
+    //  mask to quickly skip regular corners and return on the first irregular
+    //  feature encountered:
+    //
+    int nRegBoundaryFaces = (_schemeRegFaceSize == 4) ? 2 : 3;
+
+    for (int i = 0; i < _schemeRegFaceSize; ++i) {
+        Level::VTag vTag = vTags[i];
+
+        if ((vTag.getBits() & irregFeatureMask) == 0) continue;
+
+        if (vTag._nonManifold) {
+            //  Identify the span containing the face and assess:
+            int nSpanFaces = countNonManifoldCornerSpan(level, faceIndex, i,
+                getSingularEdgeMask(testInfSharpFeatures), fvc);
+            if (vTag._infSharp) {
+                if (nSpanFaces != 1) return false;
+            } else {
+                if (nSpanFaces != (nRegBoundaryFaces)) return false;
+            }
+            continue;
+        }
+
+        if (vTag._xordinary) {
+            //  A smooth xordinary vertex is always irregular
+            if (!vTag._infSharpEdges) return false;
+
+            //  A smooth corner vertex may be interpreted as regular:
+            if (_options.approxSmoothCornerWithSharp &&
+                    vTag._boundary && !vTag._infSharp) {
+                Level::ETag eTags[4];
+                level.getFaceETags(faceIndex, eTags, fvc);
+                int iPrev = i ? (i - 1) : (_schemeRegFaceSize - 1);
+                if (eTags[i]._boundary && eTags[iPrev]._boundary) {
+                    continue;
+                }
+            }
+
+            //  All others irregular, unless further inspecting inf-sharp
+            if (!testInfSharpFeatures) return false;
+        }
+
+        if (vTag._infIrregular) {
+            //  Inf-sharp vertex with no inf-sharp edges:
+            if (!vTag._infSharpEdges) return false;
+
+            //  Irregular boundary crease:
+            if (vTag._infSharpCrease && vTag._boundary) return false;
+
+            //  Identify the span containing the face and assess:
+            int nSpanFaces = countManifoldCornerSpan(level, faceIndex, i,
+                getSingularEdgeMask(true), fvc);
+            if (vTag._infSharpCrease) {
+                if (nSpanFaces != (nRegBoundaryFaces)) return false;
+            } else {
+                if (nSpanFaces != 1) return false;
+            }
+        }
     }
-    return false;
+    return true;
 }
 
 int
@@ -750,58 +736,43 @@ PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     level.getFaceETags(faceIndex, eTags, fvarChannel);
 
     //
-    //  For quads it is sufficient to inspect only edge tags.  For tris,
-    //  vertices may lie on boundaries with no incident boundary edges in
-    //  the tri itself.
+    //  Test the edge tags for boundary features.  For quads this is
+    //  sufficient, so return the edge bits.
     //
-    bool isQuad = ( _schemeRegFaceSize == 4);
+    bool testInfSharpFeatures = !_options.approxInfSharpWithSmooth;
 
-    int eBits = 0;
-    if (!_options.approxInfSharpWithSmooth) {
-        eBits = (eTags[0]._infSharp << 0) |
-                (eTags[1]._infSharp << 1) |
-                (eTags[2]._infSharp << 2);
-        if (isQuad) eBits |= (eTags[3]._infSharp << 3);
-    } else {
-        eBits = (eTags[0]._boundary << 0) |
-                (eTags[1]._boundary << 1) |
-                (eTags[2]._boundary << 2);
-        if (isQuad) eBits |= (eTags[3]._boundary << 3);
-    }
-    if (fTag._nonManifold) {
-        eBits |= (eTags[0]._nonManifold << 0) |
-                 (eTags[1]._nonManifold << 1) |
-                 (eTags[2]._nonManifold << 2);
-        if (isQuad) eBits |= (eTags[3]._nonManifold << 3);
+    Level::ETag eFeatureTag(0);
+    eFeatureTag._boundary    = true;
+    eFeatureTag._infSharp    = testInfSharpFeatures;
+    eFeatureTag._nonManifold = true;
+
+    int eFeatureMask = eFeatureTag.getBits();
+
+    int eBits = (((eTags[0].getBits() & eFeatureMask) != 0) << 0) |
+                (((eTags[1].getBits() & eFeatureMask) != 0) << 1) |
+                (((eTags[2].getBits() & eFeatureMask) != 0) << 2);
+    if (_schemeRegFaceSize == 4) {
+        eBits |= (((eTags[3].getBits() & eFeatureMask) != 0) << 3);
+        return eBits;
     }
 
-    int vBits = 0;
-    if (!isQuad) {
-        if (!_options.approxInfSharpWithSmooth) {
-            vBits = (vTags[0]._infSharpEdges << 0) |
-                    (vTags[1]._infSharpEdges << 1) |
-                    (vTags[2]._infSharpEdges << 2);
-        } else if (fTag._boundary) {
-            vBits = (vTags[0]._boundary << 0) |
-                    (vTags[1]._boundary << 1) |
-                    (vTags[2]._boundary << 2);
-        }
-        if (fTag._nonManifold) {
-            vBits |= (vTags[0]._nonManifold << 0) |
-                     (vTags[1]._nonManifold << 1) |
-                     (vTags[2]._nonManifold << 2);
-        }
-    }
+    //
+    //  For triangles, test the vertex tags for boundary features (we
+    //  can have boundary vertices with no boundary edges) and return
+    //  the encoded result of the two sets of 3 bits:
+    //
+    Level::VTag vFeatureTag(0);
+    vFeatureTag._boundary    = true;
+    vFeatureTag._infSharp    = testInfSharpFeatures;
+    vFeatureTag._nonManifold = true;
 
-    int boundaryMask = 0;
-    if (eBits || vBits) {
-        if (isQuad) {
-            boundaryMask = eBits;
-        } else {
-            boundaryMask = encodeTriBoundaryMask(eBits, vBits);
-        }
-    }
-    return boundaryMask;
+    int vFeatureMask = vFeatureTag.getBits();
+
+    int vBits = (((vTags[0].getBits() & vFeatureMask) != 0) << 0) |
+                (((vTags[1].getBits() & vFeatureMask) != 0) << 1) |
+                (((vTags[2].getBits() & vFeatureMask) != 0) << 2);
+
+    return (eBits || vBits) ? encodeTriBoundaryMask(eBits, vBits) : 0;
 }
 
 void
@@ -819,52 +790,58 @@ PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
         level.getFVarLevel(fvarChannel).getFaceValueTags(faceIndex, fvarTags);
     }
 
-    bool testInfSharp = !_options.approxInfSharpWithSmooth;
-
     //
-    //  For each corner vertex, use the complete neighborhood when possible
-    //  (which does not require a search, otherwise identify the span of
-    //  interest around the vertex:
+    //  For each corner, identify the span of interest around the vertex,
+    //  using the complete neighborhood when possible (which does not require
+    //  a search):
     //
-    ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
+    bool testInfSharpFeatures = !_options.approxInfSharpWithSmooth;
 
-    Level::ETag singularEdgeMask =
-        getSingularEdgeMask(!_options.approxInfSharpWithSmooth);
+    Level::ETag singularEdgeMask = getSingularEdgeMask(testInfSharpFeatures);
 
-    for (int i = 0; i < fVerts.size(); ++i) {
-        bool noFVarMisMatch = (fvarChannel < 0) || !fvarTags[i]._mismatch;
+    for (int i = 0; i < _schemeRegFaceSize; ++i) {
+        Level::VTag vTag = vTags[i];
 
-        bool isManifold = !vTags[i]._nonManifold;
+        bool isNonManifold = vTag._nonManifold;
 
-        bool testInfSharpEdges = testInfSharp && vTags[i]._infSharpEdges &&
-                                 (vTags[i]._rule != Sdc::Crease::RULE_DART);
+        bool isFVarMisMatch = (fvarChannel >= 0) && fvarTags[i]._mismatch;
 
-        if (noFVarMisMatch && !testInfSharpEdges && isManifold) {
-            cornerSpans[i].clear();
-        } else {
-            if (isManifold) {
-                identifyManifoldCornerSpan(level, faceIndex,
-                        i, singularEdgeMask, cornerSpans[i], fvarChannel);
-            } else {
+        bool testInfSharpEdges = testInfSharpFeatures &&
+                vTag._infSharpEdges && (vTag._rule != Sdc::Crease::RULE_DART);
+
+        //
+        //  Identify a discontinuity in the one-ring, otherwise use an
+        //  unassigned (cleared) span to indicate use of the full ring:
+        //
+        if (testInfSharpEdges || isFVarMisMatch || isNonManifold) {
+            if (isNonManifold) {
                 identifyNonManifoldCornerSpan(level, faceIndex,
                         i, singularEdgeMask, cornerSpans[i], fvarChannel);
+            } else {
+                identifyManifoldCornerSpan(level, faceIndex,
+                        i, singularEdgeMask, cornerSpans[i], fvarChannel);
             }
-        }
-        if (vTags[i]._corner) {
-            cornerSpans[i]._sharp = true;
-        } else if (testInfSharp) {
-            cornerSpans[i]._sharp = testInfSharpEdges
-                    ? !vTags[i]._infSharpCrease : vTags[i]._infSharp;
+        } else {
+            cornerSpans[i].clear();
         }
 
-        //  Legacy option -- reinterpret smooth corner as sharp if specified:
-        if (!cornerSpans[i]._sharp && _options.approxSmoothCornerWithSharp) {
-            if (vTags[i]._xordinary && vTags[i]._boundary && !vTags[i]._nonManifold) {
-                int nFaces = cornerSpans[i].isAssigned()
-                           ? cornerSpans[i]._numFaces
-                           : level.getVertexFaces(fVerts[i]).size();
-                cornerSpans[i]._sharp = (nFaces == 1);
-            }
+        //  Sharpen the span if a corner or subject to inf-sharp features:
+        if (vTag._corner) {
+            cornerSpans[i]._sharp = true;
+        } else if (isNonManifold) {
+            cornerSpans[i]._sharp = vTag._infSharp;
+        } else if (testInfSharpFeatures) {
+            cornerSpans[i]._sharp = testInfSharpEdges
+                    ? !vTag._infSharpCrease : vTag._infSharp;
+        }
+
+        //  Legacy option -- reinterpret a smooth corner as sharp:
+        if (_options.approxSmoothCornerWithSharp && vTag._xordinary &&
+                vTag._boundary && !vTag._infSharp && !vTag._nonManifold) {
+            int nFaces = cornerSpans[i].isAssigned()
+                ? cornerSpans[i]._numFaces
+                : level.getVertexFaces(level.getFaceVertices(faceIndex)[i]).size();
+            cornerSpans[i]._sharp = (nFaces == 1);
         }
     }
 }
@@ -1169,12 +1146,6 @@ PatchBuilder::gatherIrregularSourcePoints(
     StackBuffer<Index,64,true> sourceRingVertices(sourcePatch.GetMaxRingSize());
     StackBuffer<Index,64,true> patchRingPoints(sourcePatch.GetMaxRingSize());
 
-    //  Debugging -- all entries should be assigned (see test after assignment)
-    const int debugUnassignedPointIndex = -1;
-    for (int i = 0; i < numSourceVerts; ++i) {
-        patchVerts[i] = debugUnassignedPointIndex;
-    }
-
     Level const & level = _refiner.getLevel(levelIndex);
 
     ConstIndexArray faceVerts = level.getFaceVertices(faceIndex);
@@ -1207,11 +1178,6 @@ PatchBuilder::gatherIrregularSourcePoints(
             assert(patchRingPoints[i] < numSourceVerts);
             patchVerts[patchRingPoints[i]] = sourceRingVertices[i];
         }
-    }
-
-    //  Debugging -- all entries should be assigned (see pre-assignment above)
-    for (int i = 0; i < numSourceVerts; ++i) {
-        assert(patchVerts[i] != debugUnassignedPointIndex);
     }
     return numSourceVerts;
 }
