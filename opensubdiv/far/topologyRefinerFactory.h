@@ -438,6 +438,7 @@ template <class MESH>
 inline void
 TopologyRefinerFactory<MESH>::setNumBaseFaceVertices(TopologyRefiner & newRefiner, Index f, int count) {
     newRefiner._levels[0]->resizeFaceVertices(f, count);
+    newRefiner._hasIrregFaces |= (count != newRefiner._regFaceSize);
 }
 template <class MESH>
 inline void

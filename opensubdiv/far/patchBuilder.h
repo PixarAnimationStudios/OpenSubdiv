@@ -304,7 +304,7 @@ protected:
 
     Sdc::SchemeType _schemeType;
     int             _schemeRegFaceSize;
-    int             _schemeNeighborhood;
+    bool            _schemeIsLinear;
 
     PatchDescriptor::Type _regPatchType;
     PatchDescriptor::Type _irregPatchType;

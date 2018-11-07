@@ -318,6 +318,20 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
         }
 
         //
+        //  If any irregular faces are present, mark whether or not a vertex is incident
+        //  any irregular face:
+        //
+        if (refiner._hasIrregFaces) {
+            int regSize = refiner._regFaceSize;
+            for (int i = 0; i < vFaces.size(); ++i) {
+                if (baseLevel.getFaceVertices(vFaces[i]).size() != regSize) {
+                    vTag._incidIrregFace = true;
+                    break;
+                }
+            }
+        }
+
+        //
         //  Having just decided if a vertex is on a boundary, and with its incident faces
         //  available, mark incident faces as holes.
         //

@@ -520,9 +520,9 @@ PatchBuilder::PatchBuilder(
     //  Initialize members with properties of the subdivision scheme and patch
     //  choices for quick retrieval:
     //
-    _schemeType         = refiner.GetSchemeType();
-    _schemeRegFaceSize  = Sdc::SchemeTypeTraits::GetRegularFaceSize(_schemeType);
-    _schemeNeighborhood = Sdc::SchemeTypeTraits::GetLocalNeighborhoodSize(_schemeType);
+    _schemeType        = refiner.GetSchemeType();
+    _schemeRegFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(_schemeType);
+    _schemeIsLinear    = Sdc::SchemeTypeTraits::GetLocalNeighborhoodSize(_schemeType) == 0;
 
     //  Initialization of members involving patch types is deferred to the
     //  subclass for the scheme
@@ -539,19 +539,23 @@ bool
 PatchBuilder::IsFaceAPatch(int levelIndex, Index faceIndex) const {
 
     Level const & level = _refiner.getLevel(levelIndex);
-    ConstIndexArray fVerts = level.getFaceVertices(faceIndex);
 
     //  Fail if the face is a hole (i.e. no limit surface)
-    if (level.isFaceHole(faceIndex)) return false;
+    if (_refiner.HasHoles() && level.isFaceHole(faceIndex)) return false;
 
-    //  Fail if the face is irregular
-    if (fVerts.size() != _schemeRegFaceSize) return false;
+    //  Return if the face is regular only when scheme is linear:
+    if (_schemeIsLinear) {
+        return level.getFaceVertices(faceIndex).size() == _schemeRegFaceSize;
+    }
 
-    //  Fail if the face lacks its complete neighborhood of support
-    //      - preserving the historical test for 4-sided faces
-    if ((_schemeRegFaceSize == 4) || (levelIndex == 0)) {
-        if (level.getFaceCompositeVTag(fVerts)._incomplete) return false;
+    //  Fail if the face is incident an irregular face (base level) or if incomplete:
+    Level::VTag compVTag = level.getFaceCompositeVTag(faceIndex);
+    if (levelIndex == 0) {
+        if (compVTag._incidIrregFace) return false;
+    } else if (_schemeRegFaceSize == 4) {
+        if (compVTag._incomplete) return false;
     } else {
+        //  Cannot use combined VTags for triangles, inspect the Refinement tags:
         if (_refiner.getRefinement(levelIndex - 1).getChildFaceTag(faceIndex)._incomplete) return false;
     }
     return true;
@@ -574,7 +578,7 @@ PatchBuilder::IsFaceALeaf(int levelIndex, Index faceIndex) const {
 bool
 PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex, int fvc) const {
 
-    if (_schemeNeighborhood == 0) {
+    if (_schemeIsLinear) {
         //  The previous face-is-a-patch test precludes an irregular patch
         return true;
     }
@@ -625,7 +629,7 @@ PatchBuilder::IsPatchRegular(int levelIndex, Index faceIndex, int fvc) const {
     //  tags to determine regularity -- unless specified options require a
     //  closer inspection of the single irregular feature:
     //
-    bool mayHaveIrregFaces  = (_schemeRegFaceSize == 4);
+    bool mayHaveIrregFaces  = _refiner._hasIrregFaces;
     int  needsExtraIsoLevel = fCompVTag._xordinary && mayHaveIrregFaces;
 
     bool featureIsIsolated = levelIndex > needsExtraIsoLevel;
@@ -712,7 +716,7 @@ int
 PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     int fvarChannel) const {
 
-    if (_schemeNeighborhood == 0) {
+    if (_schemeIsLinear) {
         //  Boundaries for patches not dependent on the 1-ring are ignored
         return 0;
     }
@@ -1054,7 +1058,7 @@ PatchBuilder::GetRegularPatchPoints(int levelIndex, Index faceIndex,
         int regBoundaryMask, Index patchPoints[],
         int fvarChannel) const {
 
-    if (_schemeNeighborhood == 0) {
+    if (_schemeIsLinear) {
         return getRegularFacePoints(
             levelIndex, faceIndex, patchPoints, fvarChannel);
     } else if (_schemeRegFaceSize == 4) {
