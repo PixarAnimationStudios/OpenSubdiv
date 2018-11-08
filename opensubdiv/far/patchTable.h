@@ -677,7 +677,6 @@ private:
     //
     // Varying data
     //
-
     PatchDescriptor _varyingDesc;
 
     std::vector<Index>   _varyingVerts;
@@ -685,7 +684,6 @@ private:
     //
     // Face-varying data
     //
-
     FVarPatchChannelVector _fvarChannels;
 
     std::vector<StencilTableHandler> _localPointFaceVaryingStencils;
@@ -693,9 +691,13 @@ private:
     //
     // 'single-crease' patch sharpness tables
     //
-
     std::vector<Index>   _sharpnessIndices; // Indices of single-crease sharpness (one per patch)
     std::vector<float>   _sharpnessValues;  // Sharpness values.
+
+    //
+    //  Construction history -- relevant to at least one public query:
+    //
+    unsigned int _isUniformLinear : 1;
 
     //
     //  Precision -- only applies to local-point stencil tables

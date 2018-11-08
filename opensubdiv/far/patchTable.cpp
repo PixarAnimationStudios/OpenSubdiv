@@ -39,6 +39,7 @@ PatchTable::PatchTable(int maxvalence) :
     _localPointStencils(),
     _localPointVaryingStencils(),
     _varyingDesc(Far::PatchDescriptor::QUADS),
+    _isUniformLinear(false),
     _vertexPrecisionIsDouble(false),
     _varyingPrecisionIsDouble(false),
     _faceVaryingPrecisionIsDouble(false) {
@@ -60,6 +61,7 @@ PatchTable::PatchTable(PatchTable const & src) :
     _fvarChannels(src._fvarChannels),
     _sharpnessIndices(src._sharpnessIndices),
     _sharpnessValues(src._sharpnessValues),
+    _isUniformLinear(src._isUniformLinear),
     _vertexPrecisionIsDouble(src._vertexPrecisionIsDouble),
     _varyingPrecisionIsDouble(src._varyingPrecisionIsDouble),
     _faceVaryingPrecisionIsDouble(src._faceVaryingPrecisionIsDouble) {
@@ -386,17 +388,7 @@ PatchTable::GetPatchQuadOffsets(PatchHandle const & handle) const {
 bool
 PatchTable::IsFeatureAdaptive() const {
 
-    // XXX:
-    // revisit this function, since we'll add uniform cubic patches later.
-
-    for (int i=0; i<GetNumPatchArrays(); ++i) {
-        PatchDescriptor const & desc = _patchArrays[i].desc;
-        if (desc.GetType()>=PatchDescriptor::REGULAR &&
-            desc.GetType()<=PatchDescriptor::GREGORY_BASIS) {
-            return true;
-        }
-    }
-    return false;
+    return !_isUniformLinear;
 }
 
 PatchDescriptor
