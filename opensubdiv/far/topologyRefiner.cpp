@@ -615,11 +615,16 @@ namespace {
     //
     bool
     doesFaceHaveFeatures(Vtr::internal::Level const& level, Index face,
-                         internal::FeatureMask const & featureMask) {
+                         internal::FeatureMask const & featureMask, int regFaceSize) {
 
         using Vtr::internal::Level;
 
         ConstIndexArray fVerts = level.getFaceVertices(face);
+
+        //  Irregular faces (base level) are unconditionally included:
+        if (fVerts.size() != regFaceSize) {
+            return true;
+        }
 
         //  Gather and combine the VTags:
         Level::VTag vTags[4];
@@ -763,7 +768,7 @@ TopologyRefiner::selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& 
         //  Test if the face has any of the specified features present.  If not, and FVar
         //  channels are to be considered, look for features in the FVar channels:
         //
-        bool selectFace = doesFaceHaveFeatures(level, face, featureMask);
+        bool selectFace = doesFaceHaveFeatures(level, face, featureMask, _regFaceSize);
 
         if (!selectFace && featureMask.selectFVarFeatures) {
             for (int channel = 0; !selectFace && (channel < numFVarChannels); ++channel) {
