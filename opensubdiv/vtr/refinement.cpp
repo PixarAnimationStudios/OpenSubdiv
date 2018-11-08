@@ -773,6 +773,7 @@ Refinement::populateVertexTagsFromParentVertices() {
     Index cVertEnd = cVert + getNumChildVerticesFromVertices();
     for ( ; cVert < cVertEnd; ++cVert) {
         _child->_vertTags[cVert] = _parent->_vertTags[_childVertexParentIndex[cVert]];
+        _child->_vertTags[cVert]._incidIrregFace = 0;
     }
 }
 

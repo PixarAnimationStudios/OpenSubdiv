@@ -112,7 +112,13 @@ public:
         VTagSize _semiSharp       : 1;  // variable
         VTagSize _semiSharpEdges  : 1;  // variable
         VTagSize _rule            : 4;  // variable when _semiSharp
-        VTagSize _incomplete      : 1;  // variable for sparse refinement
+
+        //  These next to tags are complementary -- the "incomplete" tag is only
+        //  relevant for refined levels while the "incident an irregular face" tag
+        //  is only relevant for the base level.  They could be combined as both
+        //  indicate "no full regular ring" around a vertex
+        VTagSize _incomplete      : 1;  // variable only set in refined levels
+        VTagSize _incidIrregFace  : 1;  // variable only set in base level
 
         //  Tags indicating incident infinitely-sharp (permanent) features
         VTagSize _infSharpEdges   : 1;  // fixed

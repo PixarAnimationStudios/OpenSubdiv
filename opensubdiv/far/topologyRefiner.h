@@ -236,6 +236,8 @@ private:
     void selectFeatureAdaptiveComponents(Vtr::internal::SparseSelector& selector,
                                          internal::FeatureMask const & mask,
                                          ConstIndexArray selectedFaces);
+    void selectLinearIrregularFaces(Vtr::internal::SparseSelector& selector,
+                                    ConstIndexArray selectedFaces);
 
     void initializeInventory();
     void updateInventory(Vtr::internal::Level const & newLevel);
@@ -249,9 +251,11 @@ private:
     Sdc::SchemeType _subdivType;
     Sdc::Options    _subdivOptions;
 
-    unsigned int _isUniform : 1,
-                 _hasHoles : 1,
-                 _maxLevel : 4;
+    unsigned int _isUniform     : 1;
+    unsigned int _hasHoles      : 1;
+    unsigned int _hasIrregFaces : 1;
+    unsigned int _regFaceSize   : 3;
+    unsigned int _maxLevel      : 4;
 
     //  Options assigned on refinement:
     UniformOptions  _uniformOptions;
