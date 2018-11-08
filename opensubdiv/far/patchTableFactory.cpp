@@ -755,6 +755,8 @@ PatchTableBuilder::BuildUniform() {
     //
     //  Allocate and initialize the table's members.
     //
+    _table->_isUniformLinear = true;
+
     _table->reservePatchArrays(nlevels);
 
     PatchDescriptor desc(ptype);
