@@ -14,43 +14,43 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 | dev | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=dev)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/dev?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
 
 ## Documents
- * [User Documents] (http://graphics.pixar.com/opensubdiv/docs/intro.html)
- * [Doxygen API Documents] (http://graphics.pixar.com/opensubdiv/docs/doxy_html/index.html)
- * [Release Notes] (http://graphics.pixar.com/opensubdiv/docs/release_notes.html)
+ * [User Documents](http://graphics.pixar.com/opensubdiv/docs/intro.html)
+ * [Doxygen API Documents](http://graphics.pixar.com/opensubdiv/docs/doxy_html/index.html)
+ * [Release Notes](http://graphics.pixar.com/opensubdiv/docs/release_notes.html)
 
 ## Forum
- * [OpenSubdiv Google Groups] (https://groups.google.com/forum/embed/?place=forum/opensubdiv)
+ * [OpenSubdiv Google Groups](https://groups.google.com/forum/embed/?place=forum/opensubdiv)
 
 ## Prerequisite
   For complete information, please refer OpenSubdiv documents:
-  [Building with CMake] (http://graphics.pixar.com/opensubdiv/docs/cmake_build.html)
+  [Building with CMake](http://graphics.pixar.com/opensubdiv/docs/cmake_build.html)
 
  * General requirements:
 
-| Lib (URL)                             | Min Version | Note       |
-| ------------------------------------- | ----------- | ---------- |
-| CMake <br> http://www.cmake.org       | 2.8.6       | *Required* |
+| Lib                             | Min Version | Note       |
+| ------------------------------- | ----------- | ---------- |
+| [CMake](http://www.cmake.org)   | 2.8.6       | *Required* |
 
  * Osd optional requirements:
 
-| Lib (URL)                                            | Min Version    | Note           |
-| ---------------------------------------------------- | -------------- | -------------- |
-| GLEW <br> http://glew.sourceforge.net                | 1.9.0          | GL backend (Win/Linux only) |
-| CUDA <br> http://developer.nvidia.com/cuda-toolkit   | 4.0            | cuda backend   |
-| TBB  <br> https://www.threadingbuildingblocks.org    | 4.0            | TBB backend    |
-| OpenCL <br> http://www.khronos.org/opencl            | 1.1            | CL backend     |
-| DX11 SDK <br> http://www.microsoft.com/download/details.aspx?id=6812| | DX backend     |
-| Metal <br> https://developer.apple.com/metal/        | 1.2            | Metal backend  |
+| Lib                                                                | Min Version    | Note           |
+| ------------------------------------------------------------------ | -------------- | -------------- |
+| [GLEW](http://glew.sourceforge.net)                                | 1.9.0          | GL backend (Win/Linux only) |
+| [CUDA](http://developer.nvidia.com/cuda-toolkit)                   | 4.0            | cuda backend   |
+| [TBB](https://www.threadingbuildingblocks.org)                     | 4.0            | TBB backend    |
+| [OpenCL](http://www.khronos.org/opencl)                            | 1.1            | CL backend     |
+| [DX11 SDK](http://www.microsoft.com/download/details.aspx?id=6812) |                | DX backend     |
+| [Metal](https://developer.apple.com/metal/)                        | 1.2            | Metal backend  |
 
  * Examples/Documents optional requirements:
 
-| Lib (URL)                                     | Min Version | Note                |
-| --------------------------------------------- | ----------- | ------------------- |
-| GLFW <br> http://www.glfw.org                 | 3.0.0       | GL examples         |
-| Ptex <br> https://github.com/wdas/ptex        | 2.0         | ptex viewers        |
-| Zlib <br> http://www.zlib.net                 |             | (required for Ptex under windows)|
-| Docutils <br> http://docutils.sourceforge.net |             | documents           |
-| Doxygen <br>http://www.doxygen.org            |             | documents           |
+| Lib                                         | Min Version | Note                |
+| ------------------------------------------- | ----------- | ------------------- |
+| [GLFW](http://www.glfw.org)                 | 3.0.0       | GL examples         |
+| [Ptex](https://github.com/wdas/ptex)        | 2.0         | ptex viewers        |
+| [Zlib](http://www.zlib.net)                 |             | (required for Ptex under windows)|
+| [Docutils](http://docutils.sourceforge.net) |             | documents           |
+| [Doxygen](http://www.doxygen.org)           |             | documents           |
 
 
 ## Build example to run glViewer and other example programs with minimal dependency
