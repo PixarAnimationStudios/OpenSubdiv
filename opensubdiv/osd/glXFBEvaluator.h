@@ -2129,6 +2129,7 @@ public:
 
 private:
     GLuint _srcBufferTexture;
+    GLuint _patchArraysUBO;
     bool _interleavedDerivativeBuffers;
 
     struct _StencilKernel {
@@ -2174,7 +2175,7 @@ private:
         GLint uniformSrcBufferTexture;
         GLint uniformSrcOffset;    // src buffer offset (in elements)
 
-        GLint uniformPatchArray;
+        GLint uniformPatchArraysUBOBinding;
         GLint uniformPatchParamTexture;
         GLint uniformPatchIndexTexture;
     } _patchKernel;

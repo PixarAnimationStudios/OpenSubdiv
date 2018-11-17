@@ -223,107 +223,38 @@ void main() {
 layout (location = 0) in ivec3 patchHandles;
 layout (location = 1) in vec2  patchCoords;
 
-//struct PatchArray {
-//    int patchType;
-//    int numPatches;
-//    int indexBase;        // an offset within the index buffer
-//    int primitiveIdBase;  // an offset within the patch param buffer
-//};
-// # of patcharrays is 1 or 2.
-
-uniform ivec4 patchArray[2];
+layout (std140) uniform PatchArrays {
+    OsdPatchArray patchArrays[2];
+};
 uniform isamplerBuffer patchParamBuffer;
 uniform isamplerBuffer patchIndexBuffer;
 
-uint getDepth(uint patchBits) {
-    return (patchBits & 0xfU);
+OsdPatchArray GetPatchArray(int arrayIndex) {
+    return patchArrays[arrayIndex];
 }
 
-float getParamFraction(uint patchBits) {
-    uint nonQuadRoot = (patchBits >> 4) & 0x1U;
-    uint depth = getDepth(patchBits);
-    if (nonQuadRoot == 1) {
-        return 1.0f / float( 1 << (depth-1) );
-    } else {
-        return 1.0f / float( 1 << depth );
-    }
-}
-
-vec2 normalizePatchCoord(uint patchBits, vec2 uv) {
-    float frac = getParamFraction(patchBits);
-
-    uint iu = (patchBits >> 22) & 0x3ffU;
-    uint iv = (patchBits >> 12) & 0x3ffU;
-
-    // top left corner
-    float pu = float(iu*frac);
-    float pv = float(iv*frac);
-
-    // normalize u,v coordinates
-    return vec2((uv.x - pu) / frac, (uv.y - pv) / frac);
-}
-
-bool isRegular(uint patchBits) {
-    return (((patchBits >> 5) & 0x1u) != 0);
-}
-
-int getNumControlVertices(int patchType) {
-    return (patchType == 3) ? 4 :
-           (patchType == 6) ? 16 :
-           (patchType == 9) ? 20 : 0;
+OsdPatchParam GetPatchParam(int patchIndex) {
+    ivec3 patchParamBits = texelFetch(patchParamBuffer, patchIndex).xyz;
+    return OsdPatchParamInit(patchParamBits.x, patchParamBits.y, patchParamBits.z);
 }
 
 void main() {
     int current = gl_VertexID;
 
     ivec3 handle = patchHandles;
+    int arrayIndex = handle.x;
     int patchIndex = handle.y;
 
     vec2 coord = patchCoords;
-    ivec4 array = patchArray[handle.x];
 
-    uint patchBits = texelFetch(patchParamBuffer, patchIndex).y;
-    int patchType = isRegular(patchBits) ? 6 : array.x;
+    OsdPatchArray array = GetPatchArray(arrayIndex);
+    OsdPatchParam param = GetPatchParam(patchIndex);
 
-    // normalize
-    coord = normalizePatchCoord(patchBits, coord);
-    float dScale = float(1 << getDepth(patchBits));
-    int boundary = int((patchBits >> 7) & 0x1fU);
+    int patchType = OsdPatchParamIsRegular(param) ? array.regDesc : array.desc;
 
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
-
-    int numControlVertices = 0;
-    if (patchType == 3) {
-        float wP4[4], wDs4[4], wDt4[4], wDss4[4], wDst4[4], wDtt4[4];
-        OsdGetBilinearPatchWeights(coord.s, coord.t, dScale, wP4,
-                                   wDs4, wDt4, wDss4, wDst4, wDtt4);
-        numControlVertices = 4;
-        for (int i=0; i<numControlVertices; ++i) {
-            wP[i] = wP4[i];
-            wDs[i] = wDs4[i];
-            wDt[i] = wDt4[i];
-            wDss[i] = wDss4[i];
-            wDst[i] = wDst4[i];
-            wDtt[i] = wDtt4[i];
-        }
-    } else if (patchType == 6) {
-        float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
-        OsdGetBSplinePatchWeights(coord.s, coord.t, dScale, boundary, wP16,
-                                  wDs16, wDt16, wDss16, wDst16, wDtt16);
-        numControlVertices = 16;
-        for (int i=0; i<numControlVertices; ++i) {
-            wP[i] = wP16[i];
-            wDs[i] = wDs16[i];
-            wDt[i] = wDt16[i];
-            wDss[i] = wDss16[i];
-            wDst[i] = wDst16[i];
-            wDtt[i] = wDtt16[i];
-        }
-    } else if (patchType == 9) {
-        OsdGetGregoryPatchWeights(coord.s, coord.t, dScale, wP,
-                                  wDs, wDt, wDss, wDst, wDtt);
-        numControlVertices = 20;
-    }
+    float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+    int nPoints = OsdEvaluatePatchBasis(patchType, param,
+        coord.x, coord.y, wP, wDu, wDv, wDuu, wDuv, wDvv);
 
     Vertex dst, du, dv, duu, duv, dvv;
     clear(dst);
@@ -333,17 +264,17 @@ void main() {
     clear(duv);
     clear(dvv);
 
-    int indexStride = getNumControlVertices(array.x);
-    int indexBase = array.z + indexStride * (patchIndex - array.w);
+    int indexBase = array.indexBase + array.stride *
+                (patchIndex - array.primitiveIdBase);
 
-    for (int cv = 0; cv < numControlVertices; ++cv) {
+    for (int cv = 0; cv < nPoints; ++cv) {
         int index = texelFetch(patchIndexBuffer, indexBase + cv).x;
         addWithWeight(dst, readVertex(index), wP[cv]);
-        addWithWeight(du,  readVertex(index), wDs[cv]);
-        addWithWeight(dv,  readVertex(index), wDt[cv]);
-        addWithWeight(duu, readVertex(index), wDss[cv]);
-        addWithWeight(duv, readVertex(index), wDst[cv]);
-        addWithWeight(dvv, readVertex(index), wDtt[cv]);
+        addWithWeight(du,  readVertex(index), wDu[cv]);
+        addWithWeight(dv,  readVertex(index), wDv[cv]);
+        addWithWeight(duu, readVertex(index), wDuu[cv]);
+        addWithWeight(duv, readVertex(index), wDuv[cv]);
+        addWithWeight(dvv, readVertex(index), wDvv[cv]);
     }
 
     writeVertex(dst);

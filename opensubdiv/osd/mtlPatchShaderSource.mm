@@ -37,9 +37,15 @@ namespace OpenSubdiv {
             static std::string commonShaderSource(
 #include "mtlPatchCommon.gen.h"
 );
-            static std::string patchBasisShaderSource( 
+            static std::string patchBasisTypesShaderSource(
+#include "patchBasisCommonTypes.gen.h"
+);
+            static std::string patchBasisShaderSource(
 #include "patchBasisCommon.gen.h"
-);             
+);
+            static std::string patchBasisEvalShaderSource(
+#include "patchBasisCommonEval.gen.h"
+);
             static std::string bsplineShaderSource(
 #include "mtlPatchBSpline.gen.h"
 );
@@ -105,7 +111,9 @@ namespace OpenSubdiv {
 #if defined(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
                 ss << "#define OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES 1\n";
 #endif
+                ss << patchBasisTypesShaderSource;
                 ss << patchBasisShaderSource;
+                ss << patchBasisEvalShaderSource;
                 return ss.str();
             }
             

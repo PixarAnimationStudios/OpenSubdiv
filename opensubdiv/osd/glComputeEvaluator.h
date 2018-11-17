@@ -2101,6 +2101,7 @@ private:
     } _patchKernel;
 
     int _workGroupSize;
+    GLuint _patchArraysSSBO;
 };
 
 }  // end namespace Osd

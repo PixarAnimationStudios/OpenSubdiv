@@ -34,8 +34,14 @@ namespace Osd {
 static const char *commonShaderSource =
 #include "glslPatchCommon.gen.h"
 ;
+static const char *patchBasisTypesShaderSource =
+#include "patchBasisCommonTypes.gen.h"
+;
 static const char *patchBasisShaderSource =
 #include "patchBasisCommon.gen.h"
+;
+static const char *patchBasisEvalShaderSource =
+#include "patchBasisCommonEval.gen.h"
 ;
 static const char *bsplineShaderSource =
 #include "glslPatchBSpline.gen.h"
@@ -60,7 +66,9 @@ GLSLPatchShaderSource::GetPatchBasisShaderSource() {
 #if defined(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
     ss << "#define OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES\n";
 #endif
+    ss << std::string(patchBasisTypesShaderSource);
     ss << std::string(patchBasisShaderSource);
+    ss << std::string(patchBasisEvalShaderSource);
     return ss.str();
 }
 

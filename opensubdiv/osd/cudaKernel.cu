@@ -24,7 +24,9 @@
 
 #include <assert.h>
 #define OSD_PATCH_BASIS_CUDA
+#include "../osd/patchBasisCommonTypes.h"
 #include "../osd/patchBasisCommon.h"
+#include "../osd/patchBasisCommonEval.h"
 
 // -----------------------------------------------------------------------------
 template<int N> struct DeviceVertex {
@@ -240,70 +242,6 @@ __global__ void computeStencilsNv_v4(float const *__restrict cvs,
 
 // -----------------------------------------------------------------------------
 
-// Osd::PatchCoord osd/types.h
-struct PatchCoord {
-    int arrayIndex;
-    int patchIndex;
-    int vertIndex;
-    float s;
-    float t;
-};
-struct PatchArray {
-    int patchType;        // Far::PatchDescriptor::Type
-    int numPatches;
-    int indexBase;        // offset in the index buffer
-    int primitiveIdBase;  // offset in the patch param buffer
-};
-struct PatchParam {
-    unsigned int field0;
-    unsigned int field1;
-    float sharpness;
-};
-
-__device__
-int getDepth(unsigned int patchBits) {
-    return (patchBits & 0xf);
-}
-
-__device__
-float getParamFraction(unsigned int patchBits) {
-    bool nonQuadRoot = (patchBits >> 4) & 0x1;
-    int depth = getDepth(patchBits);
-    if (nonQuadRoot) {
-        return 1.0f / float( 1 << (depth-1) );
-    } else {
-        return 1.0f / float( 1 << depth );
-    }
-}
-
-__device__
-void normalizePatchCoord(unsigned int patchBits, float *u, float *v) {
-    float frac = getParamFraction(patchBits);
-
-    int iu = (patchBits >> 22) & 0x3ff;
-    int iv = (patchBits >> 12) & 0x3ff;
-
-    // top left corner
-    float pu = (float)iu*frac;
-    float pv = (float)iv*frac;
-
-    // normalize u,v coordinates
-    *u = (*u - pu) / frac;
-    *v = (*v - pv) / frac;
-}
-
-__device__
-bool isRegular(unsigned int patchBits) {
-    return ((patchBits >> 5) & 0x1) != 0;
-}
-
-__device__
-int getNumControlVertices(int patchType) {
-    return (patchType == 3) ? 4 :
-           (patchType == 6) ? 16 :
-           (patchType == 9) ? 20 : 0;
-}
-
 __global__ void
 computePatches(const float *src, float *dst,
                float *dstDu, float *dstDv,
@@ -311,97 +249,80 @@ computePatches(const float *src, float *dst,
                int length, int srcStride, int dstStride,
                int dstDuStride, int dstDvStride,
                int dstDuuStride, int dstDuvStride, int dstDvvStride,
-               int numPatchCoords, const PatchCoord *patchCoords,
-               const PatchArray *patchArrayBuffer,
+               int numPatchCoords, const OsdPatchCoord *patchCoords,
+               const OsdPatchArray *patchArrayBuffer,
                const int *patchIndexBuffer,
-               const PatchParam *patchParamBuffer) {
+               const OsdPatchParam *patchParamBuffer) {
 
     int first = threadIdx.x + blockIdx.x * blockDim.x;
 
     // PERFORMANCE: not yet optimized
 
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
-
     for (int i = first; i < numPatchCoords; i += blockDim.x * gridDim.x) {
 
-        PatchCoord const &coord = patchCoords[i];
-        PatchArray const &array = patchArrayBuffer[coord.arrayIndex];
+        OsdPatchCoord const &coord = patchCoords[i];
+        int arrayIndex = coord.arrayIndex;
+        int patchIndex = coord.patchIndex;
 
-        unsigned int patchBits = patchParamBuffer[coord.patchIndex].field1;
-        int patchType = isRegular(patchBits) ? 6 : array.patchType;
+        OsdPatchArray const &array = patchArrayBuffer[arrayIndex];
+        OsdPatchParam const &param = patchParamBuffer[patchIndex];
 
-        // normalize
-        float s = coord.s;
-        float t = coord.t;
-        normalizePatchCoord(patchBits, &s, &t);
-        float dScale = (float)(1 << getDepth(patchBits));
-        int boundary = int((patchBits >> 7) & 0x1fU);
+        int patchType = OsdPatchParamIsRegular(param)
+                ? array.regDesc : array.desc;
 
-        int numControlVertices = 0;
-        if (patchType == 3) {
-            OsdGetBilinearPatchWeights(s, t, dScale,
-                wP, wDs, wDt, wDss, wDst, wDtt);
-            numControlVertices = 4;
-        } else if (patchType == 6) {
-            OsdGetBSplinePatchWeights(s, t, dScale, boundary,
-                wP, wDs, wDt, wDss, wDst, wDtt);
-            numControlVertices = 16;
-        } else if (patchType == 9) {
-            OsdGetGregoryPatchWeights(s, t, dScale,
-                wP, wDs, wDt, wDss, wDst, wDtt);
-            numControlVertices = 20;
-        }
+        float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+        int nPoints = OsdEvaluatePatchBasis(patchType, param,
+                coord.s, coord.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
 
-        int indexStride = getNumControlVertices(array.patchType);
-        int indexBase = array.indexBase + indexStride *
-                (coord.patchIndex - array.primitiveIdBase);
+        int indexBase = array.indexBase + array.stride *
+                (patchIndex - array.primitiveIdBase);
 
         const int *cvs = patchIndexBuffer + indexBase;
 
         float * dstVert = dst + i * dstStride;
         clear(dstVert, length);
-        for (int j = 0; j < numControlVertices; ++j) {
+        for (int j = 0; j < nPoints; ++j) {
             const float * srcVert = src + cvs[j] * srcStride;
             addWithWeight(dstVert, srcVert, wP[j], length);
         }
         if (dstDu) {
             float *d = dstDu + i * dstDuStride;
             clear(d, length);
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 const float * srcVert = src + cvs[j] * srcStride;
-                addWithWeight(d, srcVert, wDs[j], length);
+                addWithWeight(d, srcVert, wDu[j], length);
             }
         }
         if (dstDv) {
             float *d = dstDv + i * dstDvStride;
             clear(d, length);
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 const float * srcVert = src + cvs[j] * srcStride;
-                addWithWeight(d, srcVert, wDt[j], length);
+                addWithWeight(d, srcVert, wDv[j], length);
             }
         }
         if (dstDuu) {
             float *d = dstDuu + i * dstDuuStride;
             clear(d, length);
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 const float * srcVert = src + cvs[j] * srcStride;
-                addWithWeight(d, srcVert, wDss[j], length);
+                addWithWeight(d, srcVert, wDuu[j], length);
             }
         }
         if (dstDuv) {
             float *d = dstDuv + i * dstDuvStride;
             clear(d, length);
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 const float * srcVert = src + cvs[j] * srcStride;
-                addWithWeight(d, srcVert, wDst[j], length);
+                addWithWeight(d, srcVert, wDuv[j], length);
             }
         }
         if (dstDvv) {
             float *d = dstDvv + i * dstDvvStride;
             clear(d, length);
-            for (int j = 0; j < numControlVertices; ++j) {
+            for (int j = 0; j < nPoints; ++j) {
                 const float * srcVert = src + cvs[j] * srcStride;
-                addWithWeight(d, srcVert, wDtt[j], length);
+                addWithWeight(d, srcVert, wDvv[j], length);
             }
         }
     }
@@ -467,10 +388,10 @@ void CudaEvalStencils(
 void CudaEvalPatches(
     const float *src, float *dst,
     int length, int srcStride, int dstStride,
-    int numPatchCoords, const PatchCoord *patchCoords,
-    const PatchArray *patchArrayBuffer,
+    int numPatchCoords, const OsdPatchCoord *patchCoords,
+    const OsdPatchArray *patchArrayBuffer,
     const int *patchIndexBuffer,
-    const PatchParam *patchParamBuffer) {
+    const OsdPatchParam *patchParamBuffer) {
 
     // PERFORMANCE: not optimized at all
 
@@ -488,10 +409,10 @@ void CudaEvalPatchesWithDerivatives(
     int length, int srcStride, int dstStride,
     int dstDuStride, int dstDvStride,
     int dstDuuStride, int dstDuvStride, int dstDvvStride,
-    int numPatchCoords, const PatchCoord *patchCoords,
-    const PatchArray *patchArrayBuffer,
+    int numPatchCoords, const OsdPatchCoord *patchCoords,
+    const OsdPatchArray *patchArrayBuffer,
     const int *patchIndexBuffer,
-    const PatchParam *patchParamBuffer) {
+    const OsdPatchParam *patchParamBuffer) {
 
     // PERFORMANCE: not optimized at all
 
