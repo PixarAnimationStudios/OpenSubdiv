@@ -746,11 +746,11 @@ GregoryTriConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
             //  is discontinuous -- one is then copied from the other (unless
             //  regular)
             if (corner.numFaces > 1) {
-                if (corner.epOnBoundary || _corners[cNext].isDart) {
+                if (corner.epOnBoundary) {
                     corner.fpIsRegular = corner.fmIsRegular;
                     corner.fpIsCopied  = !corner.fpIsRegular;
                 }
-                if (corner.emOnBoundary || _corners[cPrev].isDart) {
+                if (corner.emOnBoundary) {
                     corner.fmIsRegular = corner.fpIsRegular;
                     corner.fmIsCopied  = !corner.fmIsRegular;
                 }
@@ -1201,7 +1201,7 @@ GregoryTriConverter<REAL>::getIrregularFacePointSize(
                  ?  4
                  : (1 + corner.ringPoints.GetSize());
 
-    int adjSize = (adjCorner.isSharp || (adjCorner.numFaces < 2))
+    int adjSize = (adjCorner.isSharp || (adjCorner.numFaces <= 3))
                 ? 0
                 : (1 + adjCorner.ringPoints.GetSize() - 4);
 

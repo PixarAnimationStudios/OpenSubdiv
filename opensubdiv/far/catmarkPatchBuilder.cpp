@@ -636,6 +636,9 @@ private:
         unsigned int isVal2Int   : 1;
 
         //  Flags for edge- and face-points relating to adjacent corners:
+        unsigned int epOnBoundary : 1;
+        unsigned int emOnBoundary : 1;
+
         unsigned int fpIsRegular : 1;
         unsigned int fmIsRegular : 1;
         unsigned int fpIsCopied  : 1;
@@ -788,6 +791,9 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
         int cNext = (cIndex + 1) & 0x3;
         int cPrev = (cIndex + 3) & 0x3;
 
+        corner.epOnBoundary = false;
+        corner.emOnBoundary = false;
+
         //
         //  Identify if the face points are regular or shared/copied from
         //  one of the pair:
@@ -799,15 +805,18 @@ GregoryConverter<REAL>::Initialize(SourcePatch const & sourcePatch) {
         corner.fmIsCopied = false;
 
         if (corner.isBoundary) {
+            corner.epOnBoundary = (corner.faceInRing == 0);
+            corner.emOnBoundary = (corner.faceInRing == (corner.numFaces - 1));
+
             //  Both face points are same when one of the two corners' edges
             //  is discontinuous -- one is then copied from the other (unless
             //  regular)
             if (corner.numFaces > 1) {
-                if (_corners[cNext].isBoundary || _corners[cNext].isDart) {
+                if (corner.epOnBoundary) {
                     corner.fpIsRegular = corner.fmIsRegular;
                     corner.fpIsCopied  = !corner.fpIsRegular;
                 }
-                if (_corners[cPrev].isBoundary || _corners[cPrev].isDart) {
+                if (corner.emOnBoundary) {
                     corner.fmIsRegular = corner.fpIsRegular;
                     corner.fmIsCopied  = !corner.fmIsRegular;
                 }
@@ -944,8 +953,8 @@ GregoryConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
                 rowSize[2] = 6;
             } else {
                 rowSize[0] = 3;
-                rowSize[1] = corner.faceInRing ? 6 : 2;
-                rowSize[2] = corner.faceInRing ? 2 : 6;
+                rowSize[1] = corner.epOnBoundary ? 2 : 6;
+                rowSize[2] = corner.emOnBoundary ? 2 : 6;
             }
         } else {
             if (corner.isSharp) {
@@ -960,8 +969,8 @@ GregoryConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
             } else if (corner.numFaces > 1) {
                 int ringSize = 1 + corner.valence + corner.numFaces;
                 rowSize[0] = 3;
-                rowSize[1] = (corner.faceInRing > 0) ? ringSize : 2;
-                rowSize[2] = (corner.faceInRing < (corner.numFaces - 1)) ? ringSize : 2;
+                rowSize[1] = corner.epOnBoundary ? 2 : ringSize;
+                rowSize[2] = corner.emOnBoundary ? 2 : ringSize;
             } else {
                 rowSize[0] = 3;
                 rowSize[1] = 2;
@@ -1038,9 +1047,9 @@ GregoryConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) con
         assert(em.GetSize() == 6);
     } else {
         //  Decide which point corresponds to interior vs exterior tangent:
-        Point & eInterior = corner.faceInRing ? ep : em;
-        Point & eBoundary = corner.faceInRing ? em : ep;
-        int     iBoundary = corner.faceInRing ? 4 : 0;
+        Point & eBoundary = corner.epOnBoundary ? ep : em;
+        Point & eInterior = corner.epOnBoundary ? em : ep;
+        int     iBoundary = corner.epOnBoundary ? 0 : 4;
 
         p.Assign(0, cIndex,   (REAL) (2.0 / 3.0));
         p.Assign(1, cRing[0], (REAL) (1.0 / 6.0));
@@ -1209,7 +1218,7 @@ GregoryConverter<REAL>::computeIrregularBoundaryEdgePoints(
     //  If Ep is on the boundary edge, it has only two non-zero weights along
     //  that edge:
     ep.Assign(0, p0, epWeights[0]);
-    if (corner.faceInRing == 0) {
+    if (corner.epOnBoundary) {
         ep.Assign(1, p1, epWeights[1]);
         assert(ep.GetSize() == 2);
     } else {
@@ -1222,7 +1231,7 @@ GregoryConverter<REAL>::computeIrregularBoundaryEdgePoints(
     //  If Em is on the boundary edge, it has only two non-zero weights along
     //  that edge:
     em.Assign(0, p0, emWeights[0]);
-    if (corner.faceInRing == (corner.numFaces - 1)) {
+    if (corner.emOnBoundary) {
         em.Assign(1, pN, emWeights[N]);
         assert(em.GetSize() == 2);
     } else {
