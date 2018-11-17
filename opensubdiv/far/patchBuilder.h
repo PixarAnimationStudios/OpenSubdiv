@@ -117,13 +117,20 @@ public:
 //  PatchBuilder
 //
 //  This is the main class to assist the identification of limit surface
-//  patches for assembly into other, larger datatypes.  The PatchBuilder takes
-//  a const reference to a TopologyRefiner and is intended to support both
-//  adaptive and uniformly refined hierarchies.
+//  patches from faces in a TopologyRefiner for assembly into other, larger
+//  datatypes.
+//
+//  The PatchBuilder takes a const reference to a refiner and supports
+//  arbitrarily refined hierarchies, i.e. it is not restricted to uniform or
+//  adaptive refinement strategies and does not include any logic relating
+//  to the origin of the hierarchy.  It can associate a patch with any face
+//  in the hierarchy (subject to a few minimum requirements) -- leaving the
+//  decision as to which faces/patches are appropriate to its client.
 //
 //  PatchBuilder is an abstract base class with a subclass derived to support
-//  each subdivision scheme.  Only two (pure) virtual methods are required
-//  (other than the required destructor):
+//  each subdivision scheme -- as such, construction relies on a factory
+//  method to create an instance of the appropriate subclass.  Only two pure
+//  virtual methods are required (other than the required destructor):
 //
 //      - determine the patch type for a subdivision scheme given a more
 //        general basis specification (e.g. Bezier, Gregory, Linear, etc)
@@ -179,6 +186,9 @@ public:
     };
 
 public:
+    //
+    //  Public construction (via factory method) and destruction:
+    //
     static PatchBuilder* Create(TopologyRefiner const& refiner,
                                 Options const& options);
     virtual ~PatchBuilder();
