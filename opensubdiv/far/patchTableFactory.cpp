@@ -107,8 +107,10 @@ public:
                       ConstIndexArray selectedFaces);
     ~PatchTableBuilder();
 
-    void BuildUniform();
-    void BuildAdaptive();
+    bool UniformPolygonsSpecified() const { return _buildUniformLinear; }
+
+    void BuildUniformPolygons();
+    void BuildPatches();
 
     PatchTable * GetPatchTable() const { return _table; };
 
@@ -313,10 +315,10 @@ private:
                          int fvcInTable = -1) const;
 
     //  High level methods for assembling the table:
-    void identifyAdaptivePatches();
-    void appendAdaptivePatch(int levelIndex, Index faceIndex);
-    void testAdaptivePatchRecursive(int levelIndex, Index faceIndex);
-    void populateAdaptivePatches();
+    void identifyPatches();
+    void appendPatch(int levelIndex, Index faceIndex);
+    void findDescendantPatches(int levelIndex, Index faceIndex, int targetLevel);
+    void populatePatches();
 
     void allocateVertexTables();
     void allocateFVarChannels();
@@ -338,6 +340,8 @@ private:
     unsigned int _requiresFVarPatches          : 1;
     unsigned int _requiresVaryingPatches       : 1;
     unsigned int _requiresVaryingLocalPoints   : 1;
+
+    unsigned int _buildUniformLinear : 1;
 
     // The PatchTable being constructed and classes to help its construction:
     PatchTable * _table;
@@ -434,6 +438,11 @@ PatchTableBuilder::PatchTableBuilder(
     _requiresVaryingPatches = _options.generateVaryingTables;
     _requiresVaryingLocalPoints = _options.generateVaryingTables &&
                                   _options.generateVaryingLocalPoints;
+
+    //  Option to be made public in future:
+    bool options_generateNonLinearUniformPatches = true;
+
+    _buildUniformLinear = _refiner.IsUniform() && !options_generateNonLinearUniformPatches;
 
     //
     //  Create and initialize the new PatchTable instance to be assembled:
@@ -676,7 +685,7 @@ PatchTableBuilder::allocateVertexTables() {
 
     _table->_paramTable.resize( npatches );
 
-    if (! _refiner.IsUniform() && _requiresVaryingPatches) {
+    if (_requiresVaryingPatches && !_buildUniformLinear) {
         _table->allocateVaryingVertices(
             PatchDescriptor(_patchBuilder->GetLinearPatchType()), npatches);
     }
@@ -707,7 +716,7 @@ PatchTableBuilder::allocateFVarChannels() {
 
         PatchDescriptor::Type regPatchType   = _patchBuilder->GetLinearPatchType();
         PatchDescriptor::Type irregPatchType = regPatchType;
-        if (_refiner.IsUniform()) {
+        if (_buildUniformLinear) {
             if (_options.triangulateQuads) {
                 regPatchType   = PatchDescriptor::TRIANGLES;
                 irregPatchType = regPatchType;
@@ -725,9 +734,7 @@ PatchTableBuilder::allocateFVarChannels() {
 }
 
 void
-PatchTableBuilder::BuildUniform() {
-
-    assert(_refiner.IsUniform());
+PatchTableBuilder::BuildUniformPolygons() {
 
     // Default behavior is to include base level vertices in the patch vertices
     // for vertex and varying patches, but not face-varying.  Consider exposing
@@ -897,12 +904,10 @@ PatchTableBuilder::BuildUniform() {
 }
 
 void
-PatchTableBuilder::BuildAdaptive() {
+PatchTableBuilder::BuildPatches() {
 
-    assert(! _refiner.IsUniform());
-
-    identifyAdaptivePatches();
-    populateAdaptivePatches();
+    identifyPatches();
+    populatePatches();
 }
 
 //
@@ -911,7 +916,7 @@ PatchTableBuilder::BuildAdaptive() {
 //  accumulating the number of regular vs irregular patches to size tables.
 //
 inline void
-PatchTableBuilder::appendAdaptivePatch(int levelIndex, Index faceIndex) {
+PatchTableBuilder::appendPatch(int levelIndex, Index faceIndex) {
 
     _patches.push_back(PatchTuple(faceIndex, levelIndex));
 
@@ -929,25 +934,29 @@ PatchTableBuilder::appendAdaptivePatch(int levelIndex, Index faceIndex) {
 }
 
 inline void
-PatchTableBuilder::testAdaptivePatchRecursive(int levelIndex, Index faceIndex) {
+PatchTableBuilder::findDescendantPatches(int levelIndex, Index faceIndex, int targetLevel) {
 
-    if (_patchBuilder->IsFaceALeaf(levelIndex, faceIndex)) {
+    //
+    //  If we have reached the target level or a leaf, append the patch (if
+    //  the face qualifies), otherwise recursively search the children:
+    //
+    if ((levelIndex == targetLevel) || _patchBuilder->IsFaceALeaf(levelIndex, faceIndex)) {
         if (_patchBuilder->IsFaceAPatch(levelIndex, faceIndex)) {
-            appendAdaptivePatch(levelIndex, faceIndex);
+            appendPatch(levelIndex, faceIndex);
         }
     } else {
         TopologyLevel const & level = _refiner.GetLevel(levelIndex);
         ConstIndexArray childFaces = level.GetFaceChildFaces(faceIndex);
         for (int i = 0; i < childFaces.size(); ++i) {
             if (Vtr::IndexIsValid(childFaces[i])) {
-                testAdaptivePatchRecursive(levelIndex + 1, childFaces[i]);
+                findDescendantPatches(levelIndex + 1, childFaces[i], targetLevel);
             }
         }
     }
 }
 
 void
-PatchTableBuilder::identifyAdaptivePatches() {
+PatchTableBuilder::identifyPatches() {
 
     //
     //  First initialize the offsets for all levels
@@ -976,17 +985,22 @@ PatchTableBuilder::identifyAdaptivePatches() {
     //  If a set of selected base faces is present, identify the patches
     //  depth first.  Otherwise search breadth first through the levels:
     //
+    int uniformLevel = _refiner.IsUniform() ? _options.maxIsolationLevel : -1;
+
     _patches.reserve(_refiner.GetNumFacesTotal());
 
-    //  This depth-first-all test is intended for development testing only
-    bool depthFirstTestForAll = false;
     if (_selectedFaces.size()) {
         for (int i = 0; i < (int)_selectedFaces.size(); ++i) {
-            testAdaptivePatchRecursive(0, _selectedFaces[i]);
+            findDescendantPatches(0, _selectedFaces[i], uniformLevel);
         }
-    } else if (depthFirstTestForAll) {
-        for (int baseFace = 0; baseFace < _refiner.getLevel(0).getNumFaces(); ++baseFace) {
-            testAdaptivePatchRecursive(0, baseFace);
+    } else if (uniformLevel >= 0) {
+        int numFaces = _refiner.getLevel(uniformLevel).getNumFaces();
+
+        for (int faceIndex = 0; faceIndex < numFaces; ++faceIndex) {
+
+            if (_patchBuilder->IsFaceAPatch(uniformLevel, faceIndex)) {
+                appendPatch(uniformLevel, faceIndex);
+            }
         }
     } else {
         for (int levelIndex=0; levelIndex<_refiner.GetNumLevels(); ++levelIndex) {
@@ -996,7 +1010,7 @@ PatchTableBuilder::identifyAdaptivePatches() {
 
                 if (_patchBuilder->IsFaceAPatch(levelIndex, faceIndex) &&
                     _patchBuilder->IsFaceALeaf(levelIndex, faceIndex)) {
-                    appendAdaptivePatch(levelIndex, faceIndex);
+                    appendPatch(levelIndex, faceIndex);
                 }
             }
         }
@@ -1004,10 +1018,10 @@ PatchTableBuilder::identifyAdaptivePatches() {
 }
 
 //
-//  Populate adaptive patches that we've previously identified.
+//  Populate patches that were previously identified.
 //
 void
-PatchTableBuilder::populateAdaptivePatches() {
+PatchTableBuilder::populatePatches() {
 
     // State needed to populate an array in the patch table.
     // Pointers in this structure are initialized after the patch array
@@ -1956,10 +1970,10 @@ PatchTableFactory::Create(TopologyRefiner const & refiner,
 
     PatchTableBuilder builder(refiner, options, selectedFaces);
 
-    if (refiner.IsUniform()) {
-        builder.BuildUniform();
+    if (builder.UniformPolygonsSpecified()) {
+        builder.BuildUniformPolygons();
     } else {
-        builder.BuildAdaptive();
+        builder.BuildPatches();
     }
     return builder.GetPatchTable();
 }
