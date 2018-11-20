@@ -562,7 +562,7 @@ namespace {
         //  For tris, the presence of boundaries creates more ambiguity, so we
         //  need to exclude that case and inspect corner features individually.
         //
-        bool isolateQuadBoundaries = true;
+        bool isolateQuadBoundaries = false;
 
         bool atLeastOneSmoothCorner = (compVTag._rule & Sdc::Crease::RULE_SMOOTH);
         if (numVerts == 4) {

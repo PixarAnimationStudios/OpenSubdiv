@@ -79,6 +79,7 @@
 #include "catmark_pyramid_creases1.h"
 #include "catmark_pyramid_creases2.h"
 #include "catmark_pyramid.h"
+#include "catmark_quadstrips.h"
 #include "catmark_rook.h"
 #include "catmark_single_crease.h"
 #include "catmark_inf_crease0.h"
