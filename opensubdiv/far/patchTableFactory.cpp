@@ -440,7 +440,7 @@ PatchTableBuilder::PatchTableBuilder(
                                   _options.generateVaryingLocalPoints;
 
     //  Option to be made public in future:
-    bool options_generateNonLinearUniformPatches = true;
+    bool options_generateNonLinearUniformPatches = false;
 
     _buildUniformLinear = _refiner.IsUniform() && !options_generateNonLinearUniformPatches;
 
