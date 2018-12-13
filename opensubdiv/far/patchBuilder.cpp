@@ -1239,7 +1239,7 @@ PatchBuilder::IsRegularSingleCreasePatch(int levelIndex, Index faceIndex,
 
 PatchParam
 PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
-        PtexIndices const& ptexIndices,
+        PtexIndices const& ptexIndices, bool isRegular,
         int boundaryMask, bool computeTransitionMask) const {
 
     // Move up the hierarchy accumulating u,v indices to the coarse level:
@@ -1348,7 +1348,8 @@ PatchBuilder::ComputePatchParam(int levelIndex, Index faceIndex,
 
     PatchParam param;
     param.Set(ptexIndex, (short)u, (short)v, (unsigned short) depth, irregBase,
-              (unsigned short) boundaryMask, (unsigned short) transitionMask);
+              (unsigned short) boundaryMask, (unsigned short) transitionMask,
+              (unsigned short) isRegular);
     return param;
 }
 

@@ -268,7 +268,7 @@ public:
     //  data to accelerate these computations.
     //
     PatchParam ComputePatchParam(int level, Index face,
-            PtexIndices const& ptexIndices,
+            PtexIndices const& ptexIndices, bool isRegular = true,
             int boundaryMask = 0, bool computeTransitionMask = false) const;
 
 protected:
