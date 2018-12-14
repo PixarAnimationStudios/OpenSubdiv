@@ -181,7 +181,7 @@ PatchMap::transformUVToTriQuadrant(T const & median, T & u, T & v, bool & rotate
         u -= median;
         v -= median;
         if ((u + v) < median) {
-            rotated = true;
+            rotated = false;
             return 3;
         }
         return 0;
