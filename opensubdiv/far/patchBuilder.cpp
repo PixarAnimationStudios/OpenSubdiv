@@ -766,9 +766,9 @@ PatchBuilder::GetRegularPatchBoundaryMask(int levelIndex, Index faceIndex,
     //  the encoded result of the two sets of 3 bits:
     //
     Level::VTag vFeatureTag(0);
-    vFeatureTag._boundary    = true;
-    vFeatureTag._infSharp    = testInfSharpFeatures;
-    vFeatureTag._nonManifold = true;
+    vFeatureTag._boundary      = true;
+    vFeatureTag._infSharpEdges = testInfSharpFeatures;
+    vFeatureTag._nonManifold   = true;
 
     int vFeatureMask = vFeatureTag.getBits();
 
