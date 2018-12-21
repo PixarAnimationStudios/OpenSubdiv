@@ -540,25 +540,27 @@ PatchBuilder::IsFaceAPatch(int levelIndex, Index faceIndex) const {
 
     Level const & level = _refiner.getLevel(levelIndex);
 
-    //  Fail if the face is a hole (i.e. no limit surface)
+    //  Faces tagged as holes are not patches (no limit surface)
     if (_refiner.HasHoles() && level.isFaceHole(faceIndex)) return false;
 
-    //  Return if the face is regular only when scheme is linear:
-    if (_schemeIsLinear) {
-        return level.getFaceVertices(faceIndex).size() == _schemeRegFaceSize;
-    }
-
-    //  Fail if the face is incident an irregular face (base level) or if incomplete:
-    Level::VTag compVTag = level.getFaceCompositeVTag(faceIndex);
+    //  Base faces are patches unless an irregular face or incident one:
     if (levelIndex == 0) {
-        if (compVTag._incidIrregFace) return false;
-    } else if (_schemeRegFaceSize == 4) {
-        if (compVTag._incomplete) return false;
-    } else {
-        //  Cannot use combined VTags for triangles, inspect the Refinement tags:
-        if (_refiner.getRefinement(levelIndex - 1).getChildFaceTag(faceIndex)._incomplete) return false;
+        if (_schemeIsLinear) {
+            return level.getFaceVertices(faceIndex).size() == _schemeRegFaceSize;
+        } else {
+            return !level.getFaceCompositeVTag(faceIndex)._incidIrregFace;
+        }
     }
-    return true;
+    
+    //  Refined faces are patches unless "incomplete", i.e. they exist solely to
+    //  support an adjacent patch (can only use the more commonly used combined
+    //  VTag for all corners for quads -- need a Refinement tag for tris):
+    if (_schemeRegFaceSize == 4) {
+        return !level.getFaceCompositeVTag(faceIndex)._incomplete;
+    } else {
+        Refinement const & refinement = _refiner.getRefinement(levelIndex - 1);
+        return !refinement.getChildFaceTag(faceIndex)._incomplete;
+    }
 }
 
 bool

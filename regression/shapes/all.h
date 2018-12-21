@@ -99,6 +99,9 @@
 #include "catmark_torus_creases1.h"
 
 #include "bilinear_cube.h"
+#include "bilinear_nonplanar.h"
+#include "bilinear_nonquads0.h"
+#include "bilinear_nonquads1.h"
 
 #include "loop_cube_creases0.h"
 #include "loop_cube_creases1.h"
