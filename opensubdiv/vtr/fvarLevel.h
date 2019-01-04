@@ -403,7 +403,8 @@ FVarLevel::ValueTag::combineWithLevelVTag(Level::VTag levelTag) const
 
         levelTag._boundary = true;
         levelTag._xordinary = this->_xordinary;
-        levelTag._nonManifold = this->_nonManifold;
+
+        levelTag._nonManifold |= this->_nonManifold;
     }
     return levelTag;
 }
