@@ -1449,25 +1449,23 @@ PatchTableBuilder::LocalPointHelper::initializeStencilTable(int numLocalPointsEx
     StencilTableReal<REAL> * varyingTable = _options.createVaryingTable
                                           ? new StencilTableReal<REAL>(0) : 0;
 
-    if (stencilTable) {
-        //  Historic note:  limits to 100M (=800M bytes) entries for reserved size
-        size_t const MaxEntriesToReserve  = 100 * 1024 * 1024;
-        size_t const AvgEntriesPerStencil = 9;  // originally 16
+    //  Historic note:  limits to 100M (=800M bytes) entries for reserved size
+    size_t const MaxEntriesToReserve  = 100 * 1024 * 1024;
+    size_t const AvgEntriesPerStencil = 9;  // originally 16
 
-        size_t numStencilsExpected       = numLocalPointsExpected;
-        size_t numStencilEntriesExpected = numStencilsExpected * AvgEntriesPerStencil;
+    size_t numStencilsExpected       = numLocalPointsExpected;
+    size_t numStencilEntriesExpected = numStencilsExpected * AvgEntriesPerStencil;
 
-        size_t numEntriesToReserve = std::min(numStencilEntriesExpected,
-                                              MaxEntriesToReserve);
-        if (numEntriesToReserve) {
-            stencilTable->reserve(
-                    (int)numStencilsExpected, (int)numEntriesToReserve);
+    size_t numEntriesToReserve = std::min(numStencilEntriesExpected,
+                                          MaxEntriesToReserve);
+    if (numEntriesToReserve) {
+        stencilTable->reserve(
+                (int)numStencilsExpected, (int)numEntriesToReserve);
 
-            if (varyingTable) {
-                //  Varying stencils have only one entry per point
-                varyingTable->reserve(
-                        (int)numStencilsExpected, (int)numStencilsExpected);
-            }
+        if (varyingTable) {
+            //  Varying stencils have only one entry per point
+            varyingTable->reserve(
+                    (int)numStencilsExpected, (int)numStencilsExpected);
         }
     }
 
