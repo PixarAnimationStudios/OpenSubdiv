@@ -66,25 +66,59 @@ PatchTable::PatchTable(PatchTable const & src) :
     _varyingPrecisionIsDouble(src._varyingPrecisionIsDouble),
     _faceVaryingPrecisionIsDouble(src._faceVaryingPrecisionIsDouble) {
 
-    if (src._localPointStencils.IsSet()) {
-        _localPointStencils = src._localPointStencils.Clone();
+    if (src._localPointStencils) {
+        if (src._vertexPrecisionIsDouble) {
+            _localPointStencils.Set(
+                new StencilTableReal<double>(*src._localPointStencils.Get<double>()));
+        } else {
+            _localPointStencils.Set(
+                new StencilTableReal<float>(*src._localPointStencils.Get<float>()));
+        }
     }
-    if (src._localPointVaryingStencils.IsSet()) {
-        _localPointVaryingStencils = src._localPointVaryingStencils.Clone();
+    if (src._localPointVaryingStencils) {
+        if (src._varyingPrecisionIsDouble) {
+            _localPointVaryingStencils.Set(
+                new StencilTableReal<double>(*src._localPointVaryingStencils.Get<double>()));
+        } else {
+            _localPointVaryingStencils.Set(
+                new StencilTableReal<float>(*src._localPointVaryingStencils.Get<float>()));
+        }
     }
     if (! src._localPointFaceVaryingStencils.empty()) {
         _localPointFaceVaryingStencils.resize(src._localPointFaceVaryingStencils.size());
         for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
-            _localPointFaceVaryingStencils[fvc] = src._localPointFaceVaryingStencils[fvc].Clone();
+            if (src._localPointFaceVaryingStencils[fvc]) {
+                if (src._faceVaryingPrecisionIsDouble) {
+                    _localPointFaceVaryingStencils[fvc].Set(new StencilTableReal<double>(
+                            *src._localPointFaceVaryingStencils[fvc].Get<double>()));
+                } else {
+                    _localPointFaceVaryingStencils[fvc].Set(new StencilTableReal<float>(
+                            *src._localPointFaceVaryingStencils[fvc].Get<float>()));
+                }
+            }
         }
     }
 }
 
 PatchTable::~PatchTable() {
-    _localPointStencils.Delete();
-    _localPointVaryingStencils.Delete();
+    if (_vertexPrecisionIsDouble) {
+        delete _localPointStencils.Get<double>();
+    } else {
+        delete _localPointStencils.Get<float>();
+    }
+
+    if (_varyingPrecisionIsDouble) {
+        delete _localPointVaryingStencils.Get<double>();
+    } else {
+        delete _localPointVaryingStencils.Get<float>();
+    }
+
     for (int fvc=0; fvc<(int)_localPointFaceVaryingStencils.size(); ++fvc) {
-        _localPointFaceVaryingStencils[fvc].Delete();
+        if (_faceVaryingPrecisionIsDouble) {
+            delete _localPointFaceVaryingStencils[fvc].Get<double>();
+        } else {
+            delete _localPointFaceVaryingStencils[fvc].Get<float>();
+        }
     }
 }
 
@@ -365,17 +399,25 @@ PatchTable::GetSingleCreasePatchSharpnessValue(int arrayIndex, int patchIndex) c
 
 int
 PatchTable::GetNumLocalPoints() const {
-    return _localPointStencils.IsSet() ? _localPointStencils.Size() : 0;
+    if (!_localPointStencils) return 0;
+    return _vertexPrecisionIsDouble
+                ? _localPointStencils.Get<double>()->GetNumStencils()
+                : _localPointStencils.Get<float>()->GetNumStencils();
 }
 int
 PatchTable::GetNumLocalPointsVarying() const {
-    return _localPointVaryingStencils.IsSet() ? _localPointVaryingStencils.Size() : 0;
+    if (!_localPointVaryingStencils) return 0;
+    return _varyingPrecisionIsDouble
+                ? _localPointVaryingStencils.Get<double>()->GetNumStencils()
+                : _localPointVaryingStencils.Get<float>()->GetNumStencils();
 }
 int
 PatchTable::GetNumLocalPointsFaceVarying(int channel) const {
     if (channel>=0 && channel<(int)_localPointFaceVaryingStencils.size()) {
-        return _localPointFaceVaryingStencils[channel].IsSet() ?
-            _localPointFaceVaryingStencils[channel].Size() : 0;
+        if (!_localPointFaceVaryingStencils[channel]) return 0;
+        return _faceVaryingPrecisionIsDouble
+                    ? _localPointFaceVaryingStencils[channel].Get<double>()->GetNumStencils()
+                    : _localPointFaceVaryingStencils[channel].Get<float>()->GetNumStencils();
     }
     return 0;
 }

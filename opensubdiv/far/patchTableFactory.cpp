@@ -115,7 +115,7 @@ public:
     PatchTable * GetPatchTable() const { return _table; };
 
 private:
-    typedef PatchTable::StencilTableHandler StencilTableHandler;
+    typedef PatchTable::StencilTablePtr StencilTablePtr;
 
     //  Simple struct to store <face,level> pair for a patch:
     struct PatchTuple {
@@ -195,12 +195,17 @@ private:
                                    int                         sourcePointOffset,
                                    Index                       patchPoints[]);
 
-        StencilTableHandler AcquireStencilTable() {
-            return acquireStencilTable(_stencilTable);
+        StencilTablePtr AcquireStencilTable() {
+            return _options.doubleStencilTable
+                ? acquireStencilTable<double>(_stencilTable)
+                : acquireStencilTable<float>(_stencilTable);
         }
 
     private:
         //  Internal methods:
+        template <typename REAL>
+        void initializeStencilTable(int numLocalPointsExpected);
+
         template <typename REAL>
         void appendLocalPointStencil(SparseMatrix<REAL> const &  conversionMatrix,
                                      int                         stencilRow,
@@ -220,7 +225,8 @@ private:
                                             Index const  sourcePoints[],
                                             int          sourcePointOffset);
 
-        StencilTableHandler acquireStencilTable(StencilTableHandler& stencilTableMember);
+        template <typename REAL>
+        StencilTablePtr acquireStencilTable(StencilTablePtr& stencilTableMember);
 
         Index findSharedCornerPoint(int levelIndex, Index valueIndex,
                                     Index newIndex);
@@ -239,16 +245,18 @@ private:
         std::vector<IndexVector> _sharedCornerPoints;
         std::vector<IndexVector> _sharedEdgePoints;
 
-        StencilTableHandler _stencilTable;
+        StencilTablePtr _stencilTable;
 
     //  This was hopefully transitional but will persist -- the should be
     //  no need for Varying local points or stencils associated with them.
     public:
-        StencilTableHandler AcquireStencilTableVarying() {
-            return acquireStencilTable(_stencilTableVarying);
+        StencilTablePtr AcquireStencilTableVarying() {
+            return _options.doubleStencilTable
+                ? acquireStencilTable<double>(_stencilTableVarying)
+                : acquireStencilTable<float>(_stencilTableVarying);
         }
 
-        StencilTableHandler _stencilTableVarying;
+        StencilTablePtr _stencilTableVarying;
     };
 
 private:
@@ -1417,17 +1425,16 @@ PatchTableBuilder::LocalPointHelper::LocalPointHelper(
 
     if (_options.createStencilTable) {
         if (_options.doubleStencilTable) {
-            _stencilTable.Set(new StencilTableReal<double>(0));
-            if (_options.createVaryingTable) {
-                _stencilTableVarying.Set(new StencilTableReal<double>(0));
-            }
+            initializeStencilTable<double>(numLocalPointsExpected);
         } else {
-            _stencilTable.Set(new StencilTableReal<float>(0));
-            if (_options.createVaryingTable) {
-                _stencilTableVarying.Set(new StencilTableReal<float>(0));
-            }
+            initializeStencilTable<float>(numLocalPointsExpected);
         }
     }
+}
+
+template <typename REAL>
+void
+PatchTableBuilder::LocalPointHelper::initializeStencilTable(int numLocalPointsExpected) {
 
     //
     //  Reserving space for the local-point stencils has been a source of
@@ -1438,65 +1445,63 @@ PatchTableBuilder::LocalPointHelper::LocalPointHelper(
     //  The average number of entries per stencil has been historically set
     //  at 16, which seemed high and was reduced on further investigation.
     //
-    if (_stencilTable.IsSet()) {
-        //  Historic note:  limits to 100M (=800M bytes) entries for reserved size
-        size_t const MaxEntriesToReserve  = 100 * 1024 * 1024;
-        size_t const AvgEntriesPerStencil = 9;  // originally 16
+    StencilTableReal<REAL> * stencilTable = new StencilTableReal<REAL>(0);
+    StencilTableReal<REAL> * varyingTable = _options.createVaryingTable
+                                          ? new StencilTableReal<REAL>(0) : 0;
 
-        size_t numStencilsExpected       = numLocalPointsExpected;
-        size_t numStencilEntriesExpected = numStencilsExpected * AvgEntriesPerStencil;
+    //  Historic note:  limits to 100M (=800M bytes) entries for reserved size
+    size_t const MaxEntriesToReserve  = 100 * 1024 * 1024;
+    size_t const AvgEntriesPerStencil = 9;  // originally 16
 
-        size_t numEntriesToReserve = std::min(numStencilEntriesExpected,
-                                              MaxEntriesToReserve);
-        if (numEntriesToReserve) {
-            if (_stencilTable.IsDouble()) {
-                _stencilTable.Get<double>()->reserve(
-                        (int)numStencilsExpected, (int)numEntriesToReserve);
-            } else {
-                _stencilTable.Get<float>()->reserve(
-                        (int)numStencilsExpected, (int)numEntriesToReserve);
-            }
-            if (_stencilTableVarying.IsSet()) {
-                //  Varying stencils have only one entry per point
-                if (_stencilTableVarying.IsDouble()) {
-                    _stencilTableVarying.Get<double>()->reserve(
-                            (int)numStencilsExpected, (int)numStencilsExpected);
-                } else {
-                    _stencilTableVarying.Get<float>()->reserve(
-                            (int)numStencilsExpected, (int)numStencilsExpected);
-                }
-            }
+    size_t numStencilsExpected       = numLocalPointsExpected;
+    size_t numStencilEntriesExpected = numStencilsExpected * AvgEntriesPerStencil;
+
+    size_t numEntriesToReserve = std::min(numStencilEntriesExpected,
+                                          MaxEntriesToReserve);
+    if (numEntriesToReserve) {
+        stencilTable->reserve(
+                (int)numStencilsExpected, (int)numEntriesToReserve);
+
+        if (varyingTable) {
+            //  Varying stencils have only one entry per point
+            varyingTable->reserve(
+                    (int)numStencilsExpected, (int)numStencilsExpected);
         }
     }
+
+    _stencilTable.Set(stencilTable);
+    _stencilTableVarying.Set(varyingTable);
 }
 
-PatchTableBuilder::StencilTableHandler
+template <typename REAL>
+PatchTableBuilder::StencilTablePtr
 PatchTableBuilder::LocalPointHelper::acquireStencilTable(
-        StencilTableHandler& stencilTableMember) {
+        StencilTablePtr& stencilTableMember) {
 
-    StencilTableHandler stencilTable = stencilTableMember;
+    StencilTableReal<REAL> * stencilTable = stencilTableMember.Get<REAL>();
 
-    if (stencilTable.IsSet()) {
-        if (stencilTable.Size() > 0) {
-            if (stencilTable.IsDouble()) {
-                stencilTable.Get<double>()->finalize();
-            } else {
-                stencilTable.Get<float>()->finalize();
-            }
+    if (stencilTable) {
+        if (stencilTable->GetNumStencils() > 0) {
+            stencilTable->finalize();
         } else {
-            stencilTable.Delete();
-            stencilTable.Clear();
+            delete stencilTable;
+            stencilTable = 0;
         }
     }
 
-    stencilTableMember.Clear();
-    return stencilTable;
+    stencilTableMember.Set();
+    return StencilTablePtr(stencilTable);
 }
 
 PatchTableBuilder::LocalPointHelper::~LocalPointHelper() {
 
-    _stencilTable.Delete();
-    _stencilTableVarying.Delete();
+    if (_options.doubleStencilTable) {
+        delete _stencilTable.Get<double>();
+        delete _stencilTableVarying.Get<double>();
+    } else {
+        delete _stencilTable.Get<float>();
+        delete _stencilTableVarying.Get<float>();
+    }
 }
 
 Index
@@ -1727,11 +1732,11 @@ PatchTableBuilder::LocalPointHelper::AppendLocalPatchPoints(
     bool shareLocalPointsForThisPatch = (shareBitsPerPoint != 0);
 
     int const * varyingIndices = 0;
-    if (_stencilTableVarying.IsSet()) {
+    if (_stencilTableVarying) {
         varyingIndices = GetVaryingIndicesPerType(patchType);
     }
 
-    bool applyVertexStencils  = _stencilTable.IsSet();
+    bool applyVertexStencils  = (_stencilTable.Get<REAL>() != 0);
     bool applyVaryingStencils = (varyingIndices != 0);
 
     //

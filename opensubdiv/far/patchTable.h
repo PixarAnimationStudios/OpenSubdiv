@@ -597,54 +597,34 @@ private:
 
 private:
     //
-    //  Private class to manage stencil table pointers of varying precision
+    //  Simple private class to hold stencil table pointers of varying precision,
+    //  where the discriminant of the precision is external.
     //
-    //  This implementation is still up for debate -- could be improved or 
-    //  could be entirely replaced...
+    //  NOTE that this is a simple pointer container and NOT a smart pointer that
+    //  manages the ownership of the object referred to by it.
     //
-    class StencilTableHandler {
+    class StencilTablePtr {
     private:
         typedef StencilTableReal<float>  float_type;
         typedef StencilTableReal<double> double_type;
 
-        void init()                  { _fPtr = 0,   _isDouble = false; }
-        void init(float_type  * ptr) { _fPtr = ptr, _isDouble = false; }
-        void init(double_type * ptr) { _dPtr = ptr, _isDouble = true; }
-
-    public:
-        StencilTableHandler()                  { init(); }
-        StencilTableHandler(float_type  * ptr) { init(ptr); }
-        StencilTableHandler(double_type * ptr) { init(ptr); }
-
-        //  Generic accessor and modifiers:
-        template <typename REAL> StencilTableReal<REAL> * Get() const;
-
-        void Set(float_type  * ptr) { init(ptr); }
-        void Set(double_type * ptr) { init(ptr); }
-
-        //  Other utilities
-        bool IsSet() const { return _fPtr != 0; }
-        bool IsDouble() const { return _isDouble; }
-        void Clear() { init(); }
-
-        int Size() const {
-            return _isDouble ? _dPtr->GetNumStencils() : _fPtr->GetNumStencils();
-        }
-        void Delete() {
-            if (_isDouble) delete _dPtr;
-            else delete _fPtr;
-        }
-        StencilTableHandler Clone() const {
-            return _isDouble ? StencilTableHandler(new double_type(*_dPtr))
-                             : StencilTableHandler(new float_type(*_fPtr));
-        }
-
-    private:
         union {
             float_type  * _fPtr;
             double_type * _dPtr;
         };
-        bool _isDouble;
+
+    public:
+        StencilTablePtr()                  { _fPtr = 0; }
+        StencilTablePtr(float_type  * ptr) { _fPtr = ptr; }
+        StencilTablePtr(double_type * ptr) { _dPtr = ptr; }
+
+        operator bool() const { return _fPtr != 0; }
+
+        void Set()                  { _fPtr = 0; }
+        void Set(float_type  * ptr) { _fPtr = ptr; }
+        void Set(double_type * ptr) { _dPtr = ptr; }
+
+        template <typename REAL> StencilTableReal<REAL> * Get() const;
     };
 
 private:
@@ -671,8 +651,8 @@ private:
     QuadOffsetsTable     _quadOffsetsTable;   // Quad offsets (for Gregory patches)
     VertexValenceTable   _vertexValenceTable; // Vertex valence table (for Gregory patches)
 
-    StencilTableHandler _localPointStencils;        // local point conversion stencils
-    StencilTableHandler _localPointVaryingStencils; // local point varying stencils
+    StencilTablePtr _localPointStencils;        // local point conversion stencils
+    StencilTablePtr _localPointVaryingStencils; // local point varying stencils
 
     //
     // Varying data
@@ -686,7 +666,7 @@ private:
     //
     FVarPatchChannelVector _fvarChannels;
 
-    std::vector<StencilTableHandler> _localPointFaceVaryingStencils;
+    std::vector<StencilTablePtr> _localPointFaceVaryingStencils;
 
     //
     // 'single-crease' patch sharpness tables
@@ -712,10 +692,10 @@ private:
 //  Template specializations for float/double -- to be defined before used:
 //
 template <> inline StencilTableReal<float> *
-PatchTable::StencilTableHandler::Get<float>() const { return _fPtr; }
+PatchTable::StencilTablePtr::Get<float>() const { return _fPtr; }
 
 template <> inline StencilTableReal<double> *
-PatchTable::StencilTableHandler::Get<double>() const { return _dPtr; }
+PatchTable::StencilTablePtr::Get<double>() const { return _dPtr; }
 
 template <> inline bool
 PatchTable::IsLocalPointStencilPrecision<float>() const {
@@ -797,7 +777,7 @@ template <class T>
 inline void
 PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
     assert(IsLocalPointStencilPrecision<float>());
-    if (_localPointStencils.IsSet()) {
+    if (_localPointStencils) {
         _localPointStencils.Get<float>()->UpdateValues(src, dst);
     }
 }
@@ -806,7 +786,7 @@ template <class T>
 inline void
 PatchTable::ComputeLocalPointValuesVarying(T const *src, T *dst) const {
     assert(IsLocalPointVaryingStencilPrecision<float>());
-    if (_localPointVaryingStencils.IsSet()) {
+    if (_localPointVaryingStencils) {
         _localPointVaryingStencils.Get<float>()->UpdateValues(src, dst);
     }
 }
@@ -816,7 +796,7 @@ inline void
 PatchTable::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel) const {
     assert(IsLocalPointFaceVaryingStencilPrecision<float>());
     if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
-        if (_localPointFaceVaryingStencils[channel].IsSet()) {
+        if (_localPointFaceVaryingStencils[channel]) {
             _localPointFaceVaryingStencils[channel].Get<float>()->UpdateValues(src, dst);
         }
     }
