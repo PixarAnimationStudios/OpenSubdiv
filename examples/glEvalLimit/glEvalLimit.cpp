@@ -115,6 +115,7 @@ enum HudCheckBox { kHUD_CB_DISPLAY_CONTROL_MESH_EDGES,
                    kHUD_CB_ANIMATE_PARTICLES,
                    kHUD_CB_RANDOM_START,
                    kHUD_CB_FREEZE,
+                   kHUD_CB_ADAPTIVE,
                    kHUD_CB_INF_SHARP_PATCH };
 
 enum DrawMode { kUV,
@@ -129,6 +130,7 @@ std::vector<float> g_orgPositions,
                    g_varyingColors;
 
 int g_currentShape = 0,
+    g_adaptive = 1,
     g_level = 3,
     g_kernel = kCPU,
     g_endCap = kEndCapBSplineBasis,
@@ -656,7 +658,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     bool hasFVarData = !shape->uvs.empty();
 
     {
-        bool adaptive = (sdctype == OpenSubdiv::Sdc::SCHEME_CATMARK);
+        bool adaptive = (g_adaptive!=0 && (sdctype == OpenSubdiv::Sdc::SCHEME_CATMARK));
         bool doInfSharpPatch = (g_infSharpPatch!=0 && adaptive);
 
         if (adaptive) {
@@ -704,6 +706,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         poptions.useInfSharpPatch = doInfSharpPatch;
         poptions.generateFVarTables = hasFVarData;
         poptions.generateFVarLegacyLinearPatches = false;
+        poptions.includeFVarBaseLevelIndices = true;;
 
         Far::PatchTable const * patchTable =
             Far::PatchTableFactory::Create(*topologyRefiner, poptions);
@@ -1308,6 +1311,10 @@ callbackCheckBox(bool checked, int button) {
     case kHUD_CB_FREEZE:
         g_freeze = checked;
         break;
+    case kHUD_CB_ADAPTIVE:
+        g_adaptive = checked;
+        createOsdMesh(g_defaultShapes[g_currentShape], g_level);
+        break;
     case kHUD_CB_INF_SHARP_PATCH:
         g_infSharpPatch = checked;
         createOsdMesh(g_defaultShapes[g_currentShape], g_level);
@@ -1391,10 +1398,12 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "FaceVarying", kFACEVARYING, g_drawMode==kFACEVARYING);
     g_hud.AddPullDownButton(shading_pulldown, "Mean Curvature", kMEAN_CURVATURE, g_drawMode==kMEAN_CURVATURE);
 
+    g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 190, callbackCheckBox, kHUD_CB_ADAPTIVE, '`');
+
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==g_level, 10, 170+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i==g_level, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int pulldown_handle = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
