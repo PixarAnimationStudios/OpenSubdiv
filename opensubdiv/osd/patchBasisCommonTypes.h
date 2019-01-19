@@ -31,9 +31,9 @@
     #define OSD_DATA_STORAGE_CLASS
     #define OSD_REAL float
     #define OSD_REAL_CAST float
-    #define OSD_ARG_ARRAY_BOUND_OPTIONAL false
     #define OSD_OPTIONAL(a) true
     #define OSD_OPTIONAL_INIT(a,b) b
+    #define OSD_ARRAY_ARG_BOUND_OPTIONAL 0
     #define OSD_IN_ARRAY(elementType, identifier, arraySize) \
             elementType identifier[arraySize]
     #define OSD_OUT_ARRAY(elementType, identifier, arraySize) \
@@ -61,9 +61,9 @@
     #define OSD_DATA_STORAGE_CLASS
     #define OSD_REAL float
     #define OSD_REAL_CAST float
-    #define OSD_ARG_ARRAY_BOUND_OPTIONAL false
     #define OSD_OPTIONAL(a) true
     #define OSD_OPTIONAL_INIT(a,b) b
+    #define OSD_ARRAY_ARG_BOUND_OPTIONAL 0
     #define OSD_IN_ARRAY(elementType, identifier, arraySize) \
             elementType identifier[arraySize]
     #define OSD_OUT_ARRAY(elementType, identifier, arraySize) \
@@ -93,7 +93,7 @@
     #define OSD_REAL_CAST float
     #define OSD_OPTIONAL(a) true
     #define OSD_OPTIONAL_INIT(a,b) b
-    #define OSD_ARRAY_ARG_BOUND_OPTIONAL false
+    #define OSD_ARRAY_ARG_BOUND_OPTIONAL 0
     #define OSD_IN_ARRAY(elementType, identifier, arraySize) \
             elementType identifier[arraySize]
     #define OSD_OUT_ARRAY(elementType, identifier, arraySize) \
@@ -123,7 +123,7 @@
     #define OSD_REAL_CAST convert_float
     #define OSD_OPTIONAL(a) true
     #define OSD_OPTIONAL_INIT(a,b) b
-    #define OSD_ARRAY_ARG_BOUND_OPTIONAL false
+    #define OSD_ARRAY_ARG_BOUND_OPTIONAL 0
     #define OSD_IN_ARRAY(elementType, identifier, arraySize) \
             elementType identifier[arraySize]
     #define OSD_OUT_ARRAY(elementType, identifier, arraySize) \
@@ -153,7 +153,7 @@
     #define OSD_REAL_CAST float
     #define OSD_OPTIONAL(a) true
     #define OSD_OPTIONAL_INIT(a,b) b
-    #define OSD_ARRAY_ARG_BOUND_OPTIONAL false
+    #define OSD_ARRAY_ARG_BOUND_OPTIONAL 0
     #define OSD_IN_ARRAY(elementType, identifier, arraySize) \
             thread elementType* identifier
     #define OSD_OUT_ARRAY(elementType, identifier, arraySize) \
@@ -183,7 +183,7 @@
     #define OSD_REAL_CAST float
     #define OSD_OPTIONAL(a) (a)
     #define OSD_OPTIONAL_INIT(a,b) (a ? b : 0)
-    #define OSD_ARRAY_ARG_BOUND_OPTIONAL true
+    #define OSD_ARRAY_ARG_BOUND_OPTIONAL 1
     #define OSD_IN_ARRAY(elementType, identifier, arraySize) \
             elementType identifier[arraySize]
     #define OSD_OUT_ARRAY(elementType, identifier, arraySize) \

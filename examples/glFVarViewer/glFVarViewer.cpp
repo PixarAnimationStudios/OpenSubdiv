@@ -63,7 +63,8 @@ enum DisplayStyle { kWire = 0,
                     kShaded,
                     kWireShaded };
 
-enum EndCap       { kEndCapBSplineBasis,
+enum EndCap       { kEndCapBilinearBasis,
+                    kEndCapBSplineBasis,
                     kEndCapGregoryBasis };
 
 int g_currentShape = 0;
@@ -109,7 +110,7 @@ std::vector<float> g_orgPositions,
 
 Scheme             g_scheme;
 
-int g_endCap = kEndCapBSplineBasis;
+int g_endCap = kEndCapGregoryBasis;
 int g_level = 2;
 int g_tessLevel = 1;
 int g_tessLevelMin = 1;
@@ -435,13 +436,11 @@ rebuildMesh() {
 
     g_scheme = scheme;
 
-    // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 && g_scheme==kCatmark);
-
     OpenSubdiv::Osd::MeshBitset bits;
-    bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::Osd::MeshAdaptive, g_adaptive != 0);
     bits.set(OpenSubdiv::Osd::MeshFVarData, 1);
     bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, 1);
+    bits.set(OpenSubdiv::Osd::MeshEndCapBilinearBasis, g_endCap == kEndCapBilinearBasis);
     bits.set(OpenSubdiv::Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
     bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
 
@@ -580,7 +579,9 @@ public:
 
         if (type == Far::PatchDescriptor::QUADS) {
             ss << "#define PRIM_QUAD\n";
-        } else if (type == Far::PatchDescriptor::TRIANGLES) {
+        } else if (type == Far::PatchDescriptor::TRIANGLES ||
+                   type == Far::PatchDescriptor::LOOP ||
+                   type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
             ss << "#define PRIM_TRI\n";
             ss << "#define LOOP\n";
         } else {
@@ -1133,7 +1134,10 @@ initHUD() {
 
     int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 140, 200,
                                             callbackEndCap, 'e');
-    g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+    g_hud.AddPullDownButton(endcap_pulldown, "Linear",
+        kEndCapBilinearBasis,
+        g_endCap == kEndCapBilinearBasis);
+    g_hud.AddPullDownButton(endcap_pulldown, "Regular",
         kEndCapBSplineBasis,
         g_endCap == kEndCapBSplineBasis);
     g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
@@ -1228,7 +1232,9 @@ parseIntArg(const char* argString, int dfltValue = 0) {
 int main(int argc, char ** argv) {
 
     bool fullscreen = false;
+    Scheme defaultScheme = kCatmark;
     std::string str;
+
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-d")) {
             if (++i < argc) g_level = parseIntArg(argv[i], g_level);
@@ -1236,6 +1242,12 @@ int main(int argc, char ** argv) {
             if (++i < argc) g_repeatCount = parseIntArg(argv[i], g_repeatCount);
         } else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
+        } else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        } else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        } else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
         } else if (argv[i][0] == '-') {
             printf("Warning: unrecognized option '%s' ignored\n", argv[i]);
         } else {
@@ -1245,7 +1257,7 @@ int main(int argc, char ** argv) {
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
             } else {
                 printf("Warning: cannot open shape file '%s'\n", argv[i]);
             }

@@ -144,10 +144,11 @@ enum ShadingMode { kShadingMaterial,
                    kShadingInterleavedVaryingColor,
                    kShadingFaceVaryingColor,
                    kShadingPatchType,
+                   kShadingPatchDepth,
                    kShadingPatchCoord,
                    kShadingNormal };
 
-enum EndCap      { kEndCapNone = 0,
+enum EndCap      { kEndCapBilinearBasis = 0,
                    kEndCapBSplineBasis,
                    kEndCapGregoryBasis,
                    kEndCapLegacyGregory };
@@ -189,10 +190,10 @@ int   g_fullscreen = 0,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
-int   g_screenSpaceTess = 1,
-      g_fractionalSpacing = 1,
+int   g_screenSpaceTess = 0,
+      g_fractionalSpacing = 0,
       g_patchCull = 0,
-      g_displayPatchCounts = 1;
+      g_displayPatchCounts = 0;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,
@@ -394,7 +395,7 @@ updateGeom() {
 static const char *
 getKernelName(int kernel) {
 
-         if (kernel == kCPU)
+    if (kernel == kCPU)
         return "CPU";
     else if (kernel == kOPENMP)
         return "OpenMP";
@@ -420,7 +421,6 @@ rebuildMesh() {
     int level = g_level;
     int kernel = g_kernel;
     bool doAnim = g_objAnim && g_currentShape==0;
-    Scheme scheme = shapeDesc.scheme;
 
     Shape const * shape = 0;
     if (doAnim) {
@@ -446,27 +446,21 @@ rebuildMesh() {
     delete g_mesh;
     g_mesh = NULL;
 
-    // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive!=0 && scheme==kCatmark);
-    bool interleaveVarying = g_shadingMode == kShadingInterleavedVaryingColor;
-    bool doSmoothCornerPatch = (g_smoothCornerPatch!=0 && scheme==kCatmark);
-    bool doSingleCreasePatch = (g_singleCreasePatch!=0 && scheme==kCatmark);
-    bool doInfSharpPatch = (g_infSharpPatch!=0 && scheme==kCatmark);
-
     Osd::MeshBitset bits;
-    bits.set(Osd::MeshAdaptive, doAdaptive);
-    bits.set(Osd::MeshUseSmoothCornerPatch, doSmoothCornerPatch);
-    bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
-    bits.set(Osd::MeshUseInfSharpPatch, doInfSharpPatch);
-    bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
-    bits.set(Osd::MeshFVarData, g_shadingMode == kShadingFaceVaryingColor);
-    bits.set(Osd::MeshEndCapBSplineBasis, g_endCap == kEndCapBSplineBasis);
-    bits.set(Osd::MeshEndCapGregoryBasis, g_endCap == kEndCapGregoryBasis);
-    bits.set(Osd::MeshEndCapLegacyGregory, g_endCap == kEndCapLegacyGregory);
+    bits.set(Osd::MeshAdaptive,             g_adaptive != 0);
+    bits.set(Osd::MeshUseSmoothCornerPatch, g_smoothCornerPatch != 0);
+    bits.set(Osd::MeshUseSingleCreasePatch, g_singleCreasePatch != 0);
+    bits.set(Osd::MeshUseInfSharpPatch,     g_infSharpPatch != 0);
+    bits.set(Osd::MeshInterleaveVarying,    g_shadingMode == kShadingInterleavedVaryingColor);
+    bits.set(Osd::MeshFVarData,             g_shadingMode == kShadingFaceVaryingColor);
+    bits.set(Osd::MeshEndCapBilinearBasis,  g_endCap == kEndCapBilinearBasis);
+    bits.set(Osd::MeshEndCapBSplineBasis,   g_endCap == kEndCapBSplineBasis);
+    bits.set(Osd::MeshEndCapGregoryBasis,   g_endCap == kEndCapGregoryBasis);
+    bits.set(Osd::MeshEndCapLegacyGregory,  g_endCap == kEndCapLegacyGregory);
 
     int numVertexElements = 3;
     int numVaryingElements =
-        (g_shadingMode == kShadingVaryingColor || interleaveVarying) ? 4 : 0;
+        (g_shadingMode == kShadingVaryingColor || bits.test(Osd::MeshInterleaveVarying)) ? 4 : 0;
 
 
     if (kernel == kCPU) {
@@ -732,7 +726,8 @@ public:
         if (effectDesc.effect.patchCull) {
             ss << "#define OSD_ENABLE_PATCH_CULL\n";
         }
-        if (effectDesc.effect.singleCreasePatch) {
+        if (effectDesc.effect.singleCreasePatch &&
+            type == Far::PatchDescriptor::REGULAR) {
             ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
         }
         // for legacy gregory
@@ -773,6 +768,9 @@ public:
         case kShadingPatchType:
             ss << "#define SHADING_PATCH_TYPE\n";
             break;
+        case kShadingPatchDepth:
+            ss << "#define SHADING_PATCH_DEPTH\n";
+            break;
         case kShadingPatchCoord:
             ss << "#define SHADING_PATCH_COORD\n";
             break;
@@ -781,10 +779,13 @@ public:
             break;
         }
 
-        if (type == Far::PatchDescriptor::TRIANGLES) {
+        if (type == Far::PatchDescriptor::TRIANGLES ||
+            type == Far::PatchDescriptor::LOOP ||
+            type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
             ss << "#define LOOP\n";
-        } else if (type == Far::PatchDescriptor::QUADS) {
-        } else {
+        }
+        if (type != Far::PatchDescriptor::TRIANGLES &&
+            type != Far::PatchDescriptor::QUADS) {
             ss << "#define SMOOTH_NORMALS\n";
         }
 
@@ -795,6 +796,10 @@ public:
             ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
         } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
             ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        } else if (type == Far::PatchDescriptor::LOOP) {
+            ss << "#define OSD_PATCH_LOOP\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define OSD_PATCH_GREGORY_TRIANGLE\n";
         }
 
         // include osd PatchCommon
@@ -1193,18 +1198,24 @@ display() {
         double fps = 1.0/elapsed;
 
         if (g_displayPatchCounts) {
-            int x = -280;
+            int x = -420;
             int y = -180;
-            g_hud.DrawString(x, y, "NonPatch         : %d",
+            g_hud.DrawString(x, y, "Quads            : %d",
                              patchCount[Descriptor::QUADS]); y += 20;
+            g_hud.DrawString(x, y, "Triangles        : %d",
+                             patchCount[Descriptor::TRIANGLES]); y += 20;
             g_hud.DrawString(x, y, "Regular          : %d",
                              patchCount[Descriptor::REGULAR]); y+= 20;
+            g_hud.DrawString(x, y, "Loop             : %d",
+                             patchCount[Descriptor::LOOP]); y+= 20;
             g_hud.DrawString(x, y, "Gregory          : %d",
                              patchCount[Descriptor::GREGORY]); y+= 20;
-            g_hud.DrawString(x, y, "Boundary Gregory : %d",
+            g_hud.DrawString(x, y, "Gregory Boundary : %d",
                              patchCount[Descriptor::GREGORY_BOUNDARY]); y+= 20;
             g_hud.DrawString(x, y, "Gregory Basis    : %d",
                              patchCount[Descriptor::GREGORY_BASIS]); y+= 20;
+            g_hud.DrawString(x, y, "Gregory Triangle : %d",
+                             patchCount[Descriptor::GREGORY_TRIANGLE]); y+= 20;
         }
 
         int y = -220;
@@ -1515,6 +1526,9 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Patch Type",
                             kShadingPatchType,
                             g_shadingMode == kShadingPatchType);
+    g_hud.AddPullDownButton(shading_pulldown, "Patch Depth",
+                            kShadingPatchDepth,
+                            g_shadingMode == kShadingPatchDepth);
     g_hud.AddPullDownButton(shading_pulldown, "Patch Coord",
                             kShadingPatchCoord,
                             g_shadingMode == kShadingPatchCoord);
@@ -1558,13 +1572,13 @@ initHUD() {
 
         int endcap_pulldown = g_hud.AddPullDown(
             "End cap (E)", 10, 270, 200, callbackEndCap, 'e');
-        g_hud.AddPullDownButton(endcap_pulldown,"None",
-                                kEndCapNone,
-                                g_endCap == kEndCapNone);
-        g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+        g_hud.AddPullDownButton(endcap_pulldown,"Linear",
+                                kEndCapBilinearBasis,
+                                g_endCap == kEndCapBilinearBasis);
+        g_hud.AddPullDownButton(endcap_pulldown, "Regular",
                                 kEndCapBSplineBasis,
                                 g_endCap == kEndCapBSplineBasis);
-        g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+        g_hud.AddPullDownButton(endcap_pulldown, "Gregory",
                                 kEndCapGregoryBasis,
                                 g_endCap == kEndCapGregoryBasis);
         g_hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
@@ -1575,7 +1589,7 @@ initHUD() {
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==2, 10, 310+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i == g_level, 10, 310+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = g_hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
@@ -1583,7 +1597,7 @@ initHUD() {
         g_hud.AddPullDownButton(shapes_pulldown, g_defaultShapes[i].name.c_str(),i);
     }
 
-    g_hud.AddCheckBox("Show patch counts", g_displayPatchCounts!=0, -280, -20, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COUNTS);
+    g_hud.AddCheckBox("Show patch counts", g_displayPatchCounts!=0, -420, -20, callbackCheckBox, kHUD_CB_DISPLAY_PATCH_COUNTS);
 
     g_hud.Rebuild(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
 }
@@ -1629,9 +1643,11 @@ callbackErrorGLFW(int error, const char* description) {
 }
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+
 int main(int argc, char ** argv) {
 
     bool fullscreen = false;
+    Scheme defaultScheme = kCatmark;
     std::string str;
     std::vector<char const *> animobjs;
 
@@ -1642,14 +1658,26 @@ int main(int argc, char ** argv) {
         else if (!strcmp(argv[i], "-axis")) {
             g_axis = false;
         }
+        else if (!strcmp(argv[i], "-u")) {
+            g_adaptive = false;
+        }
         else if (!strcmp(argv[i], "-d")) {
-            g_level = atoi(argv[++i]);
+            if (++i < argc) g_level = atoi(argv[i]);
         }
         else if (!strcmp(argv[i], "-c")) {
-            g_repeatCount = atoi(argv[++i]);
+            if (++i < argc) g_repeatCount = atoi(argv[i]);
         }
         else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
+        }
+        else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        }
+        else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        }
+        else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
         }
         else {
             std::ifstream ifs(argv[1]);
@@ -1658,16 +1686,16 @@ int main(int argc, char ** argv) {
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), defaultScheme));
             }
         }
     }
 
     if (! animobjs.empty()) {
 
-        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", kCatmark));
+        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", defaultScheme));
 
-        g_objAnim = ObjAnim::Create(animobjs, g_axis);
+        g_objAnim = ObjAnim::Create(animobjs, g_axis, defaultScheme);
     }
 
     initShapes();
@@ -1744,7 +1772,9 @@ int main(int argc, char ** argv) {
 #endif
 
     // activate feature adaptive tessellation if OSD supports it
-    g_adaptive = GLUtils::SupportsAdaptiveTessellation();
+    if (g_adaptive) {
+        g_adaptive = GLUtils::SupportsAdaptiveTessellation();
+    }
 
     initGL();
 
