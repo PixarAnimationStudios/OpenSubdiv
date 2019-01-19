@@ -134,6 +134,7 @@ if( (NOT NO_OPENGL) AND (OPENGL_FOUND OR OPENGLES_FOUND) )
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
             glslPatchGregoryBasis.glsl
+            glslPatchLegacy.glsl
         )
     endif()
 endif()
