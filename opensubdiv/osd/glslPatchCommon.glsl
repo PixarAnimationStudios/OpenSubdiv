@@ -72,6 +72,14 @@
 //         mix(input[c].var, input[d].var, UV.x), UV.y)
 #endif
 
+#ifndef OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE
+#define OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE(UV, a, b, c)
+// output.var =
+//     input[a].var * (1.0f-UV.x-UV.y) +
+//     input[b].var * UV.x +
+//     input[c].var * UV.y;
+#endif
+
 #if __VERSION__ < 420
     #define centroid
 #endif
@@ -176,6 +184,12 @@ bool OsdGetPatchIsRegular(ivec3 patchParam)
     return ((patchParam.y >> 5) & 0x1) != 0;
 }
 
+bool OsdGetPatchIsTriangleRotated(ivec3 patchParam)
+{
+    ivec2 uv = OsdGetPatchFaceUV(patchParam);
+    return (uv.x + uv.y) >= OsdGetPatchFaceLevel(patchParam);
+}
+
 float OsdGetPatchSharpness(ivec3 patchParam)
 {
     return intBitsToFloat(patchParam.z);
@@ -214,6 +228,15 @@ vec4 OsdInterpolatePatchCoord(vec2 localUV, ivec3 patchParam)
     vec2 uv = localUV/faceLevel + faceUV/faceLevel;
     // add 0.5 to integer values for more robust interpolation
     return vec4(uv.x, uv.y, faceLevel+0.5f, faceId+0.5f);
+}
+
+vec4 OsdInterpolatePatchCoordTriangle(vec2 localUV, ivec3 patchParam)
+{
+    vec4 result = OsdInterpolatePatchCoord(localUV, patchParam);
+    if (OsdGetPatchIsTriangleRotated(patchParam)) {
+        result.xy = vec2(1.0f) - result.xy;
+    }
+    return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -409,29 +432,118 @@ OsdComputeBSplineBoundaryPoints(inout vec3 cpt[16], ivec3 patchParam)
 {
     int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
 
+    //  Don't extrpolate corner points until all boundary points in place
     if ((boundaryMask & 1) != 0) {
-        cpt[0] = 2*cpt[4] - cpt[8];
         cpt[1] = 2*cpt[5] - cpt[9];
         cpt[2] = 2*cpt[6] - cpt[10];
+    }
+    if ((boundaryMask & 2) != 0) {
+        cpt[7] = 2*cpt[6] - cpt[5];
+        cpt[11] = 2*cpt[10] - cpt[9];
+    }
+    if ((boundaryMask & 4) != 0) {
+        cpt[13] = 2*cpt[9] - cpt[5];
+        cpt[14] = 2*cpt[10] - cpt[6];
+    }
+    if ((boundaryMask & 8) != 0) {
+        cpt[4] = 2*cpt[5] - cpt[6];
+        cpt[8] = 2*cpt[9] - cpt[10];
+    }
+
+    //  Now safe to extrapolate corner points:
+    if ((boundaryMask & 1) != 0) {
+        cpt[0] = 2*cpt[4] - cpt[8];
         cpt[3] = 2*cpt[7] - cpt[11];
     }
     if ((boundaryMask & 2) != 0) {
         cpt[3] = 2*cpt[2] - cpt[1];
-        cpt[7] = 2*cpt[6] - cpt[5];
-        cpt[11] = 2*cpt[10] - cpt[9];
         cpt[15] = 2*cpt[14] - cpt[13];
     }
     if ((boundaryMask & 4) != 0) {
         cpt[12] = 2*cpt[8] - cpt[4];
-        cpt[13] = 2*cpt[9] - cpt[5];
-        cpt[14] = 2*cpt[10] - cpt[6];
         cpt[15] = 2*cpt[11] - cpt[7];
     }
     if ((boundaryMask & 8) != 0) {
         cpt[0] = 2*cpt[1] - cpt[2];
-        cpt[4] = 2*cpt[5] - cpt[6];
-        cpt[8] = 2*cpt[9] - cpt[10];
         cpt[12] = 2*cpt[13] - cpt[14];
+    }
+}
+
+void
+OsdComputeBoxSplineTriangleBoundaryPoints(inout vec3 cpt[12], ivec3 patchParam)
+{
+    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+    if (boundaryMask == 0) return;
+
+    int upperBits = (boundaryMask >> 3) & 0x3;
+    int lowerBits = boundaryMask & 7;
+
+    int eBits = lowerBits;
+    int vBits = 0;
+
+    if (upperBits == 1) {
+        vBits = eBits;
+        eBits = 0;
+    } else if (upperBits == 2) {
+        //  Opposite vertex bit is edge bit rotated one to the right:
+        vBits = ((eBits & 1) << 2) | (eBits >> 1);
+    }
+
+    bool edge0IsBoundary = (eBits & 1) != 0;
+    bool edge1IsBoundary = (eBits & 2) != 0;
+    bool edge2IsBoundary = (eBits & 4) != 0;
+
+    if (edge0IsBoundary) {
+        if (edge2IsBoundary) {
+            cpt[0] = cpt[4] + (cpt[4] - cpt[8]);
+        } else {
+            cpt[0] = cpt[4] + (cpt[3] - cpt[7]);
+        }
+        cpt[1] = cpt[4] + cpt[5] - cpt[8];
+        if (edge1IsBoundary) {
+            cpt[2] = cpt[5] + (cpt[5] - cpt[8]);
+        } else {
+            cpt[2] = cpt[5] + (cpt[6] - cpt[9]);
+        }
+    }
+    if (edge1IsBoundary) {
+        if (edge0IsBoundary) {
+            cpt[6] = cpt[5] + (cpt[5] - cpt[4]);
+        } else {
+            cpt[6] = cpt[5] + (cpt[2] - cpt[1]);
+        }
+        cpt[9] = cpt[5] + cpt[8] - cpt[4];
+        if (edge2IsBoundary) {
+            cpt[11] = cpt[8] + (cpt[8] - cpt[4]);
+        } else {
+            cpt[11] = cpt[8] + (cpt[10] - cpt[7]);
+        }
+    }
+    if (edge2IsBoundary) {
+        if (edge1IsBoundary) {
+            cpt[10] = cpt[8] + (cpt[8] - cpt[5]);
+        } else {
+            cpt[10] = cpt[8] + (cpt[11] - cpt[9]);
+        }
+        cpt[7] = cpt[8] + cpt[4] - cpt[5];
+        if (edge0IsBoundary) {
+            cpt[3] = cpt[4] + (cpt[4] - cpt[5]);
+        } else {
+            cpt[3] = cpt[4] + (cpt[0] - cpt[1]);
+        }
+    }
+
+    if ((vBits & 1) != 0) {
+        cpt[3] = cpt[4] + cpt[7] - cpt[8];
+        cpt[0] = cpt[4] + cpt[1] - cpt[5];
+    }
+    if ((vBits & 2) != 0) {
+        cpt[2] = cpt[5] + cpt[1] - cpt[4];
+        cpt[6] = cpt[5] + cpt[9] - cpt[8];
+    }
+    if ((vBits & 4) != 0) {
+        cpt[11] = cpt[8] + cpt[9] - cpt[5];
+        cpt[10] = cpt[8] + cpt[7] - cpt[4];
     }
 }
 
@@ -858,5 +970,187 @@ OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
     bezcv[15].P = cv[10];
 
     OsdEvalPatchBezier(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
+}
+
+//
+//  Convert the 12 points of a regular patch resulting from Loop subdivision
+//  into a more accessible Bezier patch for both tessellation assessment and
+//  evaluation.
+//
+//  Regular patch for Loop subdivision -- quartic triangular Box spline:
+//
+//                           10 --- 11
+//                           . .   . .
+//                          .   . .   .
+//                         7 --- 8 --- 9
+//                        . .   . .   . .
+//                       .   . .   . .   .
+//                      3 --- 4 --- 5 --- 6
+//                       .   . .   . .   .
+//                        . .   . .   . .
+//                         0 --- 1 --- 2
+//
+//  Alternate Bezier representations of the same patch -- fully quartic on
+//  the left and quartic with cubic boundaries on the right:
+//
+//                 14                              11
+//                 . .                             . .
+//                .   .                           .   .
+//              12 --- 13                        .     .
+//              . .   . .                       8       10
+//             .   . .   .                     .  .   .  .
+//            9 -- 10 --- 11                  .     9     .
+//           . .   . .   . .                 .     . .     .
+//          .   . .   . .   .               4 .   .   .   . 7
+//         5 --- 6 --- 7 --- 8             .   . 5 --- 6 .   .
+//        . .   . .   . .   . .           .     .       .     .
+//       .   . .   . .   . .   .         .     .         .     .
+//      0 --- 1 --- 2 --- 3 --- 4       0 ---- 1 ------- 2 ---- 3
+//
+//  Since the boundaries of the Box spline are cubic and we do not need the
+//  extra degree of freedom the quartic boundaries make available, we can
+//  eliminate the redundancy and reduce the boundaries to cubic -- replacing
+//  9 boundary points with 6 while preserving the 3 interior and 3 corner
+//  points.
+//
+//  So we can avoid expanding the patch to 15 points and take advantage of
+//  cubic boundary curves in the same way as quad patches.  Evaluation of the
+//  hybrid patch implicitly promotes the boundaries back to quartic to employ
+//  conventional recursive techniques.
+//
+
+void
+OsdComputePerPatchVertexBoxSplineTriangle(ivec3 patchParam, int ID, vec3 cv[12],
+                                          out OsdPerPatchVertexBezier result)
+{
+    //
+    //  Conversion matrix from 12-point Box spline to 12-point hybrid Bezier
+    //  patch and its common scale factor:
+    //
+    const float loopToHybridBezierMatrix[12*12] = float[12*12](
+    // L0   L1   L2     L3   L4   L5   L6     L7   L8   L9     L10  L11
+        6,   6,   0,     6,  36,   6,   0,     6,   6,   0,     0,   0,  // B0
+        2,  10,   0,    -2,  36,  14,   0,     2,  10,   0,     0,   0,  // B1
+        0,  10,   2,     0,  14,  36,  -2,     0,  10,   2,     0,   0,  // B2
+        0,   6,   6,     0,   6,  36,   6,     0,   6,   6,     0,   0,  // B3
+       -2,   2,   0,     2,  36,  10,   0,    10,  14,   0,     0,   0,  // B4
+        0,   3,   0,     0,  30,  18,   0,     3,  18,   0,     0,   0,  // B5
+        0,   3,   0,     0,  18,  30,   0,     0,  18,   3,     0,   0,  // B6
+        0,   2,  -2,     0,  10,  36,   2,     0,  14,  10,     0,   0,  // B7
+        0,   0,   0,     0,  14,  10,   0,    10,  36,   2,     2,  -2,  // B8
+        0,   0,   0,     0,  18,  18,   0,     3,  30,   3,     0,   0,  // B9
+        0,   0,   0,     0,  10,  14,   0,     2,  36,  10,    -2,   2,  // B10
+        0,   0,   0,     0,   6,   6,   0,     6,  36,   6,     6,   6   // B11
+    );
+    const float loopToHybridBezierMatrixScale = 1.0 / 72.0;
+
+    OsdComputeBoxSplineTriangleBoundaryPoints(cv, patchParam);
+
+    result.patchParam = patchParam;
+    result.P = vec3(0);
+
+    int cvCoeffBase = 12 * ID;
+
+    for (int i = 0; i < 12; ++i) {
+        result.P += loopToHybridBezierMatrix[cvCoeffBase + i] * cv[i];
+    }
+    result.P *= loopToHybridBezierMatrixScale;
+}
+
+void
+OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
+                           OsdPerPatchVertexBezier cv[12],
+                           out vec3 P, out vec3 dPu, out vec3 dPv,
+                           out vec3 N, out vec3 dNu, out vec3 dNv)
+{
+    float u = UV.x;
+    float v = UV.y;
+    float w = 1.0 - u - v;
+
+    float uu = u * u;
+    float vv = v * v;
+    float ww = w * w;
+
+    //  Compute the 10 barycentric basis functions of a cubic Bezier triangle,
+    //  each of total degree 3:
+    float uuu = uu * u;
+    float uuv = uu * v * 3.0;
+    float uvv = u * vv * 3.0;
+    float vvv = vv * v;
+    float vvw = vv * w * 3.0;
+    float vww = v * ww * 3.0;
+    float www = ww * w;
+    float wwu = ww * u * 3.0;
+    float wuu = w * uu * 3.0;
+    float uvw = u * v * w * 6.0;
+
+    //  Compute a point Vi on each of the three cubic Bezier sub-triangles of the
+    //  full quartic triangle (factored here to adjust for cubic boundary points):
+    vec3 V0 = (www + 0.25*wwu + 0.25*vww) * cv[ 0].P
+            + (0.75*wwu + 0.5 *wuu) * cv[ 1].P + (0.75*vww + 0.5 *vvw) * cv[ 4].P
+            + (0.75*uuu + 0.5 *wuu) * cv[ 2].P + (0.75*vvv + 0.5 *vvw) * cv[ 8].P
+            + (0.25*uuu           ) * cv[ 3].P + (0.25*vvv           ) * cv[11].P
+            +  uuv * cv[6].P +  uvv * cv[9].P +  uvw * cv[5].P;
+
+    vec3 V1 = (uuu + 0.25*uuv + 0.25*wuu) * cv[ 3].P
+            + (0.75*uuv + 0.5 *uvv) * cv[ 7].P + (0.75*wuu + 0.5 *wwu) * cv[ 2].P
+            + (0.75*vvv + 0.5 *uvv) * cv[10].P + (0.75*www + 0.5 *wwu) * cv[ 1].P
+            + (0.25*vvv           ) * cv[11].P + (0.25*www           ) * cv[ 0].P
+            +  vvw * cv[9].P +  vww * cv[5].P +  uvw * cv[6].P;
+
+    vec3 V2 = (vvv + 0.25*vvw + 0.25*uvv) * cv[11].P
+            + (0.75*vvw + 0.5 *vww) * cv[ 8].P + (0.75*uvv + 0.5 *uuv) * cv[10].P
+            + (0.75*www + 0.5 *vww) * cv[ 4].P + (0.75*uuu + 0.5 *uuv) * cv[ 7].P
+            + (0.25*www           ) * cv[ 0].P + (0.25*uuu           ) * cv[ 3].P
+            +  wwu * cv[5].P +  wuu * cv[6].P +  uvw * cv[9].P;
+
+    //  Compute P, du and dv all from the triangle formed from the three Vi:
+    P = w * V0 + u * V1 + v * V2;
+
+    int dSign  = OsdGetPatchIsTriangleRotated(patchParam) ? -1 : 1;
+    int dScale = dSign * 4 * OsdGetPatchFaceLevel(patchParam);
+
+    dPu = (V1 - V0) * dScale;
+    dPv = (V2 - V0) * dScale;
+
+    N = cross(dPu, dPv);
+    float nLength = length(N);
+    if (nLength > 0.00001) {
+        N = N / nLength;
+    }
+    dNu = vec3(0);
+    dNv = vec3(0);
+}
+
+void
+OsdEvalPatchGregoryTriangle(ivec3 patchParam, vec2 UV, vec3 cv[15],
+                            out vec3 P, out vec3 dPu, out vec3 dPv,
+                            out vec3 N, out vec3 dNu, out vec3 dNv)
+{
+    float u = UV.x;
+    float v = UV.y;
+    float w = 1.0 - u - v;
+
+    float duv = u + v;
+    float dvw = v + w;
+    float dwu = w + u;
+
+    OsdPerPatchVertexBezier bezcv[12];
+
+    bezcv[ 5].P = (duv == 0.0) ? cv[3]  : ((u*cv[ 3] + v*cv[ 4]) / duv);
+    bezcv[ 6].P = (dvw == 0.0) ? cv[8]  : ((v*cv[ 8] + w*cv[ 9]) / dvw);
+    bezcv[ 9].P = (dwu == 0.0) ? cv[13] : ((w*cv[13] + u*cv[14]) / dwu);
+
+    bezcv[ 0].P = cv[ 0];
+    bezcv[ 1].P = cv[ 1];
+    bezcv[ 2].P = cv[ 7];
+    bezcv[ 3].P = cv[ 5];
+    bezcv[ 4].P = cv[ 2];
+    bezcv[ 7].P = cv[ 6];
+    bezcv[ 8].P = cv[11];
+    bezcv[10].P = cv[12];
+    bezcv[11].P = cv[10];
+
+    OsdEvalPatchBezierTriangle(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
 }
 

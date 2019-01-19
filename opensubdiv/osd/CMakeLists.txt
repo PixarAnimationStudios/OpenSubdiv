@@ -132,9 +132,11 @@ if( (NOT NO_OPENGL) AND (OPENGL_FOUND OR OPENGLES_FOUND) )
         list(APPEND KERNEL_FILES
             glslPatchCommon.glsl
             glslPatchCommonTess.glsl
+            glslPatchBoxSplineTriangle.glsl
             glslPatchBSpline.glsl
             glslPatchGregory.glsl
             glslPatchGregoryBasis.glsl
+            glslPatchGregoryTriangle.glsl
             glslPatchLegacy.glsl
         )
     endif()
