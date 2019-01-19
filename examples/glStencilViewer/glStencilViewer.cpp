@@ -298,6 +298,8 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     // create Far mesh (topology)
     OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
     OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    OpenSubdiv::Sdc::Split sdcsplit =
+        Sdc::SchemeTypeTraits::GetTopologicalSplitType(sdctype);
 
     OpenSubdiv::Far::TopologyRefiner * refiner =
         OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
@@ -357,8 +359,15 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
         larray.t = vPtr;
 
         for (int j=0; j<g_nsamples; ++j, ++uPtr, ++vPtr) {
-            *uPtr = (float)rand()/(float)RAND_MAX;
-            *vPtr = (float)rand()/(float)RAND_MAX;
+            float u = (float)rand()/(float)RAND_MAX;
+            float v = (float)rand()/(float)RAND_MAX;
+            if (sdcsplit == Sdc::SPLIT_TO_TRIS && (u+v >= 1.0f)) {
+                // Keep locations within the triangular parametric domain
+                u = 1.0f - u;
+                v = 1.0f - v;
+            }
+            *uPtr = u;
+            *vPtr = v;
         }
     }
 
@@ -1052,21 +1061,36 @@ callbackErrorGLFW(int error, const char* description) {
 int main(int argc, char **argv) {
 
     bool fullscreen = false;
-
+    Scheme defaultScheme = kCatmark;
     std::string str;
+
     for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-u")) {
+            g_adaptive = false;
+        }
         if (!strcmp(argv[i], "-d")) {
             g_isolationLevel = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-f")) {
+        }
+        else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
-        } else {
+        }
+        else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        }
+        else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        }
+        else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
+        }
+        else {
             std::ifstream ifs(argv[1]);
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), defaultScheme));
             }
         }
     }
