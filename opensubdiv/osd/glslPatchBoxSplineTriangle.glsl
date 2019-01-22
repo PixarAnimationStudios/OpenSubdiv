@@ -59,9 +59,9 @@ in block {
 out block {
     OsdPerPatchVertexBezier v;
     OSD_USER_VARYING_DECLARE
-} outpt[12];
+} outpt[15];
 
-layout(vertices = 12) out;
+layout(vertices = 15) out;
 
 void main()
 {
@@ -88,11 +88,12 @@ void main()
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
-        for (int i=0; i<12; ++i) {
-            cv[i] = outpt[i].v.P;
+        vec3 bezcv[15];
+        for (int i=0; i<15; ++i) {
+            bezcv[i] = outpt[i].v.P;
         }
         OsdGetTessLevelsAdaptiveLimitPointsTriangle(
-                         cv, patchParam,
+                         bezcv, patchParam,
                          tessLevelOuter, tessLevelInner,
                          tessOuterLo, tessOuterHi);
 #else
@@ -137,8 +138,8 @@ void main()
     vec3 P = vec3(0), dPu = vec3(0), dPv = vec3(0);
     vec3 N = vec3(0), dNu = vec3(0), dNv = vec3(0);
 
-    OsdPerPatchVertexBezier cv[12];
-    for (int i = 0; i < 12; ++i) {
+    OsdPerPatchVertexBezier cv[15];
+    for (int i = 0; i < 15; ++i) {
         cv[i] = inpt[i].v;
     }
 
