@@ -313,6 +313,8 @@ namespace {
 
         int GetSize() const { return _size; }
 
+        void SetWeight(int i, REAL weight) { _weights[i] = weight; }
+
         void Assign(int rowEntry, Index index, REAL weight) {
             _indices[rowEntry] = index;
             _weights[rowEntry] = weight;
@@ -391,6 +393,31 @@ namespace {
             fullRow[index] += s * p._weights[i];
 
             indexMask[index] = 1 + index;
+        }
+    }
+
+    template <typename REAL>
+    void
+    _combineSparsePointsInFullRow(SparseMatrixRow<REAL> & p,
+                                  REAL aCoeff, SparseMatrixRow<REAL> const & a,
+                                  REAL bCoeff, SparseMatrixRow<REAL> const & b,
+                                  int rowSize, REAL * rowBuffer, int * maskBuffer) {
+
+        std::memset(maskBuffer, 0, rowSize * sizeof(int));
+        std::memset(rowBuffer,  0, rowSize * sizeof(REAL));
+
+        _addSparsePointToFullRow(rowBuffer, a, aCoeff, maskBuffer);
+        _addSparsePointToFullRow(rowBuffer, b, bCoeff, maskBuffer);
+
+        int nWeights = 0;
+        for (int i = 0; i < rowSize; ++i) {
+            if (maskBuffer[i]) {
+                p.Assign(nWeights++, maskBuffer[i] - 1, rowBuffer[i]);
+            }
+        }
+        assert(nWeights <= p.GetSize());
+        for (int i = nWeights; i < p.GetSize(); ++i, ++nWeights) {
+            p.Assign(i, 0, 0.0f);
         }
     }
 
@@ -527,11 +554,19 @@ namespace {
 //  GregoryTriConverter
 //
 //  The GregoryTriConverter class provides a change-of-basis matrix from source
-//  vertices in a Loop mesh to the 15 control points of a Gregory triangle.
+//  vertices in a Loop mesh to the 18 control points of a quartic Gregory triangle.
+//
+//  The quartic triangle is first constructed as a cubic/quartic hybrid -- with
+//  cubic boundary curves and cross-boundary continuity formulated in terms of
+//  cubics.  The result is then raised to a full quartic once continuity across
+//  all boundaries is achieved.  In most cases 2 of the 3 boundaries will be
+//  cubic (though now represented as quartic) and only one boundary need be a
+//  true quartic to meet a regular Box-spline patch.
 //
 //  Control points are labeled using the convention adopted for quads, with
 //  Ep and Em referring to the "plus" and "minus" edge points and similarly
-//  for the face points Fp and Fm.
+//  for the face points Fp and Fm.  The additional quartic "mid-edge" points
+//  associated with each boundary are referred to as M.
 //
 template <typename REAL>
 class GregoryTriConverter {
@@ -624,6 +659,13 @@ private:
                 Point const & p, Point const & eNear, Point const & eFar,
                 Point & fNear, REAL signForSideOfEdge /* -1.0 or 1.0 */,
                 Weight *rowWeights, int *columnMask) const;
+
+    void assignRegularMidEdgePoint(int edgeIndex, Matrix & matrix) const;
+    void computeIrregularMidEdgePoint(int edgeIndex, Matrix & matrix,
+                                      Weight *rowWeights, int *columnMask) const;
+
+    void promoteCubicEdgePointsToQuartic(Matrix & matrix,
+                                         Weight *rowWeights, int *columnMask) const;
 
 private:
     int _numSourcePoints;
@@ -813,6 +855,17 @@ GregoryTriConverter<REAL>::Convert(Matrix & matrix) const {
             computeIrregularFacePoints(cIndex, matrix, weightBuffer, indexBuffer);
         }
     }
+
+    for (int eIndex = 0; eIndex < 3; ++eIndex) {
+        if ((_corners[eIndex].isRegular && _corners[(eIndex+1)%3].isRegular) ||
+            _corners[eIndex].epOnBoundary) {
+            assignRegularMidEdgePoint(eIndex, matrix);
+        } else {
+            computeIrregularMidEdgePoint(eIndex, matrix, weightBuffer, indexBuffer);
+        }
+    }
+    promoteCubicEdgePointsToQuartic(matrix, weightBuffer, indexBuffer);
+
     if (_hasVal2InteriorCorner) {
         _removeValence2Duplicates(matrix);
     }
@@ -829,7 +882,7 @@ GregoryTriConverter<REAL>::resizeMatrixIsolatedIrregular(
     int irregPlus     = (cornerIndex + 1) % 3;
     int irregMinus    = (cornerIndex + 2) % 3;
 
-    int   rowSizes[15];
+    int   rowSizes[18];
     int * rowSizePtr = 0;
 
     rowSizePtr = rowSizes + irregCorner * 5;
@@ -853,16 +906,21 @@ GregoryTriConverter<REAL>::resizeMatrixIsolatedIrregular(
     *rowSizePtr++ = 3 + irregRingSize;
     *rowSizePtr++ = 5;
 
-    int numElements = 7*irregRingSize + 64;
+    //  The 3 quartic mid-edge points are not grouped with corners:
+    rowSizes[15 + irregCorner] = 3 + irregRingSize;
+    rowSizes[15 + irregPlus]   = 4;
+    rowSizes[15 + irregMinus]  = 3 + irregRingSize;
 
-    _resizeMatrix(matrix, 15, _numSourcePoints, numElements, rowSizes);
+    int numElements = 9*irregRingSize + 74;
+
+    _resizeMatrix(matrix, 18, _numSourcePoints, numElements, rowSizes);
 }
 
 template <typename REAL>
 void
 GregoryTriConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
 
-    int rowSizes[15];
+    int rowSizes[18];
 
     int numElements = 0;
 
@@ -879,8 +937,8 @@ GregoryTriConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
                 rowSize[2] = 7;
             } else {
                 rowSize[0] = 3;
-                rowSize[1] = corner.epOnBoundary ? 2 : 4;
-                rowSize[2] = corner.emOnBoundary ? 2 : 4;
+                rowSize[1] = corner.epOnBoundary ? 3 : 5;
+                rowSize[2] = corner.emOnBoundary ? 3 : 5;
             }
         } else {
             if (corner.isSharp) {
@@ -895,19 +953,19 @@ GregoryTriConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
             } else if (corner.numFaces > 1) {
                 int ringSize = 1 + corner.valence;
                 rowSize[0] = 3;
-                rowSize[1] = corner.epOnBoundary ? 2 : ringSize;
-                rowSize[2] = corner.emOnBoundary ? 2 : ringSize;
+                rowSize[1] = corner.epOnBoundary ? 3 : ringSize;
+                rowSize[2] = corner.emOnBoundary ? 3 : ringSize;
             } else {
                 rowSize[0] = 3;
-                rowSize[1] = 2;
-                rowSize[2] = 2;
+                rowSize[1] = 3;
+                rowSize[2] = 3;
             }
         }
         numElements += rowSize[0] + rowSize[1] + rowSize[2];
 
         //  Second, the pair of face points:
-        rowSize[3] = 5 - 2 * corner.isCorner;
-        rowSize[4] = 5 - 2 * corner.isCorner;
+        rowSize[3] = 5 - corner.epOnBoundary - corner.emOnBoundary;
+        rowSize[4] = 5 - corner.epOnBoundary - corner.emOnBoundary;
         if (!corner.fpIsRegular || !corner.fmIsRegular) {
             int cNext = (cIndex + 1) % 3;
             int cPrev = (cIndex + 2) % 3;
@@ -921,8 +979,21 @@ GregoryTriConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
             }
         }
         numElements += rowSize[3] + rowSize[4];
+
+        //  Third, the quartic mid-edge boundary point (edge following corner):
+        int & midEdgeSize = rowSizes[15 + cIndex];
+
+        if (corner.epOnBoundary) {
+            midEdgeSize = 2;
+        } else if (corner.isRegular && _corners[(cIndex+1) % 3].isRegular) {
+            midEdgeSize = 4;
+        } else {
+            //  Use face-point size here, which also combines edge-point sizes:
+            midEdgeSize = rowSize[3];
+        }
+        numElements += midEdgeSize;
     }
-    _resizeMatrix(matrix, 15, _numSourcePoints, numElements, rowSizes);
+    _resizeMatrix(matrix, 18, _numSourcePoints, numElements, rowSizes);
 }
 
 template <typename REAL>
@@ -991,27 +1062,29 @@ GregoryTriConverter<REAL>::assignRegularEdgePoints(int cIndex, Matrix & matrix) 
         if (corner.epOnBoundary) {
             ep.Assign(0, cIndex,   twoThirds);
             ep.Assign(1, cRing[0], oneThird);
-            assert(ep.GetSize() == 2);
+            ep.Assign(2, cRing[3], 0.0f);
+            assert(ep.GetSize() == 3);
         } else {
             ep.Assign(0, cIndex, 0.5f);
             ep.Assign(1, cRing[1], oneSixth);
             ep.Assign(2, cRing[2], oneSixth);
-            if (!corner.emOnBoundary) ep.Assign(3, cRing[0], oneSixth);
-            if ( corner.emOnBoundary) ep.Assign(3, cRing[3], oneSixth);
-            assert(ep.GetSize() == 4);
+            ep.Assign(3, cRing[corner.emOnBoundary ? 3 : 0], oneSixth);
+            ep.Assign(4, cRing[corner.emOnBoundary ? 0 : 3], 0.0f);
+            assert(ep.GetSize() == 5);
         }
 
         if (corner.emOnBoundary) {
             em.Assign(0, cIndex,   twoThirds);
             em.Assign(1, cRing[3], oneThird);
-            assert(em.GetSize() == 2);
+            em.Assign(2, cRing[0], 0.0f);
+            assert(em.GetSize() == 3);
         } else {
             em.Assign(0, cIndex, 0.5f);
             em.Assign(1, cRing[1], oneSixth);
             em.Assign(2, cRing[2], oneSixth);
-            if ( corner.epOnBoundary) em.Assign(3, cRing[0], oneSixth);
-            if (!corner.epOnBoundary) em.Assign(3, cRing[3], oneSixth);
-            assert(em.GetSize() == 4);
+            em.Assign(3, cRing[corner.epOnBoundary ? 0 : 3], oneSixth);
+            em.Assign(4, cRing[corner.epOnBoundary ? 3 : 0], 0.0f);
+            assert(em.GetSize() == 5);
         }
     }
 }
@@ -1068,11 +1141,13 @@ GregoryTriConverter<REAL>::computeIrregularEdgePoints(int cIndex,
 
         ep.Assign(0, cIndex,         (REAL) (2.0 / 3.0));
         ep.Assign(1, (cIndex+1) % 3, (REAL) (1.0 / 3.0));
-        assert(ep.GetSize() == 2);
+        ep.Assign(2, (cIndex+2) % 3, 0.0f);
+        assert(ep.GetSize() == 3);
 
         em.Assign(0, cIndex,         (REAL) (2.0 / 3.0));
         em.Assign(1, (cIndex+2) % 3, (REAL) (1.0 / 3.0));
-        assert(em.GetSize() == 2);
+        em.Assign(2, (cIndex+1) % 3, 0.0f);
+        assert(em.GetSize() == 3);
     }
 }
 
@@ -1166,7 +1241,8 @@ GregoryTriConverter<REAL>::computeIrregularBoundaryEdgePoints(
     ep.Assign(0, p0, epWeights[0]);
     if (corner.epOnBoundary) {
         ep.Assign(1, p1, epWeights[1]);
-        assert(ep.GetSize() == 2);
+        ep.Assign(2, pN, 0.0f);
+        assert(ep.GetSize() == 3);
     } else {
         for (int i = 1; i < weightWidth; ++i) {
             ep.Assign(i, corner.ringPoints[i-1], epWeights[i]);
@@ -1179,7 +1255,8 @@ GregoryTriConverter<REAL>::computeIrregularBoundaryEdgePoints(
     em.Assign(0, p0, emWeights[0]);
     if (corner.emOnBoundary) {
         em.Assign(1, pN, emWeights[N]);
-        assert(em.GetSize() == 2);
+        em.Assign(2, p1, 0.0f);
+        assert(em.GetSize() == 3);
     } else {
         for (int i = 1; i < weightWidth; ++i) {
             em.Assign(i, corner.ringPoints[i-1], emWeights[i]);
@@ -1194,18 +1271,14 @@ int
 GregoryTriConverter<REAL>::getIrregularFacePointSize(
         int cIndexNear, int cIndexFar) const {
 
-    CornerTopology const & corner    = _corners[cIndexNear];
-    CornerTopology const & adjCorner = _corners[cIndexFar];
+    CornerTopology const & nearCorner = _corners[cIndexNear];
+    CornerTopology const & farCorner  = _corners[cIndexFar];
 
-    int thisSize = corner.isSharp
-                 ?  4
-                 : (1 + corner.ringPoints.GetSize());
+    int nearSize = nearCorner.ringPoints.GetSize() - 3;
+    int farSize  = farCorner.ringPoints.GetSize() - 3;
 
-    int adjSize = (adjCorner.isSharp || (adjCorner.numFaces <= 3))
-                ? 0
-                : (1 + adjCorner.ringPoints.GetSize() - 4);
-
-    return thisSize + adjSize;
+    return 4 + (((nearSize > 0) && !nearCorner.isSharp) ? nearSize : 0)
+             + (((farSize > 0)  && !farCorner.isSharp)  ? farSize  : 0);
 }
 
 template <typename REAL>
@@ -1284,58 +1357,49 @@ GregoryTriConverter<REAL>::assignRegularFacePoints(int cIndex, Matrix & matrix) 
     int cNext = (cIndex+1) % 3;
     int cPrev = (cIndex+2) % 3;
 
-    int eNext = corner.isBoundary ? 0 : ((corner.faceInRing + 5) % 6);
-    int ePrev = corner.isBoundary ? 3 : ((corner.faceInRing + 2) % 6);
-
     int const * cRing = corner.ringPoints;
 
-    //  Assign regular Fp and/or Fm:
-    if (corner.fpIsRegular) {
-        Point fp(matrix, 5*cIndex + 3);
+    //
+    //  Regular face-points are computed the same for both face-points of a
+    //  a corner (fp and fm), so iterate through both and make appropriate
+    //  assignments when tagged as regular:
+    //
+    for (int fIsFm = 0; fIsFm < 2; ++fIsFm) {
+        bool fIsRegular = fIsFm ? corner.fmIsRegular : corner.fpIsRegular;
+        if (!fIsRegular) continue;
+
+        Point f(matrix, 5*cIndex + 3 + fIsFm);
 
         if (corner.isCorner) {
-            fp.Assign(0, cIndex, 0.5f);
-            fp.Assign(1, cNext,  0.25f);
-            fp.Assign(2, cPrev,  0.25f);
-            assert(fp.GetSize() == 3);
+            f.Assign(0, cIndex, 0.5f);
+            f.Assign(1, cNext,  0.25f);
+            f.Assign(2, cPrev,  0.25f);
+            assert(f.GetSize() == 3);
         } else if (corner.epOnBoundary) {
-            fp.Assign(0, cIndex,   (REAL) (11.0 / 24.0));
-            fp.Assign(1, cRing[0], (REAL) ( 7.0 / 24.0));
-            fp.Assign(2, cRing[1], (REAL) ( 5.0 / 24.0));
-            fp.Assign(3, cRing[2], (REAL) ( 1.0 / 24.0));
-            fp.Assign(4, cRing[3], (REAL) ( 0.0 / 24.0));
-            assert(fp.GetSize() == 5);
-        } else {
-            fp.Assign(0, cIndex,       (REAL) (10.0 / 24.0));
-            fp.Assign(1, cPrev,                 0.25f);
-            fp.Assign(2, cNext,                 0.25f);
-            fp.Assign(3, cRing[ePrev], (REAL) ( 1.0 / 24.0));
-            fp.Assign(4, cRing[eNext], (REAL) ( 1.0 / 24.0));
-            assert(fp.GetSize() == 5);
-        }
-    }
-    if (corner.fmIsRegular) {
-        Point fm(matrix, 5*cIndex + 4);
-
-        if (corner.isCorner) {
-            fm.Assign(0, cIndex, 0.5f);
-            fm.Assign(1, cNext,  0.25f);
-            fm.Assign(2, cPrev,  0.25f);
-            assert(fm.GetSize() == 3);
+            //  Face is the first/leading face of the boundary ring:
+            f.Assign(0, cIndex,   (REAL) (11.0 / 24.0));
+            f.Assign(1, cRing[0], (REAL) ( 7.0 / 24.0));
+            f.Assign(2, cRing[1], (REAL) ( 5.0 / 24.0));
+            f.Assign(3, cRing[2], (REAL) ( 1.0 / 24.0));
+            assert(f.GetSize() == 4);
         } else if (corner.emOnBoundary) {
-            fm.Assign(0, cIndex,   (REAL) (11.0 / 24.0));
-            fm.Assign(1, cRing[0], (REAL) ( 0.0 / 24.0));
-            fm.Assign(2, cRing[1], (REAL) ( 1.0 / 24.0));
-            fm.Assign(3, cRing[2], (REAL) ( 5.0 / 24.0));
-            fm.Assign(4, cRing[3], (REAL) ( 7.0 / 24.0));
-            assert(fm.GetSize() == 5);
+            //  Face is the last/trailing face of the boundary ring:
+            f.Assign(0, cIndex,   (REAL) (11.0 / 24.0));
+            f.Assign(1, cRing[3], (REAL) ( 7.0 / 24.0));
+            f.Assign(2, cRing[2], (REAL) ( 5.0 / 24.0));
+            f.Assign(3, cRing[1], (REAL) ( 1.0 / 24.0));
+            assert(f.GetSize() == 4);
         } else {
-            fm.Assign(0, cIndex,       (REAL) (10.0 / 24.0));
-            fm.Assign(1, cNext,                 0.25f);
-            fm.Assign(2, cPrev,                 0.25f);
-            fm.Assign(3, cRing[ePrev], (REAL) ( 1.0 / 24.0));
-            fm.Assign(4, cRing[eNext], (REAL) ( 1.0 / 24.0));
-            assert(fm.GetSize() == 5);
+            //  Face is interior or the middle face of the boundary:
+            int eNext = corner.isBoundary ? 0 : ((corner.faceInRing + 5) % 6);
+            int ePrev = corner.isBoundary ? 3 : ((corner.faceInRing + 2) % 6);
+
+            f.Assign(0, cIndex,       (REAL) (10.0 / 24.0));
+            f.Assign(1, cPrev,                 0.25f);
+            f.Assign(2, cNext,                 0.25f);
+            f.Assign(3, cRing[ePrev], (REAL) ( 1.0 / 24.0));
+            f.Assign(4, cRing[eNext], (REAL) ( 1.0 / 24.0));
+            assert(f.GetSize() == 5);
         }
     }
 }
@@ -1389,6 +1453,107 @@ GregoryTriConverter<REAL>::computeIrregularFacePoints(int cIndex,
 
     if (!corner.fpIsRegular) assert(matrix.GetRowSize(5*cIndex + 3) == fp.GetSize());
     if (!corner.fmIsRegular) assert(matrix.GetRowSize(5*cIndex + 4) == fm.GetSize());
+}
+
+template <typename REAL>
+void
+GregoryTriConverter<REAL>::assignRegularMidEdgePoint(int edgeIndex,
+                            Matrix & matrix) const {
+
+    Point M(matrix, 15 + edgeIndex);
+
+    CornerTopology const & corner = _corners[edgeIndex];
+    if (corner.epOnBoundary) {
+        //  Trivial boundary edge case -- midway between two corners
+
+        M.Assign(0,  edgeIndex, 0.5f);
+        M.Assign(1, (edgeIndex + 1) % 3, 0.5f);
+        assert(M.GetSize() == 2);
+    } else {
+        //  Regular case -- two corners and two vertices opposite the edge
+
+        int oppositeInRing = corner.isBoundary ?
+            (corner.faceInRing - 1) : ((corner.faceInRing + 5) % 6);
+        int oppositeVertex = corner.ringPoints[oppositeInRing];
+
+        M.Assign(0,  edgeIndex,          (REAL) (1.0 / 3.0));
+        M.Assign(1, (edgeIndex + 1) % 3, (REAL) (1.0 / 3.0));
+        M.Assign(2, (edgeIndex + 2) % 3, (REAL) (1.0 / 6.0));
+        M.Assign(3,  oppositeVertex,     (REAL) (1.0 / 6.0));
+        assert(M.GetSize() == 4);
+    }
+}
+
+template <typename REAL>
+void
+GregoryTriConverter<REAL>::computeIrregularMidEdgePoint(int edgeIndex, Matrix & matrix,
+                                Weight * rowWeights, int * columnMask) const {
+    //
+    //  General case -- interpolate midway between cubic edge points E0 and E1:
+    //
+    int cIndex0 =  edgeIndex;
+    int cIndex1 = (edgeIndex + 1) % 3;
+
+    Point E0p(matrix, 5 * (cIndex0) + 1);
+    Point E1m(matrix, 5 * (cIndex1) + 2);
+
+    Point M(matrix, 15 + edgeIndex);
+
+    _combineSparsePointsInFullRow(M, (REAL)0.5f, E0p, (REAL)0.5f, E1m,
+                                  _numSourcePoints, rowWeights, columnMask);
+}
+
+template <typename REAL>
+void
+GregoryTriConverter<REAL>::promoteCubicEdgePointsToQuartic(Matrix & matrix,
+                                Weight * rowWeights, int * columnMask) const {
+    //
+    //  Re-assign all regular edge-point weights with quartic coefficients,
+    //  so only perform general combinations for the irregular case.
+    //
+    REAL const onBoundaryWeights[3]  = { 16, 7, 1 };
+    REAL const regBoundaryWeights[5] = { 13, 3, 3, 4, 1 };
+    REAL const regInteriorWeights[7] = { 12, 4, 3, 1,  0, 1, 3 };
+
+    REAL const oneOver24 = (REAL) (1.0 / 24.0);
+
+    for (int cIndex = 0; cIndex < 3; ++cIndex) {
+        CornerTopology const & corner = _corners[cIndex];
+
+        //
+        //  Ordering of weight values for symmetric ep and em is the same, so
+        //  we can re-assign in a loop of 2 for {ep, em}
+        //
+        Point P(matrix, 5 * cIndex);
+
+        for (int ePair = 0; ePair < 2; ++ePair) {
+            Point E(matrix, 5 * cIndex + 1 + ePair);
+
+            REAL const * weightsToReassign = 0;
+
+            bool eOnBoundary = ePair ? corner.emOnBoundary : corner.epOnBoundary;
+            if (eOnBoundary && !corner.isSharp) {
+                assert(E.GetSize() == 3);
+                weightsToReassign = onBoundaryWeights;
+            } else if (corner.isRegular) {
+                if (corner.isBoundary) {
+                    assert(E.GetSize() == 5);
+                    weightsToReassign = regBoundaryWeights;
+                } else {
+                    assert(E.GetSize() == 7);
+                    weightsToReassign = regInteriorWeights;
+                }
+            }
+            if (weightsToReassign) {
+                for (int i = 0; i < E.GetSize(); ++i) {
+                    E.SetWeight(i, weightsToReassign[i] * oneOver24);
+                }
+            } else {
+                _combineSparsePointsInFullRow(E, (REAL)0.25f, P, (REAL)0.75f, E,
+                                              _numSourcePoints, rowWeights, columnMask);
+            }
+        }
+    }
 }
 
 namespace {
@@ -1563,46 +1728,68 @@ convertToLoop(SourcePatch const & sourcePatch, SparseMatrix<REAL> & matrix) {
     //
     //  Unlike quads, there are not enough degrees of freedom in the regular patch
     //  to enforce interpolation of the limit point and tangent at the corner while
-    //  preserving the two adjoining boundary curves.  That requires constraining
-    //  7 control points but only 6 can be moved without affecting the opposite
-    //  boundary curve.  At minimum, we need to constrain 9 of the 12 patch points,
-    //  which reduces the advantages of a local solution compared to the 7 of 16
-    //  control points for the BSplines of Catmark.
+    //  preserving the two adjoining boundary curves.  Since we end up destroying
+    //  neighboring conintuity in doing so, we use a fully constructed Gregory
+    //  patch here for the isolated corner case as well as the general case.
     //
-    //  So we might as well compute the Gregory solution and convert back for this
-    //  more common case -- in addition to the more general case where it is needed.
-    //  Tangent continuity is compromised regardless of what is done here.  If a
-    //  specific solution for the isolated corner case has advantages in terms of
-    //  either surface quality or performance, we can revisit it.
+    //  Unfortunately, the regular patch here -- a quartic Box-spline triangle --
+    //  is not as flexible as the BSpline patches for Catmark.  Unlike BSplines
+    //  and Bezier patches, the Box-splines do not span the full space of possible
+    //  shapes (only 12 control points in a space spanned by 15 polynomials for
+    //  the quartic case).  So it is possible to construct shapes with a Gregory
+    //  or Bezier triangle that cannot be represented by the Box-spline.
     //
-    //  Use a full 12x12 conversion matrix from a cubic-quartic hybrid Bezier back
-    //  to a Box spline patch.  Matrix rows and columns are ordered according to
-    //  control point orientations used elsewhere.  Correllation of points between
-    //  the hybrid Bezier and hybrid Gregory points is as follows:
+    //  The solution fit a Box-spline patch to the constructed Gregory patch with
+    //  12 constraints:  position, first derivatives and mixed partial at each of
+    //  the 3 corners.  We used the mixed partial (the twist vector) to constrain
+    //  the interior of the patch somehow, otherwise results produce a lot of
+    //  interior bulging in an effort to satisfy boundary constraints.
     //
-    //     B0     B1    B2    B3     B4     B5     B6     B7    B8     B9    B10   B11
-    //     G0     G1    G7    G5     G2    G3,4   G8,9    G6    G11  G13,14  G12   G10
+    //  Given both position and tangent continuity here are compromised for the
+    //  general case -- and at considerable expense (in terms of computation and
+    //  the full set of local control points that result) -- its worth exploring
+    //  simpler solutions for the case of the isolated corner.
+    //  
+    //  For the full 12x15 conversion matrix from 15-point quartic Bezier patch
+    //  back to a Box spline patch, the matrix rows and columns are ordered
+    //  according to control point orientations used elsewhere.  Correllation of
+    //  points between the Bezier and Gregory points is as follows:
+    //
+    //      Q0  Q1  Q2  Q3  Q4  Q5  Q6   Q7  Q8  Q9  Q10   Q11  Q12  Q13  Q14
+    //      G0  G1 G15  G7  G5  G2 G3,4 G8,9 G6 G17 G13,14 G16  G11  G12  G10
     //
     //  As with conversion from Gregory to BSpline for Catmark, one of the face
-    //  points (the positive) is chosen as a Bezier point in the conversion rather
-    //  than combining the pair.
+    //  points is chosen as a Bezier point in the conversion rather than combining
+    //  the pair (which would avoid slight asymmetric artefacts of the choice).
     //
-    REAL const gregoryToLoopMatrix[12][12] = {
-        { 6.0f,  1.0f,-3.5f, 0.0f,-10.0f,  4.0f,  6.0f, -0.5f, 5.0f, -8.0f,  1.0f, 0.0f },
-        { 0.0f,  3.5f, 5.0f, 0.0f, -0.5f, -2.0f, -8.0f,  1.0f, 1.0f,  0.0f,  1.0f, 0.0f },
-        { 0.0f,  3.0f,-1.5f, 6.0f,  6.0f,-20.0f, 14.0f,-12.5f,-3.0f,  8.0f,  1.0f, 0.0f },
-        { 6.0f,-10.0f, 5.0f, 0.0f,  1.0f,  4.0f, -8.0f,  1.0f,-3.5f,  6.0f, -0.5f, 0.0f },
-        { 0.0f,  1.5f,-1.5f, 0.0f,  1.5f, -2.0f,  2.0f, -0.5f,-1.5f,  2.0f, -0.5f, 0.0f },
-        { 0.0f, -2.0f, 1.0f, 0.0f, -1.0f,  4.0f,  0.0f,  1.0f, 0.5f, -2.0f, -0.5f, 0.0f },
-        { 0.0f, -2.5f,-5.5f, 6.0f, -6.5f, 22.0f,-14.0f,  5.5f, 2.5f, -6.0f, -0.5f, 0.0f },
-        { 0.0f, -0.5f, 1.0f, 0.0f,  3.5f, -2.0f,  0.0f,  1.0f, 5.0f, -8.0f,  1.0f, 0.0f },
-        { 0.0f, -1.0f, 0.5f, 0.0f, -2.0f,  4.0f, -2.0f, -0.5f, 1.0f,  0.0f,  1.0f, 0.0f },
-        { 0.0f,  7.5f,-3.0f, 0.0f,  7.5f,-26.0f,  8.0f,  1.0f,-3.0f,  8.0f,  1.0f, 0.0f },
-        { 0.0f,  6.0f,-3.0f, 0.0f,  3.0f,-20.0f,  8.0f,  1.0f,-1.5f, 14.0f,-12.5f, 6.0f },
-        { 0.0f, -6.5f, 2.5f, 0.0f, -2.5f, 22.0f, -6.0f, -0.5f,-5.5f,-14.0f,  5.5f, 6.0f }
+    REAL const gregoryToLoopMatrix[12][15] = {
+        { 9.33333f,  5.33333f, -6.f, -0.66666f,  0.33333f,-18.66667f,  4.f,  6.f,
+                    -0.66666f,  8.f, -8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
+        { 0.33333f, -0.66666f,  8.f,  1.33333f, -0.66666f, -0.66666f, -2.f, -8.f,
+                     1.33333f,  0.f,  0.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
+        {-6.66667f, 13.33333f,-14.f,  7.33333f,  8.33333f, 13.33333f,-20.f, 14.f,
+                   -16.66667f, -8.f,  8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
+        { 9.33333f,-18.66667f,  8.f,  1.33333f, -0.66666f,  5.33333f,  4.f, -8.f,
+                     1.33333f, -6.f,  6.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
+        {-1.66667f,  3.33333f, -2.f, -0.66666f,  0.33333f,  3.33333f, -2.f,  2.f,
+                    -0.66666f, -2.f,  2.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
+        { 1.33333f, -2.66667f,  0.f,  1.33333f, -0.66666f, -2.66667f,  4.f,  0.f,
+                     1.33333f,  2.f, -2.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
+        { 6.33333f,-12.66667f, 14.f,-16.66667f,  8.33333f,-12.66667f, 22.f,-14.f,
+                     7.33333f,  6.f, -6.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
+        { 0.33333f, -0.66666f,  0.f,  1.33333f, -0.66666f, -0.66666f, -2.f,  0.f,
+                     1.33333f,  8.f, -8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
+        { 1.33333f, -2.66667f,  2.f, -0.66666f,  0.33333f, -2.66667f,  4.f, -2.f,
+                    -0.66666f,  0.f,  0.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
+        {-7.66667f, 15.33333f, -8.f,  1.33333f, -0.66666f, 15.33333f,-26.f,  8.f,
+                     1.33333f, -8.f,  8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
+        {-6.66667f, 13.33333f, -8.f,  1.33333f, -0.66666f, 13.33333f,-20.f,  8.f,
+                     1.33333f,-14.f, 14.f, 0.f,  7.33333f,-16.66667f,  8.333333f},
+        { 6.33333f,-12.66667f,  6.f, -0.66666f,  0.33333f,-12.66667f, 22.f, -6.f,
+                    -0.66666f, 14.f,-14.f, 0.f,-16.66667f,  7.33333f,  8.333333f}
     };
 
-    int const gRowIndices[12] = { 0, 1, 7, 5, 2, 3, 8, 6, 11, 13, 12, 10 };
+    int const gRowIndices[15] = { 0,1,15,7,5, 2,4,8,6, 17,14,16, 11,12, 10 };
 
     SparseMatrix<REAL> G;
     convertToGregory<REAL>(sourcePatch, G);
@@ -1611,7 +1798,7 @@ convertToLoop(SourcePatch const & sourcePatch, SparseMatrix<REAL> & matrix) {
 
     for (int i = 0; i < 12; ++i) {
         REAL const * gRowWeights = gregoryToLoopMatrix[i];
-        _combineSparseMatrixRowsInFull(matrix, i, G, 12, gRowIndices, gRowWeights);
+        _combineSparseMatrixRowsInFull(matrix, i, G, 15, gRowIndices, gRowWeights);
     }
 }
 

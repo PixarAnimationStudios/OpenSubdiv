@@ -949,61 +949,26 @@ int EvalBasisBoxSplineTri(REAL s, REAL t,
 
 
 //
-//  Hybrid (cubic-quartic) Bezier triangle:
+//  Quartic Bezier triangle:
 //
 //  The regular patch for Loop subdivision is a quartic triangular Box spline
 //  with cubic boundaries.  So we need a quartic Bezier patch to represent it
-//  faithfully, but we use a cubic-quartic hybrid to keep the representation
-//  of boundaries as cubic -- useful for a number of purposes, in addition to
-//  reducing the number points required from 15 to 12.
+//  faithfully.
 //
-//  Ultimately this patch is quartic and its basis functions are of maximum
-//  quartic degree.  The formulae for the 15 true quartic basis functions are:
+//  The formulae for the 15 quartic basis functions are:
 //
 //                       4!        i   j   k
 //      B   (u,v,w) =  ------- * (u * v * w )
 //       ijk           i!j!k!
 //
-//  for each i + j + k = 4, and the quartic points and corresponding p<i,j,k>
-//  are oriented as follows:
+//  for each i + j + k = 4.   The control points (P) and correspondingly
+//  labeled p<i,j,k> are oriented as follows:
 //
-//                    Q14                                   p040
-//                Q12     Q13                           p031    p130
-//            Q9      Q10     Q11                   p022    p121    p220
-//        Q5      Q6      Q7      Q8            p013    p112    p211    p310
-//    Q0      Q1      Q2      Q3      Q4    p004    p103    p202    p301    p400
-//
-//  The points for the corresponding hybrid patch are oriented and numbered:
-//
-//                    H11
-//               H8        H10
-//                    H9
-//        H4      H5      H6      H7
-//    H0       H1            H2       H3
-//
-//  Their corresponding basis functions h(u,v,w) are derived by combining the
-//  quartic basis functions according to degree elevation of their boundary
-//  curves.  This leads to the 12 basis functions:
-//
-//      h[0]  = w^3
-//      h[3]  = u^3
-//      h[11] = v^3
-//
-//      h[1]  =  3 * u   * w^2 * (u + w)
-//      h[2]  =  3 * u^2 * w   * (u + w)
-//
-//      h[7]  =  3 * u^2 * v   * (u + v)
-//      h[10] =  3 * u   * v^2 * (u + v)
-//
-//      h[8]  =  3 * v^2 * w    * (w + v)
-//      h[10] =  3 * v   * w^2  * (v + w)
-//
-//      h[5]  = 12 * u   * v   * w^2;
-//      h[6]  = 12 * u^2 * v   * w;
-//      h[9]  = 12 * u   * v^2 * w;
-//
-//  These remain compact with at most two trivariate terms, and so relatively
-//  easy to differentiate in this form while keeping the number of terms low.
+//                    P14                                   p040
+//                P12     P13                           p031    p130
+//            P9      P10     P11                   p022    p121    p220
+//        P5      P6      P7      P8            p013    p112    p211    p310
+//    P0      P1      P2      P3      P4    p004    p103    p202    p301    p400
 //
 namespace {
     template <typename REAL>
@@ -1014,9 +979,9 @@ namespace {
         REAL v  = t;
         REAL w  = 1 - u - v;
 
-        REAL u2 = u * u;
-        REAL v2 = v * v;
-        REAL w2 = w * w;
+        REAL uu = u * u;
+        REAL vv = v * v;
+        REAL ww = w * w;
 
         REAL uv = u * v;
         REAL vw = v * w;
@@ -1024,110 +989,104 @@ namespace {
 
         int totalOrder = ds + dt;
         if (totalOrder == 0) {
-            wB[0]  = w*w2;
-            wB[3]  = u*u2;
-            wB[11] = v*v2;
-
-            wB[1]  =  3 * uw * (uw + w2);
-            wB[2]  =  3 * uw * (uw + u2);
-
-            wB[7]  =  3 * uv * (uv + u2);
-            wB[10] =  3 * uv * (uv + v2);
-
-            wB[8]  =  3 * vw * (vw + v2);
-            wB[4]  =  3 * vw * (vw + w2);
-
-            wB[5]  = 12 * w2 * uv;
-            wB[6]  = 12 * u2 * vw;
-            wB[9]  = 12 * v2 * uw;
+            wB[0]  =      ww * ww;
+            wB[1]  =  4 * uw * ww;
+            wB[2]  =  6 * uw * uw;
+            wB[3]  =  4 * uw * uu;
+            wB[4]  =      uu * uu;
+            wB[5]  =  4 * vw * ww;
+            wB[6]  = 12 * ww * uv;
+            wB[7]  = 12 * uu * vw;
+            wB[8]  =  4 * uv * uu;
+            wB[9]  =  6 * vw * vw;
+            wB[10] = 12 * vv * uw;
+            wB[11] =  6 * uv * uv;
+            wB[12] =  4 * vw * vv;
+            wB[13] =  4 * uv * vv;
+            wB[14] =      vv * vv;
         } else if (totalOrder == 1) {
-            if (ds) {
-                wB[0]  = -3 * w2;
-                wB[3]  =  3 * u2;
-                wB[11] =  0;
-
-                wB[1]  =  3 * w * (w2 - uw - 2*u2);
-                wB[2]  = -3 * u * (u2 - uw - 2*w2);
-
-                wB[7]  =  9 * u2*v + 6 * u*v2;
-                wB[10] =  3 * v*v2 + 6 * u*v2;
-
-                wB[8]  = -3 * v*v2 - 6 * v2*w;
-                wB[4]  = -9 * v*w2 - 6 * v2*w;
-
-                wB[5]  = 12 * vw * (w - 2*u);
-                wB[6]  = 12 * uv * (2*w - u);
-                wB[9]  = 12 * v2 * (w - u);
+            if (ds == 1) {
+                wB[0]  =  -4 * ww * w;
+                wB[1]  =   4 * ww * (w - 3 * u);
+                wB[2]  =  12 * uw * (w - u);
+                wB[3]  =   4 * uu * (3 * w - u);
+                wB[4]  =   4 * uu * u;
+                wB[5]  = -12 * vw * w;
+                wB[6]  =  12 * vw * (w - 2 * u);
+                wB[7]  =  12 * uv * (2 * w - u);
+                wB[8]  =  12 * uv * u;
+                wB[9]  = -12 * vv * w;
+                wB[10] =  12 * vv * (w - u);
+                wB[11] =  12 * vv * u;
+                wB[12] =  -4 * vv * v;
+                wB[13] =   4 * vv * v;
+                wB[14] =   0;
             } else {
-                wB[0]  = -3 * w2;
-                wB[3]  =  0;
-                wB[11] =  3 * v2;
-
-                wB[1]  = -9 * u*w2 - 6 * u2*w;
-                wB[2]  = -3 * u*u2 - 6 * u2*w;
-
-                wB[7]  =  3 * u*u2 + 6 * u2*v;
-                wB[10] =  9 * u*v2 + 6 * u2*v;
-
-                wB[8]  = -3 * v * (v2 - vw - 2*w2);
-                wB[4]  =  3 * w * (w2 - vw - 2*v2);
-
-                wB[5]  = 12 * uw * (w - 2*v);
-                wB[6]  = 12 * u2 * (w - v);
-                wB[9]  = 12 * uv * (2*w - v);
+                wB[0]  =  -4 * ww * w;
+                wB[1]  = -12 * ww * u;
+                wB[2]  = -12 * uu * w;
+                wB[3]  =  -4 * uu * u;
+                wB[4]  =   0;
+                wB[5]  =   4 * ww * (w - 3 * v);
+                wB[6]  =  12 * uw * (w - 2 * v);
+                wB[7]  =  12 * uu * (w - v);
+                wB[8]  =   4 * uu * u;
+                wB[9]  =  12 * vw * (w - v);
+                wB[10] =  12 * uv * (2 * w - v);
+                wB[11] =  12 * uv * u;;
+                wB[12] =   4 * vv * (3 * w - v);
+                wB[13] =  12 * vv * u;
+                wB[14] =   4 * vv * v;
             }
         } else if (totalOrder == 2) {
             if (ds == 2) {
-                wB[0]  =  6 * w;
-                wB[3]  =  6 * u;
-                wB[11] =  0;
-
-                wB[1]  =  6 * (u2 - uw - 2*w2);
-                wB[2]  =  6 * (w2 - uw - 2*u2);
-
-                wB[7]  =  6 * v2 + 18 * uv;
-                wB[10] =  6 * v2;
-
-                wB[8]  =  6 * v2;
-                wB[4]  =  6 * v2 + 18 * vw;
-
-                wB[5]  =  24 * (uv - 2*vw);
-                wB[6]  =  24 * (vw - 2*uv);
-                wB[9]  = -24 *  v2;
+                wB[0]  =  12 * ww;
+                wB[1]  =  24 * (uw - ww);
+                wB[2]  =  12 * (uu - 4 * uw + ww);
+                wB[3]  =  24 * (uw - uu);
+                wB[4]  =  12 * uu;
+                wB[5]  =  24 * vw;
+                wB[6]  =  24 * (uv - 2 * vw);
+                wB[7]  =  24 * (vw - 2 * uv);
+                wB[8]  =  24 * uv;
+                wB[9]  =  12 * vv;
+                wB[10] = -24 * vv;
+                wB[11] =  12 * vv;
+                wB[12] =   0;
+                wB[13] =   0;
+                wB[14] =   0;
             } else if (dt == 2) {
-                wB[0]  =  6 * w;
-                wB[3]  =  0;
-                wB[11] =  6 * v;
-
-                wB[1]  =  6 * u2 + 18 * uw;
-                wB[2]  =  6 * u2;
-
-                wB[7]  =  6 * u2;
-                wB[10] =  6 * u2 + 18 * uv;
-
-                wB[8]  =  6 * (w2 - vw - 2*v2);
-                wB[4]  =  6 * (v2 - vw - 2*w2);
-
-                wB[5]  =  24 * (uv - 2*uw);
-                wB[6]  = -24 *  u2;
-                wB[9]  =  24 * (uw - 2*uv);
+                wB[0]  =  12 * ww;
+                wB[1]  =  24 * uw;
+                wB[2]  =  12 * uu;
+                wB[3]  =   0;
+                wB[4]  =   0;
+                wB[5]  =  24 * (vw - ww);
+                wB[6]  =  24 * (uv - 2 * uw);
+                wB[7]  = -24 * uu;
+                wB[8]  =   0;
+                wB[9]  =  12 * (vv - 4 * vw + ww);
+                wB[10] =  24 * (uw - 2 * uv);
+                wB[11] =  12 * uu;
+                wB[12] =  24 * (vw - vv);
+                wB[13] =  24 * uv;
+                wB[14] =  12 * vv;
             } else {
-                wB[0]  =  6 * w;
-                wB[3]  =  0;
-                wB[11] =  0;
-
-                wB[1]  =  6 * (u2 +   uw - 1.5f*w2);
-                wB[2]  = -3 * (u2 + 4*uw);
-
-                wB[7]  =  9 * u2 + 12 * uv;
-                wB[10] =  9 * v2 + 12 * uv;
-
-                wB[8]  = -3 * (v2 + 4*vw);
-                wB[4]  =  6 * (v2 +   vw - 1.5f*w2);
-
-                wB[5]  =  24 * (uv - vw - uw + 0.5f*w2);
-                wB[6]  = -24 * (uv - uw      + 0.5f*u2);
-                wB[9]  = -24 * (uv - vw      + 0.5f*v2);
+                wB[0]  =  12 * ww;
+                wB[3]  = -12 * uu;
+                wB[13] =  12 * vv;
+                wB[11] =  24 * uv;
+                wB[1]  =  24 * uw - wB[0];
+                wB[2]  = -24 * uw - wB[3];
+                wB[5]  =  24 * vw - wB[0];
+                wB[6]  = -24 * vw + wB[11] - wB[1];
+                wB[8]  = - wB[3];
+                wB[7]  = -(wB[11] + wB[2]);
+                wB[9]  =   wB[13] - wB[5] - wB[0];
+                wB[10] = -(wB[9] + wB[11]);
+                wB[12] = - wB[13];
+                wB[4]  =   0;
+                wB[14] =   0;
             }
         } else {
             assert(totalOrder <= 2);
@@ -1138,8 +1097,8 @@ namespace {
 template <typename REAL>
 int
 EvalBasisBezierTri(REAL s, REAL t,
-    REAL wP[12], REAL wDs[12], REAL wDt[12],
-    REAL wDss[12], REAL wDst[12], REAL wDtt[12]) {
+    REAL wP[15], REAL wDs[15], REAL wDt[15],
+    REAL wDss[15], REAL wDst[15], REAL wDtt[15]) {
 
     if (wP) {
         evalBezierTriDerivWeights<REAL>(s, t, 0, 0, wP);
@@ -1154,61 +1113,73 @@ EvalBasisBezierTri(REAL s, REAL t,
             evalBezierTriDerivWeights(s, t, 0, 2, wDtt);
         }
     }
-    return 12;
+    return 15;
 }
 
 
 //
-//  Hybrid (cubic-quartic) Gregory triangle:
+//  Quartic Gregory triangle:
 //
-//  As with the Bezier triangle, and consistent with Loop, Schaefer at al (in
-//  ("Approximating Subdivision Surfaces with Gregory Patches for Hardware
-//  Tessellation") we use a cubic-quartic hybrid Gregory patch.  Like the
-//  quad Gregory patch, this patch uses Bezier basis functions (from the
-//  cubic-quartic hybrid above) and rational multipliers to blend pairs of
-//  interior points (face points).
+//  The 18-point quaritic Gregory patch is an extension of the 15-point
+//  quartic Bezier triangle with the 3 interior points of the Bezier patch
+//  replaced with pairs of points (face points -- fi+ and fi-) that are
+//  rationally combined.
+//
+//  The point ordering of Gregory patches deviates considerably from the
+//  BSpline and Bezier patches by grouping the 5 points at each corner and
+//  ordering the groups by corner index.  This is consistent with the cubic
+//  Gregory quad patch.
+//
+//  The 3 additional quartic boundary points are currently appended to these
+//  3 groups of 5 control points.  In contrast to the 5 points associated
+//  with each corner, these 3 points are more associated with the edge
+//  between the corner vertices and are equally weighted between the two.
 //
 namespace {
     //
-    //  Expanding a set of 12 Bezier basis functions for the 6 (3 pairs) of 
-    //  rational weights for the 15 Gregory basis functions:
+    //  Expanding a set of 15 Bezier basis functions for the 6 (3 pairs) of 
+    //  rational weights for the 18 Gregory basis functions:
     //
     template <typename REAL>
     void
-    convertBezierWeightsToGregory(REAL const wB[12], REAL const rG[6], REAL wG[15]) {
+    convertBezierWeightsToGregory(REAL const wB[15], REAL const rG[6], REAL wG[18]) {
 
         wG[0]  = wB[0];
         wG[1]  = wB[1];
-        wG[2]  = wB[4];
-        wG[3]  = wB[5] * rG[0];
-        wG[4]  = wB[5] * rG[1];
+        wG[2]  = wB[5];
+        wG[3]  = wB[6] * rG[0];
+        wG[4]  = wB[6] * rG[1];
 
-        wG[5]  = wB[3];
-        wG[6]  = wB[7];
-        wG[7]  = wB[2];
-        wG[8]  = wB[6] * rG[2];
-        wG[9]  = wB[6] * rG[3];
+        wG[5]  = wB[4];
+        wG[6]  = wB[8];
+        wG[7]  = wB[3];
+        wG[8]  = wB[7] * rG[2];
+        wG[9]  = wB[7] * rG[3];
 
-        wG[10] = wB[11];
-        wG[11] = wB[8];
-        wG[12] = wB[10];
-        wG[13] = wB[9] * rG[4];
-        wG[14] = wB[9] * rG[5];
+        wG[10] = wB[14];
+        wG[11] = wB[12];
+        wG[12] = wB[13];
+        wG[13] = wB[10] * rG[4];
+        wG[14] = wB[10] * rG[5];
+
+        wG[15] = wB[2];
+        wG[16] = wB[11];
+        wG[17] = wB[9];
     }
 } // end namespace
 
 template <typename REAL>
 int
 EvalBasisGregoryTri(REAL s, REAL t,
-    REAL wP[15], REAL wDs[15], REAL wDt[15],
-    REAL wDss[15], REAL wDst[15], REAL wDtt[15]) {
+    REAL wP[18], REAL wDs[18], REAL wDt[18],
+    REAL wDss[18], REAL wDst[18], REAL wDtt[18]) {
 
     //
     //  Bezier basis functions are denoted with B while the rational multipliers for the
     //  interior points will be denoted G -- so we have B(s,t) and G(s,t) (though we
     //  switch to barycentric (u,v,w) briefly to compute G)
     //
-    REAL BP[12], BDs[12], BDt[12], BDss[12], BDst[12], BDtt[12];
+    REAL BP[15], BDs[15], BDt[15], BDss[15], BDst[15], BDtt[15];
 
     REAL G[6] = { 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f };
     REAL u = s;
@@ -1254,7 +1225,7 @@ EvalBasisGregoryTri(REAL s, REAL t,
             convertBezierWeightsToGregory(BDtt, G, wDtt);
         }
     }
-    return 15;
+    return 18;
 }
 
 //

@@ -1148,7 +1148,7 @@ OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
 }
 
 void
-OsdEvalPatchGregoryTriangle(ivec3 patchParam, vec2 UV, vec3 cv[15],
+OsdEvalPatchGregoryTriangle(ivec3 patchParam, vec2 UV, vec3 cv[18],
                             out vec3 P, out vec3 dPu, out vec3 dPv,
                             out vec3 N, out vec3 dNu, out vec3 dNv)
 {
@@ -1167,16 +1167,16 @@ OsdEvalPatchGregoryTriangle(ivec3 patchParam, vec2 UV, vec3 cv[15],
     bezcv[10].P = (dwu == 0.0) ? cv[13] : ((w*cv[13] + u*cv[14]) / dwu);
 
     bezcv[ 0].P = cv[ 0];
-    bezcv[ 1].P = 0.25*cv[ 0] + 0.75*cv[ 1];
-    bezcv[ 2].P = 0.5 *cv[ 1] + 0.5 *cv[ 7];
-    bezcv[ 3].P = 0.25*cv[ 5] + 0.75*cv[ 7];
+    bezcv[ 1].P = cv[ 1];
+    bezcv[ 2].P = cv[15];
+    bezcv[ 3].P = cv[ 7];
     bezcv[ 4].P = cv[ 5];
-    bezcv[ 5].P = 0.25*cv[ 0] + 0.75*cv[ 2];
-    bezcv[ 8].P = 0.25*cv[ 5] + 0.75*cv[ 6];
-    bezcv[ 9].P = 0.5 *cv[ 2] + 0.5 *cv[11];
-    bezcv[11].P = 0.5 *cv[ 6] + 0.5 *cv[12];
-    bezcv[12].P = 0.25*cv[10] + 0.75*cv[11];
-    bezcv[13].P = 0.25*cv[10] + 0.75*cv[12];
+    bezcv[ 5].P = cv[ 2];
+    bezcv[ 8].P = cv[ 6];
+    bezcv[ 9].P = cv[17];
+    bezcv[11].P = cv[16];
+    bezcv[12].P = cv[11];
+    bezcv[13].P = cv[12];
     bezcv[14].P = cv[10];
 
     OsdEvalPatchBezierTriangle(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);

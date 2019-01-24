@@ -92,14 +92,14 @@ OsdEvaluatePatchBasisNormalized(
 #if OSD_ARRAY_ARG_BOUND_OPTIONAL
         nPoints = Osd_EvalBasisGregoryTri(s, t, wP, wDs, wDt, wDss, wDst, wDtt);
 #else
-        OSD_REAL wP15[15], wDs15[15], wDt15[15],
-                 wDss15[15], wDst15[15], wDtt15[15];
+        OSD_REAL wP18[18], wDs18[18], wDt18[18],
+                 wDss18[18], wDst18[18], wDtt18[18];
         nPoints = Osd_EvalBasisGregoryTri(
-                s, t, wP15, wDs15, wDt15, wDss15, wDst15, wDtt15);
+                s, t, wP18, wDs18, wDt18, wDss18, wDst18, wDtt18);
         for (int i=0; i<nPoints; ++i) {
-            wP[i] = wP15[i];
-            wDs[i] = wDs15[i]; wDt[i] = wDt15[i];
-            wDss[i] = wDss15[i]; wDst[i] = wDst15[i]; wDtt[i] = wDtt15[i];
+            wP[i] = wP18[i];
+            wDs[i] = wDs18[i]; wDt[i] = wDt18[i];
+            wDss[i] = wDss18[i]; wDst[i] = wDst18[i]; wDtt[i] = wDtt18[i];
         }
 #endif
     } else if (patchType == OSD_PATCH_DESCRIPTOR_QUADS) {
