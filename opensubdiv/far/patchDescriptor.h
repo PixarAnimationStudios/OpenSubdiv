@@ -149,7 +149,7 @@ PatchDescriptor::GetNumControlVertices( Type type ) {
         case GREGORY           :
         case GREGORY_BOUNDARY  : return GetGregoryPatchSize();
         case GREGORY_BASIS     : return GetGregoryBasisPatchSize();
-        case GREGORY_TRIANGLE  : return 15;
+        case GREGORY_TRIANGLE  : return 18;
         case TRIANGLES         : return 3;
         case LINES             : return 2;
         case POINTS            : return 1;

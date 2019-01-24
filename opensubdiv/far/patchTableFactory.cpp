@@ -1644,11 +1644,13 @@ namespace {
                 { 0, 0, 1, 0, 0, 1, 1, 2, 2, 1, 2, 2 };
         static int const gregoryIndices[] =
                 { 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3 };
+        static int const gregoryTriIndices[] =
+                { 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 1, 2 };
 
         if (type == PatchDescriptor::GREGORY_BASIS) {
             return gregoryIndices;
         } else if (type == PatchDescriptor::GREGORY_TRIANGLE) {
-            return gregoryIndices;
+            return gregoryTriIndices;
         } else if (type == PatchDescriptor::REGULAR) {
             return bsplineIndices;
         } else if (type == PatchDescriptor::LOOP) {

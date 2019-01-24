@@ -838,15 +838,15 @@ Osd_EvalBasisBoxSplineTri(OSD_REAL s, OSD_REAL t,
     void
     Osd_evalBezierTriDerivWeights(
         OSD_REAL s, OSD_REAL t, int ds, int dt,
-        OSD_OUT_ARRAY(OSD_REAL, wB, 12)) {
+        OSD_OUT_ARRAY(OSD_REAL, wB, 15)) {
 
         OSD_REAL u  = s;
         OSD_REAL v  = t;
         OSD_REAL w  = 1 - u - v;
 
-        OSD_REAL u2 = u * u;
-        OSD_REAL v2 = v * v;
-        OSD_REAL w2 = w * w;
+        OSD_REAL uu = u * u;
+        OSD_REAL vv = v * v;
+        OSD_REAL ww = w * w;
 
         OSD_REAL uv = u * v;
         OSD_REAL vw = v * w;
@@ -854,110 +854,104 @@ Osd_EvalBasisBoxSplineTri(OSD_REAL s, OSD_REAL t,
 
         int totalOrder = ds + dt;
         if (totalOrder == 0) {
-            wB[0]  = w*w2;
-            wB[3]  = u*u2;
-            wB[11] = v*v2;
-
-            wB[1]  =  3 * uw * (uw + w2);
-            wB[2]  =  3 * uw * (uw + u2);
-
-            wB[7]  =  3 * uv * (uv + u2);
-            wB[10] =  3 * uv * (uv + v2);
-
-            wB[8]  =  3 * vw * (vw + v2);
-            wB[4]  =  3 * vw * (vw + w2);
-
-            wB[5]  = 12 * w2 * uv;
-            wB[6]  = 12 * u2 * vw;
-            wB[9]  = 12 * v2 * uw;
+            wB[0]  =      ww * ww;
+            wB[1]  =  4 * uw * ww;
+            wB[2]  =  6 * uw * uw;
+            wB[3]  =  4 * uw * uu;
+            wB[4]  =      uu * uu;
+            wB[5]  =  4 * vw * ww;
+            wB[6]  = 12 * ww * uv;
+            wB[7]  = 12 * uu * vw;
+            wB[8]  =  4 * uv * uu;
+            wB[9]  =  6 * vw * vw;
+            wB[10] = 12 * vv * uw;
+            wB[11] =  6 * uv * uv;
+            wB[12] =  4 * vw * vv;
+            wB[13] =  4 * uv * vv;
+            wB[14] =      vv * vv;
         } else if (totalOrder == 1) {
-            if (ds != 0) {
-                wB[0]  = -3 * w2;
-                wB[3]  =  3 * u2;
-                wB[11] =  0;
-
-                wB[1]  =  3 * w * (w2 - uw - 2*u2);
-                wB[2]  = -3 * u * (u2 - uw - 2*w2);
-
-                wB[7]  =  9 * u2*v + 6 * u*v2;
-                wB[10] =  3 * v*v2 + 6 * u*v2;
-
-                wB[8]  = -3 * v*v2 - 6 * v2*w;
-                wB[4]  = -9 * v*w2 - 6 * v2*w;
-
-                wB[5]  = 12 * vw * (w - 2*u);
-                wB[6]  = 12 * uv * (2*w - u);
-                wB[9]  = 12 * v2 * (w - u);
+            if (ds == 1) {
+                wB[0]  =  -4 * ww * w;
+                wB[1]  =   4 * ww * (w - 3 * u);
+                wB[2]  =  12 * uw * (w - u);
+                wB[3]  =   4 * uu * (3 * w - u);
+                wB[4]  =   4 * uu * u;
+                wB[5]  = -12 * vw * w;
+                wB[6]  =  12 * vw * (w - 2 * u);
+                wB[7]  =  12 * uv * (2 * w - u);
+                wB[8]  =  12 * uv * u;
+                wB[9]  = -12 * vv * w;
+                wB[10] =  12 * vv * (w - u);
+                wB[11] =  12 * vv * u;
+                wB[12] =  -4 * vv * v;
+                wB[13] =   4 * vv * v;
+                wB[14] =   0;
             } else {
-                wB[0]  = -3 * w2;
-                wB[3]  =  0;
-                wB[11] =  3 * v2;
-
-                wB[1]  = -9 * u*w2 - 6 * u2*w;
-                wB[2]  = -3 * u*u2 - 6 * u2*w;
-
-                wB[7]  =  3 * u*u2 + 6 * u2*v;
-                wB[10] =  9 * u*v2 + 6 * u2*v;
-
-                wB[8]  = -3 * v * (v2 - vw - 2*w2);
-                wB[4]  =  3 * w * (w2 - vw - 2*v2);
-
-                wB[5]  = 12 * uw * (w - 2*v);
-                wB[6]  = 12 * u2 * (w - v);
-                wB[9]  = 12 * uv * (2*w - v);
+                wB[0]  =  -4 * ww * w;
+                wB[1]  = -12 * ww * u;
+                wB[2]  = -12 * uu * w;
+                wB[3]  =  -4 * uu * u;
+                wB[4]  =   0;
+                wB[5]  =   4 * ww * (w - 3 * v);
+                wB[6]  =  12 * uw * (w - 2 * v);
+                wB[7]  =  12 * uu * (w - v);
+                wB[8]  =   4 * uu * u;
+                wB[9]  =  12 * vw * (w - v);
+                wB[10] =  12 * uv * (2 * w - v);
+                wB[11] =  12 * uv * u;;
+                wB[12] =   4 * vv * (3 * w - v);
+                wB[13] =  12 * vv * u;
+                wB[14] =   4 * vv * v;
             }
         } else if (totalOrder == 2) {
             if (ds == 2) {
-                wB[0]  =  6 * w;
-                wB[3]  =  6 * u;
-                wB[11] =  0;
-
-                wB[1]  =  6 * (u2 - uw - 2*w2);
-                wB[2]  =  6 * (w2 - uw - 2*u2);
-
-                wB[7]  =  6 * v2 + 18 * uv;
-                wB[10] =  6 * v2;
-
-                wB[8]  =  6 * v2;
-                wB[4]  =  6 * v2 + 18 * vw;
-
-                wB[5]  =  24 * (uv - 2*vw);
-                wB[6]  =  24 * (vw - 2*uv);
-                wB[9]  = -24 *  v2;
+                wB[0]  =  12 * ww;
+                wB[1]  =  24 * (uw - ww);
+                wB[2]  =  12 * (uu - 4 * uw + ww);
+                wB[3]  =  24 * (uw - uu);
+                wB[4]  =  12 * uu;
+                wB[5]  =  24 * vw;
+                wB[6]  =  24 * (uv - 2 * vw);
+                wB[7]  =  24 * (vw - 2 * uv);
+                wB[8]  =  24 * uv;
+                wB[9]  =  12 * vv;
+                wB[10] = -24 * vv;
+                wB[11] =  12 * vv;
+                wB[12] =   0;
+                wB[13] =   0;
+                wB[14] =   0;
             } else if (dt == 2) {
-                wB[0]  =  6 * w;
-                wB[3]  =  0;
-                wB[11] =  6 * v;
-
-                wB[1]  =  6 * u2 + 18 * uw;
-                wB[2]  =  6 * u2;
-
-                wB[7]  =  6 * u2;
-                wB[10] =  6 * u2 + 18 * uv;
-
-                wB[8]  =  6 * (w2 - vw - 2*v2);
-                wB[4]  =  6 * (v2 - vw - 2*w2);
-
-                wB[5]  =  24 * (uv - 2*uw);
-                wB[6]  = -24 *  u2;
-                wB[9]  =  24 * (uw - 2*uv);
+                wB[0]  =  12 * ww;
+                wB[1]  =  24 * uw;
+                wB[2]  =  12 * uu;
+                wB[3]  =   0;
+                wB[4]  =   0;
+                wB[5]  =  24 * (vw - ww);
+                wB[6]  =  24 * (uv - 2 * uw);
+                wB[7]  = -24 * uu;
+                wB[8]  =   0;
+                wB[9]  =  12 * (vv - 4 * vw + ww);
+                wB[10] =  24 * (uw - 2 * uv);
+                wB[11] =  12 * uu;
+                wB[12] =  24 * (vw - vv);
+                wB[13] =  24 * uv;
+                wB[14] =  12 * vv;
             } else {
-                wB[0]  =  6 * w;
-                wB[3]  =  0;
-                wB[11] =  0;
-
-                wB[1]  =  6 * (u2 +   uw - 1.5f*w2);
-                wB[2]  = -3 * (u2 + 4*uw);
-
-                wB[7]  =  9 * u2 + 12 * uv;
-                wB[10] =  9 * v2 + 12 * uv;
-
-                wB[8]  = -3 * (v2 + 4*vw);
-                wB[4]  =  6 * (v2 +   vw - 1.5f*w2);
-
-                wB[5]  =  24 * (uv - vw - uw + 0.5f*w2);
-                wB[6]  = -24 * (uv - uw      + 0.5f*u2);
-                wB[9]  = -24 * (uv - vw      + 0.5f*v2);
+                wB[0]  =  12 * ww;
+                wB[3]  = -12 * uu;
+                wB[13] =  12 * vv;
+                wB[11] =  24 * uv;
+                wB[1]  =  24 * uw - wB[0];
+                wB[2]  = -24 * uw - wB[3];
+                wB[5]  =  24 * vw - wB[0];
+                wB[6]  = -24 * vw + wB[11] - wB[1];
+                wB[8]  = - wB[3];
+                wB[7]  = -(wB[11] + wB[2]);
+                wB[9]  =   wB[13] - wB[5] - wB[0];
+                wB[10] = -(wB[9] + wB[11]);
+                wB[12] = - wB[13];
+                wB[4]  =   0;
+                wB[14] =   0;
             }
         } else {
             // assert(totalOrder <= 2);
@@ -969,12 +963,12 @@ OSD_FUNCTION_STORAGE_CLASS
 // template <typename REAL>
 int
 Osd_EvalBasisBezierTri(OSD_REAL s, OSD_REAL t,
-    OSD_OUT_ARRAY(OSD_REAL, wP, 12),
-    OSD_OUT_ARRAY(OSD_REAL, wDs, 12),
-    OSD_OUT_ARRAY(OSD_REAL, wDt, 12),
-    OSD_OUT_ARRAY(OSD_REAL, wDss, 12),
-    OSD_OUT_ARRAY(OSD_REAL, wDst, 12),
-    OSD_OUT_ARRAY(OSD_REAL, wDtt, 12)) {
+    OSD_OUT_ARRAY(OSD_REAL, wP, 15),
+    OSD_OUT_ARRAY(OSD_REAL, wDs, 15),
+    OSD_OUT_ARRAY(OSD_REAL, wDt, 15),
+    OSD_OUT_ARRAY(OSD_REAL, wDss, 15),
+    OSD_OUT_ARRAY(OSD_REAL, wDst, 15),
+    OSD_OUT_ARRAY(OSD_REAL, wDtt, 15)) {
 
     if (OSD_OPTIONAL(wP)) {
         Osd_evalBezierTriDerivWeights(s, t, 0, 0, wP);
@@ -989,40 +983,44 @@ Osd_EvalBasisBezierTri(OSD_REAL s, OSD_REAL t,
             Osd_evalBezierTriDerivWeights(s, t, 0, 2, wDtt);
         }
     }
-    return 12;
+    return 15;
 }
 
 
 // namespace {
     //
-    //  Expanding a set of 12 Bezier basis functions for the 6 (3 pairs) of
-    //  rational weights for the 15 Gregory basis functions:
+    //  Expanding a set of 15 Bezier basis functions for the 6 (3 pairs) of
+    //  rational weights for the 18 Gregory basis functions:
     //
     OSD_FUNCTION_STORAGE_CLASS
     // template <typename REAL>
     void
     Osd_convertBezierWeightsToGregory(
-        OSD_INOUT_ARRAY(OSD_REAL, wB, 12),
+        OSD_INOUT_ARRAY(OSD_REAL, wB, 15),
         OSD_INOUT_ARRAY(OSD_REAL, rG,  6),
-        OSD_OUT_ARRAY(OSD_REAL, wG, 15)) {
+        OSD_OUT_ARRAY(OSD_REAL, wG, 18)) {
 
         wG[0]  = wB[0];
         wG[1]  = wB[1];
-        wG[2]  = wB[4];
-        wG[3]  = wB[5] * rG[0];
-        wG[4]  = wB[5] * rG[1];
+        wG[2]  = wB[5];
+        wG[3]  = wB[6] * rG[0];
+        wG[4]  = wB[6] * rG[1];
 
-        wG[5]  = wB[3];
-        wG[6]  = wB[7];
-        wG[7]  = wB[2];
-        wG[8]  = wB[6] * rG[2];
-        wG[9]  = wB[6] * rG[3];
+        wG[5]  = wB[4];
+        wG[6]  = wB[8];
+        wG[7]  = wB[3];
+        wG[8]  = wB[7] * rG[2];
+        wG[9]  = wB[7] * rG[3];
 
-        wG[10] = wB[11];
-        wG[11] = wB[8];
-        wG[12] = wB[10];
-        wG[13] = wB[9] * rG[4];
-        wG[14] = wB[9] * rG[5];
+        wG[10] = wB[14];
+        wG[11] = wB[12];
+        wG[12] = wB[13];
+        wG[13] = wB[10] * rG[4];
+        wG[14] = wB[10] * rG[5];
+
+        wG[15] = wB[2];
+        wG[16] = wB[11];
+        wG[17] = wB[9];
     }
 // } // end namespace
 
@@ -1030,19 +1028,19 @@ OSD_FUNCTION_STORAGE_CLASS
 // template <typename REAL>
 int
 Osd_EvalBasisGregoryTri(OSD_REAL s, OSD_REAL t,
-    OSD_OUT_ARRAY(OSD_REAL, wP, 15),
-    OSD_OUT_ARRAY(OSD_REAL, wDs, 15),
-    OSD_OUT_ARRAY(OSD_REAL, wDt, 15),
-    OSD_OUT_ARRAY(OSD_REAL, wDss, 15),
-    OSD_OUT_ARRAY(OSD_REAL, wDst, 15),
-    OSD_OUT_ARRAY(OSD_REAL, wDtt, 15)) {
+    OSD_OUT_ARRAY(OSD_REAL, wP, 18),
+    OSD_OUT_ARRAY(OSD_REAL, wDs, 18),
+    OSD_OUT_ARRAY(OSD_REAL, wDt, 18),
+    OSD_OUT_ARRAY(OSD_REAL, wDss, 18),
+    OSD_OUT_ARRAY(OSD_REAL, wDst, 18),
+    OSD_OUT_ARRAY(OSD_REAL, wDtt, 18)) {
 
     //
     //  Bezier basis functions are denoted with B while the rational multipliers for the
     //  interior points will be denoted G -- so we have B(s,t) and G(s,t) (though we
     //  switch to barycentric (u,v,w) briefly to compute G)
     //
-    OSD_REAL BP[12], BDs[12], BDt[12], BDss[12], BDst[12], BDtt[12];
+    OSD_REAL BP[15], BDs[15], BDt[15], BDss[15], BDst[15], BDtt[15];
 
     OSD_REAL G[6] = OSD_ARRAY_6(OSD_REAL, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f );
     OSD_REAL u = s;
@@ -1088,7 +1086,7 @@ Osd_EvalBasisGregoryTri(OSD_REAL s, OSD_REAL t,
             Osd_convertBezierWeightsToGregory(BDtt, G, wDtt);
         }
     }
-    return 15;
+    return 18;
 }
 
 #define OSD_PATCH_BASIS_COMPATIBILITY

@@ -76,7 +76,7 @@ int EvalBasisLinearTri(REAL s, REAL t,
 
 template <typename REAL>
 int EvalBasisBezierTri(REAL s, REAL t,
-    REAL wP[12], REAL wDs[12] = 0, REAL wDt[12] = 0, REAL wDss[12] = 0, REAL wDst[12] = 0, REAL wDtt[12] = 0);
+    REAL wP[15], REAL wDs[15] = 0, REAL wDt[15] = 0, REAL wDss[15] = 0, REAL wDst[15] = 0, REAL wDtt[15] = 0);
 
 template <typename REAL>
 int EvalBasisBoxSplineTri(REAL s, REAL t,
@@ -84,7 +84,7 @@ int EvalBasisBoxSplineTri(REAL s, REAL t,
 
 template <typename REAL>
 int EvalBasisGregoryTri(REAL s, REAL t,
-    REAL wP[15], REAL wDs[15] = 0, REAL wDt[15] = 0, REAL wDss[15] = 0, REAL wDst[15] = 0, REAL wDtt[15] = 0);
+    REAL wP[18], REAL wDs[18] = 0, REAL wDt[18] = 0, REAL wDss[18] = 0, REAL wDst[18] = 0, REAL wDtt[18] = 0);
 
 
 //

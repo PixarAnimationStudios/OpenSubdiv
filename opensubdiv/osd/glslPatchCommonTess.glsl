@@ -368,46 +368,6 @@ OsdGetTessLevelsLimitPointsTriangle(vec3 cv[15],
     }
 }
 
-void
-OsdGetTessLevelsLimitPointsGregoryTriangle(vec3 cv[15],
-                 ivec3 patchParam, out vec4 tessOuterLo, out vec4 tessOuterHi)
-{
-    // Each edge of a transition patch is adjacent to one or two patches
-    // at the next refined level of subdivision. When the patch control
-    // points have been converted to the Bezier basis, the control points
-    // at the corners are on the limit surface (since a Bezier patch
-    // interpolates its corner control points). We can compute an adaptive
-    // tessellation level for transition edges on the limit surface by
-    // evaluating a limit position at the mid point of each transition edge.
-
-    tessOuterLo = vec4(0);
-    tessOuterHi = vec4(0);
-
-    int transitionMask = OsdGetPatchTransitionMask(patchParam);
-
-    if ((transitionMask & 4) != 0) {
-        vec3 P = Osd_EvalBezierCurveMidPoint(cv[0], cv[2], cv[11], cv[10]);
-        tessOuterLo[0] = OsdComputeTessLevel(cv[0], P);
-        tessOuterHi[0] = OsdComputeTessLevel(cv[10], P);
-    } else {
-        tessOuterLo[0] = OsdComputeTessLevel(cv[0], cv[10]);
-    }
-    if ((transitionMask & 1) != 0) {
-        vec3 P = Osd_EvalBezierCurveMidPoint(cv[0], cv[1], cv[7], cv[5]);
-        tessOuterLo[1] = OsdComputeTessLevel(cv[0], P);
-        tessOuterHi[1] = OsdComputeTessLevel(cv[5], P);
-    } else {
-        tessOuterLo[1] = OsdComputeTessLevel(cv[0], cv[5]);
-    }
-    if ((transitionMask & 2) != 0) {
-        vec3 P = Osd_EvalBezierCurveMidPoint(cv[5], cv[6], cv[12], cv[10]);
-        tessOuterLo[2] = OsdComputeTessLevel(cv[10], P);
-        tessOuterHi[2] = OsdComputeTessLevel(cv[5], P);
-    } else {
-        tessOuterLo[2] = OsdComputeTessLevel(cv[5], cv[10]);
-    }
-}
-
 // Round up to the nearest even integer
 float OsdRoundUpEven(float x) {
     return 2*ceil(x/2);
@@ -572,19 +532,6 @@ OsdGetTessLevelsAdaptiveLimitPointsTriangle(vec3 cv[15],
 
     OsdComputeTessLevelsTriangle(tessOuterLo, tessOuterHi,
                                  tessLevelOuter, tessLevelInner);
-}
-
-void
-OsdGetTessLevelsAdaptiveLimitPointsGregoryTriangle(vec3 cv[15],
-                 ivec3 patchParam,
-                 out vec4 tessLevelOuter, out vec2 tessLevelInner,
-                 out vec4 tessOuterLo, out vec4 tessOuterHi)
-{
-    OsdGetTessLevelsLimitPointsGregoryTriangle(cv, patchParam,
-                                tessOuterLo, tessOuterHi);
-
-    OsdComputeTessLevelsTriangle(tessOuterLo, tessOuterHi,
-                         tessLevelOuter, tessLevelInner);
 }
 
 void
