@@ -178,7 +178,7 @@ void main()
     outpt.v.tessCoord = UV;
     outpt.v.patchCoord = OsdInterpolatePatchCoordTriangle(UV, patchParam);
 
-    OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE(UV, 6, 7, 10);
+    OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE(UV, 0, 5, 10);
 
     OSD_DISPLACEMENT_CALLBACK;
 
