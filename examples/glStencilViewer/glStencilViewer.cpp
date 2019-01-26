@@ -296,17 +296,16 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
     Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
     // create Far mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
-    OpenSubdiv::Sdc::Split sdcsplit =
-        Sdc::SchemeTypeTraits::GetTopologicalSplitType(sdctype);
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(sdctype);
 
-    OpenSubdiv::Far::TopologyRefiner * refiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+    Far::TopologyRefiner * refiner =
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     // save coarse topology (used for coarse mesh drawing)
-    OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
+    Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
 
     g_controlMeshDisplay.SetTopology(refBaseLevel);
     int nverts = refBaseLevel.GetNumVertices();
@@ -361,7 +360,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
         for (int j=0; j<g_nsamples; ++j, ++uPtr, ++vPtr) {
             float u = (float)rand()/(float)RAND_MAX;
             float v = (float)rand()/(float)RAND_MAX;
-            if (sdcsplit == Sdc::SPLIT_TO_TRIS && (u+v >= 1.0f)) {
+            if ((regFaceSize==3) && (u+v >= 1.0f)) {
                 // Keep locations within the triangular parametric domain
                 u = 1.0f - u;
                 v = 1.0f - v;
@@ -1084,13 +1083,13 @@ int main(int argc, char **argv) {
             defaultScheme = kLoop;
         }
         else {
-            std::ifstream ifs(argv[1]);
+            std::ifstream ifs(argv[i]);
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), defaultScheme));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
             }
         }
     }
