@@ -608,14 +608,14 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
 
     // create Far mesh (topology)
-    OpenSubdiv::Sdc::SchemeType sdctype = GetSdcType(*shape);
-    OpenSubdiv::Sdc::Options sdcoptions = GetSdcOptions(*shape);
+    Sdc::SchemeType sdctype = GetSdcType(*shape);
+    Sdc::Options sdcoptions = GetSdcOptions(*shape);
 
     sdcoptions.SetFVarLinearInterpolation(g_fvarBoundary);
 
     Far::TopologyRefiner *topologyRefiner =
-        OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            OpenSubdiv::Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
+        Far::TopologyRefinerFactory<Shape>::Create(*shape,
+            Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
     g_orgPositions=shape->verts;
     g_positions.resize(g_orgPositions.size(), 0.0f);
@@ -658,10 +658,9 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
     bool hasFVarData = !shape->uvs.empty();
 
     {
-        bool adaptive = (g_adaptive!=0 && (sdctype == OpenSubdiv::Sdc::SCHEME_CATMARK));
-        bool doInfSharpPatch = (g_infSharpPatch!=0 && adaptive);
+        bool doInfSharpPatch = (g_infSharpPatch!=0 && g_adaptive);
 
-        if (adaptive) {
+        if (g_adaptive) {
             // Apply feature adaptive refinement to the mesh so that we can use the
             // limit evaluation API features.
             Far::TopologyRefiner::AdaptiveOptions options(level);
@@ -678,7 +677,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level) {
         // interpolation)
         Far::StencilTableFactory::Options soptions;
         soptions.generateOffsets=true;
-        soptions.generateIntermediateLevels=adaptive;
+        soptions.generateIntermediateLevels=g_adaptive;
 
         vertexStencils =
             Far::StencilTableFactory::Create(*topologyRefiner, soptions);
@@ -1442,19 +1441,36 @@ callbackErrorGLFW(int error, const char* description) {
 int main(int argc, char **argv) {
 
     bool fullscreen = false;
-
+    Scheme defaultScheme = kCatmark;
     std::string str;
+
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-f"))
+        if (!strcmp(argv[i], "-u")) {
+            g_adaptive = false;
+        }
+        else if (!strcmp(argv[i], "-d")) {
+            if (++i < argc) g_level = atoi(argv[i]);
+        }
+        else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
+        }
+        else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        }
+        else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        }
+        else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
+        }
         else {
-            std::ifstream ifs(argv[1]);
+            std::ifstream ifs(argv[i]);
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), kCatmark));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
             }
         }
     }
