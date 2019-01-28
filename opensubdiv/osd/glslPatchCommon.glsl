@@ -1066,8 +1066,43 @@ OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
     float vv = v * v;
     float ww = w * w;
 
-    //  Compute the 10 barycentric basis functions of a cubic Bezier triangle,
-    //  each of total degree 3:
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    //
+    //  When computing normal derivatives, we need 2nd derivatives, so compute
+    //  an intermediate quadratic Bezier triangle from which 2nd derivatives
+    //  can be easily computed, and which in turn yields the triangle that gives
+    //  the position and 1st derivatives.
+    //
+    //  Quadratic barycentric basis functions (in addition to those above):
+    float uv = u * v * 2.0;
+    float vw = v * w * 2.0;
+    float wu = w * u * 2.0;
+
+    vec3 Q0 = ww * cv[ 0].P + wu * cv[ 1].P + uu * cv[ 2].P +
+              uv * cv[ 6].P + vv * cv[ 9].P + vw * cv[ 5].P;
+    vec3 Q1 = ww * cv[ 1].P + wu * cv[ 2].P + uu * cv[ 3].P +
+              uv * cv[ 7].P + vv * cv[10].P + vw * cv[ 6].P;
+    vec3 Q2 = ww * cv[ 2].P + wu * cv[ 3].P + uu * cv[ 4].P +
+              uv * cv[ 8].P + vv * cv[11].P + vw * cv[ 7].P;
+    vec3 Q3 = ww * cv[ 5].P + wu * cv[ 6].P + uu * cv[ 7].P +
+              uv * cv[10].P + vv * cv[12].P + vw * cv[ 9].P;
+    vec3 Q4 = ww * cv[ 6].P + wu * cv[ 7].P + uu * cv[ 8].P +
+              uv * cv[11].P + vv * cv[13].P + vw * cv[10].P;
+    vec3 Q5 = ww * cv[ 9].P + wu * cv[10].P + uu * cv[11].P +
+              uv * cv[13].P + vv * cv[14].P + vw * cv[12].P;
+
+    vec3 V0 = w * Q0 + u * Q1 + v * Q3;
+    vec3 V1 = w * Q1 + u * Q2 + v * Q4;
+    vec3 V2 = w * Q3 + u * Q4 + v * Q5;
+#else
+    //
+    //  When 2nd derivatives are not required, factor the recursive evaluation
+    //  of a point to directly provide the three points of the triangle at the
+    //  last stage -- which then trivially provides both position and 1st
+    //  derivatives.  Each point of the triangle results from evaluating the
+    //  corresponding cubic Bezier sub-triangle for each corner of the quartic:
+    //
+    //  Cubic barycentric basis functions:
     float uuu = uu * u;
     float uuv = uu * v * 3.0;
     float uvv = u * vv * 3.0;
@@ -1079,8 +1114,6 @@ OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
     float wuu = w * uu * 3.0;
     float uvw = u * v * w * 6.0;
 
-    //  Compute a point Vi on each of the three cubic Bezier sub-triangles of the
-    //  full quartic triangle (terms ordered counter-clockwise around perimeter):
     vec3 V0 = www * cv[ 0].P + wwu * cv[ 1].P + wuu * cv[ 2].P
             + uuu * cv[ 3].P + uuv * cv[ 7].P + uvv * cv[10].P
             + vvv * cv[12].P + vvw * cv[ 9].P + vww * cv[ 5].P + uvw * cv[ 6].P;
@@ -1092,17 +1125,22 @@ OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
     vec3 V2 = www * cv[ 5].P + wwu * cv[ 6].P + wuu * cv[ 7].P
             + uuu * cv[ 8].P + uuv * cv[11].P + uvv * cv[13].P
             + vvv * cv[14].P + vvw * cv[12].P + vww * cv[ 9].P + uvw * cv[10].P;
+#endif
 
+    //
     //  Compute P, du and dv all from the triangle formed from the three Vi:
+    //
     P = w * V0 + u * V1 + v * V2;
 
-    int dSign  = OsdGetPatchIsTriangleRotated(patchParam) ? -1 : 1;
-    int dScale = dSign * 4 * OsdGetPatchFaceLevel(patchParam);
+    int dSign = OsdGetPatchIsTriangleRotated(patchParam) ? -1 : 1;
+    int level = OsdGetPatchFaceLevel(patchParam);
 
-    dPu = (V1 - V0) * dScale;
-    dPv = (V2 - V0) * dScale;
+    float d1Scale = dSign * level * 4;
 
-    //  Compute the noromal and test for degeneracy:
+    dPu = (V1 - V0) * d1Scale;
+    dPv = (V2 - V0) * d1Scale;
+
+    //  Compute N and test for degeneracy:
     //
     //  We need a geometric measure of the size of the patch for a suitable
     //  tolerance.  Magnitudes of the partials are generally proportional to
@@ -1117,34 +1155,67 @@ OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
 
     N = cross(dPu, dPv);
     float nLength = length(N);
-    if (nLength > nEpsilon) {
-        N = N / nLength;
-    } else {
-        //
-        //  Use the normal of the interior triangle of the quadratic patch that
-        //  results from repeated linear interpolation.  This will address the
-        //  common cases of degenerate or colinear boundaries:
-        //
-        float wu2 = w * u * 2.0;
-        float vw2 = v * w * 2.0;
-        float uv2 = u * v * 2.0;
 
-        vec3 Q1 = ww *cv[ 1].P + wu2*cv[ 2].P + uu *cv[ 3].P +
-                  uv2*cv[ 7].P + vv *cv[10].P + vw2*cv[ 6].P;
-        vec3 Q3 = ww *cv[ 5].P + wu2*cv[ 6].P + uu *cv[ 7].P +
-                  uv2*cv[10].P + vv *cv[12].P + vw2*cv[ 9].P;
-        vec3 Q4 = ww *cv[ 6].P + wu2*cv[ 7].P + uu *cv[ 8].P +
-                  uv2*cv[11].P + vv *cv[13].P + vw2*cv[10].P;
 
-        vec3 QN = cross((Q4 - Q1), (Q3 - Q1));
-        float qnLength = length(QN);
-        if (qnLength > nEpsilon) {
-            N = QN / qnLength;
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    //
+    //  Compute normal derivatives using 2nd order partials, then use the
+    //  normal derivatives to resolve a degenerate normal:
+    //
+    float d2Scale = dSign * level * level * 12;
+
+    vec3 dUU = (Q0 - 2 * Q1 + Q2)  * d2Scale;
+    vec3 dVV = (Q0 - 2 * Q3 + Q5)  * d2Scale;
+    vec3 dUV = (Q0 - Q1 + Q4 - Q3) * d2Scale;
+
+    dNu = cross(dUU, dPv) + cross(dPu, dUV);
+    dNv = cross(dUV, dPv) + cross(dPu, dVV);
+
+    if (nLength < nEpsilon) {
+        float DU = (UV.x == 1.0) ? -1.0 : 1.0;
+        float DV = (UV.y == 1.0) ? -1.0 : 1.0;
+
+        N = DU * dNu + DV * dNv;
+        nLength = length(N);
+        if (nLength < nEpsilon) {
+            nLength = 1.0;
         }
     }
+    N = N / nLength;
 
+    //  Project derivs of non-unit normal function onto tangent plane of N:
+    dNu = (dNu - dot(dNu,N) * N) / nLength;
+    dNv = (dNv - dot(dNv,N) * N) / nLength;
+#else
     dNu = vec3(0);
     dNv = vec3(0);
+
+    //
+    //  Resolve a degenerate normal using the interior triangle of the
+    //  intermediate quadratic patch that results from recursive evaluation.
+    //  This addresses common cases of degenerate or colinear boundaries
+    //  without resorting to use of explicit 2nd derivatives:
+    //
+    if (nLength < nEpsilon) {
+        float uv  = u * v * 2.0;
+        float vw  = v * w * 2.0;
+        float wu  = w * u * 2.0;
+
+        vec3 Q1 = ww * cv[ 1].P + wu * cv[ 2].P + uu * cv[ 3].P +
+                  uv * cv[ 7].P + vv * cv[10].P + vw * cv[ 6].P;
+        vec3 Q3 = ww * cv[ 5].P + wu * cv[ 6].P + uu * cv[ 7].P +
+                  uv * cv[10].P + vv * cv[12].P + vw * cv[ 9].P;
+        vec3 Q4 = ww * cv[ 6].P + wu * cv[ 7].P + uu * cv[ 8].P +
+                  uv * cv[11].P + vv * cv[13].P + vw * cv[10].P;
+
+        N = cross((Q4 - Q1), (Q3 - Q1));
+        nLength = length(N);
+        if (nLength < nEpsilon) {
+            nLength = 1.0;
+        }
+    }
+    N = N / nLength;
+#endif
 }
 
 void
