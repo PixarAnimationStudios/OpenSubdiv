@@ -328,14 +328,6 @@ PatchGroup::PatchGroup(Far::PatchTableFactory::Options patchOptions,
         basePositions(basePositionsArg), 
         baseFaces(baseFacesArg) {
 
-    //  Derive adaptive refinement options from the given patch options:
-    //
-    Far::TopologyRefiner::AdaptiveOptions adaptiveOptions(0);
-    adaptiveOptions.isolationLevel       = patchOptions.maxIsolationLevel;
-    adaptiveOptions.useInfSharpPatch     = patchOptions.useInfSharpPatch;
-    adaptiveOptions.useSingleCreasePatch = patchOptions.useSingleCreasePatch;
-    adaptiveOptions.considerFVarChannels = patchOptions.generateFVarTables;
-
     //  Create a local refiner (sharing the base level), apply adaptive refinement
     //  to the given subset of base faces, and construct a patch table (and its
     //  associated map) for the same set of faces:
@@ -345,7 +337,7 @@ PatchGroup::PatchGroup(Far::PatchTableFactory::Options patchOptions,
     Far::TopologyRefiner *localRefiner =
         Far::TopologyRefinerFactory<Far::TopologyDescriptor>::Create(baseRefiner);
 
-    localRefiner->RefineAdaptive(adaptiveOptions, groupFaces);
+    localRefiner->RefineAdaptive(patchOptions.GetRefineAdaptiveOptions(), groupFaces);
 
     patchTable = Far::PatchTableFactory::Create(*localRefiner, patchOptions,
                     groupFaces);

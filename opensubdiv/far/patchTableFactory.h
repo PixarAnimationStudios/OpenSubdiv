@@ -27,15 +27,13 @@
 
 #include "../version.h"
 
+#include "../far/topologyRefiner.h"
 #include "../far/patchTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
 
 namespace Far {
-
-//  Forward declarations (for internal implementation purposes):
-class TopologyRefiner;
 
 /// \brief Factory for constructing a PatchTable from a TopologyRefiner
 ///
@@ -86,6 +84,17 @@ public:
 
         /// \brief Set precision of face-varying patches
         template <typename REAL> void SetFVarPatchPrecision();
+
+        /// \brief Determine adaptive refinement options to match assigned patch options
+        TopologyRefiner::AdaptiveOptions GetRefineAdaptiveOptions() const {
+            TopologyRefiner::AdaptiveOptions adaptiveOptions(maxIsolationLevel);
+
+            adaptiveOptions.useInfSharpPatch     = useInfSharpPatch;
+            adaptiveOptions.useSingleCreasePatch = useSingleCreasePatch;
+            adaptiveOptions.considerFVarChannels = generateFVarTables &&
+                                                  !generateFVarLegacyLinearPatches;
+            return adaptiveOptions;
+        }
 
         unsigned int generateAllLevels           : 1, ///< Generate levels from 'firstLevel' to 'maxLevel' (Uniform mode only)
                      includeBaseLevelIndices     : 1, ///< Include base level in patch point indices (Uniform mode only)

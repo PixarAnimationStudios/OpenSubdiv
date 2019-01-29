@@ -140,25 +140,52 @@ int main(int, char **) {
     // Generate a FarTopologyRefiner (see far_tutorial_0 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
-    // Adaptively refine the topology with an isolation level capped at 3
-    // because the sharpest crease in the shape is 3.0f (in g_creaseweights[])
-    int maxIsolation = 3;
-    refiner->RefineAdaptive(
-        Far::TopologyRefiner::AdaptiveOptions(maxIsolation));
+    // Patches are constructed from adaptively refined faces, but the processes
+    // of constructing the PatchTable and of applying adaptive refinement have
+    // historically been separate.  Adaptive refinement is applied purely to
+    // satisfy the needs of the desired PatchTable, so options associated with
+    // adaptive refinement should be derived from those specified for the
+    // PatchTable.  This is not a strict requirement, but it will avoid
+    // problems arising from specifying/coordinating the two independently
+    // (especially when dealing with face-varying patches).
 
-    // Generate a set of Far::PatchTable that we will use to evaluate the
-    // surface limit
+    // Initialize options for the PatchTable:
+    //
+    // Choose patches adaptively refined to level 3 since the sharpest crease
+    // in the shape is 3.0f (in g_creaseweights[]), and include the inf-sharp
+    // crease option just to illustrate the need to syncronize options.
+    //
+    int maxPatchLevel = 3;
+
     Far::PatchTableFactory::Options patchOptions;
     patchOptions.SetPatchPrecision<Real>();
+    patchOptions.useInfSharpPatch = true;
     patchOptions.generateVaryingTables = false;
     patchOptions.endCapType =
         Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
 
+    // Initialize corresonding options for adaptive refinement:
+    Far::TopologyRefiner::AdaptiveOptions adaptiveOptions(maxPatchLevel);
+
+    bool assignAdaptiveOptionsExplicitly = false;
+    if (assignAdaptiveOptionsExplicitly) {
+        adaptiveOptions.useInfSharpPatch = true;
+    } else {
+        adaptiveOptions = patchOptions.GetRefineAdaptiveOptions();
+    }
+    assert(adaptiveOptions.useInfSharpPatch == patchOptions.useInfSharpPatch);
+
+    // Apply adaptive refinement and construct the associated PatchTable to
+    // evaluate the limit surface:
+    refiner->RefineAdaptive(adaptiveOptions);
+
     Far::PatchTable const * patchTable =
         Far::PatchTableFactory::Create(*refiner, patchOptions);
 
-    // Compute the total number of points we need to evaluate patchtable.
-    // we use local points around extraordinary features.
+    // Compute the total number of points we need to evaluate the PatchTable.
+    // Approximations at irregular or extraordinary features require the use
+    // of additional points associated with the patches that are referred to
+    // as "local points" (i.e. local to the PatchTable).
     int nRefinerVertices = refiner->GetNumVerticesTotal();
     int nLocalPoints = patchTable->GetNumLocalPoints();
 
@@ -167,7 +194,7 @@ int main(int, char **) {
     std::vector<Vertex> verts(nRefinerVertices + nLocalPoints);
     std::memcpy(&verts[0], g_verts, g_nverts*3*sizeof(Real));
 
-    // Adaptive refinement may result in fewer levels than maxIsolation.
+    // Adaptive refinement may result in fewer levels than the max specified.
     int nRefinedLevels = refiner->GetNumLevels();
 
     // Interpolate vertex primvar data : they are the control vertices
