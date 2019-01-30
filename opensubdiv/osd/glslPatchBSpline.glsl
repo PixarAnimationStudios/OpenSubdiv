@@ -111,7 +111,7 @@ void main()
         cpBezier[14] = outpt[14].v;
         cpBezier[15] = outpt[15].v;
 #endif
-        OsdGetTessLevelsAdaptiveLimitPoints(cpBezier, patchParam,
+        OsdEvalPatchBezierTessLevels(cpBezier, patchParam,
                          tessLevelOuter, tessLevelInner,
                          tessOuterLo, tessOuterHi);
 #else
