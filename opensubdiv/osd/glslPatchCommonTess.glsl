@@ -238,7 +238,7 @@ Osd_EvalQuarticBezierCurveMidPoint(vec3 p0, vec3 p1, vec3 p2, vec3 p3, vec3 p4)
 }
 
 void
-OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
+OsdEvalPatchBezierTessLevels(OsdPerPatchVertexBezier cpBezier[16],
                  ivec3 patchParam, out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
@@ -326,7 +326,7 @@ OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
 }
 
 void
-OsdGetTessLevelsLimitPointsTriangle(vec3 cv[15],
+OsdEvalPatchBezierTriangleTessLevels(vec3 cv[15],
                  ivec3 patchParam, out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
@@ -497,6 +497,32 @@ OsdGetTessLevelsUniformTriangle(ivec3 patchParam,
 }
 
 void
+OsdEvalPatchBezierTessLevels(OsdPerPatchVertexBezier cpBezier[16],
+                 ivec3 patchParam,
+                 out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                 out vec4 tessOuterLo, out vec4 tessOuterHi)
+{
+    OsdEvalPatchBezierTessLevels(cpBezier, patchParam,
+                                 tessOuterLo, tessOuterHi);
+
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
+}
+
+void
+OsdEvalPatchBezierTriangleTessLevels(vec3 cv[15],
+                 ivec3 patchParam,
+                 out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                 out vec4 tessOuterLo, out vec4 tessOuterHi)
+{
+    OsdEvalPatchBezierTriangleTessLevels(cv, patchParam,
+                                         tessOuterLo, tessOuterHi);
+
+    OsdComputeTessLevelsTriangle(tessOuterLo, tessOuterHi,
+                                 tessLevelOuter, tessLevelInner);
+}
+
+void
 OsdGetTessLevelsAdaptiveRefinedPoints(vec3 cpRefined[16], ivec3 patchParam,
                         out vec4 tessLevelOuter, out vec2 tessLevelInner,
                         out vec4 tessOuterLo, out vec4 tessOuterHi)
@@ -508,6 +534,15 @@ OsdGetTessLevelsAdaptiveRefinedPoints(vec3 cpRefined[16], ivec3 patchParam,
                          tessLevelOuter, tessLevelInner);
 }
 
+//  Deprecated -- prefer use of newer Bezier patch equivalent:
+void
+OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
+                 ivec3 patchParam, out vec4 tessOuterLo, out vec4 tessOuterHi)
+{
+    OsdEvalPatchBezierTessLevels(cpBezier, patchParam, tessOuterLo, tessOuterHi);
+}
+
+//  Deprecated -- prefer use of newer Bezier patch equivalent:
 void
 OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
                  ivec3 patchParam,
@@ -521,6 +556,15 @@ OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
                          tessLevelOuter, tessLevelInner);
 }
 
+//  Deprecated -- prefer use of newer Bezier triangle equivalent:
+void
+OsdGetTessLevelsLimitPointsTriangle(vec3 cv[15],
+                 ivec3 patchParam, out vec4 tessOuterLo, out vec4 tessOuterHi)
+{
+    OsdEvalPatchBezierTriangleTessLevels(cv, patchParam, tessOuterLo, tessOuterHi);
+}
+
+//  Deprecated -- prefer use of newer Bezier triangle equivalent:
 void
 OsdGetTessLevelsAdaptiveLimitPointsTriangle(vec3 cv[15],
                  ivec3 patchParam,
