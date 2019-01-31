@@ -38,7 +38,6 @@ list(APPEND PLATFORM_LIBRARIES
 
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
-    "${OPENSUBDIV_INCLUDE_DIR}/opensubdiv"
     "${GLEW_INCLUDE_DIR}"
     "${GLFW_INCLUDE_DIR}"
 )

@@ -35,17 +35,17 @@
 #import <vector>
 #import <memory>
 
-#import <far/error.h>
-#import <osd/mesh.h>
-#import <osd/cpuVertexBuffer.h>
-#import <osd/cpuEvaluator.h>
-#import <osd/cpuPatchTable.h>
-#import <osd/mtlLegacyGregoryPatchTable.h>
-#import <osd/mtlVertexBuffer.h>
-#import <osd/mtlMesh.h>
-#import <osd/mtlPatchTable.h>
-#import <osd/mtlComputeEvaluator.h>
-#import <osd/mtlPatchShaderSource.h>
+#import <opensubdiv/far/error.h>
+#import <opensubdiv/osd/mesh.h>
+#import <opensubdiv/osd/cpuVertexBuffer.h>
+#import <opensubdiv/osd/cpuEvaluator.h>
+#import <opensubdiv/osd/cpuPatchTable.h>
+#import <opensubdiv/osd/mtlLegacyGregoryPatchTable.h>
+#import <opensubdiv/osd/mtlVertexBuffer.h>
+#import <opensubdiv/osd/mtlMesh.h>
+#import <opensubdiv/osd/mtlPatchTable.h>
+#import <opensubdiv/osd/mtlComputeEvaluator.h>
+#import <opensubdiv/osd/mtlPatchShaderSource.h>
 
 #import "../common/simple_math.h"
 #import "../../regression/common/far_utils.h"

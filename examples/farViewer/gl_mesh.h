@@ -27,7 +27,7 @@
 
 #include "../../regression/common/far_utils.h"
 #include "../../regression/common/hbr_utils.h"
-#include <far/patchTable.h>
+#include <opensubdiv/far/patchTable.h>
 
 #include "../common/glUtils.h"
 

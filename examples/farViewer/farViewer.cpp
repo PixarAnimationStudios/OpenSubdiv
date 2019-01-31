@@ -42,12 +42,12 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
 
-#include <far/patchTableFactory.h>
-#include <far/stencilTable.h>
-#include <far/stencilTableFactory.h>
-#include <far/primvarRefiner.h>
+#include <opensubdiv/far/patchTableFactory.h>
+#include <opensubdiv/far/stencilTable.h>
+#include <opensubdiv/far/stencilTableFactory.h>
+#include <opensubdiv/far/primvarRefiner.h>
 
 #include "../../regression/common/far_utils.h"
 #include "../common/stopwatch.h"

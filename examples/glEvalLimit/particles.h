@@ -25,9 +25,9 @@
 #ifndef ST_PARTICLES_H
 #define ST_PARTICLES_H
 
-#include <far/topologyRefiner.h>
-#include <far/patchMap.h>
-#include <osd/types.h>
+#include <opensubdiv/far/topologyRefiner.h>
+#include <opensubdiv/far/patchMap.h>
+#include <opensubdiv/osd/types.h>
 #include <iostream>
 
 //

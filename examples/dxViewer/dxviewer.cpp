@@ -25,38 +25,38 @@
 #include <D3D11.h>
 #include <D3Dcompiler.h>
 
-#include <far/error.h>
+#include <opensubdiv/far/error.h>
 
-#include <osd/cpuD3D11VertexBuffer.h>
-#include <osd/cpuEvaluator.h>
+#include <opensubdiv/osd/cpuD3D11VertexBuffer.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompEvaluator.h>
+    #include <opensubdiv/osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbEvaluator.h>
+    #include <opensubdiv/osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL_DX_INTEROP
-    #include <osd/clD3D11VertexBuffer.h>
-    #include <osd/clEvaluator.h>
+    #include <opensubdiv/osd/clD3D11VertexBuffer.h>
+    #include <opensubdiv/osd/clEvaluator.h>
     #include "../common/clDeviceContext.h"
     CLD3D11DeviceContext g_clDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaD3D11VertexBuffer.h>
-    #include <osd/cudaEvaluator.h>
+    #include <opensubdiv/osd/cudaD3D11VertexBuffer.h>
+    #include <opensubdiv/osd/cudaEvaluator.h>
     #include "../common/cudaDeviceContext.h"
     CudaDeviceContext g_cudaDeviceContext;
 #endif
 
-#include <osd/d3d11VertexBuffer.h>
-#include <osd/d3d11ComputeEvaluator.h>
+#include <opensubdiv/osd/d3d11VertexBuffer.h>
+#include <opensubdiv/osd/d3d11ComputeEvaluator.h>
 
-#include <osd/d3d11Mesh.h>
-#include <osd/d3d11LegacyGregoryPatchTable.h>
+#include <opensubdiv/osd/d3d11Mesh.h>
+#include <opensubdiv/osd/d3d11LegacyGregoryPatchTable.h>
 OpenSubdiv::Osd::D3D11MeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
@@ -68,7 +68,7 @@ OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 #include "../common/d3d11Utils.h"
 #include "../common/d3d11ShaderCache.h"
 
-#include <osd/hlslPatchShaderSource.h>
+#include <opensubdiv/osd/hlslPatchShaderSource.h>
 static const char *shaderSource =
 #include "shader.gen.h"
 ;

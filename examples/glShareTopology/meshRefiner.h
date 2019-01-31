@@ -25,7 +25,7 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_MESH_REFINER_H
 #define OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_MESH_REFINER_H
 
-#include <osd/mesh.h>   // for evaluator cache
+#include <opensubdiv/osd/mesh.h>   // for evaluator cache
 
 template <class EVALUATOR,
           class VERTEX_BUFFER,
