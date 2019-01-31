@@ -35,7 +35,6 @@ set(PLATFORM_LIBRARIES
 
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
-    "${OPENSUBDIV_INCLUDE_DIR}/opensubdiv"
     "${DXSDK_INCLUDE_DIR}"
 )
 

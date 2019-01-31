@@ -25,8 +25,8 @@
 #include "sceneBase.h"
 #include <limits>
 #include "../../regression/common/far_utils.h"
-#include <far/patchTableFactory.h>
-#include <far/stencilTableFactory.h>
+#include <opensubdiv/far/patchTableFactory.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 
 using namespace OpenSubdiv;
 

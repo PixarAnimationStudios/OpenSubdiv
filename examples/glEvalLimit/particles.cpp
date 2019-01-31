@@ -24,9 +24,9 @@
 
 #include "particles.h"
 
-#include <far/ptexIndices.h>
-#include <far/patchMap.h>
-#include <sdc/types.h>
+#include <opensubdiv/far/ptexIndices.h>
+#include <opensubdiv/far/patchMap.h>
+#include <opensubdiv/sdc/types.h>
 
 #include <cassert>
 #include <cmath>

@@ -26,8 +26,8 @@
 #define OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_VBO_H
 
 #include <vector>
-#include <osd/bufferDescriptor.h>
-#include <osd/opengl.h>
+#include <opensubdiv/osd/bufferDescriptor.h>
+#include <opensubdiv/osd/opengl.h>
 
 template <class VERTEX_BUFFER, class DEVICE_CONTEXT>
 class VBO {

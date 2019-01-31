@@ -24,7 +24,7 @@
 
 
 #import "ViewController.h"
-#import <far/patchDescriptor.h>
+#import <opensubdiv/far/patchDescriptor.h>
 
 using namespace OpenSubdiv::OPENSUBDIV_VERSION;
 

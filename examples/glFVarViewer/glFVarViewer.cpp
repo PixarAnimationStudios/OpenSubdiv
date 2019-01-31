@@ -28,11 +28,11 @@
 GLFWwindow* g_window = 0;
 GLFWmonitor* g_primary = 0;
 
-#include <far/error.h>
-#include <osd/cpuEvaluator.h>
-#include <osd/cpuVertexBuffer.h>
-#include <osd/cpuGLVertexBuffer.h>
-#include <osd/glMesh.h>
+#include <opensubdiv/far/error.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
+#include <opensubdiv/osd/cpuVertexBuffer.h>
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/osd/glMesh.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 
 #include "../../regression/common/far_utils.h"
@@ -42,7 +42,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 #include "../common/glHud.h"
 #include "../common/glShaderCache.h"
 
-#include <osd/glslPatchShaderSource.h>
+#include <opensubdiv/osd/glslPatchShaderSource.h>
 static const char *shaderSource =
 #if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
     #include "shader.gen.h"

@@ -28,47 +28,47 @@
 GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
-#include <far/error.h>
+#include <opensubdiv/far/error.h>
 
-#include <osd/cpuEvaluator.h>
-#include <osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
 
 #ifdef OPENSUBDIV_HAS_OPENMP
-    #include <osd/ompEvaluator.h>
+    #include <opensubdiv/osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbEvaluator.h>
+    #include <opensubdiv/osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clGLVertexBuffer.h>
-    #include <osd/clEvaluator.h>
+    #include <opensubdiv/osd/clGLVertexBuffer.h>
+    #include <opensubdiv/osd/clEvaluator.h>
     #include "../common/clDeviceContext.h"
 
     CLDeviceContext g_clDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaGLVertexBuffer.h>
-    #include <osd/cudaEvaluator.h>
+    #include <opensubdiv/osd/cudaGLVertexBuffer.h>
+    #include <opensubdiv/osd/cudaEvaluator.h>
     #include "../common/cudaDeviceContext.h"
 
     CudaDeviceContext g_cudaDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glXFBEvaluator.h>
-    #include <osd/glVertexBuffer.h>
+    #include <opensubdiv/osd/glXFBEvaluator.h>
+    #include <opensubdiv/osd/glVertexBuffer.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glComputeEvaluator.h>
-    #include <osd/glVertexBuffer.h>
+    #include <opensubdiv/osd/glComputeEvaluator.h>
+    #include <opensubdiv/osd/glVertexBuffer.h>
 #endif
 
-#include <osd/glMesh.h>
-#include <osd/glLegacyGregoryPatchTable.h>
+#include <opensubdiv/osd/glMesh.h>
+#include <opensubdiv/osd/glLegacyGregoryPatchTable.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
@@ -80,7 +80,7 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 #include "../common/objAnim.h"
 #include "../common/simple_math.h"
 #include "../common/stopwatch.h"
-#include <osd/glslPatchShaderSource.h>
+#include <opensubdiv/osd/glslPatchShaderSource.h>
 
 
 

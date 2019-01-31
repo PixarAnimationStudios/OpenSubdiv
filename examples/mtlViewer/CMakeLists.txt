@@ -62,7 +62,6 @@ endif()
 
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
-    "${OPENSUBDIV_INCLUDE_DIR}/opensubdiv"
     "${METAL_INCLUDE_DIR}"
 )
 

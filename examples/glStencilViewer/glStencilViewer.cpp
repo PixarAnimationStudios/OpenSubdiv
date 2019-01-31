@@ -34,51 +34,51 @@ GLFWmonitor* g_primary=0;
 #include "../common/glHud.h"
 #include "../common/glControlMeshDisplay.h"
 
-#include <far/patchTableFactory.h>
-#include <far/ptexIndices.h>
-#include <far/stencilTableFactory.h>
+#include <opensubdiv/far/patchTableFactory.h>
+#include <opensubdiv/far/ptexIndices.h>
+#include <opensubdiv/far/stencilTableFactory.h>
 
-#include <osd/cpuGLVertexBuffer.h>
-#include <osd/cpuVertexBuffer.h>
-#include <osd/cpuEvaluator.h>
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/osd/cpuVertexBuffer.h>
+#include <opensubdiv/osd/cpuEvaluator.h>
 
 #if defined(OPENSUBDIV_HAS_OPENMP)
-    #include <osd/ompEvaluator.h>
+    #include <opensubdiv/osd/ompEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_TBB
-    #include <osd/tbbEvaluator.h>
+    #include <opensubdiv/osd/tbbEvaluator.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-    #include <osd/cudaVertexBuffer.h>
-    #include <osd/cudaGLVertexBuffer.h>
-    #include <osd/cudaEvaluator.h>
+    #include <opensubdiv/osd/cudaVertexBuffer.h>
+    #include <opensubdiv/osd/cudaGLVertexBuffer.h>
+    #include <opensubdiv/osd/cudaEvaluator.h>
     #include "../common/cudaDeviceContext.h"
 
     CudaDeviceContext g_cudaDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-    #include <osd/clVertexBuffer.h>
-    #include <osd/clGLVertexBuffer.h>
-    #include <osd/clEvaluator.h>
+    #include <opensubdiv/osd/clVertexBuffer.h>
+    #include <opensubdiv/osd/clGLVertexBuffer.h>
+    #include <opensubdiv/osd/clEvaluator.h>
     #include "../common/clDeviceContext.h"
 
     CLDeviceContext g_clDeviceContext;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    #include <osd/glXFBEvaluator.h>
-    #include <osd/glVertexBuffer.h>
+    #include <opensubdiv/osd/glXFBEvaluator.h>
+    #include <opensubdiv/osd/glVertexBuffer.h>
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    #include <osd/glComputeEvaluator.h>
-    #include <osd/glVertexBuffer.h>
+    #include <opensubdiv/osd/glComputeEvaluator.h>
+    #include <opensubdiv/osd/glVertexBuffer.h>
 #endif
 
-#include <osd/mesh.h>
+#include <opensubdiv/osd/mesh.h>
 
 #include <cfloat>
 #include <list>
