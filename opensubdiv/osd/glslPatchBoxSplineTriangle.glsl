@@ -92,7 +92,7 @@ void main()
         for (int i=0; i<15; ++i) {
             bezcv[i] = outpt[i].v.P;
         }
-        OsdGetTessLevelsAdaptiveLimitPointsTriangle(
+        OsdEvalPatchBezierTriangleTessLevels(
                          bezcv, patchParam,
                          tessLevelOuter, tessLevelInner,
                          tessOuterLo, tessOuterHi);

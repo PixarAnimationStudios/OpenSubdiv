@@ -107,7 +107,7 @@ void main()
         cv[13] = outpt[12].v.P;
         cv[14] = outpt[10].v.P;
 
-        OsdGetTessLevelsAdaptiveLimitPointsTriangle(
+        OsdEvalPatchBezierTriangleTessLevels(
 		         cv, patchParam,
                          tessLevelOuter, tessLevelInner,
                          tessOuterLo, tessOuterHi);
