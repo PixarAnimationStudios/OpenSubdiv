@@ -26,83 +26,69 @@
 
 #include <far/ptexIndices.h>
 #include <far/patchMap.h>
+#include <sdc/types.h>
 
+#include <cassert>
 #include <cmath>
+
+using namespace OpenSubdiv;
+
+void
+UpdateParticle(float speed,
+               STParticles::Position *p,
+               float *dp,
+               Osd::PatchCoord *patchCoord,
+               int regFaceSize,
+               std::vector<STParticles::FaceInfo> const &adjacency,
+               Far::PatchMap const *patchMap);
 
 #ifdef OPENSUBDIV_HAS_TBB
 #include <tbb/parallel_for.h>
-#include <tbb/atomic.h>
-tbb::atomic<int> g_tbbCounter;
 class TbbUpdateKernel {
 public:
     TbbUpdateKernel(float speed,
                     STParticles::Position *positions,
                     float *velocities,
+                    Osd::PatchCoord *patchCoords,
+                    int regFaceSize,
                     std::vector<STParticles::FaceInfo> const &adjacency,
-                    OpenSubdiv::Osd::PatchCoord *patchCoords,
-                    OpenSubdiv::Far::PatchMap const *patchMap) :
+                    Far::PatchMap const *patchMap) :
         _speed(speed), _positions(positions), _velocities(velocities),
-        _adjacency(adjacency), _patchCoords(patchCoords), _patchMap(patchMap) {
+        _patchCoords(patchCoords),
+        _regFaceSize(regFaceSize), _adjacency(adjacency), _patchMap(patchMap) {
     }
 
     void operator () (tbb::blocked_range<int> const &r) const {
         for (int i = r.begin(); i < r.end(); ++i) {
             STParticles::Position * p = _positions + i;
             float    *dp = _velocities + i*2;
+            Osd::PatchCoord *patchCoord = &_patchCoords[i];
 
-            // apply velocity
-            p->s += dp[0] * _speed;
-            p->t += dp[1] * _speed;
-
-            // make sure particles can't skip more than 1 face boundary at a time
-            assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f));
-
-            // check if the particle is jumping a boundary
-            // note: a particle can jump 2 edges at a time (a "diagonal" jump)
-            //       this is not treated here.
-            int edge = -1;
-            if (p->s >= 1.0f) edge = 1;
-            if (p->s <= 0.0f) edge = 3;
-            if (p->t >= 1.0f) edge = 2;
-            if (p->t <= 0.0f) edge = 0;
-
-            if (edge>=0) {
-                // warp the particle to the other side of the boundary
-                STParticles::WarpParticle(_adjacency, edge, p, dp);
-            }
-            assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
-
-            // resolve particle positions into patch handles
-            OpenSubdiv::Far::PatchTable::PatchHandle const *handle =
-                _patchMap->FindPatch(p->ptexIndex, p->s, p->t);
-            if (handle) {
-                int index = g_tbbCounter.fetch_and_add(1);
-                _patchCoords[index] =
-                    OpenSubdiv::Osd::PatchCoord(*handle, p->s, p->t);
-            }
+            UpdateParticle(_speed, p, dp, patchCoord, _regFaceSize, _adjacency, _patchMap);
         }
     }
 private:
     float _speed;
     STParticles::Position *_positions;
     float *_velocities;
+    Osd::PatchCoord *_patchCoords;
+    int _regFaceSize;
     std::vector<STParticles::FaceInfo> const &_adjacency;
-    OpenSubdiv::Osd::PatchCoord *_patchCoords;
-    OpenSubdiv::Far::PatchMap const *_patchMap;
+    Far::PatchMap const *_patchMap;
 };
 #endif
 
-#include <cassert>
-
 STParticles::STParticles(Refiner const & refiner,
                          PatchTable const *patchTable,
-                         int nParticles, bool centered) :
-    _speed(1.0f) {
+                         int nParticles, bool centered)
+    : _speed(1.0f)
+    , _regFaceSize(
+          Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType())) {
 
-    OpenSubdiv::Far::PtexIndices ptexIndices(refiner);
+    Far::PtexIndices ptexIndices(refiner);
 
     // Create a far patch map
-    _patchMap = new OpenSubdiv::Far::PatchMap(*patchTable);
+    _patchMap = new Far::PatchMap(*patchTable);
 
     int nPtexFaces = ptexIndices.GetNumFaces();
 
@@ -116,8 +102,18 @@ STParticles::STParticles(Refiner const & refiner,
         for (int i = 0; i < nParticles; ++i) {
             pos->ptexIndex = std::min(
                 (int)(((float)rand()/(float)RAND_MAX) * nPtexFaces), nPtexFaces-1);
-            pos->s = centered ? 0.5f : (float)rand()/(float)RAND_MAX;
-            pos->t = centered ? 0.5f : (float)rand()/(float)RAND_MAX;
+            if (_regFaceSize==3) {
+                pos->s = centered ? 1.0f/3.0f : (float)rand()/(float)RAND_MAX;
+                pos->t = centered ? 1.0f/3.0f : (float)rand()/(float)RAND_MAX;
+                // Keep locations within the triangular parametric domain
+                if ((pos->s+pos->t) >= 1.0f) {
+                    pos->s = 1.0f - pos->s;
+                    pos->t = 1.0f - pos->t;
+                }
+            } else {
+                pos->s = centered ? 0.5f : (float)rand()/(float)RAND_MAX;
+                pos->t = centered ? 0.5f : (float)rand()/(float)RAND_MAX;
+            }
             ++pos;
         }
     }
@@ -136,10 +132,10 @@ STParticles::STParticles(Refiner const & refiner,
         }
     }
 
-    {   // initialize topology adjacency
+    if (_regFaceSize == 4) {   // initialize topology adjacency
         _adjacency.resize(nPtexFaces);
 
-        OpenSubdiv::Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
+        Far::TopologyLevel const & refBaseLevel = refiner.GetLevel(0);
 
         int nfaces = refBaseLevel.GetNumFaces(),
            adjfaces[4],
@@ -147,9 +143,9 @@ STParticles::STParticles(Refiner const & refiner,
 
         for (int face=0, ptexface=0; face<nfaces; ++face) {
 
-            OpenSubdiv::Far::ConstIndexArray fverts = refBaseLevel.GetFaceVertices(face);
+            Far::ConstIndexArray fverts = refBaseLevel.GetFaceVertices(face);
 
-            if (fverts.size()==4) {
+            if (fverts.size()==_regFaceSize) {
                 ptexIndices.GetAdjacency(refiner, face, 0, adjfaces, adjedges);
                 _adjacency[ptexface] = FaceInfo(adjfaces, adjedges, false);
                 ++ptexface;
@@ -166,6 +162,10 @@ STParticles::STParticles(Refiner const & refiner,
     //std::cout << *this;
 }
 
+STParticles::~STParticles() {
+    delete _patchMap;
+}
+
 inline void
 FlipS(STParticles::Position * p, float * dp) {
     p->s = 1.0f-p->s;
@@ -175,7 +175,7 @@ FlipS(STParticles::Position * p, float * dp) {
 inline void
 FlipT(STParticles::Position * p, float * dp) {
     p->t = 1.0f-p->t;
-    dp[1] = - dp[1];
+    dp[1] = -dp[1];
 }
 
 inline void
@@ -185,8 +185,7 @@ SwapST(STParticles::Position * p, float * dp) {
 }
 
 inline void
-Rotate(int rot, STParticles::Position * p, float * dp) {
-
+RotateQuad(int rot, STParticles::Position * p, float * dp) {
     switch (rot & 3) {
         default: return;
         case 1: FlipS(p, dp); SwapST(p, dp); break;
@@ -197,7 +196,7 @@ Rotate(int rot, STParticles::Position * p, float * dp) {
 }
 
 inline void
-Trim(STParticles::Position * p) {
+TrimQuad(STParticles::Position * p) {
     if (p->s <0.0f) p->s = 1.0f + p->s;
     if (p->s>=1.0f) p->s = p->s - 1.0f;
     if (p->t <0.0f) p->t = 1.0f + p->t;
@@ -206,13 +205,13 @@ Trim(STParticles::Position * p) {
 }
 
 inline void
-Clamp(STParticles::Position * p) {
-         if (p->s<0.0f) {
+ClampQuad(STParticles::Position * p) {
+    if (p->s<0.0f) {
         p->s=0.0f; 
     } else if (p->s>1.0f) {
         p->s=1.0f;
     }
-         if (p->t<0.0f) {
+    if (p->t<0.0f) {
         p->t=0.0f; 
     } else if (p->t>1.0f) {
         p->t=1.0f;
@@ -220,7 +219,7 @@ Clamp(STParticles::Position * p) {
 }
 
 inline void
-Bounce(int edge, STParticles::Position * p, float * dp) {
+BounceQuad(int edge, STParticles::Position * p, float * dp) {
     switch (edge) {
         case 0: assert(p->t<=0.0f); p->t = -p->t;       dp[1] = -dp[1]; break;
         case 1: assert(p->s>=1.0f); p->s = 2.0f - p->s; dp[0] = -dp[0]; break;
@@ -230,25 +229,25 @@ Bounce(int edge, STParticles::Position * p, float * dp) {
     
     // because 'diagonal' cases aren't handled, stick particles to edges when
     // if they cross 2 boundaries
-    Clamp(p);
+    ClampQuad(p);
     assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 }
 
 void
-STParticles::WarpParticle(std::vector<FaceInfo> const &adjacency,
-                          int edge, Position * p, float * dp) {
+WarpQuad(std::vector<STParticles::FaceInfo> const &adjacency,
+         int edge, STParticles::Position * p, float * dp) {
     assert(p->ptexIndex<(int)adjacency.size() && (edge>=0 && edge<4));
     
-    FaceInfo const & f = adjacency[p->ptexIndex];
+    STParticles::FaceInfo const & f = adjacency[p->ptexIndex];
 
     int afid = f.adjface(edge),
         aeid = f.adjedge(edge);
 
     if (afid==-1) {
         // boundary detected: bounce the particle
-        Bounce(edge, p, dp);
+        BounceQuad(edge, p, dp);
     } else {
-        FaceInfo const & af = adjacency[afid];
+        STParticles::FaceInfo const & af = adjacency[afid];
         int rot = edge - aeid + 2;
 
         bool fIsSubface = f.isSubface(),
@@ -256,18 +255,144 @@ STParticles::WarpParticle(std::vector<FaceInfo> const &adjacency,
 
         if (fIsSubface != afIsSubface) {
             // XXXX manuelk domain should be split properly
-            Bounce(edge, p, dp);
+            BounceQuad(edge, p, dp);
         } else {
-            Trim(p);
-            Rotate(rot, p, dp);
+            TrimQuad(p);
+            RotateQuad(rot, p, dp);
             p->ptexIndex = afid; // move particle to adjacent face
         }
     }
     assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
 }
 
-STParticles::~STParticles() {
-    delete _patchMap;
+void
+ConstrainQuad(STParticles::Position *p,
+              float *dp,
+              std::vector<STParticles::FaceInfo> const &adjacency) {
+
+    // make sure particles can't skip more than 1 face boundary at a time
+    assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f));
+
+    // check if the particle is jumping a boundary
+    // note: a particle can jump 2 edges at a time (a "diagonal" jump)
+    //       this is not treated here.
+    int edge = -1;
+    if (p->s >= 1.0f) edge = 1;
+    if (p->s <= 0.0f) edge = 3;
+    if (p->t >= 1.0f) edge = 2;
+    if (p->t <= 0.0f) edge = 0;
+
+    if (edge>=0) {
+        // warp the particle to the other side of the boundary
+        WarpQuad(adjacency, edge, p, dp);
+    }
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
+}
+
+inline void
+ClampTri(STParticles::Position * p) {
+    if (p->s<0.0f) {
+        p->s=0.0f;
+    } else if (p->s>1.0f) {
+        p->s=1.0f;
+    }
+    if (p->t<0.0f) {
+        p->t=0.0f;
+    } else if (p->t>1.0f) {
+        p->t=1.0f;
+    }
+    if ((p->s+p->t)>=1.0f) {
+        p->s = 1.0f-p->t;
+        p->t = 1.0f-p->s;
+    }
+}
+
+inline void
+BounceTri(int edge, STParticles::Position * p, float * dp) {
+    switch (edge) {
+        case 0:
+            assert(p->t<=0.0f);
+            p->t = -p->t; dp[1] = -dp[1];
+            break;
+        case 1:
+            assert((p->s+p->t)>=1.0f);
+            p->s = 1.0f-p->s; dp[0] = -dp[0];
+            p->t = 1.0f-p->t; dp[1] = -dp[1];
+            break;
+        case 2:
+            assert(p->s<=0.0f);
+            p->s = -p->s; dp[0] = -dp[0];
+            break;
+    }
+
+    // because 'diagonal' cases aren't handled, stick particles to edges when
+    // if they cross 2 boundaries
+    ClampTri(p);
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f) &&
+           ((p->s+p->t)<=1.0f));
+}
+
+void
+WarpTri(std::vector<STParticles::FaceInfo> const &,
+        int edge, STParticles::Position * p, float * dp) {
+
+    // For now, particles on triangle meshes just bounce.
+    BounceTri(edge, p, dp);
+    assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f) &&
+           ((p->s+p->t)<=1.0f));
+}
+
+void
+ConstrainTri(STParticles::Position *p,
+             float *dp,
+             std::vector<STParticles::FaceInfo> const &adjacency) {
+
+    // make sure particles can't skip more than 1 face boundary at a time
+    assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f) &&
+           ((p->s+p->t)>-2.0f) && ((p->s+p->t)<2.0f));
+
+    // check if the particle is jumping a boundary
+    // note: a particle can jump 2 edges at a time (a "diagonal" jump)
+    //       this is not treated here.
+    int edge = -1;
+    if (p->t <= 0.0f) edge = 0;
+    if (p->s <= 0.0f) edge = 2;
+    if ((p->s+p->t) >= 1.0f) edge = 1;
+
+    if (edge>=0) {
+        // warp the particle to the other side of the boundary
+        WarpTri(adjacency, edge, p, dp);
+    }
+
+    assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f) &&
+           ((p->s+p->t)>-2.0f) && ((p->s+p->t)<2.0f));
+}
+
+void
+UpdateParticle(float speed,
+               STParticles::Position *p,
+               float *dp,
+               Osd::PatchCoord *patchCoord,
+               int regFaceSize,
+               std::vector<STParticles::FaceInfo> const &adjacency,
+               Far::PatchMap const *patchMap) {
+
+    // apply velocity
+    p->s += dp[0] * speed;
+    p->t += dp[1] * speed;
+
+    if (regFaceSize == 3) {
+        ConstrainTri(p, dp, adjacency);
+    } else {
+        ConstrainQuad(p, dp, adjacency);
+    }
+
+    // resolve particle positions into patch handles
+    Far::PatchTable::PatchHandle const *handle =
+        patchMap->FindPatch(p->ptexIndex, p->s, p->t);
+    if (handle) {
+        *patchCoord = Osd::PatchCoord(*handle, p->s, p->t);
+    }
 }
 
 void
@@ -276,52 +401,21 @@ STParticles::Update(float deltaTime) {
     if (deltaTime == 0) return;
     float speed = GetSpeed() * std::max(0.001f, std::min(deltaTime, 0.5f));
 
-    _patchCoords.clear();
+    _patchCoords.resize(GetNumParticles());
 
-    // XXX: this process should be parallelized.
 #ifdef OPENSUBDIV_HAS_TBB
-
-    _patchCoords.resize((int)GetNumParticles());
     TbbUpdateKernel kernel(speed, &_positions[0], &_velocities[0],
-                           _adjacency, &_patchCoords[0], _patchMap);;
-    g_tbbCounter = 0;
+                           &_patchCoords[0],
+                           _regFaceSize, _adjacency, _patchMap);
     tbb::blocked_range<int> range(0, GetNumParticles(), 256);
     tbb::parallel_for(range, kernel);
-    _patchCoords.resize(g_tbbCounter);
 #else
-    Position *  p = &_positions[0];
-    float    * dp = &_velocities[0];
-    for (int i=0; i<GetNumParticles(); ++i, ++p, dp+=2) {
-        // apply velocity
-        p->s += dp[0] * speed;
-        p->t += dp[1] * speed;
+    for (int i=0; i<GetNumParticles(); ++i) {
+        Position *  p = &_positions[i];
+        float    * dp = &_velocities[i*2];
+        Osd::PatchCoord *patchCoord = &_patchCoords[i];
 
-        // make sure particles can't skip more than 1 face boundary at a time
-        assert((p->s>-2.0f) && (p->s<2.0f) && (p->t>-2.0f) && (p->t<2.0f));
-
-        // check if the particle is jumping a boundary
-        // note: a particle can jump 2 edges at a time (a "diagonal" jump)
-        //       this is not treated here.
-        int edge = -1;
-
-        if (p->s >= 1.0f) edge = 1;
-        if (p->s <= 0.0f) edge = 3;
-        if (p->t >= 1.0f) edge = 2;
-        if (p->t <= 0.0f) edge = 0;
-
-        if (edge>=0) {
-            // warp the particle to the other side of the boundary
-            WarpParticle(_adjacency, edge, p, dp);
-        }
-        assert((p->s>=0.0f) && (p->s<=1.0f) && (p->t>=0.0f) && (p->t<=1.0f));
-
-        // resolve particle positions into patch handles
-        OpenSubdiv::Far::PatchTable::PatchHandle const *handle =
-            _patchMap->FindPatch(p->ptexIndex, p->s, p->t);
-        if (handle) {
-            _patchCoords.push_back(
-                OpenSubdiv::Osd::PatchCoord(*handle, p->s, p->t));
-        }
+        UpdateParticle(speed, p, dp, patchCoord, _regFaceSize, _adjacency, _patchMap);
     }
 #endif
 }

@@ -148,9 +148,6 @@ public:
 
     friend std::ostream & operator << (std::ostream & os, STParticles const & f);
 
-    static void WarpParticle(std::vector<FaceInfo> const &adjacency,
-                             int edge, Position * p, float * dp);
-
 private:
 
     //
@@ -163,6 +160,7 @@ private:
     std::vector<OpenSubdiv::Osd::PatchCoord> _patchCoords;
 
     float _speed;  // velocity multiplier
+    int _regFaceSize;
 
     friend std::ostream & operator << (std::ostream & os, FaceInfo const & f);
 

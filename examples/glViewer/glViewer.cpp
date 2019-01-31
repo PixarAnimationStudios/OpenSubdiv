@@ -1680,13 +1680,13 @@ int main(int argc, char ** argv) {
             defaultScheme = kLoop;
         }
         else {
-            std::ifstream ifs(argv[1]);
+            std::ifstream ifs(argv[i]);
             if (ifs) {
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
                 str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[1], str.c_str(), defaultScheme));
+                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
             }
         }
     }
