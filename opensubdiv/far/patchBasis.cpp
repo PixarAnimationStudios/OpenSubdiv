@@ -775,129 +775,188 @@ namespace {
         //  Determine boundary edges and vertices from the lower 3 and upper
         //  2 bits of the 5-bit mask:
         //
-        bool edgeIsBoundary[3 + 2];  // +2 filled in to avoid +1 and +2 mod 3
-        bool vertexIsBoundary[3];
-
-        bool lowerBits[3];
-        lowerBits[0] = (boundaryMask & 0x1) != 0;
-        lowerBits[1] = (boundaryMask & 0x2) != 0;
-        lowerBits[2] = (boundaryMask & 0x4) != 0;
-
         int upperBits = (boundaryMask >> 3) & 0x3;
-        if (upperBits == 0) {
-            //  Boundary edges only:
-            for (int i = 0; i < 3; ++i) {
-                edgeIsBoundary[i] = lowerBits[i];
-                vertexIsBoundary[i] = false;
-            }
-        } else if (upperBits == 1) {
+        int lowerBits = boundaryMask & 7;
+
+        int eBits = lowerBits;
+        int vBits = 0;
+
+        if (upperBits == 1) {
             //  Boundary vertices only:
-            for (int i = 0; i < 3; ++i) {
-                vertexIsBoundary[i] = lowerBits[i];
-                edgeIsBoundary[i] = false;
-            }
+            vBits = eBits;
+            eBits = 0;
         } else if (upperBits == 2) {
-            //  Boundary edge and opposite boundary vertex:
-            edgeIsBoundary[0] = vertexIsBoundary[2] = lowerBits[0];
-            edgeIsBoundary[1] = vertexIsBoundary[0] = lowerBits[1];
-            edgeIsBoundary[2] = vertexIsBoundary[1] = lowerBits[2];
+            //  Opposite vertex bit is edge bit rotated one to the right:
+            vBits = ((eBits & 1) << 2) | (eBits >> 1);
         }
-        //  Wrap the 2 additional values to avoid modulo 3 in the edge tests:
-        edgeIsBoundary[3] = edgeIsBoundary[0];
-        edgeIsBoundary[4] = edgeIsBoundary[1];
+
+        bool edge0IsBoundary = (eBits & 1) != 0;
+        bool edge1IsBoundary = (eBits & 2) != 0;
+        bool edge2IsBoundary = (eBits & 4) != 0;
 
         //
-        //  Adjust weights for the 4 boundary points (eB) and 3 interior points
-        //  (eI) to account for the 3 phantom points (eP) adjacent to each
+        //  Adjust weights for the 4 boundary points and 3 interior points
+        //  to account for the 3 phantom points adjacent to each
         //  boundary edge:
         //
-        int const eP[3][3] = { {  0, 1, 2 }, {  6, 9, 11  }, {  10, 7, 3 } };
-        int const eB[3][4] = { {3, 4, 5, 6}, {2, 5, 8, 10 }, {11, 8, 4, 0} };
-        int const eI[3][3] = { {  7, 8, 9 }, {  1, 4, 7   }, {   9, 5, 1 } };
-
-        for (int i = 0; i < 3; ++i) {
-            if (edgeIsBoundary[i]) {
-                int const * iPhantom  = eP[i];
-                int const * iBoundary = eB[i];
-                int const * iInterior = eI[i];
-
-                //  Adjust weights for points contributing to phantom point
-                //  P0 -- extrapolated according to the presence of adj edge:
-                REAL w0 = weights[iPhantom[0]];
-                if (edgeIsBoundary[i + 2]) {
-                    //  P0 = B1 + (B1 - I1)
-                    weights[iBoundary[1]] += w0;
-                    weights[iBoundary[1]] += w0;
-                    weights[iInterior[1]] -= w0;
-                } else {
-                    //  P0 = B1 + (B0 - I0)
-                    weights[iBoundary[1]] += w0;
-                    weights[iBoundary[0]] += w0;
-                    weights[iInterior[0]] -= w0;
-                }
-
-                //  Adjust weights for points contributing to phantom point
-                //  P1 = B1 + (B2 - I1)
-                REAL w1 = weights[iPhantom[1]];
-                weights[iBoundary[1]] += w1;
-                weights[iBoundary[2]] += w1;
-                weights[iInterior[1]] -= w1;
-
-                //  Adjust weights for points contributing to phantom point
-                //  P2 -- extrapolated according to the presence of adj edge:
-                REAL w2 = weights[iPhantom[2]];
-                if (edgeIsBoundary[i + 1]) {
-                    //  P2 = B2 + (B2 - I1)
-                    weights[iBoundary[2]] += w2;
-                    weights[iBoundary[2]] += w2;
-                    weights[iInterior[1]] -= w2;
-                } else {
-                    //  P2 = B2 + (B3 - I2)
-                    weights[iBoundary[2]] += w2;
-                    weights[iBoundary[3]] += w2;
-                    weights[iInterior[2]] -= w2;
-                }
-
-                //  Clear weights for the phantom points:
-                weights[iPhantom[0]] = 0.0f;
-                weights[iPhantom[1]] = 0.0f;
-                weights[iPhantom[2]] = 0.0f;
+        if (edge0IsBoundary) {
+            REAL w0 = weights[0];
+            if (edge2IsBoundary) {
+                //  P0 = B1 + (B1 - I1)
+                weights[4] += w0;
+                weights[4] += w0;
+                weights[8] -= w0;
+            } else {
+                //  P0 = B1 + (B0 - I0)
+                weights[4] += w0;
+                weights[3] += w0;
+                weights[7] -= w0;
             }
+
+            //  P1 = B1 + (B2 - I1)
+            REAL w1 = weights[1];
+            weights[4] += w1;
+            weights[5] += w1;
+            weights[8] -= w1;
+
+            REAL w2 = weights[2];
+            if (edge1IsBoundary) {
+                //  P2 = B2 + (B2 - I1)
+                weights[5] += w2;
+                weights[5] += w2;
+                weights[8] -= w2;
+            } else {
+                //  P2 = B2 + (B3 - I2)
+                weights[5] += w2;
+                weights[6] += w2;
+                weights[9] -= w2;
+            }
+            //  Clear weights for the phantom points:
+            weights[0] = weights[1] = weights[2] = 0.0f;
+        }
+        if (edge1IsBoundary) {
+            REAL w0 = weights[6];
+            if (edge2IsBoundary) {
+                //  P0 = B1 + (B1 - I1)
+                weights[5] += w0;
+                weights[5] += w0;
+                weights[4] -= w0;
+            } else {
+                //  P0 = B1 + (B0 - I0)
+                weights[5] += w0;
+                weights[2] += w0;
+                weights[1] -= w0;
+            }
+
+            //  P1 = B1 + (B2 - I1)
+            REAL w1 = weights[9];
+            weights[5] += w1;
+            weights[8] += w1;
+            weights[4] -= w1;
+
+            REAL w2 = weights[11];
+            if (edge1IsBoundary) {
+                //  P2 = B2 + (B2 - I1)
+                weights[8] += w2;
+                weights[8] += w2;
+                weights[4] -= w2;
+            } else {
+                //  P2 = B2 + (B3 - I2)
+                weights[8]  += w2;
+                weights[10] += w2;
+                weights[7]  -= w2;
+            }
+            //  Clear weights for the phantom points:
+            weights[6] = weights[9] = weights[11] = 0.0f;
+        }
+        if (edge2IsBoundary) {
+            REAL w0 = weights[10];
+            if (edge2IsBoundary) {
+                //  P0 = B1 + (B1 - I1)
+                weights[8] += w0;
+                weights[8] += w0;
+                weights[5] -= w0;
+            } else {
+                //  P0 = B1 + (B0 - I0)
+                weights[8]  += w0;
+                weights[11] += w0;
+                weights[9]  -= w0;
+            }
+
+            //  P1 = B1 + (B2 - I1)
+            REAL w1 = weights[7];
+            weights[8] += w1;
+            weights[4] += w1;
+            weights[5] -= w1;
+
+            REAL w2 = weights[3];
+            if (edge1IsBoundary) {
+                //  P2 = B2 + (B2 - I1)
+                weights[4] += w2;
+                weights[4] += w2;
+                weights[5] -= w2;
+            } else {
+                //  P2 = B2 + (B3 - I2)
+                weights[4] += w2;
+                weights[0] += w2;
+                weights[1] -= w2;
+            }
+            //  Clear weights for the phantom points:
+            weights[10] = weights[7] = weights[3] = 0.0f;
         }
 
         //
-        //  Adjust weights for the 3 boundary points (vB) and the 2 interior
-        //  points (vI) to account for the 2 phantom points (vP) adjacent to
+        //  Adjust weights for the 3 boundary points and the 2 interior
+        //  points to account for the 2 phantom points adjacent to
         //  each boundary vertex:
         //
-        int const vP[3][2] = { {   3, 0  }, {   2, 6  }, {  11, 10  } };
-        int const vB[3][3] = { { 7, 4, 1 }, { 1, 5, 9 }, { 9,  8, 7 } };
-        int const vI[3][2] = { {   8, 5  }, {   4, 8  }, {   5,  4  } };
+        if ((vBits & 1) != 0) {
+            //  P0 = B1 + (B0 - I0)
+            REAL w0 = weights[3];
+            weights[4] += w0;
+            weights[7] += w0;
+            weights[8] -= w0;
 
-        for (int i = 0; i < 3; ++i) {
-            if (vertexIsBoundary[i]) {
-                int const * iPhantom  = vP[i];
-                int const * iBoundary = vB[i];
-                int const * iInterior = vI[i];
+            //  P1 = B1 + (B2 - I1)
+            REAL w1 = weights[0];
+            weights[4] += w1;
+            weights[1] += w1;
+            weights[5] -= w1;
 
-                //  Adjust weights for points contributing to phantom point
-                //  P0 = B1 + (B0 - I0)
-                REAL w0 = weights[iPhantom[0]];
-                weights[iBoundary[1]] += w0;
-                weights[iBoundary[0]] += w0;
-                weights[iInterior[0]] -= w0;
+            //  Clear weights for the phantom points:
+            weights[3] = weights[0] = 0.0f;
+        }
+        if ((vBits & 2) != 0) {
+            //  P0 = B1 + (B0 - I0)
+            REAL w0 = weights[2];
+            weights[5] += w0;
+            weights[1] += w0;
+            weights[4] -= w0;
 
-                //  Adjust weights for points contributing to phantom point
-                //  P1 = B1 + (B2 - I1)
-                REAL w1 = weights[iPhantom[1]];
-                weights[iBoundary[1]] += w1;
-                weights[iBoundary[2]] += w1;
-                weights[iInterior[1]] -= w1;
+            //  P1 = B1 + (B2 - I1)
+            REAL w1 = weights[6];
+            weights[5] += w1;
+            weights[9] += w1;
+            weights[8] -= w1;
 
-                //  Clear weights for the phantom points:
-                weights[iPhantom[0]] = 0.0f;
-                weights[iPhantom[1]] = 0.0f;
-            }
+            //  Clear weights for the phantom points:
+            weights[2] = weights[6] = 0.0f;
+        }
+        if ((vBits & 4) != 0) {
+            //  P0 = B1 + (B0 - I0)
+            REAL w0 = weights[11];
+            weights[8] += w0;
+            weights[9] += w0;
+            weights[5] -= w0;
+
+            //  P1 = B1 + (B2 - I1)
+            REAL w1 = weights[10];
+            weights[8] += w1;
+            weights[7] += w1;
+            weights[4] -= w1;
+
+            //  Clear weights for the phantom points:
+            weights[11] = weights[10] = 0.0f;
         }
     }
 
