@@ -92,22 +92,17 @@ PtexIndices::GetAdjacency(
     int face, int quadrant,
     int adjFaces[4], int adjEdges[4]) const {
 
-    if (Sdc::SchemeTypeTraits::GetRegularFaceSize(
-            refiner.GetSchemeType()) != 4) {
-        Far::Error(FAR_RUNTIME_ERROR,
-                "Failure in PtexIndices::GetAdjacency() -- "
-                "currently only implemented for quad schemes.");
-        return;
-    }
+    int regFaceSize =
+        Sdc::SchemeTypeTraits::GetRegularFaceSize(refiner.GetSchemeType());
 
     Vtr::internal::Level const & level = refiner.getLevel(0);
 
     ConstIndexArray fedges = level.getFaceEdges(face);
 
-    if (fedges.size()==4) {
+    if (fedges.size() == regFaceSize) {
 
         // Regular ptex quad face
-        for (int i=0; i<4; ++i) {
+        for (int i=0; i<regFaceSize; ++i) {
             int edge = fedges[i];
             Index adjface = getAdjacentFace(level, edge, face);
             if (adjface==-1) {
@@ -116,9 +111,9 @@ PtexIndices::GetAdjacency(
             } else {
 
                 ConstIndexArray aedges = level.getFaceEdges(adjface);
-                if (aedges.size()==4) {
+                if (aedges.size()==regFaceSize) {
                     adjFaces[i] = _ptexIndices[adjface];
-                    adjEdges[i] = aedges.FindIndexIn4Tuple(edge);
+                    adjEdges[i] = aedges.FindIndex(edge);
                     assert(adjEdges[i]!=-1);
                 } else {
                     // neighbor is a sub-face
@@ -129,7 +124,11 @@ PtexIndices::GetAdjacency(
                 assert(adjFaces[i]!=-1);
             }
         }
-    } else {
+        if (regFaceSize == 3) {
+            adjFaces[3] = -1;
+            adjEdges[3] = 0;
+        }
+    } else if (regFaceSize == 4) {
 
         //  Ptex sub-face 'quadrant' (non-quad)
         //
@@ -201,6 +200,10 @@ PtexIndices::GetAdjacency(
                 assert(adjFaces[3]!=-1);
             }
         }
+    } else {
+        Far::Error(FAR_RUNTIME_ERROR,
+                "Failure in PtexIndices::GetAdjacency() -- "
+                "irregular faces only supported for quad schemes.");
     }
 }
 
