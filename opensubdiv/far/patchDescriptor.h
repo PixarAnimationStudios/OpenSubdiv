@@ -84,7 +84,7 @@ public:
 
     /// \brief Returns true if the type is an adaptive (non-linear) patch
     static inline bool IsAdaptive(Type type) {
-        return GetNumControlVertices( type ) > 4;
+        return type > TRIANGLES;
     }
 
     /// \brief Returns true if the type is an adaptive patch
