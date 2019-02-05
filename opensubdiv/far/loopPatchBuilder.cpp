@@ -857,8 +857,12 @@ GregoryTriConverter<REAL>::Convert(Matrix & matrix) const {
     }
 
     for (int eIndex = 0; eIndex < 3; ++eIndex) {
-        if ((_corners[eIndex].isRegular && _corners[(eIndex+1)%3].isRegular) ||
-            _corners[eIndex].epOnBoundary) {
+        CornerTopology const & c0 = _corners[eIndex];
+        CornerTopology const & c1 = _corners[(eIndex + 1) % 3];
+
+        bool isBoundaryEdge = c0.epOnBoundary && c1.emOnBoundary;
+        bool isDartEdge     = c0.epOnBoundary != c1.emOnBoundary;
+        if (isBoundaryEdge || (c0.isRegular && c1.isRegular && !isDartEdge)) {
             assignRegularMidEdgePoint(eIndex, matrix);
         } else {
             computeIrregularMidEdgePoint(eIndex, matrix, weightBuffer, indexBuffer);
@@ -981,15 +985,18 @@ GregoryTriConverter<REAL>::resizeMatrixUnisolated(Matrix & matrix) const {
         numElements += rowSize[3] + rowSize[4];
 
         //  Third, the quartic mid-edge boundary point (edge following corner):
+        int cNext = (cIndex + 1) % 3;
+        CornerTopology const & cornerNext = _corners[cNext];
+
         int & midEdgeSize = rowSizes[15 + cIndex];
 
-        if (corner.epOnBoundary) {
+        if (corner.epOnBoundary && cornerNext.emOnBoundary) {
             midEdgeSize = 2;
-        } else if (corner.isRegular && _corners[(cIndex+1) % 3].isRegular) {
+        } else if (corner.isRegular && cornerNext.isRegular &&
+                  (corner.epOnBoundary == cornerNext.emOnBoundary)) {
             midEdgeSize = 4;
         } else {
-            //  Use face-point size here, which also combines edge-point sizes:
-            midEdgeSize = rowSize[3];
+            midEdgeSize = getIrregularFacePointSize(cIndex, cNext);
         }
         numElements += midEdgeSize;
     }
