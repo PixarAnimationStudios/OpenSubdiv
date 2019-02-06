@@ -180,7 +180,7 @@ int   g_fullscreen = 0,
       g_wire = DISPLAY_SHADED,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0},
-      g_level = 1,
+      g_level = 2,
       g_tessLevel = 2,
       g_kernel = kCPU,
       g_scheme = 0,
@@ -195,7 +195,7 @@ float g_moveScale = 0.0f,
       g_displacementScale = 1.0f,
       g_mipmapBias = 0.0;
 
-bool  g_adaptive = false,
+bool  g_adaptive = true,
       g_yup = false,
       g_patchCull = true,
       g_screenSpaceTess = true,
@@ -441,6 +441,7 @@ createPTexGeo(PtexTexture * r) {
     Shape * shape = new Shape;
 
     shape->scheme = kCatmark;
+    assert(r->meshType() == Ptex::mt_quad);
 
     shape->verts.resize(nvp);
     for (int i=0; i<nvp; ++i) {
@@ -699,7 +700,6 @@ public:
         if (effectDesc.effect.ibl)
             ss << "#define USE_IBL\n";
 
-
         // need for patch color-coding : we need these defines in the fragment shader
         if (type == Far::PatchDescriptor::GREGORY) {
             ss << "#define OSD_PATCH_GREGORY\n";
@@ -707,6 +707,15 @@ public:
             ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
         } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
             ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        } else if (type == Far::PatchDescriptor::LOOP) {
+            ss << "#define OSD_PATCH_LOOP\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define OSD_PATCH_GREGORY_TRIANGLE\n";
+        }
+        if (type == Far::PatchDescriptor::TRIANGLES ||
+            type == Far::PatchDescriptor::LOOP ||
+            type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define LOOP\n";
         }
 
         // include osd PatchCommon
@@ -835,6 +844,10 @@ createPtex(const char *filename, int memLimit) {
         printf("Error in reading %s\n", filename);
         exit(1);
     }
+    if (ptex->meshType() == Ptex::mt_triangle) {
+        printf("Error in %s:  triangular Ptex not yet supported\n", filename);
+        exit(1);
+    }
 
     size_t targetMemory = memLimit * 1024 * 1024; // MB
 
@@ -872,6 +885,10 @@ createOsdMesh(int level, int kernel) {
         printf("Error in reading %s\n", g_ptexColorFilename);
         exit(1);
     }
+    if (ptexColor->meshType() == Ptex::mt_triangle) {
+        printf("Error in %s:  triangular Ptex not yet supported\n", g_ptexColorFilename);
+        exit(1);
+    }
 
     // generate Shape representation from ptex
     Shape * shape = createPTexGeo(ptexColor);
@@ -900,11 +917,8 @@ createOsdMesh(int level, int kernel) {
     delete g_mesh;
     g_mesh = NULL;
 
-    // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = (g_adaptive != 0 && g_scheme == 0);
-
     OpenSubdiv::Osd::MeshBitset bits;
-    bits.set(OpenSubdiv::Osd::MeshAdaptive, doAdaptive);
+    bits.set(OpenSubdiv::Osd::MeshAdaptive, g_adaptive);
     bits.set(OpenSubdiv::Osd::MeshEndCapGregoryBasis, true);
 
     int numVertexElements = g_adaptive ? 3 : 6;
@@ -1423,7 +1437,7 @@ display() {
             g_hud.DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
         }
         g_hud.DrawString(10, -140, "Vertices        : %d", g_mesh->GetNumVertices());
-        g_hud.DrawString(10, -120, "Scheme          : %s", g_scheme == 0 ? "CATMARK" : "LOOP");
+        g_hud.DrawString(10, -120, "Scheme          : %s", g_scheme == 0 ? "CATMARK" : "BILINEAR");
         g_hud.DrawString(10, -100, "GPU Kernel      : %.3f ms", g_gpuTime);
         g_hud.DrawString(10, -80,  "CPU Kernel      : %.3f ms", g_cpuTime);
         g_hud.DrawString(10, -60,  "GPU Draw        : %.3f ms", drawGpuTime);
@@ -1703,8 +1717,8 @@ void usage(const char *program) {
 //------------------------------------------------------------------------------
 static void
 callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
-    printf("Error: %d\n", err);
-    printf("%s", message);
+    printf("OpenSubdiv Error: %d\n", err);
+    printf("    %s\n", message);
 }
 
 //------------------------------------------------------------------------------
@@ -1727,6 +1741,10 @@ int main(int argc, char ** argv) {
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj"))
             animobjs.push_back(argv[i]);
+        else if (!strcmp(argv[i], "-a"))
+            g_adaptive = true;
+        else if (!strcmp(argv[i], "-u"))
+            g_adaptive = false;
         else if (!strcmp(argv[i], "-l"))
             g_level = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-c"))
@@ -1847,7 +1865,7 @@ int main(int argc, char ** argv) {
     reshape();
 
     // activate feature adaptive tessellation if OSD supports it
-    g_adaptive = GLUtils::SupportsAdaptiveTessellation();
+    g_adaptive = g_adaptive && GLUtils::SupportsAdaptiveTessellation();
 
     int windowWidth = g_width, windowHeight = g_height;
 

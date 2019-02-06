@@ -131,9 +131,9 @@ std::vector<float> g_orgPositions,
 
 int g_currentShape = 0,
     g_adaptive = 1,
-    g_level = 3,
+    g_level = 2,
     g_kernel = kCPU,
-    g_endCap = kEndCapBSplineBasis,
+    g_endCap = kEndCapGregoryBasis,
     g_infSharpPatch = 0,
     g_numElements = 3;
 
@@ -1223,8 +1223,8 @@ keyboard(GLFWwindow *, int key, int /* scancode */, int event, int /* mods */) {
 //------------------------------------------------------------------------------
 static void
 callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
-    printf("Error: %d\n", err);
-    printf("%s", message);
+    printf("OpenSubdiv Error: %d\n", err);
+    printf("    %s\n", message);
 }
 
 //------------------------------------------------------------------------------
@@ -1382,10 +1382,10 @@ initHUD() {
 
     int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 150, 200,
                                             callbackEndCap, 'e');
-    g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+    g_hud.AddPullDownButton(endcap_pulldown, "Regular",
         kEndCapBSplineBasis,
         g_endCap == kEndCapBSplineBasis);
-    g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+    g_hud.AddPullDownButton(endcap_pulldown, "Gregory",
         kEndCapGregoryBasis,
         g_endCap == kEndCapGregoryBasis);
 
@@ -1442,36 +1442,39 @@ int main(int argc, char **argv) {
 
     bool fullscreen = false;
     Scheme defaultScheme = kCatmark;
-    std::string str;
+    std::vector<char const *> objfiles;
 
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-u")) {
+        if (strstr(argv[i], ".obj")) {
+            objfiles.push_back(argv[i]);
+        } else if (!strcmp(argv[i], "-a")) {
+            g_adaptive = true;
+        } else if (!strcmp(argv[i], "-u")) {
             g_adaptive = false;
-        }
-        else if (!strcmp(argv[i], "-d")) {
+        } else if (!strcmp(argv[i], "-l")) {
             if (++i < argc) g_level = atoi(argv[i]);
-        }
-        else if (!strcmp(argv[i], "-f")) {
+        } else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
-        }
-        else if (!strcmp(argv[i], "-bilinear")) {
+        } else if (!strcmp(argv[i], "-bilinear")) {
             defaultScheme = kBilinear;
-        }
-        else if (!strcmp(argv[i], "-catmark")) {
+        } else if (!strcmp(argv[i], "-catmark")) {
             defaultScheme = kCatmark;
-        }
-        else if (!strcmp(argv[i], "-loop")) {
+        } else if (!strcmp(argv[i], "-loop")) {
             defaultScheme = kLoop;
+        } else {
+            printf("Warning: unrecognized argument '%s' ignored\n", argv[i]);
         }
-        else {
-            std::ifstream ifs(argv[i]);
-            if (ifs) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                ifs.close();
-                str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
-            }
+    }
+    for (int i = 0; i < (int)objfiles.size(); ++i) {
+        std::ifstream ifs(objfiles[i]);
+        if (ifs) {
+            std::stringstream ss;
+            ss << ifs.rdbuf();
+            ifs.close();
+            std::string str = ss.str();
+            g_defaultShapes.push_back(ShapeDesc(objfiles[i], str.c_str(), defaultScheme));
+        } else {
+            printf("Warning: cannot open shape file '%s'\n", objfiles[i]);
         }
     }
 

@@ -437,11 +437,11 @@ GetOverrideColor(ivec3 patchParam)
         vec4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
 
         vec4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
-        vec4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 0
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 1
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 2
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 3
+        vec4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 4
 
         vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
         vec4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
@@ -466,8 +466,18 @@ GetOverrideColor(ivec3 patchParam)
     );
 
     int patchType = 0;
-#if defined OSD_PATCH_SINGLE_CREASE
-    if (inpt.sharpness > 0) {
+
+    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
+    if (edgeCount == 1) {
+        patchType = 2; // BOUNDARY
+    }
+    if (edgeCount > 1) {
+        patchType = 3; // CORNER (not correct for patches that are not isolated)
+    }
+
+#if defined(OSD_PATCH_ENABLE_SINGLE_CREASE) && !defined(LOOP)
+    // check this after boundary/corner since single crease patch also has edgeCount.
+    if (inpt.vSegments.y > 0) {
         patchType = 1;
     }
 #elif defined OSD_PATCH_GREGORY
@@ -476,15 +486,9 @@ GetOverrideColor(ivec3 patchParam)
     patchType = 5;
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
+#elif defined OSD_PATCH_GREGORY_TRIANGLE
+    patchType = 6;
 #endif
-
-    int edgeCount = bitCount(OsdGetPatchBoundaryMask(patchParam));
-    if (edgeCount == 1) {
-        patchType = 2; // BOUNDARY
-    }
-    if (edgeCount == 2) {
-        patchType = 3; // CORNER
-    }
 
     int pattern = bitCount(OsdGetPatchTransitionMask(patchParam));
 

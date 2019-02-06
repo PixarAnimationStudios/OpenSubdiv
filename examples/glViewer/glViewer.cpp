@@ -71,6 +71,7 @@ GLFWmonitor* g_primary=0;
 #include <opensubdiv/osd/glLegacyGregoryPatchTable.h>
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
+bool g_legacyGregoryEnabled = false;
 
 #include "../../regression/common/far_utils.h"
 #include "../common/glHud.h"
@@ -183,7 +184,7 @@ int   g_fullscreen = 0,
       g_shadingMode = kShadingPatchType,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
-      g_endCap = kEndCapBSplineBasis,
+      g_endCap = kEndCapGregoryBasis,
       g_smoothCornerPatch = 0,
       g_singleCreasePatch = 1,
       g_infSharpPatch = 0,
@@ -1199,7 +1200,7 @@ display() {
 
         if (g_displayPatchCounts) {
             int x = -420;
-            int y = -180;
+            int y = g_legacyGregoryEnabled ? -180 : -140;
             g_hud.DrawString(x, y, "Quads            : %d",
                              patchCount[Descriptor::QUADS]); y += 20;
             g_hud.DrawString(x, y, "Triangles        : %d",
@@ -1208,10 +1209,12 @@ display() {
                              patchCount[Descriptor::REGULAR]); y+= 20;
             g_hud.DrawString(x, y, "Loop             : %d",
                              patchCount[Descriptor::LOOP]); y+= 20;
-            g_hud.DrawString(x, y, "Gregory          : %d",
-                             patchCount[Descriptor::GREGORY]); y+= 20;
-            g_hud.DrawString(x, y, "Gregory Boundary : %d",
-                             patchCount[Descriptor::GREGORY_BOUNDARY]); y+= 20;
+            if (g_legacyGregoryEnabled) {
+                g_hud.DrawString(x, y, "Gregory          : %d",
+                                 patchCount[Descriptor::GREGORY]); y+= 20;
+                g_hud.DrawString(x, y, "Gregory Boundary : %d",
+                                 patchCount[Descriptor::GREGORY_BOUNDARY]); y+= 20;
+            }
             g_hud.DrawString(x, y, "Gregory Basis    : %d",
                              patchCount[Descriptor::GREGORY_BASIS]); y+= 20;
             g_hud.DrawString(x, y, "Gregory Triangle : %d",
@@ -1581,9 +1584,11 @@ initHUD() {
         g_hud.AddPullDownButton(endcap_pulldown, "Gregory",
                                 kEndCapGregoryBasis,
                                 g_endCap == kEndCapGregoryBasis);
-        g_hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
-                                kEndCapLegacyGregory,
-                                g_endCap == kEndCapLegacyGregory);
+        if (g_legacyGregoryEnabled) {
+            g_hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
+                                    kEndCapLegacyGregory,
+                                    g_endCap == kEndCapLegacyGregory);
+        }
     }
 
     for (int i = 1; i < 11; ++i) {
@@ -1632,8 +1637,8 @@ idle() {
 //------------------------------------------------------------------------------
 static void
 callbackErrorOsd(OpenSubdiv::Far::ErrorType err, const char *message) {
-    printf("Error: %d\n", err);
-    printf("%s", message);
+    printf("OpenSubdiv Error: %d\n", err);
+    printf("    %s\n", message);
 }
 
 //------------------------------------------------------------------------------
@@ -1648,54 +1653,59 @@ int main(int argc, char ** argv) {
 
     bool fullscreen = false;
     Scheme defaultScheme = kCatmark;
-    std::string str;
-    std::vector<char const *> animobjs;
+    std::vector<char const *> objfiles;
+    bool objAnimFlag = false;
 
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj")) {
-            animobjs.push_back(argv[i]);
-        }
-        else if (!strcmp(argv[i], "-axis")) {
-            g_axis = false;
-        }
-        else if (!strcmp(argv[i], "-u")) {
+            objfiles.push_back(argv[i]);
+        } else if (!strcmp(argv[i], "-a")) {
+            g_adaptive = true;
+        } else if (!strcmp(argv[i], "-u")) {
             g_adaptive = false;
-        }
-        else if (!strcmp(argv[i], "-d")) {
+        } else if (!strcmp(argv[i], "-l")) {
             if (++i < argc) g_level = atoi(argv[i]);
-        }
-        else if (!strcmp(argv[i], "-c")) {
+        } else if (!strcmp(argv[i], "-axis")) {
+            g_axis = false;
+        } else if (!strcmp(argv[i], "-c")) {
             if (++i < argc) g_repeatCount = atoi(argv[i]);
-        }
-        else if (!strcmp(argv[i], "-f")) {
+        } else if (!strcmp(argv[i], "-f")) {
             fullscreen = true;
-        }
-        else if (!strcmp(argv[i], "-bilinear")) {
+        } else if (!strcmp(argv[i], "-anim")) {
+            objAnimFlag = true;
+        } else if (!strcmp(argv[i], "-bilinear")) {
             defaultScheme = kBilinear;
-        }
-        else if (!strcmp(argv[i], "-catmark")) {
+        } else if (!strcmp(argv[i], "-catmark")) {
             defaultScheme = kCatmark;
-        }
-        else if (!strcmp(argv[i], "-loop")) {
+        } else if (!strcmp(argv[i], "-loop")) {
             defaultScheme = kLoop;
-        }
-        else {
-            std::ifstream ifs(argv[i]);
-            if (ifs) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                ifs.close();
-                str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(argv[i], str.c_str(), defaultScheme));
-            }
+        } else if (!strcmp(argv[i], "-lg")) {
+            g_legacyGregoryEnabled = true;
+        } else {
+            printf("Warning: unrecognized argument '%s' ignored\n", argv[i]);
         }
     }
 
-    if (! animobjs.empty()) {
-
-        g_defaultShapes.push_back(ShapeDesc(animobjs[0], "", defaultScheme));
-
-        g_objAnim = ObjAnim::Create(animobjs, g_axis, defaultScheme);
+    if (! objfiles.empty()) {
+        if (objAnimFlag) {
+            g_objAnim = ObjAnim::Create(objfiles, g_axis, defaultScheme);
+            if (g_objAnim) {
+                g_defaultShapes.push_back(ShapeDesc(objfiles[0], "", defaultScheme));
+            }
+        } else {
+            for (int i = 0; i < (int)objfiles.size(); ++i) {
+                std::ifstream ifs(objfiles[i]);
+                if (ifs) {
+                    std::stringstream ss;
+                    ss << ifs.rdbuf();
+                    ifs.close();
+                    std::string str = ss.str();
+                    g_defaultShapes.push_back(ShapeDesc(objfiles[i], str.c_str(), defaultScheme));
+                } else {
+                    printf("Warning: cannot open shape file '%s'\n", objfiles[i]);
+                }
+            }
+        }
     }
 
     initShapes();

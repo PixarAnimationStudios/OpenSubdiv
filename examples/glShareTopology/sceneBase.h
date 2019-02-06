@@ -38,7 +38,7 @@ public:
                        kEndCapGregoryBasis };
 
     struct Options {
-        Options() : adaptive(true), endCap(kEndCapBSplineBasis) { }
+        Options() : adaptive(true), endCap(kEndCapGregoryBasis) { }
 
         bool adaptive;
         int endCap;

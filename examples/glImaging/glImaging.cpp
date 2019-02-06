@@ -104,6 +104,24 @@ public:
             ss << "#define PRIM_TRI\n";
         }
 
+        // need for patch color-coding : we need these defines in the fragment shader
+        if (type == Far::PatchDescriptor::GREGORY) {
+            ss << "#define OSD_PATCH_GREGORY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BOUNDARY) {
+            ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
+            ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        } else if (type == Far::PatchDescriptor::LOOP) {
+            ss << "#define OSD_PATCH_LOOP\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define OSD_PATCH_GREGORY_TRIANGLE\n";
+        }
+        if (type == Far::PatchDescriptor::TRIANGLES ||
+            type == Far::PatchDescriptor::LOOP ||
+            type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define LOOP\n";
+        }
+        
         if (desc.IsAdaptive()) {
             ss << "#define SMOOTH_NORMALS\n";
         }
@@ -295,13 +313,11 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
             *shape,
             Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions));
 
-    // Adaptive refinement currently supported only for catmull-clark scheme
-    bool doAdaptive = adaptive && (shapeDesc.scheme == kCatmark);
     bool interleaveVarying = true;
     bool doSingleCreasePatch = true;
 
     Osd::MeshBitset bits;
-    bits.set(Osd::MeshAdaptive, doAdaptive);
+    bits.set(Osd::MeshAdaptive, adaptive);
     bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
     bits.set(Osd::MeshInterleaveVarying, interleaveVarying);
     bits.set(Osd::MeshFVarData, false);
@@ -445,7 +461,8 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
 static void usage(const char *program) {
     std::cout
         << "Usage %s : " << program << "\n"
-        << "   -a                      : adaptive refinement\n"
+        << "   -a                      : adaptive refinement (default)\n"
+        << "   -u                      : uniform refinement\n"
         << "   -l <isolation level>    : isolation level (default = 2)\n"
         << "   -t <tess level>         : tessellation level (default = 1)\n"
         << "   -w <prefix>             : write images to PNG as\n"
@@ -464,7 +481,7 @@ int main(int argc, char ** argv) {
     int tessLevel = 1;
     int isolationLevel = 2;
     bool writeToFile = false;
-    bool adaptive = false;
+    bool adaptive = true;
     std::string prefix;
     std::string displayMode = "PATCH_TYPE";
     std::vector<std::string> kernels;
@@ -472,6 +489,8 @@ int main(int argc, char ** argv) {
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "-a")) {
             adaptive = true;
+        } else if (!strcmp(argv[i], "-u")) {
+            adaptive = false;
         } else if (!strcmp(argv[i], "-l")) {
             isolationLevel = atoi(argv[++i]);
         } else if (!strcmp(argv[i], "-k")) {
