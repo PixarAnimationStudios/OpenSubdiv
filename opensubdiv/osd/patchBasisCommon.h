@@ -647,129 +647,188 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
         //  Determine boundary edges and vertices from the lower 3 and upper
         //  2 bits of the 5-bit mask:
         //
-        bool edgeIsBoundary[3 + 2];  // +2 filled in to avoid +1 and +2 mod 3
-        bool vertexIsBoundary[3];
-
-        bool lowerBits[3];
-        lowerBits[0] = (boundaryMask & 0x1) != 0;
-        lowerBits[1] = (boundaryMask & 0x2) != 0;
-        lowerBits[2] = (boundaryMask & 0x4) != 0;
-
         int upperBits = (boundaryMask >> 3) & 0x3;
-        if (upperBits == 0) {
-            //  Boundary edges only:
-            for (int i = 0; i < 3; ++i) {
-                edgeIsBoundary[i] = lowerBits[i];
-                vertexIsBoundary[i] = false;
-            }
-        } else if (upperBits == 1) {
+        int lowerBits = boundaryMask & 7;
+
+        int eBits = lowerBits;
+        int vBits = 0;
+
+        if (upperBits == 1) {
             //  Boundary vertices only:
-            for (int i = 0; i < 3; ++i) {
-                vertexIsBoundary[i] = lowerBits[i];
-                edgeIsBoundary[i] = false;
-            }
+            vBits = eBits;
+            eBits = 0;
         } else if (upperBits == 2) {
-            //  Boundary edge and opposite boundary vertex:
-            edgeIsBoundary[0] = vertexIsBoundary[2] = lowerBits[0];
-            edgeIsBoundary[1] = vertexIsBoundary[0] = lowerBits[1];
-            edgeIsBoundary[2] = vertexIsBoundary[1] = lowerBits[2];
+            //  Opposite vertex bit is edge bit rotated one to the right:
+            vBits = ((eBits & 1) << 2) | (eBits >> 1);
         }
-        //  Wrap the 2 additional values to avoid modulo 3 in the edge tests:
-        edgeIsBoundary[3] = edgeIsBoundary[0];
-        edgeIsBoundary[4] = edgeIsBoundary[1];
+
+        bool edge0IsBoundary = (eBits & 1) != 0;
+        bool edge1IsBoundary = (eBits & 2) != 0;
+        bool edge2IsBoundary = (eBits & 4) != 0;
 
         //
-        //  Adjust weights for the 4 boundary points (eB) and 3 interior points
-        //  (eI) to account for the 3 phantom points (eP) adjacent to each
+        //  Adjust weights for the 4 boundary points and 3 interior points
+        //  to account for the 3 phantom points adjacent to each
         //  boundary edge:
         //
-        OSD_DATA_STORAGE_CLASS const int eP[3*3] = OSD_ARRAY_9(int,     0, 1, 2 ,    6, 9, 11 ,   10, 7, 3  );
-        OSD_DATA_STORAGE_CLASS const int eB[3*4] = OSD_ARRAY_12(int,  3, 4, 5, 6,  2, 5, 8, 10, 11, 8, 4, 0 );
-        OSD_DATA_STORAGE_CLASS const int eI[3*3] = OSD_ARRAY_9(int,     7, 8, 9 ,    1, 4, 7  ,    9, 5, 1  );
-
-        for (int i = 0; i < 3; ++i) {
-            if (edgeIsBoundary[i]) {
-                int iPhantom  = i*3;
-                int iBoundary = i*4;
-                int iInterior = i*3;
-
-                //  Adjust weights for points contributing to phantom point
-                //  P0 -- extrapolated according to the presence of adj edge:
-                OSD_REAL w0 = weights[eP[iPhantom+0]];
-                if (edgeIsBoundary[i + 2]) {
-                    //  P0 = B1 + (B1 - I1)
-                    weights[eB[iBoundary+1]] += w0;
-                    weights[eB[iBoundary+1]] += w0;
-                    weights[eI[iInterior+1]] -= w0;
-                } else {
-                    //  P0 = B1 + (B0 - I0)
-                    weights[eB[iBoundary+1]] += w0;
-                    weights[eB[iBoundary+0]] += w0;
-                    weights[eI[iInterior+0]] -= w0;
-                }
-
-                //  Adjust weights for points contributing to phantom point
-                //  P1 = B1 + (B2 - I1)
-                OSD_REAL w1 = weights[eP[iPhantom+1]];
-                weights[eB[iBoundary+1]] += w1;
-                weights[eB[iBoundary+2]] += w1;
-                weights[eI[iInterior+1]] -= w1;
-
-                //  Adjust weights for points contributing to phantom point
-                //  P2 -- extrapolated according to the presence of adj edge:
-                OSD_REAL w2 = weights[eP[iPhantom+2]];
-                if (edgeIsBoundary[i + 1]) {
-                    //  P2 = B2 + (B2 - I1)
-                    weights[eB[iBoundary+2]] += w2;
-                    weights[eB[iBoundary+2]] += w2;
-                    weights[eI[iInterior+1]] -= w2;
-                } else {
-                    //  P2 = B2 + (B3 - I2)
-                    weights[eB[iBoundary+2]] += w2;
-                    weights[eB[iBoundary+3]] += w2;
-                    weights[eI[iInterior+2]] -= w2;
-                }
-
-                //  Clear weights for the phantom points:
-                weights[eP[iPhantom+0]] = 0.0f;
-                weights[eP[iPhantom+1]] = 0.0f;
-                weights[eP[iPhantom+2]] = 0.0f;
+        if (edge0IsBoundary) {
+            OSD_REAL w0 = weights[0];
+            if (edge2IsBoundary) {
+                //  P0 = B1 + (B1 - I1)
+                weights[4] += w0;
+                weights[4] += w0;
+                weights[8] -= w0;
+            } else {
+                //  P0 = B1 + (B0 - I0)
+                weights[4] += w0;
+                weights[3] += w0;
+                weights[7] -= w0;
             }
+
+            //  P1 = B1 + (B2 - I1)
+            OSD_REAL w1 = weights[1];
+            weights[4] += w1;
+            weights[5] += w1;
+            weights[8] -= w1;
+
+            OSD_REAL w2 = weights[2];
+            if (edge1IsBoundary) {
+                //  P2 = B2 + (B2 - I1)
+                weights[5] += w2;
+                weights[5] += w2;
+                weights[8] -= w2;
+            } else {
+                //  P2 = B2 + (B3 - I2)
+                weights[5] += w2;
+                weights[6] += w2;
+                weights[9] -= w2;
+            }
+            //  Clear weights for the phantom points:
+            weights[0] = weights[1] = weights[2] = 0.0f;
+        }
+        if (edge1IsBoundary) {
+            OSD_REAL w0 = weights[6];
+            if (edge2IsBoundary) {
+                //  P0 = B1 + (B1 - I1)
+                weights[5] += w0;
+                weights[5] += w0;
+                weights[4] -= w0;
+            } else {
+                //  P0 = B1 + (B0 - I0)
+                weights[5] += w0;
+                weights[2] += w0;
+                weights[1] -= w0;
+            }
+
+            //  P1 = B1 + (B2 - I1)
+            OSD_REAL w1 = weights[9];
+            weights[5] += w1;
+            weights[8] += w1;
+            weights[4] -= w1;
+
+            OSD_REAL w2 = weights[11];
+            if (edge1IsBoundary) {
+                //  P2 = B2 + (B2 - I1)
+                weights[8] += w2;
+                weights[8] += w2;
+                weights[4] -= w2;
+            } else {
+                //  P2 = B2 + (B3 - I2)
+                weights[8]  += w2;
+                weights[10] += w2;
+                weights[7]  -= w2;
+            }
+            //  Clear weights for the phantom points:
+            weights[6] = weights[9] = weights[11] = 0.0f;
+        }
+        if (edge2IsBoundary) {
+            OSD_REAL w0 = weights[10];
+            if (edge2IsBoundary) {
+                //  P0 = B1 + (B1 - I1)
+                weights[8] += w0;
+                weights[8] += w0;
+                weights[5] -= w0;
+            } else {
+                //  P0 = B1 + (B0 - I0)
+                weights[8]  += w0;
+                weights[11] += w0;
+                weights[9]  -= w0;
+            }
+
+            //  P1 = B1 + (B2 - I1)
+            OSD_REAL w1 = weights[7];
+            weights[8] += w1;
+            weights[4] += w1;
+            weights[5] -= w1;
+
+            OSD_REAL w2 = weights[3];
+            if (edge1IsBoundary) {
+                //  P2 = B2 + (B2 - I1)
+                weights[4] += w2;
+                weights[4] += w2;
+                weights[5] -= w2;
+            } else {
+                //  P2 = B2 + (B3 - I2)
+                weights[4] += w2;
+                weights[0] += w2;
+                weights[1] -= w2;
+            }
+            //  Clear weights for the phantom points:
+            weights[10] = weights[7] = weights[3] = 0.0f;
         }
 
         //
-        //  Adjust weights for the 3 boundary points (vB) and the 2 interior
-        //  points (vI) to account for the 2 phantom points (vP) adjacent to
+        //  Adjust weights for the 3 boundary points and the 2 interior
+        //  points to account for the 2 phantom points adjacent to
         //  each boundary vertex:
         //
-        OSD_DATA_STORAGE_CLASS const int vP[3*2] = OSD_ARRAY_6(int,   3, 0 ,    2, 6 ,   11, 10  );
-        OSD_DATA_STORAGE_CLASS const int vB[3*3] = OSD_ARRAY_9(int, 7, 4, 1,  1, 5, 9,  9,  8, 7 );
-        OSD_DATA_STORAGE_CLASS const int vI[3*2] = OSD_ARRAY_6(int,   8, 5 ,    4, 8 ,    5,  4  );
+        if ((vBits & 1) != 0) {
+            //  P0 = B1 + (B0 - I0)
+            OSD_REAL w0 = weights[3];
+            weights[4] += w0;
+            weights[7] += w0;
+            weights[8] -= w0;
 
-        for (int j = 0; j < 3; ++j) {
-            if (vertexIsBoundary[j]) {
-                int iPhantom  = j*2;
-                int iBoundary = j*3;
-                int iInterior = j*2;
+            //  P1 = B1 + (B2 - I1)
+            OSD_REAL w1 = weights[0];
+            weights[4] += w1;
+            weights[1] += w1;
+            weights[5] -= w1;
 
-                //  Adjust weights for points contributing to phantom point
-                //  P0 = B1 + (B0 - I0)
-                OSD_REAL w0 = weights[vP[iPhantom+0]];
-                weights[vB[iBoundary+1]] += w0;
-                weights[vB[iBoundary+0]] += w0;
-                weights[vI[iInterior+0]] -= w0;
+            //  Clear weights for the phantom points:
+            weights[3] = weights[0] = 0.0f;
+        }
+        if ((vBits & 2) != 0) {
+            //  P0 = B1 + (B0 - I0)
+            OSD_REAL w0 = weights[2];
+            weights[5] += w0;
+            weights[1] += w0;
+            weights[4] -= w0;
 
-                //  Adjust weights for points contributing to phantom point
-                //  P1 = B1 + (B2 - I1)
-                OSD_REAL w1 = weights[vP[iPhantom+1]];
-                weights[vB[iBoundary+1]] += w1;
-                weights[vB[iBoundary+2]] += w1;
-                weights[vI[iInterior+1]] -= w1;
+            //  P1 = B1 + (B2 - I1)
+            OSD_REAL w1 = weights[6];
+            weights[5] += w1;
+            weights[9] += w1;
+            weights[8] -= w1;
 
-                //  Clear weights for the phantom points:
-                weights[vP[iPhantom+0]] = 0.0f;
-                weights[vP[iPhantom+1]] = 0.0f;
-            }
+            //  Clear weights for the phantom points:
+            weights[2] = weights[6] = 0.0f;
+        }
+        if ((vBits & 4) != 0) {
+            //  P0 = B1 + (B0 - I0)
+            OSD_REAL w0 = weights[11];
+            weights[8] += w0;
+            weights[9] += w0;
+            weights[5] -= w0;
+
+            //  P1 = B1 + (B2 - I1)
+            OSD_REAL w1 = weights[10];
+            weights[8] += w1;
+            weights[7] += w1;
+            weights[4] -= w1;
+
+            //  Clear weights for the phantom points:
+            weights[11] = weights[10] = 0.0f;
         }
     }
 
