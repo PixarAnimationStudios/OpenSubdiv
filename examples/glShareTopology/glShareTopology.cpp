@@ -146,7 +146,7 @@ float g_cpuTime = 0;
 float g_gpuTime = 0;
 Stopwatch g_fpsTimer;
 
-int g_level = 1;
+int g_level = 2;
 int g_tessLevel = 1;
 int g_tessLevelMin = 1;
 int g_frame = 0;
@@ -372,6 +372,15 @@ public:
             ss << "#define OSD_PATCH_GREGORY_BOUNDARY\n";
         } else if (type == Far::PatchDescriptor::GREGORY_BASIS) {
             ss << "#define OSD_PATCH_GREGORY_BASIS\n";
+        } else if (type == Far::PatchDescriptor::LOOP) {
+            ss << "#define OSD_PATCH_LOOP\n";
+        } else if (type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define OSD_PATCH_GREGORY_TRIANGLE\n";
+        }
+        if (type == Far::PatchDescriptor::TRIANGLES ||
+            type == Far::PatchDescriptor::LOOP ||
+            type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
+            ss << "#define LOOP\n";
         }
 
         // for legacy gregory
@@ -1107,10 +1116,10 @@ initHUD() {
 
         int endcap_pulldown = g_hud.AddPullDown(
             "End cap (E)", 10, 210, 200, callbackEndCap, 'e');
-        g_hud.AddPullDownButton(endcap_pulldown, "BSpline",
+        g_hud.AddPullDownButton(endcap_pulldown, "Regular",
                                 SceneBase::kEndCapBSplineBasis,
                                 g_options.endCap == SceneBase::kEndCapBSplineBasis);
-        g_hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+        g_hud.AddPullDownButton(endcap_pulldown, "Gregory",
                                 SceneBase::kEndCapGregoryBasis,
                                 g_options.endCap == SceneBase::kEndCapGregoryBasis);
     }
@@ -1119,7 +1128,7 @@ initHUD() {
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i==2, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i==g_level, 10, 210+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     g_hud.Rebuild(windowWidth, windowHeight, frameBufferWidth, frameBufferHeight);
@@ -1153,8 +1162,8 @@ idle() {
 //------------------------------------------------------------------------------
 static void
 callbackError(Far::ErrorType err, const char *message) {
-    printf("Error: %d\n", err);
-    printf("%s", message);
+    printf("OpenSubdiv Error: %d\n", err);
+    printf("    %s\n", message);
 }
 
 //------------------------------------------------------------------------------
@@ -1168,8 +1177,12 @@ int main(int argc, char ** argv) {
 
     std::string str;
     for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-d")) {
+        if (!strcmp(argv[i], "-l")) {
             g_level = atoi(argv[++i]);
+        } else if (!strcmp(argv[i], "-a")) {
+            g_options.adaptive = true;
+        } else if (!strcmp(argv[i], "-u")) {
+            g_options.adaptive = false;
         }
     }
     Far::SetErrorCallback(callbackError);
@@ -1216,9 +1229,6 @@ int main(int argc, char ** argv) {
     glGetError();
 #endif
 #endif
-
-    // activate feature adaptive tessellation if OSD supports it
-    g_options.adaptive = true;
 
     initShapes();
     initGL();
