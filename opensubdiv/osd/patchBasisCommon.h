@@ -708,7 +708,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
         }
         if (edge1IsBoundary) {
             OSD_REAL w0 = weights[6];
-            if (edge2IsBoundary) {
+            if (edge0IsBoundary) {
                 //  P0 = B1 + (B1 - I1)
                 weights[5] += w0;
                 weights[5] += w0;
@@ -727,7 +727,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
             weights[4] -= w1;
 
             OSD_REAL w2 = weights[11];
-            if (edge1IsBoundary) {
+            if (edge2IsBoundary) {
                 //  P2 = B2 + (B2 - I1)
                 weights[8] += w2;
                 weights[8] += w2;
@@ -743,7 +743,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
         }
         if (edge2IsBoundary) {
             OSD_REAL w0 = weights[10];
-            if (edge2IsBoundary) {
+            if (edge1IsBoundary) {
                 //  P0 = B1 + (B1 - I1)
                 weights[8] += w0;
                 weights[8] += w0;
@@ -762,7 +762,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
             weights[5] -= w1;
 
             OSD_REAL w2 = weights[3];
-            if (edge1IsBoundary) {
+            if (edge0IsBoundary) {
                 //  P2 = B2 + (B2 - I1)
                 weights[4] += w2;
                 weights[4] += w2;
