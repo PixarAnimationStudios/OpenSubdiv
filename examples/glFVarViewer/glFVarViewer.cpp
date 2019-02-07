@@ -80,6 +80,9 @@ int   g_fullscreen = 0,
       g_freeze = 0,
       g_displayStyle = kWireShaded,
       g_adaptive = 1,
+      g_smoothCornerPatch = 0,
+      g_singleCreasePatch = 0,
+      g_infSharpPatch = 0,
       g_mbutton[3] = {0, 0, 0},
       g_mouseUvView = 0,
       g_running = 1;
@@ -438,6 +441,9 @@ rebuildMesh() {
 
     OpenSubdiv::Osd::MeshBitset bits;
     bits.set(OpenSubdiv::Osd::MeshAdaptive, g_adaptive != 0);
+    bits.set(OpenSubdiv::Osd::MeshUseSmoothCornerPatch, g_smoothCornerPatch != 0);
+    bits.set(OpenSubdiv::Osd::MeshUseSingleCreasePatch, g_singleCreasePatch != 0);
+    bits.set(OpenSubdiv::Osd::MeshUseInfSharpPatch, g_infSharpPatch != 0);
     bits.set(OpenSubdiv::Osd::MeshFVarData, 1);
     bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, 1);
     bits.set(OpenSubdiv::Osd::MeshEndCapBilinearBasis, g_endCap == kEndCapBilinearBasis);
@@ -1081,10 +1087,29 @@ callbackModel(int m) {
 static void
 callbackAdaptive(bool checked, int /* a */) {
 
-    if (GLUtils::SupportsAdaptiveTessellation()) {
-        g_adaptive = checked;
-        rebuildMesh();
-    }
+    g_adaptive = checked;
+    rebuildMesh();
+}
+
+static void
+callbackSmoothCornerPatch(bool checked, int /* a */) {
+
+    g_smoothCornerPatch = checked;
+    rebuildMesh();
+}
+
+static void
+callbackSingleCreasePatch(bool checked, int /* a */) {
+
+    g_singleCreasePatch = checked;
+    rebuildMesh();
+}
+
+static void
+callbackInfSharpPatch(bool checked, int /* a */) {
+
+    g_infSharpPatch = checked;
+    rebuildMesh();
 }
 
 static void
@@ -1132,25 +1157,31 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", kShaded, g_displayStyle==kShaded);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", kWireShaded, g_displayStyle==kWireShaded);
 
-    int endcap_pulldown = g_hud.AddPullDown("End cap (E)", 10, 140, 200,
-                                            callbackEndCap, 'e');
-    g_hud.AddPullDownButton(endcap_pulldown, "Linear",
-        kEndCapBilinearBasis,
-        g_endCap == kEndCapBilinearBasis);
-    g_hud.AddPullDownButton(endcap_pulldown, "Regular",
-        kEndCapBSplineBasis,
-        g_endCap == kEndCapBSplineBasis);
-    g_hud.AddPullDownButton(endcap_pulldown, "Gregory",
-        kEndCapGregoryBasis,
-        g_endCap == kEndCapGregoryBasis);
+    if (GLUtils::SupportsAdaptiveTessellation()) {
+        g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0,
+                          10, 140, callbackAdaptive, 0, '`');
 
-    if (GLUtils::SupportsAdaptiveTessellation())
-        g_hud.AddCheckBox("Adaptive (`)", g_adaptive != 0, 10, 250, callbackAdaptive, 0, '`');
+        g_hud.AddCheckBox("Smooth Corner Patch (O)", g_smoothCornerPatch!=0,
+                          10, 160, callbackSmoothCornerPatch, 0, 'o');
+        g_hud.AddCheckBox("Single Crease Patch (S)", g_singleCreasePatch!=0,
+                          10, 180, callbackSingleCreasePatch, 0, 's');
+        g_hud.AddCheckBox("Inf Sharp Patch (I)", g_infSharpPatch!=0,
+                          10, 200, callbackInfSharpPatch, 0, 'i');
+
+        int endcap_pulldown = g_hud.AddPullDown("End cap (E)",
+                                                10, 220, 200, callbackEndCap, 'e');
+        g_hud.AddPullDownButton(endcap_pulldown, "Linear", kEndCapBilinearBasis,
+                                g_endCap == kEndCapBilinearBasis);
+        g_hud.AddPullDownButton(endcap_pulldown, "Regular", kEndCapBSplineBasis,
+                                g_endCap == kEndCapBSplineBasis);
+        g_hud.AddPullDownButton(endcap_pulldown, "Gregory", kEndCapGregoryBasis,
+                                g_endCap == kEndCapGregoryBasis);
+    }
 
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        g_hud.AddRadioButton(3, level, i == g_level, 10, 270 + i*20, callbackLevel, i, '0'+(i%10));
+        g_hud.AddRadioButton(3, level, i == g_level, 10, 260 + i*20, callbackLevel, i, '0'+(i%10));
     }
 
     typedef OpenSubdiv::Sdc::Options SdcOptions;
@@ -1339,6 +1370,8 @@ int main(int argc, char ** argv) {
     glGetError();
 #endif
 #endif
+
+    g_adaptive = g_adaptive && GLUtils::SupportsAdaptiveTessellation();
 
     initGL();
     linkDefaultProgram();
