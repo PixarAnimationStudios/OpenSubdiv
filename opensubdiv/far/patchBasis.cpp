@@ -836,7 +836,7 @@ namespace {
         }
         if (edge1IsBoundary) {
             REAL w0 = weights[6];
-            if (edge2IsBoundary) {
+            if (edge0IsBoundary) {
                 //  P0 = B1 + (B1 - I1)
                 weights[5] += w0;
                 weights[5] += w0;
@@ -855,7 +855,7 @@ namespace {
             weights[4] -= w1;
 
             REAL w2 = weights[11];
-            if (edge1IsBoundary) {
+            if (edge2IsBoundary) {
                 //  P2 = B2 + (B2 - I1)
                 weights[8] += w2;
                 weights[8] += w2;
@@ -871,7 +871,7 @@ namespace {
         }
         if (edge2IsBoundary) {
             REAL w0 = weights[10];
-            if (edge2IsBoundary) {
+            if (edge1IsBoundary) {
                 //  P0 = B1 + (B1 - I1)
                 weights[8] += w0;
                 weights[8] += w0;
@@ -890,7 +890,7 @@ namespace {
             weights[5] -= w1;
 
             REAL w2 = weights[3];
-            if (edge1IsBoundary) {
+            if (edge0IsBoundary) {
                 //  P2 = B2 + (B2 - I1)
                 weights[4] += w2;
                 weights[4] += w2;
