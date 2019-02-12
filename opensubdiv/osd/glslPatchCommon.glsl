@@ -1172,10 +1172,17 @@ OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
     dNv = cross(dUV, dPv) + cross(dPu, dVV);
 
     if (nLength < nEpsilon) {
-        float DU = (UV.x == 1.0) ? -1.0 : 1.0;
-        float DV = (UV.y == 1.0) ? -1.0 : 1.0;
+        //  Use 1st order Taylor approximation of N(u,v) within patch interior:
+        if (w > 0.0) {
+            N =  dNu + dNv;
+        } else if (u >= 1.0) {
+            N = -dNu + dNv;
+        } else if (v >= 1.0) {
+            N =  dNu - dNv;
+        } else {
+            N = -dNu - dNv;
+        }
 
-        N = DU * dNu + DV * dNv;
         nLength = length(N);
         if (nLength < nEpsilon) {
             nLength = 1.0;
