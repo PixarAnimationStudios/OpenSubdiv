@@ -22,33 +22,16 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(TUTORIALS
-    tutorial_0
-    tutorial_1
-    tutorial_2
-    tutorial_3
-    tutorial_4
-    tutorial_5
-    tutorial_6
-    tutorial_7
-    tutorial_8
-    tutorial_9
-    tutorial_10
+set(SOURCE_FILES
+    far_tutorial_10.cpp
 )
 
-foreach(tutorial ${TUTORIALS})
-
-    add_subdirectory("${tutorial}")
-
-    list(APPEND TUTORIAL_TARGETS "far_${tutorial}")
-
-    add_test(far_${tutorial} ${EXECUTABLE_OUTPUT_PATH}/far_${tutorial})
-
-endforeach()
-
-add_custom_target(far_tutorials DEPENDS ${TUTORIAL_TARGETS})
-
-set_target_properties(far_tutorials
-    PROPERTIES 
-        FOLDER "tutorials/far"
+_add_executable(far_tutorial_10 "tutorials/far"
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
 )
+
+install(TARGETS far_tutorial_10 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+
