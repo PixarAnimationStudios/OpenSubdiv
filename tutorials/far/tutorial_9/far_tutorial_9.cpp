@@ -22,8 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+
+//------------------------------------------------------------------------------
+//  Tutorial description:
 //
-//  Description:
 //      This tutorial shows how to manage the limit surface of a potentially
 //      large mesh by creating groups of patches for selected faces of the
 //      mesh.  Familiarity with construction and evaluation of a PatchTable
@@ -500,18 +502,20 @@ public:
                 } else {
                     fprintf(stderr, "Warning: .obj file '%s' ignored\n", argv[i]);
                 }
-            } else if (!strcmp(argv[i], "-mult")) {
-                if (++i < argc) geoMultiplier = atoi(argv[i]);
+            } else if (!strcmp(argv[i], "-l")) {
+                if (++i < argc) maxPatchDepth = atoi(argv[i]);
+            } else if (!strcmp(argv[i], "-level")) {
+                if (++i < argc) maxPatchDepth = atoi(argv[i]);
             } else if (!strcmp(argv[i], "-bilinear")) {
                 schemeType = Sdc::SCHEME_BILINEAR;
             } else if (!strcmp(argv[i], "-catmark")) {
                 schemeType = Sdc::SCHEME_CATMARK;
             } else if (!strcmp(argv[i], "-loop")) {
                 schemeType = Sdc::SCHEME_LOOP;
-            } else if (!strcmp(argv[i], "-depth")) {
-                if (++i < argc) maxPatchDepth = atoi(argv[i]);
             } else if (!strcmp(argv[i], "-groups")) {
                 if (++i < argc) numPatchGroups = atoi(argv[i]);
+            } else if (!strcmp(argv[i], "-mult")) {
+                if (++i < argc) geoMultiplier = atoi(argv[i]);
             } else if (!strcmp(argv[i], "-notess")) {
                 noTessFlag = true;
             } else if (!strcmp(argv[i], "-nooutput")) {

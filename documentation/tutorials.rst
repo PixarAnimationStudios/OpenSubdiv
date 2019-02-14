@@ -33,7 +33,7 @@ Tutorials
 
 The tutorial source code can be found in the `github.com repository
 <https://github.com/PixarAnimationStudios/OpenSubdiv/tree/master/tutorials>`__
-or in your local ``<repository root>/turorials``.
+or in your local ``<repository root>/tutorials``.
 
 ----
 
@@ -65,7 +65,8 @@ or in your local ``<repository root>/turorials``.
 
    * - | **Tutorial 0**
        | This tutorial presents in a very succinct way the requisite steps to
-         instantiate a Far mesh from simple topological data. `[code] <far_tutorial_0.html>`__
+         instantiate a mesh as a Far::TopologyRefiner from simple topological
+         data. `[code] <far_tutorial_0.html>`__
        | |far_tut_0|
        |
        | **Tutorial 1**
@@ -88,11 +89,11 @@ or in your local ``<repository root>/turorials``.
          'face-varying' data recorded in the uv texture layout.  `[code] <far_tutorial_3.html>`__
        | |far_tut_3|
        |
-     - | **Tutorial 4**
-       | This tutorial shows how to create and manipulate FarStencilTable. We use the
+       | **Tutorial 4**
+       | This tutorial shows how to create and manipulate a StencilTable. We use the
          factorized stencils to interpolate vertex primvar data buffers. `[code] <far_tutorial_4.html>`__
        |
-       | **Tutorial 5**
+     - | **Tutorial 5**
        | This tutorial shows how to create and manipulate both 'vertex' and 'varying'
          FarStencilTable to interpolate 2 primvar data buffers: vertex positions and
          vertex colors. `[code] <far_tutorial_5.html>`__
@@ -105,6 +106,24 @@ or in your local ``<repository root>/turorials``.
        | **Tutorial 7**
        | This tutorial shows how to create and manipulate tables of cascading
          stencils to apply hierarchical vertex edits. `[code] <far_tutorial_7.html>`__
+       |
+       | **Tutorial 8**
+       | Building on tutorial 3, this example shows how to instantiate a simple mesh,
+         refine it uniformly, interpolate both 'vertex' and 'face-varying' primvar
+         data, and finally calculate approximated smooth normals.  The resulting
+         interpolated data is output in 'obj' format.  `[code] <far_tutorial_8.html>`__
+       |
+       | **Tutorial 9**
+       | Building on tutorial 6, this example shows how to manage the limit surface
+         of a potentially large mesh by creating and evaluating separate PatchTables
+         for selected groups of faces of the mesh.  `[code] <far_tutorial_9.html>`__
+       |
+       | **Tutorial 10**
+       | In contrast to other tutorials, this tutorial makes use of a different vertex
+         data definition for use when vertex data is of arbitrary width.  Uniform
+         refinement is applied to data buffers of three types:  two of fixed size and
+         the third a union of the two that is dynamically sized and constructed.
+         `[code] <far_tutorial_10.html>`__
        |
 
 ----
