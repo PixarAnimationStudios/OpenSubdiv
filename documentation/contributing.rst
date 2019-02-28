@@ -72,7 +72,7 @@ and DreamWorks:
      | git clone <your_fork_url> OpenSubdiv.<your_name>
      |
      | e.g.:
-     | git clone https://github.com/jcowles/OpenSubdiv.git OpenSubdiv.jcowles
+     | git clone https://github.com/yourusername/OpenSubdiv.git OpenSubdiv.yourusername
 
 #. Setup two remotes, **origin** and **upstream**. Origin will be setup as a
    result of cloning your remote repository, but upstream must be setup manually:
@@ -85,8 +85,8 @@ and DreamWorks:
 
    Which should look something like:
 
-     | origin https://github.com/jcowles/OpenSubdiv.git (fetch)
-     | origin https://github.com/jcowles/OpenSubdiv.git (push)
+     | origin https://github.com/yourusername/OpenSubdiv.git (fetch)
+     | origin https://github.com/yourusername/OpenSubdiv.git (push)
      | upstream https://github.com/PixarAnimationStudios/OpenSubdiv.git (fetch)
      | upstream https://github.com/PixarAnimationStudios/OpenSubdiv.git (push)
 
