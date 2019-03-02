@@ -43,6 +43,7 @@ if (WIN32)
             "${DXSDK_ROOT}/Include"
             "$ENV{DXSDK_ROOT}/Include"
             "C:/Program Files (x86)/Windows Kits/8.1/Include/um"
+            "C:/Program Files (x86)/Windows Kits/10/Include/*/um"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Include"
             "C:/Program Files/Microsoft DirectX SDK*/Include"
     )
@@ -61,6 +62,7 @@ if (WIN32)
             "${DXSDK_ROOT}/Lib/${ARCH}"
             "$ENV{DXSDK_ROOT}/Lib/${ARCH}"
             "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/${ARCH}"
+            "C:/Program Files (x86)/Windows Kits/10/Lib/*/um/${ARCH}"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Lib/${ARCH}"
             "C:/Program Files/Microsoft DirectX SDK*/Lib/${ARCH}"
     )
@@ -74,9 +76,14 @@ if (WIN32)
                 ${DX_LIB}.lib
             PATHS
                 ${DXSDK_LIBRARY_DIR}
+            NO_DEFAULT_PATH
         )
 
-        list(APPEND DXSDK_LIBRARIES ${DXSDK_${DX_LIB}_LIBRARY})
+        if(NOT DXSDK_${DX_LIB}_LIBRARY)
+            message(FATAL_ERROR "Could not find required library ${DX_LIB}")
+        else()
+            list(APPEND DXSDK_LIBRARIES ${DXSDK_${DX_LIB}_LIBRARY})
+        endif()
 
 
     endforeach(DX_LIB)
