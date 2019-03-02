@@ -507,6 +507,7 @@ endif()
 if(CUDA_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
+        -DCUDA_ENABLE_DEPRECATED=0
     )
     set(OSD_GPU TRUE)
 
