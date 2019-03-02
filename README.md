@@ -42,15 +42,21 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 | DX11 SDK <br> http://www.microsoft.com/download/details.aspx?id=6812| | DX backend     |
 | Metal <br> https://developer.apple.com/metal/        | 1.2            | Metal backend  |
 
- * Examples/Documents optional requirements:
+ * Requirements for building optional examples:
 
 | Lib (URL)                                     | Min Version | Note                |
 | --------------------------------------------- | ----------- | ------------------- |
 | GLFW <br> http://www.glfw.org                 | 3.0.0       | GL examples         |
 | Ptex <br> https://github.com/wdas/ptex        | 2.0         | ptex viewers        |
 | Zlib <br> http://www.zlib.net                 |             | (required for Ptex under windows)|
-| Docutils <br> http://docutils.sourceforge.net |             | documents           |
-| Doxygen <br>http://www.doxygen.org            |             | documents           |
+
+ * Requirements for building documentation:
+
+| Lib (URL)                                     |
+| --------------------------------------------- |
+| Docutils <br> http://docutils.sourceforge.net |
+| Doxygen <br>http://www.doxygen.org            |
+| Graphviz <br>https://graphviz.gitlab.io/      |
 
 
 ## Build example to run glViewer and other example programs with minimal dependency
