@@ -44,9 +44,21 @@ if (RST2HTML_EXECUTABLE)
 
     set(DOCUTILS_FOUND "YES")
 
-    # find the version
-    execute_process( COMMAND ${RST2HTML_EXECUTABLE} --version OUTPUT_VARIABLE VERSION_STRING )
+    # Note we only check for a python interpreter and use it for the command 
+    # on Windows.  It would be cleaner if we could agree that this is the
+    # right way to do it for all platforms, or find a way that works for all
+    # platforms uniformly.
+    if (WIN32)
+        find_package(PythonInterp)
+        if (NOT PYTHON_EXECUTABLE)
+            message(FATAL_ERROR "Could not find python interpreter, which is required for Docutils")
+        endif()
+        execute_process(COMMAND ${PYTHON_EXECUTABLE} ${RST2HTML_EXECUTABLE} --version OUTPUT_VARIABLE VERSION_STRING )
+    else()
+        execute_process(COMMAND ${RST2HTML_EXECUTABLE} --version OUTPUT_VARIABLE VERSION_STRING )
+    endif()
 
+    # find the version
     # ex : rst2html (Docutils 0.6 [release], Python 2.6.6, on linux2)
     string(REGEX MATCHALL "([^\ ]+\ |[^\ ]+$)" VERSION_TOKENS "${VERSION_STRING}")  
     
