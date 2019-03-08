@@ -905,17 +905,17 @@ if extraPaths:
 requiredDependencies = [GLEW, GLFW]
 
 if context.buildPtex:
-    requiredDependencies += [ZLIB, PTEX]
+    # Assume zlib already exists on Linux platforms and don't build
+    # our own. This avoids potential issues where a host application
+    # loads an older version of zlib than the one we'd build and link
+    # our libraries against.
+    if not Linux():
+        requiredDependencies += [ZLIB]
+    requiredDependencies += [PTEX]
 
 if context.buildTBB:
     requiredDependencies += [TBB]
 
-# Assume zlib already exists on Linux platforms and don't build
-# our own. This avoids potential issues where a host application
-# loads an older version of zlib than the one we'd build and link
-# our libraries against.
-if Linux():
-    requiredDependencies.remove(ZLIB)
 
 
 dependenciesToBuild = []
