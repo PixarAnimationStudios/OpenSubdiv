@@ -61,6 +61,13 @@ else()
     set_source_files_properties("${BUNDLE_FILES}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endif()
 
+# XXX: This is unfortunate, we should probably refactor examples_common_obj
+# to separate out the GL from the Metal dependencies so that we don't end up
+# in the situation where we have to link in GLFW for mtlViewer.
+if (GLFW_FOUND)
+    list(APPEND PLATFORM_LIBRARIES "${GLFW_LIBRARIES}")
+endif()
+
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
     "${METAL_INCLUDE_DIR}"
