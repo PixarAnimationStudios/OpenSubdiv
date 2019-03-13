@@ -24,7 +24,7 @@
 
 #include "mtlPtexMipmapTexture.h"
 #include "ptexMipmapTextureLoader.h"
-#include <far/error.h>
+#include <opensubdiv/far/error.h>
 #include <Metal/Metal.h>
 #include <cassert>
 
