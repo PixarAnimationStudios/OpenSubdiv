@@ -21,17 +21,7 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
-
-set(SOURCE_FILES
+_add_far_tutorial(
+    far_tutorial_0
     far_tutorial_0.cpp
 )
-
-_add_executable(far_tutorial_0 "tutorials/far"
-    ${SOURCE_FILES}
-    $<TARGET_OBJECTS:sdc_obj>
-    $<TARGET_OBJECTS:vtr_obj>
-    $<TARGET_OBJECTS:far_obj>
-)
-
-install(TARGETS far_tutorial_0 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
-

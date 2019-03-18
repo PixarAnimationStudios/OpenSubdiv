@@ -21,6 +21,19 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
+macro(_add_far_tutorial NAME)
+
+     _add_executable(${NAME} "tutorials/far"
+        ${ARGN}
+        $<TARGET_OBJECTS:sdc_obj>
+        $<TARGET_OBJECTS:vtr_obj>
+        $<TARGET_OBJECTS:far_obj>
+     )
+
+     install(TARGETS ${NAME} DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+
+endmacro()
+
 
 set(TUTORIALS
     tutorial_0
