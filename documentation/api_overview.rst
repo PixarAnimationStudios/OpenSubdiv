@@ -189,7 +189,7 @@ from the `Far::TopologyDescriptor <far_overview.html#far-topologyrefinerfactory>
         // do something with dst and fverts
     }
 
-6. Done! See `far_tutorial_0 <far_tutorial_0.html>`__ for the complete code example.
+6. Done! See `Far tutorial 1.1 <far_tutorial_1_1.html>`__ for the complete code example.
 
 Use case 2: GL adaptive tessellation drawing of animating mesh
 ==============================================================

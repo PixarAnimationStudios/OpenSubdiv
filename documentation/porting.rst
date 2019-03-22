@@ -87,7 +87,7 @@ recommended for usage where this conversion process is critical.
 Details on how to construct a TopologyRefiner can be found in the 
 `Far overview <far_overview.html#far-topologyrefinerfactory>`__ documentation.
 Additionally, documentation for Far::TopologyRefinerFactory<MESH> outlines the
-requirements, and a Far tutorial (tutorials/far/tutorial_1) provides an example
+requirements, and Far tutorial 3.1 (tutorials/far/tutorial_3_1) provides an example
 of a factory for directly converting HbrMeshes to TopologyRefiners.
 
 Its worth a reminder here that Far::TopologyRefiner contains only topological

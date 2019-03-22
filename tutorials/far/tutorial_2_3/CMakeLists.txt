@@ -22,6 +22,6 @@
 #   language governing permissions and limitations under the Apache License.
 #
 _add_far_tutorial(
-    far_tutorial_3
-    far_tutorial_3.cpp
+    far_tutorial_2_3
+    far_tutorial_2_3.cpp
 )
