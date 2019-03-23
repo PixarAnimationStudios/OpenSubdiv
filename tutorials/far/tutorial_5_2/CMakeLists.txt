@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2018 DreamWorks Animation LLC.
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,6 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 _add_far_tutorial(
-    far_tutorial_6
-    far_tutorial_6.cpp
+    far_tutorial_5_2
+    far_tutorial_5_2.cpp
+    $<TARGET_OBJECTS:regression_common_obj>
 )

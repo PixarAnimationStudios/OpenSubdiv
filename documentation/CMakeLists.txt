@@ -170,17 +170,17 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         hbr/tutorial_0/hbr_tutorial_0.cpp
         hbr/tutorial_1/hbr_tutorial_1.cpp
         hbr/tutorial_2/hbr_tutorial_2.cpp
-        far/tutorial_0/far_tutorial_0.cpp
-        far/tutorial_1/far_tutorial_1.cpp
-        far/tutorial_2/far_tutorial_2.cpp
-        far/tutorial_3/far_tutorial_3.cpp
-        far/tutorial_4/far_tutorial_4.cpp
-        far/tutorial_5/far_tutorial_5.cpp
-        far/tutorial_6/far_tutorial_6.cpp
-        far/tutorial_7/far_tutorial_7.cpp
-        far/tutorial_8/far_tutorial_8.cpp
-        far/tutorial_9/far_tutorial_9.cpp
-        far/tutorial_10/far_tutorial_10.cpp
+        far/tutorial_1_1/far_tutorial_1_1.cpp
+        far/tutorial_1_2/far_tutorial_1_2.cpp
+        far/tutorial_2_1/far_tutorial_2_1.cpp
+        far/tutorial_2_2/far_tutorial_2_2.cpp
+        far/tutorial_2_3/far_tutorial_2_3.cpp
+        far/tutorial_3_1/far_tutorial_3_1.cpp
+        far/tutorial_4_1/far_tutorial_4_1.cpp
+        far/tutorial_4_2/far_tutorial_4_2.cpp
+        far/tutorial_4_3/far_tutorial_4_3.cpp
+        far/tutorial_5_1/far_tutorial_5_1.cpp
+        far/tutorial_5_2/far_tutorial_5_2.cpp
         osd/tutorial_0/osd_tutorial_0.cpp
     )
 

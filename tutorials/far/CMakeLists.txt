@@ -36,17 +36,17 @@ endmacro()
 
 
 set(TUTORIALS
-    tutorial_0
-    tutorial_1
-    tutorial_2
-    tutorial_3
-    tutorial_4
-    tutorial_5
-    tutorial_6
-    tutorial_7
-    tutorial_8
-    tutorial_9
-    tutorial_10
+    tutorial_1_1
+    tutorial_1_2
+    tutorial_2_1
+    tutorial_2_2
+    tutorial_2_3
+    tutorial_3_1
+    tutorial_4_1
+    tutorial_4_2
+    tutorial_4_3
+    tutorial_5_1
+    tutorial_5_2
 )
 
 foreach(tutorial ${TUTORIALS})
