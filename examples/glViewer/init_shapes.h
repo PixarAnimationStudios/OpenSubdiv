@@ -28,11 +28,11 @@
 struct ShapeDesc {
 
     ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme,
-        bool iIsLeftHanded=false) :
+        bool iIsLeftHanded = false) :
         name(iname), data(idata), scheme(ischeme), isLeftHanded(iIsLeftHanded) { }
 
-    std::string name,
-                data;
+    std::string name;
+    std::string data;
     Scheme      scheme;
     bool        isLeftHanded;
 };
@@ -50,8 +50,6 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_creases0",    catmark_cube_creases0,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_creases1",    catmark_cube_creases1,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_cube_creases2",    catmark_cube_creases2,    kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_dart_edgecorner",  catmark_dart_edgecorner,  kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_dart_edgeonly",    catmark_dart_edgeonly,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_edgecorner",       catmark_edgecorner,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_edgeonly",         catmark_edgeonly,         kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_quadstrips",       catmark_quadstrips,       kCatmark ) );
@@ -75,19 +73,11 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_hole_test2",       catmark_hole_test2,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_hole_test3",       catmark_hole_test3,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_hole_test4",       catmark_hole_test4,       kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_lefthanded",       catmark_lefthanded,       kCatmark, true /*isLeftHanded*/ ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_righthanded",      catmark_righthanded,      kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_pole8",            catmark_pole8,            kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_pole64",           catmark_pole64,           kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_nonman_quadpole8",   catmark_nonman_quadpole8,   kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_nonman_quadpole64",  catmark_nonman_quadpole64,  kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_nonman_quadpole360", catmark_nonman_quadpole360, kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_pyramid",          catmark_pyramid,          kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_pyramid_creases0", catmark_pyramid_creases0, kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_pyramid_creases1", catmark_pyramid_creases1, kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_pyramid",          catmark_pyramid,          kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_tent_creases0",    catmark_tent_creases0,    kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_tent_creases1",    catmark_tent_creases1 ,   kCatmark ) );
-    g_defaultShapes.push_back( ShapeDesc("catmark_tent",             catmark_tent,             kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_torus",            catmark_torus,            kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_torus_creases0",   catmark_torus_creases0,   kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_smoothtris0",      catmark_smoothtris0,      kCatmark ) );
@@ -109,8 +99,6 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("loop_icosahedron",         loop_icosahedron,         kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_icos_semisharp",      loop_icos_semisharp,      kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_icos_infsharp",       loop_icos_infsharp,       kLoop ) );
-    g_defaultShapes.push_back( ShapeDesc("loop_chaikin0",            loop_chaikin0,            kLoop ) );
-    g_defaultShapes.push_back( ShapeDesc("loop_chaikin1",            loop_chaikin1,            kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_pole8",               loop_pole8,               kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_pole64",              loop_pole64,              kLoop ) );
 
