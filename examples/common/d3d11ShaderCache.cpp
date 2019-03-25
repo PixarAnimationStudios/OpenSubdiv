@@ -82,6 +82,9 @@ D3D11DrawConfig::CompileVertexShader(const std::string &target,
     ID3DBlob * pBlob = NULL;
     pBlob = _CompileShader(target, entry, source);
 
+    if (!pBlob)
+        return false;
+
     HRESULT hr = pd3dDevice->CreateVertexShader(pBlob->GetBufferPointer(),
                                                 pBlob->GetBufferSize(),
                                                 NULL,
@@ -112,6 +115,9 @@ D3D11DrawConfig::CompileHullShader(const std::string &target,
     ID3DBlob * pBlob = NULL;
     pBlob = _CompileShader(target, entry, source);
 
+    if (!pBlob)
+        return false;
+
     HRESULT hr = pd3dDevice->CreateHullShader(pBlob->GetBufferPointer(),
                                               pBlob->GetBufferSize(),
                                               NULL,
@@ -131,6 +137,9 @@ D3D11DrawConfig::CompileDomainShader(const std::string &target,
                                      ID3D11Device * pd3dDevice) {
     ID3DBlob * pBlob = NULL;
     pBlob = _CompileShader(target, entry, source);
+
+    if (!pBlob)
+        return false;
 
     HRESULT hr = pd3dDevice->CreateDomainShader(pBlob->GetBufferPointer(),
                                                 pBlob->GetBufferSize(),
@@ -152,6 +161,9 @@ D3D11DrawConfig::CompileGeometryShader(const std::string &target,
     ID3DBlob * pBlob = NULL;
     pBlob = _CompileShader(target, entry, source);
 
+    if (!pBlob)
+        return false;
+
     HRESULT hr = pd3dDevice->CreateGeometryShader(pBlob->GetBufferPointer(),
                                                   pBlob->GetBufferSize(),
                                                   NULL,
@@ -171,6 +183,9 @@ D3D11DrawConfig::CompilePixelShader(const std::string &target,
                                     ID3D11Device * pd3dDevice) {
     ID3DBlob * pBlob = NULL;
     pBlob = _CompileShader(target, entry, source);
+
+    if (!pBlob)
+        return false;
 
     HRESULT hr = pd3dDevice->CreatePixelShader(pBlob->GetBufferPointer(),
                                                pBlob->GetBufferSize(),

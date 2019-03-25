@@ -1467,10 +1467,7 @@ updateRenderTarget(HWND hWnd) {
 static void
 callbackError(OpenSubdiv::Far::ErrorType err, const char *message) {
 
-    std::ostringstream s;
-    s << "Error: " << err << "\n";
-    s << message;
-    OutputDebugString(s.str().c_str());
+    MessageBox(NULL, message, "Error", MB_ICONERROR);
 }
 
 //------------------------------------------------------------------------------
