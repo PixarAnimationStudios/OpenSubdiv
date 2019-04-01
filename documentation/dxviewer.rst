@@ -35,7 +35,8 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **dxViewer** [**-d** *isolation level*] [**-c** *animation loops*]  *objfile(s)*
+   **dxViewer** [**-u**] [**-a**] [**-l** *refinement level*] [**-c** *animation loops*]
+      *objfile(s)* [**-anim**] [**-catmark**] [**-loop**] [**-bilinear**]
 
 DESCRIPTION
 ===========
@@ -58,13 +59,8 @@ shapes. Multiple controls are available to experiment with the algorithms.
 OPTIONS
 =======
 
-**-d** *isolation level*
-  Select the desired isolation level of adaptive feature isolation. This can be 
-  useful when trying to load large pieces of geometry.
-
-**-c** *animation frequency*
-  Number of repetitions of the animation loop (default=0 is infinite)
-
-
+See the description of the
+`common comand line options <code_examples.html#common-command-line-options>`__
+for the subset of common options supported here.
 
 .. include:: examples_see_also.rst

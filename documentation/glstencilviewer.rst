@@ -35,7 +35,8 @@ SYNOPSIS
 .. parsed-literal::
    :class: codefhead
 
-   **glStencilViewer** [**-d** *isolation level*] [**-f**] *objfile(s)*
+   **glStencilViewer** [**-f**] [**-u**] [**-a**] [**-l** *refinement level*]
+       *objfile(s)* [**-catmark**] [**-loop**] [**-bilinear**]
 
 DESCRIPTION
 ===========
@@ -52,12 +53,8 @@ controls are available to experiment with the algorithms.
 OPTIONS
 =======
 
-**-d** *isolation level*
-  Select the desired isolation level of adaptive feature isolation. This can be
-  useful when trying to load large pieces of geometry.
-
-**-f**
-  Launches the application in full-screen mode (if is supported by GLFW on the
-  OS)
+See the description of the
+`common comand line options <code_examples.html#common-command-line-options>`__
+for the subset of common options supported here.
 
 .. include:: examples_see_also.rst

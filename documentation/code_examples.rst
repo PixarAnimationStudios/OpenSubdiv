@@ -38,12 +38,12 @@ of the software.
    :widths: 50 50
 
    * - | `glViewer <glviewer.html>`_
-       | `glPtexViewer <glptexviewer.html>`_
        | `glEvalLimit <glevallimit.html>`_
-     - | `glStencilViewer <glstencilviewer.html>`_
        | `glPaintTest <glpainttest.html>`_
+       | `glPtexViewer <glptexviewer.html>`_
+     - | `glFVarViewer <glfvarviewer.html>`_
+       | `glStencilViewer <glstencilviewer.html>`_
        | `glShareTopology <glsharetopology.html>`_
-       | `glFVarViewer <glfvarviewer.html>`_
 
 .. list-table:: **DirectX examples**
    :class: quickref
@@ -54,10 +54,35 @@ of the software.
 
 ----
 
+Common Command Line Options
+===========================
+
+While the following command line options are common, not all examples support
+all -- in some cases, certain options are not applicable.
+
+::
+
+      -f         : launches the application in full-screen mode (if supported by GLFW
+                   on the OS)
+      -u         : apply uniform subdivision to all meshes
+      -a         : apply adaptive subdivision to create patches for the limit surface
+      -l depth   : level of uniform or adaptive refinement to apply
+      -c count   : number of repetitions of the animation loop when supported (default
+                   of 0 is infinite)
+      objfile(s) : a set of one or more meshes in Obj format (requiring a .obj suffix)
+                   that may be distinct meshes or animated versions of a single mesh
+      -anim      : interpret a given set of Obj files as an animated sequence rather
+                   than a set of distinct meshes
+      -catmark   : apply the Catmark scheme to all meshes in given Obj files (default)
+      -loop      : apply the Loop scheme to all meshes in given Obj files
+      -bilinear  : apply the Bilinear scheme to all meshes in given Obj files
+
+----
+
 Common Keyboard Controls
 ========================
 
-   .. code:: c++
+::
 
       Left mouse button drag   : orbit camera
       Middle mouse button drag : pan camera
