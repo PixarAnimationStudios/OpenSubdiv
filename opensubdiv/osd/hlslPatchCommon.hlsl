@@ -1360,6 +1360,14 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     bezcv[14].P = cv[11];
     bezcv[15].P = cv[10];
 
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    for (int i=0; i < 16; ++i) {
+        bezcv[i].P1 = float3(0,0,0);
+        bezcv[i].P2 = float3(0,0,0);
+        bezcv[i].vSegments = float2(0,0);
+    }
+#endif
+
     OsdEvalPatchBezier(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
 }
 
@@ -1533,11 +1541,11 @@ OsdComputePerVertexGregory(int vID, float3 P, out OsdPerVertexGregory v)
     v.e0 = float3(0,0,0);
     v.e1 = float3(0,0,0);
 
-    for(int i=0; i<valence; ++i) {
-        int im = (i + valence -1) % valence;
-        e = 0.5f * (f[i] + f[im]);
-        v.e0 += cosfn(valence, i)*e;
-        v.e1 += sinfn(valence, i)*e;
+    for(int iv=0; iv<valence; ++iv) {
+        int im = (iv + valence -1) % valence;
+        e = 0.5f * (f[iv] + f[im]);
+        v.e0 += cosfn(valence, iv)*e;
+        v.e1 += sinfn(valence, iv)*e;
     }
     v.e0 *= ef[valence - 3];
     v.e1 *= ef[valence - 3];
