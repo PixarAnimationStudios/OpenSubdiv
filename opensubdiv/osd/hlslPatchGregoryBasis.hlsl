@@ -119,6 +119,9 @@ void ds_main_patches(
     output.Nu = dNu;
     output.Nv = dNv;
 #endif
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    output.vSegments = float2(0,0);
+#endif
 
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
 
