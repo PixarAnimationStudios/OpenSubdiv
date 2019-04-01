@@ -48,10 +48,10 @@ Topology
 
 Well-constructed subdivision meshes have several important properties:
 
-    * They consist primarily of quad faces
+    * They consist primarily of regular faces (quads for Catmull-Clark, tris for Loop)
     * They contain few extraordinary vertices
     * They efficiently describe the intended shape
-    * They are topologically `manifold <subdivision_surfaces.html#manifold-geometry>`__
+    * They are topologically `manifold <subdivision_surfaces.html#non-manifold-topology>`__
 
 ----
 

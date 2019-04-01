@@ -264,6 +264,8 @@ help deal with that complexity:
 | Two valence-5 vertices nearby        | Isolation subdivided once            | Isolation subdivided twice           |
 +--------------------------------------+--------------------------------------+--------------------------------------+
 
+.. _feature-adaptive:
+
 It's generally necessary to perform some kind of local subdivision in these areas
 to break these pieces of surface into smaller, more manageable pieces, and the
 term "feature adaptive subdivision" has become popular in recent years to describe

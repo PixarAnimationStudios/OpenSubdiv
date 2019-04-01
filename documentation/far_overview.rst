@@ -50,7 +50,8 @@ vertices, edges, and faces. This process is purely topological and does
 not depend on the speciific values of any primvar data (point positions, etc).
 
 Topology refinement can be either uniform or adaptive, where extraordinary
-features are automatically isolated (see `feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__).
+features are automatically isolated (see
+`feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive>`__).
 
 The *Far* topology classes present a public interface for the refinement
 functionality provided in `Vtr <vtr_overview.html#Vtr>`__,
@@ -541,9 +542,9 @@ reduced only to contributions from vertices from the previous level of
 refinement.
 
 The latter mode allows client-code to access and insert modifications to the
-vertex data at set refinement levels (see `hierarchical vertex edits
-<subdivision_surfaces.html#hierarchical-edits>`_). Once the edits have been
-applied by the client-code, another set of stencils can be used to smoothe the
+vertex data at set refinement levels -- creating what are often referred
+to as *hierarchical edits*.  Once the edits have been
+applied by the client-code, another set of stencils can be used to smooth the
 vertex data to a higher level of refinement.
 
 .. image:: images/far_stencil8.png
@@ -580,7 +581,7 @@ Also: just as discrete stencils, limit stencils that are factorized from coarse
 control vertices do not have inter-dependencies and can be evaluated in
 parallel.
 
-For implementation details, see the `glStencilViewer <glStencilViewer.html>`_
+For implementation details, see the `glStencilViewer <glstencilviewer.html>`_
 code example.
 
 Sample Location On Extraordinary Faces
