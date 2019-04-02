@@ -65,8 +65,8 @@ identical results across different computational devices.
 Refinement
 ==========
 
-**Osd** supports both `uniform subdivision <subdivision_surfaces.html#uniform-subdivision>`__
-and `adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__.
+**Osd** supports both uniform and
+`feature adaptive <subdivision_surfaces.html#feature-adaptive>`__ subdivision.
 
 
 .. image:: images/osd_refinement.png

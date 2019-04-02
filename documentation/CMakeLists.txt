@@ -100,9 +100,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         sdc_overview.rst
         subdivision_surfaces.rst
         tutorials.rst
-        using_osd.rst
         using_osd_hbr.rst
-        using_osd_textures.rst
         vtr_overview.rst
     )
 

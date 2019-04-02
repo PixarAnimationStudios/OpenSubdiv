@@ -32,7 +32,12 @@ glFVarViewer
 SYNOPSIS
 ========
 
-   **glFVarViewer** [**-d** *isolation level*] [**-c** *animation loops*] [**-f**] *objfile(s)*
+.. parsed-literal:: 
+   :class: codefhead
+
+   **glFVarViewer** [**-f**] [**-u**] [**-a**] [**-l** *refinement level*] [**-c** *animation loops*]
+       *objfile(s)* [**-catmark**] [**-loop**] [**-bilinear**]
+
 
 DESCRIPTION
 ===========
@@ -54,16 +59,8 @@ interpolation rules and tags.
 OPTIONS
 =======
 
-**-d** *isolation level*
-  Select the desired isolation level of adaptive feature isolation. This can be 
-  useful when trying to load large pieces of geometry.
-
-**-c** *animation frequency*
-  Number of repetitions of the animation loop (default=0 is infinite)
-
-**-f**
-  Launches the application in full-screen mode (if is supported by GLFW on the
-  OS)
-
+See the description of the
+`common comand line options <code_examples.html#common-command-line-options>`__
+for the subset of common options supported here.
 
 .. include:: examples_see_also.rst

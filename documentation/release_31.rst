@@ -37,7 +37,7 @@ Bicubic Face-Varying Patches
 
 The motivation for this feature is to improve drawing and evaluation of face-varying
 primvar values for all
-`face-varying interpolation options <subdivision_surfaces.html#face-varying-interpolation-rules>`__.
+`face-varying interpolation options <subdivision_surfaces.html#face-varying-interpolation>`__.
 
 A common use of non-linear face-varying data is to capture a UV projection on
 the surface.  The following example shows a simple shape with the face-varying

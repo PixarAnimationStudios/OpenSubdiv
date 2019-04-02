@@ -111,7 +111,7 @@ Boundary Interpolation Rules
 +------------------------------------+
 
 This enum is shared for both `vertex and face-varying interpolation
-<subdivision_surfaces.html#boundary-interpolation-rules>`__, with the following
+<subdivision_surfaces.html#boundary-interpolation>`__, with the following
 distinctions:
 
     - vertex boundaries:
