@@ -62,20 +62,19 @@ all -- in some cases, certain options are not applicable.
 
 ::
 
-      -f         : launches the application in full-screen mode (if supported by GLFW
-                   on the OS)
+      -f         : launches the application in full-screen mode (if supported)
       -u         : apply uniform subdivision to all meshes
       -a         : apply adaptive subdivision to create patches for the limit surface
       -l depth   : level of uniform or adaptive refinement to apply
       -c count   : number of repetitions of the animation loop when supported (default
                    of 0 is infinite)
-      objfile(s) : a set of one or more meshes in Obj format (requiring a .obj suffix)
-                   that may be distinct meshes or animated versions of a single mesh
       -anim      : interpret a given set of Obj files as an animated sequence rather
                    than a set of distinct meshes
       -catmark   : apply the Catmark scheme to all meshes in given Obj files (default)
       -loop      : apply the Loop scheme to all meshes in given Obj files
       -bilinear  : apply the Bilinear scheme to all meshes in given Obj files
+      objfile(s) : a set of one or more meshes in Obj format (requiring a .obj extension)
+                   that may be distinct meshes or animated versions of a single mesh
 
 ----
 
