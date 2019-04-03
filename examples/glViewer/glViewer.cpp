@@ -74,6 +74,7 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 bool g_legacyGregoryEnabled = false;
 
 #include "../../regression/common/far_utils.h"
+#include "../common/argOptions.h"
 #include "../common/glHud.h"
 #include "../common/glUtils.h"
 #include "../common/glControlMeshDisplay.h"
@@ -81,6 +82,7 @@ bool g_legacyGregoryEnabled = false;
 #include "../common/objAnim.h"
 #include "../common/simple_math.h"
 #include "../common/stopwatch.h"
+#include "../common/viewerArgsUtils.h"
 #include <opensubdiv/osd/glslPatchShaderSource.h>
 
 
@@ -172,15 +174,12 @@ int g_currentShape = 0;
 
 ObjAnim const * g_objAnim = 0;
 
-bool g_axis=true;
-
 int   g_frame = 0,
       g_repeatCount = 0;
 float g_animTime = 0;
 
 // GUI variables
-int   g_fullscreen = 0,
-      g_freeze = 0,
+int   g_freeze = 0,
       g_shadingMode = kShadingPatchType,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
@@ -1651,62 +1650,27 @@ callbackErrorGLFW(int error, const char* description) {
 
 int main(int argc, char ** argv) {
 
-    bool fullscreen = false;
-    Scheme defaultScheme = kCatmark;
-    std::vector<char const *> objfiles;
-    bool objAnimFlag = false;
+    ArgOptions args;
+        
+    args.Parse(argc, argv);
 
-    for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
-            objfiles.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-a")) {
-            g_adaptive = true;
-        } else if (!strcmp(argv[i], "-u")) {
-            g_adaptive = false;
-        } else if (!strcmp(argv[i], "-l")) {
-            if (++i < argc) g_level = atoi(argv[i]);
-        } else if (!strcmp(argv[i], "-axis")) {
-            g_axis = false;
-        } else if (!strcmp(argv[i], "-c")) {
-            if (++i < argc) g_repeatCount = atoi(argv[i]);
-        } else if (!strcmp(argv[i], "-f")) {
-            fullscreen = true;
-        } else if (!strcmp(argv[i], "-anim")) {
-            objAnimFlag = true;
-        } else if (!strcmp(argv[i], "-bilinear")) {
-            defaultScheme = kBilinear;
-        } else if (!strcmp(argv[i], "-catmark")) {
-            defaultScheme = kCatmark;
-        } else if (!strcmp(argv[i], "-loop")) {
-            defaultScheme = kLoop;
-        } else if (!strcmp(argv[i], "-lg")) {
+    g_adaptive = args.GetAdaptive();
+    g_level = args.GetLevel();
+    g_repeatCount = args.GetRepeatCount();
+
+    // Parse remaining args
+    const std::vector<const char *> &rargs = args.GetRemainingArgs();
+    for (size_t i = 0; i < rargs.size(); ++i) {
+
+        if (!strcmp(rargs[i], "-lg")) {
             g_legacyGregoryEnabled = true;
         } else {
-            printf("Warning: unrecognized argument '%s' ignored\n", argv[i]);
+            args.PrintUnrecognizedArgWarning(rargs[i]);
         }
     }
 
-    if (! objfiles.empty()) {
-        if (objAnimFlag) {
-            g_objAnim = ObjAnim::Create(objfiles, g_axis, defaultScheme);
-            if (g_objAnim) {
-                g_defaultShapes.push_back(ShapeDesc(objfiles[0], "", defaultScheme));
-            }
-        } else {
-            for (int i = 0; i < (int)objfiles.size(); ++i) {
-                std::ifstream ifs(objfiles[i]);
-                if (ifs) {
-                    std::stringstream ss;
-                    ss << ifs.rdbuf();
-                    ifs.close();
-                    std::string str = ss.str();
-                    g_defaultShapes.push_back(ShapeDesc(objfiles[i], str.c_str(), defaultScheme));
-                } else {
-                    printf("Warning: cannot open shape file '%s'\n", objfiles[i]);
-                }
-            }
-        }
-    }
+    ViewerArgsUtils::PopulateShapesOrAnimShapes(
+        args, &g_defaultShapes, &g_objAnim);
 
     initShapes();
 
@@ -1724,7 +1688,7 @@ int main(int argc, char ** argv) {
 
     GLUtils::SetMinimumGLVersion(argc, argv);
 
-    if (fullscreen) {
+    if (args.GetFullScreen()) {
 
         g_primary = glfwGetPrimaryMonitor();
 
@@ -1746,7 +1710,7 @@ int main(int argc, char ** argv) {
     }
 
     g_window = glfwCreateWindow(g_width, g_height, windowTitle,
-        fullscreen && g_primary ? g_primary : NULL, NULL);
+        args.GetFullScreen() && g_primary ? g_primary : NULL, NULL);
 
     if (! g_window) {
         std::cerr << "Failed to create OpenGL context.\n";

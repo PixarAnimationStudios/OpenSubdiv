@@ -24,16 +24,7 @@
 
 #include "../../regression/common/shape_utils.h"
 #include "../../regression/shapes/all.h"
-
-struct ShapeDesc {
-
-    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme) :
-        name(iname), data(idata), scheme(ischeme) { }
-
-    std::string name,
-                data;
-    Scheme      scheme;
-};
+#include "../common/shapeDesc.h"
 
 static std::vector<ShapeDesc> g_defaultShapes;
 

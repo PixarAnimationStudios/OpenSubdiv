@@ -36,11 +36,13 @@ GLFWmonitor* g_primary = 0;
 OpenSubdiv::Osd::GLMeshInterface *g_mesh = NULL;
 
 #include "../../regression/common/far_utils.h"
+#include "../common/argOptions.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
 #include "../common/glShaderCache.h"
+#include "../common/viewerArgsUtils.h"
 
 #include <opensubdiv/osd/glslPatchShaderSource.h>
 static const char *shaderSource =
@@ -76,8 +78,7 @@ OpenSubdiv::Sdc::Options::FVarLinearInterpolation  g_fvarBoundary =
     OpenSubdiv::Sdc::Options::FVAR_LINEAR_ALL;
 
 // GUI variables
-int   g_fullscreen = 0,
-      g_freeze = 0,
+int   g_freeze = 0,
       g_displayStyle = kWireShaded,
       g_adaptive = 1,
       g_smoothCornerPatch = 0,
@@ -1262,45 +1263,16 @@ parseIntArg(const char* argString, int dfltValue = 0) {
 //------------------------------------------------------------------------------
 int main(int argc, char ** argv) {
 
-    bool fullscreen = false;
-    Scheme defaultScheme = kCatmark;
-    std::vector<char const *> objfiles;
+    ArgOptions args;
+        
+    args.Parse(argc, argv);
+    args.PrintUnrecognizedArgsWarnings();
 
-    for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
-            objfiles.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-a")) {
-            g_adaptive = true;
-        } else if (!strcmp(argv[i], "-u")) {
-            g_adaptive = false;
-        } else if (!strcmp(argv[i], "-l")) {
-            if (++i < argc) g_level = parseIntArg(argv[i], g_level);
-        } else if (!strcmp(argv[i], "-c")) {
-            if (++i < argc) g_repeatCount = parseIntArg(argv[i], g_repeatCount);
-        } else if (!strcmp(argv[i], "-f")) {
-            fullscreen = true;
-        } else if (!strcmp(argv[i], "-bilinear")) {
-            defaultScheme = kBilinear;
-        } else if (!strcmp(argv[i], "-catmark")) {
-            defaultScheme = kCatmark;
-        } else if (!strcmp(argv[i], "-loop")) {
-            defaultScheme = kLoop;
-        } else {
-            printf("Warning: unrecognized argument '%s' ignored\n", argv[i]);
-        }
-    }
-    for (int i = 0; i < (int)objfiles.size(); ++i) {
-        std::ifstream ifs(objfiles[i]);
-        if (ifs) {
-            std::stringstream ss;
-            ss << ifs.rdbuf();
-            ifs.close();
-            std::string str = ss.str();
-            g_defaultShapes.push_back(ShapeDesc(objfiles[i], str.c_str(), defaultScheme));
-        } else {
-            printf("Warning: cannot open shape file '%s'\n", objfiles[i]);
-        }
-    }
+    g_adaptive = args.GetAdaptive();
+    g_level = args.GetLevel();
+    g_repeatCount = args.GetRepeatCount();
+
+    ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
 
     initShapes();
 
@@ -1316,7 +1288,7 @@ int main(int argc, char ** argv) {
 
     GLUtils::SetMinimumGLVersion();
 
-    if (fullscreen) {
+    if (args.GetFullScreen()) {
         g_primary = glfwGetPrimaryMonitor();
 
         // apparently glfwGetPrimaryMonitor fails under linux : if no primary,
@@ -1337,7 +1309,7 @@ int main(int argc, char ** argv) {
     }
 
     if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen && g_primary ? g_primary : NULL, NULL))) {
+             args.GetFullScreen() && g_primary ? g_primary : NULL, NULL))) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
