@@ -24,6 +24,10 @@
 
 #include "../common/argOptions.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 static int
 parseIntArg(const char* argString, int dfltValue = 0) {
     char *argEndptr;
