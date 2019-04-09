@@ -29,23 +29,28 @@ set(EXAMPLES_COMMON_SHADER_FILES
 )
 
 set(EXAMPLES_COMMON_SOURCE_FILES
+    argOptions.cpp
     font_image.cpp
     hdr_reader.cpp
     hud.cpp
     objAnim.cpp
     patchColors.cpp
+    viewerArgsUtils.cpp
 )
 
 set(EXAMPLES_COMMON_HEADER_FILES
+    argOptions.h
     font_image.h
     hdr_reader.h
     hud.h
     objAnim.h
     patchColors.h
     shaderCache.h
+    shapeDesc.h
     simple_math.h
     stb_image_write.h 
     stopwatch.h
+    viewerArgsUtils.h
 )
 
 if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
