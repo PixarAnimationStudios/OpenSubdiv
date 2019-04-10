@@ -243,7 +243,7 @@ int main(int, char **) {
     desc.numFVarChannels = 2;
     desc.fvarChannels = channels;
 
-    // Instantiate a FarTopologyRefiner from the descriptor
+    // Instantiate a Far::TopologyRefiner from the descriptor
     Far::TopologyRefiner * refiner =
         Far::TopologyRefinerFactory<Descriptor>::Create(desc,
             Far::TopologyRefinerFactory<Descriptor>::Options(type, options));

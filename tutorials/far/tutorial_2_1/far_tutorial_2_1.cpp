@@ -212,7 +212,7 @@ int main(int, char **) {
 //------------------------------------------------------------------------------
 // Creates Far::TopologyRefiner from raw geometry
 //
-// see far_tutorial_0 for more details
+// see tutorial_1_1 for more details
 //
 static Far::TopologyRefiner *
 createFarTopologyRefiner() {

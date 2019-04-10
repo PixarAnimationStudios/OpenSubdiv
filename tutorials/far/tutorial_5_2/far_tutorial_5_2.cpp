@@ -29,7 +29,7 @@
 //      This tutorial shows how to manage the limit surface of a potentially
 //      large mesh by creating groups of patches for selected faces of the
 //      mesh.  Familiarity with construction and evaluation of a PatchTable
-//      is assumed (see far/tutorial_6).
+//      is assumed (see tutorial_5_1).
 //
 //      When the patches for a mesh do not need to be retained for further
 //      use, e.g. when simply computing points for a tessellation, the time
@@ -204,7 +204,7 @@ namespace {
         desc.numVertsPerFace = &topVertsPerFace[0];
         desc.vertIndicesPerFace = &topFaceVerts[0];
 
-        //  Instantiate a FarTopologyRefiner from the descriptor.
+        //  Instantiate a Far::TopologyRefiner from the descriptor.
         Far::TopologyRefiner * refiner =
             Far::TopologyRefinerFactory<Descriptor>::Create(desc,
                 Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
@@ -349,7 +349,7 @@ PatchGroup::PatchGroup(Far::PatchTableFactory::Options patchOptions,
     patchFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(baseRefiner.GetSchemeType());
 
     //  Compute the number of refined and local points needed to evaluate the
-    //  patches, allocate and interpolate.  This varies from far/tutorial_6 in
+    //  patches, allocate and interpolate.  This varies from tutorial_5_1 in
     //  that the primvar buffer for the base vertices is separate from the
     //  refined vertices and local patch points (which must also be accounted
     //  for when evaluating the patches).

@@ -137,7 +137,7 @@ struct LimitFrame {
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    // Generate a FarTopologyRefiner (see far_tutorial_0 for details).
+    // Generate a Far::TopologyRefiner (see tutorial_1_1 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
     // Patches are constructed from adaptively refined faces, but the processes
@@ -198,7 +198,7 @@ int main(int, char **) {
     int nRefinedLevels = refiner->GetNumLevels();
 
     // Interpolate vertex primvar data : they are the control vertices
-    // of the limit patches (see far_tutorial_0 for details)
+    // of the limit patches (see tutorial_1_1 for details)
     Far::PrimvarRefinerReal<Real> primvarRefiner(*refiner);
 
     Vertex * src = &verts[0];
@@ -325,7 +325,7 @@ createTopologyRefiner() {
     desc.creaseVertexIndexPairs = g_creaseverts;
     desc.creaseWeights = g_creaseweights;
 
-    // Instantiate a FarTopologyRefiner from the descriptor.
+    // Instantiate a Far::TopologyRefiner from the descriptor.
     Far::TopologyRefiner * refiner =
         Far::TopologyRefinerFactory<Descriptor>::Create(desc,
             Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
