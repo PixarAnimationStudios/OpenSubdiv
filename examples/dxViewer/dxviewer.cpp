@@ -61,12 +61,14 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh = NULL;
 OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 
 #include "../../regression/common/far_utils.h"
+#include "../common/argOptions.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11ControlMeshDisplay.h"
 #include "../common/d3d11Hud.h"
 #include "../common/d3d11Utils.h"
 #include "../common/d3d11ShaderCache.h"
+#include "../common/viewerArgsUtils.h"
 
 #include <opensubdiv/osd/hlslPatchShaderSource.h>
 static const char *shaderSource =
@@ -1513,22 +1515,10 @@ msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-static std::vector<std::string>
-tokenize(std::string const & src) {
-
-    std::vector<std::string> result;
-
-    std::stringstream input(src);
-    std::copy(std::istream_iterator<std::string>(input),
-              std::istream_iterator<std::string>(),
-              std::back_inserter< std::vector<std::string> >(result));
-
-    return result;
-}
-
 int WINAPI
-WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow) {
-
+WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, 
+        int nCmdShow) 
+{
     // register window class
     TCHAR szWindowClass[] = "OPENSUBDIV_EXAMPLE";
     WNDCLASS wcex;
@@ -1548,7 +1538,8 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     RECT rect = { 0, 0, g_width, g_height };
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
 
-    static const char windowTitle[] = "OpenSubdiv dxViewer " OPENSUBDIV_VERSION_STRING;
+    static const char windowTitle[] = 
+        "OpenSubdiv dxViewer " OPENSUBDIV_VERSION_STRING;
 
     HWND hWnd = CreateWindow(szWindowClass,
                         windowTitle,
@@ -1562,35 +1553,12 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                         hInstance,
                         NULL);
 
-    std::vector<std::string> args = tokenize(lpCmdLine);
-    for (size_t i=0; i<args.size(); ++i) {
-        std::ifstream ifs(args[i]);
-        if (ifs) {
-            std::stringstream ss;
-            ss << ifs.rdbuf();
-            ifs.close();
-            std::string str = ss.str();
-            g_defaultShapes.push_back(ShapeDesc(__argv[1], str.c_str(), kCatmark));
-        }
-    }
-
-    std::string str;
-    for (int i = 1; i < __argc; ++i) {
-        if (!strcmp(__argv[i], "-d"))
-            g_level = atoi(__argv[++i]);
-        else if (!strcmp(__argv[i], "-c"))
-            g_repeatCount = atoi(__argv[++i]);
-        else {
-            std::ifstream ifs(__argv[1]);
-            if (ifs) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                ifs.close();
-                str = ss.str();
-                g_defaultShapes.push_back(ShapeDesc(__argv[1], str.c_str(), kCatmark));
-            }
-        }
-    }
+    // Parse the command line arguments
+    ArgOptions args;
+    args.Parse(__argc, __argv);
+    g_level = args.GetLevel();
+    g_repeatCount = args.GetRepeatCount();
+    ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
 
     initShapes();
 
