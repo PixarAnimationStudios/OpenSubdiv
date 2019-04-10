@@ -25,17 +25,7 @@
 #include "../../regression/common/shape_utils.h"
 #include "../../regression/shapes/all.h"
 
-struct ShapeDesc {
-
-    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme,
-        bool iIsLeftHanded = false) :
-        name(iname), data(idata), scheme(ischeme), isLeftHanded(iIsLeftHanded) { }
-
-    std::string name;
-    std::string data;
-    Scheme      scheme;
-    bool        isLeftHanded;
-};
+#include "../common/shapeDesc.h"
 
 static std::vector<ShapeDesc> g_defaultShapes;
 
