@@ -122,14 +122,14 @@ static Far::TopologyRefiner * createTopologyRefiner();
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    // Generate a FarTopologyRefiner (see far_tutorial_0 for details).
+    // Generate a Far::TopologyRefiner (see tutorial_1_1 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
     // Uniformly refine the topology up to 'maxlevel'.
     int maxlevel = 4;
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
-    // Use the FarStencilTable factory to create cascading stencil table
+    // Use the Far::StencilTable factory to create cascading stencil table
     // note: we want stencils for each refinement level
     //       "cascade" mode is achieved by setting "factorizeIntermediateLevels"
     //       to false
@@ -229,7 +229,7 @@ createTopologyRefiner() {
     desc.numVertsPerFace = g_vertsperface;
     desc.vertIndicesPerFace = g_vertIndices;
 
-    // Instantiate a FarTopologyRefiner from the descriptor.
+    // Instantiate a Far::TopologyRefiner from the descriptor.
     return Far::TopologyRefinerFactory<Descriptor>::Create(desc,
             Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 

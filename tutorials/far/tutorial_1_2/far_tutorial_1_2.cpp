@@ -141,7 +141,7 @@ static float g_verts[8][3] = {{  0.0f,  0.0f,  1.0f },
                               {  1.0f,  0.0f,  0.0f }};
 
 //
-//  Creates Far::TopologyRefiner from raw geometry above (see tutorial_0 for
+//  Creates Far::TopologyRefiner from raw geometry above (see tutorial_1_1 for
 //  more details)
 //
 static Far::TopologyRefiner *
@@ -182,7 +182,7 @@ createFarTopologyRefiner() {
 
 int main(int, char **) {
 
-    //  Instantiate a FarTopologyRefiner from the global geometry:
+    //  Instantiate a Far::TopologyRefiner from the global geometry:
     Far::TopologyRefiner * refiner = createFarTopologyRefiner();
 
     //  Uniformly refine the topology up to 'maxlevel'

@@ -113,7 +113,7 @@ static Far::TopologyRefiner * createTopologyRefiner();
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    // Generate a FarTopologyRefiner (see far_tutorial_0 for details).
+    // Generate a Far::TopologyRefiner (see tutorial_1_1 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
 
@@ -227,7 +227,7 @@ createTopologyRefiner() {
     desc.numVertsPerFace = g_vertsperface;
     desc.vertIndicesPerFace = g_vertIndices;
 
-    // Instantiate a FarTopologyRefiner from the descriptor.
+    // Instantiate a Far::TopologyRefiner from the descriptor.
     Far::TopologyRefiner * refiner =
         Far::TopologyRefinerFactory<Descriptor>::Create(desc,
             Far::TopologyRefinerFactory<Descriptor>::Options(type, options));

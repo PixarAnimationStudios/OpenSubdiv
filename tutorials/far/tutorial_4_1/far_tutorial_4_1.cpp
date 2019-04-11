@@ -26,8 +26,8 @@
 //------------------------------------------------------------------------------
 // Tutorial description:
 //
-// This tutorial shows how to create and manipulate FarStencilTable. We use the
-// factorized stencils to interpolate vertex primvar data buffers.
+// This tutorial shows how to create and manipulate Far::StencilTable. We use
+// the factorized stencils to interpolate vertex primvar data buffers.
 //
 
 #include <opensubdiv/far/topologyDescriptor.h>
@@ -107,7 +107,7 @@ static Far::TopologyRefiner * createTopologyRefiner();
 //------------------------------------------------------------------------------
 int main(int, char **) {
 
-    // Generate some FarTopologyRefiner (see far_tutorial_0 for details).
+    // Generate a Far::TopologyRefiner (see tutorial_1_1 for details).
     Far::TopologyRefiner * refiner = createTopologyRefiner();
 
 
@@ -116,7 +116,7 @@ int main(int, char **) {
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
 
-    // Use the FarStencilTable factory to create discrete stencil table
+    // Use the Far::StencilTable factory to create discrete stencil table
     // note: we only want stencils for the highest refinement level.
     Far::StencilTableFactory::Options options;
     options.generateIntermediateLevels=false;
@@ -175,7 +175,7 @@ createTopologyRefiner() {
     desc.numVertsPerFace = g_vertsperface;
     desc.vertIndicesPerFace = g_vertIndices;
 
-    // Instantiate a FarTopologyRefiner from the descriptor.
+    // Instantiate a Far::TopologyRefiner from the descriptor.
     return Far::TopologyRefinerFactory<Descriptor>::Create(desc,
                 Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
 
