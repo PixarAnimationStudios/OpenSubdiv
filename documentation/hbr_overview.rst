@@ -110,9 +110,8 @@ Boundary Interpolation Rules
 | k_InterpolateBoundaryAlwaysSharp   |
 +------------------------------------+
 
-This enum is shared for both `vertex and face-varying interpolation
-<subdivision_surfaces.html#boundary-interpolation>`__, with the following
-distinctions:
+This enum is shared for both vertex and face-varying interpolation,
+with the following distinctions:
 
     - vertex boundaries:
         - the *BoundaryNone* rule skips all boundary vertices (results are ''undefined'')

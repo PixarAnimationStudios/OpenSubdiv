@@ -51,7 +51,7 @@ not depend on the speciific values of any primvar data (point positions, etc).
 
 Topology refinement can be either uniform or adaptive, where extraordinary
 features are automatically isolated (see
-`feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive>`__).
+`feature adaptive subdivision <subdivision_surfaces.html#feature-adaptive-subdivision>`__).
 
 The *Far* topology classes present a public interface for the refinement
 functionality provided in `Vtr <vtr_overview.html#Vtr>`__,

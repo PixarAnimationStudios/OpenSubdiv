@@ -83,7 +83,7 @@ simply be changed -- and so an additional mode was added to avoid such behavior.
 
 All choices are now provided through a single "linear interpolation" enum,
 described and illustrated in more detail in the overview of
-`Face-Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation>`__.
+`Face-Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation-rules>`__.
 The use of "boundary" in the name of the enum was intentionally removed
 as the choice also affects interior interpolation.  The new use of "linear"
 is now intended to reflect the fact that interpolation is constrained to be
