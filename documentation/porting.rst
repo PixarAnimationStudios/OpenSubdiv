@@ -130,7 +130,7 @@ options used to control its interpolation have changed.  The documentation on
 `Compatibility with OpenSubdiv 2.x <compatibility.html#compatibility-with-opensubdiv-2.x>`__
 details the equivalence of interpolation options between Hbr and the new
 *Sdc::Options::FVarLinearInterpolation* enum, while the section on
-`Face Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation>`__
+`Face Varying Interpolation <subdivision_surfaces.html#face-varying-interpolation-rules>`__
 illustrates their effects.
 
 Face varying data is now specified by index rather than by value, or as often

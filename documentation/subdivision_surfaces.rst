@@ -250,6 +250,9 @@ The presence of these irregular features makes the limit surface around them
 similarly irregular, i.e. it cannot be represented as simply as it can for regular
 regions.
 
+.. Explicit target to preserve external links:
+.. _feature-adaptive-subdivision:
+
 It's worth noting that irregular regions shrink in size and become more "isolated"
 as subdivision is applied.  A face with a lot of extra-ordinary vertices around it
 makes for a very complicated surface, and isolating these features is a way to
@@ -263,8 +266,6 @@ help deal with that complexity:
 |                                      |                                      |                                      |
 | Two valence-5 vertices nearby        | Isolation subdivided once            | Isolation subdivided twice           |
 +--------------------------------------+--------------------------------------+--------------------------------------+
-
-.. _feature-adaptive:
 
 It's generally necessary to perform some kind of local subdivision in these areas
 to break these pieces of surface into smaller, more manageable pieces, and the
@@ -812,8 +813,8 @@ prior to version 3.4.*
 
 ----
 
-Boundary Interpolation
-**********************
+Boundary Interpolation Rules
+****************************
 
 Boundary interpolation rules control how subdivision and the limit surface behave for faces
 adjacent to boundary edges and vertices.
@@ -854,8 +855,8 @@ by whether or not the surface at corner vertices is smooth or sharp.
 
 ----
 
-Face-varying Interpolation
-**************************
+Face-varying Interpolation Rules
+********************************
 
 Face-varying interpolation rules control how face-varying data is interpolated both in the
 interior of face-varying regions (smooth or linear) and at the boundaries where it is

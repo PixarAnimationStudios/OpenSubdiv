@@ -66,7 +66,7 @@ Refinement
 ==========
 
 **Osd** supports both uniform and
-`feature adaptive <subdivision_surfaces.html#feature-adaptive>`__ subdivision.
+`feature adaptive <subdivision_surfaces.html#feature-adaptive-subdivision>`__ subdivision.
 
 
 .. image:: images/osd_refinement.png

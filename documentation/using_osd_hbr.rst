@@ -312,7 +312,6 @@ The rule-set can be selected using the following accessors:
 
 
 Additional information on boundary interpolation rules can be found
-`here <subdivision_surfaces.html#boundary-interpolation>`__ and
 `here <hbr_overview.html#boundary-interpolation-rules>`__
 
 .. container:: impnotip
