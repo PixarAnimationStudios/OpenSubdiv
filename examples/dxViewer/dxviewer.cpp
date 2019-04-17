@@ -147,6 +147,8 @@ float g_rotate[2] = {0, 0},
       g_center[3] = {0, 0, 0},
       g_size = 0;
 
+bool  g_yup = false;
+
 int   g_width = 1024,
       g_height = 1024;
 
@@ -697,7 +699,9 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         rotate(pData->ModelViewMatrix, g_rotate[1], 1, 0, 0);
         rotate(pData->ModelViewMatrix, g_rotate[0], 0, 1, 0);
         translate(pData->ModelViewMatrix, -g_center[0], -g_center[2], g_center[1]); // z-up model
-        rotate(pData->ModelViewMatrix, -90, 1, 0, 0); // z-up model
+        if (!g_yup) {
+            rotate(pData->ModelViewMatrix, -90, 1, 0, 0); // z-up model
+        }
         inverseMatrix(pData->ModelViewInverseMatrix, pData->ModelViewMatrix);
 
         identity(pData->ProjectionMatrix);
@@ -1556,8 +1560,13 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine,
     // Parse the command line arguments
     ArgOptions args;
     args.Parse(__argc, __argv);
+    args.PrintUnrecognizedArgsWarnings();
+
+    g_yup = args.GetYUp();
+    g_adaptive = args.GetAdaptive();
     g_level = args.GetLevel();
     g_repeatCount = args.GetRepeatCount();
+
     ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
 
     initShapes();

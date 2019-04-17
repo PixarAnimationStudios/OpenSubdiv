@@ -35,7 +35,7 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **glViewer** [**-f**] [**-u**] [**-a**] [**-l** *refinement level*] [**-axis**] [**-c** *animation loops*]
+   **glViewer** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *refinement level*] [**-c** *animation loops*]
        *objfile(s)* [**-anim**] [**-catmark**] [**-loop**] [**-bilinear**]
 
 DESCRIPTION
@@ -56,8 +56,5 @@ OPTIONS
 See the description of the
 `common comand line options <code_examples.html#common-command-line-options>`__
 for the subset of common options supported here.
-
-**-axis**
-  Swap Y-up / Z-up axis when loading Obj files
 
 .. include:: examples_see_also.rst

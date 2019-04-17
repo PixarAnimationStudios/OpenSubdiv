@@ -63,6 +63,7 @@ all -- in some cases, certain options are not applicable.
 ::
 
       -f         : launches the application in full-screen mode (if supported)
+      -yup       : set initial view with Y-axis up (Z-up is the default)
       -u         : apply uniform subdivision to all meshes
       -a         : apply adaptive subdivision to create patches for the limit surface
       -l depth   : level of uniform or adaptive refinement to apply

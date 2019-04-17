@@ -42,11 +42,11 @@ parseIntArg(const char* argString, int dfltValue = 0) {
 
 
 ArgOptions::ArgOptions() 
-    : _adaptive(false)
+    : _adaptive(true)
     , _fullscreen(false)
     , _level(2)
     , _objsAreAnim(false)
-    , _axis(true)
+    , _yup(false)
     , _repeatCount(0)
     , _defaultScheme(kCatmark)
 {
@@ -69,8 +69,8 @@ ArgOptions::Parse(int argc, char **argv)
             if (++i < argc) _repeatCount = parseIntArg(argv[i], 0);
         } else if (!strcmp(argv[i], "-f")) {
             _fullscreen = true;
-        } else if (!strcmp(argv[i], "-axis")) {
-            _axis = false;
+        } else if (!strcmp(argv[i], "-yup")) {
+            _yup = true;
         } else if (!strcmp(argv[i], "-anim")) {
             _objsAreAnim = true;
         } else if (!strcmp(argv[i], "-bilinear")) {
