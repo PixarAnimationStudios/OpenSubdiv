@@ -43,7 +43,7 @@ PopulateAnimShapes(const ArgOptions &args,
         return NULL;
 
 
-    const ObjAnim *objAnim = ObjAnim::Create(args.GetObjFiles(), args.GetAxis(),
+    const ObjAnim *objAnim = ObjAnim::Create(args.GetObjFiles(), true,
         args.GetDefaultScheme());
 
     if (objAnim) {

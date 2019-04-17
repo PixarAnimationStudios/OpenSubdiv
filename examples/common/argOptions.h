@@ -57,7 +57,7 @@ public:
 
     bool GetObjsAreAnim() const { return _objsAreAnim; }
 
-    bool GetAxis() const { return _axis; }
+    bool GetYUp() const { return _yup; }
 
     int GetRepeatCount() const { return _repeatCount; }
     
@@ -78,7 +78,7 @@ private:
 
     bool _objsAreAnim;
 
-    bool _axis;
+    bool _yup;
 
     int _repeatCount;
 

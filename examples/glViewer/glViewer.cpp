@@ -201,6 +201,8 @@ float g_rotate[2] = {0, 0},
       g_center[3] = {0, 0, 0},
       g_size = 0;
 
+bool  g_yup = false;
+
 int   g_prev_x = 0,
       g_prev_y = 0;
 
@@ -1082,7 +1084,9 @@ display() {
     translate(g_transformData.ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
     rotate(g_transformData.ModelViewMatrix, g_rotate[1], 1, 0, 0);
     rotate(g_transformData.ModelViewMatrix, g_rotate[0], 0, 1, 0);
-    rotate(g_transformData.ModelViewMatrix, -90, 1, 0, 0);
+    if (!g_yup) {
+        rotate(g_transformData.ModelViewMatrix, -90, 1, 0, 0);
+    }
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
@@ -1654,6 +1658,7 @@ int main(int argc, char ** argv) {
         
     args.Parse(argc, argv);
 
+    g_yup = args.GetYUp();
     g_adaptive = args.GetAdaptive();
     g_level = args.GetLevel();
     g_repeatCount = args.GetRepeatCount();
