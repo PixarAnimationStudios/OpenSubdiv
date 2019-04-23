@@ -414,7 +414,7 @@ rebuildMesh() {
     int level = g_level;
     Scheme scheme = g_defaultShapes[g_currentShape].scheme;
 
-    Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+    Shape * shape = Shape::parseObj(shapeDesc);
 
     if (!shape->HasUV()) {
         printf("Error: shape %s does not contain face-varying UVs\n", shapeDesc.name.c_str());

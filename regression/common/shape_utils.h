@@ -30,10 +30,24 @@
 #include <map>
 
 //------------------------------------------------------------------------------
+
 enum Scheme {
   kBilinear=0,
   kCatmark,
   kLoop
+};
+
+struct ShapeDesc 
+{
+    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme,
+        bool iIsLeftHanded = false) :
+        name(iname), data(idata), scheme(ischeme), isLeftHanded(iIsLeftHanded) 
+	{ }
+
+    std::string name;
+    std::string data;
+    Scheme      scheme;
+    bool        isLeftHanded;
 };
 
 //------------------------------------------------------------------------------
@@ -70,8 +84,9 @@ struct Shape {
         std::vector<std::string> stringargs;
     };
 
-    static Shape * parseObj(char const * Shapestr, Scheme schme,
-        bool isLeftHanded=false, int axis=1, bool parsemtl=false);
+    static Shape * parseObj(ShapeDesc const & shapeDesc, bool parsemtl=false);
+    static Shape * parseObj(char const * shapeString, Scheme shapeScheme,
+                            bool isLeftHanded=false, bool parsemtl=false);
 
     void parseMtllib(char const * stream);
 

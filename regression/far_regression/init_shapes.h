@@ -25,17 +25,6 @@
 #include "../common/shape_utils.h"
 #include "../shapes/all.h"
 
-struct ShapeDesc {
-
-    ShapeDesc(char const * iname, std::string const & idata, Scheme ischeme,
-              bool iisLeftHanded=false) :
-        name(iname), data(idata), scheme(ischeme), isLeftHanded(iisLeftHanded) { }
-
-    std::string name,
-                data;
-    Scheme      scheme;
-    bool        isLeftHanded;
-};
 
 static std::vector<ShapeDesc> g_shapes;
 

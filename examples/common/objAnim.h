@@ -34,8 +34,8 @@ class ObjAnim {
 public:
 
     // Factory function
-    static ObjAnim const * Create(std::vector<char const *> objFiles, bool axis=true,
-                                  Scheme scheme=kCatmark);
+    static ObjAnim const * Create(std::vector<char const *> objFiles,
+                                  Scheme scheme, bool isLeftHanded=false);
 
     // Destructor
     ~ObjAnim();

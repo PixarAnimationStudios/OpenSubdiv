@@ -165,10 +165,7 @@ int main(int argc, char **argv)
     }
 
     for (int i = 0; i < (int)g_shapes.size(); ++i) {
-        Shape const * shape = Shape::parseObj(
-            g_shapes[i].data.c_str(),
-            g_shapes[i].scheme,
-            g_shapes[i].isLeftHanded);
+        Shape const * shape = Shape::parseObj(g_shapes[i]);
 
         for (int lv = 1; lv <= maxlevel; ++lv) {
             printf("---- %s, level %d ----\n", g_shapes[i].name.c_str(), lv);

@@ -24,7 +24,7 @@
 
 #include "../../regression/common/shape_utils.h"
 #include "../../regression/shapes/all.h"
-#include "../common/shapeDesc.h"
+
 
 static std::vector<ShapeDesc> g_defaultShapes;
 

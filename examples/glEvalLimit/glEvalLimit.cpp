@@ -605,7 +605,7 @@ updateGeom() {
 static void
 createOsdMesh(ShapeDesc const & shapeDesc, int level) {
 
-    Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+    Shape * shape = Shape::parseObj(shapeDesc);
 
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);

@@ -812,7 +812,7 @@ createMeshes(ShapeDesc const & desc, int maxlevel) {
     }
     g_font->Clear();
 
-    Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
+    Shape * shape = Shape::parseObj(desc);
 
     createFarGLMesh(shape, maxlevel);
     delete shape;
