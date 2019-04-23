@@ -197,7 +197,7 @@ createOsdMesh() {
 
     ShapeDesc const & shapeDesc = g_defaultShapes[g_currentShape];
 
-    Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+    Shape * shape = Shape::parseObj(shapeDesc);
 
     checkGLErrors("create osd enter");
 

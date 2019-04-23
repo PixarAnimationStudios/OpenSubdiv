@@ -932,10 +932,7 @@ rebuildTopology() {
     }
 
     for (int i = 0; i < (int)g_defaultShapes.size(); ++i) {
-        Shape const * shape = Shape::parseObj(
-            g_defaultShapes[i].data.c_str(),
-            g_defaultShapes[i].scheme,
-            g_defaultShapes[i].isLeftHanded);
+        Shape const * shape = Shape::parseObj(g_defaultShapes[i]);
 
         bool varying = (g_displayStyle==kVarying || g_displayStyle==kVaryingInterleaved);
         g_scene->AddTopology(shape, g_level, varying);

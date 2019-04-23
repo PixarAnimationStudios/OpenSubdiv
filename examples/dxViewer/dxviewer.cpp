@@ -271,7 +271,7 @@ createOsdMesh(ShapeDesc const & shapeDesc, int level, int kernel, Scheme scheme=
     using namespace OpenSubdiv;
     typedef Far::ConstIndexArray IndexArray;
 
-    Shape * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+    Shape * shape = Shape::parseObj(shapeDesc);
 
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);

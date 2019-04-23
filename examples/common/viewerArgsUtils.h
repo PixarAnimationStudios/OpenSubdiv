@@ -28,7 +28,6 @@
 #include "../../regression/common/shape_utils.h"
 
 #include "../common/argOptions.h"
-#include "../common/shapeDesc.h"
 
 class ObjAnim;
 

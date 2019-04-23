@@ -428,8 +428,7 @@ rebuildMesh() {
     if (doAnim) {
         shape = g_objAnim->GetShape();
     } else {
-        shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme,
-                                shapeDesc.isLeftHanded);
+        shape = Shape::parseObj(shapeDesc);
     }
 
     // create Far mesh (topology)

@@ -25,7 +25,6 @@
 #include "../common/viewerArgsUtils.h"
 
 #include "../common/objAnim.h"
-#include "../common/shapeDesc.h"
 
 #include <fstream>
 #include <sstream>
@@ -43,7 +42,7 @@ PopulateAnimShapes(const ArgOptions &args,
         return NULL;
 
 
-    const ObjAnim *objAnim = ObjAnim::Create(args.GetObjFiles(), true,
+    const ObjAnim *objAnim = ObjAnim::Create(args.GetObjFiles(),
         args.GetDefaultScheme());
 
     if (objAnim) {

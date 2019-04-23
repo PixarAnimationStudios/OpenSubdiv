@@ -293,7 +293,7 @@ createMesh(ShapeDesc const & shapeDesc, int level) {
 
     typedef Far::LimitStencilTableFactory::LocationArray LocationArray;
 
-    Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(), shapeDesc.scheme);
+    Shape const * shape = Shape::parseObj(shapeDesc);
 
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);

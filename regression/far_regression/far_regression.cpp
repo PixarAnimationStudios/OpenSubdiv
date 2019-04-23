@@ -297,6 +297,12 @@ areVerticesCompatibleWithHbr(Shape const & shape, FarTopologyRefiner const & ref
         }
         return false;
     }
+    if (shape.isLeftHanded) {
+        if (incompatibleString) {
+            *incompatibleString = std::string("mesh is left-handed");
+        }
+        return false;
+    }
     if (shapeHasHierarchicalEditTags(shape)) {
         if (incompatibleString) {
             *incompatibleString = std::string("hierarchical edits no longer supported");
@@ -347,7 +353,7 @@ int main(int /* argc */, char ** /* argv */) {
     for (int i=0; i<(int)g_shapes.size(); ++i) {
         ShapeDesc const & desc = g_shapes[i];
 
-        Shape * shape = Shape::parseObj(desc.data.c_str(), desc.scheme);
+        Shape * shape = Shape::parseObj(desc);
         if (shape) {
             // May want to inspect and/or modify the shape before proceeding...
 

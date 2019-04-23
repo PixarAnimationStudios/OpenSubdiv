@@ -300,8 +300,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
 
     std::cout << "Testing " << shapeDesc.name << ", kernel = " << kernel << "\n";
 
-    Shape const * shape = Shape::parseObj(shapeDesc.data.c_str(),
-                                          shapeDesc.scheme);
+    Shape const * shape = Shape::parseObj(shapeDesc);
 
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*shape);

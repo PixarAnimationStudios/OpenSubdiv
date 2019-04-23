@@ -129,7 +129,7 @@ static Shape * readShape( char const * fname, Scheme scheme ) {
 
     shapeStr[size]='\0';
 
-    return Shape::parseObj( shapeStr, scheme, false /*isLeftHanded*/, 1 );
+    return Shape::parseObj( shapeStr, scheme );
 }
 
 #define STR(x) x
@@ -179,7 +179,7 @@ static void writeObj( const char * fname, xyzmesh const * mesh,
 }
 
 //------------------------------------------------------------------------------
-static int checkMesh( shaperec const & r, int levels ) {
+static int checkMesh( ShapeDesc const & r, int levels ) {
 
     int count=0;
 
