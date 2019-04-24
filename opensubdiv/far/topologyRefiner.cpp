@@ -318,6 +318,8 @@ namespace internal {
         int_type selectInfSharpIrregularCrease : 1;
         int_type selectInfSharpIrregularCorner : 1;
 
+        int_type selectUnisolatedInteriorEdge : 1;
+
         int_type selectNonManifold  : 1;
         int_type selectFVarFeatures : 1;
     };
@@ -354,6 +356,8 @@ namespace internal {
         selectInfSharpIrregularDart   = true;
         selectInfSharpIrregularCrease = true;
         selectInfSharpIrregularCorner = true;
+
+        selectUnisolatedInteriorEdge = useSingleCreasePatch && !options.useInfSharpPatch;
 
         selectNonManifold  = true;
         selectFVarFeatures = options.considerFVarChannels;
@@ -570,6 +574,13 @@ namespace {
                 return doesInfSharpVTagHaveFeatures(compVTag, featureMask);
             } else if (isolateQuadBoundaries) {
                 return true;
+            } else if (featureMask.selectUnisolatedInteriorEdge) {
+                //  Needed for single-crease approximation to inf-sharp interior edge:
+                for (int i = 0; i < 4; ++i) {
+                    if (vTags[i]._infSharpEdges && !vTags[i]._boundary) {
+                        return true;
+                    }
+                }
             }
         } else {
             if (atLeastOneSmoothCorner && !compVTag._boundary) {
