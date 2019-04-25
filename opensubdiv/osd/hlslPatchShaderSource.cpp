@@ -51,6 +51,9 @@ static const char *patchBasisShaderSource =
 static const char *patchBasisEvalShaderSource =
 #include "patchBasisCommonEval.gen.h"
 ;
+static const char *boxSplineTriangleShaderSource =
+#include "hlslPatchBoxSplineTriangle.gen.h"
+;
 static const char *bsplineShaderSource =
 #include "hlslPatchBSpline.gen.h"
 ;
@@ -59,6 +62,9 @@ static const char *gregoryShaderSource =
 ;
 static const char *gregoryBasisShaderSource =
 #include "hlslPatchGregoryBasis.gen.h"
+;
+static const char *gregoryTriangleShaderSource =
+#include "hlslPatchGregoryTriangle.gen.h"
 ;
 
 /*static*/
@@ -90,6 +96,8 @@ HLSLPatchShaderSource::GetVertexShaderSource(Far::PatchDescriptor::Type type) {
     switch (type) {
     case Far::PatchDescriptor::REGULAR:
         return bsplineShaderSource;
+    case Far::PatchDescriptor::LOOP:
+        return boxSplineTriangleShaderSource;
     case Far::PatchDescriptor::GREGORY:
         return gregoryShaderSource;
     case Far::PatchDescriptor::GREGORY_BOUNDARY:
@@ -97,6 +105,8 @@ HLSLPatchShaderSource::GetVertexShaderSource(Far::PatchDescriptor::Type type) {
              + std::string(gregoryShaderSource);
     case Far::PatchDescriptor::GREGORY_BASIS:
         return gregoryBasisShaderSource;
+    case Far::PatchDescriptor::GREGORY_TRIANGLE:
+        return gregoryTriangleShaderSource;
     default:
         break;  // returns empty (points, lines, quads, ...)
     }
@@ -109,6 +119,8 @@ HLSLPatchShaderSource::GetHullShaderSource(Far::PatchDescriptor::Type type) {
     switch (type) {
     case Far::PatchDescriptor::REGULAR:
         return bsplineShaderSource;
+    case Far::PatchDescriptor::LOOP:
+        return boxSplineTriangleShaderSource;
     case Far::PatchDescriptor::GREGORY:
         return gregoryShaderSource;
     case Far::PatchDescriptor::GREGORY_BOUNDARY:
@@ -116,6 +128,8 @@ HLSLPatchShaderSource::GetHullShaderSource(Far::PatchDescriptor::Type type) {
              + std::string(gregoryShaderSource);
     case Far::PatchDescriptor::GREGORY_BASIS:
         return gregoryBasisShaderSource;
+    case Far::PatchDescriptor::GREGORY_TRIANGLE:
+        return gregoryTriangleShaderSource;
     default:
         break;  // returns empty (points, lines, quads, ...)
     }
@@ -128,6 +142,8 @@ HLSLPatchShaderSource::GetDomainShaderSource(Far::PatchDescriptor::Type type) {
     switch (type) {
     case Far::PatchDescriptor::REGULAR:
         return bsplineShaderSource;
+    case Far::PatchDescriptor::LOOP:
+        return boxSplineTriangleShaderSource;
     case Far::PatchDescriptor::GREGORY:
         return gregoryShaderSource;
     case Far::PatchDescriptor::GREGORY_BOUNDARY:
@@ -135,6 +151,8 @@ HLSLPatchShaderSource::GetDomainShaderSource(Far::PatchDescriptor::Type type) {
              + std::string(gregoryShaderSource);
     case Far::PatchDescriptor::GREGORY_BASIS:
         return gregoryBasisShaderSource;
+    case Far::PatchDescriptor::GREGORY_TRIANGLE:
+        return gregoryTriangleShaderSource;
     default:
         break;  // returns empty (points, lines, quads, ...)
     }

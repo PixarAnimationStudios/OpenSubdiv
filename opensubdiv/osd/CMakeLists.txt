@@ -214,9 +214,11 @@ if( DXSDK_FOUND )
         hlslComputeKernel.hlsl
         hlslPatchCommon.hlsl
         hlslPatchCommonTess.hlsl
+        hlslPatchBoxSplineTriangle.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
         hlslPatchGregoryBasis.hlsl
+        hlslPatchGregoryTriangle.hlsl
         hlslPatchLegacy.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES

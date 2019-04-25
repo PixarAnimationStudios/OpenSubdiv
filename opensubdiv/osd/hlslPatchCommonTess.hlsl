@@ -47,6 +47,13 @@ struct HS_CONSTANT_FUNC_OUT {
     float4 tessOuterHi : TRANSITIONHI;
 };
 
+struct HS_CONSTANT_FUNC_TRIANGLE_OUT {
+    float tessLevelInner[1] : SV_InsideTessFactor;
+    float tessLevelOuter[3] : SV_TessFactor;
+    float4 tessOuterLo : TRANSITIONLO;
+    float4 tessOuterHi : TRANSITIONHI;
+};
+
 //
 // Organization of B-spline and Bezier control points.
 //
@@ -149,6 +156,31 @@ OsdGetTessLevelsUniform(int3 patchParam,
 }
 
 void
+OsdGetTessLevelsUniformTriangle(int3 patchParam,
+                        out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    // Uniform factors are simple powers of two for each level.
+    // The maximum here can be increased if we know the maximum
+    // refinement level of the mesh:
+    //     min(OSD_MAX_TESS_LEVEL, pow(2, MaximumRefinementLevel-1)
+    int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
+    float tessLevel = min(OsdTessLevel(), OSD_MAX_TESS_LEVEL) /
+                        pow(2, refinementLevel-1);
+
+    // tessLevels of transition edge should be clamped to 2.
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+    float4 tessLevelMin = float4(1,1,1,1)
+        + float4(((transitionMask & 4) >> 2),
+                 ((transitionMask & 1) >> 0),
+                 ((transitionMask & 2) >> 1),
+                 0);
+
+    tessOuterLo = max(float4(tessLevel,tessLevel,tessLevel,tessLevel),
+                      tessLevelMin);
+    tessOuterHi = float4(0,0,0,0);
+}
+
+void
 OsdGetTessLevelsRefinedPoints(float3 cp[16], int3 patchParam,
                               out float4 tessOuterLo, out float4 tessOuterHi)
 {
@@ -209,8 +241,91 @@ OsdGetTessLevelsRefinedPoints(float3 cp[16], int3 patchParam,
     }
 }
 
+//
+//  Patch boundary corners are ordered counter-clockwise from the first
+//  corner while patch boundary edges and their midpoints are similarly
+//  ordered counter-clockwise beginning at the edge preceding corner[0].
+//
 void
-OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
+Osd_GetTessLevelsFromPatchBoundaries4(float3 corners[4], float3 midpoints[4],
+                int3 patchParam, out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    tessOuterLo = float4(0,0,0,0);
+    tessOuterHi = float4(0,0,0,0);
+
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+
+    if ((transitionMask & 8) != 0) {
+        tessOuterLo[0] = OsdComputeTessLevel(corners[0], midpoints[0]);
+        tessOuterHi[0] = OsdComputeTessLevel(corners[3], midpoints[0]);
+    } else {
+        tessOuterLo[0] = OsdComputeTessLevel(corners[0], corners[3]);
+    }
+    if ((transitionMask & 1) != 0) {
+        tessOuterLo[1] = OsdComputeTessLevel(corners[0], midpoints[1]);
+        tessOuterHi[1] = OsdComputeTessLevel(corners[1], midpoints[1]);
+    } else {
+        tessOuterLo[1] = OsdComputeTessLevel(corners[0], corners[1]);
+    }
+    if ((transitionMask & 2) != 0) {
+        tessOuterLo[2] = OsdComputeTessLevel(corners[1], midpoints[2]);
+        tessOuterHi[2] = OsdComputeTessLevel(corners[2], midpoints[2]);
+    } else {
+        tessOuterLo[2] = OsdComputeTessLevel(corners[1], corners[2]);
+    }
+    if ((transitionMask & 4) != 0) {
+        tessOuterLo[3] = OsdComputeTessLevel(corners[3], midpoints[3]);
+        tessOuterHi[3] = OsdComputeTessLevel(corners[2], midpoints[3]);
+    } else {
+        tessOuterLo[3] = OsdComputeTessLevel(corners[3], corners[2]);
+    }
+}
+
+void
+Osd_GetTessLevelsFromPatchBoundaries3(float3 corners[3], float3 midpoints[3],
+                int3 patchParam, out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    tessOuterLo = float4(0,0,0,0);
+    tessOuterHi = float4(0,0,0,0);
+
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+
+    if ((transitionMask & 4) != 0) {
+        tessOuterLo[0] = OsdComputeTessLevel(corners[0], midpoints[0]);
+        tessOuterHi[0] = OsdComputeTessLevel(corners[2], midpoints[0]);
+    } else {
+        tessOuterLo[0] = OsdComputeTessLevel(corners[0], corners[2]);
+    }
+    if ((transitionMask & 1) != 0) {
+        tessOuterLo[1] = OsdComputeTessLevel(corners[0], midpoints[1]);
+        tessOuterHi[1] = OsdComputeTessLevel(corners[1], midpoints[1]);
+    } else {
+        tessOuterLo[1] = OsdComputeTessLevel(corners[0], corners[1]);
+    }
+    if ((transitionMask & 2) != 0) {
+        tessOuterLo[2] = OsdComputeTessLevel(corners[2], midpoints[2]);
+        tessOuterHi[2] = OsdComputeTessLevel(corners[1], midpoints[2]);
+    } else {
+        tessOuterLo[2] = OsdComputeTessLevel(corners[1], corners[2]);
+    }
+}
+
+float3
+Osd_EvalBezierCurveMidPoint(float3 p0, float3 p1, float3 p2, float3 p3)
+{
+    //  Coefficients for the midpoint are { 1/8, 3/8, 3/8, 1/8 }:
+    return 0.125 * (p0 + p3) + 0.375 * (p1 + p2);
+}
+
+float3
+Osd_EvalQuarticBezierCurveMidPoint(float3 p0, float3 p1, float3 p2, float3 p3, float3 p4)
+{
+    //  Coefficients for the midpoint are { 1/16, 1/4, 3/8, 1/4, 1/16 }:
+    return 0.0625 * (p0 + p4) + 0.25 * (p1 + p3) + 0.375 * p2;
+}
+
+void
+OsdEvalPatchBezierTessLevels(OsdPerPatchVertexBezier cpBezier[16],
                 int3 patchParam, out float4 tessOuterLo, out float4 tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
@@ -224,72 +339,81 @@ OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
     tessOuterLo = float4(0,0,0,0);
     tessOuterHi = float4(0,0,0,0);
 
+    float3 corners[4];
+    float3 midpoints[4];
+
     int transitionMask = OsdGetPatchTransitionMask(patchParam);
 
 #if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    // PERFOMANCE: we just need to pick the correct corner points from P, P1, P2
-    float3 p0 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.0));
-    float3 p3 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.0));
-    float3 p12 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 1.0));
-    float3 p15 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 1.0));
-    if ((transitionMask & 8) != 0) {
-        float3 ev03 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.5));
-        tessOuterLo[0] = OsdComputeTessLevel(p0, ev03);
-        tessOuterHi[0] = OsdComputeTessLevel(p12, ev03);
-    } else {
-        tessOuterLo[0] = OsdComputeTessLevel(p0, p12);
-    }
-    if ((transitionMask & 1) != 0) {
-        float3 ev01 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 0.0));
-        tessOuterLo[1] = OsdComputeTessLevel(p0, ev01);
-        tessOuterHi[1] = OsdComputeTessLevel(p3, ev01);
-    } else {
-        tessOuterLo[1] = OsdComputeTessLevel(p0, p3);
-    }
-    if ((transitionMask & 2) != 0) {
-        float3 ev12 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.5));
-        tessOuterLo[2] = OsdComputeTessLevel(p3, ev12);
-        tessOuterHi[2] = OsdComputeTessLevel(p15, ev12);
-    } else {
-        tessOuterLo[2] = OsdComputeTessLevel(p3, p15);
-    }
-    if ((transitionMask & 4) != 0) {
-        float3 ev23 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 1.0));
-        tessOuterLo[3] = OsdComputeTessLevel(p12, ev23);
-        tessOuterHi[3] = OsdComputeTessLevel(p15, ev23);
-    } else {
-        tessOuterLo[3] = OsdComputeTessLevel(p12, p15);
-    }
+    corners[0] = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.0));
+    corners[1] = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.0));
+    corners[2] = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 1.0));
+    corners[3] = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 1.0));
+
+    midpoints[0] = ((transitionMask & 8) == 0) ? float3(0,0,0) :
+        OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.5));
+    midpoints[1] = ((transitionMask & 1) == 0) ? float3(0,0,0) :
+        OsdEvalBezier(cpBezier, patchParam, float2(0.5, 0.0));
+    midpoints[2] = ((transitionMask & 2) == 0) ? float3(0,0,0) :
+        OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.5));
+    midpoints[3] = ((transitionMask & 4) == 0) ? float3(0,0,0) :
+        OsdEvalBezier(cpBezier, patchParam, float2(0.5, 1.0));
 #else
-    if ((transitionMask & 8) != 0) {
-        float3 ev03 = OsdEvalBezier(cpBezier, patchParam, float2(0.0, 0.5));
-        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, ev03);
-        tessOuterHi[0] = OsdComputeTessLevel(cpBezier[12].P, ev03);
-    } else {
-        tessOuterLo[0] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[12].P);
-    }
-    if ((transitionMask & 1) != 0) {
-        float3 ev01 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 0.0));
-        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, ev01);
-        tessOuterHi[1] = OsdComputeTessLevel(cpBezier[3].P, ev01);
-    } else {
-        tessOuterLo[1] = OsdComputeTessLevel(cpBezier[0].P, cpBezier[3].P);
-    }
-    if ((transitionMask & 2) != 0) {
-        float3 ev12 = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.5));
-        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, ev12);
-        tessOuterHi[2] = OsdComputeTessLevel(cpBezier[15].P, ev12);
-    } else {
-        tessOuterLo[2] = OsdComputeTessLevel(cpBezier[3].P, cpBezier[15].P);
-    }
-    if ((transitionMask & 4) != 0) {
-        float3 ev23 = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 1.0));
-        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P, ev23);
-        tessOuterHi[3] = OsdComputeTessLevel(cpBezier[15].P, ev23);
-    } else {
-        tessOuterLo[3] = OsdComputeTessLevel(cpBezier[12].P, cpBezier[15].P);
-    }
+    corners[0] = cpBezier[ 0].P;
+    corners[1] = cpBezier[ 3].P;
+    corners[2] = cpBezier[15].P;
+    corners[3] = cpBezier[12].P;
+
+    midpoints[0] = ((transitionMask & 8) == 0) ? float3(0,0,0) :
+        Osd_EvalBezierCurveMidPoint(
+            cpBezier[0].P, cpBezier[4].P, cpBezier[8].P, cpBezier[12].P);
+    midpoints[1] = ((transitionMask & 1) == 0) ? float3(0,0,0) :
+        Osd_EvalBezierCurveMidPoint(
+            cpBezier[0].P, cpBezier[1].P, cpBezier[2].P, cpBezier[3].P);
+    midpoints[2] = ((transitionMask & 2) == 0) ? float3(0,0,0) :
+        Osd_EvalBezierCurveMidPoint(
+            cpBezier[3].P, cpBezier[7].P, cpBezier[11].P, cpBezier[15].P);
+    midpoints[3] = ((transitionMask & 4) == 0) ? float3(0,0,0) :
+        Osd_EvalBezierCurveMidPoint(
+            cpBezier[12].P, cpBezier[13].P, cpBezier[14].P, cpBezier[15].P);
 #endif
+
+    Osd_GetTessLevelsFromPatchBoundaries4(corners, midpoints,
+                                          patchParam, tessOuterLo, tessOuterHi);
+}
+
+void
+OsdEvalPatchBezierTriangleTessLevels(float3 cv[15],
+                int3 patchParam, out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    // Each edge of a transition patch is adjacent to one or two patches
+    // at the next refined level of subdivision. When the patch control
+    // points have been converted to the Bezier basis, the control points
+    // at the corners are on the limit surface (since a Bezier patch
+    // interpolates its corner control points). We can compute an adaptive
+    // tessellation level for transition edges on the limit surface by
+    // evaluating a limit position at the mid point of each transition edge.
+
+    tessOuterLo = float4(0,0,0,0);
+    tessOuterHi = float4(0,0,0,0);
+
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+
+    float3 corners[3];
+    corners[0] = cv[0];
+    corners[1] = cv[4];
+    corners[2] = cv[14];
+
+    float3 midpoints[3];
+    midpoints[0] = ((transitionMask & 4) == 0) ? float3(0,0,0) :
+        Osd_EvalQuarticBezierCurveMidPoint(cv[0], cv[5], cv[9], cv[12], cv[14]);
+    midpoints[1] = ((transitionMask & 1) == 0) ? float3(0,0,0) :
+        Osd_EvalQuarticBezierCurveMidPoint(cv[0], cv[1], cv[2], cv[3], cv[4]);
+    midpoints[2] = ((transitionMask & 2) == 0) ? float3(0,0,0) :
+        Osd_EvalQuarticBezierCurveMidPoint(cv[4], cv[8], cv[11], cv[13], cv[14]);
+
+    Osd_GetTessLevelsFromPatchBoundaries3(corners, midpoints,
+                                          patchParam, tessOuterLo, tessOuterHi);
 }
 
 // Round up to the nearest even integer
@@ -384,6 +508,19 @@ OsdComputeTessLevels(inout float4 tessOuterLo, inout float4 tessOuterHi,
 }
 
 void
+OsdComputeTessLevelsTriangle(inout float4 tessOuterLo, inout float4 tessOuterHi,
+                         out float4 tessLevelOuter, out float2 tessLevelInner)
+{
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
+
+    // Inner level is the max of the three outer levels.
+    tessLevelInner[0] = max(max(tessLevelOuter[0],
+                                tessLevelOuter[1]),
+                                tessLevelOuter[2]);
+}
+
+void
 OsdGetTessLevelsUniform(int3 patchParam,
                  out float4 tessLevelOuter, out float2 tessLevelInner,
                  out float4 tessOuterLo, out float4 tessOuterHi)
@@ -392,6 +529,43 @@ OsdGetTessLevelsUniform(int3 patchParam,
 
     OsdComputeTessLevels(tessOuterLo, tessOuterHi,
                          tessLevelOuter, tessLevelInner);
+}
+
+void
+OsdGetTessLevelsUniformTriangle(int3 patchParam,
+                 out float4 tessLevelOuter, out float2 tessLevelInner,
+                 out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    OsdGetTessLevelsUniformTriangle(patchParam, tessOuterLo, tessOuterHi);
+
+    OsdComputeTessLevelsTriangle(tessOuterLo, tessOuterHi,
+                                 tessLevelOuter, tessLevelInner);
+}
+
+void
+OsdEvalPatchBezierTessLevels(OsdPerPatchVertexBezier cpBezier[16],
+                 int3 patchParam,
+                 out float4 tessLevelOuter, out float2 tessLevelInner,
+                 out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    OsdEvalPatchBezierTessLevels(cpBezier, patchParam,
+                                 tessOuterLo, tessOuterHi);
+
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
+}
+
+void
+OsdEvalPatchBezierTriangleTessLevels(float3 cv[15],
+                 int3 patchParam,
+                 out float4 tessLevelOuter, out float2 tessLevelInner,
+                 out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    OsdEvalPatchBezierTriangleTessLevels(cv, patchParam,
+                                         tessOuterLo, tessOuterHi);
+
+    OsdComputeTessLevelsTriangle(tessOuterLo, tessOuterHi,
+                                 tessLevelOuter, tessLevelInner);
 }
 
 void
@@ -406,6 +580,15 @@ OsdGetTessLevelsAdaptiveRefinedPoints(float3 cpRefined[16], int3 patchParam,
                          tessLevelOuter, tessLevelInner);
 }
 
+//  Deprecated -- prefer use of newer Bezier patch equivalend:
+void
+OsdGetTessLevelsLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
+                 int3 patchParam, out float4 tessOuterLo, out float4 tessOuterHi)
+{
+    OsdEvalPatchBezierTessLevels(cpBezier, patchParam, tessOuterLo, tessOuterHi);
+}
+
+//  Deprecated -- prefer use of newer Bezier patch equivalent:
 void
 OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
                  int3 patchParam,
@@ -547,3 +730,21 @@ OsdGetTessParameterization(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
     }
     return UV;
 }
+
+float2
+OsdGetTessParameterizationTriangle(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
+{
+    float2 UV = uv;
+    if (UV.x == 0 && tessOuterHi[0] > 0) {
+        UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
+    } else
+    if (UV.y == 0 && tessOuterHi[1] > 0) {
+        UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
+    } else
+    if (UV.x+UV.y == 1 && tessOuterHi[2] > 0) {
+        UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[2], tessOuterHi[2]);
+        UV.y = 1.0 - UV.x;
+    }
+    return UV;
+}
+

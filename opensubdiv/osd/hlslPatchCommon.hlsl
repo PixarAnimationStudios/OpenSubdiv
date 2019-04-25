@@ -144,6 +144,12 @@ bool OsdGetPatchIsRegular(int3 patchParam)
     return ((patchParam.y >> 5) & 0x1) != 0;
 }
 
+bool OsdGetPatchIsTriangleRotated(int3 patchParam)
+{
+    int2 uv = OsdGetPatchFaceUV(patchParam);
+    return (uv.x + uv.y) >= OsdGetPatchFaceLevel(patchParam);
+}
+
 float OsdGetPatchSharpness(int3 patchParam)
 {
     return asfloat(patchParam.z);
@@ -184,6 +190,15 @@ float4 OsdInterpolatePatchCoord(float2 localUV, int3 patchParam)
     return float4(uv.x, uv.y, faceLevel+0.5, faceId+0.5);
 }
 
+float4 OsdInterpolatePatchCoordTriangle(float2 localUV, int3 patchParam)
+{
+    float4 result = OsdInterpolatePatchCoord(localUV, patchParam);
+    if (OsdGetPatchIsTriangleRotated(patchParam)) {
+        result.xy = float2(1.0f, 1.0f) - result.xy;
+    }
+    return result;
+}
+
 // ----------------------------------------------------------------------------
 // patch culling
 // ----------------------------------------------------------------------------
@@ -217,9 +232,25 @@ float4 OsdInterpolatePatchCoord(float2 localUV, int3 patchParam)
         return output;                             \
     }
 
+#define OSD_PATCH_CULL_TRIANGLE(N)                          \
+    int3 clipFlag = int3(0,0,0);                   \
+    for(int i = 0; i < N; ++i) {                   \
+        clipFlag |= patch[i].clipFlag;             \
+    }                                              \
+    if (any(clipFlag != int3(3,3,3))) {            \
+        output.tessLevelInner[0] = 0;              \
+        output.tessLevelOuter[0] = 0;              \
+        output.tessLevelOuter[1] = 0;              \
+        output.tessLevelOuter[2] = 0;              \
+        output.tessOuterLo = float4(0,0,0,0);      \
+        output.tessOuterHi = float4(0,0,0,0);      \
+        return output;                             \
+    }
+
 #else
 #define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)
 #define OSD_PATCH_CULL(N)
+#define OSD_PATCH_CULL_TRIANGLE(N)
 #endif
 
 // ----------------------------------------------------------------------------
@@ -383,29 +414,118 @@ OsdComputeBSplineBoundaryPoints(inout float3 cpt[16], int3 patchParam)
 {
     int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
 
+    //  Don't extrapolate corner points until all boundary points in place
     if ((boundaryMask & 1) != 0) {
-        cpt[0] = 2*cpt[4] - cpt[8];
         cpt[1] = 2*cpt[5] - cpt[9];
         cpt[2] = 2*cpt[6] - cpt[10];
+    }
+    if ((boundaryMask & 2) != 0) {
+        cpt[7] = 2*cpt[6] - cpt[5];
+        cpt[11] = 2*cpt[10] - cpt[9];
+    }
+    if ((boundaryMask & 4) != 0) {
+        cpt[13] = 2*cpt[9] - cpt[5];
+        cpt[14] = 2*cpt[10] - cpt[6];
+    }
+    if ((boundaryMask & 8) != 0) {
+        cpt[4] = 2*cpt[5] - cpt[6];
+        cpt[8] = 2*cpt[9] - cpt[10];
+    }
+
+    //  Now safe to extrapolate corner points:
+    if ((boundaryMask & 1) != 0) {
+        cpt[0] = 2*cpt[4] - cpt[8];
         cpt[3] = 2*cpt[7] - cpt[11];
     }
     if ((boundaryMask & 2) != 0) {
         cpt[3] = 2*cpt[2] - cpt[1];
-        cpt[7] = 2*cpt[6] - cpt[5];
-        cpt[11] = 2*cpt[10] - cpt[9];
         cpt[15] = 2*cpt[14] - cpt[13];
     }
     if ((boundaryMask & 4) != 0) {
         cpt[12] = 2*cpt[8] - cpt[4];
-        cpt[13] = 2*cpt[9] - cpt[5];
-        cpt[14] = 2*cpt[10] - cpt[6];
         cpt[15] = 2*cpt[11] - cpt[7];
     }
     if ((boundaryMask & 8) != 0) {
         cpt[0] = 2*cpt[1] - cpt[2];
-        cpt[4] = 2*cpt[5] - cpt[6];
-        cpt[8] = 2*cpt[9] - cpt[10];
         cpt[12] = 2*cpt[13] - cpt[14];
+    }
+}
+
+void
+OsdComputeBoxSplineTriangleBoundaryPoints(inout float3 cpt[12], int3 patchParam)
+{
+    int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
+    if (boundaryMask == 0) return;
+
+    int upperBits = (boundaryMask >> 3) & 0x3;
+    int lowerBits = boundaryMask & 0x7;
+
+    int eBits = lowerBits;
+    int vBits = 0;
+
+    if (upperBits == 1) {
+        vBits = eBits;
+        eBits = 0;
+    } else if (upperBits == 2) {
+        //  Opposite vertex bit is edge bit rotated one to the right:
+        vBits = ((eBits & 1) << 2) | (eBits >> 1);
+    }
+
+    bool edge0IsBoundary = (eBits & 1) != 0;
+    bool edge1IsBoundary = (eBits & 2) != 0;
+    bool edge2IsBoundary = (eBits & 4) != 0;
+
+    if (edge0IsBoundary) {
+        if (edge2IsBoundary) {
+            cpt[0] = cpt[4] + (cpt[4] - cpt[8]);
+        } else {
+            cpt[0] = cpt[4] + (cpt[3] - cpt[7]);
+        }
+        cpt[1] = cpt[4] + cpt[5] - cpt[8];
+        if (edge1IsBoundary) {
+            cpt[2] = cpt[5] + (cpt[5] - cpt[8]);
+        } else {
+            cpt[2] = cpt[5] + (cpt[6] - cpt[9]);
+        }
+    }
+    if (edge1IsBoundary) {
+        if (edge0IsBoundary) {
+            cpt[6] = cpt[5] + (cpt[5] - cpt[4]);
+        } else {
+            cpt[6] = cpt[5] + (cpt[2] - cpt[1]);
+        }
+        cpt[9] = cpt[5] + cpt[8] - cpt[4];
+        if (edge2IsBoundary) {
+            cpt[11] = cpt[8] + (cpt[8] - cpt[4]);
+        } else {
+            cpt[11] = cpt[8] + (cpt[10] - cpt[7]);
+        }
+    }
+    if (edge2IsBoundary) {
+        if (edge1IsBoundary) {
+            cpt[10] = cpt[8] + (cpt[8] - cpt[5]);
+        } else {
+            cpt[10] = cpt[8] + (cpt[11] - cpt[9]);
+        }
+        cpt[7] = cpt[8] + cpt[4] - cpt[5];
+        if (edge0IsBoundary) {
+            cpt[3] = cpt[4] + (cpt[4] - cpt[5]);
+        } else {
+            cpt[3] = cpt[4] + (cpt[0] - cpt[1]);
+        }
+    }
+
+    if ((vBits & 1) != 0) {
+        cpt[3] = cpt[4] + cpt[7] - cpt[8];
+        cpt[0] = cpt[4] + cpt[1] - cpt[5];
+    }
+    if ((vBits & 2) != 0) {
+        cpt[2] = cpt[5] + cpt[1] - cpt[4];
+        cpt[6] = cpt[5] + cpt[9] - cpt[8];
+    }
+    if ((vBits & 4) != 0) {
+        cpt[11] = cpt[8] + cpt[9] - cpt[5];
+        cpt[10] = cpt[8] + cpt[7] - cpt[4];
     }
 }
 
@@ -561,7 +681,6 @@ OsdComputePerPatchVertexBSpline(int3 patchParam, int ID, float3 cv[16],
             H[l] += Q[i][k] * cv[l*4 + k];
         }
     }
-
     {
         result.P = float3(0,0,0);
         for (int k=0; k<4; ++k){
@@ -832,13 +951,294 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
     bezcv[14].P = cv[11];
     bezcv[15].P = cv[10];
 
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    for (int i=0; i < 16; ++i) {
-        bezcv[i].P1 = float3(0,0,0);
-        bezcv[i].P2 = float3(0,0,0);
-        bezcv[i].vSegments = float2(0,0);
-    }
-#endif
-
     OsdEvalPatchBezier(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
 }
+
+//
+//  Convert the 12 points of a regular patch resulting from Loop subdivision
+//  into a more accessible Bezier patch for both tessellation assessment and
+//  evaluation.
+//
+//  Regular patch for Loop subdivision -- quartic triangular Box spline:
+//
+//                           10 --- 11
+//                           . .   . .
+//                          .   . .   .
+//                         7 --- 8 --- 9
+//                        . .   . .   . .
+//                       .   . .   . .   .
+//                      3 --- 4 --- 5 --- 6
+//                       .   . .   . .   .
+//                        . .   . .   . .
+//                         0 --- 1 --- 2
+//
+//  The equivalant quartic Bezier triangle (15 points):
+//
+//                              14
+//                              . .
+//                             .   .
+//                           12 --- 13
+//                           . .   . .
+//                          .   . .   .
+//                         9 -- 10 --- 11
+//                        . .   . .   . .
+//                       .   . .   . .   .
+//                      5 --- 6 --- 7 --- 8
+//                     . .   . .   . .   . .
+//                    .   . .   . .   . .   .
+//                   0 --- 1 --- 2 --- 3 --- 4
+//
+//  A hybrid cubic/quartic Bezier patch with cubic boundaries is a close
+//  approximation and would only use 12 control points, but we need a full
+//  quartic patch to maintain accuracy along boundary curves -- especially
+//  between subdivision levels.
+//
+void
+OsdComputePerPatchVertexBoxSplineTriangle(int3 patchParam, int ID, float3 cv[12],
+                                          out OsdPerPatchVertexBezier result)
+{
+    //
+    //  Conversion matrix from 12-point Box spline to 15-point quartic Bezier
+    //  patch and its common scale factor:
+    //
+    const float boxToBezierMatrix[12*15] = {
+    // L0   L1   L2     L3   L4   L5   L6     L7   L8   L9     L10  L11
+        2,   2,   0,     2,  12,   2,   0,     2,   2,   0,     0,   0,  // B0
+        1,   3,   0,     0,  12,   4,   0,     1,   3,   0,     0,   0,  // B1
+        0,   4,   0,     0,   8,   8,   0,     0,   4,   0,     0,   0,  // B2
+        0,   3,   1,     0,   4,  12,   0,     0,   3,   1,     0,   0,  // B3
+        0,   2,   2,     0,   2,  12,   2,     0,   2,   2,     0,   0,  // B4
+        0,   1,   0,     1,  12,   3,   0,     3,   4,   0,     0,   0,  // B5
+        0,   1,   0,     0,  10,   6,   0,     1,   6,   0,     0,   0,  // B6
+        0,   1,   0,     0,   6,  10,   0,     0,   6,   1,     0,   0,  // B7
+        0,   1,   0,     0,   3,  12,   1,     0,   4,   3,     0,   0,  // B8
+        0,   0,   0,     0,   8,   4,   0,     4,   8,   0,     0,   0,  // B9
+        0,   0,   0,     0,   6,   6,   0,     1,  10,   1,     0,   0,  // B10
+        0,   0,   0,     0,   4,   8,   0,     0,   8,   4,     0,   0,  // B11
+        0,   0,   0,     0,   4,   3,   0,     3,  12,   1,     1,   0,  // B12
+        0,   0,   0,     0,   3,   4,   0,     1,  12,   3,     0,   1,  // B13
+        0,   0,   0,     0,   2,   2,   0,     2,  12,   2,     2,   2   // B14
+    };
+    const float boxToBezierMatrixScale = 1.0 / 24.0;
+
+    OsdComputeBoxSplineTriangleBoundaryPoints(cv, patchParam);
+
+    result.patchParam = patchParam;
+    result.P = float3(0,0,0);
+
+    int cvCoeffBase = 12 * ID;
+
+    for (int i = 0; i < 12; ++i) {
+        result.P += boxToBezierMatrix[cvCoeffBase + i] * cv[i];
+    }
+    result.P *= boxToBezierMatrixScale;
+}
+
+void
+OsdEvalPatchBezierTriangle(int3 patchParam, float2 UV,
+                           OsdPerPatchVertexBezier cv[15],
+                           out float3 P, out float3 dPu, out float3 dPv,
+                           out float3 N, out float3 dNu, out float3 dNv)
+{
+    float u = UV.x;
+    float v = UV.y;
+    float w = 1.0 - u - v;
+
+    float uu = u * u;
+    float vv = v * v;
+    float ww = w * w;
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    //
+    //  When computing normal derivatives, we need 2nd derivatives, so compute
+    //  an intermediate quadratic Bezier triangle from which 2nd derivatives
+    //  can be easily computed, and which in turn yields the triangle that gives
+    //  the position and 1st derivatives.
+    //
+    //  Quadratic barycentric basis functions (in addition to those above):
+    float uv = u * v * 2.0;
+    float vw = v * w * 2.0;
+    float wu = w * u * 2.0;
+
+    float3 Q0 = ww * cv[ 0].P + wu * cv[ 1].P + uu * cv[ 2].P +
+                uv * cv[ 6].P + vv * cv[ 9].P + vw * cv[ 5].P;
+    float3 Q1 = ww * cv[ 1].P + wu * cv[ 2].P + uu * cv[ 3].P +
+                uv * cv[ 7].P + vv * cv[10].P + vw * cv[ 6].P;
+    float3 Q2 = ww * cv[ 2].P + wu * cv[ 3].P + uu * cv[ 4].P +
+                uv * cv[ 8].P + vv * cv[11].P + vw * cv[ 7].P;
+    float3 Q3 = ww * cv[ 5].P + wu * cv[ 6].P + uu * cv[ 7].P +
+                uv * cv[10].P + vv * cv[12].P + vw * cv[ 9].P;
+    float3 Q4 = ww * cv[ 6].P + wu * cv[ 7].P + uu * cv[ 8].P +
+                uv * cv[11].P + vv * cv[13].P + vw * cv[10].P;
+    float3 Q5 = ww * cv[ 9].P + wu * cv[10].P + uu * cv[11].P +
+                uv * cv[13].P + vv * cv[14].P + vw * cv[12].P;
+
+    float3 V0 = w * Q0 + u * Q1 + v * Q3;
+    float3 V1 = w * Q1 + u * Q2 + v * Q4;
+    float3 V2 = w * Q3 + u * Q4 + v * Q5;
+#else
+    //
+    //  When 2nd derivatives are not required, factor the recursive evaluation
+    //  of a point to directly provide the three points of the triangle at the
+    //  last stage -- which then trivially provides both position and 1st
+    //  derivatives.  Each point of the triangle results from evaluating the
+    //  corresponding cubic Bezier sub-triangle for each corner of the quartic:
+    //
+    //  Cubic barycentric basis functions:
+    float uuu = uu * u;
+    float uuv = uu * v * 3.0;
+    float uvv = u * vv * 3.0;
+    float vvv = vv * v;
+    float vvw = vv * w * 3.0;
+    float vww = v * ww * 3.0;
+    float www = ww * w;
+    float wwu = ww * u * 3.0;
+    float wuu = w * uu * 3.0;
+    float uvw = u * v * w * 6.0;
+
+    float3 V0 = www * cv[ 0].P + wwu * cv[ 1].P + wuu * cv[ 2].P
+              + uuu * cv[ 3].P + uuv * cv[ 7].P + uvv * cv[10].P
+              + vvv * cv[12].P + vvw * cv[ 9].P + vww * cv[ 5].P + uvw * cv[ 6].P;
+
+    float3 V1 = www * cv[ 1].P + wwu * cv[ 2].P + wuu * cv[ 3].P
+              + uuu * cv[ 4].P + uuv * cv[ 8].P + uvv * cv[11].P
+              + vvv * cv[13].P + vvw * cv[10].P + vww * cv[ 6].P + uvw * cv[ 7].P;
+
+    float3 V2 = www * cv[ 5].P + wwu * cv[ 6].P + wuu * cv[ 7].P
+              + uuu * cv[ 8].P + uuv * cv[11].P + uvv * cv[13].P
+              + vvv * cv[14].P + vvw * cv[12].P + vww * cv[ 9].P + uvw * cv[10].P;
+#endif
+
+    //
+    //  Compute P, du and dv all from the triangle formed from the three Vi:
+    //
+    P = w * V0 + u * V1 + v * V2;
+
+    int dSign = OsdGetPatchIsTriangleRotated(patchParam) ? -1 : 1;
+    int level = OsdGetPatchFaceLevel(patchParam);
+
+    float d1Scale = dSign * level * 4;
+
+    dPu = (V1 - V0) * d1Scale;
+    dPv = (V2 - V0) * d1Scale;
+
+    //  Compute N and test for degeneracy:
+    //
+    //  We need a geometric measure of the size of the patch for a suitable
+    //  tolerance.  Magnitudes of the partials are generally proportional to
+    //  that size -- the sum of the partials is readily available, cheap to
+    //  compute, and has proved effective in most cases (though not perfect).
+    //  The size of the bounding box of the patch, or some approximation to
+    //  it, would be better but more costly to compute.
+    //
+    float proportionalNormalTolerance = 0.00001f;
+
+    float nEpsilon = (length(dPu) + length(dPv)) * proportionalNormalTolerance;
+
+    N = cross(dPu, dPv);
+    float nLength = length(N);
+
+
+#ifdef OSD_COMPUTE_NORMAL_DERIVATIVES
+    //
+    //  Compute normal derivatives using 2nd order partials, then use the
+    //  normal derivatives to resolve a degenerate normal:
+    //
+    float d2Scale = dSign * level * level * 12;
+
+    float3 dUU = (Q0 - 2 * Q1 + Q2)  * d2Scale;
+    float3 dVV = (Q0 - 2 * Q3 + Q5)  * d2Scale;
+    float3 dUV = (Q0 - Q1 + Q4 - Q3) * d2Scale;
+
+    dNu = cross(dUU, dPv) + cross(dPu, dUV);
+    dNv = cross(dUV, dPv) + cross(dPu, dVV);
+
+    if (nLength < nEpsilon) {
+        //  Use 1st order Taylor approximation of N(u,v) within patch interior:
+        if (w > 0.0) {
+            N =  dNu + dNv;
+        } else if (u >= 1.0) {
+            N = -dNu + dNv;
+        } else if (v >= 1.0) {
+            N =  dNu - dNv;
+        } else {
+            N = -dNu - dNv;
+        }
+
+        nLength = length(N);
+        if (nLength < nEpsilon) {
+            nLength = 1.0;
+        }
+    }
+    N = N / nLength;
+
+    //  Project derivs of non-unit normal function onto tangent plane of N:
+    dNu = (dNu - dot(dNu,N) * N) / nLength;
+    dNv = (dNv - dot(dNv,N) * N) / nLength;
+#else
+    dNu = float3(0,0,0);
+    dNv = float3(0,0,0);
+
+    //
+    //  Resolve a degenerate normal using the interior triangle of the
+    //  intermediate quadratic patch that results from recursive evaluation.
+    //  This addresses common cases of degenerate or colinear boundaries
+    //  without resorting to use of explicit 2nd derivatives:
+    //
+    if (nLength < nEpsilon) {
+        float uv  = u * v * 2.0;
+        float vw  = v * w * 2.0;
+        float wu  = w * u * 2.0;
+
+        float3 Q1 = ww * cv[ 1].P + wu * cv[ 2].P + uu * cv[ 3].P +
+                    uv * cv[ 7].P + vv * cv[10].P + vw * cv[ 6].P;
+        float3 Q3 = ww * cv[ 5].P + wu * cv[ 6].P + uu * cv[ 7].P +
+                    uv * cv[10].P + vv * cv[12].P + vw * cv[ 9].P;
+        float3 Q4 = ww * cv[ 6].P + wu * cv[ 7].P + uu * cv[ 8].P +
+                    uv * cv[11].P + vv * cv[13].P + vw * cv[10].P;
+
+        N = cross((Q4 - Q1), (Q3 - Q1));
+        nLength = length(N);
+        if (nLength < nEpsilon) {
+            nLength = 1.0;
+        }
+    }
+    N = N / nLength;
+#endif
+}
+
+void
+OsdEvalPatchGregoryTriangle(int3 patchParam, float2 UV, float3 cv[18],
+                            out float3 P, out float3 dPu, out float3 dPv,
+                            out float3 N, out float3 dNu, out float3 dNv)
+{
+    float u = UV.x;
+    float v = UV.y;
+    float w = 1.0 - u - v;
+
+    float duv = u + v;
+    float dvw = v + w;
+    float dwu = w + u;
+
+    OsdPerPatchVertexBezier bezcv[15];
+
+    bezcv[ 6].P = (duv == 0.0) ? cv[3]  : ((u*cv[ 3] + v*cv[ 4]) / duv);
+    bezcv[ 7].P = (dvw == 0.0) ? cv[8]  : ((v*cv[ 8] + w*cv[ 9]) / dvw);
+    bezcv[10].P = (dwu == 0.0) ? cv[13] : ((w*cv[13] + u*cv[14]) / dwu);
+
+    bezcv[ 0].P = cv[ 0];
+    bezcv[ 1].P = cv[ 1];
+    bezcv[ 2].P = cv[15];
+    bezcv[ 3].P = cv[ 7];
+    bezcv[ 4].P = cv[ 5];
+    bezcv[ 5].P = cv[ 2];
+    bezcv[ 8].P = cv[ 6];
+    bezcv[ 9].P = cv[17];
+    bezcv[11].P = cv[16];
+    bezcv[12].P = cv[11];
+    bezcv[13].P = cv[12];
+    bezcv[14].P = cv[10];
+
+    OsdEvalPatchBezierTriangle(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
+}
+

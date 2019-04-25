@@ -1,5 +1,5 @@
 //
-//   Copyright 2013 Pixar
+//   Copyright 2019 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -23,7 +23,7 @@
 //
 
 //----------------------------------------------------------
-// Patches.VertexBSpline
+// Patches.VertexBoxSplineTriangle
 //----------------------------------------------------------
 
 void vs_main_patches( in InputVertex input,
@@ -34,39 +34,39 @@ void vs_main_patches( in InputVertex input,
 }
 
 //----------------------------------------------------------
-// Patches.HullBSpline
+// Patches.HullBoxSplineTriangle
 //----------------------------------------------------------
 
-[domain("quad")]
+[domain("tri")]
 [partitioning(OSD_PARTITIONING)]
 [outputtopology("triangle_cw")]
-[outputcontrolpoints(16)]
+[outputcontrolpoints(15)]
 [patchconstantfunc("HSConstFunc")]
 OsdPerPatchVertexBezier hs_main_patches(
-    in InputPatch<HullVertex, 16> patch,
+    in InputPatch<HullVertex, 12> patch,
     uint primitiveID : SV_PrimitiveID,
     in uint ID : SV_OutputControlPointID )
 {
     OsdPerPatchVertexBezier output;
 
-    float3 cv[16];
-    for (int i=0; i<16; ++i) {
+    float3 cv[12];
+    for (int i=0; i<12; ++i) {
         cv[i] = patch[i].position.xyz;
     }
 
     int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-    OsdComputePerPatchVertexBSpline(patchParam, ID, cv, output);
+    OsdComputePerPatchVertexBoxSplineTriangle(patchParam, ID, cv, output);
 
     return output;
 }
 
-HS_CONSTANT_FUNC_OUT
+HS_CONSTANT_FUNC_TRIANGLE_OUT
 HSConstFunc(
-    InputPatch<HullVertex, 16> patch,
-    OutputPatch<OsdPerPatchVertexBezier, 16> bezierPatch,
+    InputPatch<HullVertex, 12> patch,
+    OutputPatch<OsdPerPatchVertexBezier, 15> bezierTrianglePatch,
     uint primitiveID : SV_PrimitiveID)
 {
-    HS_CONSTANT_FUNC_OUT output;
+    HS_CONSTANT_FUNC_TRIANGLE_OUT output;
 
     int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
 
@@ -75,37 +75,26 @@ HSConstFunc(
     float4 tessOuterLo = float4(0,0,0,0);
     float4 tessOuterHi = float4(0,0,0,0);
 
-    OSD_PATCH_CULL(16);
+    OSD_PATCH_CULL_TRIANGLE(12);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
-#if 0
-    // XXX: this doesn't work on nvidia driver 34x.
-    OsdEvalPatchBezierTessLevels(bezierPatch, patchParam,
-                     tessLevelOuter, tessLevelInner,
-                     tessOuterLo, tessOuterHi);
-#else
-    // This is needed to coerce correct behavior on nvidia driver 34x
-    OsdPerPatchVertexBezier cpBezier[16];
-    for (int i=0; i<16; ++i) {
-        cpBezier[i] = bezierPatch[i];
-        cpBezier[i].P += 0.0f;
+    float3 bezcv[15];
+    for (int i=0; i<15; ++i) {
+        bezcv[i] = bezierTrianglePatch[i].P;
     }
-    OsdEvalPatchBezierTessLevels(cpBezier, patchParam,
+    OsdEvalPatchBezierTriangleTessLevels(bezcv, patchParam,
                      tessLevelOuter, tessLevelInner,
                      tessOuterLo, tessOuterHi);
-#endif
 #else
-    OsdGetTessLevelsUniform(patchParam, tessLevelOuter, tessLevelInner,
+    OsdGetTessLevelsUniformTriangle(patchParam, tessLevelOuter, tessLevelInner,
                      tessOuterLo, tessOuterHi);
 #endif
 
     output.tessLevelOuter[0] = tessLevelOuter[0];
     output.tessLevelOuter[1] = tessLevelOuter[1];
     output.tessLevelOuter[2] = tessLevelOuter[2];
-    output.tessLevelOuter[3] = tessLevelOuter[3];
 
     output.tessLevelInner[0] = tessLevelInner[0];
-    output.tessLevelInner[1] = tessLevelInner[1];
 
     output.tessOuterLo = tessOuterLo;
     output.tessOuterHi = tessOuterHi;
@@ -114,30 +103,30 @@ HSConstFunc(
 }
 
 //----------------------------------------------------------
-// Patches.DomainBSpline
+// Patches.DomainBoxSplineTriangle
 //----------------------------------------------------------
 
-[domain("quad")]
+[domain("tri")]
 void ds_main_patches(
-    in HS_CONSTANT_FUNC_OUT input,
-    in OutputPatch<OsdPerPatchVertexBezier, 16> patch,
-    in float2 domainCoord : SV_DomainLocation,
+    in HS_CONSTANT_FUNC_TRIANGLE_OUT input,
+    in OutputPatch<OsdPerPatchVertexBezier, 15> patch,
+    in float3 domainCoord : SV_DomainLocation,
     out OutputVertex output )
 {
     float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
     float3 N = float3(0,0,0), dNu = float3(0,0,0), dNv = float3(0,0,0);
 
-    OsdPerPatchVertexBezier cv[16];
-    for (int i=0; i<16; ++i) {
+    OsdPerPatchVertexBezier cv[15];
+    for (int i=0; i<15; ++i) {
         cv[i] = patch[i];
     }
 
-    float2 UV = OsdGetTessParameterization(domainCoord,
-                                           input.tessOuterLo,
-                                           input.tessOuterHi);
+    float2 UV = OsdGetTessParameterizationTriangle(domainCoord.xy,
+                                                   input.tessOuterLo,
+                                                   input.tessOuterHi);
 
     int3 patchParam = patch[0].patchParam;
-    OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
+    OsdEvalPatchBezierTriangle(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     // all code below here is client code
     output.position = mul(OsdModelViewMatrix(), float4(P, 1.0f));
@@ -148,11 +137,8 @@ void ds_main_patches(
     output.Nu = dNu;
     output.Nv = dNv;
 #endif
-#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
-    output.vSegments = cv[0].vSegments;
-#endif
 
-    output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
+    output.patchCoord = OsdInterpolatePatchCoordTriangle(UV, patchParam);
 
     OSD_DISPLACEMENT_CALLBACK;
 
