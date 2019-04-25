@@ -213,6 +213,7 @@ if( DXSDK_FOUND )
     list(APPEND KERNEL_FILES
         hlslComputeKernel.hlsl
         hlslPatchCommon.hlsl
+        hlslPatchCommonTess.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
         hlslPatchGregoryBasis.hlsl
