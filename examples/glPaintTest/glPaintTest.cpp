@@ -37,6 +37,8 @@ GLFWmonitor* g_primary=0;
 OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 
 #include "../../regression/common/far_utils.h"
+#include "../common/argOptions.h"
+#include "../common/viewerArgsUtils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
@@ -63,6 +65,8 @@ float g_rotate[2] = {0, 0},
       g_pan[2] = {0, 0},
       g_center[3] = {0, 0, 0},
       g_size = 0;
+
+bool  g_yup = false;
 
 int   g_prev_x = 0,
       g_prev_y = 0;
@@ -113,16 +117,6 @@ GLuint g_ptexPages = 0,
     g_ptexTexels = 0;
 
 int g_pageSize = 512;
-
-struct SimpleShape {
-    std::string  name;
-    Scheme       scheme;
-    std::string  data;
-
-    SimpleShape() { }
-    SimpleShape( std::string const & idata, char const * iname, Scheme ischeme )
-        : name(iname), scheme(ischeme), data(idata) { }
-};
 
 int g_currentShape = 0;
 
@@ -628,7 +622,9 @@ display() {
     translate(g_transformData.ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
     rotate(g_transformData.ModelViewMatrix, g_rotate[1], 1, 0, 0);
     rotate(g_transformData.ModelViewMatrix, g_rotate[0], 0, 1, 0);
-    rotate(g_transformData.ModelViewMatrix, -90, 1, 0, 0);
+    if (!g_yup) {
+        rotate(g_transformData.ModelViewMatrix, -90, 1, 0, 0);
+    }
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
@@ -1082,41 +1078,18 @@ callbackErrorGLFW(int error, const char* description) {
 
 int main(int argc, char ** argv) {
 
-    bool fullscreen = false;
-    Scheme defaultScheme = kCatmark;
-    std::vector<char const *> objfiles;
+    ArgOptions args;
 
-    for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
-            objfiles.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-l")) {
-            g_level = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-f")) {
-            fullscreen = true;
-        } else if (!strcmp(argv[i], "-catmark")) {
-            defaultScheme = kCatmark;
-        } else if (!strcmp(argv[i], "-loop")) {
-            defaultScheme = kLoop;
-        } else if (!strcmp(argv[i], "-bilinear")) {
-            printf("Warning: -bilinear ignored, Bilinear shapes not supported\n");
-        } else {
-            printf("Warning: unrecognized argument '%s' ignored\n", argv[i]);
-        }
-    }
-    for (int i = 0; i < (int)objfiles.size(); ++i) {
-        std::ifstream ifs(objfiles[i]);
-        if (ifs) {
-            std::stringstream ss;
-            ss << ifs.rdbuf();
-            ifs.close();
-            std::string str = ss.str();
-            g_defaultShapes.push_back(ShapeDesc(objfiles[i], str.c_str(), defaultScheme));
-        } else {
-            printf("Warning: cannot open shape file '%s'\n", objfiles[i]);
-        }
-    }
+    args.Parse(argc, argv);
+    args.PrintUnrecognizedArgsWarnings();
+
+    g_yup = args.GetYUp();
+    g_level = args.GetLevel();
+
+    ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
 
     initShapes();
+
     OpenSubdiv::Far::SetErrorCallback(callbackError);
 
     glfwSetErrorCallback(callbackErrorGLFW);
@@ -1129,7 +1102,7 @@ int main(int argc, char ** argv) {
 
     GLUtils::SetMinimumGLVersion();
 
-    if (fullscreen) {
+    if (args.GetFullScreen()) {
 
         g_primary = glfwGetPrimaryMonitor();
 
@@ -1151,7 +1124,7 @@ int main(int argc, char ** argv) {
     }
 
     if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                                       fullscreen && g_primary ? g_primary : NULL, NULL))) {
+           args.GetFullScreen() && g_primary ? g_primary : NULL, NULL))) {
         printf("Failed to open window.\n");
         glfwTerminate();
         return 1;

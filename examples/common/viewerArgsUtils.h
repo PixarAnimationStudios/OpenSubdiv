@@ -39,7 +39,7 @@ namespace ViewerArgsUtils {
 // defaultShapes vector, treating the objs as an animated series, returning
 // an ObjAnim object.
 const ObjAnim *PopulateAnimShapes(const ArgOptions &args, 
-                                  std::vector<ShapeDesc> *defaultShapes);
+                                  std::vector<ShapeDesc> *defaultShapes = 0);
 
 // From the list of obj files in args, populates the
 // defaultShapes vector.

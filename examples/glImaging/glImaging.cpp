@@ -69,6 +69,7 @@
 #include <opensubdiv/osd/glMesh.h>
 
 #include "../../regression/common/far_utils.h"
+#include "../common/argOptions.h"
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "../common/glShaderCache.h"
@@ -459,7 +460,7 @@ void runTest(ShapeDesc const &shapeDesc, std::string const &kernel,
 
 static void usage(const char *program) {
     std::cout
-        << "Usage %s : " << program << "\n"
+        << "Usage: " << program << "\n"
         << "   -a                      : adaptive refinement (default)\n"
         << "   -u                      : uniform refinement\n"
         << "   -l <isolation level>    : isolation level (default = 2)\n"
@@ -485,30 +486,34 @@ int main(int argc, char ** argv) {
     std::string displayMode = "PATCH_TYPE";
     std::vector<std::string> kernels;
 
-    for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-a")) {
-            adaptive = true;
-        } else if (!strcmp(argv[i], "-u")) {
-            adaptive = false;
-        } else if (!strcmp(argv[i], "-l")) {
-            isolationLevel = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-k")) {
-            std::stringstream ss(argv[++i]);
+    ArgOptions args;
+
+    args.Parse(argc, argv);
+
+    adaptive = args.GetAdaptive();
+    isolationLevel = args.GetLevel();
+
+    // Parse remaining args
+    const std::vector<const char *> &argvRem = args.GetRemainingArgs();
+    for (size_t i = 0; i < argvRem.size(); ++i) {
+        if (!strcmp(argvRem[i], "-k")) {
+            std::stringstream ss(argvRem[++i]);
             std::string kernel;
             while(std::getline(ss, kernel, ',')) {
                 kernels.push_back(kernel);
             }
-        } else if (!strcmp(argv[i], "-t")) {
-            tessLevel = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-w")) {
+        } else if (!strcmp(argvRem[i], "-t")) {
+            tessLevel = atoi(argvRem[++i]);
+        } else if (!strcmp(argvRem[i], "-w")) {
             writeToFile = true;
-            prefix = argv[++i];
-        } else if (!strcmp(argv[i], "-s")) {
-            width = atoi(argv[++i]);
-            height = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-d")) {
-            displayMode = argv[++i];
+            prefix = argvRem[++i];
+        } else if (!strcmp(argvRem[i], "-s")) {
+            width = atoi(argvRem[++i]);
+            height = atoi(argvRem[++i]);
+        } else if (!strcmp(argvRem[i], "-d")) {
+            displayMode = argvRem[++i];
         } else {
+            args.PrintUnrecognizedArgWarning(argvRem[i]);
             usage(argv[0]);
             return 1;
         }

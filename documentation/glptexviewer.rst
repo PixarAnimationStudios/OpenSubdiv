@@ -35,7 +35,7 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **glPtexViewer** [**-f**] [**-u**] [**-a**] [**-l** *isolation level*] [**-c** *animation loops*] [**-y**]
+   **glPtexViewer** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *isolation level*] [**-c** *animation loops*]
        [**-e** *environment map*] [**-d** *HDR diffuse map*] [**-s** *HDR specular map*]
        [**--disp** *displacement scale*] [**--bump** *bump scale*]
        *ptex color file*
@@ -62,9 +62,6 @@ OPTIONS
 See the description of the
 `common comand line options <code_examples.html#common-command-line-options>`__
 for the subset of common options supported here.
-
-**-y**
-  Swap Z-up geometry to Y-UP.
 
 **-e** *environment map*
   A low dynamic range spherical environment map used as a background. Ideally,

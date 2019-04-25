@@ -35,7 +35,7 @@ SYNOPSIS
 .. parsed-literal::
    :class: codefhead
 
-   **glStencilViewer** [**-f**] [**-u**] [**-a**] [**-l** *refinement level*]
+   **glStencilViewer** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *refinement level*]
        *objfile(s)* [**-catmark**] [**-loop**] [**-bilinear**]
 
 DESCRIPTION

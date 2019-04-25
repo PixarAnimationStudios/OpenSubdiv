@@ -35,7 +35,7 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **glPaintTest** [**-f**] [**-l** *adaptive refinement level*] 
+   **glPaintTest** [**-f**] [**-yup**] [**-l** *adaptive refinement level*] 
        *objfile(s)* [**-catmark**] [**-loop**]
 
    

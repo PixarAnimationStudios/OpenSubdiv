@@ -35,7 +35,7 @@ SYNOPSIS
 .. parsed-literal::
    :class: codefhead
 
-   **glEvalLimit** [**-f**] [**-u**] [**-a**] [**-l** *refinement level*]
+   **glEvalLimit** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *refinement level*]
        *objfile(s)* [**-catmark**] [**-loop**] [**-bilinear**]
 
 DESCRIPTION

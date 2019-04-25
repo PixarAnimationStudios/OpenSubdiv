@@ -35,17 +35,13 @@ const ObjAnim *
 PopulateAnimShapes(const ArgOptions &args, 
                    std::vector<ShapeDesc> *defaultShapes)
 {
-    if (!defaultShapes)
-        return NULL;
-
     if (args.GetObjFiles().empty())
         return NULL;
-
 
     const ObjAnim *objAnim = ObjAnim::Create(args.GetObjFiles(),
         args.GetDefaultScheme());
 
-    if (objAnim) {
+    if (objAnim && defaultShapes) {
         defaultShapes->push_back(ShapeDesc(args.GetObjFiles()[0], "", 
             args.GetDefaultScheme()));
     }
