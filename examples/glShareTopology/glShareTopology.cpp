@@ -71,6 +71,7 @@ GLFWmonitor* g_primary=0;
 #include "../../regression/common/far_utils.h"
 #include "init_shapes.h"
 
+#include "../common/argOptions.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
@@ -1172,16 +1173,14 @@ callbackErrorGLFW(int error, const char* description) {
 
 int main(int argc, char ** argv) {
 
-    std::string str;
-    for (int i = 1; i < argc; ++i) {
-        if (!strcmp(argv[i], "-l")) {
-            g_level = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-a")) {
-            g_options.adaptive = true;
-        } else if (!strcmp(argv[i], "-u")) {
-            g_options.adaptive = false;
-        }
-    }
+    ArgOptions args;
+
+    args.Parse(argc, argv);
+    args.PrintUnrecognizedArgsWarnings();
+
+    g_options.adaptive = args.GetAdaptive();
+    g_level = args.GetLevel();
+
     Far::SetErrorCallback(callbackError);
 
     glfwSetErrorCallback(callbackErrorGLFW);

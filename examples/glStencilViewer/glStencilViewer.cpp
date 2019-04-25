@@ -29,6 +29,8 @@ GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
 #include "../../regression/common/far_utils.h"
+#include "../common/argOptions.h"
+#include "../common/viewerArgsUtils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
@@ -111,13 +113,12 @@ int g_kernel = kCPU,
 int   g_running = 1,
       g_width = 1024,
       g_height = 1024,
-      g_fullscreen = 0,
       g_prev_x = 0,
       g_prev_y = 0,
       g_mbutton[3] = {0, 0, 0},
       g_frame=0,
       g_freeze=0,
-      g_repeatCount;
+      g_repeatCount=0;
 
 bool g_adaptive=true,
      g_infSharpPatch=false;
@@ -128,6 +129,8 @@ float g_rotate[2] = {0, 0},
       g_center[3] = {0, 0, 0},
       g_size = 0,
       g_moveScale = 0.0f;
+
+bool  g_yup = false;
 
 struct Transform {
     float ModelViewMatrix[16];
@@ -730,7 +733,9 @@ display() {
     translate(g_transformData.ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
     rotate(g_transformData.ModelViewMatrix, g_rotate[1], 1, 0, 0);
     rotate(g_transformData.ModelViewMatrix, g_rotate[0], 0, 1, 0);
-    rotate(g_transformData.ModelViewMatrix, -90, 1, 0, 0);
+    if (!g_yup) {
+        rotate(g_transformData.ModelViewMatrix, -90, 1, 0, 0);
+    }
     translate(g_transformData.ModelViewMatrix,
               -g_center[0], -g_center[1], -g_center[2]);
     perspective(g_transformData.ProjectionMatrix,
@@ -1059,43 +1064,17 @@ callbackErrorGLFW(int error, const char* description) {
 //------------------------------------------------------------------------------
 int main(int argc, char **argv) {
 
-    bool fullscreen = false;
-    Scheme defaultScheme = kCatmark;
-    std::vector<char const *> objfiles;
+    ArgOptions args;
 
-    for (int i = 1; i < argc; ++i) {
-        if (strstr(argv[i], ".obj")) {
-            objfiles.push_back(argv[i]);
-        } else if (!strcmp(argv[i], "-a")) {
-            g_adaptive = true;
-        } else if (!strcmp(argv[i], "-u")) {
-            g_adaptive = false;
-        } else if (!strcmp(argv[i], "-l")) {
-            g_isolationLevel = atoi(argv[++i]);
-        } else if (!strcmp(argv[i], "-f")) {
-            fullscreen = true;
-        } else if (!strcmp(argv[i], "-bilinear")) {
-            defaultScheme = kBilinear;
-        } else if (!strcmp(argv[i], "-catmark")) {
-            defaultScheme = kCatmark;
-        } else if (!strcmp(argv[i], "-loop")) {
-            defaultScheme = kLoop;
-        } else {
-            printf("Warning: unrecognized argument '%s' ignored\n", argv[i]);
-        }
-    }
-    for (int i = 0; i < (int)objfiles.size(); ++i) {
-        std::ifstream ifs(objfiles[i]);
-        if (ifs) {
-            std::stringstream ss;
-            ss << ifs.rdbuf();
-            ifs.close();
-            std::string str = ss.str();
-            g_defaultShapes.push_back(ShapeDesc(objfiles[i], str.c_str(), defaultScheme));
-        } else {
-            printf("Warning: cannot open shape file '%s'\n", objfiles[i]);
-        }
-    }
+    args.Parse(argc, argv);
+    args.PrintUnrecognizedArgsWarnings();
+
+    g_yup = args.GetYUp();
+    g_adaptive = args.GetAdaptive();
+    g_isolationLevel = args.GetLevel();
+    g_repeatCount = args.GetRepeatCount();
+
+    ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
 
     initShapes();
 
@@ -1109,7 +1088,7 @@ int main(int argc, char **argv) {
 
     GLUtils::SetMinimumGLVersion();
 
-    if (fullscreen) {
+    if (args.GetFullScreen()) {
 
         g_primary = glfwGetPrimaryMonitor();
 
@@ -1131,7 +1110,7 @@ int main(int argc, char **argv) {
     }
 
     if (! (g_window=glfwCreateWindow(g_width, g_height, windowTitle,
-                           fullscreen && g_primary ? g_primary : NULL, NULL))) {
+           args.GetFullScreen() && g_primary ? g_primary : NULL, NULL))) {
         std::cerr << "Failed to create OpenGL context.\n";
         glfwTerminate();
         return 1;
