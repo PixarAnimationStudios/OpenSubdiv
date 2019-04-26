@@ -213,9 +213,13 @@ if( DXSDK_FOUND )
     list(APPEND KERNEL_FILES
         hlslComputeKernel.hlsl
         hlslPatchCommon.hlsl
+        hlslPatchCommonTess.hlsl
+        hlslPatchBoxSplineTriangle.hlsl
         hlslPatchBSpline.hlsl
         hlslPatchGregory.hlsl
         hlslPatchGregoryBasis.hlsl
+        hlslPatchGregoryTriangle.hlsl
+        hlslPatchLegacy.hlsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${DXSDK_LIBRARIES}
