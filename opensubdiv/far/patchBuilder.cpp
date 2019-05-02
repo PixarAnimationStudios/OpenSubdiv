@@ -903,10 +903,17 @@ PatchBuilder::getQuadRegularPatchPoints(int levelIndex, Index faceIndex,
         ConstIndexArray      vFaces   = level.getVertexFaces(v);
         ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
 
+        //  Identify the patch face in the ring of incident faces.  (There's
+        //  no need to deal with multiple occurrences of the face in the ring
+        //  here -- as can happen with non-manifold vertices -- as such corners
+        //  will be sharp, regular boundaries and not need the incident faces.)
+        //
         Index f = faceIndex;
         int fInVFaces = vFaces.FindIndex(f);
-        assert(vInFaces[fInVFaces] == i);  // Beware non-manifold vert in face twice...
 
+        //  Identify the exterior points for this corner from the appropriate 
+        //  incident face:
+        //
         bool interiorCorner = interiorPatch || (((eMask & (1 << i)) |
                                                  (eMask & (1 << fastMod4(i+3)))) == 0);
         if (interiorCorner) {
@@ -990,9 +997,17 @@ PatchBuilder::getTriRegularPatchPoints(int levelIndex, Index faceIndex,
         ConstIndexArray      vFaces   = level.getVertexFaces(v);
         ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(v);
 
+        //  Identify the patch face in the ring of incident faces.  (There's
+        //  no need to deal with multiple occurrences of the face in the ring
+        //  here -- as can happen with non-manifold vertices -- as such corners
+        //  will be sharp, regular boundaries and not need the incident faces.)
+        //
         Index f = faceIndex;
         int fInVFaces = vFaces.FindIndex(f);
 
+        //  Identify the exterior points for this corner from the appropriate 
+        //  incident faces:
+        //
         bool interiorCorner = interiorPatch || ((vMask & (1 << i)) == 0);
         if (interiorCorner) {
             int f2InVFaces = fastModN(fInVFaces + 2, 6);
@@ -1011,39 +1026,53 @@ PatchBuilder::getTriRegularPatchPoints(int levelIndex, Index faceIndex,
             patchPoints[cornerPointIndices[2]] = f3Points[fastMod3(vInf3 + 1)];
             patchPoints[cornerPointIndices[3]] = f3Points[fastMod3(vInf3 + 2)];
         } else if ((eMask & (1 << i)) && (eMask & (1 << fastMod3(i+2)))) {
-            //  Test for two indicent boundary edges -- no incident faces
+            //  Two indicent boundary edges -- no incident faces
 
             patchPoints[cornerPointIndices[1]] = boundaryPoint;
             patchPoints[cornerPointIndices[2]] = boundaryPoint;
             patchPoints[cornerPointIndices[3]] = boundaryPoint;
         } else if (eMask & (1 << i)) {
-            //  Test for leading/outgoing boundary edge:
+            //  Leading/outgoing boundary edge, i.e. f0 of {f0,f1,f2}, need f2:
             int f2InVFaces = fastModN(fInVFaces + 2, vFaces.size());
 
             Index f2 = vFaces[f2InVFaces];
             int vInf2 = vInFaces[f2InVFaces];
+
+            if (level.getVertexTag(v)._nonManifold) {
+                Index f1 = getNextFaceInVertFaces(level, fInVFaces,
+                                            vFaces, vInFaces, false, vInf2);
+                f2 = getNextFaceInVertFaces(level, vFaces.FindIndex(f1),
+                                            vFaces, vInFaces, false, vInf2);
+            }
             ConstIndexArray f2Points = getFacePoints(level, f2, fvarChannel);
 
             patchPoints[cornerPointIndices[1]] = f2Points[fastMod3(vInf2 + 1)];
             patchPoints[cornerPointIndices[2]] = f2Points[fastMod3(vInf2 + 2)];
             patchPoints[cornerPointIndices[3]] = boundaryPoint;
         } else if (eMask & (1 << fastMod3(i+2))) {
-            //  Test for trailing/incoming boundary edge:
+            //  Trailing/incoming boundary edge, i.e. f2 of {f0,f1,f2}, need f0:
             int f0InVFaces = fastModN(fInVFaces + vFaces.size() - 2, vFaces.size());
 
             Index f0 = vFaces[f0InVFaces];
             int vInf0 = vInFaces[f0InVFaces];
+
+            if (level.getVertexTag(v)._nonManifold) {
+                Index f1 = getPrevFaceInVertFaces(level, fInVFaces,
+                                            vFaces, vInFaces, false, vInf0);
+                f0 = getPrevFaceInVertFaces(level, vFaces.FindIndex(f1),
+                                            vFaces, vInFaces, false, vInf0);
+            }
             ConstIndexArray f0Points = getFacePoints(level, f0, fvarChannel);
 
             patchPoints[cornerPointIndices[1]] = boundaryPoint;
             patchPoints[cornerPointIndices[2]] = boundaryPoint;
             patchPoints[cornerPointIndices[3]] = f0Points[fastMod3(vInf0 + 1)];
         } else {
-            //  Test for boundary vertex:
-            int f2InVFaces = fastModN(fInVFaces + 1, vFaces.size());
+            //  Boundary vertex on edge, i.e. f1 of {f0,f1,f2}, need next face f2:
+            int vInf2;
+            Index f2 = getNextFaceInVertFaces(level, fInVFaces, vFaces, vInFaces,
+                                       !level.getVertexTag(v)._nonManifold, vInf2);
 
-            Index f2 = vFaces[f2InVFaces];
-            int vInf2 = vInFaces[f2InVFaces];
             ConstIndexArray f2Points = getFacePoints(level, f2, fvarChannel);
 
             patchPoints[cornerPointIndices[1]] = f2Points[fastMod3(vInf2 + 2)];
@@ -1087,15 +1116,10 @@ PatchBuilder::assembleIrregularSourcePatch(
 
     for (int corner = 0; corner < fVerts.size(); ++corner) {
         //
-        //  Identify the face for the patch within the given ring when the
-        //  full ring is implicitly specified.
+        //  Retrieve corner properties from the VSpan when explicitly assigned.
+        //  Otherwise, identify properties from the incident faces and tags and
+        //  find the face for the patch within the set of incident faces:
         //
-        //  Note also that specifying a sub-ring in a VSpan currently implies
-        //  it is a boundary or dart (if all faces present) -- we need a
-        //  better way of specifying corner properties such as boundary, dart,
-        //  sharp, etc. (possibly a VTag for each corner in addition to the
-        //  VSpan)
-        // 
         Level::VTag vTag = level.getVertexTag(fVerts[corner]);
 
         SourcePatch::Corner & patchCorner = sourcePatch._corners[corner];
@@ -1103,7 +1127,7 @@ PatchBuilder::assembleIrregularSourcePatch(
         if (cornerSpans[corner].isAssigned()) {
             patchCorner._numFaces  = cornerSpans[corner]._numFaces;
             patchCorner._patchFace = cornerSpans[corner]._cornerInSpan;
-            patchCorner._boundary  = true;
+            patchCorner._boundary  = !cornerSpans[corner]._periodic;
         } else {
             ConstIndexArray vFaces = level.getVertexFaces(fVerts[corner]);
 
