@@ -118,6 +118,8 @@
 #include "loop_icosahedron.h"
 #include "loop_icos_infsharp.h"
 #include "loop_icos_semisharp.h"
+#include "loop_nonman_edges.h"
+#include "loop_nonman_verts.h"
 #include "loop_pole8.h"
 #include "loop_pole64.h"
 #include "loop_pole360.h"
