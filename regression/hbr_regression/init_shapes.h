@@ -46,8 +46,8 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("catmark_cube",             catmark_cube,             kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_dart_edgecorner",  catmark_dart_edgecorner,  kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_dart_edgeonly",    catmark_dart_edgeonly,    kCatmark ) );
-//  g_shapes.push_back( ShapeDesc("catmark_edgecorner",       catmark_edgecorner,       kCatmark ) );
-//  g_shapes.push_back( ShapeDesc("catmark_edgeonly",         catmark_edgeonly,         kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_edgecorner",       catmark_edgecorner,       kCatmark ) );
+    g_shapes.push_back( ShapeDesc("catmark_edgeonly",         catmark_edgeonly,         kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_flap",             catmark_flap,             kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_flap2",            catmark_flap2,            kCatmark ) );
     g_shapes.push_back( ShapeDesc("catmark_pyramid_creases0", catmark_pyramid_creases0, kCatmark ) );
@@ -62,12 +62,12 @@ static void initShapes() {
     g_shapes.push_back( ShapeDesc("catmark_tent",             catmark_tent,             kCatmark ) );
     g_shapes.push_back( ShapeDesc("loop_cube_creases0",       loop_cube_creases0,       kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_cube_creases1",       loop_cube_creases1,       kLoop ) );
-//  g_shapes.push_back( ShapeDesc("loop_cube",                loop_cube,                kLoop ) );
+    g_shapes.push_back( ShapeDesc("loop_cube",                loop_cube,                kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_icosahedron",         loop_icosahedron,         kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_saddle_edgecorner",   loop_saddle_edgecorner,   kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_saddle_edgeonly",     loop_saddle_edgeonly,     kLoop ) );
-//  g_shapes.push_back( ShapeDesc("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );
-//  g_shapes.push_back( ShapeDesc("loop_triangle_edgeonly",   loop_triangle_edgeonly,   kLoop ) );
+    g_shapes.push_back( ShapeDesc("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );
+    g_shapes.push_back( ShapeDesc("loop_triangle_edgeonly",   loop_triangle_edgeonly,   kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_chaikin0",            loop_chaikin0,            kLoop ) );
     g_shapes.push_back( ShapeDesc("loop_chaikin1",            loop_chaikin1,            kLoop ) );
 }

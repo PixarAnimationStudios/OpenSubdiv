@@ -1,16 +1,15 @@
 # This file uses centimeters as units for non-parametric coordinates.
-v  0 -2 0
-v  1 -1 0
+v  -1 0 -1
+v  0 0 -1
 v  0 0 0
-v  -1 -1 0
-v  2 0 0
-v  1 1 0
-v  0 2 0
-v  -1 1 0
-v  -2 0 0
+v  -1 0 0
+v  1 0 -1
+v  1 0 0
+v  1 0 1
+v  0 0 1
+v  -1 0 1
 s off
 f 1 2 3 4
 f 2 5 6 3
 f 3 6 7 8
 f 4 3 8 9
-
