@@ -1,0 +1,137 @@
+//
+//   Copyright 2019 DreamWorks Animation LLC.
+//
+//   Licensed under the Apache License, Version 2.0 (the "Apache License")
+//   with the following modification; you may not use this file except in
+//   compliance with the Apache License and the following modification to it:
+//   Section 6. Trademarks. is deleted and replaced with:
+//
+//   6. Trademarks. This License does not grant permission to use the trade
+//      names, trademarks, service marks, or product names of the Licensor
+//      and its affiliates, except as required to comply with Section 4(c) of
+//      the License and to reproduce the content of the NOTICE file.
+//
+//   You may obtain a copy of the Apache License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the Apache License with the above modification is
+//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+//   KIND, either express or implied. See the Apache License for the specific
+//   language governing permissions and limitations under the Apache License.
+//
+
+static const std::string catmark_nonquads =
+"#\n"
+"#   Four shapes ordered left->right and top->bottom in the XZ plane\n"
+"#\n"
+"#   Shape 1:  top-left\n"
+"#\n"
+"v -1.25  0  0.25\n"
+"v -0.25  0  0.25\n"
+"v -0.75  0  1.25\n"
+"\n"
+"vt 0.05 0.55\n"
+"vt 0.45 0.55\n"
+"vt 0.25 0.95\n"
+"\n"
+"f 1/1 2/2 3/3\n"
+"\n"
+"#\n"
+"#   Shape 2:  top-right\n"
+"#\n"
+"v  0.44  0    0.25\n"
+"v  1.06  0    0.25\n"
+"v  1.25 -0.3  0.87\n"
+"v  0.75  0    1.25\n"
+"v  0.25 -0.3  0.87\n"
+"\n"
+"vt  0.60  0.53\n"
+"vt  0.87  0.53\n"
+"vt  0.99  0.79\n"
+"vt  0.75  0.97\n"
+"vt  0.51  0.79\n"
+"\n"
+"f 4/4 5/5 6/6 7/7 8/8\n"
+"\n"
+"#\n"
+"#   Shape 3:  bottom-left\n"
+"#\n"
+"v -0.75 -0.5 -0.75\n"
+"v -1.25  0   -1.25\n"
+"v -0.25  0   -1.25\n"
+"v -0.25  0   -0.25\n"
+"v -1.25  0   -0.25\n"
+"\n"
+"vt 0.25 0.25\n"
+"vt 0.05 0.05\n"
+"vt 0.45 0.05\n"
+"vt 0.45 0.45\n"
+"vt 0.05 0.45\n"
+"\n"
+"f  9/9 10/10 11/11\n"
+"f  9/9 11/11 12/12\n"
+"f  9/9 12/12 13/13\n"
+"f  9/9 13/13 10/10\n"
+"\n"
+"#\n"
+"#   Shape 4:  bottom-right\n"
+"#\n"
+"v  1.075 0.0  -1.20\n"
+"v  0.675 0.0  -1.20\n"
+"v  0.875 0.0  -1.35\n"
+"v  1.025 0.15 -1.00\n"
+"v  1.025 0.0  -0.30\n"
+"v  0.425 0.0  -1.20\n"
+"v  0.425 0.0  -1.00\n"
+"v  0.675 0.0  -1.00\n"
+"v  0.675 0.15 -0.85\n"
+"v  0.425 0.15 -0.85\n"
+"v  0.675 0.0  -0.50\n"
+"v  0.425 0.0  -0.50\n"
+"v  0.875 0.15 -0.85\n"
+"v  0.675 0.0  -0.30\n"
+"v  0.425 0.0  -0.30\n"
+"v  0.875 0.0  -0.15\n"
+"v  0.675 0.15 -0.65\n"
+"v  1.075 0.15 -0.50\n"
+"v  0.875 0.15 -0.65\n"
+"v  0.425 0.15 -0.65\n"
+"\n"
+"vt 0.90 0.1\n"
+"vt 0.70 0.1\n"
+"vt 0.80 0.05\n"
+"vt 0.90 0.17\n"
+"vt 0.90 0.4\n"
+"vt 0.58 0.1\n"
+"vt 0.58 0.17\n"
+"vt 0.70 0.17\n"
+"vt 0.70 0.22\n"
+"vt 0.58 0.22\n"
+"vt 0.70 0.33\n"
+"vt 0.58 0.33\n"
+"vt 0.80 0.22\n"
+"vt 0.70 0.4\n"
+"vt 0.58 0.4\n"
+"vt 0.80 0.45\n"
+"vt 0.70 0.28\n"
+"vt 0.90 0.33\n"
+"vt 0.80 0.28\n"
+"vt 0.58 0.28\n"
+"\n"
+"f 26/26 22/22 21/21\n"
+"f 24/24 30/30 32/32\n"
+"f 24/24 25/25 33/33 30/30\n"
+"f 20/20 19/19 15/15 21/21\n"
+"f 22/22 23/23 20/20 21/21\n"
+"f 27/27 28/28 25/25 24/24\n"
+"f 31/31 18/18 29/29 27/27 24/24 32/32\n"
+"f 15/15 16/16 14/14 17/17 26/26 21/21\n"
+"f 17/17 31/31 32/32 26/26\n"
+"f 30/30 33/33 23/23 22/22\n"
+"f 32/32 30/30 22/22 26/26\n"
+"\n"
+"t interpolateboundary 1/0/0 1\n"
+"\n"
+;

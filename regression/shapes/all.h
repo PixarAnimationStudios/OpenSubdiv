@@ -78,6 +78,7 @@
 #include "catmark_nonman_quadpole64.h"
 #include "catmark_nonman_quadpole360.h"
 #include "catmark_nonman_bareverts.h"
+#include "catmark_nonquads.h"
 #include "catmark_pawn.h"
 #include "catmark_pyramid_creases0.h"
 #include "catmark_pyramid_creases1.h"
@@ -101,6 +102,9 @@
 #include "catmark_torus.h"
 #include "catmark_torus_creases0.h"
 #include "catmark_torus_creases1.h"
+#include "catmark_val2_interior.h"
+#include "catmark_xord_interior.h"
+#include "catmark_xord_boundary.h"
 
 #include "bilinear_cube.h"
 #include "bilinear_nonplanar.h"
