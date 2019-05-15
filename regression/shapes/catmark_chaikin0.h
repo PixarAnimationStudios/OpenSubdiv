@@ -72,6 +72,7 @@ static const std::string catmark_chaikin0 =
 "vt 0 0 \n"
 "vt 0 0 \n"
 "vt 0 0 \n"
+"vt 0 0 \n"
 "vn -0.577350 -0.577350 0.577350\n"
 "vn 0.577350 -0.577350 0.577350\n"
 "vn -0.707107 0.000000 0.707107\n"
