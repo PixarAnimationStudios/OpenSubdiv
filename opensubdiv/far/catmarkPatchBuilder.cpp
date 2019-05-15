@@ -1251,6 +1251,8 @@ GregoryConverter<REAL>::getIrregularFacePointSize(
     CornerTopology const & corner    = _corners[cIndexNear];
     CornerTopology const & adjCorner = _corners[cIndexFar];
 
+    if (corner.isSharp && adjCorner.isSharp) return 2;
+
     int thisSize = corner.isSharp
                  ? 6
                  : (1 + corner.ringPoints.GetSize());
