@@ -815,7 +815,7 @@ Refinement::subdivideTopology(Relations const& applyTo) {
     //  than the parent if that maximal parent vertex was not included in the sparse
     //  refinement (possible when sparse refinement is more general).
     //      - it may also be more if the base level was fairly trivial, i.e. less
-    //  than the regular valence.
+    //  than the regular valence, or contains non-manifold edges with many faces.
     //      - NOTE that when/if we support N-gons for tri-splitting, that the valence
     //  of edge-vertices introduced on the N-gon may be 7 rather than 6, while N may
     //  be less than both.
@@ -824,9 +824,13 @@ Refinement::subdivideTopology(Relations const& applyTo) {
     //  each topology relation is independent/optional complicates the issue of 
     //  where to keep track of it...
     //
-    int maxRegularValence = (_splitType == Sdc::SPLIT_TO_QUADS) ? 4 : 6;
-
-    _child->_maxValence = std::max(_parent->_maxValence, maxRegularValence);
+    if (_splitType == Sdc::SPLIT_TO_QUADS) {
+        _child->_maxValence = std::max(_parent->_maxValence, 4);
+        _child->_maxValence = std::max(_child->_maxValence, 2 + _parent->_maxEdgeFaces);
+    } else {
+        _child->_maxValence = std::max(_parent->_maxValence, 6);
+        _child->_maxValence = std::max(_child->_maxValence, 2 + _parent->_maxEdgeFaces * 2);
+    }
 }
 
 
