@@ -842,7 +842,8 @@ PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
         }
 
         //  Legacy option -- reinterpret a smooth corner as sharp:
-        if (_options.approxSmoothCornerWithSharp && vTag._xordinary &&
+        bool smoothCorner = !cornerSpans[i]._sharp;
+        if (smoothCorner && _options.approxSmoothCornerWithSharp && vTag._xordinary &&
                 vTag._boundary && !vTag._infSharp && !vTag._nonManifold) {
             int nFaces = cornerSpans[i].isAssigned()
                 ? cornerSpans[i]._numFaces
