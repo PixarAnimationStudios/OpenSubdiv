@@ -387,16 +387,26 @@ inline Level::VTag
 FVarLevel::ValueTag::combineWithLevelVTag(Level::VTag levelTag) const
 {
     if (this->_mismatch) {
+        //
+        //  Semi-sharp FVar values are always tagged and treated as corners
+        //  (at least three sharp edges (two boundary edges and one interior
+        //  semi-sharp) and/or vertex is semi-sharp) until the sharpness has
+        //  decayed, but they ultimately lie on the inf-sharp crease of the
+        //  FVar boundary.  Consider this when tagging inf-sharp features.
+        //
         if (this->isCorner()) {
             levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CORNER;
-            levelTag._infSharp = true;
-            levelTag._infSharpCrease = false;
-            levelTag._corner = !this->_infIrregular && !this->_infSharpEdges;
         } else {
             levelTag._rule = (Level::VTag::VTagSize) Sdc::Crease::RULE_CREASE;
+        }
+        if (this->isCrease() || this->isSemiSharp()) {
             levelTag._infSharp = false;
             levelTag._infSharpCrease = true;
             levelTag._corner = false;
+        } else {
+            levelTag._infSharp = true;
+            levelTag._infSharpCrease = false;
+            levelTag._corner = !this->_infIrregular && !this->_infSharpEdges;
         }
         levelTag._infSharpEdges = true;
         levelTag._infIrregular = this->_infIrregular;
