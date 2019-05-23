@@ -45,7 +45,7 @@ struct OutputVertex {
     float4 positionOut [[position]];
     float3 position;
     float3 normal;
-        
+
 #if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE_FACE_VARYING
     float3 patchColor;
 #endif
@@ -53,15 +53,15 @@ struct OutputVertex {
 
 struct SolidColorVertex {
     float4 positionOut [[position]];
-    
+
     half4 getColor() const {
         return unpack_unorm4x8_to_half(_color);
     }
-    
+
     void setColor(half4 color) {
         _color = pack_half_to_unorm4x8(color);
     }
-    
+
 private:
     uint _color [[flat, user(color)]];
 };
@@ -69,7 +69,7 @@ private:
 struct PackedInputVertex {
     packed_float3 position;
 };
-  
+
 struct Light {
     float3 Position;
     float3 ambient;
@@ -79,7 +79,7 @@ struct Light {
 
 float3 lighting(float3 diffuseColor, const constant Light* lightData, float3 eyePos, float3 eyeN)
 {
-    
+
     float3 color(0);
     for(int i = 0; i < 2; i++)
     {
@@ -87,12 +87,12 @@ float3 lighting(float3 diffuseColor, const constant Light* lightData, float3 eye
         const auto h = normalize(l + float3(0,0,1));
         const auto d = max(0.0, dot(eyeN, l));
         const auto s = powr(max(0.0, dot(eyeN, h)), 500.0f);
-        
+
         color += lightData[i].ambient
         + d * lightData[i].diffuse * diffuseColor
         + s * lightData[i].specular;
     }
-    
+
     return color;
 }
 
@@ -104,42 +104,42 @@ const constant float4 patchColors[] = {
     float4(0.0f,  0.5f,  0.5f,  1.0f),   // regular pattern 2
     float4(0.5f,  0.0f,  1.0f,  1.0f),   // regular pattern 3
     float4(1.0f,  0.5f,  1.0f,  1.0f),   // regular pattern 4
-    
+
     float4(1.0f,  0.5f,  0.5f,  1.0f),   // single crease
     float4(1.0f,  0.70f,  0.6f,  1.0f),  // single crease pattern 0
     float4(1.0f,  0.65f,  0.6f,  1.0f),  // single crease pattern 1
     float4(1.0f,  0.60f,  0.6f,  1.0f),  // single crease pattern 2
     float4(1.0f,  0.55f,  0.6f,  1.0f),  // single crease pattern 3
     float4(1.0f,  0.50f,  0.6f,  1.0f),  // single crease pattern 4
-    
+
     float4(0.8f,  0.0f,  0.0f,  1.0f),   // boundary
     float4(0.0f,  0.0f,  0.75f, 1.0f),   // boundary pattern 0
     float4(0.0f,  0.2f,  0.75f, 1.0f),   // boundary pattern 1
     float4(0.0f,  0.4f,  0.75f, 1.0f),   // boundary pattern 2
     float4(0.0f,  0.6f,  0.75f, 1.0f),   // boundary pattern 3
     float4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
-    
+
     float4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
     float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
     float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
     float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
     float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
     float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
-    
+
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
-    
+
     float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
     float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
     float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
     float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
     float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
     float4(1.0f,  0.5f,  0.0f,  1.0f),   // gregory boundary
-    
+
     float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
     float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
     float4(1.0f,  0.7f,  0.3f,  1.0f),   // gregory basis
@@ -156,10 +156,10 @@ getAdaptivePatchColor(int3 patchParam
 #endif
                       )
 {
-    
-    
+
+
     int patchType = 0;
-    
+
     int edgeCount = popcount(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
@@ -167,7 +167,7 @@ getAdaptivePatchColor(int3 patchParam
     if (edgeCount == 2) {
         patchType = 3; // CORNER
     }
-    
+
 #if OSD_PATCH_ENABLE_SINGLE_CREASE
     // check this after boundary/corner since single crease patch also has edgeCount.
     if (vSegments.y > 0) {
@@ -180,9 +180,9 @@ getAdaptivePatchColor(int3 patchParam
 #elif OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
-    
+
     int pattern = popcount(OsdGetPatchTransitionMask(patchParam));
-    
+
     return patchColors[6*patchType + pattern];
 }
 
@@ -287,7 +287,7 @@ kernel void compute_main(
     if(validThread)
     {
         patchParam[subthreadgroup_in_threadgroup] = OsdGetPatchParam(real_threadgroup, osdBuffers.patchParamBuffer);
-        
+
         for(unsigned threadOffset = 0; threadOffset < CONTROL_POINTS_PER_THREAD; threadOffset++)
         {
             const auto vertexId = osdBuffers.indexBuffer[(thread_position_in_grid * CONTROL_POINTS_PER_THREAD + threadOffset) * IndexLookupStride];
@@ -365,7 +365,7 @@ kernel void compute_main(
 #endif
 
     //----------------------------------------------------------
-    // OSD Tessellation Factors 
+    // OSD Tessellation Factors
     //----------------------------------------------------------
     if(validThread && real_thread_in_threadgroup == 0)
     {
@@ -406,22 +406,22 @@ vertex OutputVertex vertex_main(
     )
 {
     OutputVertex out;
-    
+
 #if USE_STAGE_IN
     int3 patchParam = patchInput.patchParam;
 #else
     int3 patchParam = patchInput.patchParamBuffer[patch_id];
 #endif
-    
+
     int refinementLevel = OsdGetPatchRefinementLevel(patchParam);
     float tessLevel = min(frameConsts.TessLevel, (float)OSD_MAX_TESS_LEVEL) /
         exp2((float)refinementLevel - 1);
-    
+
     auto patchVertex = OsdComputePatch(tessLevel, position_in_patch, patch_id, patchInput);
 
     out.position = (frameConsts.ModelViewMatrix * float4(patchVertex.position, 1.0f)).xyz;
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(patchVertex.position, 1.0f);
-    
+
     out.normal = mul(frameConsts.ModelViewMatrix, patchVertex.normal);
 #if SHADING_TYPE == SHADING_TYPE_PATCH
 #if OSD_PATCH_ENABLE_SINGLE_CREASE
@@ -479,7 +479,7 @@ vertex OutputVertex vertex_main(
 
     out.patchColor.rg = fvarUV;
 #endif
-    
+
     return out;
 }
 #endif
@@ -498,25 +498,25 @@ const constant unsigned BSplineControlLineIndices[] = {
     12, 8,
     8, 4,
     4, 0,
-    
+
     //Inner lines
     5, 6,
     6, 10,
     10, 9,
     9, 5,
-    
+
     //TL edge lines
     1, 5,
     4, 5,
-    
+
     //TR edge lines
     2, 6,
     6, 7,
-    
+
     //BL edge lines
     8, 9,
     9, 13,
-    
+
     //BR edge lines
     10, 14,
     10, 11
@@ -539,7 +539,7 @@ vertex SolidColorVertex vertex_lines(
 
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(in.P, 1.0);
     out.positionOut.z -= 0.001;
-    
+
     if(idx > 22) {
         out.setColor(half4(0,1,0,1));
     }
@@ -555,18 +555,18 @@ vertex SolidColorVertex vertex_lines(
 #if OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY_BOUNDARY || OSD_PATCH_GREGORY
 const constant uint GregoryBasisControlLineIndices[] = {
     //Outer Edge
-    0, 2, 
+    0, 2,
     2, 16,
     16, 15,
     15, 17,
-    17, 11, 
+    17, 11,
     11, 10,
-    10, 12, 
+    10, 12,
     12, 6,
     6, 5,
-    5, 7, 
+    5, 7,
     7, 1,
-    1, 0, 
+    1, 0,
 
     //Outside-Inside Edges
     1, 3,
@@ -581,7 +581,7 @@ const constant uint GregoryBasisControlLineIndices[] = {
     //Inner Edge
     3, 4,
     4, 18,
-    18, 19, 
+    18, 19,
     19, 13,
     13, 14,
     14, 8,
@@ -603,7 +603,7 @@ vertex SolidColorVertex vertex_lines(
 {
     const auto idx_size = sizeof(GregoryBasisControlLineIndices) / sizeof(GregoryBasisControlLineIndices[0]);
     const auto idx = vertex_id % idx_size;
-    const auto patch_id = vertex_id / idx_size;   
+    const auto patch_id = vertex_id / idx_size;
 
 #if OSD_PATCH_GREGORY_BASIS
     const auto in = vertexBuffer[indicesBuffer[patch_id * VERTEX_CONTROL_POINTS_PER_PATCH + GregoryBasisControlLineIndices[idx]]];
@@ -666,12 +666,12 @@ vertex OutputVertex vertex_main(
 
     float3 normal = normalize(cross(p2 - p1, p0 - p1));
 
-    
+
     OutputVertex out;
     out.position = (frameConsts.ModelViewMatrix * float4(position, 1.0)).xyz;
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(position, 1.0);
     out.normal = (frameConsts.ModelViewMatrix * float4(normal, 0.0)).xyz;
-    
+
 #if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD
     out.patchColor = out.normal;
 #elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
@@ -679,7 +679,7 @@ vertex OutputVertex vertex_main(
 #endif
 
     return out;
-}   
+}
 
 vertex SolidColorVertex vertex_lines(
     device unsigned* indicesBuffer [[buffer(INDICES_BUFFER_INDEX)]],
@@ -702,9 +702,9 @@ vertex SolidColorVertex vertex_lines(
 
     SolidColorVertex out;
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(position, 1.0);
-    
+
     return out;
-}   
+}
 #endif
 
 fragment half4 fragment_solidcolor(SolidColorVertex in [[stage_in]])
@@ -719,7 +719,7 @@ fragment float4 fragment_main(OutputVertex in [[stage_in]],
                               const constant float4& shade [[buffer(2)]])
 {
     float4 color;
-    
+
 #if SHADING_TYPE == SHADING_TYPE_MATERIAL
     const float3 diffuseColor = float3(0.4f, 0.4f, 0.8f);
 #elif SHADING_TYPE == SHADING_TYPE_PATCH

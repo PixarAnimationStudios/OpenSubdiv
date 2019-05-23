@@ -29,23 +29,23 @@
 //----------------------------------------------------------
 
 void OsdComputePerVertex(
-	float4 position,
-    threadgroup HullVertex& hullVertex,
-    int vertexId,
-    float4x4 modelViewProjectionMatrix,
-    OsdPatchParamBufferSet osdBuffers
-    )
+        float4 position,
+        threadgroup HullVertex& hullVertex,
+        int vertexId,
+        float4x4 modelViewProjectionMatrix,
+        OsdPatchParamBufferSet osdBuffers
+        )
 {
-	hullVertex.position = position;
+    hullVertex.position = position;
 #if OSD_ENABLE_PATCH_CULL
-    float4 clipPos = mul(modelViewProjectionMatrix, position);    
-    short3 clip0 = short3(clipPos.x < clipPos.w,                    
-    clipPos.y < clipPos.w,                    
-    clipPos.z < clipPos.w);                   
-    short3 clip1 = short3(clipPos.x > -clipPos.w,                   
-    clipPos.y > -clipPos.w,                   
-    clipPos.z > -clipPos.w);                  
-    hullVertex.clipFlag = short3(clip0) + 2*short3(clip1);              
+    float4 clipPos = mul(modelViewProjectionMatrix, position);
+    short3 clip0 = short3(clipPos.x < clipPos.w,
+                          clipPos.y < clipPos.w,
+                          clipPos.z < clipPos.w);
+    short3 clip1 = short3(clipPos.x > -clipPos.w,
+                          clipPos.y > -clipPos.w,
+                          clipPos.z > -clipPos.w);
+    hullVertex.clipFlag = short3(clip0) + 2*short3(clip1);
 #endif
 }
 
@@ -54,31 +54,31 @@ void OsdComputePerVertex(
 //----------------------------------------------------------
 
 void OsdComputePerPatchFactors(
-	int3 patchParam,
-	float tessLevel,
-	unsigned patchID,
-	float4x4 projectionMatrix,
-	float4x4 modelViewMatrix,
-	OsdPatchParamBufferSet osdBuffer,
-	threadgroup PatchVertexType* patchVertices,
-	device MTLQuadTessellationFactorsHalf& quadFactors
-	)
+        int3 patchParam,
+        float tessLevel,
+        unsigned patchID,
+        float4x4 projectionMatrix,
+        float4x4 modelViewMatrix,
+        OsdPatchParamBufferSet osdBuffer,
+        threadgroup PatchVertexType* patchVertices,
+        device MTLQuadTessellationFactorsHalf& quadFactors
+        )
 {
     float4 tessLevelOuter = float4(0,0,0,0);
     float2 tessLevelInner = float2(0,0);
 
-	OsdGetTessLevels(
- 		tessLevel, 
- 		projectionMatrix, 
- 		modelViewMatrix,
-		patchVertices[0].position.xyz, 
-		patchVertices[3].position.xyz, 
-		patchVertices[2].position.xyz, 
-		patchVertices[1].position.xyz,
-		patchParam, 
-		tessLevelOuter, 
-		tessLevelInner
-		);
+    OsdGetTessLevels(
+            tessLevel,
+            projectionMatrix,
+            modelViewMatrix,
+            patchVertices[0].position.xyz,
+            patchVertices[3].position.xyz,
+            patchVertices[2].position.xyz,
+            patchVertices[1].position.xyz,
+            patchParam,
+            tessLevelOuter,
+            tessLevelInner
+            );
 
     quadFactors.edgeTessellationFactor[0] = tessLevelOuter[0];
     quadFactors.edgeTessellationFactor[1] = tessLevelOuter[1];
@@ -93,15 +93,15 @@ void OsdComputePerPatchFactors(
 //----------------------------------------------------------
 
 void OsdComputePerPatchVertex(
-	int3 patchParam, 
-	unsigned ID, 
-	unsigned PrimitiveID, 
-	unsigned ControlID,
-	threadgroup PatchVertexType* patchVertices,
-	OsdPatchParamBufferSet osdBuffers
-	)
+        int3 patchParam,
+        unsigned ID,
+        unsigned PrimitiveID,
+        unsigned ControlID,
+        threadgroup PatchVertexType* patchVertices,
+        OsdPatchParamBufferSet osdBuffers
+        )
 {
-	//Does nothing, all transforms are in the PTVS
+    //Does nothing, all transforms are in the PTVS
 
 }
 
@@ -116,31 +116,30 @@ void OsdComputePerPatchVertex(
 template<typename PerPatchVertexGregoryBasis>
 #endif
 OsdPatchVertex ds_gregory_basis_patches(
-
 #if USE_STAGE_IN
-                     PerPatchVertexGregoryBasis patch,
+        PerPatchVertexGregoryBasis patch,
 #else
-                     const device OsdInputVertexType* patch,
-                     const device unsigned* patchIndices,
+        const device OsdInputVertexType* patch,
+        const device unsigned* patchIndices,
 #endif
-                     int3 patchParam,
-                     float2 UV
-                     )
+        int3 patchParam,
+        float2 UV
+        )
 {
     OsdPatchVertex output;
     float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
     float3 N = float3(0,0,0), dNu = float3(0,0,0), dNv = float3(0,0,0);
- 
+
 #if USE_STAGE_IN
     float3 cv[20];
     for(int i = 0; i < 20; i++)
         cv[i] = patch[i].position;
-#else   
+#else
 #if USE_128BIT_GREGORY_BASIS_INDICES_READ
     float3 cv[20];
     for(int i = 0; i < 5; i++) {
         int4 indices = ((device int4*)patchIndices)[i];
-        
+
         int n = i * 4;
         cv[n + 0] = (patch + indices[0])->position;
         cv[n + 1] = (patch + indices[1])->position;
@@ -154,9 +153,9 @@ OsdPatchVertex ds_gregory_basis_patches(
     }
 #endif
 #endif
-    
+
     OsdEvalPatchGregory(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
-    
+
     output.position = P;
     output.normal = N;
     output.tangent = dPu;
@@ -165,9 +164,9 @@ OsdPatchVertex ds_gregory_basis_patches(
     output.Nu = dNu;
     output.Nv = dNv;
 #endif
-    
+
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
-    
+
     return output;
 }
 
@@ -175,25 +174,25 @@ OsdPatchVertex ds_gregory_basis_patches(
 template<typename PerPatchVertexGregoryBasis>
 #endif
 OsdPatchVertex OsdComputePatch(
-	float tessLevel,
-	float2 domainCoord,
-	unsigned patchID,
+        float tessLevel,
+        float2 domainCoord,
+        unsigned patchID,
 #if USE_STAGE_IN
-	PerPatchVertexGregoryBasis osdPatch
+        PerPatchVertexGregoryBasis osdPatch
 #else
-	OsdVertexBufferSet osdBuffers
+        OsdVertexBufferSet osdBuffers
 #endif
-	)
+        )
 {
-	return ds_gregory_basis_patches(
+    return ds_gregory_basis_patches(
 #if USE_STAGE_IN
-		osdPatch.cv,
-		osdPatch.patchParam,
+            osdPatch.cv,
+            osdPatch.patchParam,
 #else
-		osdBuffers.vertexBuffer,
-		osdBuffers.indexBuffer + patchID * VERTEX_CONTROL_POINTS_PER_PATCH,
-		osdBuffers.patchParamBuffer[patchID],
+            osdBuffers.vertexBuffer,
+            osdBuffers.indexBuffer + patchID * VERTEX_CONTROL_POINTS_PER_PATCH,
+            osdBuffers.patchParamBuffer[patchID],
 #endif
-		domainCoord
-		);
+            domainCoord
+            );
 }

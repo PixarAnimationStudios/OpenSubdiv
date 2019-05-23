@@ -34,8 +34,6 @@
 #include "../far/stencilTable.h"
 #include "../far/error.h"
 
-
-
 #define PARAMETER_BUFFER_INDEX 0
 #define SIZES_BUFFER_INDEX 1
 #define OFFSETS_BUFFER_INDEX 2
@@ -141,73 +139,73 @@ using namespace Osd;
 MTLStencilTable::MTLStencilTable(Far::StencilTable const *stencilTable,
                                  MTLContext* context)
 {
-  assert(context != nil);
-  assert(context->device != nil && context->commandQueue != nil);
+    assert(context != nil);
+    assert(context->device != nil && context->commandQueue != nil);
 
-  _numStencils = stencilTable->GetNumStencils();
-  if (_numStencils > 0)
-  {
-    auto sizes = stencilTable->GetSizes();
+    _numStencils = stencilTable->GetNumStencils();
+    if (_numStencils > 0)
+    {
+      auto sizes = stencilTable->GetSizes();
 
-    _sizesBuffer = createBuffer(stencilTable->GetSizes(), context);
-    _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), context);
-    _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), context);
-    _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
+      _sizesBuffer = createBuffer(stencilTable->GetSizes(), context);
+      _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), context);
+      _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), context);
+      _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
 
-    _sizesBuffer.label = @"StencilTable Sizes";
-    _offsetsBuffer.label = @"StencilTable Offsets";
-    _indicesBuffer.label = @"StencilTable Indices";
-    _weightsBuffer.label = @"StencilTable Weights";
-  }
+      _sizesBuffer.label = @"StencilTable Sizes";
+      _offsetsBuffer.label = @"StencilTable Offsets";
+      _indicesBuffer.label = @"StencilTable Indices";
+      _weightsBuffer.label = @"StencilTable Weights";
+    }
 
-  _duWeightsBuffer = nil;
-  _dvWeightsBuffer = nil;
-  _duuWeightsBuffer = nil;
-  _duvWeightsBuffer = nil;
-  _dvvWeightsBuffer = nil;
+    _duWeightsBuffer = nil;
+    _dvWeightsBuffer = nil;
+    _duuWeightsBuffer = nil;
+    _duvWeightsBuffer = nil;
+    _dvvWeightsBuffer = nil;
 }
 
 MTLStencilTable::MTLStencilTable(Far::LimitStencilTable const *stencilTable,
                                  MTLContext* context)
 {
-  assert(context != nil);
-  assert(context->device != nil && context->commandQueue != nil);
-  
-  _numStencils = stencilTable->GetNumStencils();
-  if (_numStencils > 0)
-  {
-    auto sizes = stencilTable->GetSizes();
+    assert(context != nil);
+    assert(context->device != nil && context->commandQueue != nil);
 
-    _sizesBuffer = createBuffer(stencilTable->GetSizes(), context);
-    _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), context);
-    _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), context);
-    _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
-    _duWeightsBuffer = createBuffer(stencilTable->GetDuWeights(), context);
-    _dvWeightsBuffer = createBuffer(stencilTable->GetDvWeights(), context);
-    _duuWeightsBuffer = createBuffer(stencilTable->GetDuuWeights(), context);
-    _duvWeightsBuffer = createBuffer(stencilTable->GetDuvWeights(), context);
-    _dvvWeightsBuffer = createBuffer(stencilTable->GetDvvWeights(), context);
+    _numStencils = stencilTable->GetNumStencils();
+    if (_numStencils > 0)
+    {
+      auto sizes = stencilTable->GetSizes();
 
-    _sizesBuffer.label = @"StencilTable Sizes";
-    _offsetsBuffer.label = @"StencilTable Offsets";
-    _indicesBuffer.label = @"StencilTable Indices";
-    _weightsBuffer.label = @"StencilTable Weights";
-    if (_duWeightsBuffer) {
-        _duWeightsBuffer.label = @"StencilTable duWeights";
+      _sizesBuffer = createBuffer(stencilTable->GetSizes(), context);
+      _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), context);
+      _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), context);
+      _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
+      _duWeightsBuffer = createBuffer(stencilTable->GetDuWeights(), context);
+      _dvWeightsBuffer = createBuffer(stencilTable->GetDvWeights(), context);
+      _duuWeightsBuffer = createBuffer(stencilTable->GetDuuWeights(), context);
+      _duvWeightsBuffer = createBuffer(stencilTable->GetDuvWeights(), context);
+      _dvvWeightsBuffer = createBuffer(stencilTable->GetDvvWeights(), context);
+
+      _sizesBuffer.label = @"StencilTable Sizes";
+      _offsetsBuffer.label = @"StencilTable Offsets";
+      _indicesBuffer.label = @"StencilTable Indices";
+      _weightsBuffer.label = @"StencilTable Weights";
+      if (_duWeightsBuffer) {
+          _duWeightsBuffer.label = @"StencilTable duWeights";
+      }
+      if (_dvWeightsBuffer) {
+          _dvWeightsBuffer.label = @"StencilTable dvWeights";
+      }
+      if (_duuWeightsBuffer) {
+          _duuWeightsBuffer.label = @"StencilTable duuWeights";
+      }
+      if (_duvWeightsBuffer) {
+          _duvWeightsBuffer.label = @"StencilTable duvWeights";
+      }
+      if (_dvvWeightsBuffer) {
+          _dvvWeightsBuffer.label = @"StencilTable dvvWeights";
+      }
     }
-    if (_dvWeightsBuffer) {
-        _dvWeightsBuffer.label = @"StencilTable dvWeights";
-    }
-    if (_duuWeightsBuffer) {
-        _duuWeightsBuffer.label = @"StencilTable duuWeights";
-    }
-    if (_duvWeightsBuffer) {
-        _duvWeightsBuffer.label = @"StencilTable duvWeights";
-    }
-    if (_dvvWeightsBuffer) {
-        _dvvWeightsBuffer.label = @"StencilTable dvvWeights";
-    }
-  }
 }
 
 MTLStencilTable::~MTLStencilTable() {}
@@ -217,20 +215,20 @@ MTLComputeEvaluator *MTLComputeEvaluator::Create(
     BufferDescriptor const &duDesc, BufferDescriptor const &dvDesc,
     MTLContext* context)
 {
-  assert(context != nil);
-  assert(context->device != nil && context->commandQueue != nil);
+    assert(context != nil);
+    assert(context->device != nil && context->commandQueue != nil);
 
-  auto instance = new MTLComputeEvaluator();
-  if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
-                        BufferDescriptor(),
-                        BufferDescriptor(),
-                        BufferDescriptor(),
-                        context))
-    return instance;
+    auto instance = new MTLComputeEvaluator();
+    if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
+                          BufferDescriptor(),
+                          BufferDescriptor(),
+                          BufferDescriptor(),
+                          context))
+      return instance;
 
-  delete instance;
+    delete instance;
 
-  return nullptr;
+    return nullptr;
 }
 
 MTLComputeEvaluator *MTLComputeEvaluator::Create(
@@ -239,17 +237,18 @@ MTLComputeEvaluator *MTLComputeEvaluator::Create(
     BufferDescriptor const &duuDesc, BufferDescriptor const &duvDesc, BufferDescriptor const &dvvDesc,
     MTLContext* context)
 {
-  assert(context != nil);
-  assert(context->device != nil && context->commandQueue != nil);
+    assert(context != nil);
+    assert(context->device != nil && context->commandQueue != nil);
 
-  auto instance = new MTLComputeEvaluator();
-  if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
-                        duuDesc, duvDesc, dvvDesc, context))
-    return instance;
+    auto instance = new MTLComputeEvaluator();
+    if (instance->Compile(srcDesc, dstDesc, duDesc, dvDesc,
+                          duuDesc, duvDesc, dvvDesc, context)) {
+        return instance;
+    }
 
-  delete instance;
+    delete instance;
 
-  return nullptr;
+    return nullptr;
 }
 
 bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
@@ -321,7 +320,7 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
 #if !__has_feature(objc_arc)
     [compileOptions release];
 #endif
-    
+
     if (!_computeLibrary)
     {
         Far::Error(Far::FAR_RUNTIME_ERROR, "Error compiling MTL Shader: %s\n",
@@ -332,13 +331,12 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     auto evalStencilsFunction = [_computeLibrary newFunctionWithName:@"eval_stencils"];
     _evalStencils =
       [context->device newComputePipelineStateWithFunction:evalStencilsFunction
-     
                                                      error:&err];
-    
+
 #if !__has_feature(objc_arc)
     [evalStencilsFunction release];
 #endif
-    
+
     if (!_evalStencils)
     {
         Far::Error(Far::FAR_RUNTIME_ERROR, "Error compiling MTL Pipeline eval_stencils: %s\n",
@@ -350,11 +348,11 @@ bool MTLComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     _evalPatches =
       [context->device newComputePipelineStateWithFunction:evalPatchesFunction
                                                      error:&err];
-    
+
 #if !__has_feature(objc_arc)
     [evalPatchesFunction release];
 #endif
-    
+
     if (!_evalPatches)
     {
         Far::Error(Far::FAR_RUNTIME_ERROR, "Error compiling MTL Pipeline eval_patches:  %s\n",
@@ -444,7 +442,7 @@ bool MTLComputeEvaluator::EvalStencils(
         return true;
 
     assert(context != nullptr);
-    
+
     auto device = context->device;
     auto commandQueue = context->commandQueue;
 
@@ -556,7 +554,7 @@ MTLComputeEvaluator::EvalPatches(
         return false;
 
     assert(context != nullptr);
-    
+
     auto device = context->device;
     auto commandQueue = context->commandQueue;
 
@@ -609,5 +607,6 @@ MTLComputeEvaluator::EvalPatches(
 }
 
 } //end namespace Osd
+
 } //end namespace OPENSUBDIV_VERSION
 } //end namespace OpenSubdiv

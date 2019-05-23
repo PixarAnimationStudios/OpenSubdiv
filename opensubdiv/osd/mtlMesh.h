@@ -30,17 +30,18 @@
 #include "../osd/mtlPatchTable.h"
 
 
-namespace OpenSubdiv
-{
-    namespace OPENSUBDIV_VERSION
-    {
-        namespace Osd
-        {
-            typedef MeshInterface<MTLPatchTable> MTLMeshInterface;
-        } // end namespace Osd
-    } // end namespace OPENSUBDIV_VERSION
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
 
-    using namespace OPENSUBDIV_VERSION;
+namespace Osd {
+
+typedef MeshInterface<MTLPatchTable> MTLMeshInterface;
+
+} // end namespace Osd
+
+} // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
 } // end namespace OpenSubdiv
 
 #endif // OPENSUBDIV3_OSD_MTL_MESH_H

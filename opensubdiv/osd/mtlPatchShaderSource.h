@@ -22,36 +22,39 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#pragma once
+#ifndef OPENSUBDIV3_OSD_MTL_PATCH_SHADER_SOURCE_H
+#define OPENSUBDIV3_OSD_MTL_PATCH_SHADER_SOURCE_H
 
 #import <string>
 #import "../version.h"
 #import "../far/patchDescriptor.h"
 
 namespace OpenSubdiv {
-    namespace OPENSUBDIV_VERSION {
-        
-        namespace Osd {
-            
-            class MTLPatchShaderSource {
-                public:
-                static std::string GetCommonShaderSource();
+namespace OPENSUBDIV_VERSION {
 
-                static std::string GetPatchBasisShaderSource();
-                
-                static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type,
-                                                         Far::PatchDescriptor::Type fvarType);
-                
-                static std::string GetHullShaderSource(Far::PatchDescriptor::Type type,
-                                                       Far::PatchDescriptor::Type fvarType);
-                
-                static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type,
-                                                         Far::PatchDescriptor::Type fvarType);
-            };
-            
-        }  // end namespace Osd
-        
-    }  // end namespace OPENSUBDIV_VERSION
-    using namespace OPENSUBDIV_VERSION;
+namespace Osd {
+
+class MTLPatchShaderSource {
+    public:
+    static std::string GetCommonShaderSource();
+
+    static std::string GetPatchBasisShaderSource();
+
+    static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type,
+                                             Far::PatchDescriptor::Type fvarType);
+
+    static std::string GetHullShaderSource(Far::PatchDescriptor::Type type,
+                                           Far::PatchDescriptor::Type fvarType);
+
+    static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type,
+                                             Far::PatchDescriptor::Type fvarType);
+};
+
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
     
 } // end namespace OpenSubdiv
+
+#endif  // OPENSUBDIV3_OSD_MTL_PATCH_SHADER_SOURCE

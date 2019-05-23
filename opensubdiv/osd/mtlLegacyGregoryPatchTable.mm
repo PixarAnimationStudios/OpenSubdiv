@@ -96,5 +96,6 @@ void MTLLegacyGregoryPatchTable::UpdateVertexBuffer(id<MTLBuffer> vbo, int numVe
 }
 
 } //end namespace Osd
+
 } //end namespace OPENSUBDIV_VERSION
 } //end namespace OpenSubdiv

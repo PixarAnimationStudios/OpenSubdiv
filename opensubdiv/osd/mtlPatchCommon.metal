@@ -47,7 +47,7 @@ static_assert(sizeof(OsdInputVertexType) > 0, "OsdInputVertexType must be define
 #if OSD_IS_ADAPTIVE
 #if OSD_PATCH_GREGORY_BASIS
 constant constexpr unsigned IndexLookupStride = 5;
-#else 
+#else
 constant constexpr unsigned IndexLookupStride = 1;
 #endif
 
@@ -61,7 +61,7 @@ static_assert(OSD_ENABLE_SCREENSPACE_TESSELLATION && (OSD_FRACTIONAL_ODD_SPACING
 
 #endif
 
-//Adjustments to the UV reparameterization can be defined here. 
+//Adjustments to the UV reparameterization can be defined here.
 #ifndef OSD_UV_CORRECTION
 #define OSD_UV_CORRECTION
 #endif
@@ -147,7 +147,7 @@ struct HullVertex {
 
     void SetPosition(float3 v) threadgroup
     {
-    	position.xyz = v;
+        position.xyz = v;
     }
 };
 
@@ -204,36 +204,35 @@ using PerPatchVertexType = OsdInputVertexType;
 //Shared buffers used by OSD that are common to all kernels
 struct OsdPatchParamBufferSet
 {
-	const device OsdInputVertexType* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]];
-	const device unsigned* indexBuffer [[buffer(CONTROL_INDICES_BUFFER_INDEX)]];
+    const device OsdInputVertexType* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]];
+    const device unsigned* indexBuffer [[buffer(CONTROL_INDICES_BUFFER_INDEX)]];
+    const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
 
-	const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
+    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]];
 
-	device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]];
-	
-#if !USE_PTVS_FACTORS    
+#if !USE_PTVS_FACTORS
     device OsdPerPatchTessFactors* patchTessBuffer [[buffer(OSD_PERPATCHTESSFACTORS_BUFFER_INDEX)]];
 #endif
 
 #if OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
-	const device int* quadOffsetBuffer [[buffer(OSD_QUADOFFSET_BUFFER_INDEX)]];
-	const device int* valenceBuffer [[buffer(OSD_VALENCE_BUFFER_INDEX)]];
+    const device int* quadOffsetBuffer [[buffer(OSD_QUADOFFSET_BUFFER_INDEX)]];
+    const device int* valenceBuffer [[buffer(OSD_VALENCE_BUFFER_INDEX)]];
 #endif
 
-	const constant unsigned& kernelExecutionLimit [[buffer(OSD_KERNELLIMIT_BUFFER_INDEX)]];
+    const constant unsigned& kernelExecutionLimit [[buffer(OSD_KERNELLIMIT_BUFFER_INDEX)]];
 };
 
 //Shared buffers used by OSD that are common to all PTVS implementations
 struct OsdVertexBufferSet
 {
-	const device OsdInputVertexType* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]];
-	const device unsigned* indexBuffer [[buffer(CONTROL_INDICES_BUFFER_INDEX)]];
+    const device OsdInputVertexType* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]];
+    const device unsigned* indexBuffer [[buffer(CONTROL_INDICES_BUFFER_INDEX)]];
 
-	const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
+    const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
 
-	device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]];
+    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]];
 
-#if !USE_PTVS_FACTORS    
+#if !USE_PTVS_FACTORS
     device OsdPerPatchTessFactors* patchTessBuffer [[buffer(OSD_PERPATCHTESSFACTORS_BUFFER_INDEX)]];
 #endif
 };
@@ -323,11 +322,11 @@ OsdUnivar4x4(float u, thread float* B)
 {
     float t = u;
     float s = 1.0f - u;
-    
+
     float A0 = s * s;
     float A1 = 2 * s * t;
     float A2 = t * t;
-    
+
     B[0] = s * A0;
     B[1] = t * A0 + s * A1;
     B[2] = t * A1 + s * A2;
@@ -413,9 +412,9 @@ OsdEvalBezier(float3 cp[16], float2 uv)
 }
 
 bool OsdCullPerPatchVertex(
-	threadgroup PatchVertexType* patch, 
-	float4x4 ModelViewMatrix
-	)
+    threadgroup PatchVertexType* patch,
+    float4x4 ModelViewMatrix
+    )
 {
 #if OSD_ENABLE_BACKPATCH_CULL && OSD_PATCH_REGULAR
     auto v0 = float3(ModelViewMatrix * patch[5].position);
@@ -529,7 +528,7 @@ template<typename VertexType>
 void
 OsdComputeBSplineBoundaryPoints(threadgroup VertexType* cpt, int3 patchParam)
 {
-	//APPL TODO - multithread this
+    //APPL TODO - multithread this
     int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
 
     if ((boundaryMask & 1) != 0) {
@@ -806,9 +805,6 @@ OsdComputeTessLevels(thread float4& tessOuterLo, thread float4& tessOuterHi,
     tessLevelInner[1] = (combinedOuter[0] + combinedOuter[2]) * 0.5;
 }
 
-
-
-
 float OsdComputeTessLevel(const float OsdTessLevel, const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix, float3 p0, float3 p1)
 {
     // Adaptive factor can be any computation that depends only on arg values.
@@ -841,15 +837,6 @@ OsdGetTessLevelsUniform(const float OsdTessLevel, int3 patchParam,
     float tessLevel = min(OsdTessLevel, ((float)OSD_MAX_TESS_LEVEL / 2)) /
                         pow(2, refinementLevel - 1.0f);
 
-//    float tessLevel = min(OsdTessLevel, (float)OSD_MAX_TESS_LEVEL);
-//    if(refinementLevel != 0)
-//         tessLevel /= (1 << (refinementLevel - 1));
-//    else
-//    {
-//        tessLevel /= pow(2.0, (0 - 1));
-//        tessLevel /= pow(2.0, (refinementLevel - 1));
-//    }
-
     // tessLevels of transition edge should be clamped to 2.
     int transitionMask = OsdGetPatchTransitionMask(patchParam);
     float4 tessLevelMin = float4(1)
@@ -858,22 +845,17 @@ OsdGetTessLevelsUniform(const float OsdTessLevel, int3 patchParam,
              ((transitionMask & 2) >> 1),
              ((transitionMask & 4) >> 2));
 
-//    tessLevelMin =  (tessLevelMin - 1.0) * 2.0f + 1.0;
-//    tessLevelMin = float4(OsdTessLevel);
-
-
     tessOuterLo = max(float4(tessLevel,tessLevel,tessLevel,tessLevel),
                       tessLevelMin);
     tessOuterHi = float4(0,0,0,0);
-
-//    tessOuterLo.x = refinementLevel;
 }
 
 void
-OsdGetTessLevelsRefinedPoints(const float OsdTessLevel,
-                              const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
-                              float3 cp[16], int3 patchParam,
-                              thread float4& tessOuterLo, thread float4& tessOuterHi)
+OsdGetTessLevelsRefinedPoints(
+        const float OsdTessLevel,
+        const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
+        float3 cp[16], int3 patchParam,
+        thread float4& tessOuterLo, thread float4& tessOuterHi)
 {
     // Each edge of a transition patch is adjacent to one or two patches
     // at the next refined level of subdivision. We compute the corresponding
@@ -985,7 +967,7 @@ OsdGetTessLevelsLimitPoints(const float OsdTessLevel, const float4x4 OsdProjecti
         tPt = &p12;
     }
     tessOuterLo[0] = OsdComputeTessLevel(OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix,p0, *tPt);
-    
+
     if ((transitionMask & 1) != 0) { // EV01
         ev = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 0.0));
 
@@ -997,7 +979,7 @@ OsdGetTessLevelsLimitPoints(const float OsdTessLevel, const float4x4 OsdProjecti
         tPt = &p3;
     }
     tessOuterLo[1] = OsdComputeTessLevel(OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix,p0, *tPt);
-    
+
     if ((transitionMask & 2) != 0) { // EV12
         ev = OsdEvalBezier(cpBezier, patchParam, float2(1.0, 0.5));
 
@@ -1009,7 +991,7 @@ OsdGetTessLevelsLimitPoints(const float OsdTessLevel, const float4x4 OsdProjecti
         tPt = &p15;
     }
     tessOuterLo[2] = OsdComputeTessLevel(OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix,p3, *tPt);
-    
+
     if ((transitionMask & 4) != 0) { // EV23
         ev = OsdEvalBezier(cpBezier, patchParam, float2(0.5, 1.0));
 
@@ -1037,8 +1019,6 @@ OsdGetTessLevelsLimitPoints(const float OsdTessLevel, const float4x4 OsdProjecti
     float3 c12 = miniMul(OsdModelViewMatrix, cpBezier[12].P);
     float3 c03 = miniMul(OsdModelViewMatrix, cpBezier[3].P);
     float3 c15 = miniMul(OsdModelViewMatrix, cpBezier[15].P);
-    
-
 
     if ((transitionMask & 8) != 0) {
         tessOuterLo[0] = OsdComputeTessLevel(OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix,c00, p0);
@@ -1068,44 +1048,55 @@ OsdGetTessLevelsLimitPoints(const float OsdTessLevel, const float4x4 OsdProjecti
 }
 
 void
-OsdGetTessLevelsUniform(const float OsdTessLevel, int3 patchParam,
-                        thread float4& tessLevelOuter, thread float2& tessLevelInner,
-                        thread float4& tessOuterLo, thread float4& tessOuterHi)
+OsdGetTessLevelsUniform(
+        const float OsdTessLevel, int3 patchParam,
+        thread float4& tessLevelOuter, thread float2& tessLevelInner,
+        thread float4& tessOuterLo, thread float4& tessOuterHi)
 {
     OsdGetTessLevelsUniform(OsdTessLevel, patchParam, tessOuterLo, tessOuterHi);
     OsdComputeTessLevels(tessOuterLo, tessOuterHi, tessLevelOuter, tessLevelInner);
 }
 
 void
-OsdGetTessLevelsAdaptiveRefinedPoints(const float OsdTessLevel, const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
-                                      float3 cpRefined[16], int3 patchParam,
-                                      thread float4& tessLevelOuter, thread float2& tessLevelInner,
-                                      thread float4& tessOuterLo, thread float4& tessOuterHi)
+OsdGetTessLevelsAdaptiveRefinedPoints(
+        const float OsdTessLevel,
+        const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
+        float3 cpRefined[16], int3 patchParam,
+        thread float4& tessLevelOuter, thread float2& tessLevelInner,
+        thread float4& tessOuterLo, thread float4& tessOuterHi)
 {
-    OsdGetTessLevelsRefinedPoints(OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix, cpRefined, patchParam, tessOuterLo, tessOuterHi);
+    OsdGetTessLevelsRefinedPoints(
+        OsdTessLevel,
+        OsdProjectionMatrix, OsdModelViewMatrix,
+        cpRefined, patchParam, tessOuterLo, tessOuterHi);
 
     OsdComputeTessLevels(tessOuterLo, tessOuterHi,
                          tessLevelOuter, tessLevelInner);
 }
 
 void
-OsdGetTessLevelsAdaptiveLimitPoints(const float OsdTessLevel, const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
-                                    device OsdPerPatchVertexBezier* cpBezier,
-                                    int3 patchParam,
-                                    thread float4& tessLevelOuter, thread float2& tessLevelInner,
-                                    thread float4& tessOuterLo, thread float4& tessOuterHi)
+OsdGetTessLevelsAdaptiveLimitPoints(
+        const float OsdTessLevel,
+        const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
+        device OsdPerPatchVertexBezier* cpBezier, int3 patchParam,
+        thread float4& tessLevelOuter, thread float2& tessLevelInner,
+        thread float4& tessOuterLo, thread float4& tessOuterHi)
 {
-    OsdGetTessLevelsLimitPoints(OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix, cpBezier, patchParam, tessOuterLo, tessOuterHi);
+    OsdGetTessLevelsLimitPoints(
+        OsdTessLevel,
+        OsdProjectionMatrix, OsdModelViewMatrix,
+        cpBezier, patchParam, tessOuterLo, tessOuterHi);
 
     OsdComputeTessLevels(tessOuterLo, tessOuterHi,
                          tessLevelOuter, tessLevelInner);
 }
 
 void
-OsdGetTessLevels(const float OsdTessLevel, const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
-                 float3 cp0, float3 cp1, float3 cp2, float3 cp3,
-                 int3 patchParam,
-                 thread float4& tessLevelOuter, thread float2& tessLevelInner)
+OsdGetTessLevels(
+        const float OsdTessLevel,
+        const float4x4 OsdProjectionMatrix, const float4x4 OsdModelViewMatrix,
+        float3 cp0, float3 cp1, float3 cp2, float3 cp3, int3 patchParam,
+        thread float4& tessLevelOuter, thread float2& tessLevelInner)
 {
     float4 tessOuterLo = float4(0,0,0,0);
     float4 tessOuterHi = float4(0,0,0,0);
@@ -1172,53 +1163,53 @@ float
 OsdGetTessTransitionSplit(float t, float lo, float hi )
 {
 #if OSD_FRACTIONAL_EVEN_SPACING
-  float loRoundUp = OsdRoundUpEven(lo);
-  float hiRoundUp = OsdRoundUpEven(hi);
+    float loRoundUp = OsdRoundUpEven(lo);
+    float hiRoundUp = OsdRoundUpEven(hi);
 
-  // Convert the parametric t into a segment index along the combined edge.
-  float ti = round(t * (loRoundUp + hiRoundUp));
+    // Convert the parametric t into a segment index along the combined edge.
+    float ti = round(t * (loRoundUp + hiRoundUp));
 
-  if (ti <= loRoundUp) {
-      float t0 = ti / loRoundUp;
-      return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
-   } else {
-      float t1 = (ti - loRoundUp) / hiRoundUp;
-      return OsdGetTessFractionalSplit(t1, hi, hiRoundUp) * 0.5 + 0.5;
+    if (ti <= loRoundUp) {
+        float t0 = ti / loRoundUp;
+        return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
+    } else {
+        float t1 = (ti - loRoundUp) / hiRoundUp;
+        return OsdGetTessFractionalSplit(t1, hi, hiRoundUp) * 0.5 + 0.5;
     }
 
 #elif OSD_FRACTIONAL_ODD_SPACING
-  float loRoundUp = OsdRoundUpOdd(lo);
-  float hiRoundUp = OsdRoundUpOdd(hi);
+    float loRoundUp = OsdRoundUpOdd(lo);
+    float hiRoundUp = OsdRoundUpOdd(hi);
 
-  // Convert the parametric t into a segment index along the combined edge.
-  // The +1 below is to account for the extra segment produced by the
-  // tessellator since the sum of two odd tess levels will be rounded
-  // up by one to the next odd integer tess level.
-  float ti = (t * (loRoundUp + hiRoundUp + 1));
+    // Convert the parametric t into a segment index along the combined edge.
+    // The +1 below is to account for the extra segment produced by the
+    // tessellator since the sum of two odd tess levels will be rounded
+    // up by one to the next odd integer tess level.
+    float ti = (t * (loRoundUp + hiRoundUp + 1));
 
-  OSD_UV_CORRECTION
+    OSD_UV_CORRECTION
 
-  ti = round(ti);
+    ti = round(ti);
 
-  if (ti <= loRoundUp) {
-      float t0 = ti / loRoundUp;
-      return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
-  } else if (ti > (loRoundUp+1)) {
-      float t1 = (ti - (loRoundUp+1)) / hiRoundUp;
-      return OsdGetTessFractionalSplit(t1, hi, hiRoundUp) * 0.5 + 0.5;
-  } else {
-      return 0.5;
-  }
+    if (ti <= loRoundUp) {
+        float t0 = ti / loRoundUp;
+        return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
+    } else if (ti > (loRoundUp+1)) {
+        float t1 = (ti - (loRoundUp+1)) / hiRoundUp;
+        return OsdGetTessFractionalSplit(t1, hi, hiRoundUp) * 0.5 + 0.5;
+    } else {
+        return 0.5;
+    }
 
 #else //OSD_FRACTIONAL_ODD_SPACING
-  // Convert the parametric t into a segment index along the combined edge.
-  float ti = round(t * (lo + hi));
+    // Convert the parametric t into a segment index along the combined edge.
+    float ti = round(t * (lo + hi));
 
-  if (ti <= lo) {
-      return (ti / lo) * 0.5;
-  } else {
-      return ((ti - lo) / hi) * 0.5 + 0.5;
-  }
+    if (ti <= lo) {
+        return (ti / lo) * 0.5;
+    } else {
+        return ((ti - lo) / hi) * 0.5 + 0.5;
+    }
 #endif //OSD_FRACTIONAL_ODD_SPACING
 }
 
@@ -1226,27 +1217,20 @@ float2
 OsdGetTessParameterization(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
 {
     float2 UV = uv;
-	if (UV.x == 0 && tessOuterHi[0] > 0)
-	{
-		UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
-	} 
-	else if (UV.y == 0 && tessOuterHi[1] > 0)
-	{
-		UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
-	} 
-	else if (UV.x == 1 && tessOuterHi[2] > 0)
-	{
-		UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
-	} 
-	else if (UV.y == 1 && tessOuterHi[3] > 0)
-	{
-		UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
-	}
-
+    if (UV.x == 0 && tessOuterHi[0] > 0) {
+        UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
+    } else
+    if (UV.y == 0 && tessOuterHi[1] > 0) {
+        UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
+    } else
+    if (UV.x == 1 && tessOuterHi[2] > 0) {
+        UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
+    } else
+    if (UV.y == 1 && tessOuterHi[3] > 0) {
+        UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
+    }
     return UV;
 }
-
-
 
 int4 OsdGetPatchCoord(int3 patchParam)
 {
@@ -1296,7 +1280,7 @@ constant float4x4 Mi(
                      float4(0.f,     0.f,     1.f,     0.f)
                      );
 
-    
+
 float4x4 OsdComputeMs2(float sharpness, float factor)
 {
     float s = exp2(sharpness);
@@ -1308,26 +1292,23 @@ float4x4 OsdComputeMs2(float sharpness, float factor)
     float ssub1 = s-1;
     float ssub1_2 = ssub1 * ssub1;
     float div6 = 1.0/6.0;
-    
+
     float4x4 m(
                float4(0, s + 1 + 3*s2 - s3, 7*s - 2 - 6*s2 + 2*s3,    sfrac1 * ssub1_2),
                float4(0,      1 + 2*s + s2,         sx6m2 - 2*s2,             ssub1_2),
                float4(0,               1+s,                sx6m2,              sfrac1),
                float4(0,                 1,                sx6m2,                 1));
-    
+
     m *= factor * (1/sx6);
-    
+
     m[0][0] = div6 * factor;
-    
+
     return m;
 }
-
-
 
 // ----------------------------------------------------------------------------
 // BSpline
 // ----------------------------------------------------------------------------
-
 
 // convert BSpline cv to Bezier cv
 template<typename VertexType> //VertexType should be some type that implements float3 VertexType::GetPosition()
@@ -1335,7 +1316,7 @@ void OsdComputePerPatchVertexBSpline(int3 patchParam, unsigned ID, threadgroup V
 {
     int i = ID%4;
     int j = ID/4;
-  
+
 #if OSD_PATCH_ENABLE_SINGLE_CREASE
 
     float3 P  = float3(0,0,0); // 0 to 1-2^(-Sf)
@@ -1362,7 +1343,7 @@ void OsdComputePerPatchVertexBSpline(int3 patchParam, unsigned ID, threadgroup V
         float s1 = 1 - exp2(-Sc);
         result.vSegments = float2(s0, s1);
 #endif
-        
+
         bool isBoundary[2];
         isBoundary[0] = (((boundaryMask & 8) != 0) || ((boundaryMask & 2) != 0)) ? true : false;
         isBoundary[1] = (((boundaryMask & 4) != 0) || ((boundaryMask & 1) != 0)) ? true : false;
@@ -1370,7 +1351,7 @@ void OsdComputePerPatchVertexBSpline(int3 patchParam, unsigned ID, threadgroup V
         needsFlip[0] = (boundaryMask & 8) ? true : false;
         needsFlip[1] = (boundaryMask & 1) ? true : false;
         float3 Hi[4], Hj[4], Hs[4];
-        
+
         if (isBoundary[0])
         {
             int t[4] = {0,1,2,3};
@@ -1448,7 +1429,7 @@ void OsdComputePerPatchVertexBSpline(int3 patchParam, unsigned ID, threadgroup V
     for (int k=0; k<4; ++k) {
         P += Q[j][k]*Hi[k];
     }
-        
+
 
     result.P  = P;
     result.P1 = P;
@@ -2051,9 +2032,3 @@ OsdComputePerPatchVertexGregory(int3 patchParam, unsigned ID, unsigned primitive
 }
 
 #endif  // OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
-
-
-
-
-
-
