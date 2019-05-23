@@ -37,6 +37,9 @@ namespace Osd {
 static std::string commonShaderSource(
 #include "mtlPatchCommon.gen.h"
 );
+static std::string patchLegacyShaderSource(
+#include "mtlPatchLegacy.gen.h"
+);
 static std::string patchBasisTypesShaderSource(
 #include "patchBasisCommonTypes.gen.h"
 );
@@ -101,9 +104,13 @@ GetPatchTypeSource(Far::PatchDescriptor::Type type) {
 std::string
 MTLPatchShaderSource::GetCommonShaderSource() {
 #if TARGET_OS_IOS || TARGET_OS_TV
-    return std::string("#define OSD_METAL_IOS 1\n").append(commonShaderSource);
+    return std::string("#define OSD_METAL_IOS 1\n")
+               .append(commonShaderSource)
+               .append(patchLegacyShaderSource);
 #elif TARGET_OS_OSX
-    return std::string("#define OSD_METAL_OSX 1\n").append(commonShaderSource);
+    return std::string("#define OSD_METAL_OSX 1\n")
+               .append(commonShaderSource)
+               .append(patchLegacyShaderSource);
 #endif
 }
 

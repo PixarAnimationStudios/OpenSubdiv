@@ -268,6 +268,7 @@ if( METAL_FOUND )
        mtlPatchBSpline.metal
        mtlPatchGregory.metal
        mtlPatchGregoryBasis.metal
+       mtlPatchLegacy.metal
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${METAL_LIBRARIES}
