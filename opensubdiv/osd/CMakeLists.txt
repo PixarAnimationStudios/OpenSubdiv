@@ -265,6 +265,7 @@ if( METAL_FOUND )
     list(APPEND KERNEL_FILES
        mtlComputeKernel.metal
        mtlPatchCommon.metal
+       mtlPatchCommonTess.metal
        mtlPatchBSpline.metal
        mtlPatchGregory.metal
        mtlPatchGregoryBasis.metal
