@@ -70,7 +70,7 @@ GetPatchTypeDefine(Far::PatchDescriptor::Type type,
         case Far::PatchDescriptor::QUADS: ss << "#define OSD_PATCH_QUADS 1\n"; break;
         case Far::PatchDescriptor::REGULAR: ss << "#define OSD_PATCH_BSPLINE 1\n#define OSD_PATCH_REGULAR 1\n"; break;
         case Far::PatchDescriptor::GREGORY: ss << "#define OSD_PATCH_GREGORY 1\n"; break;
-        case Far::PatchDescriptor::GREGORY_BOUNDARY: ss << "#define OSD_PATCH_GREGORY_BOUNDRY 1\n"; break;
+        case Far::PatchDescriptor::GREGORY_BOUNDARY: ss << "#define OSD_PATCH_GREGORY_BOUNDARY 1\n"; break;
         case Far::PatchDescriptor::GREGORY_BASIS: ss << "#define OSD_PATCH_GREGORY_BASIS 1\n"; break;
         default:
             assert("Unknown Far::PatchDescriptor::Type" && 0);
