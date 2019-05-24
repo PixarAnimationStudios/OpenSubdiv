@@ -29,14 +29,9 @@
 // ----------------------------------------------------------------------------
 #if defined(OSD_PATCH_GREGORY) || defined(OSD_PATCH_GREGORY_BOUNDARY)
 
-#if OSD_MAX_VALENCE<=10
-constant float ef[7] = {
-    0.813008, 0.500000, 0.363636, 0.287505,
-    0.238692, 0.204549, 0.179211
-};
-#else
-constant float ef[27] = {
-    0.812816, 0.500000, 0.363644, 0.287514,
+// precomputed catmark coefficient table up to valence 29
+constant float OsdCatmarkCoefficient[30] = {
+    0, 0, 0, 0.812816, 0.500000, 0.363644, 0.287514,
     0.238688, 0.204544, 0.179229, 0.159657,
     0.144042, 0.131276, 0.120632, 0.111614,
     0.103872, 0.09715, 0.0912559, 0.0860444,
@@ -44,7 +39,22 @@ constant float ef[27] = {
     0.0669851, 0.0641504, 0.0615475, 0.0591488,
     0.0569311, 0.0548745, 0.0529621
 };
+
+float
+OsdComputeCatmarkCoefficient(int valence)
+{
+#if OSD_MAX_VALENCE < 30
+    return OsdCatmarkCoefficient[valence];
+#else
+    if (valence < 30) {
+        return OsdCatmarkCoefficient[valence];
+    } else {
+        float t = 2.0f / float(valence);
+        return 1.0f / (valence * (cospi(t) + 5.0f +
+                                  sqrt((cospi(t) + 9) * (cospi(t) + 1)))/16.0f);
+    }
 #endif
+}
 
 float cosfn(int n, int j) {
     return cospi((2.0f * j)/float(n));
@@ -170,8 +180,9 @@ void OsdComputePerVertexGregory(unsigned vID, float3 P, threadgroup OsdPerVertex
         v.e0 += cosfn(valence, i)*e;
         v.e1 += sinfn(valence, i)*e;
     }
-    v.e0 *= ef[valence - 3];
-    v.e1 *= ef[valence - 3];
+    float ef = OsdComputeCatmarkCoefficient(valence);
+    v.e0 *= ef;
+    v.e1 *= ef;
 
 #ifdef OSD_PATCH_GREGORY_BOUNDARY
     v.zerothNeighbor = zerothNeighbor;
