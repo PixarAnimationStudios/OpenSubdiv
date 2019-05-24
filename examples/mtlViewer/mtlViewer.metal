@@ -390,6 +390,49 @@ kernel void compute_main(
     }
 }
 
+#if SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+float3
+interpolateFaceVaryingColor(
+        int                       patch_id,
+        float2                    uv,
+        const device float*       fvarData,
+        const device int*         fvarIndices,
+        const device packed_int3* fvarPatchParams,
+        const constant int*       fvarPatchArrays)
+{
+    OsdPatchArray fvarPatchArray = OsdPatchArrayInit(
+        fvarPatchArrays[0],
+        fvarPatchArrays[1],
+        fvarPatchArrays[2],
+        fvarPatchArrays[3],
+        fvarPatchArrays[4],
+        fvarPatchArrays[5]);
+    OsdPatchParam fvarParam = OsdPatchParamInit(
+        fvarPatchParams[patch_id][0],
+        fvarPatchParams[patch_id][1],
+        fvarPatchParams[patch_id][2]);
+
+    int fvarPatchType = OsdPatchParamIsRegular(fvarParam)
+                        ? fvarPatchArray.regDesc
+                        : fvarPatchArray.desc;
+
+    float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
+    int numPoints = OsdEvaluatePatchBasisNormalized(fvarPatchType, fvarParam,
+                uv.x, uv.y, wP, wDu, wDv, wDuu, wDuv, wDvv);
+
+    int primOffset = patch_id * fvarPatchArray.stride;
+
+    float2 interpUV = float2(0);
+    for (int i = 0; i < numPoints; ++i) {
+        int index = fvarIndices[primOffset + i] * 2 /* OSD_FVAR_WIDTH */ + 0 /* fvarOffset */;
+        float2 cv = float2(fvarData[index + 0], fvarData[index + 1]);
+        interpUV += wP[i] * cv;
+    }
+
+    return float3(interpUV, 0);
+}
+#endif
+
 [[patch(quad, VERTEX_CONTROL_POINTS_PER_PATCH)]]
 vertex OutputVertex vertex_main(
     const constant PerFrameConstants& frameConsts [[buffer(FRAME_CONST_BUFFER_INDEX)]],
@@ -401,6 +444,7 @@ vertex OutputVertex vertex_main(
     const device float*       osdFaceVaryingData        [[buffer(OSD_FVAR_DATA_BUFFER_INDEX)]],
     const device int*         osdFaceVaryingIndices     [[buffer(OSD_FVAR_INDICES_BUFFER_INDEX)]],
     const device packed_int3* osdFaceVaryingPatchParams [[buffer(OSD_FVAR_PATCHPARAM_BUFFER_INDEX)]],
+    const constant int*       osdFaceVaryingPatchArrays [[buffer(OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX)]],
     float2 position_in_patch [[position_in_patch]],
     uint patch_id [[patch_id]]
     )
@@ -433,51 +477,13 @@ vertex OutputVertex vertex_main(
 #elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD
     out.patchColor = patchVertex.patchCoord.xyz;
 #elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
-    int patchIndex = OsdGetPatchIndex(patch_id);
-    float2 uv = patchVertex.tessCoord;
-#if OSD_FACEVARYING_PATCH_REGULAR
-    float wP[16], wDs[16], wDt[16], wDss[16], wDst[16], wDtt[16];
-    int patchCVs = 16;
-    int patchStride = patchCVs;
-
-    int3 fvarPatchParam = osdFaceVaryingPatchParams[patchIndex];
-    int boundaryMask = OsdGetPatchBoundaryMask(fvarPatchParam);
-    OsdGetBSplinePatchWeights(uv.x, uv.y, 1.0f, boundaryMask, wP, wDs, wDt, wDss, wDst, wDtt);
-#elif OSD_FACEVARYING_PATCH_GREGORY_BASIS
-    float wP[20], wDs[20], wDt[20], wDss[20], wDst[20], wDtt[20];
-    int patchCVs = 20;
-    int patchStride = patchCVs;
-    int3 fvarPatchParam = osdFaceVaryingPatchParams[patchIndex];
-    if (OsdGetPatchIsRegular(fvarPatchParam)) {
-        float wP16[16], wDs16[16], wDt16[16], wDss16[16], wDst16[16], wDtt16[16];
-        patchCVs = 16;
-        int boundaryMask = OsdGetPatchBoundaryMask(fvarPatchParam);
-        OsdGetBSplinePatchWeights(uv.x, uv.y, 1.0f, boundaryMask, wP16, wDs16, wDt16, wDss16, wDst16, wDtt16);
-        for (int i=0; i<patchCVs; ++i) {
-            wP[i] = wP16[i];
-        }
-    } else {
-        OsdGetGregoryPatchWeights(uv.x, uv.y, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
-    }
-#elif OSD_FACEVARYING_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
-    TODO
-#else
-    float wP[4], wDs[4], wDt[4], wDss[4], wDst[4], wDtt[4];
-    int patchCVs = 4;
-    int patchStride = patchCVs;
-    OsdGetBilinearPatchWeights(uv.x, uv.y, 1.0f, wP, wDs, wDt, wDss, wDst, wDtt);
-#endif
-
-    int primOffset = patchIndex * patchStride;
-
-    float2 fvarUV = float2(0.);
-    for (int i = 0; i < patchCVs; ++i) {
-        int index = osdFaceVaryingIndices[primOffset + i] * 2 /* OSD_FVAR_WIDTH */ + 0 /* fvarOffset */;
-        float2 cv = float2(osdFaceVaryingData[index + 0], osdFaceVaryingData[index + 1]);
-        fvarUV += wP[i] * cv;
-    }
-
-    out.patchColor.rg = fvarUV;
+    out.patchColor = interpolateFaceVaryingColor(
+        patch_id,
+        patchVertex.tessCoord.xy,
+        osdFaceVaryingData,
+        osdFaceVaryingIndices,
+        osdFaceVaryingPatchParams,
+        osdFaceVaryingPatchArrays);
 #endif
 
     return out;

@@ -25,9 +25,9 @@
 #ifndef OPENSUBDIV3_OSD_MTL_PATCH_SHADER_SOURCE_H
 #define OPENSUBDIV3_OSD_MTL_PATCH_SHADER_SOURCE_H
 
-#import <string>
 #import "../version.h"
 #import "../far/patchDescriptor.h"
+#import <string>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -40,14 +40,25 @@ class MTLPatchShaderSource {
 
     static std::string GetPatchBasisShaderSource();
 
-    static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type,
-                                             Far::PatchDescriptor::Type fvarType);
+    static std::string GetVertexShaderSource(Far::PatchDescriptor::Type type);
 
-    static std::string GetHullShaderSource(Far::PatchDescriptor::Type type,
-                                           Far::PatchDescriptor::Type fvarType);
+    static std::string GetHullShaderSource(Far::PatchDescriptor::Type type);
 
-    static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type,
-                                             Far::PatchDescriptor::Type fvarType);
+    static std::string GetDomainShaderSource(Far::PatchDescriptor::Type type);
+
+    /// These methods are deprecated. Clients should determine the
+    /// patch type of a face-varying patch by inspecting the
+    /// face-varying patch array descriptors.
+    /// \brief Deprecated
+    static std::string GetVertexShaderSource(
+        Far::PatchDescriptor::Type type,
+        Far::PatchDescriptor::Type fvarType);
+    static std::string GetHullShaderSource(
+        Far::PatchDescriptor::Type type,
+        Far::PatchDescriptor::Type fvarType);
+    static std::string GetDomainShaderSource(
+        Far::PatchDescriptor::Type type,
+        Far::PatchDescriptor::Type fvarType);
 };
 
 }  // end namespace Osd

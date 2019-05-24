@@ -70,11 +70,10 @@
 #define OSD_FVAR_DATA_BUFFER_INDEX 16
 #define OSD_FVAR_INDICES_BUFFER_INDEX 17
 #define OSD_FVAR_PATCHPARAM_BUFFER_INDEX 18
+#define OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX 19
 
 #define FRAME_CONST_BUFFER_INDEX 11
 #define INDICES_BUFFER_INDEX 2
-
-#define USE_FACE_VARYING 1
 
 #define FVAR_SINGLE_BUFFER 1
 
@@ -204,8 +203,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         self.kernelType = kMetal;
         self.refinementLevel = 2;
         self.tessellationLevel = 8;
-        self.shadingMode = kShadingMaterial;
-        self.displayStyle = kDisplayStyleShaded;
+        self.shadingMode = kShadingPatchType;
+        self.displayStyle = kDisplayStyleWireOnShaded;
 
         _frameCount = 0;
         _animationFrames = 0;
@@ -302,18 +301,25 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
     auto pav = _mesh->GetPatchTable()->GetPatchArrays();
     auto pib = _mesh->GetPatchTable()->GetPatchIndexBuffer();
-    auto pfvarav = _mesh->GetPatchTable()->GetFVarPatchArrays();
 
     [renderCommandEncoder setVertexBuffer:buffer offset:0 atIndex:VERTEX_BUFFER_INDEX];
     [renderCommandEncoder setVertexBuffer:pib offset:0 atIndex:INDICES_BUFFER_INDEX];
     [renderCommandEncoder setVertexBuffer:_frameConstantsBuffer offset:0 atIndex:FRAME_CONST_BUFFER_INDEX];
+    if (_numFaceVaryingElements > 0) {
 #if FVAR_SINGLE_BUFFER
-    int faceVaryingDataBufferOffset = _doAdaptive ? 0 : _shape->uvs.size() * sizeof(float);
-    [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:faceVaryingDataBufferOffset atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
+        int faceVaryingDataBufferOffset = _doAdaptive ? 0 : _shape->uvs.size() * sizeof(float);
+        [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:faceVaryingDataBufferOffset atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
 #else
-    [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:0 atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
+        [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:0 atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
 #endif
-    [renderCommandEncoder setVertexBuffer:_faceVaryingIndicesBuffer offset:0 atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
+        [renderCommandEncoder setVertexBuffer:_faceVaryingIndicesBuffer offset:0 atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
+
+        auto fvarPatchArrays = _mesh->GetPatchTable()->GetFVarPatchArrays();
+        [renderCommandEncoder setVertexBytes:fvarPatchArrays.data()
+                                      length:fvarPatchArrays.size() *
+                                             sizeof(fvarPatchArrays[0])
+                                     atIndex:OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX];
+    }
 
     if(_doAdaptive)
     {
@@ -321,7 +327,11 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         [renderCommandEncoder setVertexBuffer:_perPatchDataBuffer offset:0 atIndex:OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX];
         [renderCommandEncoder setVertexBuffer:_mesh->GetPatchTable()->GetPatchParamBuffer() offset:0 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
         [renderCommandEncoder setVertexBuffer:_perPatchDataBuffer offset:0 atIndex:OSD_PERPATCHVERTEXGREGORY_BUFFER_INDEX];
-        [renderCommandEncoder setVertexBuffer:_faceVaryingPatchParamBuffer offset:0 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
+        if (_numFaceVaryingElements > 0) {
+            [renderCommandEncoder setVertexBuffer:_faceVaryingPatchParamBuffer
+                                           offset:0
+                                          atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
+        }
     }
 
     if(_endCapMode == kEndCapLegacyGregory)
@@ -352,11 +362,14 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         {
             [renderCommandEncoder setVertexBufferOffset:patch.primitiveIdBase * sizeof(int) * 3 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
 
-            auto& fvarPatch = pfvarav[i];
-            assert(sizeof(Osd::PatchParam) == sizeof(int) * 3);
+            if (_numFaceVaryingElements > 0) {
+                auto pfvarav = _mesh->GetPatchTable()->GetFVarPatchArrays();
+                auto& fvarPatch = pfvarav[0]; // XXXdyu-mtl
+                assert(sizeof(Osd::PatchParam) == sizeof(int) * 3);
 
-            [renderCommandEncoder setVertexBufferOffset:(fvarPatch.primitiveIdBase+patch.primitiveIdBase) * sizeof(int) * 3 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
-            [renderCommandEncoder setVertexBufferOffset:(fvarPatch.indexBase+(patch.primitiveIdBase*fvarPatch.desc.GetNumControlVertices())) * sizeof(unsigned) atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
+                [renderCommandEncoder setVertexBufferOffset:(fvarPatch.primitiveIdBase+patch.primitiveIdBase) * sizeof(int) * 3 atIndex:OSD_FVAR_PATCHPARAM_BUFFER_INDEX];
+                [renderCommandEncoder setVertexBufferOffset:(fvarPatch.indexBase+(patch.primitiveIdBase*fvarPatch.desc.GetNumControlVertices())) * sizeof(unsigned) atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
+            }
         }
 
         [renderCommandEncoder setVertexBufferOffset:patch.indexBase * sizeof(unsigned) atIndex:INDICES_BUFFER_INDEX];
@@ -662,17 +675,14 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     int level = _refinementLevel;
     _numVertexElements = 3;
 
-#if USE_FACE_VARYING
-    _numFaceVaryingElements = _shape->HasUV() ? 2 : 0;
-#else
-    _numFaceVaryingElements = 0;
-#endif
-
     _numVaryingElements = 0;
-
     bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, _numVaryingElements > 0);
-    bits.set(OpenSubdiv::Osd::MeshFVarData, _numFaceVaryingElements > 0);
-    bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, _doAdaptive);
+
+    _numFaceVaryingElements = (_shadingMode == kShadingFaceVarying && _shape->HasUV()) ? 2 : 0;
+    if (_numFaceVaryingElements > 0) {
+        bits.set(OpenSubdiv::Osd::MeshFVarData, _numFaceVaryingElements > 0);
+        bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, _doAdaptive);
+    }
 
     int numElements = _numVertexElements + _numVaryingElements;
 
@@ -762,60 +772,61 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
         Osd::MTLStencilTable mtlStencilTable = Osd::MTLStencilTable(stencilTable, &_context);
 
-        uint32_t fvarWidth             = _numFaceVaryingElements;
-        uint32_t coarseFVarValuesCount = _shape->uvs.size() / fvarWidth;
-        uint32_t finalFVarValuesCount  = stencilTable->GetNumStencils();
+        if (_numFaceVaryingElements > 0) {
+            uint32_t fvarWidth             = _numFaceVaryingElements;
+            uint32_t coarseFVarValuesCount = _shape->uvs.size() / fvarWidth;
+            uint32_t finalFVarValuesCount  = stencilTable->GetNumStencils();
 
 #if FVAR_SINGLE_BUFFER
-        Osd::CPUMTLVertexBuffer *fvarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, coarseFVarValuesCount + finalFVarValuesCount, &_context);
-        fvarDataBuffer->UpdateData(_shape->uvs.data(), 0, coarseFVarValuesCount, &_context);
+            Osd::CPUMTLVertexBuffer *fvarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, coarseFVarValuesCount + finalFVarValuesCount, &_context);
+            fvarDataBuffer->UpdateData(_shape->uvs.data(), 0, coarseFVarValuesCount, &_context);
 
-        _faceVaryingDataBuffer = fvarDataBuffer->BindMTLBuffer(&_context);
-        _faceVaryingDataBuffer.label = @"OSD FVar data";
+            _faceVaryingDataBuffer = fvarDataBuffer->BindMTLBuffer(&_context);
+            _faceVaryingDataBuffer.label = @"OSD FVar data";
 
-        Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
-        Osd::BufferDescriptor dstDesc(coarseFVarValuesCount * fvarWidth, fvarWidth, fvarWidth);
+            Osd::BufferDescriptor srcDesc(0, fvarWidth, fvarWidth);
+            Osd::BufferDescriptor dstDesc(coarseFVarValuesCount * fvarWidth, fvarWidth, fvarWidth);
 
-        Osd::MTLComputeEvaluator::EvalStencils(fvarDataBuffer, srcDesc,
-                                               fvarDataBuffer, dstDesc,
-                                               &mtlStencilTable,
-                                               nullptr,
-                                               &_context);
+            Osd::MTLComputeEvaluator::EvalStencils(fvarDataBuffer, srcDesc,
+                                                   fvarDataBuffer, dstDesc,
+                                                   &mtlStencilTable,
+                                                   nullptr,
+                                                   &_context);
+
+            delete fvarDataBuffer;
 #else
-        Osd::CPUMTLVertexBuffer *coarseFVarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, coarseFVarValuesCount, &_context);
-        coarseFVarDataBuffer->UpdateData(_shape->uvs.data(), 0, coarseFVarValuesCount, &_context);
+            Osd::CPUMTLVertexBuffer *coarseFVarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, coarseFVarValuesCount, &_context);
+            coarseFVarDataBuffer->UpdateData(_shape->uvs.data(), 0, coarseFVarValuesCount, &_context);
 
-        id<MTLBuffer> mtlCoarseFVarDataBuffer = coarseFVarDataBuffer->BindMTLBuffer(&_context);
-        mtlCoarseFVarDataBuffer.label = @"OSD FVar coarse data";
+            id<MTLBuffer> mtlCoarseFVarDataBuffer = coarseFVarDataBuffer->BindMTLBuffer(&_context);
+            mtlCoarseFVarDataBuffer.label = @"OSD FVar coarse data";
 
-        Osd::CPUMTLVertexBuffer *refinedFVarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, finalFVarValuesCount, &_context);
-        _faceVaryingDataBuffer = refinedFVarDataBuffer->BindMTLBuffer(&_context);
-        _faceVaryingDataBuffer.label = @"OSD FVar data";
+            Osd::CPUMTLVertexBuffer *refinedFVarDataBuffer = Osd::CPUMTLVertexBuffer::Create(fvarWidth, finalFVarValuesCount, &_context);
+            _faceVaryingDataBuffer = refinedFVarDataBuffer->BindMTLBuffer(&_context);
+            _faceVaryingDataBuffer.label = @"OSD FVar data";
 
-        Osd::BufferDescriptor coarseBufferDescriptor(0, fvarWidth, fvarWidth);
-        Osd::BufferDescriptor refinedBufferDescriptor(0, fvarWidth, fvarWidth);
+            Osd::BufferDescriptor coarseBufferDescriptor(0, fvarWidth, fvarWidth);
+            Osd::BufferDescriptor refinedBufferDescriptor(0, fvarWidth, fvarWidth);
 
-        Osd::MTLComputeEvaluator::EvalStencils(coarseFVarDataBuffer, coarseBufferDescriptor,
-                                               refinedFVarDataBuffer, refinedBufferDescriptor,
-                                               &mtlStencilTable,
-                                               nullptr,
-                                               &_context);
+            Osd::MTLComputeEvaluator::EvalStencils(coarseFVarDataBuffer, coarseBufferDescriptor,
+                                                   refinedFVarDataBuffer, refinedBufferDescriptor,
+                                                   &mtlStencilTable,
+                                                   nullptr,
+                                                   &_context);
+
+            delete refinedFVarDataBuffer;
+            delete coarseFVarDataBuffer;
 #endif
 
-        Osd::MTLPatchTable const *patchTable = _mesh->GetPatchTable();
+            Osd::MTLPatchTable const *patchTable = _mesh->GetPatchTable();
 
-        _faceVaryingIndicesBuffer = patchTable->GetFVarPatchIndexBuffer(0);
-        _faceVaryingIndicesBuffer.label = @"OSD FVar indices";
+            _faceVaryingIndicesBuffer = patchTable->GetFVarPatchIndexBuffer(0);
+            _faceVaryingIndicesBuffer.label = @"OSD FVar indices";
 
-        _faceVaryingPatchParamBuffer = patchTable->GetFVarPatchParamBuffer(0);
-        _faceVaryingPatchParamBuffer.label = @"OSD FVar patch params";
+            _faceVaryingPatchParamBuffer = patchTable->GetFVarPatchParamBuffer(0);
+            _faceVaryingPatchParamBuffer.label = @"OSD FVar patch params";
+        }
 
-#if FVAR_SINGLE_BUFFER
-        delete fvarDataBuffer;
-#else
-        delete refinedFVarDataBuffer;
-        delete coarseFVarDataBuffer;
-#endif
         delete stencilTable;
     }
 
@@ -939,11 +950,9 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
     Osd::MTLPatchShaderSource shaderSource;
     auto patchArrays = _mesh->GetPatchTable()->GetPatchArrays();
-    auto pFVarArray = _mesh->GetPatchTable()->GetFVarPatchArrays();
     for(int i = 0; i < patchArrays.size(); ++i)
     {
         auto type = patchArrays[i].GetDescriptor().GetType();
-        auto fvarType = pFVarArray[i].GetDescriptor().GetType();
         auto& threadsPerThreadgroup = _threadgroupSizes[type];
         threadsPerThreadgroup = 32; //Initial guess of 32
         int usefulControlPoints = patchArrays[i].GetDescriptor().GetNumControlVertices();
@@ -999,7 +1008,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
             )";
         }
 
-        shaderBuilder << shaderSource.GetHullShaderSource(type, fvarType);
+        shaderBuilder << shaderSource.GetHullShaderSource(type);
         if(_numFaceVaryingElements > 0)
             shaderBuilder << shaderSource.GetPatchBasisShaderSource();
         shaderBuilder << _osdShaderSource.UTF8String;
@@ -1048,6 +1057,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         DEFINE(OSD_FVAR_DATA_BUFFER_INDEX, OSD_FVAR_DATA_BUFFER_INDEX);
         DEFINE(OSD_FVAR_INDICES_BUFFER_INDEX, OSD_FVAR_INDICES_BUFFER_INDEX);
         DEFINE(OSD_FVAR_PATCHPARAM_BUFFER_INDEX, OSD_FVAR_PATCHPARAM_BUFFER_INDEX);
+        DEFINE(OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX, OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX);
 
         compileOptions.preprocessorMacros = preprocessor;
 
