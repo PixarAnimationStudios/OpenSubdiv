@@ -165,6 +165,7 @@ OsdPatchVertex ds_gregory_basis_patches(
     output.Nv = dNv;
 #endif
 
+    output.tessCoord = UV;
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
 
     return output;

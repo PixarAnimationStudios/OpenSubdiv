@@ -147,6 +147,7 @@ struct OsdPatchVertex {
     float3 tangent;
     float3 bitangent;
     float4 patchCoord; //u, v, faceLevel, faceId
+    float2 tessCoord; // tesscoord.st
 #if OSD_COMPUTE_NORMAL_DERIVATIVES
     float3 Nu;
     float3 Nv;

@@ -36,7 +36,7 @@ void OsdComputePerVertex(
         OsdPatchParamBufferSet osdBuffers
         )
 {
-	OsdComputePerVertexGregory(vertexId, position.xyz, hullVertex, osdBuffers);
+    OsdComputePerVertexGregory(vertexId, position.xyz, hullVertex, osdBuffers);
 
 #if OSD_ENABLE_PATCH_CULL
     float4 clipPos = mul(modelViewProjectionMatrix, position);
@@ -164,6 +164,7 @@ OsdPatchVertex ds_gregory_patches(
     output.Nv = dNv;
 #endif
 
+    output.tessCoord = UV;
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
 
     return output;

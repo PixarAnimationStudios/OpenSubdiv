@@ -434,7 +434,7 @@ vertex OutputVertex vertex_main(
     out.patchColor = patchVertex.patchCoord.xyz;
 #elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
     int patchIndex = OsdGetPatchIndex(patch_id);
-    float2 uv = position_in_patch;
+    float2 uv = patchVertex.tessCoord;
 #if OSD_FACEVARYING_PATCH_REGULAR
     float wP[16], wDs[16], wDt[16], wDss[16], wDst[16], wDtt[16];
     int patchCVs = 16;

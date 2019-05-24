@@ -197,6 +197,7 @@ OsdPatchVertex ds_regular_patches(
     output.vSegments = vSegments;
 #endif
 
+    output.tessCoord = UV;
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
     output.position = P;
     return output;
