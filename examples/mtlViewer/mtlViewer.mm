@@ -30,10 +30,10 @@
 #import <fstream>
 #import <iostream>
 #import <iterator>
-#import <string>
-#import <sstream>
-#import <vector>
 #import <memory>
+#import <sstream>
+#import <string>
+#import <vector>
 
 #import <opensubdiv/far/error.h>
 #import <opensubdiv/osd/mesh.h>
@@ -77,10 +77,9 @@
 
 #define FVAR_SINGLE_BUFFER 1
 
-using namespace OpenSubdiv::OPENSUBDIV_VERSION;
+using namespace OpenSubdiv;
 
-template <> Far::StencilTable const * Osd::convertToCompatibleStencilTable<OpenSubdiv::Far::StencilTable, OpenSubdiv::Far::StencilTable, OpenSubdiv::Osd::MTLContext>(
-                                                                                                                                                                           OpenSubdiv::Far::StencilTable const *table, OpenSubdiv::Osd::MTLContext*  /*context*/) {
+template <> Far::StencilTable const * Osd::convertToCompatibleStencilTable<OpenSubdiv::Far::StencilTable, OpenSubdiv::Far::StencilTable, OpenSubdiv::Osd::MTLContext>(OpenSubdiv::Far::StencilTable const *table, OpenSubdiv::Osd::MTLContext*  /*context*/) {
     // no need for conversion
     // XXX: We don't want to even copy.
     if (not table) return NULL;
@@ -122,7 +121,6 @@ struct alignas(16) Light {
 static const char* shaderSource =
 #include "mtlViewer.gen.h"
 ;
-
 
 using Osd::MTLRingBuffer;
 
@@ -171,6 +169,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     std::unique_ptr<MTLMeshInterface> _mesh;
     std::unique_ptr<MTLControlMeshDisplay> _controlMesh;
     std::unique_ptr<Osd::MTLLegacyGregoryPatchTable> _legacyGregoryPatchTable;
+    bool _legacyGregoryEnabled;
     std::unique_ptr<Shape> _shape;
 
     bool _needsRebuild;
@@ -191,8 +190,10 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
 -(instancetype)initWithDelegate:(id<OSDRendererDelegate>)delegate {
     self = [super init];
-    if(self) {
-        self.useSingleCrease = true;
+    if (self) {
+        self.useSmoothCornerPatch = false;
+        self.useSingleCreasePatch = true;
+        self.useInfinitelySharpPatch = false;
         self.useStageIn = !TARGET_OS_EMBEDDED;
         self.endCapMode = kEndCapBSplineBasis;
         self.useScreenspaceTessellation = true;
@@ -200,11 +201,13 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         self.usePatchIndexBuffer = false;
         self.usePatchBackfaceCulling = false;
         self.usePrimitiveBackfaceCulling = false;
+        self.useAdaptive = true;
         self.kernelType = kMetal;
         self.refinementLevel = 2;
-        self.tessellationLevel = 8;
+        self.tessellationLevel = 1;
         self.shadingMode = kShadingPatchType;
         self.displayStyle = kDisplayStyleWireOnShaded;
+        self.legacyGregoryEnabled = true;
 
         _frameCount = 0;
         _animationFrames = 0;
@@ -239,7 +242,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
             float r = sin(_animationFrames*0.01f) * _animateVertices;
             for (int i = 0; i < _numVertices; ++i) {
-                float move = 0.05f*cosf(p[0]*20+_animationFrames*0.01f);
                 float ct = cos(p[2] * r);
                 float st = sin(p[2] * r);
                 n[0] = p[0]*ct + p[1]*st;
@@ -458,7 +460,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
                 if(_displayStyle == kDisplayStyleWireOnShaded)
                 {
-                    simd::float4 shade = {1, 1,1,1};
+                    simd::float4 shade = {1,1,1,1};
                     [renderCommandEncoder setFragmentBytes:&shade length:sizeof(shade) atIndex:2];
                     [renderCommandEncoder setTriangleFillMode:MTLTriangleFillModeLines];
                     [renderCommandEncoder setDepthBias:-5 slopeScale:-1.0 clamp:-100.0];
@@ -637,10 +639,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
 -(void)_rebuildModel {
 
-    using namespace OpenSubdiv;
-    using namespace Sdc;
-    using namespace Osd;
-    using namespace Far;
     auto shapeDesc = &g_defaultShapes[[_loadedModels indexOfObject:_currentModel]];
     _shape.reset(Shape::parseObj(shapeDesc->data.c_str(), shapeDesc->scheme));
     const auto scheme = shapeDesc->scheme;
@@ -649,7 +647,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     Sdc::SchemeType sdctype = GetSdcType(*_shape);
     Sdc::Options sdcoptions = GetSdcOptions(*_shape);
 
-    sdcoptions.SetFVarLinearInterpolation((OpenSubdiv::Sdc::Options::FVarLinearInterpolation)_fVarBoundary);
+    sdcoptions.SetFVarLinearInterpolation((OpenSubdiv::Sdc::Options::FVarLinearInterpolation)_fVarLinearInterp);
 
     std::unique_ptr<OpenSubdiv::Far::TopologyRefiner> refiner;
     refiner.reset(Far::TopologyRefinerFactory<Shape>::Create(*_shape, Far::TopologyRefinerFactory<Shape>::Options(sdctype, sdcoptions)));
@@ -661,16 +659,16 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
     // Adaptive refinement currently supported only for catmull-clark scheme
     _doAdaptive = (_useAdaptive && scheme == kCatmark);
-    bool doSingleCreasePatch = (_useSingleCrease && scheme == kCatmark);
-    bool doInfSharpPatch = (_useInfinitelySharpPatch && scheme == kCatmark);
 
     Osd::MeshBitset bits;
-    bits.set(Osd::MeshAdaptive, _doAdaptive);
-    bits.set(Osd::MeshUseSingleCreasePatch, doSingleCreasePatch);
-    bits.set(Osd::MeshUseInfSharpPatch, doInfSharpPatch);
-    bits.set(Osd::MeshEndCapBSplineBasis, _endCapMode == kEndCapBSplineBasis);
-    bits.set(Osd::MeshEndCapGregoryBasis, _endCapMode == kEndCapGregoryBasis);
-    bits.set(Osd::MeshEndCapLegacyGregory, _endCapMode == kEndCapLegacyGregory);
+    bits.set(Osd::MeshAdaptive,             _doAdaptive);
+    bits.set(Osd::MeshUseSmoothCornerPatch, _useSmoothCornerPatch);
+    bits.set(Osd::MeshUseSingleCreasePatch, _useSingleCreasePatch);
+    bits.set(Osd::MeshUseInfSharpPatch,     _useInfinitelySharpPatch);
+    bits.set(Osd::MeshEndCapBilinearBasis,  _endCapMode == kEndCapBilinearBasis);
+    bits.set(Osd::MeshEndCapBSplineBasis,   _endCapMode == kEndCapBSplineBasis);
+    bits.set(Osd::MeshEndCapGregoryBasis,   _endCapMode == kEndCapGregoryBasis);
+    bits.set(Osd::MeshEndCapLegacyGregory,  _endCapMode == kEndCapLegacyGregory);
 
     int level = _refinementLevel;
     _numVertexElements = 3;
@@ -678,8 +676,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     _numVaryingElements = 0;
     bits.set(OpenSubdiv::Osd::MeshInterleaveVarying, _numVaryingElements > 0);
 
-    _numFaceVaryingElements = (_shadingMode == kShadingFaceVarying && _shape->HasUV()) ? 2 : 0;
-    if (_numFaceVaryingElements > 0) {
+    _numFaceVaryingElements = (_shadingMode == kShadingFaceVaryingColor && _shape->HasUV()) ? 2 : 0;
+    if (_numFaceVaryingElements > 0) {;
         bits.set(OpenSubdiv::Osd::MeshFVarData, _numFaceVaryingElements > 0);
         bits.set(OpenSubdiv::Osd::MeshFVarAdaptive, _doAdaptive);
     }
@@ -837,7 +835,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     [self _updateCamera];
     auto pData = _frameConstantsBuffer.data();
 
-    pData->TessLevel = _tessellationLevel;
+    pData->TessLevel = static_cast<float>(1 << _tessellationLevel);
 
     if(_doAdaptive)
     {
@@ -890,7 +888,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                     _perPatchDataOffsets[0] = totalPatchDataSize;
 
                     float elementFloats = 3;
-                    if(_useSingleCrease)
+                    if(_useSingleCreasePatch)
                         elementFloats += 6;
 
                     totalPatchDataSize += elementFloats * sizeof(float) * patch.GetNumPatches() * patch.desc.GetNumControlVertices(); // OsdPerPatchVertexBezier
@@ -1032,7 +1030,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         DEFINE(OSD_PATCH_INDEX_BUFFER_INDEX,OSD_PATCH_INDEX_BUFFER_INDEX);
         DEFINE(OSD_DRAWINDIRECT_BUFFER_INDEX,OSD_DRAWINDIRECT_BUFFER_INDEX);
         DEFINE(OSD_KERNELLIMIT_BUFFER_INDEX,OSD_KERNELLIMIT_BUFFER_INDEX);
-        DEFINE(OSD_PATCH_ENABLE_SINGLE_CREASE, allowsSingleCrease && _useSingleCrease);
+        DEFINE(OSD_PATCH_ENABLE_SINGLE_CREASE, allowsSingleCrease && _useSingleCreasePatch);
         auto partitionMode = _useFractionalTessellation ? MTLTessellationPartitionModeFractionalOdd : MTLTessellationPartitionModePow2;
         DEFINE(OSD_FRACTIONAL_EVEN_SPACING, partitionMode == MTLTessellationPartitionModeFractionalEven);
         DEFINE(OSD_FRACTIONAL_ODD_SPACING, partitionMode == MTLTessellationPartitionModeFractionalOdd);
@@ -1127,7 +1125,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
                         vertexDesc.attributes[0].format = MTLVertexFormatFloat3;
                         vertexDesc.attributes[0].offset = 0;
 
-                        if(_useSingleCrease)
+                        if(_useSingleCreasePatch)
                         {
                             vertexDesc.layouts[OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX].stride += sizeof(float) * 3 * 2;
 
@@ -1289,8 +1287,8 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     translate(pData->ModelViewMatrix, 0, 0, -_cameraData.dollyDistance);
     rotate(pData->ModelViewMatrix, _cameraData.rotationY, 1, 0, 0);
     rotate(pData->ModelViewMatrix, _cameraData.rotationX, 0, 1, 0);
-    translate(pData->ModelViewMatrix, -_meshCenter[0], -_meshCenter[2], _meshCenter[1]); // z-up model
     rotate(pData->ModelViewMatrix, -90, 1, 0, 0); // z-up model
+    translate(pData->ModelViewMatrix, -_meshCenter[0], -_meshCenter[1], -_meshCenter[2]);
     inverseMatrix(pData->ModelViewInverseMatrix, pData->ModelViewMatrix);
 
     identity(pData->ProjectionMatrix);
@@ -1299,16 +1297,14 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
 }
 
-
 -(void)_initializeBuffers {
     _frameConstantsBuffer.alloc(_context.device, 1, @"frame constants");
-    _tessFactorsBuffer.alloc(_context.device, 1, @"tessellation factors", MTLResourceStorageModePrivate);
     _lightsBuffer.alloc(_context.device, 2, @"lights");
 }
 
 -(void)_initializeCamera {
     _cameraData.dollyDistance = 4;
-    _cameraData.rotationY = 30;
+    _cameraData.rotationY = 0;
     _cameraData.rotationX = 0;
     _cameraData.aspectRatio = 1;
 }
@@ -1366,9 +1362,9 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 }
 
 
--(void)setFVarBoundary:(FVarBoundary)fVarBoundary {
-    _needsRebuild |= (fVarBoundary != _fVarBoundary);
-    _fVarBoundary = fVarBoundary;
+-(void)setFVarLinearInterp:(FVarLinearInterp)fVarLinearInterp {
+    _needsRebuild |= (fVarLinearInterp != _fVarLinearInterp);
+    _fVarLinearInterp = fVarLinearInterp;
 }
 
 -(void)setCurrentModel:(NSString *)currentModel {
@@ -1381,9 +1377,14 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     _refinementLevel = refinementLevel;
 }
 
--(void)setUseSingleCrease:(bool)useSingleCrease {
-    _needsRebuild |= useSingleCrease != _useSingleCrease;
-    _useSingleCrease = useSingleCrease;
+-(void)setUseSmoothCornerPatch:(bool)useSmoothCornerPatch {
+    _needsRebuild |= useSmoothCornerPatch != _useSmoothCornerPatch;
+    _useSmoothCornerPatch = useSmoothCornerPatch;
+}
+
+-(void)setUseSingleCreasePatch:(bool)useSingleCreasePatch {
+    _needsRebuild |= useSingleCreasePatch != _useSingleCreasePatch;
+    _useSingleCreasePatch = useSingleCreasePatch;
 }
 
 -(void)setUsePatchClipCulling:(bool)usePatchClipCulling {

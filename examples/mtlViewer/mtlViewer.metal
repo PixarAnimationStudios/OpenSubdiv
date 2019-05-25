@@ -28,10 +28,11 @@
 using namespace metal;
 
 #define SHADING_TYPE_MATERIAL 0
-#define SHADING_TYPE_PATCH 1
-#define SHADING_TYPE_NORMAL 2
-#define SHADING_TYPE_PATCH_COORD 3
-#define SHADING_TYPE_FACE_VARYING 4
+#define SHADING_TYPE_FACE_VARYING_COLOR 1
+#define SHADING_TYPE_PATCH_TYPE 2
+#define SHADING_TYPE_PATCH_DEPTH 3
+#define SHADING_TYPE_PATCH_COORD 4
+#define SHADING_TYPE_NORMAL 5
 
 struct PerFrameConstants {
     float4x4 ModelViewMatrix;
@@ -45,8 +46,7 @@ struct OutputVertex {
     float4 positionOut [[position]];
     float3 position;
     float3 normal;
-
-#if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE_FACE_VARYING
+#if SHADING_TYPE == SHADING_TYPE_PATCH_TYPE || SHADING_TYPE == SHADING_TYPE_PATCH_DEPTH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE_FACE_VARYING_COLOR
     float3 patchColor;
 #endif
 };
@@ -120,11 +120,11 @@ const constant float4 patchColors[] = {
     float4(0.0f,  0.8f,  0.75f, 1.0f),   // boundary pattern 4
 
     float4(0.0f,  1.0f,  0.0f,  1.0f),   // corner
-    float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 0
-    float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 1
-    float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 2
-    float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 3
-    float4(0.25f, 0.25f, 0.25f, 1.0f),   // corner pattern 4
+    float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 0
+    float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 1
+    float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 2
+    float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 3
+    float4(0.5f,  1.0f,  0.5f,  1.0f),   // corner pattern 4
 
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
     float4(1.0f,  1.0f,  0.0f,  1.0f),   // gregory
@@ -164,7 +164,7 @@ getAdaptivePatchColor(int3 patchParam
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
     }
-    if (edgeCount == 2) {
+    if (edgeCount > 1) {
         patchType = 3; // CORNER
     }
 
@@ -184,6 +184,19 @@ getAdaptivePatchColor(int3 patchParam
     int pattern = popcount(OsdGetPatchTransitionMask(patchParam));
 
     return patchColors[6*patchType + pattern];
+}
+
+float4
+getAdaptiveDepthColor(int3 patchParam)
+{
+    //  Represent depth with repeating cycle of four colors:
+    const float4 depthColors[4] = {
+        float4(0.0f,  0.5f,  0.5f,  1.0f),
+        float4(1.0f,  1.0f,  1.0f,  1.0f),
+        float4(0.0f,  1.0f,  1.0f,  1.0f),
+        float4(0.5f,  1.0f,  0.5f,  1.0f)
+    };
+    return depthColors[OsdGetPatchRefinementLevel(patchParam) & 3];
 }
 
 #if OSD_IS_ADAPTIVE
@@ -390,7 +403,7 @@ kernel void compute_main(
     }
 }
 
-#if SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+#if SHADING_TYPE == SHADING_TYPE_FACE_VARYING_COLOR
 float3
 interpolateFaceVaryingColor(
         int                       patch_id,
@@ -467,16 +480,18 @@ vertex OutputVertex vertex_main(
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(patchVertex.position, 1.0f);
 
     out.normal = mul(frameConsts.ModelViewMatrix, patchVertex.normal);
-#if SHADING_TYPE == SHADING_TYPE_PATCH
+#if SHADING_TYPE == SHADING_TYPE_PATCH_TYPE
 #if OSD_PATCH_ENABLE_SINGLE_CREASE
     out.patchColor = getAdaptivePatchColor(patchParam, patchVertex.vSegments).xyz;
 #else
     out.patchColor = getAdaptivePatchColor(patchParam).xyz;
 #endif
+#elif SHADING_TYPE == SHADING_TYPE_PATCH_DEPTH
+    out.patchColor = getAdaptiveDepthColor(patchParam).xyz;
 #elif SHADING_TYPE == SHADING_TYPE_NORMAL
 #elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD
     out.patchColor = patchVertex.patchCoord.xyz;
-#elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+#elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING_COLOR
     out.patchColor = interpolateFaceVaryingColor(
         patch_id,
         patchVertex.tessCoord.xy,
@@ -667,7 +682,7 @@ vertex OutputVertex vertex_main(
     float3 p1 = vertexBuffer[indicesBuffer[primID * 3 + 1]].position;
     float3 p2 = vertexBuffer[indicesBuffer[primID * 3 + 2]].position;
     float3 position = vertexBuffer[indicesBuffer[vertex_id]].position;
-    float2 uv = osdFacevaryingData[osdFaceVaryingIndices[vertex_id]].xy;
+    float2 uv = osdFaceVaryingData[osdFaceVaryingIndices[vertex_id]].xy;
 #endif
 
     float3 normal = normalize(cross(p2 - p1, p0 - p1));
@@ -678,9 +693,9 @@ vertex OutputVertex vertex_main(
     out.positionOut = frameConsts.ModelViewProjectionMatrix * float4(position, 1.0);
     out.normal = (frameConsts.ModelViewMatrix * float4(normal, 0.0)).xyz;
 
-#if SHADING_TYPE == SHADING_TYPE_PATCH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD
+#if SHADING_TYPE == SHADING_TYPE_PATCH_TYPE || SHADING_TYPE == SHADING_TYPE_PATCH_DEPTH || SHADING_TYPE == SHADING_TYPE_PATCH_COORD
     out.patchColor = out.normal;
-#elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+#elif SHADING_TYPE == SHADING_TYPE_FACE_VARYING_COLOR
     out.patchColor.rg = uv;
 #endif
 
@@ -728,12 +743,12 @@ fragment float4 fragment_main(OutputVertex in [[stage_in]],
 
 #if SHADING_TYPE == SHADING_TYPE_MATERIAL
     const float3 diffuseColor = float3(0.4f, 0.4f, 0.8f);
-#elif SHADING_TYPE == SHADING_TYPE_PATCH
+#elif SHADING_TYPE == SHADING_TYPE_PATCH_TYPE || SHADING_TYPE == SHADING_TYPE_PATCH_DEPTH
     const float3 diffuseColor = in.patchColor;
 #endif
 #if SHADING_TYPE == SHADING_TYPE_NORMAL
     color.xyz = normalize(in.normal) * 0.5 + 0.5;
-#elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE == SHADING_TYPE_FACE_VARYING
+#elif SHADING_TYPE == SHADING_TYPE_PATCH_COORD || SHADING_TYPE == SHADING_TYPE_FACE_VARYING_COLOR
     color.xyz = lighting(1.0, lightData, in.position, normalize(in.normal));
     int checker = int(floor(20*in.patchColor.r)+floor(20*in.patchColor.g))&1;
     color.xyz *= float3(in.patchColor.rg*checker, 1-checker);

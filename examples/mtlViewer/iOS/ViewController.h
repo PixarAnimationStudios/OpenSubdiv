@@ -20,7 +20,9 @@
 @property (weak, nonatomic) IBOutlet UISwitch *backpatchCullingSwitch;
 @property (weak, nonatomic) IBOutlet UISwitch *backfaceCullingSwitch;
 @property (weak, nonatomic) IBOutlet UISwitch *patchClipCullingSwitch;
+@property (weak, nonatomic) IBOutlet UISwitch *smoothCornerSwitch;
 @property (weak, nonatomic) IBOutlet UISwitch *singleCreaseSwitch;
+@property (weak, nonatomic) IBOutlet UISwitch *infinitelySharpSwitch;
 @property (weak, nonatomic) IBOutlet UISwitch *controlMeshSwitch;
 @property (weak, nonatomic) IBOutlet UISwitch *screenspaceTessellationSwitch;
 @property (weak, nonatomic) IBOutlet UISegmentedControl *endcapSegmentedControl;
