@@ -55,11 +55,17 @@ static std::string patchBasisEvalShaderSource(
 static std::string bsplineShaderSource(
 #include "mtlPatchBSpline.gen.h"
 );
+static std::string boxSplineTriangleShaderSource(
+#include "mtlPatchBoxSplineTriangle.gen.h"
+);
 static std::string gregoryShaderSource(
 #include "mtlPatchGregory.gen.h"
 );
 static std::string gregoryBasisShaderSource(
 #include "mtlPatchGregoryBasis.gen.h"
+);
+static std::string gregoryTriangleShaderSource(
+#include "mtlPatchGregoryTriangle.gen.h"
 );
 
 static std::string
@@ -79,7 +85,11 @@ GetPatchTypeDefine(Far::PatchDescriptor::Type type,
             ss << "#define OSD_PATCH_QUADS 1\n";
             break;
         case Far::PatchDescriptor::REGULAR:
-            ss << "#define OSD_PATCH_BSPLINE 1\n#define OSD_PATCH_REGULAR 1\n";
+            ss << "#define OSD_PATCH_BSPLINE 1\n"
+                  "#define OSD_PATCH_REGULAR 1\n";
+            break;
+        case Far::PatchDescriptor::LOOP:
+            ss << "#define OSD_PATCH_BOX_SPLINE_TRIANGLE 1\n";
             break;
         case Far::PatchDescriptor::GREGORY:
             ss << "#define OSD_PATCH_GREGORY 1\n";
@@ -89,6 +99,9 @@ GetPatchTypeDefine(Far::PatchDescriptor::Type type,
             break;
         case Far::PatchDescriptor::GREGORY_BASIS:
             ss << "#define OSD_PATCH_GREGORY_BASIS 1\n";
+            break;
+        case Far::PatchDescriptor::GREGORY_TRIANGLE:
+            ss << "#define OSD_PATCH_GREGORY_TRIANGLE 1\n";
             break;
         default:
             assert("Unknown Far::PatchDescriptor::Type" && 0);
@@ -112,15 +125,20 @@ GetPatchTypeSource(Far::PatchDescriptor::Type type) {
 
     switch(type) {
         case Far::PatchDescriptor::QUADS:
+        case Far::PatchDescriptor::TRIANGLES:
             return "";
         case Far::PatchDescriptor::REGULAR:
             return bsplineShaderSource;
+        case Far::PatchDescriptor::LOOP:
+            return boxSplineTriangleShaderSource;
         case Far::PatchDescriptor::GREGORY:
             return gregoryShaderSource;
         case Far::PatchDescriptor::GREGORY_BOUNDARY:
             return gregoryShaderSource;
         case Far::PatchDescriptor::GREGORY_BASIS:
             return gregoryBasisShaderSource;
+        case Far::PatchDescriptor::GREGORY_TRIANGLE:
+            return gregoryTriangleShaderSource;
         default:
             assert("Unknown Far::PatchDescriptor::Type" && 0);
             return "";

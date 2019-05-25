@@ -1,7 +1,7 @@
-#line 0 "osd/mtlPatchBSpline.metal"
+#line 0 "osd/mtlPatchBoxSplineTriangle.metal"
 
 //
-//   Copyright 2015 Pixar
+//   Copyright 2019 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -25,7 +25,7 @@
 //
 
 //----------------------------------------------------------
-// Patches.BSpline.Hull
+// Patches.BoxSplineTriangle.Hull
 //----------------------------------------------------------
 
 void OsdComputePerVertex(
@@ -50,10 +50,10 @@ void OsdComputePerVertex(
 }
 
 //----------------------------------------------------------
-// Patches.BSpline.Factors
+// Patches.BoxSplineTriangle.Factors
 //----------------------------------------------------------
 
-void OsdComputePerPatchBSplineFactors(
+void OsdComputePerPatchBezierTriangleFactors(
         int3 patchParam,
         float tessLevel,
         float4x4 projectionMatrix,
@@ -62,7 +62,7 @@ void OsdComputePerPatchBSplineFactors(
 #if !USE_PTVS_FACTORS
         device OsdPerPatchTessFactors& patchFactors,
 #endif
-        device MTLQuadTessellationFactorsHalf& quadFactors
+        device MTLTriangleTessellationFactorsHalf& triFactors
         )
 {
     float4 tessLevelOuter = float4(0,0,0,0);
@@ -71,11 +71,16 @@ void OsdComputePerPatchBSplineFactors(
     float4 tessOuterHi = float4(0,0,0,0);
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
-    OsdEvalPatchBezierTessLevels(
+    // Gather bezier control points to compute limit surface tess levels
+    float3 bezcv[15];
+    for (int i=0; i<15; ++i) {
+        bezcv[i] = patch[i].P;
+    }
+    OsdEvalPatchBezierTriangleTessLevels(
         tessLevel,
         projectionMatrix,
         modelViewMatrix,
-        patch,
+        bezcv,
         patchParam,
         tessLevelOuter,
         tessLevelInner,
@@ -83,7 +88,7 @@ void OsdComputePerPatchBSplineFactors(
         tessOuterHi
         );
 #else
-    OsdGetTessLevelsUniform(
+    OsdGetTessLevelsUniformTriangle(
         tessLevel,
         patchParam,
         tessLevelOuter,
@@ -93,12 +98,10 @@ void OsdComputePerPatchBSplineFactors(
         );
 #endif
 
-    quadFactors.edgeTessellationFactor[0] = tessLevelOuter[0];
-    quadFactors.edgeTessellationFactor[1] = tessLevelOuter[1];
-    quadFactors.edgeTessellationFactor[2] = tessLevelOuter[2];
-    quadFactors.edgeTessellationFactor[3] = tessLevelOuter[3];
-    quadFactors.insideTessellationFactor[0] = tessLevelInner[0];
-    quadFactors.insideTessellationFactor[1] = tessLevelInner[1];
+    triFactors.edgeTessellationFactor[0] = tessLevelOuter[0];
+    triFactors.edgeTessellationFactor[1] = tessLevelOuter[1];
+    triFactors.edgeTessellationFactor[2] = tessLevelOuter[2];
+    triFactors.insideTessellationFactor  = tessLevelInner[0];
 #if !USE_PTVS_FACTORS
     patchFactors.tessOuterLo = tessOuterLo;
     patchFactors.tessOuterHi = tessOuterHi;
@@ -113,24 +116,24 @@ void OsdComputePerPatchFactors(
         float4x4 modelViewMatrix,
         OsdPatchParamBufferSet osdBuffer,
         threadgroup PatchVertexType* patchVertices,
-        device MTLQuadTessellationFactorsHalf& quadFactors
+        device MTLTriangleTessellationFactorsHalf& triFactors
         )
 {
-    OsdComputePerPatchBSplineFactors(
-        patchParam,
-        tessLevel,
-        projectionMatrix,
-        modelViewMatrix,
-        osdBuffer.perPatchVertexBuffer + patchID * CONTROL_POINTS_PER_PATCH,
+    OsdComputePerPatchBezierTriangleFactors(
+            patchParam,
+            tessLevel,
+            projectionMatrix,
+            modelViewMatrix,
+            osdBuffer.perPatchVertexBuffer + patchID * VERTEX_CONTROL_POINTS_PER_PATCH,
 #if !USE_PTVS_FACTORS
-        osdBuffer.patchTessBuffer[patchID],
+            osdBuffer.patchTessBuffer[patchID],
 #endif
-        quadFactors
-        );
+            triFactors
+            );
 }
 
 //----------------------------------------------------------
-// Patches.BSpline.Vertex
+// Patches.BoxSplineTriangle.Vertex
 //----------------------------------------------------------
 
 void OsdComputePerPatchVertex(
@@ -142,42 +145,42 @@ void OsdComputePerPatchVertex(
         OsdPatchParamBufferSet osdBuffers
         )
 {
-    OsdComputePerPatchVertexBSpline(patchParam, ID,
-        patchVertices, osdBuffers.perPatchVertexBuffer[ControlID]);
+    OsdComputePerPatchVertexBoxSplineTriangle(
+        patchParam, ID, patchVertices,
+        osdBuffers.perPatchVertexBuffer[ControlID]);
 }
 
 //----------------------------------------------------------
-// Patches.BSpline.Domain
+// Patches.BoxSplineTriangle.Domain
 //----------------------------------------------------------
 
 template<typename PerPatchVertexBezier>
 OsdPatchVertex ds_regular_patches(
-        const float tessLevel,
+        float tessLevel,
 #if !USE_PTVS_FACTORS
         float4 tessOuterLo,
         float4 tessOuterHi,
 #endif
         PerPatchVertexBezier cv,
         int3 patchParam,
-        float2 domainCoord
+        float3 domainCoord
         )
 {
 #if USE_PTVS_FACTORS
     float4 tessOuterLo(0), tessOuterHi(0);
-    OsdGetTessLevelsUniform(tessLevel, patchParam, tessOuterLo, tessOuterHi);
+    OsdGetTessLevelsUniformTriangle(
+        tessLevel, patchParam, tessOuterLo, tessOuterHi);
 #endif
 
-    float2 UV = OsdGetTessParameterization(domainCoord.xy,
-                                           tessOuterLo,
-                                           tessOuterHi);
+    float2 UV = OsdGetTessParameterizationTriangle(domainCoord.xy,
+                                                   tessOuterLo,
+                                                   tessOuterHi);
 
     OsdPatchVertex output;
 
     float3 P, dPu, dPv;
     float3 N, dNu, dNv;
-    float2 vSegments;
-
-    OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv, vSegments);
+    OsdEvalPatchBezierTriangle(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     output.normal = N;
     output.tangent = dPu;
@@ -186,12 +189,9 @@ OsdPatchVertex ds_regular_patches(
     output.Nu = dNu;
     output.Nv = dNv;
 #endif
-#if OSD_PATCH_ENABLE_SINGLE_CREASE
-    output.vSegments = vSegments;
-#endif
 
     output.tessCoord = UV;
-    output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
+    output.patchCoord = OsdInterpolatePatchCoordTriangle(UV, patchParam);
     output.position = P;
     return output;
 }
@@ -201,7 +201,7 @@ template<typename PerPatchVertexBezier>
 #endif
 OsdPatchVertex OsdComputePatch(
         float tessLevel,
-        float2 domainCoord,
+        float3 domainCoord,
         unsigned patchID,
 #if USE_STAGE_IN
         PerPatchVertexBezier osdPatch

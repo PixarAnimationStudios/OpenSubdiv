@@ -64,8 +64,8 @@ void OsdComputePerPatchFactors(
         device MTLQuadTessellationFactorsHalf& quadFactors
         )
 {
-    float4 tessLevelOuter = float4(0,0,0,0);
-    float2 tessLevelInner = float2(0,0);
+    float4 tessLevelOuter = float4(0);
+    float2 tessLevelInner = float2(0);
 
     OsdGetTessLevels(
             tessLevel,
@@ -102,7 +102,6 @@ void OsdComputePerPatchVertex(
         )
 {
     //Does nothing, all transforms are in the PTVS
-
 }
 
 //----------------------------------------------------------
@@ -123,7 +122,7 @@ OsdPatchVertex ds_gregory_basis_patches(
         const device unsigned* patchIndices,
 #endif
         int3 patchParam,
-        float2 UV
+        float2 domainCoord
         )
 {
     OsdPatchVertex output;
@@ -154,6 +153,7 @@ OsdPatchVertex ds_gregory_basis_patches(
 #endif
 #endif
 
+    float2 UV = domainCoord.xy;
     OsdEvalPatchGregory(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     output.position = P;

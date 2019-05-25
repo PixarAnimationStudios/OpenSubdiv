@@ -119,7 +119,7 @@ template<typename PerPatchVertexGregory>
 OsdPatchVertex ds_gregory_patches(
         PerPatchVertexGregory patch,
         int3 patchParam,
-        float2 UV
+        float2 domainCoord
         )
 {
     OsdPatchVertex output;
@@ -152,6 +152,7 @@ OsdPatchVertex ds_gregory_patches(
     cv[18] = patch[3].Fp;
     cv[19] = patch[3].Fm;
 
+    float2 UV = domainCoord.xy;
     OsdEvalPatchGregory(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     // all code below here is client code
