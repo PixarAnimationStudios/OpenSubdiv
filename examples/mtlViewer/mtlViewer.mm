@@ -1030,10 +1030,18 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         DEFINE(OSD_PATCH_INDEX_BUFFER_INDEX,OSD_PATCH_INDEX_BUFFER_INDEX);
         DEFINE(OSD_DRAWINDIRECT_BUFFER_INDEX,OSD_DRAWINDIRECT_BUFFER_INDEX);
         DEFINE(OSD_KERNELLIMIT_BUFFER_INDEX,OSD_KERNELLIMIT_BUFFER_INDEX);
+
         DEFINE(OSD_PATCH_ENABLE_SINGLE_CREASE, allowsSingleCrease && _useSingleCreasePatch);
-        auto partitionMode = _useFractionalTessellation ? MTLTessellationPartitionModeFractionalOdd : MTLTessellationPartitionModePow2;
-        DEFINE(OSD_FRACTIONAL_EVEN_SPACING, partitionMode == MTLTessellationPartitionModeFractionalEven);
-        DEFINE(OSD_FRACTIONAL_ODD_SPACING, partitionMode == MTLTessellationPartitionModeFractionalOdd);
+
+        auto partitionMode = _useScreenspaceTessellation && _useFractionalTessellation
+                                ? MTLTessellationPartitionModeFractionalOdd
+                                : MTLTessellationPartitionModeInteger;
+        if (partitionMode == MTLTessellationPartitionModeFractionalOdd) {
+            DEFINE(OSD_FRACTIONAL_ODD_SPACING, 1);
+        } else if (partitionMode == MTLTessellationPartitionModeFractionalEven) {
+            DEFINE(OSD_FRACTIONAL_EVEN_SPACING, 1);
+        }
+
 #if TARGET_OS_EMBEDDED
         DEFINE(OSD_MAX_TESS_LEVEL, 16);
 #else
@@ -1050,7 +1058,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         DEFINE(OSD_ENABLE_BACKPATCH_CULL, _usePatchBackfaceCulling);
         DEFINE(SHADING_TYPE, _shadingMode);
         DEFINE(OSD_USE_PATCH_INDEX_BUFFER, _usePatchIndexBuffer);
-        DEFINE(OSD_ENABLE_SCREENSPACE_TESSELLATION, _useScreenspaceTessellation && _useFractionalTessellation);
+        DEFINE(OSD_ENABLE_SCREENSPACE_TESSELLATION, _useScreenspaceTessellation);
         DEFINE(OSD_ENABLE_PATCH_CULL, _usePatchClipCulling && _doAdaptive);
         DEFINE(OSD_FVAR_DATA_BUFFER_INDEX, OSD_FVAR_DATA_BUFFER_INDEX);
         DEFINE(OSD_FVAR_INDICES_BUFFER_INDEX, OSD_FVAR_INDICES_BUFFER_INDEX);
