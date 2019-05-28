@@ -163,7 +163,7 @@ struct OsdPatchParamBufferSet
 
     const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
 
-    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]];
+    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEX_BUFFER_INDEX)]];
 
 #if !USE_PTVS_FACTORS
     device OsdPerPatchTessFactors* patchTessBuffer [[buffer(OSD_PERPATCHTESSFACTORS_BUFFER_INDEX)]];
@@ -185,7 +185,7 @@ struct OsdVertexBufferSet
 
     const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
 
-    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]];
+    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEX_BUFFER_INDEX)]];
 
 #if !USE_PTVS_FACTORS
     device OsdPerPatchTessFactors* patchTessBuffer [[buffer(OSD_PERPATCHTESSFACTORS_BUFFER_INDEX)]];

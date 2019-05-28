@@ -28,17 +28,6 @@
 using namespace metal;
 
 #if OSD_IS_ADAPTIVE
-#if OSD_PATCH_GREGORY_BASIS
-constant constexpr unsigned IndexLookupStride = 5;
-#else
-constant constexpr unsigned IndexLookupStride = 1;
-#endif
-
-#define PATCHES_PER_THREADGROUP ((THREADS_PER_THREADGROUP * CONTROL_POINTS_PER_THREAD) / CONTROL_POINTS_PER_PATCH)
-#define REAL_THREADGROUP_DIVISOR (CONTROL_POINTS_PER_PATCH / CONTROL_POINTS_PER_THREAD)
-
-static_assert(REAL_THREADGROUP_DIVISOR % 2 == 0, "REAL_THREADGROUP_DIVISOR must be a power of 2");
-
 static_assert(!OSD_ENABLE_SCREENSPACE_TESSELLATION || !USE_PTVS_FACTORS, "USE_PTVS_FACTORS cannot be enabled if OSD_ENABLE_SCREENSPACE_TESSELLATION is enabled");
 #endif
 
@@ -228,6 +217,21 @@ struct ControlPoint
 #endif
 #endif
 };
+#elif OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
+struct ControlPoint
+{
+    float3 P [[attribute(0)]];
+    float3 Ep [[attribute(1)]];
+    float3 Em [[attribute(2)]];
+    float3 Fp [[attribute(3)]];
+    float3 Fm [[attribute(4)]];
+};
+#elif OSD_PATCH_GREGORY_BASIS
+struct ControlPoint
+{
+    float3 position [[attribute(0)]];
+};
+#endif
 
 struct PatchInput
 {
@@ -238,33 +242,6 @@ struct PatchInput
 #endif
     int3 patchParam [[attribute(10)]];
 };
-#elif OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
-struct ControlPoint
-{
-    float3 P [[attribute(0)]];
-    float3 Ep [[attribute(1)]];
-    float3 Em [[attribute(2)]];
-    float3 Fp [[attribute(3)]];
-    float3 Fm [[attribute(4)]];
-};
-
-struct PatchInput
-{
-    patch_control_point<ControlPoint> cv;
-    int3 patchParam [[attribute(10)]];
-};
-#elif OSD_PATCH_GREGORY_BASIS
-struct ControlPoint
-{
-    float3 position [[attribute(0)]];
-};
-
-struct PatchInput
-{
-    patch_control_point<ControlPoint> cv;
-    int3 patchParam [[attribute(10)]];
-};
-#endif
 #endif
 
 //----------------------------------------------------------
@@ -279,7 +256,7 @@ kernel void compute_main(
     unsigned thread_position_in_threadgroup [[thread_position_in_threadgroup]],
     unsigned threadgroup_position_in_grid [[threadgroup_position_in_grid]],
     OsdPatchParamBufferSet osdBuffers, //This struct contains all of the buffers needed by OSD
-    device MTLQuadTessellationFactorsHalf* quadTessellationFactors [[buffer(QUAD_TESSFACTORS_INDEX)]]
+    device MTLQuadTessellationFactorsHalf* patchTessellationFactors [[buffer(PATCH_TESSFACTORS_INDEX)]]
 #if OSD_USE_PATCH_INDEX_BUFFER
     ,device unsigned* patchIndex [[buffer(OSD_PATCH_INDEX_BUFFER_INDEX)]]
     ,device MTLDrawPatchIndirectArguments* drawIndirectCommands [[buffer(OSD_DRAWINDIRECT_BUFFER_INDEX)]]
@@ -291,43 +268,40 @@ kernel void compute_main(
     // OSD Kernel Setup
     //----------------------------------------------------------
 
+    #define PATCHES_PER_THREADGROUP (THREADS_PER_THREADGROUP / THREADS_PER_PATCH)
+    int const primitiveID = thread_position_in_grid / THREADS_PER_PATCH;
+    int const primitiveIDInTG = thread_position_in_threadgroup / THREADS_PER_PATCH;
+    int const vertexIndex = threadgroup_position_in_grid * PATCHES_PER_THREADGROUP * CONTROL_POINTS_PER_PATCH +
+                            thread_position_in_threadgroup * CONTROL_POINTS_PER_THREAD;
+    int const vertexIndexInTG = thread_position_in_threadgroup * CONTROL_POINTS_PER_THREAD;
+    int const invocationID = (thread_position_in_threadgroup * VERTEX_CONTROL_POINTS_PER_THREAD) % (THREADS_PER_PATCH*VERTEX_CONTROL_POINTS_PER_THREAD);
+
     //Contains the shared patchParam value used by all threads that act upon a single patch
     //the .z (sharpness) field is set to -1 (NAN) if that patch should be culled to signal other threads to return.
     threadgroup int3 patchParam[PATCHES_PER_THREADGROUP];
-
     threadgroup PatchVertexType patchVertices[PATCHES_PER_THREADGROUP * CONTROL_POINTS_PER_PATCH];
-
-    const auto real_threadgroup = thread_position_in_grid / REAL_THREADGROUP_DIVISOR;
-    const auto subthreadgroup_in_threadgroup = thread_position_in_threadgroup / REAL_THREADGROUP_DIVISOR;
-    const auto real_thread_in_threadgroup = thread_position_in_threadgroup & (REAL_THREADGROUP_DIVISOR - 1);
-
-#if NEEDS_BARRIER
-    const auto validThread = thread_position_in_grid * CONTROL_POINTS_PER_THREAD < osdBuffers.kernelExecutionLimit;
-#else
-    const auto validThread = true;
-    if(thread_position_in_grid * CONTROL_POINTS_PER_THREAD >= osdBuffers.kernelExecutionLimit)
-        return;
-#endif
 
     //----------------------------------------------------------
     // OSD Vertex Transform
     //----------------------------------------------------------
-    if(validThread)
     {
-        patchParam[subthreadgroup_in_threadgroup] = OsdGetPatchParam(real_threadgroup, osdBuffers.patchParamBuffer);
+        patchParam[primitiveIDInTG] = OsdGetPatchParam(primitiveID, osdBuffers.patchParamBuffer);
 
-        for(unsigned threadOffset = 0; threadOffset < CONTROL_POINTS_PER_THREAD; threadOffset++)
+        for (unsigned threadOffset = 0; threadOffset < CONTROL_POINTS_PER_THREAD; ++threadOffset)
         {
-            const auto vertexId = osdBuffers.indexBuffer[(thread_position_in_grid * CONTROL_POINTS_PER_THREAD + threadOffset) * IndexLookupStride];
-            const auto v = osdBuffers.vertexBuffer[vertexId];
+            if (vertexIndexInTG + threadOffset < PATCHES_PER_THREADGROUP * CONTROL_POINTS_PER_PATCH)
+            {
+                const auto vertexId = osdBuffers.indexBuffer[(vertexIndex + threadOffset)];
+                const auto v = osdBuffers.vertexBuffer[vertexId];
 
-            threadgroup auto& patchVertex = patchVertices[thread_position_in_threadgroup * CONTROL_POINTS_PER_THREAD + threadOffset];
+                threadgroup auto& patchVertex = patchVertices[vertexIndexInTG + threadOffset];
 
-            //----------------------------------------------------------
-            // User Vertex Transform
-            //----------------------------------------------------------
+                //----------------------------------------------------------
+                // User Vertex Transform
+                //----------------------------------------------------------
 
-            OsdComputePerVertex(float4(v.position,1), patchVertex, vertexId, frameConsts.ModelViewProjectionMatrix, osdBuffers);
+                OsdComputePerVertex(float4(v.position,1), patchVertex, vertexId, frameConsts.ModelViewProjectionMatrix, osdBuffers);
+            }
         }
     }
 
@@ -335,31 +309,24 @@ kernel void compute_main(
     threadgroup_barrier(mem_flags::mem_threadgroup);
 #endif
 
-
     //----------------------------------------------------------
     // OSD Patch Cull
     //----------------------------------------------------------
-    if(validThread)
     {
-#if PATCHES_PER_THREADGROUP > 1
-        auto patch = patchVertices + subthreadgroup_in_threadgroup * CONTROL_POINTS_PER_THREAD * CONTROL_POINTS_PER_PATCH;
-#else
-        //Small optimization for the '1 patch per threadgroup' case
-        auto patch = patchVertices;
-#endif
+        auto patch = patchVertices + primitiveIDInTG * CONTROL_POINTS_PER_PATCH;
 
-        if(!OsdCullPerPatchVertex(patch, frameConsts.ModelViewMatrix))
+        if (!OsdCullPerPatchVertex(patch, frameConsts.ModelViewMatrix))
         {
 #if !OSD_USE_PATCH_INDEX_BUFFER
-            quadTessellationFactors[real_threadgroup].edgeTessellationFactor[0] = 0.0h;
-            quadTessellationFactors[real_threadgroup].edgeTessellationFactor[1] = 0.0h;
-            quadTessellationFactors[real_threadgroup].edgeTessellationFactor[2] = 0.0h;
-            quadTessellationFactors[real_threadgroup].edgeTessellationFactor[3] = 0.0h;
-            quadTessellationFactors[real_threadgroup].insideTessellationFactor[0] = 0.0h;
-            quadTessellationFactors[real_threadgroup].insideTessellationFactor[1] = 0.0h;
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[0] = 0.0h;
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[1] = 0.0h;
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[2] = 0.0h;
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[3] = 0.0h;
+            patchTessellationFactors[primitiveID].insideTessellationFactor[0] = 0.0h;
+            patchTessellationFactors[primitiveID].insideTessellationFactor[1] = 0.0h;
 #endif
 
-            patchParam[subthreadgroup_in_threadgroup].z = -1;
+            patchParam[primitiveIDInTG].z = -1;
 #if !NEEDS_BARRIER
             return;
 #endif
@@ -373,18 +340,21 @@ kernel void compute_main(
     //----------------------------------------------------------
     // OSD Patch Compute
     //----------------------------------------------------------
-    if(validThread && patchParam[subthreadgroup_in_threadgroup].z != -1)
+    if (patchParam[primitiveIDInTG].z != -1)
     {
-        for(unsigned threadOffset = 0; threadOffset < CONTROL_POINTS_PER_THREAD; threadOffset++)
+        for (unsigned threadOffset = 0; threadOffset < VERTEX_CONTROL_POINTS_PER_THREAD; ++threadOffset)
         {
-            OsdComputePerPatchVertex(
-                patchParam[subthreadgroup_in_threadgroup],
-                real_thread_in_threadgroup * CONTROL_POINTS_PER_THREAD + threadOffset,
-                real_threadgroup,
-                thread_position_in_grid * CONTROL_POINTS_PER_THREAD + threadOffset,
-                patchVertices + subthreadgroup_in_threadgroup * CONTROL_POINTS_PER_PATCH,
-                osdBuffers
-                );
+            if (invocationID + threadOffset < VERTEX_CONTROL_POINTS_PER_PATCH)
+            {
+                OsdComputePerPatchVertex(
+                    patchParam[primitiveIDInTG],
+                    invocationID + threadOffset,
+                    primitiveID,
+                    invocationID + threadOffset + primitiveID * VERTEX_CONTROL_POINTS_PER_PATCH,
+                    patchVertices + primitiveIDInTG * CONTROL_POINTS_PER_PATCH,
+                    osdBuffers
+                    );
+            }
         }
     }
 
@@ -395,26 +365,26 @@ kernel void compute_main(
     //----------------------------------------------------------
     // OSD Tessellation Factors
     //----------------------------------------------------------
-    if(validThread && real_thread_in_threadgroup == 0)
+    if (invocationID == 0)
     {
 
 #if OSD_USE_PATCH_INDEX_BUFFER
         const auto patchId = atomic_fetch_add_explicit((device atomic_uint*)&drawIndirectCommands->patchCount, 1, memory_order_relaxed);
-        patchIndex[patchId] = real_threadgroup;
+        patchIndex[patchId] = primitiveID;
 #else
-        const auto patchId = real_threadgroup;
+        const auto patchId = primitiveID;
 #endif
 
         OsdComputePerPatchFactors(
-            patchParam[subthreadgroup_in_threadgroup],
+            patchParam[primitiveIDInTG],
             frameConsts.TessLevel,
-            real_threadgroup,
+            primitiveID,
             frameConsts.ProjectionMatrix,
             frameConsts.ModelViewMatrix,
             osdBuffers,
-            patchVertices + subthreadgroup_in_threadgroup * CONTROL_POINTS_PER_PATCH,
-            quadTessellationFactors[patchId]
-        );
+            patchVertices + primitiveIDInTG * CONTROL_POINTS_PER_PATCH,
+            patchTessellationFactors[patchId]
+            );
     }
 }
 
@@ -560,7 +530,7 @@ const constant unsigned BSplineControlLineIndices[] = {
 
 vertex SolidColorVertex vertex_lines(
     const device unsigned* indicesBuffer [[buffer(INDICES_BUFFER_INDEX)]],
-    const device OsdPerPatchVertexBezier* osdPerPatchVertexBezier [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]],
+    const device OsdPerPatchVertexBezier* osdPerPatchVertexBezier [[buffer(OSD_PERPATCHVERTEX_BUFFER_INDEX)]],
     const constant PerFrameConstants& frameConsts [[buffer(FRAME_CONST_BUFFER_INDEX)]],
     uint vertex_id [[vertex_id]]
     )
@@ -588,7 +558,7 @@ vertex SolidColorVertex vertex_lines(
 }
 #endif
 
-#if OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY_BOUNDARY || OSD_PATCH_GREGORY
+#if OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
 const constant uint GregoryBasisControlLineIndices[] = {
     //Outer Edge
     0, 2,
@@ -627,11 +597,11 @@ const constant uint GregoryBasisControlLineIndices[] = {
 
 
 vertex SolidColorVertex vertex_lines(
-#if OSD_PATCH_GREGORY_BASIS
+#ifdef OSD_PATCH_GREGORY_BASIS
     const device unsigned* indicesBuffer [[buffer(INDICES_BUFFER_INDEX)]],
     const device PackedInputVertex* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]],
 #else
-    const device PackedInputVertex* vertexBuffer [[buffer(OSD_PERPATCHVERTEXBEZIER_BUFFER_INDEX)]],
+    const device PackedInputVertex* vertexBuffer [[buffer(OSD_PERPATCHVERTEX_BUFFER_INDEX)]],
 #endif
     const constant PerFrameConstants& frameConsts [[buffer(FRAME_CONST_BUFFER_INDEX)]],
     uint vertex_id [[vertex_id]]
@@ -641,7 +611,7 @@ vertex SolidColorVertex vertex_lines(
     const auto idx = vertex_id % idx_size;
     const auto patch_id = vertex_id / idx_size;
 
-#if OSD_PATCH_GREGORY_BASIS
+#ifdef OSD_PATCH_GREGORY_BASIS
     const auto in = vertexBuffer[indicesBuffer[patch_id * VERTEX_CONTROL_POINTS_PER_PATCH + GregoryBasisControlLineIndices[idx]]];
 #else
     const auto in = vertexBuffer[patch_id * 20 + GregoryBasisControlLineIndices[idx]];
