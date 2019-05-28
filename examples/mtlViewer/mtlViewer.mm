@@ -65,6 +65,7 @@
 #define OSD_PERPATCHTESSFACTORS_BUFFER_INDEX 8
 #define PATCH_TESSFACTORS_INDEX 10
 #define QUAD_TESSFACTORS_INDEX PATCH_TESSFACTORS_INDEX
+#define TRIANGLE_TESSFACTORS_INDEX PATCH_TESSFACTORS_INDEX
 #define OSD_PATCH_INDEX_BUFFER_INDEX 13
 #define OSD_DRAWINDIRECT_BUFFER_INDEX 14
 #define OSD_KERNELLIMIT_BUFFER_INDEX 15
@@ -187,7 +188,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     NSString* _osdShaderSource;
     simd::float3 _meshCenter;
     NSMutableArray<NSString*>* _loadedModels;
-    bool _doAdaptive;
     int _patchCounts[DISPATCHSLOTS];
 }
 
@@ -202,6 +202,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 struct PipelineConfig {
     Far::PatchDescriptor::Type patchType;
     bool useTessellation;
+    bool useTriangleTessellation;
     bool useSingleCreasePatch;
     bool useLegacyBuffers;
     bool drawIndexed;
@@ -218,6 +219,7 @@ struct PipelineConfig {
 
     config.patchType = patchType;
     config.useTessellation = false;
+    config.useTriangleTessellation = false;
     config.useSingleCreasePatch = false;
     config.useLegacyBuffers = false;
     config.drawIndexed = false;
@@ -236,6 +238,15 @@ struct PipelineConfig {
             config.numControlPointsPerThreadRefined = 3;
             config.numControlPointsPerThreadToDraw = 3;
             config.numThreadsPerPatch = 1;
+        break;
+        case Far::PatchDescriptor::LOOP:
+            config.useTessellation = true;
+            config.useTriangleTessellation = true;
+            config.numControlPointsPerPatchRefined = 12;
+            config.numControlPointsPerPatchToDraw = 15;
+            config.numControlPointsPerThreadRefined = 3;
+            config.numControlPointsPerThreadToDraw = 4;
+            config.numThreadsPerPatch = 4;
         break;
         case Far::PatchDescriptor::REGULAR:
             config.useTessellation = true;
@@ -269,6 +280,16 @@ struct PipelineConfig {
             config.drawIndexed = true;
             config.numControlPointsPerPatchRefined = 20;
             config.numControlPointsPerPatchToDraw = 20;
+            config.numControlPointsPerThreadRefined = 5;
+            config.numControlPointsPerThreadToDraw = 5;
+            config.numThreadsPerPatch = 4;
+        break;
+        case Far::PatchDescriptor::GREGORY_TRIANGLE:
+            config.useTessellation = true;
+            config.useTriangleTessellation = true;
+            config.drawIndexed = true;
+            config.numControlPointsPerPatchRefined = 18;
+            config.numControlPointsPerPatchToDraw = 18;
             config.numControlPointsPerThreadRefined = 5;
             config.numControlPointsPerThreadToDraw = 5;
             config.numThreadsPerPatch = 4;
@@ -356,7 +377,7 @@ struct PipelineConfig {
 
     [self _updateState];
 
-    if(_doAdaptive) {
+    if (_useAdaptive) {
         auto computeEncoder = [commandBuffer computeCommandEncoder];
         [self _computeTessFactors:computeEncoder];
         [computeEncoder endEncoding];
@@ -364,7 +385,7 @@ struct PipelineConfig {
 
     auto renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:[_delegate renderPassDescriptorFor: self]];
 
-    if(_usePrimitiveBackfaceCulling) {
+    if (_usePrimitiveBackfaceCulling) {
         [renderEncoder setCullMode:MTLCullModeBack];
     } else {
         [renderEncoder setCullMode:MTLCullModeNone];
@@ -401,7 +422,7 @@ struct PipelineConfig {
 
     if (_numFaceVaryingElements > 0) {
 #if FVAR_SINGLE_BUFFER
-        int faceVaryingDataBufferOffset = _doAdaptive ? 0 : _shape->uvs.size() * sizeof(float);
+        int faceVaryingDataBufferOffset = _useAdaptive ? 0 : _shape->uvs.size() * sizeof(float);
         [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:faceVaryingDataBufferOffset atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
 #else
         [renderCommandEncoder setVertexBuffer:_faceVaryingDataBuffer offset:0 atIndex:OSD_FVAR_DATA_BUFFER_INDEX];
@@ -415,7 +436,7 @@ struct PipelineConfig {
                                      atIndex:OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX];
     }
 
-    if(_doAdaptive)
+    if (_useAdaptive)
     {
         [renderCommandEncoder setVertexBuffer:_perPatchTessFactorsBuffer offset:0 atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
         [renderCommandEncoder setVertexBuffer:_perPatchVertexBuffer offset:0 atIndex:OSD_PERPATCHVERTEX_BUFFER_INDEX];
@@ -473,7 +494,7 @@ struct PipelineConfig {
                 [renderCommandEncoder setVertexBufferOffset:(fvarPatch.indexBase+(patch.primitiveIdBase*fvarPatch.desc.GetNumControlVertices())) * sizeof(unsigned) atIndex:OSD_FVAR_INDICES_BUFFER_INDEX];
             }
 
-            if(_usePatchIndexBuffer) {
+            if (_usePatchIndexBuffer) {
                 if (pipelineConfig.drawIndexed) {
                     [renderCommandEncoder drawIndexedPatches:pipelineConfig.numControlPointsPerPatchToDraw
                                       patchStart:0 patchCount:patch.GetNumPatches()
@@ -662,12 +683,8 @@ struct PipelineConfig {
     Far::TopologyLevel const & refBaseLevel = refiner->GetLevel(0);
     _numVertices = refBaseLevel.GetNumVertices();
 
-
-    // Adaptive refinement currently supported only for catmull-clark scheme
-    _doAdaptive = (_useAdaptive && scheme == kCatmark);
-
     Osd::MeshBitset bits;
-    bits.set(Osd::MeshAdaptive,             _doAdaptive);
+    bits.set(Osd::MeshAdaptive,             _useAdaptive);
     bits.set(Osd::MeshUseSmoothCornerPatch, _useSmoothCornerPatch);
     bits.set(Osd::MeshUseSingleCreasePatch, _useSingleCreasePatch);
     bits.set(Osd::MeshUseInfSharpPatch,     _useInfinitelySharpPatch);
@@ -756,7 +773,7 @@ struct PipelineConfig {
         stencilTableFactoryOptions.interpolationMode = Far::StencilTableFactory::INTERPOLATE_FACE_VARYING;
         stencilTableFactoryOptions.generateOffsets = true;
         stencilTableFactoryOptions.generateControlVerts = false;
-        stencilTableFactoryOptions.generateIntermediateLevels = _doAdaptive;
+        stencilTableFactoryOptions.generateIntermediateLevels = _useAdaptive;
         stencilTableFactoryOptions.factorizeIntermediateLevels = true;
         stencilTableFactoryOptions.maxLevel = level;
         stencilTableFactoryOptions.fvarChannel = 0;
@@ -841,7 +858,7 @@ struct PipelineConfig {
 
     pData->TessLevel = static_cast<float>(1 << _tessellationLevel);
 
-    if(_doAdaptive && _usePatchIndexBuffer)
+    if (_useAdaptive && _usePatchIndexBuffer)
     {
         for (auto& patch : _mesh->GetPatchTable()->GetPatchArrays())
         {
@@ -870,7 +887,7 @@ struct PipelineConfig {
         _drawIndirectCommandsBuffer.alloc(_context.device, DISPATCHSLOTS, @"draw patch indirect commands");
     }
 
-    if(_doAdaptive)
+    if (_useAdaptive)
     {
         for (auto& patch : _mesh->GetPatchTable()->GetPatchArrays())
         {
@@ -892,7 +909,9 @@ struct PipelineConfig {
                 _perPatchVertexOffsets[patchType] = totalPatchDataSize;
                 _tessFactorOffsets[patchType] = totalTessFactorsSize;
                 totalPatchDataSize += elementFloats * sizeof(float) * patch.GetNumPatches() * pipelineConfig.numControlPointsPerPatchToDraw;
-                totalTessFactorsSize += patch.GetNumPatches() * sizeof(MTLQuadTessellationFactorsHalf);
+                totalTessFactorsSize += patch.GetNumPatches() * (pipelineConfig.useTriangleTessellation
+                                                                 ? sizeof(MTLTriangleTessellationFactorsHalf)
+                                                                 : sizeof(MTLQuadTessellationFactorsHalf));
             }
 
             totalPatches += patch.GetNumPatches();
@@ -965,6 +984,7 @@ struct PipelineConfig {
         DEFINE(INDICES_BUFFER_INDEX,INDICES_BUFFER_INDEX);
         DEFINE(PATCH_TESSFACTORS_INDEX,PATCH_TESSFACTORS_INDEX);
         DEFINE(QUAD_TESSFACTORS_INDEX,QUAD_TESSFACTORS_INDEX);
+        DEFINE(TRIANGLE_TESSFACTORS_INDEX,TRIANGLE_TESSFACTORS_INDEX);
         DEFINE(OSD_PATCH_INDEX_BUFFER_INDEX,OSD_PATCH_INDEX_BUFFER_INDEX);
         DEFINE(OSD_DRAWINDIRECT_BUFFER_INDEX,OSD_DRAWINDIRECT_BUFFER_INDEX);
         DEFINE(OSD_KERNELLIMIT_BUFFER_INDEX,OSD_KERNELLIMIT_BUFFER_INDEX);
@@ -1007,7 +1027,7 @@ struct PipelineConfig {
         DEFINE(SHADING_TYPE, _shadingMode);
         DEFINE(OSD_USE_PATCH_INDEX_BUFFER, _usePatchIndexBuffer);
         DEFINE(OSD_ENABLE_SCREENSPACE_TESSELLATION, _useScreenspaceTessellation);
-        DEFINE(OSD_ENABLE_PATCH_CULL, _usePatchClipCulling && _doAdaptive);
+        DEFINE(OSD_ENABLE_PATCH_CULL, _usePatchClipCulling && _useAdaptive);
         DEFINE(OSD_FVAR_DATA_BUFFER_INDEX, OSD_FVAR_DATA_BUFFER_INDEX);
         DEFINE(OSD_FVAR_INDICES_BUFFER_INDEX, OSD_FVAR_INDICES_BUFFER_INDEX);
         DEFINE(OSD_FVAR_PATCHPARAM_BUFFER_INDEX, OSD_FVAR_PATCHPARAM_BUFFER_INDEX);
@@ -1063,7 +1083,7 @@ struct PipelineConfig {
                 auto vertexDesc = pipelineDesc.vertexDescriptor;
                 [vertexDesc reset];
 
-                if(_doAdaptive)
+                if (_useAdaptive)
                 {
                     vertexDesc.layouts[OSD_PATCHPARAM_BUFFER_INDEX].stepFunction = MTLVertexStepFunctionPerPatch;
                     vertexDesc.layouts[OSD_PATCHPARAM_BUFFER_INDEX].stepRate = 1;
@@ -1077,8 +1097,10 @@ struct PipelineConfig {
 
                 switch(patchType)
                 {
+                    case Far::PatchDescriptor::LOOP:
                     case Far::PatchDescriptor::REGULAR:
                     case Far::PatchDescriptor::GREGORY_BASIS:
+                    case Far::PatchDescriptor::GREGORY_TRIANGLE:
                         if (pipelineConfig.drawIndexed) {
                             vertexDesc.layouts[VERTEX_BUFFER_INDEX].stepFunction = MTLVertexStepFunctionPerPatchControlPoint;
                             vertexDesc.layouts[VERTEX_BUFFER_INDEX].stepRate = 1;

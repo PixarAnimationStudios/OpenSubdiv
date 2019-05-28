@@ -183,6 +183,8 @@ getAdaptivePatchColor(int3 patchParam
     patchType = 5;
 #elif OSD_PATCH_GREGORY_BASIS
     patchType = 6;
+#elif OSD_PATCH_GREGORY_TRIANGLE
+    patchType = 6;
 #endif
 
     int pattern = popcount(OsdGetPatchTransitionMask(patchParam));
@@ -205,7 +207,7 @@ getAdaptiveDepthColor(int3 patchParam)
 
 #if OSD_IS_ADAPTIVE
 #if USE_STAGE_IN
-#if OSD_PATCH_REGULAR
+#if OSD_PATCH_REGULAR || OSD_PATCH_BOX_SPLINE_TRIANGLE
 struct ControlPoint
 {
     float3 P [[attribute(0)]];
@@ -226,7 +228,7 @@ struct ControlPoint
     float3 Fp [[attribute(3)]];
     float3 Fm [[attribute(4)]];
 };
-#elif OSD_PATCH_GREGORY_BASIS
+#elif OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY_TRIANGLE
 struct ControlPoint
 {
     float3 position [[attribute(0)]];
@@ -244,6 +246,13 @@ struct PatchInput
 };
 #endif
 
+#if OSD_PATCH_REGULAR || OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
+typedef MTLQuadTessellationFactorsHalf PatchTessFactors;
+#elif OSD_PATCH_BOX_SPLINE_TRIANGLE || OSD_PATCH_GREGORY_TRIANGLE
+typedef MTLTriangleTessellationFactorsHalf PatchTessFactors;
+#endif
+
+
 //----------------------------------------------------------
 // OSD Kernel
 //----------------------------------------------------------
@@ -256,7 +265,7 @@ kernel void compute_main(
     unsigned thread_position_in_threadgroup [[thread_position_in_threadgroup]],
     unsigned threadgroup_position_in_grid [[threadgroup_position_in_grid]],
     OsdPatchParamBufferSet osdBuffers, //This struct contains all of the buffers needed by OSD
-    device MTLQuadTessellationFactorsHalf* patchTessellationFactors [[buffer(PATCH_TESSFACTORS_INDEX)]]
+    device PatchTessFactors* patchTessellationFactors [[buffer(PATCH_TESSFACTORS_INDEX)]]
 #if OSD_USE_PATCH_INDEX_BUFFER
     ,device unsigned* patchIndex [[buffer(OSD_PATCH_INDEX_BUFFER_INDEX)]]
     ,device MTLDrawPatchIndirectArguments* drawIndirectCommands [[buffer(OSD_DRAWINDIRECT_BUFFER_INDEX)]]
@@ -318,12 +327,19 @@ kernel void compute_main(
         if (!OsdCullPerPatchVertex(patch, frameConsts.ModelViewMatrix))
         {
 #if !OSD_USE_PATCH_INDEX_BUFFER
+#if OSD_PATCH_REGULAR || OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
             patchTessellationFactors[primitiveID].edgeTessellationFactor[0] = 0.0h;
             patchTessellationFactors[primitiveID].edgeTessellationFactor[1] = 0.0h;
             patchTessellationFactors[primitiveID].edgeTessellationFactor[2] = 0.0h;
             patchTessellationFactors[primitiveID].edgeTessellationFactor[3] = 0.0h;
             patchTessellationFactors[primitiveID].insideTessellationFactor[0] = 0.0h;
             patchTessellationFactors[primitiveID].insideTessellationFactor[1] = 0.0h;
+#elif OSD_PATCH_BOX_SPLINE_TRIANGLE || OSD_PATCH_GREGORY_TRIANGLE
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[0] = 0.0h;
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[1] = 0.0h;
+            patchTessellationFactors[primitiveID].edgeTessellationFactor[2] = 0.0h;
+            patchTessellationFactors[primitiveID].insideTessellationFactor = 0.0h;
+#endif
 #endif
 
             patchParam[primitiveIDInTG].z = -1;
@@ -431,7 +447,11 @@ interpolateFaceVaryingColor(
 }
 #endif
 
+#if OSD_PATCH_REGULAR || OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
 [[patch(quad, VERTEX_CONTROL_POINTS_PER_PATCH)]]
+#elif OSD_PATCH_BOX_SPLINE_TRIANGLE || OSD_PATCH_GREGORY_TRIANGLE
+[[patch(triangle, VERTEX_CONTROL_POINTS_PER_PATCH)]]
+#endif
 vertex OutputVertex vertex_main(
     const constant PerFrameConstants& frameConsts [[buffer(FRAME_CONST_BUFFER_INDEX)]],
 #if USE_STAGE_IN
@@ -443,7 +463,11 @@ vertex OutputVertex vertex_main(
     const device int*         osdFaceVaryingIndices     [[buffer(OSD_FVAR_INDICES_BUFFER_INDEX)]],
     const device packed_int3* osdFaceVaryingPatchParams [[buffer(OSD_FVAR_PATCHPARAM_BUFFER_INDEX)]],
     const constant int*       osdFaceVaryingPatchArrays [[buffer(OSD_FVAR_PATCH_ARRAYS_BUFFER_INDEX)]],
+#if OSD_PATCH_REGULAR || OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
     float2 position_in_patch [[position_in_patch]],
+#elif OSD_PATCH_BOX_SPLINE_TRIANGLE || OSD_PATCH_GREGORY_TRIANGLE
+    float3 position_in_patch [[position_in_patch]],
+#endif
     uint patch_id [[patch_id]]
     )
 {
