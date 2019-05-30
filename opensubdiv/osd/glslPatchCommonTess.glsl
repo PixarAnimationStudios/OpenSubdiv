@@ -507,7 +507,6 @@ OsdGetTessLevelsUniform(ivec3 patchParam,
                  out vec4 tessLevelOuter, out vec2 tessLevelInner,
                  out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
-    // uniform tessellation
     OsdGetTessLevelsUniform(patchParam, tessOuterLo, tessOuterHi);
 
     OsdComputeTessLevels(tessOuterLo, tessOuterHi,
@@ -519,7 +518,6 @@ OsdGetTessLevelsUniformTriangle(ivec3 patchParam,
                  out vec4 tessLevelOuter, out vec2 tessLevelInner,
                  out vec4 tessOuterLo, out vec4 tessOuterHi)
 {
-    // uniform tessellation
     OsdGetTessLevelsUniformTriangle(patchParam, tessOuterLo, tessOuterHi);
 
     OsdComputeTessLevelsTriangle(tessOuterLo, tessOuterHi,
@@ -586,6 +584,7 @@ OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
                          tessLevelOuter, tessLevelInner);
 }
 
+//  Deprecated -- prefer use of newer Bezier patch equivalent:
 void
 OsdGetTessLevels(vec3 cp0, vec3 cp1, vec3 cp2, vec3 cp3,
                  ivec3 patchParam,
@@ -697,38 +696,37 @@ OsdGetTessTransitionSplit(float t, float lo, float hi)
 }
 
 vec2
-OsdGetTessParameterization(vec2 uv, vec4 tessOuterLo, vec4 tessOuterHi)
+OsdGetTessParameterization(vec2 p, vec4 tessOuterLo, vec4 tessOuterHi)
 {
-    vec2 UV = uv;
-    if (UV.x == 0 && tessOuterHi[0] > 0) {
+    vec2 UV = p;
+    if (p.x == 0 && tessOuterHi[0] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
     } else
-    if (UV.y == 0 && tessOuterHi[1] > 0) {
+    if (p.y == 0 && tessOuterHi[1] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
     } else
-    if (UV.x == 1 && tessOuterHi[2] > 0) {
+    if (p.x == 1 && tessOuterHi[2] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
     } else
-    if (UV.y == 1 && tessOuterHi[3] > 0) {
+    if (p.y == 1 && tessOuterHi[3] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
     }
     return UV;
 }
 
 vec2
-OsdGetTessParameterizationTriangle(vec2 uv, vec4 tessOuterLo, vec4 tessOuterHi)
+OsdGetTessParameterizationTriangle(vec3 p, vec4 tessOuterLo, vec4 tessOuterHi)
 {
-    vec2 UV = uv;
-    if (UV.x == 0 && tessOuterHi[0] > 0) {
+    vec2 UV = p.xy;
+    if (p.x == 0 && tessOuterHi[0] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
     } else
-    if (UV.y == 0 && tessOuterHi[1] > 0) {
+    if (p.y == 0 && tessOuterHi[1] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
     } else
-    if (UV.x+UV.y == 1 && tessOuterHi[2] > 0) {
+    if (p.z == 0 && tessOuterHi[2] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[2], tessOuterHi[2]);
         UV.y = 1.0 - UV.x;
     }
     return UV;
 }
-

@@ -121,7 +121,7 @@ void ds_main_patches(
         cv[i] = patch[i];
     }
 
-    float2 UV = OsdGetTessParameterizationTriangle(domainCoord.xy,
+    float2 UV = OsdGetTessParameterizationTriangle(domainCoord,
                                                    input.tessOuterLo,
                                                    input.tessOuterHi);
 

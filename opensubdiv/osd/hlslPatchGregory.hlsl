@@ -63,6 +63,7 @@ OsdPerPatchVertexGregory hs_main_patches(
 
 HS_CONSTANT_FUNC_OUT HSConstFunc(
     InputPatch<OsdPerVertexGregory, 4> patch,
+    OutputPatch<OsdPerPatchVertexGregory, 4> gregoryPatch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_OUT output;
@@ -71,11 +72,39 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 
     float4 tessLevelOuter = float4(0,0,0,0);
     float2 tessLevelInner = float2(0,0);
+    float4 tessOuterLo = float4(0,0,0,0);
+    float4 tessOuterHi = float4(0,0,0,0);
 
     OSD_PATCH_CULL(4);
 
-    OsdGetTessLevels(patch[0].P, patch[3].P, patch[2].P, patch[1].P,
-                     patchParam, tessLevelOuter, tessLevelInner);
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // Gather bezier control points to compute limit surface tess levels
+    OsdPerPatchVertexBezier bezcv[16];
+    bezcv[ 0].P = gregoryPatch[0].P;
+    bezcv[ 1].P = gregoryPatch[0].Ep;
+    bezcv[ 2].P = gregoryPatch[1].Em;
+    bezcv[ 3].P = gregoryPatch[1].P;
+    bezcv[ 4].P = gregoryPatch[0].Em;
+    bezcv[ 5].P = gregoryPatch[0].Fp;
+    bezcv[ 6].P = gregoryPatch[1].Fm;
+    bezcv[ 7].P = gregoryPatch[1].Ep;
+    bezcv[ 8].P = gregoryPatch[3].Ep;
+    bezcv[ 9].P = gregoryPatch[3].Fm;
+    bezcv[10].P = gregoryPatch[2].Fp;
+    bezcv[11].P = gregoryPatch[2].Em;
+    bezcv[12].P = gregoryPatch[3].P;
+    bezcv[13].P = gregoryPatch[3].Em;
+    bezcv[14].P = gregoryPatch[2].Ep;
+    bezcv[15].P = gregoryPatch[2].P;
+
+    OsdEvalPatchBezierTessLevels(bezcv, patchParam,
+                                 tessLevelOuter, tessLevelInner,
+                                 tessOuterLo, tessOuterHi);
+#else
+    OsdGetTessLevelsUniform(patchParam, tessLevelOuter, tessLevelInner,
+                     tessOuterLo, tessOuterHi);
+
+#endif
 
     output.tessLevelOuter[0] = tessLevelOuter[0];
     output.tessLevelOuter[1] = tessLevelOuter[1];
@@ -85,8 +114,9 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
     output.tessLevelInner[0] = tessLevelInner[0];
     output.tessLevelInner[1] = tessLevelInner[1];
 
-    output.tessOuterLo = float4(0,0,0,0);
-    output.tessOuterHi = float4(0,0,0,0);
+    output.tessOuterLo = tessOuterLo;
+    output.tessOuterHi = tessOuterHi;
+
 
     return output;
 }
@@ -99,7 +129,7 @@ HS_CONSTANT_FUNC_OUT HSConstFunc(
 void ds_main_patches(
     in HS_CONSTANT_FUNC_OUT input,
     in OutputPatch<OsdPerPatchVertexGregory, 4> patch,
-    in float2 UV : SV_DomainLocation,
+    in float2 domainCoord : SV_DomainLocation,
     out OutputVertex output )
 {
     float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
@@ -129,6 +159,10 @@ void ds_main_patches(
     cv[17] = patch[3].Em;
     cv[18] = patch[3].Fp;
     cv[19] = patch[3].Fm;
+
+    float2 UV = OsdGetTessParameterization(domainCoord,
+                                           input.tessOuterLo,
+                                           input.tessOuterHi);
 
     int3 patchParam = patch[0].patchParam;
     OsdEvalPatchGregory(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);

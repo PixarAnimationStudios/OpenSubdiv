@@ -860,7 +860,6 @@ OsdComputePerPatchVertexBSpline(
         P += Q[j][k]*Hi[k];
     }
 
-
     result.P  = P;
     result.P1 = P;
     result.P2 = P;
@@ -875,7 +874,6 @@ OsdComputePerPatchVertexBSpline(
             H[l] += Q[i][k] * (cv + l*4 + k)->GetPosition();
         }
     }
-
     {
         result.P = float3(0,0,0);
         for (int k=0; k<4; ++k){

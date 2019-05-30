@@ -57,7 +57,7 @@ in block {
 } inpt[];
 
 out block {
-    OsdPerPatchVertexBezier v;
+    OsdPerPatchVertexGregoryBasis v;
     OSD_USER_VARYING_DECLARE
 } outpt[18];
 
@@ -68,54 +68,45 @@ void main()
     vec3 cv = inpt[gl_InvocationID].v.position.xyz;
 
     ivec3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(gl_PrimitiveID));
-
-    outpt[gl_InvocationID].v.patchParam = patchParam;
-    outpt[gl_InvocationID].v.P          = cv;
+    OsdComputePerPatchVertexGregoryBasis(
+        patchParam, gl_InvocationID, cv, outpt[gl_InvocationID].v);
 
     OSD_USER_VARYING_PER_CONTROL_POINT(gl_InvocationID, gl_InvocationID);
 
-#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
-    // Wait for all basis conversion to be finished
-    barrier();
-#endif
     if (gl_InvocationID == 0) {
         vec4 tessLevelOuter = vec4(0);
         vec2 tessLevelInner = vec2(0);
 
         OSD_PATCH_CULL(18);
 
-        OsdGetTessLevelsUniformTriangle(patchParam,
-                         tessLevelOuter, tessLevelInner,
-                         tessOuterLo, tessOuterHi);
-
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
         // Gather bezier control points to compute limit surface tess levels
         vec3 cv[15];
-        cv[ 0] = outpt[ 0].v.P;
-        cv[ 1] = outpt[ 1].v.P;
-        cv[ 2] = outpt[15].v.P;
-        cv[ 3] = outpt[ 7].v.P;
-        cv[ 4] = outpt[ 5].v.P;
-        cv[ 5] = outpt[ 2].v.P;
-        cv[ 6] = outpt[ 3].v.P;
-        cv[ 7] = outpt[ 8].v.P;
-        cv[ 8] = outpt[ 6].v.P;
-        cv[ 9] = outpt[17].v.P;
-        cv[10] = outpt[13].v.P;
-        cv[11] = outpt[16].v.P;
-        cv[12] = outpt[11].v.P;
-        cv[13] = outpt[12].v.P;
-        cv[14] = outpt[10].v.P;
+        cv[ 0] = inpt[ 0].v.position.xyz;
+        cv[ 1] = inpt[ 1].v.position.xyz;
+        cv[ 2] = inpt[15].v.position.xyz;
+        cv[ 3] = inpt[ 7].v.position.xyz;
+        cv[ 4] = inpt[ 5].v.position.xyz;
+        cv[ 5] = inpt[ 2].v.position.xyz;
+        cv[ 6] = inpt[ 3].v.position.xyz;
+        cv[ 7] = inpt[ 8].v.position.xyz;
+        cv[ 8] = inpt[ 6].v.position.xyz;
+        cv[ 9] = inpt[17].v.position.xyz;
+        cv[10] = inpt[13].v.position.xyz;
+        cv[11] = inpt[16].v.position.xyz;
+        cv[12] = inpt[11].v.position.xyz;
+        cv[13] = inpt[12].v.position.xyz;
+        cv[14] = inpt[10].v.position.xyz;
 
         OsdEvalPatchBezierTriangleTessLevels(
-		         cv, patchParam,
-                         tessLevelOuter, tessLevelInner,
-                         tessOuterLo, tessOuterHi);
+                cv, patchParam,
+                tessLevelOuter, tessLevelInner,
+                tessOuterLo, tessOuterHi);
 #else
-        OsdGetTessLevelsUniformTriangle(patchParam,
-                        tessLevelOuter, tessLevelInner,
-                        tessOuterLo, tessOuterHi);
-
+        OsdGetTessLevelsUniformTriangle(
+                patchParam,
+                tessLevelOuter, tessLevelInner,
+                tessOuterLo, tessOuterHi);
 #endif
 
         gl_TessLevelOuter[0] = tessLevelOuter[0];
@@ -139,7 +130,7 @@ layout(OSD_SPACING) in;
 patch in vec4 tessOuterLo, tessOuterHi;
 
 in block {
-    OsdPerPatchVertexBezier v;
+    OsdPerPatchVertexGregoryBasis v;
     OSD_USER_VARYING_DECLARE
 } inpt[];
 
@@ -150,10 +141,6 @@ out block {
 
 void main()
 {
-    vec2 UV = OsdGetTessParameterizationTriangle(gl_TessCoord.xy,
-                                                 tessOuterLo,
-                                                 tessOuterHi);
-
     vec3 P = vec3(0), dPu = vec3(0), dPv = vec3(0);
     vec3 N = vec3(0), dNu = vec3(0), dNv = vec3(0);
 
@@ -161,6 +148,10 @@ void main()
     for (int i = 0; i < 18; ++i) {
         cv[i] = inpt[i].v.P;
     }
+
+    vec2 UV = OsdGetTessParameterizationTriangle(gl_TessCoord.xyz,
+                                                 tessOuterLo,
+                                                 tessOuterHi);
 
     ivec3 patchParam = inpt[0].v.patchParam;
     OsdEvalPatchGregoryTriangle(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);

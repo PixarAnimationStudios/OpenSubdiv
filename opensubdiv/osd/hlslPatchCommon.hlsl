@@ -458,7 +458,7 @@ OsdComputeBoxSplineTriangleBoundaryPoints(inout float3 cpt[12], int3 patchParam)
     if (boundaryMask == 0) return;
 
     int upperBits = (boundaryMask >> 3) & 0x3;
-    int lowerBits = boundaryMask & 0x7;
+    int lowerBits = boundaryMask & 7;
 
     int eBits = lowerBits;
     int vBits = 0;
@@ -881,7 +881,7 @@ OsdEvalPatchBezier(int3 patchParam, float2 UV,
 }
 
 // ----------------------------------------------------------------------------
-// GregoryBasis
+// Gregory Basis
 // ----------------------------------------------------------------------------
 
 struct OsdPerPatchVertexGregoryBasis {
