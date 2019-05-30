@@ -1237,7 +1237,7 @@ PatchTableBuilder::populatePatches() {
         PatchParam patchParam =
             _patchBuilder->ComputePatchParam(patch.levelIndex, patch.faceIndex,
                   _ptexIndices, patchInfo.isRegular, patchInfo.paramBoundaryMask,
-                  patchInfo.isRegular /* condition to compute transition mask */);
+                  true/* condition to compute transition mask */);
         *arrayBuilder->pptr++ = patchParam;
 
         //
