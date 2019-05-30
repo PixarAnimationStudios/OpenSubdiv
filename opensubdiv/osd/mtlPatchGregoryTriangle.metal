@@ -1,7 +1,7 @@
-#line 0 "osd/mtlPatchBSpline.metal"
+#line 0 "osd/mtlPatchGregoryTriangle.metal"
 
 //
-//   Copyright 2015 Pixar
+//   Copyright 2019 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -25,7 +25,7 @@
 //
 
 //----------------------------------------------------------
-// Patches.BSpline.Hull
+// Patches.GregoryTriangle.Hull
 //----------------------------------------------------------
 
 void OsdComputePerVertex(
@@ -50,60 +50,8 @@ void OsdComputePerVertex(
 }
 
 //----------------------------------------------------------
-// Patches.BSpline.Factors
+// Patches.GregoryTriangle.Factors
 //----------------------------------------------------------
-
-void OsdComputePerPatchBSplineFactors(
-        int3 patchParam,
-        float tessLevel,
-        float4x4 projectionMatrix,
-        float4x4 modelViewMatrix,
-        device OsdPerPatchVertexBezier* patch,
-#if !USE_PTVS_FACTORS
-        device OsdPerPatchTessFactors& patchFactors,
-#endif
-        device MTLQuadTessellationFactorsHalf& quadFactors
-        )
-{
-    float4 tessLevelOuter = float4(0,0,0,0);
-    float2 tessLevelInner = float2(0,0);
-    float4 tessOuterLo = float4(0,0,0,0);
-    float4 tessOuterHi = float4(0,0,0,0);
-
-#if OSD_ENABLE_SCREENSPACE_TESSELLATION
-    OsdEvalPatchBezierTessLevels(
-        tessLevel,
-        projectionMatrix,
-        modelViewMatrix,
-        patch,
-        patchParam,
-        tessLevelOuter,
-        tessLevelInner,
-        tessOuterLo,
-        tessOuterHi
-        );
-#else
-    OsdGetTessLevelsUniform(
-        tessLevel,
-        patchParam,
-        tessLevelOuter,
-        tessLevelInner,
-        tessOuterLo,
-        tessOuterHi
-        );
-#endif
-
-    quadFactors.edgeTessellationFactor[0] = tessLevelOuter[0];
-    quadFactors.edgeTessellationFactor[1] = tessLevelOuter[1];
-    quadFactors.edgeTessellationFactor[2] = tessLevelOuter[2];
-    quadFactors.edgeTessellationFactor[3] = tessLevelOuter[3];
-    quadFactors.insideTessellationFactor[0] = tessLevelInner[0];
-    quadFactors.insideTessellationFactor[1] = tessLevelInner[1];
-#if !USE_PTVS_FACTORS
-    patchFactors.tessOuterLo = tessOuterLo;
-    patchFactors.tessOuterHi = tessOuterHi;
-#endif
-}
 
 void OsdComputePerPatchFactors(
         int3 patchParam,
@@ -113,24 +61,63 @@ void OsdComputePerPatchFactors(
         float4x4 modelViewMatrix,
         OsdPatchParamBufferSet osdBuffer,
         threadgroup PatchVertexType* patchVertices,
-        device MTLQuadTessellationFactorsHalf& quadFactors
+        device MTLTriangleTessellationFactorsHalf& triFactors
         )
 {
-    OsdComputePerPatchBSplineFactors(
-        patchParam,
+    float4 tessLevelOuter = float(0);
+    float2 tessLevelInner = float(0);
+    float4 tessOuterLo = float(0);
+    float4 tessOuterHi = float(0);
+
+#if OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // Gather bezier control points to compute limit surface tess levels
+    float3 cv[15];
+    cv[ 0] = patchVertices[ 0].position.xyz;
+    cv[ 1] = patchVertices[ 1].position.xyz;
+    cv[ 2] = patchVertices[15].position.xyz;
+    cv[ 3] = patchVertices[ 7].position.xyz;
+    cv[ 4] = patchVertices[ 5].position.xyz;
+    cv[ 5] = patchVertices[ 2].position.xyz;
+    cv[ 6] = patchVertices[ 3].position.xyz;
+    cv[ 7] = patchVertices[ 8].position.xyz;
+    cv[ 8] = patchVertices[ 6].position.xyz;
+    cv[ 9] = patchVertices[17].position.xyz;
+    cv[10] = patchVertices[13].position.xyz;
+    cv[11] = patchVertices[16].position.xyz;
+    cv[12] = patchVertices[11].position.xyz;
+    cv[13] = patchVertices[12].position.xyz;
+    cv[14] = patchVertices[10].position.xyz;
+
+    OsdEvalPatchBezierTriangleTessLevels(
         tessLevel,
         projectionMatrix,
         modelViewMatrix,
-        osdBuffer.perPatchVertexBuffer + patchID * CONTROL_POINTS_PER_PATCH,
-#if !USE_PTVS_FACTORS
-        osdBuffer.patchTessBuffer[patchID],
-#endif
-        quadFactors
+        cv,
+        patchParam,
+        tessLevelOuter,
+        tessLevelInner,
+        tessOuterLo,
+        tessOuterHi
         );
+#else
+    OsdGetTessLevelsUniformTriangle(
+        tessLevel,
+        patchParam,
+        tessLevelOuter,
+        tessLevelInner,
+        tessOuterLo,
+        tessOuterHi
+        );
+#endif
+
+    triFactors.edgeTessellationFactor[0] = tessLevelOuter[0];
+    triFactors.edgeTessellationFactor[1] = tessLevelOuter[1];
+    triFactors.edgeTessellationFactor[2] = tessLevelOuter[2];
+    triFactors.insideTessellationFactor  = tessLevelInner[0];
 }
 
 //----------------------------------------------------------
-// Patches.BSpline.Vertex
+// Patches.GregoryTriangle.Vertex
 //----------------------------------------------------------
 
 void OsdComputePerPatchVertex(
@@ -142,43 +129,47 @@ void OsdComputePerPatchVertex(
         OsdPatchParamBufferSet osdBuffers
         )
 {
-    OsdComputePerPatchVertexBSpline(patchParam, ID,
-        patchVertices, osdBuffers.perPatchVertexBuffer[ControlID]);
+    //Does nothing, all transforms are in the PTVS
 }
 
 //----------------------------------------------------------
-// Patches.BSpline.Domain
+// Patches.GregoryTriangle.Domain
 //----------------------------------------------------------
 
-template<typename PerPatchVertexBezier>
-OsdPatchVertex ds_regular_patches(
-        const float tessLevel,
-#if !USE_PTVS_FACTORS
-        float4 tessOuterLo,
-        float4 tessOuterHi,
+#if USE_STAGE_IN
+template<typename PerPatchVertexGregoryBasis>
 #endif
-        PerPatchVertexBezier cv,
+OsdPatchVertex ds_gregory_triangle_patches(
+#if USE_STAGE_IN
+        PerPatchVertexGregoryBasis patch,
+#else
+        const device OsdInputVertexType* patch,
+        const device unsigned* patchIndices,
+#endif
         int3 patchParam,
-        float2 domainCoord
+        float3 domainCoord
         )
 {
-#if USE_PTVS_FACTORS
-    float4 tessOuterLo(0), tessOuterHi(0);
-    OsdGetTessLevelsUniform(tessLevel, patchParam, tessOuterLo, tessOuterHi);
+    OsdPatchVertex output;
+    float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
+    float3 N = float3(0,0,0), dNu = float3(0,0,0), dNv = float3(0,0,0);
+
+#if USE_STAGE_IN
+    float3 cv[18];
+    for(int i = 0; i < 18; i++)
+        cv[i] = patch[i].position;
+#else
+    float3 cv[18];
+    for (int i = 0; i < 18; ++i) {
+        cv[i] = patch[patchIndices[i]].position;
+    }
 #endif
 
-    float2 UV = OsdGetTessParameterization(domainCoord.xy,
-                                           tessOuterLo,
-                                           tessOuterHi);
+    float2 UV = domainCoord.xy;
+    OsdEvalPatchGregoryTriangle(
+        patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
-    OsdPatchVertex output;
-
-    float3 P, dPu, dPv;
-    float3 N, dNu, dNv;
-    float2 vSegments;
-
-    OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv, vSegments);
-
+    output.position = P;
     output.normal = N;
     output.tangent = dPu;
     output.bitangent = dPv;
@@ -186,46 +177,34 @@ OsdPatchVertex ds_regular_patches(
     output.Nu = dNu;
     output.Nv = dNv;
 #endif
-#if OSD_PATCH_ENABLE_SINGLE_CREASE
-    output.vSegments = vSegments;
-#endif
 
     output.tessCoord = UV;
     output.patchCoord = OsdInterpolatePatchCoord(UV, patchParam);
-    output.position = P;
+
     return output;
 }
 
 #if USE_STAGE_IN
-template<typename PerPatchVertexBezier>
+template<typename PerPatchVertexGregoryBasis>
 #endif
 OsdPatchVertex OsdComputePatch(
         float tessLevel,
-        float2 domainCoord,
+        float3 domainCoord,
         unsigned patchID,
 #if USE_STAGE_IN
-        PerPatchVertexBezier osdPatch
+        PerPatchVertexGregoryBasis osdPatch
 #else
         OsdVertexBufferSet osdBuffers
 #endif
         )
 {
-    return ds_regular_patches(
-            tessLevel,
-#if !USE_PTVS_FACTORS
-#if USE_STAGE_IN
-            osdPatch.tessOuterLo,
-            osdPatch.tessOuterHi,
-#else
-            osdBuffers.patchTessBuffer[patchID].tessOuterLo,
-            osdBuffers.patchTessBuffer[patchID].tessOuterHi,
-#endif
-#endif
+    return ds_gregory_triangle_patches(
 #if USE_STAGE_IN
             osdPatch.cv,
             osdPatch.patchParam,
 #else
-            osdBuffers.perPatchVertexBuffer + patchID * VERTEX_CONTROL_POINTS_PER_PATCH,
+            osdBuffers.vertexBuffer,
+            osdBuffers.indexBuffer + patchID * VERTEX_CONTROL_POINTS_PER_PATCH,
             osdBuffers.patchParamBuffer[patchID],
 #endif
             domainCoord

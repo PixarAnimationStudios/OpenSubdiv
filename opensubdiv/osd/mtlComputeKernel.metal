@@ -315,6 +315,4 @@ kernel void eval_patches(
     if(args.dvvDesc.y > 0)
         writeDvv(current, dvv, dvvDerivativeBuffer, args);
 #endif
-
-
 }

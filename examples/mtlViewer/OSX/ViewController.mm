@@ -38,8 +38,9 @@ enum {
     kHUD_CB_FRACTIONAL_SPACING,
     kHUD_CB_PATCH_CULL,
     kHUD_CB_BACK_CULL,
-    kHUD_CB_PATCH_INDIRECT_CULL,
+    kHUD_CB_PATCH_INDEX_BUFFER,
     kHUD_CB_FREEZE,
+    kHUD_CB_SMOOTH_CORNER_PATCH,
     kHUD_CB_SINGLE_CREASE_PATCH,
     kHUD_CB_INFINITE_SHARP_PATCH,
     kHUD_CB_ADAPTIVE,
@@ -87,9 +88,9 @@ enum {
 -(void)keyDown:(NSEvent *)event {
     const auto key = [event.charactersIgnoringModifiers characterAtIndex:0];
     if(key == '=') {
-        _controller.osdRenderer.tessellationLevel = std::min(_controller.osdRenderer.tessellationLevel + 1, 16.0f);
+        _controller.osdRenderer.tessellationLevel = std::min(_controller.osdRenderer.tessellationLevel + 1, 16);
     } else if (key == '-') {
-        _controller.osdRenderer.tessellationLevel = std::max(_controller.osdRenderer.tessellationLevel - 1, 0.0f);
+        _controller.osdRenderer.tessellationLevel = std::max(_controller.osdRenderer.tessellationLevel - 1, 0);
     } else if(!hud.KeyDown(key))
         [super keyDown:event];
 }
@@ -172,8 +173,11 @@ enum {
             case kHUD_CB_FRACTIONAL_SPACING:
                 self.osdRenderer.useFractionalTessellation = value;
                 break;
+            case kHUD_CB_SMOOTH_CORNER_PATCH:
+                self.osdRenderer.useSmoothCornerPatch = value;
+                break;
             case kHUD_CB_SINGLE_CREASE_PATCH:
-                self.osdRenderer.useSingleCrease = value;
+                self.osdRenderer.useSingleCreasePatch = value;
                 break;
             case kHUD_CB_DISPLAY_CONTROL_MESH_EDGES:
                 self.osdRenderer.displayControlMeshEdges = value;
@@ -185,7 +189,7 @@ enum {
                 self.osdRenderer.usePatchBackfaceCulling = value;
                 self.osdRenderer.usePrimitiveBackfaceCulling = value;
                 break;
-            case kHUD_CB_PATCH_INDIRECT_CULL:
+            case kHUD_CB_PATCH_INDEX_BUFFER:
                 self.osdRenderer.usePatchIndexBuffer = value;
                 break;
             case kHUD_CB_ADAPTIVE:
@@ -213,15 +217,15 @@ enum {
         }
     };
     
-    auto callbackBoundary = [=](int boundaryType) {
-        switch((FVarBoundary)boundaryType) {
+    auto callbackFVarLinearInterp = [=](int fVarLinearInterp) {
+        switch((FVarLinearInterp)fVarLinearInterp) {
             case kFVarLinearNone:
             case kFVarLinearCornersOnly:
             case kFVarLinearCornersPlus1:
             case kFVarLinearCornersPlus2:
             case kFVarLinearBoundaries:
             case kFVarLinearAll:
-                self.osdRenderer.fVarBoundary = (FVarBoundary)boundaryType;
+                self.osdRenderer.fVarLinearInterp = (FVarLinearInterp)fVarLinearInterp;
         }
     };
 
@@ -239,11 +243,12 @@ enum {
 
     auto callbackShadingMode = [=](int shadingMode) {
         switch((ShadingMode)shadingMode) {
-            case kShadingNormal:
             case kShadingMaterial:
+            case kShadingFaceVaryingColor:
             case kShadingPatchType:
+            case kShadingPatchDepth:
             case kShadingPatchCoord:
-            case kShadingFaceVarying:
+            case kShadingNormal:
                 self.osdRenderer.shadingMode = (ShadingMode)shadingMode;
                 break;
             default:
@@ -253,7 +258,7 @@ enum {
     
     auto callbackEndCap = [=](int endCap) {
         switch((EndCap)endCap) {
-            case kEndCapNone:
+            case kEndCapBilinearBasis:
             case kEndCapBSplineBasis:
             case kEndCapGregoryBasis:
             case kEndCapLegacyGregory:
@@ -298,12 +303,12 @@ enum {
     hud.AddCheckBox("Frustum Patch Culling (F)",  _osdRenderer.usePatchClipCulling,
                       10, y, callbackCheckbox, kHUD_CB_PATCH_CULL, 'f');
     y += 20;
-    hud.AddCheckBox("Backface Culling (L)", _osdRenderer.usePatchBackfaceCulling,
-                    10, y, callbackCheckbox, kHUD_CB_BACK_CULL, 'l');
+    hud.AddCheckBox("Backface Culling (B)", _osdRenderer.usePatchBackfaceCulling,
+                    10, y, callbackCheckbox, kHUD_CB_BACK_CULL, 'b');
     
     y += 20;
-    hud.AddCheckBox("Patch Index Culling (O)", _osdRenderer.usePatchIndexBuffer,
-                    10, y, callbackCheckbox, kHUD_CB_PATCH_INDIRECT_CULL, 'o');
+    hud.AddCheckBox("Patch Index Buffer (D)", _osdRenderer.usePatchIndexBuffer,
+                    10, y, callbackCheckbox, kHUD_CB_PATCH_INDEX_BUFFER, 'd');
     
     y += 20;
     hud.AddCheckBox("Freeze (spc)", _osdRenderer.freeze,
@@ -325,65 +330,73 @@ enum {
     hud.AddPullDownButton(shading_pulldown, "Material",
                             kShadingMaterial,
                             _osdRenderer.shadingMode == kShadingMaterial);
+    hud.AddPullDownButton(shading_pulldown, "FaceVarying Color",
+                            kShadingFaceVaryingColor,
+                            _osdRenderer.shadingMode == kShadingFaceVaryingColor);
     hud.AddPullDownButton(shading_pulldown, "Patch Type",
                             kShadingPatchType,
                             _osdRenderer.shadingMode == kShadingPatchType);
+    hud.AddPullDownButton(shading_pulldown, "Patch Depth",
+                            kShadingPatchDepth,
+                            _osdRenderer.shadingMode == kShadingPatchDepth);
     hud.AddPullDownButton(shading_pulldown, "Patch Coord",
                             kShadingPatchCoord,
                             _osdRenderer.shadingMode == kShadingPatchCoord);
     hud.AddPullDownButton(shading_pulldown, "Normal",
                             kShadingNormal,
                             _osdRenderer.shadingMode == kShadingNormal);
-    hud.AddPullDownButton(shading_pulldown, "Face Varying",
-                          kShadingFaceVarying,
-                          _osdRenderer.shadingMode == kShadingFaceVarying);
 
     int compute_pulldown = hud.AddPullDown("Compute (K)", 475, 10, 175, callbackKernel, 'k');
     hud.AddPullDownButton(compute_pulldown, "CPU", kCPU, _osdRenderer.kernelType == kCPU);
     hud.AddPullDownButton(compute_pulldown, "Metal", kMetal, _osdRenderer.kernelType == kMetal);
 
-    int boundary_pulldown = hud.AddPullDown("Boundary (B)", 650, 10, 300, callbackBoundary, 'b');
-    hud.AddPullDownButton(boundary_pulldown, "None (edge only)",
+    int fVarLinearInterp_pulldown = hud.AddPullDown("FVar Linear Interpolation (L)",
+                          650, 10, 300, callbackFVarLinearInterp, 'l');
+    hud.AddPullDownButton(fVarLinearInterp_pulldown, "None (edge only)",
                           kFVarLinearNone,
-                          _osdRenderer.fVarBoundary == kFVarLinearNone);
-    hud.AddPullDownButton(boundary_pulldown, "Corners Only",
+                          _osdRenderer.fVarLinearInterp == kFVarLinearNone);
+    hud.AddPullDownButton(fVarLinearInterp_pulldown, "Corners Only",
                           kFVarLinearCornersOnly,
-                          _osdRenderer.fVarBoundary == kFVarLinearCornersOnly);
-    hud.AddPullDownButton(boundary_pulldown, "Corners 1 (edge corner)",
+                          _osdRenderer.fVarLinearInterp == kFVarLinearCornersOnly);
+    hud.AddPullDownButton(fVarLinearInterp_pulldown, "Corners 1 (edge corner)",
                           kFVarLinearCornersPlus1,
-                          _osdRenderer.fVarBoundary == kFVarLinearCornersPlus1);
-    hud.AddPullDownButton(boundary_pulldown, "Corners 2 (edge corner prop)",
+                          _osdRenderer.fVarLinearInterp == kFVarLinearCornersPlus1);
+    hud.AddPullDownButton(fVarLinearInterp_pulldown, "Corners 2 (edge corner prop)",
                           kFVarLinearCornersPlus2,
-                          _osdRenderer.fVarBoundary == kFVarLinearCornersPlus2);
-    hud.AddPullDownButton(boundary_pulldown, "Boundaries (always sharp)",
+                          _osdRenderer.fVarLinearInterp == kFVarLinearCornersPlus2);
+    hud.AddPullDownButton(fVarLinearInterp_pulldown, "Boundaries (always sharp)",
                           kFVarLinearBoundaries,
-                          _osdRenderer.fVarBoundary == kFVarLinearBoundaries);
-    hud.AddPullDownButton(boundary_pulldown, "All (bilinear)",
+                          _osdRenderer.fVarLinearInterp == kFVarLinearBoundaries);
+    hud.AddPullDownButton(fVarLinearInterp_pulldown, "All (bilinear)",
                           kFVarLinearAll,
-                          _osdRenderer.fVarBoundary == kFVarLinearAll);
+                          _osdRenderer.fVarLinearInterp == kFVarLinearAll);
 
     {
         hud.AddCheckBox("Adaptive (`)", _osdRenderer.useAdaptive,
                            10, 190, callbackCheckbox, kHUD_CB_ADAPTIVE, '`');
-        hud.AddCheckBox("Single Crease Patch (S)", _osdRenderer.useSingleCrease,
-                        10, 210, callbackCheckbox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
+        hud.AddCheckBox("Smooth Corner Patch (O)", _osdRenderer.useSmoothCornerPatch,
+                        10, 210, callbackCheckbox, kHUD_CB_SMOOTH_CORNER_PATCH, 'o');
+        hud.AddCheckBox("Single Crease Patch (S)", _osdRenderer.useSingleCreasePatch,
+                        10, 230, callbackCheckbox, kHUD_CB_SINGLE_CREASE_PATCH, 's');
         hud.AddCheckBox("Inf Sharp Patch (I)", _osdRenderer.useInfinitelySharpPatch,
-                           10, 230, callbackCheckbox, kHUD_CB_INFINITE_SHARP_PATCH, 'i');
+                           10, 250, callbackCheckbox, kHUD_CB_INFINITE_SHARP_PATCH, 'i');
 
         int endcap_pulldown = hud.AddPullDown(
-                                              "End cap (E)", 10, 250, 200, callbackEndCap, 'e');
-        hud.AddPullDownButton(endcap_pulldown,"None",
-                                kEndCapNone,
-                                _osdRenderer.endCapMode == kEndCapNone);
-        hud.AddPullDownButton(endcap_pulldown, "BSpline",
+                                              "End cap (E)", 10, 270, 200, callbackEndCap, 'e');
+        hud.AddPullDownButton(endcap_pulldown,"Linear",
+                                kEndCapBilinearBasis,
+                                _osdRenderer.endCapMode == kEndCapBilinearBasis);
+        hud.AddPullDownButton(endcap_pulldown, "Regular",
                                 kEndCapBSplineBasis,
                                 _osdRenderer.endCapMode == kEndCapBSplineBasis);
-        hud.AddPullDownButton(endcap_pulldown, "GregoryBasis",
+        hud.AddPullDownButton(endcap_pulldown, "Gregory",
                                 kEndCapGregoryBasis,
                                 _osdRenderer.endCapMode == kEndCapGregoryBasis);
-        hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
-                                kEndCapLegacyGregory,
-                                _osdRenderer.endCapMode == kEndCapLegacyGregory);
+        if (true || _osdRenderer.legacyGregoryEnabled) {
+            hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
+                                    kEndCapLegacyGregory,
+                                    _osdRenderer.endCapMode == kEndCapLegacyGregory);
+        }
     }
     
     for (int i = 1; i < 11; ++i) {
@@ -397,7 +410,7 @@ enum {
         hud.AddPullDownButton(shapes_pulldown, _osdRenderer.loadedModels[i].UTF8String,i);
     }
 
-    hud.AddCheckBox("Show patch counts (,)", _showPatchCounts, -280, -20, callbackCheckbox, kHUD_CB_DISPLAY_PATCH_COUNTS, ',');
+    hud.AddCheckBox("Show patch counts (,)", _showPatchCounts, -420, -20, callbackCheckbox, kHUD_CB_DISPLAY_PATCH_COUNTS, ',');
 
     hud.Rebuild(self.view.bounds.size.width, self.view.bounds.size.height, self.view.drawableSize.width, self.view.drawableSize.height);
 }
@@ -416,21 +429,29 @@ enum {
     auto& hud = self.view->hud;
     if(hud.IsVisible()) {
         if(_showPatchCounts) {
-            int x = -280;
+            int x = -420;
             int y = -180;
-            hud.DrawString(x, y, "NonPatch         : %d",
+            hud.DrawString(x, y, "Quads            : %d",
                               _osdRenderer.patchCounts[Far::PatchDescriptor::QUADS]); y += 20;
+            hud.DrawString(x, y, "Triangles        : %d",
+                              _osdRenderer.patchCounts[Far::PatchDescriptor::TRIANGLES]); y += 20;
             hud.DrawString(x, y, "Regular          : %d",
                               _osdRenderer.patchCounts[Far::PatchDescriptor::REGULAR]); y+= 20;
-            hud.DrawString(x, y, "Gregory          : %d",
-                              _osdRenderer.patchCounts[Far::PatchDescriptor::GREGORY]); y+= 20;
-            hud.DrawString(x, y, "Boundary Gregory : %d",
-                              _osdRenderer.patchCounts[Far::PatchDescriptor::GREGORY_BOUNDARY]); y+= 20;
+            hud.DrawString(x, y, "Loop             : %d",
+                              _osdRenderer.patchCounts[Far::PatchDescriptor::LOOP]); y+= 20;
+            if (_osdRenderer.legacyGregoryEnabled) {
+                hud.DrawString(x, y, "Gregory          : %d",
+                                  _osdRenderer.patchCounts[Far::PatchDescriptor::GREGORY]); y+= 20;
+                hud.DrawString(x, y, "Boundary Gregory : %d",
+                                  _osdRenderer.patchCounts[Far::PatchDescriptor::GREGORY_BOUNDARY]); y+= 20;
+            }
             hud.DrawString(x, y, "Gregory Basis    : %d",
                               _osdRenderer.patchCounts[Far::PatchDescriptor::GREGORY_BASIS]); y+= 20;
+            hud.DrawString(x, y, "Gregory Triangle : %d",
+                              _osdRenderer.patchCounts[Far::PatchDescriptor::GREGORY_TRIANGLE]); y+= 20;
         }
         
-        hud.DrawString(10, -120, "Tess level : %f", _osdRenderer.tessellationLevel);
+        hud.DrawString(10, -120, "Tess level : %d", _osdRenderer.tessellationLevel);
         hud.DrawString(10, -20, "FPS = %3.1f", 1.0 / avg);
         
         

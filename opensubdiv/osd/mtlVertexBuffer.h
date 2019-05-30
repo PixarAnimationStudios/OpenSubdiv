@@ -31,54 +31,53 @@
 @protocol MTLDevice;
 @protocol MTLBuffer;
 
-namespace OpenSubdiv
-{
-namespace OPENSUBDIV_VERSION
-{
-namespace Osd
-{
-    class CPUMTLVertexBuffer
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+namespace Osd {
+
+class CPUMTLVertexBuffer {
+public:
+    static CPUMTLVertexBuffer* Create(int numElements, int numVertices, MTLContext* context);
+
+    void UpdateData(const float* src, int startVertex, int numVertices, MTLContext* context);
+
+    int GetNumElements() const
     {
-    public:
-        static CPUMTLVertexBuffer* Create(int numElements, int numVertices, MTLContext* context);
+        return _numElements;
+    }
 
-        void UpdateData(const float* src, int startVertex, int numVertices, MTLContext* context);
+    int GetNumVertices() const
+    {
+        return _numVertices;
+    }
 
-        int GetNumElements() const
-        {
-            return _numElements;
-        }
+    float* BindCpuBuffer();
+    id<MTLBuffer> BindMTLBuffer(MTLContext* context);
 
-        int GetNumVertices() const
-        {
-            return _numVertices;
-        }
+    id<MTLBuffer> BindVBO(MTLContext* context)
+    {
+        return BindMTLBuffer(context);
+    }
 
-        float* BindCpuBuffer();
-        id<MTLBuffer> BindMTLBuffer(MTLContext* context);
+protected:
 
-        id<MTLBuffer> BindVBO(MTLContext* context)
-        {
-            return BindMTLBuffer(context);
-        }
+    CPUMTLVertexBuffer(int numElements, int numVertices);
 
-    protected:
+    bool allocate(MTLContext* context);
 
-        CPUMTLVertexBuffer(int numElements, int numVertices);
-
-        bool allocate(MTLContext* context);
-
-    private:
-        int _numElements;
-        int _numVertices;
-        id<MTLBuffer> _buffer;
-        bool _dirty;
-    };
+private:
+    int _numElements;
+    int _numVertices;
+    id<MTLBuffer> _buffer;
+    bool _dirty;
+};
 
 } //end namespace Osd
+
 } //end namespace OPENSUBDIV_VERSION
     using namespace OPENSUBDIV_VERSION;
-} //end namespace OpenSubdiv
 
+} //end namespace OpenSubdiv
 
 #endif // OPENSUBDIV3_OSD_MTL_VERTEX_BUFFER_H

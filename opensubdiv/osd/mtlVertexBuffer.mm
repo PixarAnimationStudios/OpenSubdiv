@@ -26,12 +26,11 @@
 #include <Metal/Metal.h>
 #include <TargetConditionals.h>
 
-namespace OpenSubdiv
-{
-namespace OPENSUBDIV_VERSION
-{
-namespace Osd
-{
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+namespace Osd {
+
 CPUMTLVertexBuffer::CPUMTLVertexBuffer(int numElements, int numVertices)
 :
 _numElements(numElements), _numVertices(numVertices),
@@ -83,7 +82,7 @@ float* CPUMTLVertexBuffer::BindCpuBuffer()
 id<MTLBuffer> CPUMTLVertexBuffer::BindMTLBuffer(MTLContext* context)
 {
 #if TARGET_OS_OSX
-    if(_dirty) 
+    if(_dirty)
         [_buffer didModifyRange:NSMakeRange(0, _buffer.length)];
     _dirty = false;
 #endif
@@ -93,6 +92,6 @@ id<MTLBuffer> CPUMTLVertexBuffer::BindMTLBuffer(MTLContext* context)
 
 
 } //end namepsace Osd
+
 } //end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
 } //end namespace OpenSubdiv

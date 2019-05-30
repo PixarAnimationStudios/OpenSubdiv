@@ -88,7 +88,9 @@
 }
 
 -(void)_applyOptions {
-    _osdRenderer.useSingleCrease = _singleCreaseSwitch.isOn;
+    _osdRenderer.useSmoothCornerPatch = _smoothCornerSwitch.isOn;
+    _osdRenderer.useSingleCreasePatch = _singleCreaseSwitch.isOn;
+    _osdRenderer.useInfinitelySharpPatch = _infinitelySharpSwitch.isOn;
     _osdRenderer.usePatchBackfaceCulling = _backpatchCullingSwitch.isOn;
     _osdRenderer.usePrimitiveBackfaceCulling = _backfaceCullingSwitch.isOn;
     _osdRenderer.useScreenspaceTessellation = _screenspaceTessellationSwitch.isOn;
@@ -103,7 +105,7 @@
     _osdRenderer.kernelType = kMetal;
     _osdRenderer.refinementLevel = _refinementStepper.value;
     _osdRenderer.tessellationLevel = _tessellationStepper.value;
-    _osdRenderer.endCapMode = (EndCap)(1 + _endcapSegmentedControl.selectedSegmentIndex);
+    _osdRenderer.endCapMode = (EndCap)(_endcapSegmentedControl.selectedSegmentIndex);
     
     _tesLvLlabel.text = [NSString stringWithFormat:@"Tes Lvl. %d", (int)_osdRenderer.tessellationLevel];
     [_tesLvLlabel sizeToFit];
@@ -197,8 +199,12 @@
         _osdRenderer.usePrimitiveBackfaceCulling = sender.isOn;
     } else if(sender == _patchClipCullingSwitch) {
         _osdRenderer.usePatchClipCulling = sender.isOn;
+    } else if(sender == _smoothCornerSwitch) {
+        _osdRenderer.useSmoothCornerPatch = sender.isOn;
     } else if(sender == _singleCreaseSwitch) {
-        _osdRenderer.useSingleCrease = sender.isOn;
+        _osdRenderer.useSingleCreasePatch = sender.isOn;
+    } else if(sender == _infinitelySharpSwitch) {
+        _osdRenderer.useInfinitelySharpPatch = sender.isOn;
     } else if(sender == _controlMeshSwitch) {
         _osdRenderer.displayControlMeshEdges = sender.isOn;
         _osdRenderer.displayControlMeshVertices = sender.isOn;
@@ -209,7 +215,7 @@
 }
 
 - (IBAction)endcapChanged:(UISegmentedControl *)sender {
-    _osdRenderer.endCapMode = (EndCap)(1 + sender.selectedSegmentIndex);
+    _osdRenderer.endCapMode = (EndCap)(sender.selectedSegmentIndex);
 }
 
 -(NSInteger)numberOfComponentsInPickerView:(UIPickerView *)pickerView {
@@ -231,9 +237,11 @@
     } else if(pickerView == _shadingModePickerView) {
         switch((ShadingMode)row) {
             case kShadingMaterial: return @"Material";
-            case kShadingNormal: return @"Normal";
-            case kShadingPatchCoord: return @"Patch Coord";
+            case kShadingFaceVaryingColor: return @"FaceVarying Color";
             case kShadingPatchType: return @"Patch Type";
+            case kShadingPatchDepth: return @"Patch Depth";
+            case kShadingPatchCoord: return @"Patch Coord";
+            case kShadingNormal: return @"Normal";
         }
     }
     return @"";

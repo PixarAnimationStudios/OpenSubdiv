@@ -28,7 +28,7 @@
 #import <Metal/Metal.h>
 
 typedef enum {
-    kEndCapNone = 0,
+    kEndCapBilinearBasis = 0,
     kEndCapBSplineBasis,
     kEndCapLegacyGregory,
     kEndCapGregoryBasis,
@@ -41,7 +41,7 @@ typedef enum {
     kFVarLinearCornersPlus2,
     kFVarLinearBoundaries,
     kFVarLinearAll
-} FVarBoundary;
+} FVarLinearInterp;
 
 typedef enum {
     kCPU = 0,
@@ -56,12 +56,12 @@ typedef enum {
 
 typedef enum {
     kShadingMaterial = 0,
+    kShadingFaceVaryingColor,
     kShadingPatchType,
-    kShadingNormal,
+    kShadingPatchDepth,
     kShadingPatchCoord,
-    kShadingFaceVarying,
+    kShadingNormal,
 } ShadingMode;
-
 
 typedef struct {
     float rotationX;
@@ -89,7 +89,7 @@ typedef struct {
 @property (readonly, nonatomic) id<OSDRendererDelegate> delegate;
 
 @property (nonatomic) unsigned refinementLevel;
-@property (nonatomic) float tessellationLevel;
+@property (nonatomic) int tessellationLevel;
 
 @property (readonly, nonatomic) NSArray<NSString*>* loadedModels;
 @property (nonatomic) NSString* currentModel;
@@ -103,7 +103,8 @@ typedef struct {
 @property (nonatomic) bool usePatchIndexBuffer;
 @property (nonatomic) bool usePatchBackfaceCulling;
 @property (nonatomic) bool usePatchClipCulling;
-@property (nonatomic) bool useSingleCrease;
+@property (nonatomic) bool useSmoothCornerPatch;
+@property (nonatomic) bool useSingleCreasePatch;
 @property (nonatomic) bool useInfinitelySharpPatch;
 @property (nonatomic) bool useStageIn;
 @property (nonatomic) bool usePrimitiveBackfaceCulling;
@@ -112,10 +113,11 @@ typedef struct {
 @property (nonatomic) bool animateVertices;
 @property (nonatomic) bool displayControlMeshEdges;
 @property (nonatomic) bool displayControlMeshVertices;
+@property (nonatomic) bool legacyGregoryEnabled;
 @property (nonatomic) DisplayStyle displayStyle;
 @property (nonatomic) ShadingMode shadingMode;
 @property (nonatomic) EndCap endCapMode;
-@property (nonatomic) FVarBoundary fVarBoundary;
+@property (nonatomic) FVarLinearInterp fVarLinearInterp;
 @property (nonatomic) KernelType kernelType;
 
 @end

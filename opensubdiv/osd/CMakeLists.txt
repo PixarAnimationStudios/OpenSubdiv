@@ -265,9 +265,13 @@ if( METAL_FOUND )
     list(APPEND KERNEL_FILES
        mtlComputeKernel.metal
        mtlPatchCommon.metal
+       mtlPatchCommonTess.metal
+       mtlPatchBoxSplineTriangle.metal
        mtlPatchBSpline.metal
        mtlPatchGregory.metal
        mtlPatchGregoryBasis.metal
+       mtlPatchGregoryTriangle.metal
+       mtlPatchLegacy.metal
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
         ${METAL_LIBRARIES}

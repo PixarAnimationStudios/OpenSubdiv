@@ -29,6 +29,7 @@
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
+
 namespace Osd {
 
 MTLPatchTable::MTLPatchTable()
@@ -43,7 +44,7 @@ _varyingPatchIndexBuffer(nil)
 
 MTLPatchTable::~MTLPatchTable()
 {
-    
+
 }
 
 static id<MTLBuffer> createBuffer(const void* data, const size_t length,
@@ -97,7 +98,7 @@ bool MTLPatchTable::allocate(Far::PatchTable const *farPatchTable, MTLContext* c
     auto patchParamSize = cpuTable.GetPatchParamSize();
 
     _patchArrays.assign(cpuTable.GetPatchArrayBuffer(), cpuTable.GetPatchArrayBuffer() + numPatchArrays);
-    
+
     _indexBuffer = createBuffer(cpuTable.GetPatchIndexBuffer(), indexSize * sizeof(unsigned), context);
     if(_indexBuffer == nil)
         return false;
@@ -130,7 +131,7 @@ bool MTLPatchTable::allocate(Far::PatchTable const *farPatchTable, MTLContext* c
         _fvarParamBuffers[fvc] = createBuffer(cpuTable.GetFVarPatchParamBuffer(fvc), cpuTable.GetFVarPatchParamSize(fvc) * sizeof(PatchParam), context);
         if(_fvarParamBuffers[fvc] == nil)
             return false;
-    }   
+    }
 
 
     return true;
