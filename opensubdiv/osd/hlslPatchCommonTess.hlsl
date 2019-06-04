@@ -602,6 +602,7 @@ OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
                          tessLevelOuter, tessLevelInner);
 }
 
+//  Deprecated -- prefer use of newer Bezier patch equivalent:
 void
 OsdGetTessLevels(float3 cp0, float3 cp1, float3 cp2, float3 cp3,
                  int3 patchParam,
@@ -713,38 +714,37 @@ OsdGetTessTransitionSplit(float t, float lo, float hi)
 }
 
 float2
-OsdGetTessParameterization(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
+OsdGetTessParameterization(float2 p, float4 tessOuterLo, float4 tessOuterHi)
 {
-    float2 UV = uv;
-    if (UV.x == 0 && tessOuterHi[0] > 0) {
+    float2 UV = p;
+    if (p.x == 0 && tessOuterHi[0] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
     } else
-    if (UV.y == 0 && tessOuterHi[1] > 0) {
+    if (p.y == 0 && tessOuterHi[1] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
     } else
-    if (UV.x == 1 && tessOuterHi[2] > 0) {
+    if (p.x == 1 && tessOuterHi[2] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
     } else
-    if (UV.y == 1 && tessOuterHi[3] > 0) {
+    if (p.y == 1 && tessOuterHi[3] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
     }
     return UV;
 }
 
 float2
-OsdGetTessParameterizationTriangle(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
+OsdGetTessParameterizationTriangle(float3 p, float4 tessOuterLo, float4 tessOuterHi)
 {
-    float2 UV = uv;
-    if (UV.x == 0 && tessOuterHi[0] > 0) {
+    float2 UV = p.xy;
+    if (p.x == 0 && tessOuterHi[0] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
     } else
-    if (UV.y == 0 && tessOuterHi[1] > 0) {
+    if (p.y == 0 && tessOuterHi[1] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
     } else
-    if (UV.x+UV.y == 1 && tessOuterHi[2] > 0) {
+    if (p.z == 0 && tessOuterHi[2] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[2], tessOuterHi[2]);
         UV.y = 1.0 - UV.x;
     }
     return UV;
 }
-

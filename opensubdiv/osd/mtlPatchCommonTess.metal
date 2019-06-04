@@ -34,11 +34,6 @@
 #undef OSD_FRACTIONAL_ODD_SPACING
 #endif
 
-//Adjustments to the UV reparameterization can be defined here.
-#ifndef OSD_UV_CORRECTION
-#define OSD_UV_CORRECTION
-#endif
-
 //
 // Organization of B-spline and Bezier control points.
 //
@@ -132,9 +127,9 @@ OsdGetTessLevelsUniform(const float OsdTessLevel, int3 patchParam,
     // tessLevels of transition edge should be clamped to 2.
     int transitionMask = OsdGetPatchTransitionMask(patchParam);
     float4 tessLevelMin = float4(1) + float4(((transitionMask & 8) >> 3),
-                                            ((transitionMask & 1) >> 0),
-                                            ((transitionMask & 2) >> 1),
-                                            ((transitionMask & 4) >> 2));
+                                             ((transitionMask & 1) >> 0),
+                                             ((transitionMask & 2) >> 1),
+                                             ((transitionMask & 4) >> 2));
 
     tessOuterLo = max(float4(tessLevel), tessLevelMin);
     tessOuterHi = float4(0);
@@ -440,11 +435,55 @@ OsdEvalPatchBezierTessLevels(
 }
 
 void
+OsdEvalPatchBezierTessLevels(
+        const float OsdTessLevel,
+        const float4x4 OsdProjectionMatrix,
+        const float4x4 OsdModelViewMatrix,
+        float3 cv[16],
+        int3 patchParam,
+        thread float4& tessOuterLo, thread float4& tessOuterHi)
+{
+    // Each edge of a transition patch is adjacent to one or two patches
+    // at the next refined level of subdivision. When the patch control
+    // points have been converted to the Bezier basis, the control points
+    // at the four corners are on the limit surface (since a Bezier patch
+    // interpolates its corner control points). We can compute an adaptive
+    // tessellation level for transition edges on the limit surface by
+    // evaluating a limit position at the mid point of each transition edge.
+
+    tessOuterLo = float4(0);
+    tessOuterHi = float4(0);
+
+    float3 corners[4];
+    float3 midpoints[4];
+
+    int transitionMask = OsdGetPatchTransitionMask(patchParam);
+
+    corners[0] = cv[ 0];
+    corners[1] = cv[ 3];
+    corners[2] = cv[15];
+    corners[3] = cv[12];
+
+    midpoints[0] = ((transitionMask & 8) == 0) ? float3(0) :
+        Osd_EvalBezierCurveMidPoint(cv[0], cv[4], cv[8], cv[12]);
+    midpoints[1] = ((transitionMask & 1) == 0) ? float3(0) :
+        Osd_EvalBezierCurveMidPoint(cv[0], cv[1], cv[2], cv[3]);
+    midpoints[2] = ((transitionMask & 2) == 0) ? float3(0) :
+        Osd_EvalBezierCurveMidPoint(cv[3], cv[7], cv[11], cv[15]);
+    midpoints[3] = ((transitionMask & 4) == 0) ? float3(0) :
+        Osd_EvalBezierCurveMidPoint(cv[12], cv[13], cv[14], cv[15]);
+
+    Osd_GetTessLevelsFromPatchBoundaries4(
+        OsdTessLevel, OsdProjectionMatrix, OsdModelViewMatrix,
+        corners, midpoints, patchParam, tessOuterLo, tessOuterHi);
+}
+
+void
 OsdEvalPatchBezierTriangleTessLevels(
         const float OsdTessLevel,
         const float4x4 OsdProjectionMatrix,
         const float4x4 OsdModelViewMatrix,
-        thread float3* cv,
+        float3 cv[15],
         int3 patchParam,
         thread float4& tessOuterLo, thread float4& tessOuterHi)
 {
@@ -571,8 +610,9 @@ OsdComputeTessLevels(thread float4& tessOuterLo, thread float4& tessOuterHi,
 }
 
 void
-OsdComputeTessLevelsTriangle(thread float4& tessOuterLo, thread float4& tessOuterHi,
-                     thread float4& tessLevelOuter, thread float2& tessLevelInner)
+OsdComputeTessLevelsTriangle(
+        thread float4& tessOuterLo, thread float4& tessOuterHi,
+        thread float4& tessLevelOuter, thread float2& tessLevelInner)
 {
     OsdComputeTessLevels(tessOuterLo, tessOuterHi,
                          tessLevelOuter, tessLevelInner);
@@ -624,11 +664,31 @@ OsdEvalPatchBezierTessLevels(
 }
 
 void
+OsdEvalPatchBezierTessLevels(
+         const float OsdTessLevels,
+         const float4x4 OsdProjectionMatrix,
+         const float4x4 OsdModelViewMatrix,
+         float3 cv[16],
+         int3 patchParam,
+         thread float4& tessLevelOuter, thread float2& tessLevelInner,
+         thread float4& tessOuterLo, thread float4& tessOuterHi)
+{
+    OsdEvalPatchBezierTessLevels(
+                OsdTessLevels,
+                OsdProjectionMatrix, OsdModelViewMatrix,
+                cv, patchParam,
+                tessOuterLo, tessOuterHi);
+
+    OsdComputeTessLevels(tessOuterLo, tessOuterHi,
+                         tessLevelOuter, tessLevelInner);
+}
+
+void
 OsdEvalPatchBezierTriangleTessLevels(
          const float OsdTessLevels,
          const float4x4 OsdProjectionMatrix,
          const float4x4 OsdModelViewMatrix,
-         thread float3* cv,
+         float3 cv[15],
          int3 patchParam,
          thread float4& tessLevelOuter, thread float2& tessLevelInner,
          thread float4& tessOuterLo, thread float4& tessOuterHi)
@@ -696,6 +756,7 @@ OsdGetTessLevelsAdaptiveLimitPoints(
                          tessLevelOuter, tessLevelInner);
 }
 
+//  Deprecated -- prefer use of newer Bezier patch equivalent:
 void
 OsdGetTessLevels(
         const float OsdTessLevel,
@@ -764,7 +825,7 @@ OsdGetTessFractionalSplit(float t, float level, float levelUp)
 #endif
 
 float
-OsdGetTessTransitionSplit(float t, float lo, float hi )
+OsdGetTessTransitionSplit(float t, float lo, float hi)
 {
 #if defined OSD_FRACTIONAL_EVEN_SPACING
     float loRoundUp = OsdRoundUpEven(lo);
@@ -788,11 +849,8 @@ OsdGetTessTransitionSplit(float t, float lo, float hi )
     // The +1 below is to account for the extra segment produced by the
     // tessellator since the sum of two odd tess levels will be rounded
     // up by one to the next odd integer tess level.
-    float ti = (t * (loRoundUp + hiRoundUp + 1));
+    float ti = round(t * (loRoundUp + hiRoundUp + 1));
 
-    OSD_UV_CORRECTION
-
-    ti = round(ti);
     if (ti <= loRoundUp) {
         float t0 = ti / loRoundUp;
         return OsdGetTessFractionalSplit(t0, lo, loRoundUp) * 0.5;
@@ -815,35 +873,35 @@ OsdGetTessTransitionSplit(float t, float lo, float hi )
 }
 
 float2
-OsdGetTessParameterization(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
+OsdGetTessParameterization(float2 p, float4 tessOuterLo, float4 tessOuterHi)
 {
-    float2 UV = uv;
-    if (UV.x == 0 && tessOuterHi[0] > 0) {
+    float2 UV = p;
+    if (p.x == 0 && tessOuterHi[0] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
     } else
-    if (UV.y == 0 && tessOuterHi[1] > 0) {
+    if (p.y == 0 && tessOuterHi[1] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
     } else
-    if (UV.x == 1 && tessOuterHi[2] > 0) {
+    if (p.x == 1 && tessOuterHi[2] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[2], tessOuterHi[2]);
     } else
-    if (UV.y == 1 && tessOuterHi[3] > 0) {
+    if (p.y == 1 && tessOuterHi[3] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[3], tessOuterHi[3]);
     }
     return UV;
 }
 
 float2
-OsdGetTessParameterizationTriangle(float2 uv, float4 tessOuterLo, float4 tessOuterHi)
+OsdGetTessParameterizationTriangle(float3 p, float4 tessOuterLo, float4 tessOuterHi)
 {
-    float2 UV = uv;
-    if (UV.x == 0 && tessOuterHi[0] > 0) {
+    float2 UV = p.xy;
+    if (p.x == 0 && tessOuterHi[0] > 0) {
         UV.y = OsdGetTessTransitionSplit(UV.y, tessOuterLo[0], tessOuterHi[0]);
     } else
-    if (UV.y == 0 && tessOuterHi[1] > 0) {
+    if (p.y == 0 && tessOuterHi[1] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[1], tessOuterHi[1]);
     } else
-    if (UV.x+UV.y == 1 && tessOuterHi[2] > 0) {
+    if (p.z == 0 && tessOuterHi[2] > 0) {
         UV.x = OsdGetTessTransitionSplit(UV.x, tessOuterLo[2], tessOuterHi[2]);
         UV.y = 1.0 - UV.x;
     }

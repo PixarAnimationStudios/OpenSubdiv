@@ -53,14 +53,15 @@ void OsdComputePerVertex(
 // Patches.GregoryTriangle.Factors
 //----------------------------------------------------------
 
-void OsdComputePerPatchFactors(
+void OsdComputePerPatchGregoryTriangleFactors(
         int3 patchParam,
         float tessLevel,
-        unsigned patchID,
         float4x4 projectionMatrix,
         float4x4 modelViewMatrix,
-        OsdPatchParamBufferSet osdBuffer,
         threadgroup PatchVertexType* patchVertices,
+#if !USE_PTVS_FACTORS
+        device OsdPerPatchTessFactors& patchFactors,
+#endif
         device MTLTriangleTessellationFactorsHalf& triFactors
         )
 {
@@ -114,6 +115,34 @@ void OsdComputePerPatchFactors(
     triFactors.edgeTessellationFactor[1] = tessLevelOuter[1];
     triFactors.edgeTessellationFactor[2] = tessLevelOuter[2];
     triFactors.insideTessellationFactor  = tessLevelInner[0];
+#if !USE_PTVS_FACTORS
+    patchFactors.tessOuterLo = tessOuterLo;
+    patchFactors.tessOuterHi = tessOuterHi;
+#endif
+}
+
+void OsdComputePerPatchFactors(
+        int3 patchParam,
+        float tessLevel,
+        unsigned patchID,
+        float4x4 projectionMatrix,
+        float4x4 modelViewMatrix,
+        OsdPatchParamBufferSet osdBuffer,
+        threadgroup PatchVertexType* patchVertices,
+        device MTLTriangleTessellationFactorsHalf& triFactors
+        )
+{
+    OsdComputePerPatchGregoryTriangleFactors(
+        patchParam,
+        tessLevel,
+        projectionMatrix,
+        modelViewMatrix,
+        patchVertices,
+#if !USE_PTVS_FACTORS
+        osdBuffer.patchTessBuffer[patchID],
+#endif
+        triFactors
+        );
 }
 
 //----------------------------------------------------------
@@ -140,6 +169,11 @@ void OsdComputePerPatchVertex(
 template<typename PerPatchVertexGregoryBasis>
 #endif
 OsdPatchVertex ds_gregory_triangle_patches(
+        const float tessLevel,
+#if !USE_PTVS_FACTORS
+        float4 tessOuterLo,
+        float4 tessOuterHi,
+#endif
 #if USE_STAGE_IN
         PerPatchVertexGregoryBasis patch,
 #else
@@ -150,10 +184,6 @@ OsdPatchVertex ds_gregory_triangle_patches(
         float3 domainCoord
         )
 {
-    OsdPatchVertex output;
-    float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
-    float3 N = float3(0,0,0), dNu = float3(0,0,0), dNv = float3(0,0,0);
-
 #if USE_STAGE_IN
     float3 cv[18];
     for(int i = 0; i < 18; i++)
@@ -165,7 +195,20 @@ OsdPatchVertex ds_gregory_triangle_patches(
     }
 #endif
 
-    float2 UV = domainCoord.xy;
+#if USE_PTVS_FACTORS
+    float4 tessOuterLo(0), tessOuterHi(0);
+    OsdGetTessLevelsUniform(tessLevel, patchParam, tessOuterLo, tessOuterHi);
+#endif
+
+    float2 UV = OsdGetTessParameterizationTriangle(domainCoord,
+                                                   tessOuterLo,
+                                                   tessOuterHi);
+
+    OsdPatchVertex output;
+
+    float3 P = float3(0), dPu = float3(0), dPv = float3(0);
+    float3 N = float3(0), dNu = float3(0), dNv = float3(0);
+
     OsdEvalPatchGregoryTriangle(
         patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
@@ -199,6 +242,16 @@ OsdPatchVertex OsdComputePatch(
         )
 {
     return ds_gregory_triangle_patches(
+            tessLevel,
+#if !USE_PTVS_FACTORS
+#if USE_STAGE_IN
+            osdPatch.tessOuterLo,
+            osdPatch.tessOuterHi,
+#else
+            osdBuffers.patchTessBuffer[patchID].tessOuterLo,
+            osdBuffers.patchTessBuffer[patchID].tessOuterHi,
+#endif
+#endif
 #if USE_STAGE_IN
             osdPatch.cv,
             osdPatch.patchParam,
@@ -210,4 +263,3 @@ OsdPatchVertex OsdComputePatch(
             domainCoord
             );
 }
-

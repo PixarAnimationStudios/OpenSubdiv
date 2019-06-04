@@ -42,19 +42,17 @@ void vs_main_patches( in InputVertex input,
 [outputtopology("triangle_cw")]
 [outputcontrolpoints(18)]
 [patchconstantfunc("HSConstFunc")]
-OsdPerPatchVertexBezier hs_main_patches(
+OsdPerPatchVertexGregoryBasis hs_main_patches(
     in InputPatch<HullVertex, 18> patch,
     uint primitiveID : SV_PrimitiveID,
     in uint ID : SV_OutputControlPointID )
 {
-    OsdPerPatchVertexBezier output;
+    OsdPerPatchVertexGregoryBasis output;
 
     float3 cv = patch[ID].position.xyz;
 
     int3 patchParam = OsdGetPatchParam(OsdGetPatchIndex(primitiveID));
-
-    output.patchParam = patchParam;
-    output.P = cv;
+    OsdComputePerPatchVertexGregoryBasis(patchParam, ID, cv, output);
 
     return output;
 }
@@ -62,7 +60,6 @@ OsdPerPatchVertexBezier hs_main_patches(
 HS_CONSTANT_FUNC_TRIANGLE_OUT
 HSConstFunc(
     InputPatch<HullVertex, 18> patch,
-    OutputPatch<OsdPerPatchVertexBezier, 18> bezierPatch,
     uint primitiveID : SV_PrimitiveID)
 {
     HS_CONSTANT_FUNC_TRIANGLE_OUT output;
@@ -77,28 +74,33 @@ HSConstFunc(
     OSD_PATCH_CULL_TRIANGLE(18);
 
 #if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // Gather bezier control points to compute limit surface tess levels
     float3 cv[15];
-    cv[ 0] = bezierPatch[ 0].P;
-    cv[ 1] = bezierPatch[ 1].P;
-    cv[ 2] = bezierPatch[15].P;
-    cv[ 3] = bezierPatch[ 7].P;
-    cv[ 4] = bezierPatch[ 5].P;
-    cv[ 5] = bezierPatch[ 2].P;
-    cv[ 6] = bezierPatch[ 3].P;
-    cv[ 7] = bezierPatch[ 8].P;
-    cv[ 8] = bezierPatch[ 6].P;
-    cv[ 9] = bezierPatch[17].P;
-    cv[10] = bezierPatch[13].P;
-    cv[11] = bezierPatch[16].P;
-    cv[12] = bezierPatch[11].P;
-    cv[13] = bezierPatch[12].P;
-    cv[14] = bezierPatch[10].P;
-    OsdEvalPatchBezierTriangleTessLevels(cv, patchParam,
-                     tessLevelOuter, tessLevelInner,
-                     tessOuterLo, tessOuterHi);
+    cv[ 0] = patch[ 0].position.xyz;
+    cv[ 1] = patch[ 1].position.xyz;
+    cv[ 2] = patch[15].position.xyz;
+    cv[ 3] = patch[ 7].position.xyz;
+    cv[ 4] = patch[ 5].position.xyz;
+    cv[ 5] = patch[ 2].position.xyz;
+    cv[ 6] = patch[ 3].position.xyz;
+    cv[ 7] = patch[ 8].position.xyz;
+    cv[ 8] = patch[ 6].position.xyz;
+    cv[ 9] = patch[17].position.xyz;
+    cv[10] = patch[13].position.xyz;
+    cv[11] = patch[16].position.xyz;
+    cv[12] = patch[11].position.xyz;
+    cv[13] = patch[12].position.xyz;
+    cv[14] = patch[10].position.xyz;
+
+    OsdEvalPatchBezierTriangleTessLevels(
+                cv, patchParam,
+                tessLevelOuter, tessLevelInner,
+                tessOuterLo, tessOuterHi);
 #else
-    OsdGetTessLevelsUniformTriangle(patchParam, tessLevelOuter, tessLevelInner,
-                     tessOuterLo, tessOuterHi);
+    OsdGetTessLevelsUniformTriangle(
+                patchParam,
+                tessLevelOuter, tessLevelInner,
+                tessOuterLo, tessOuterHi);
 #endif
 
     output.tessLevelOuter[0] = tessLevelOuter[0];
@@ -124,10 +126,6 @@ void ds_main_patches(
     in float3 domainCoord : SV_DomainLocation,
     out OutputVertex output )
 {
-    float2 UV = OsdGetTessParameterizationTriangle(domainCoord.xy,
-                                                   input.tessOuterLo,
-                                                   input.tessOuterHi);
-
     float3 P = float3(0,0,0), dPu = float3(0,0,0), dPv = float3(0,0,0);
     float3 N = float3(0,0,0), dNu = float3(0,0,0), dNv = float3(0,0,0);
 
@@ -135,6 +133,10 @@ void ds_main_patches(
     for (int i = 0; i < 18; ++i) {
         cv[i] = patch[i].P;
     }
+
+    float2 UV = OsdGetTessParameterizationTriangle(domainCoord,
+                                                   input.tessOuterLo,
+                                                   input.tessOuterHi);
 
     int3 patchParam = patch[0].patchParam;
     OsdEvalPatchGregoryTriangle(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);

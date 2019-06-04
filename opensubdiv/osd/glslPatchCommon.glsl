@@ -993,17 +993,17 @@ OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
 //  The equivalant quartic Bezier triangle (15 points):
 //
 //                              14
-//                              . . 
-//                             .   . 
+//                              . .
+//                             .   .
 //                           12 --- 13
-//                           . .   . . 
-//                          .   . .   . 
+//                           . .   . .
+//                          .   . .   .
 //                         9 -- 10 --- 11
-//                        . .   . .   . . 
-//                       .   . .   . .   . 
+//                        . .   . .   . .
+//                       .   . .   . .   .
 //                      5 --- 6 --- 7 --- 8
-//                     . .   . .   . .   . . 
-//                    .   . .   . .   . .   . 
+//                     . .   . .   . .   . .
+//                    .   . .   . .   . .   .
 //                   0 --- 1 --- 2 --- 3 --- 4
 //
 //  A hybrid cubic/quartic Bezier patch with cubic boundaries is a close

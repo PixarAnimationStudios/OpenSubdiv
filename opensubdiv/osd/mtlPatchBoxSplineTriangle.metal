@@ -65,10 +65,10 @@ void OsdComputePerPatchBezierTriangleFactors(
         device MTLTriangleTessellationFactorsHalf& triFactors
         )
 {
-    float4 tessLevelOuter = float4(0,0,0,0);
-    float2 tessLevelInner = float2(0,0);
-    float4 tessOuterLo = float4(0,0,0,0);
-    float4 tessOuterHi = float4(0,0,0,0);
+    float4 tessLevelOuter = float4(0);
+    float2 tessLevelInner = float2(0);
+    float4 tessOuterLo = float4(0);
+    float4 tessOuterHi = float4(0);
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
     // Gather bezier control points to compute limit surface tess levels
@@ -76,6 +76,7 @@ void OsdComputePerPatchBezierTriangleFactors(
     for (int i=0; i<15; ++i) {
         bezcv[i] = patch[i].P;
     }
+
     OsdEvalPatchBezierTriangleTessLevels(
         tessLevel,
         projectionMatrix,
@@ -172,14 +173,15 @@ OsdPatchVertex ds_regular_patches(
         tessLevel, patchParam, tessOuterLo, tessOuterHi);
 #endif
 
-    float2 UV = OsdGetTessParameterizationTriangle(domainCoord.xy,
+    float2 UV = OsdGetTessParameterizationTriangle(domainCoord,
                                                    tessOuterLo,
                                                    tessOuterHi);
 
     OsdPatchVertex output;
 
-    float3 P, dPu, dPv;
-    float3 N, dNu, dNv;
+    float3 P = float3(0), dPu = float3(0), dPv = float3(0);
+    float3 N = float3(0), dNu = float3(0), dNv = float3(0);
+
     OsdEvalPatchBezierTriangle(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 
     output.normal = N;

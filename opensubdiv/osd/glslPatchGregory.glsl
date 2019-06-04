@@ -49,6 +49,8 @@ void main()
 //----------------------------------------------------------
 #ifdef OSD_PATCH_TESS_CONTROL_GREGORY_SHADER
 
+patch out vec4 tessOuterLo, tessOuterHi;
+
 in block {
     OsdPerVertexGregory v;
     OSD_USER_VARYING_DECLARE
@@ -73,14 +75,43 @@ void main()
 
     OSD_USER_VARYING_PER_CONTROL_POINT(gl_InvocationID, gl_InvocationID);
 
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+    // Wait for all basis conversion to be finished
+    barrier();
+#endif
     if (gl_InvocationID == 0) {
         vec4 tessLevelOuter = vec4(0);
         vec2 tessLevelInner = vec2(0);
 
         OSD_PATCH_CULL(4);
 
-        OsdGetTessLevels(cv[0].P, cv[3].P, cv[2].P, cv[1].P,
-                         patchParam, tessLevelOuter, tessLevelInner);
+#if defined OSD_ENABLE_SCREENSPACE_TESSELLATION
+        // Gather bezier control points to compute limit surface tess levels
+        OsdPerPatchVertexBezier bezcv[16];
+        bezcv[ 0].P = outpt[0].v.P;
+        bezcv[ 1].P = outpt[0].v.Ep;
+        bezcv[ 2].P = outpt[1].v.Em;
+        bezcv[ 3].P = outpt[1].v.P;
+        bezcv[ 4].P = outpt[0].v.Em;
+        bezcv[ 5].P = outpt[0].v.Fp;
+        bezcv[ 6].P = outpt[1].v.Fm;
+        bezcv[ 7].P = outpt[1].v.Ep;
+        bezcv[ 8].P = outpt[3].v.Ep;
+        bezcv[ 9].P = outpt[3].v.Fm;
+        bezcv[10].P = outpt[2].v.Fp;
+        bezcv[11].P = outpt[2].v.Em;
+        bezcv[12].P = outpt[3].v.P;
+        bezcv[13].P = outpt[3].v.Em;
+        bezcv[14].P = outpt[2].v.Ep;
+        bezcv[15].P = outpt[2].v.P;
+
+        OsdEvalPatchBezierTessLevels(bezcv, patchParam,
+                                     tessLevelOuter, tessLevelInner,
+                                     tessOuterLo, tessOuterHi);
+#else
+        OsdGetTessLevelsUniform(patchParam, tessLevelOuter, tessLevelInner,
+                         tessOuterLo, tessOuterHi);
+#endif
 
         gl_TessLevelOuter[0] = tessLevelOuter[0];
         gl_TessLevelOuter[1] = tessLevelOuter[1];
@@ -101,6 +132,8 @@ void main()
 
 layout(quads) in;
 layout(OSD_SPACING) in;
+
+patch in vec4 tessOuterLo, tessOuterHi;
 
 in block {
     OsdPerPatchVertexGregory v;
@@ -142,7 +175,10 @@ void main()
     cv[18] = inpt[3].v.Fp;
     cv[19] = inpt[3].v.Fm;
 
-    vec2 UV = gl_TessCoord.xy;
+    vec2 UV = OsdGetTessParameterization(gl_TessCoord.xy,
+                                         tessOuterLo,
+                                         tessOuterHi);
+
     ivec3 patchParam = inpt[0].v.patchParam;
     OsdEvalPatchGregory(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv);
 

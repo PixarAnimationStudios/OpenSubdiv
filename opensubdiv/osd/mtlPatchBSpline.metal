@@ -65,10 +65,10 @@ void OsdComputePerPatchBSplineFactors(
         device MTLQuadTessellationFactorsHalf& quadFactors
         )
 {
-    float4 tessLevelOuter = float4(0,0,0,0);
-    float2 tessLevelInner = float2(0,0);
-    float4 tessOuterLo = float4(0,0,0,0);
-    float4 tessOuterHi = float4(0,0,0,0);
+    float4 tessLevelOuter = float4(0);
+    float2 tessLevelInner = float2(0);
+    float4 tessOuterLo = float4(0);
+    float4 tessOuterHi = float4(0);
 
 #if OSD_ENABLE_SCREENSPACE_TESSELLATION
     OsdEvalPatchBezierTessLevels(
@@ -121,7 +121,7 @@ void OsdComputePerPatchFactors(
         tessLevel,
         projectionMatrix,
         modelViewMatrix,
-        osdBuffer.perPatchVertexBuffer + patchID * CONTROL_POINTS_PER_PATCH,
+        osdBuffer.perPatchVertexBuffer + patchID * VERTEX_CONTROL_POINTS_PER_PATCH,
 #if !USE_PTVS_FACTORS
         osdBuffer.patchTessBuffer[patchID],
 #endif
@@ -167,15 +167,15 @@ OsdPatchVertex ds_regular_patches(
     OsdGetTessLevelsUniform(tessLevel, patchParam, tessOuterLo, tessOuterHi);
 #endif
 
-    float2 UV = OsdGetTessParameterization(domainCoord.xy,
+    float2 UV = OsdGetTessParameterization(domainCoord,
                                            tessOuterLo,
                                            tessOuterHi);
 
     OsdPatchVertex output;
 
-    float3 P, dPu, dPv;
-    float3 N, dNu, dNv;
-    float2 vSegments;
+    float3 P = float3(0), dPu = float3(0), dPv = float3(0);
+    float3 N = float3(0), dNu = float3(0), dNv = float3(0);
+    float2 vSegments = float2(0);
 
     OsdEvalPatchBezier(patchParam, UV, cv, P, dPu, dPv, N, dNu, dNv, vSegments);
 

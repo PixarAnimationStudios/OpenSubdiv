@@ -143,7 +143,7 @@ void main()
         cv[i] = inpt[i].v;
     }
 
-    vec2 UV = OsdGetTessParameterizationTriangle(gl_TessCoord.xy,
+    vec2 UV = OsdGetTessParameterizationTriangle(gl_TessCoord.xyz,
                                                  tessOuterLo,
                                                  tessOuterHi);
 
