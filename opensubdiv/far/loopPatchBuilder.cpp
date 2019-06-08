@@ -1748,17 +1748,13 @@ convertToLoop(SourcePatch const & sourcePatch, SparseMatrix<REAL> & matrix) {
     //  the quartic case).  So it is possible to construct shapes with a Gregory
     //  or Bezier triangle that cannot be represented by the Box-spline.
     //
-    //  The solution fit a Box-spline patch to the constructed Gregory patch with
-    //  12 constraints:  position, first derivatives and mixed partial at each of
-    //  the 3 corners.  We used the mixed partial (the twist vector) to constrain
-    //  the interior of the patch somehow, otherwise results produce a lot of
-    //  interior bulging in an effort to satisfy boundary constraints.
+    //  The solution fits a Box-spline patch to the constructed Gregory patch with
+    //  a set of constraints.  With quartic boundary curves, 12 constraints on the
+    //  boundary curve make this tightly constrained.  Such a set of constraints
+    //  is rank deficient (11 instead of 12) so an additional constraint on the
+    //  midpoint of the patch is included and a conversion matrix is constructed
+    //  from the pseudo-inverse of the 13 constraints.
     //
-    //  Given both position and tangent continuity here are compromised for the
-    //  general case -- and at considerable expense (in terms of computation and
-    //  the full set of local control points that result) -- its worth exploring
-    //  simpler solutions for the case of the isolated corner.
-    //  
     //  For the full 12x15 conversion matrix from 15-point quartic Bezier patch
     //  back to a Box spline patch, the matrix rows and columns are ordered
     //  according to control point orientations used elsewhere.  Correllation of
@@ -1770,34 +1766,35 @@ convertToLoop(SourcePatch const & sourcePatch, SparseMatrix<REAL> & matrix) {
     //  As with conversion from Gregory to BSpline for Catmark, one of the face
     //  points is chosen as a Bezier point in the conversion rather than combining
     //  the pair (which would avoid slight asymmetric artefacts of the choice).
+    //  And given the solution now depends primarily on the boundary, its not
+    //  necessary to construct a full Gregory patch with enforced continuity.
     //
     REAL const gregoryToLoopMatrix[12][15] = {
-        { 9.33333f,  5.33333f, -6.f, -0.66666f,  0.33333f,-18.66667f,  4.f,  6.f,
-                    -0.66666f,  8.f, -8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
-        { 0.33333f, -0.66666f,  8.f,  1.33333f, -0.66666f, -0.66666f, -2.f, -8.f,
-                     1.33333f,  0.f,  0.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
-        {-6.66667f, 13.33333f,-14.f,  7.33333f,  8.33333f, 13.33333f,-20.f, 14.f,
-                   -16.66667f, -8.f,  8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
-        { 9.33333f,-18.66667f,  8.f,  1.33333f, -0.66666f,  5.33333f,  4.f, -8.f,
-                     1.33333f, -6.f,  6.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
-        {-1.66667f,  3.33333f, -2.f, -0.66666f,  0.33333f,  3.33333f, -2.f,  2.f,
-                    -0.66666f, -2.f,  2.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
-        { 1.33333f, -2.66667f,  0.f,  1.33333f, -0.66666f, -2.66667f,  4.f,  0.f,
-                     1.33333f,  2.f, -2.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
-        { 6.33333f,-12.66667f, 14.f,-16.66667f,  8.33333f,-12.66667f, 22.f,-14.f,
-                     7.33333f,  6.f, -6.f, 0.f, -0.66666f, -0.66666f,  0.333333f},
-        { 0.33333f, -0.66666f,  0.f,  1.33333f, -0.66666f, -0.66666f, -2.f,  0.f,
-                     1.33333f,  8.f, -8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
-        { 1.33333f, -2.66667f,  2.f, -0.66666f,  0.33333f, -2.66667f,  4.f, -2.f,
-                    -0.66666f,  0.f,  0.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
-        {-7.66667f, 15.33333f, -8.f,  1.33333f, -0.66666f, 15.33333f,-26.f,  8.f,
-                     1.33333f, -8.f,  8.f, 0.f,  1.33333f,  1.33333f, -0.666667f},
-        {-6.66667f, 13.33333f, -8.f,  1.33333f, -0.66666f, 13.33333f,-20.f,  8.f,
-                     1.33333f,-14.f, 14.f, 0.f,  7.33333f,-16.66667f,  8.333333f},
-        { 6.33333f,-12.66667f,  6.f, -0.66666f,  0.33333f,-12.66667f, 22.f, -6.f,
-                    -0.66666f, 14.f,-14.f, 0.f,-16.66667f,  7.33333f,  8.333333f}
+        {  8.214411f,  7.571190f, -7.690082f,  2.237840f, -1.118922f,-16.428828f,  0.666666f,  0.666666f,
+                       2.237835f,  6.309870f,  0.666666f, -1.690100f, -0.428812f, -0.428805f,  0.214407f },
+        { -0.304687f,  0.609374f,  6.752593f,  0.609374f, -0.304687f,  0.609378f, -3.333333f, -3.333333f,
+                       0.609378f, -1.247389f, -3.333333f, -1.247389f,  3.276037f,  3.276037f, -1.638020f },
+        { -1.118922f,  2.237840f, -7.690082f,  7.571190f,  8.214411f,  2.237835f,  0.666666f,  0.666666f,
+                     -16.428828f, -1.690100f,  0.666666f,  6.309870f, -0.428805f, -0.428812f,  0.214407f },
+        {  8.214411f,-16.428828f,  6.309870f, -0.428812f,  0.214407f,  7.571190f,  0.666666f,  0.666666f,
+                      -0.428805f, -7.690082f,  0.666666f, -1.690100f,  2.237840f,  2.237835f, -1.118922f },
+        { -0.813368f,  1.626735f, -0.773435f, -1.039929f,  0.519965f,  1.626735f,  0.666666f,  0.666666f,
+                      -1.039930f, -0.773435f,  0.666666f,  1.226558f, -1.039929f, -1.039930f,  0.519965f },
+        {  0.519965f, -1.039929f, -0.773435f,  1.626735f, -0.813368f, -1.039930f,  0.666666f,  0.666666f,
+                       1.626735f,  1.226558f,  0.666666f, -0.773435f, -1.039930f, -1.039929f,  0.519965f },
+        {  0.214407f, -0.428812f,  6.309870f,-16.428828f,  8.214411f, -0.428805f,  0.666666f,  0.666666f,
+                       7.571190f, -1.690100f,  0.666666f, -7.690082f,  2.237835f,  2.237840f, -1.118922f },
+        { -0.304687f,  0.609378f, -1.247389f,  3.276037f, -1.638020f,  0.609374f, -3.333333f, -3.333333f,
+                       3.276037f,  6.752593f, -3.333333f, -1.247389f,  0.609374f,  0.609378f, -0.304687f },
+        {  0.519965f, -1.039930f,  1.226558f, -1.039930f,  0.519965f, -1.039929f,  0.666666f,  0.666666f,
+                      -1.039929f, -0.773435f,  0.666666f, -0.773435f,  1.626735f,  1.626735f, -0.813368f },
+        { -1.638020f,  3.276037f, -1.247389f,  0.609378f, -0.304687f,  3.276037f, -3.333333f, -3.333333f,
+                       0.609374f, -1.247389f, -3.333333f,  6.752593f,  0.609378f,  0.609374f, -0.304687f },
+        { -1.118922f,  2.237835f, -1.690100f, -0.428805f,  0.214407f,  2.237840f,  0.666666f,  0.666666f,
+                      -0.428812f, -7.690082f,  0.666666f,  6.309870f,  7.571190f,-16.428828f,  8.214411f },
+        {  0.214407f, -0.428805f, -1.690100f,  2.237835f, -1.118922f, -0.428812f,  0.666666f,  0.666666f,
+                       2.237840f,  6.309870f,  0.666666f, -7.690082f,-16.428828f,  7.571190f,  8.214411f }
     };
-
     int const gRowIndices[15] = { 0,1,15,7,5, 2,4,8,6, 17,14,16, 11,12, 10 };
 
     SparseMatrix<REAL> G;
