@@ -459,9 +459,9 @@ PatchTableBuilder::PatchTableBuilder(
 
     _table->_numPtexFaces = _ptexIndices.GetNumFaces();
 
-    _table->_vertexPrecisionIsDouble = _options.setPatchPrecisionDouble;
-    _table->_varyingPrecisionIsDouble = _options.setPatchPrecisionDouble;
-    _table->_faceVaryingPrecisionIsDouble = _options.setFVarPatchPrecisionDouble;
+    _table->_vertexPrecisionIsDouble = _options.patchPrecisionDouble;
+    _table->_varyingPrecisionIsDouble = _options.patchPrecisionDouble;
+    _table->_faceVaryingPrecisionIsDouble = _options.fvarPatchPrecisionDouble;
 
     _table->_varyingDesc = PatchDescriptor(_patchBuilder->GetLinearPatchType());
 
@@ -495,8 +495,8 @@ PatchTableBuilder::identifyPatchTopology(PatchTuple const & patch,
         patchLevel, patchFace, fvarInTable);
 
     bool useDoubleMatrix = (fvarInRefiner < 0)
-                         ? _options.setPatchPrecisionDouble
-                         : _options.setFVarPatchPrecisionDouble;
+                         ? _options.patchPrecisionDouble
+                         : _options.fvarPatchPrecisionDouble;
 
     if (patchInfo.isRegular) {
         patchInfo.regBoundaryMask = _patchBuilder->GetRegularPatchBoundaryMask(
@@ -586,8 +586,8 @@ PatchTableBuilder::assignPatchPointsAndStencils(PatchTuple const & patch,
                           : _levelFVarValueOffsets[fvarInTable][patch.levelIndex];
 
     bool useDoubleMatrix = (fvarInTable < 0)
-                         ? _options.setPatchPrecisionDouble
-                         : _options.setFVarPatchPrecisionDouble;
+                         ? _options.patchPrecisionDouble
+                         : _options.fvarPatchPrecisionDouble;
 
     int numPatchPoints = 0;
     if (patchInfo.isRegular) {
@@ -1166,7 +1166,7 @@ PatchTableBuilder::populatePatches() {
         LocalPointHelper::Options opts;
         opts.createStencilTable = true;
         opts.createVaryingTable = _requiresVaryingLocalPoints;
-        opts.doubleStencilTable = _options.setPatchPrecisionDouble;
+        opts.doubleStencilTable = _options.patchPrecisionDouble;
         opts.shareLocalPoints   = _options.shareEndCapPatchPoints;
         opts.reuseSourcePoints  = (_patchBuilder->GetIrregularPatchType() ==
                                    _patchBuilder->GetNativePatchType() );
@@ -1177,7 +1177,7 @@ PatchTableBuilder::populatePatches() {
         if (_requiresFVarPatches) {
             opts.createStencilTable = true;
             opts.createVaryingTable = false;
-            opts.doubleStencilTable = _options.setFVarPatchPrecisionDouble;
+            opts.doubleStencilTable = _options.fvarPatchPrecisionDouble;
 
             fvarLocalPointHelpers.SetSize((int)_fvarChannelIndices.size());
 
@@ -1197,8 +1197,8 @@ PatchTableBuilder::populatePatches() {
     PatchInfo patchInfo;
     PatchInfo fvarPatchInfo;
 
-    bool fvarPrecisionMatches = (_options.setPatchPrecisionDouble ==
-                                 _options.setFVarPatchPrecisionDouble);
+    bool fvarPrecisionMatches = (_options.patchPrecisionDouble ==
+                                 _options.fvarPatchPrecisionDouble);
 
     for (int patchIndex = 0; patchIndex < (int)_patches.size(); ++patchIndex) {
 

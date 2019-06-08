@@ -65,8 +65,8 @@ public:
              generateVaryingTables(true),
              generateVaryingLocalPoints(true),
              generateFVarTables(false),
-             setPatchPrecisionDouble(false),
-             setFVarPatchPrecisionDouble(false),
+             patchPrecisionDouble(false),
+             fvarPatchPrecisionDouble(false),
              generateFVarLegacyLinearPatches(true),
              generateLegacySharpCornerPatches(true),
              numFVarChannels(-1),
@@ -118,8 +118,8 @@ public:
                      generateFVarTables  : 1, ///< Generate face-varying patch tables
 
                      // precision
-                     setPatchPrecisionDouble     : 1, ///< Generate double-precision stencils for vertex patches
-                     setFVarPatchPrecisionDouble : 1, ///< Generate double-precision stencils for face-varying patches
+                     patchPrecisionDouble     : 1, ///< Generate double-precision stencils for vertex patches
+                     fvarPatchPrecisionDouble : 1, ///< Generate double-precision stencils for face-varying patches
 
                      // legacy behaviors (default to true)
                      generateFVarLegacyLinearPatches  : 1, ///< Generate all linear face-varying patches (legacy)
@@ -199,17 +199,17 @@ public:
 
 
 template <> inline void PatchTableFactory::Options::SetPatchPrecision<float>() {
-    setPatchPrecisionDouble = false;
+    patchPrecisionDouble = false;
 }
 template <> inline void PatchTableFactory::Options::SetFVarPatchPrecision<float>() {
-    setFVarPatchPrecisionDouble = false;
+    fvarPatchPrecisionDouble = false;
 }
 
 template <> inline void PatchTableFactory::Options::SetPatchPrecision<double>() {
-    setPatchPrecisionDouble = true;
+    patchPrecisionDouble = true;
 }
 template <> inline void PatchTableFactory::Options::SetFVarPatchPrecision<double>() {
-    setFVarPatchPrecisionDouble = true;
+    fvarPatchPrecisionDouble = true;
 }
 
 
