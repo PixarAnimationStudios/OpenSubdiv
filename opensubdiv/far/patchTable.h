@@ -167,9 +167,9 @@ public:
     template <typename REAL>
     StencilTableReal<REAL> const *GetLocalPointStencilTable() const;
 
-    /// \brief Tests the precision of the stencil table to compute local point
-    /// vertex values
-    template <typename REAL> bool IsLocalPointStencilPrecision() const;
+    /// \brief Tests if the precision of the stencil table to compute local point
+    /// vertex values matches the given floating point type <REAL>.
+    template <typename REAL> bool LocalPointStencilPrecisionMatchesType() const;
 
     /// \brief Updates local point vertex values.
     ///
@@ -197,9 +197,9 @@ public:
     template <typename REAL>
     StencilTableReal<REAL> const *GetLocalPointVaryingStencilTable() const;
 
-    /// \brief Tests the precision of the stencil table to compute local point
-    /// varying values
-    template <typename REAL> bool IsLocalPointVaryingStencilPrecision() const;
+    /// \brief Tests if the precision of the stencil table to compute local point
+    /// varying values matches the given floating point type <REAL>.
+    template <typename REAL> bool LocalPointVaryingStencilPrecisionMatchesType() const;
 
     /// \brief Updates local point varying values.
     ///
@@ -227,9 +227,9 @@ public:
     template <typename REAL>
     StencilTableReal<REAL> const * GetLocalPointFaceVaryingStencilTable(int channel = 0) const;
 
-    /// \brief Tests the precision of the stencil table to compute local point
-    /// face-varying values
-    template <typename REAL> bool IsLocalPointFaceVaryingStencilPrecision() const;
+    /// \brief Tests if the precision of the stencil table to compute local point
+    /// face-varying values matches the given floating point type <REAL>.
+    template <typename REAL> bool LocalPointFaceVaryingStencilPrecisionMatchesType() const;
 
     /// \brief Updates local point face-varying values.
     ///
@@ -698,28 +698,28 @@ template <> inline StencilTableReal<double> *
 PatchTable::StencilTablePtr::Get<double>() const { return _dPtr; }
 
 template <> inline bool
-PatchTable::IsLocalPointStencilPrecision<float>() const {
+PatchTable::LocalPointStencilPrecisionMatchesType<float>() const {
     return !_vertexPrecisionIsDouble;
 }
 template <> inline bool
-PatchTable::IsLocalPointVaryingStencilPrecision<float>() const {
+PatchTable::LocalPointVaryingStencilPrecisionMatchesType<float>() const {
     return !_varyingPrecisionIsDouble;
 }
 template <> inline bool
-PatchTable::IsLocalPointFaceVaryingStencilPrecision<float>() const {
+PatchTable::LocalPointFaceVaryingStencilPrecisionMatchesType<float>() const {
     return !_faceVaryingPrecisionIsDouble;
 }
 
 template <> inline bool
-PatchTable::IsLocalPointStencilPrecision<double>() const {
+PatchTable::LocalPointStencilPrecisionMatchesType<double>() const {
     return _vertexPrecisionIsDouble;
 }
 template <> inline bool
-PatchTable::IsLocalPointVaryingStencilPrecision<double>() const {
+PatchTable::LocalPointVaryingStencilPrecisionMatchesType<double>() const {
     return _varyingPrecisionIsDouble;
 }
 template <> inline bool
-PatchTable::IsLocalPointFaceVaryingStencilPrecision<double>() const {
+PatchTable::LocalPointFaceVaryingStencilPrecisionMatchesType<double>() const {
     return _faceVaryingPrecisionIsDouble;
 }
 
@@ -728,18 +728,18 @@ PatchTable::IsLocalPointFaceVaryingStencilPrecision<double>() const {
 //
 inline StencilTable const *
 PatchTable::GetLocalPointStencilTable() const {
-    assert(IsLocalPointStencilPrecision<float>());
+    assert(LocalPointStencilPrecisionMatchesType<float>());
     return static_cast<StencilTable const *>(_localPointStencils.Get<float>());
 }
 inline StencilTable const *
 PatchTable::GetLocalPointVaryingStencilTable() const {
-    assert(IsLocalPointVaryingStencilPrecision<float>());
+    assert(LocalPointVaryingStencilPrecisionMatchesType<float>());
     return static_cast<StencilTable const *>(
             _localPointVaryingStencils.Get<float>());
 }
 inline StencilTable const *
 PatchTable::GetLocalPointFaceVaryingStencilTable(int channel) const {
-    assert(IsLocalPointFaceVaryingStencilPrecision<float>());
+    assert(LocalPointFaceVaryingStencilPrecisionMatchesType<float>());
     if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
         return static_cast<StencilTable const *>(
                 _localPointFaceVaryingStencils[channel].Get<float>());
@@ -750,19 +750,19 @@ PatchTable::GetLocalPointFaceVaryingStencilTable(int channel) const {
 template <typename REAL>
 inline StencilTableReal<REAL> const *
 PatchTable::GetLocalPointStencilTable() const {
-    assert(IsLocalPointStencilPrecision<REAL>());
+    assert(LocalPointStencilPrecisionMatchesType<REAL>());
     return _localPointStencils.Get<REAL>();
 }
 template <typename REAL>
 inline StencilTableReal<REAL> const *
 PatchTable::GetLocalPointVaryingStencilTable() const {
-    assert(IsLocalPointVaryingStencilPrecision<REAL>());
+    assert(LocalPointVaryingStencilPrecisionMatchesType<REAL>());
     return _localPointVaryingStencils.Get<REAL>();
 }
 template <typename REAL>
 inline StencilTableReal<REAL> const *
 PatchTable::GetLocalPointFaceVaryingStencilTable(int channel) const {
-    assert(IsLocalPointFaceVaryingStencilPrecision<REAL>());
+    assert(LocalPointFaceVaryingStencilPrecisionMatchesType<REAL>());
     if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
         return _localPointFaceVaryingStencils[channel].Get<REAL>();
     }
@@ -776,7 +776,7 @@ PatchTable::GetLocalPointFaceVaryingStencilTable(int channel) const {
 template <class T>
 inline void
 PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
-    assert(IsLocalPointStencilPrecision<float>());
+    assert(LocalPointStencilPrecisionMatchesType<float>());
     if (_localPointStencils) {
         _localPointStencils.Get<float>()->UpdateValues(src, dst);
     }
@@ -785,7 +785,7 @@ PatchTable::ComputeLocalPointValues(T const *src, T *dst) const {
 template <class T>
 inline void
 PatchTable::ComputeLocalPointValuesVarying(T const *src, T *dst) const {
-    assert(IsLocalPointVaryingStencilPrecision<float>());
+    assert(LocalPointVaryingStencilPrecisionMatchesType<float>());
     if (_localPointVaryingStencils) {
         _localPointVaryingStencils.Get<float>()->UpdateValues(src, dst);
     }
@@ -794,7 +794,7 @@ PatchTable::ComputeLocalPointValuesVarying(T const *src, T *dst) const {
 template <class T>
 inline void
 PatchTable::ComputeLocalPointValuesFaceVarying(T const *src, T *dst, int channel) const {
-    assert(IsLocalPointFaceVaryingStencilPrecision<float>());
+    assert(LocalPointFaceVaryingStencilPrecisionMatchesType<float>());
     if (channel >= 0 && channel < (int)_localPointFaceVaryingStencils.size()) {
         if (_localPointFaceVaryingStencils[channel]) {
             _localPointFaceVaryingStencils[channel].Get<float>()->UpdateValues(src, dst);
