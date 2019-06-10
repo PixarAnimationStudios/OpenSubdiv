@@ -432,7 +432,7 @@ OsdComputeBSplineBoundaryPoints(inout vec3 cpt[16], ivec3 patchParam)
 {
     int boundaryMask = OsdGetPatchBoundaryMask(patchParam);
 
-    //  Don't extrpolate corner points until all boundary points in place
+    //  Don't extrapolate corner points until all boundary points in place
     if ((boundaryMask & 1) != 0) {
         cpt[1] = 2*cpt[5] - cpt[9];
         cpt[2] = 2*cpt[6] - cpt[10];
