@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0 - 3.3 Release Notes
+3.0 - 3.4 Release Notes
 -----------------------
 
 .. contents::
@@ -31,39 +31,71 @@
 
 ----
 
-Release 3.3.3
-=============
+Release 3.4.0 - Jun 2019
+========================
+
+Release 3.4.0 is a significant release with several new features, bug fixes, and general
+code and configuration improvements.  For more information on the following, please see
+`Release 3.4 <release_34.html>`__
+
+**New Features**
+    - Triangular Patches for Loop subdivision
+    - Improvements to Introductory Documentation
+    - Sparse Patch Tables and Adaptive Refinement
+    - Full Support for Double Precision in Far
+
+**Changes**
+    - Added new build script (GitHub #1068)
+    - Added support for newer DirectX SDKs (GitHub #1066)
+    - Patch arrays extended to support combined regular and irregular types (GitHub #995)
+    - Far::PatchTables and adaptive refinement supported for Bilinear scheme (GitHub #1035)
+    - New Far::PatchTableFactory method to determine adaptive refinement options ((GitHub #1047)
+    - New Far::PatchTableFactory options to align primvar buffers of uniform tables (GitHub #986)
+    - Far::StencilTable::UpdateValues() overloaded to support separate base buffer (GitHub #1011)
+    - Far::LimitStencilTableFactory updated to create face-varying tables (GitHub #1012)
+    - Regular patches on boundaries no longer require additional isolation (GitHub #1025)
+    - Inclusion of OpenSubdiv header files in source code now consistent (GitHub #767)
+    - Re-organization of and additions to Far tutorials (GitHub #1083)
+    - examples now use common command-line conventions and parsing (GitHub #1056)
+
+**Bug Fixes**
+    - Fixed Far::PrimvarRefiner internal limitFVar() prototype (GitHub #979)
+    - Fixed Far::StencilTable append when base StencilTable empty (GitHub #982)
+    - Patches around non-manifold vertices now free of cracks (GitHub #1013)
+
+Release 3.3.3 - Jul 2018
+========================
 
 Release 3.3.3 is bug-fix release addressing regressions from release 3.3.2
 
 **Bug Fixes**
-    - Fixed a regression in PatchTable construction with varying patches (GitHub Issue #976)
-    - Fixed a regression in PatchTable construction for face-varying patches (GitHub Issue #972)
-    - Fixed a bug in the initialization of Far::SourcePatch (GitHub Issue #971)
+    - Fixed a regression in PatchTable construction with varying patches (GitHub #976)
+    - Fixed a regression in PatchTable construction for face-varying patches (GitHub #972)
+    - Fixed a bug in the initialization of Far::SourcePatch (GitHub #971)
 
-Release 3.3.2
-=============
+Release 3.3.2 - Jun 2018
+========================
 
 Release 3.3.2 is a minor release with potentially significant performance
 improvements to the patch pre-processing stages
 
 **Changes**
-    - Improved performance of PatchTable construction (GitHub Issue #966)
+    - Improved performance of PatchTable construction (GitHub #966)
     - The resulting improved accuracy will produce slight numerical differences in computations involving patches, e.g. StencilTable and PatchTable evaluation
 
 **Bug Fixes**
     - Far::PatchTableFactory now supports PatchTable construction with ENDCAP_BILINEAR_BASIS specified
 
-Release 3.3.1
-=============
+Release 3.3.1 - Feb 1018
+========================
 
 Release 3.3.1 is a minor bug-fix release
 
 **Bug Fixes**
-    - Fixed GLSL/HLSL/Metal patch shader code to resolve degenerate normals (GitHub Issue #947)
-    - Fixed problems with face-varying patches in uniform PatchTables (GitHub Issue #946)
-    - Fixed integer overflow bugs for large meshes in PatchTable factories (GitHub Issue #957)
-    - Fixed computation of PatchParam for triangle refinement (GitHub Issue #962)
+    - Fixed GLSL/HLSL/Metal patch shader code to resolve degenerate normals (GitHub #947)
+    - Fixed problems with face-varying patches in uniform PatchTables (GitHub #946)
+    - Fixed integer overflow bugs for large meshes in PatchTable factories (GitHub #957)
+    - Fixed computation of PatchParam for triangle refinement (GitHub #962)
 
 **Changes**
     - Added build options: NO_GLFW and NO_GLFW_X11
@@ -71,8 +103,8 @@ Release 3.3.1 is a minor bug-fix release
     - Disabled GL tests during CI runs on Linux
     - Improved stability of examples/glImaging in CI runs by testing GL version
 
-Release 3.3.0
-=============
+Release 3.3.0 - Aug 2017
+========================
 
 Release 3.3.0 is significant release adding an Osd implementation for Apple's Metal API
 
@@ -84,8 +116,8 @@ Release 3.3.0 is significant release adding an Osd implementation for Apple's Me
     - Fixed several instances of local variable shadowing that could cause build warnings
     - Updated continuous-integration build scripts and added testing on macOS
 
-Release 3.2.0
-=============
+Release 3.2.0 - Feb 2017
+========================
 
 Release 3.2.0 is a minor release containing API additions and bug fixes
 
@@ -102,8 +134,8 @@ Release 3.2.0 is a minor release containing API additions and bug fixes
 **Bug Fixes**
     - Fixed a double delete of GL program in Osd::GLComputeEvaluator
 
-Release 3.1.1
-=============
+Release 3.1.1 - Jan 2017
+========================
 
 Release 3.1.1 is a minor bug-fix release.
 
@@ -112,8 +144,8 @@ Release 3.1.1 is a minor bug-fix release.
     - Fixed GLEW compilation and linking with dynamic GLEW libraries on Windows
     - Fixed GLFW linking with GLFW 3.2 on X11 platforms
 
-Release 3.1.0
-=============
+Release 3.1.0 - Oct 2016
+========================
 
 Release 3.1.0 is a significant release with several new features, bug fixes, and general
 code and configuration improvements.  For more information on the following, please see
@@ -147,8 +179,8 @@ code and configuration improvements.  For more information on the following, ple
     - Fixed bug with refinement using Chaikin creasing
     - Fixed bugs with HUD sliders in the example viewers
 
-Release 3.0.5
-=============
+Release 3.0.5 - Mar 2016
+========================
 
 Release 3.0.5 is a minor stability release with performance and correctness bug fixes.
 
@@ -156,8 +188,8 @@ Release 3.0.5 is a minor stability release with performance and correctness bug 
     - The previous release reduced transient memory use during PatchTable construction, but increased the amount of memory consumed by the resulting PatchTable itself, this regression has been fixed.
     - The example Ptex texture sampling code has been fixed to prevent sampling beyond the texels for a face when multisample rasterization is enabled.
 
-Release 3.0.4
-=============
+Release 3.0.4 - Feb 2016
+========================
 
 Release 3.0.4 is a minor stability release which includes important performance
 and bug fixes.
@@ -175,8 +207,8 @@ and bug fixes.
     - Fixed far_tutorial_6 to refine primvar data only up to the number of levels produced by topological refinement
     - Fixed build warnings and errors reported by Visual Studio 2015
 
-Release 3.0.3
-=============
+Release 3.0.3 - Oct 2015
+========================
 
 Release 3.0.3 is a minor stability release which includes important performance
 and bug fixes.
@@ -196,16 +228,16 @@ and bug fixes.
     - Fixed WIN32_LEAN_AND_MEAN typo
     - Fixed Loop-related shader issues glFVarViewer
 
-Release 3.0.2
-=============
+Release 3.0.2 - Aug 2015
+========================
 
 Release 3.0.2 is a minor release for a specific fix.
 
 **Bug Fixes**
     - Fixed drawing of single crease patches
 
-Release 3.0.1
-=============
+Release 3.0.1 - Aug 2015
+========================
 
 Release 3.0.1 is a minor release focused on stability and correctness.
 
@@ -232,8 +264,8 @@ Release 3.0.1 is a minor release focused on stability and correctness.
     - Disabled the fractional tessellation spacing option in example viewers
       since this mode is currently not supported
 
-Release 3.0.0
-=============
+Release 3.0.0 - Jun 2015
+========================
 
 Release 3.0.0 is a major release with many significant improvements and
 changes.  For more information on the following, please see
