@@ -1148,13 +1148,12 @@ Osd_EvalBasisGregoryTri(OSD_REAL s, OSD_REAL t,
     return 18;
 }
 
-#define OSD_PATCH_BASIS_COMPATIBILITY
-#if defined(OSD_PATCH_BASIS_COMPATIBILITY)
-
 // The following functions are low-level internal methods which
 // were exposed in earlier releases, but were never intended to
 // be part of the supported public API.
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBezierWeights(
@@ -1166,6 +1165,8 @@ OsdGetBezierWeights(
     Osd_evalBezierCurve(t, wP, wDP, wDP2);
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBSplineWeights(
@@ -1177,6 +1178,8 @@ OsdGetBSplineWeights(
     Osd_evalBSplineCurve(t, wP, wDP, wDP2);
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBoxSplineWeights(
@@ -1191,6 +1194,8 @@ OsdGetBoxSplineWeights(
     }
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdAdjustBoundaryWeights(
@@ -1220,6 +1225,8 @@ OsdAdjustBoundaryWeights(
     }
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdComputeTensorProductPatchWeights(
@@ -1281,10 +1288,8 @@ OsdComputeTensorProductPatchWeights(
     }
 }
 
-// The following functions were exposed in earlier versions but have
-// been superceded by the public functions OsdEvaluatePatchBasis()
-// and OsdEvaluatePatchBasisNormalized().
-
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBilinearPatchWeights(
@@ -1314,6 +1319,8 @@ OsdGetBilinearPatchWeights(
     }
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBSplinePatchWeights(
@@ -1344,6 +1351,8 @@ OsdGetBSplinePatchWeights(
     }
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetBezierPatchWeights(
@@ -1372,6 +1381,8 @@ OsdGetBezierPatchWeights(
     }
 }
 
+//  Deprecated -- prefer use of OsdEvaluatePatchBasis() and
+//  OsdEvaluatePatchBasisNormalized() methods.
 OSD_FUNCTION_STORAGE_CLASS
 void
 OsdGetGregoryPatchWeights(
@@ -1399,6 +1410,5 @@ OsdGetGregoryPatchWeights(
         }
     }
 }
-#endif // OSD_PATCH_BASIS_COMPATIBILITY
 
 #endif /* OPENSUBDIV3_OSD_PATCH_BASIS_H */
