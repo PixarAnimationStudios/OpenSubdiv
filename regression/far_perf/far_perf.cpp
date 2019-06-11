@@ -27,6 +27,10 @@
 #include <fstream>
 #include <sstream>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <opensubdiv/far/primvarRefiner.h>
 #include <opensubdiv/far/stencilTableFactory.h>
 #include <opensubdiv/far/patchTableFactory.h>
@@ -37,34 +41,71 @@
 #include "init_shapes.h"
 
 //------------------------------------------------------------------------------
+
+using namespace OpenSubdiv;
+
+struct Result {
+    std::string name;
+    double timeTotal;
+    double timeRefine;
+    double timePatchFactory;
+    double timeStencilFactory;
+    double timeAppendStencil;
+};
+
 template <typename REAL>
-static void
-doPerf(const Shape *shape, int maxlevel, int endCapType)
+static Result
+doPerf(std::string const & name,
+       Shape const * shape,
+       int level,
+       bool adaptive,
+       Far::PatchTableFactory::Options::EndCapType endCapType)
 {
-    using namespace OpenSubdiv;
 
     typedef Far::StencilTableReal<REAL>        FarStencilTable;
     typedef Far::StencilTableFactoryReal<REAL> FarStencilTableFactory;
 
-    Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
+    Sdc::SchemeType sdcType = GetSdcType(*shape);
+    Sdc::Options sdcOptions = GetSdcOptions(*shape);
 
-    Sdc::Options sdcOptions;
-    sdcOptions.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_ONLY);
+    Result result;
+    result.name = name;
 
-    Stopwatch s;
+    Stopwatch s; 
+
+    // ----------------------------------------------------------------------
+    // Configure the patch table factory options
+    Far::PatchTableFactory::Options poptions(level);
+    poptions.SetEndCapType(endCapType);
+    poptions.SetPatchPrecision<REAL>();
 
     // ----------------------------------------------------------------------
     // Instantiate a FarTopologyRefiner from the descriptor and refine
     s.Start();
     Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Shape>::Create(
-        *shape, Far::TopologyRefinerFactory<Shape>::Options(type, sdcOptions));
+        *shape, Far::TopologyRefinerFactory<Shape>::Options(sdcType, sdcOptions));
     {
-        Far::TopologyRefiner::AdaptiveOptions options(maxlevel);
-        refiner->RefineAdaptive(options);
+        if (adaptive) {
+            Far::TopologyRefiner::AdaptiveOptions options =
+                poptions.GetRefineAdaptiveOptions();
+            refiner->RefineAdaptive(options);
+        } else {
+            Far::TopologyRefiner::UniformOptions options(level);
+            refiner->RefineUniform(options);
+        }
     }
-
     s.Stop();
-    double timeRefine = s.GetElapsed();
+    result.timeRefine = s.GetElapsed();
+
+    // ----------------------------------------------------------------------
+    // Create patch table
+    s.Start();
+    Far::PatchTable const * patchTable = NULL;
+    {
+        patchTable = Far::PatchTableFactory::Create(*refiner, poptions);
+    }
+    s.Stop();
+    result.timePatchFactory = s.GetElapsed();
 
     // ----------------------------------------------------------------------
     // Create stencil table
@@ -75,21 +116,7 @@ doPerf(const Shape *shape, int maxlevel, int endCapType)
         vertexStencils = FarStencilTableFactory::Create(*refiner, options);
     }
     s.Stop();
-    double timeCreateStencil = s.GetElapsed();
-
-    // ----------------------------------------------------------------------
-    // Create patch table
-    s.Start();
-    Far::PatchTable const * patchTable = NULL;
-    {
-        Far::PatchTableFactory::Options poptions(maxlevel);
-        poptions.SetEndCapType((Far::PatchTableFactory::Options::EndCapType)endCapType);
-        poptions.SetPatchPrecision<REAL>();
-        patchTable = Far::PatchTableFactory::Create(*refiner, poptions);
-    }
-
-    s.Stop();
-    double timeCreatePatch = s.GetElapsed();
+    result.timeStencilFactory = s.GetElapsed();
 
     // ----------------------------------------------------------------------
     // append local points to stencils
@@ -104,31 +131,37 @@ doPerf(const Shape *shape, int maxlevel, int endCapType)
         }
     }
     s.Stop();
-    double timeAppendStencil = s.GetElapsed();
+    result.timeAppendStencil = s.GetElapsed();
 
     // ---------------------------------------------------------------------
-    double timeTotal = s.GetTotalElapsed();
+    result.timeTotal = s.GetTotalElapsed();
 
-    printf("TopologyRefiner::Refine     %f %5.2f%%\n",
-           timeRefine, timeRefine/timeTotal*100);
-    printf("StencilTableFactory::Create %f %5.2f%%\n",
-           timeCreateStencil, timeCreateStencil/timeTotal*100);
-    printf("PatchTableFactory::Create   %f %5.2f%%\n",
-           timeCreatePatch, timeCreatePatch/timeTotal*100);
-    printf("StencilTableFactory::Append %f %5.2f%%\n",
-           timeAppendStencil, timeAppendStencil/timeTotal*100);
-    printf("Total                       %f\n", timeTotal);
+    return result;
 }
 
 //------------------------------------------------------------------------------
+
+static int
+parseIntArg(char const * argString, int dfltValue = 0) {
+    char *argEndptr;
+    int argValue = strtol(argString, &argEndptr, 10);
+    if (*argEndptr != 0) {
+        printf("Warning: non-integer option parameter '%s' ignored\n",
+                           argString);
+        argValue = dfltValue;
+    }
+    return argValue;
+}
+
 int main(int argc, char **argv)
 {
-    using namespace OpenSubdiv;
-
-    int maxlevel = 8;
-    std::string str;
-    int endCapType = Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+    bool adaptive = true;
+    int level = 8;
+    Scheme defaultScheme = kCatmark;
+    Far::PatchTableFactory::Options::EndCapType endCapType =
+        Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
     bool runDouble = false;
+    bool spreadsheet = false;
 
     for (int i = 1; i < argc; ++i) {
         if (strstr(argv[i], ".obj")) {
@@ -137,26 +170,40 @@ int main(int argc, char **argv)
                 std::stringstream ss;
                 ss << ifs.rdbuf();
                 ifs.close();
-                str = ss.str();
-                g_shapes.push_back(ShapeDesc(argv[i], str.c_str(), kCatmark));
+                g_shapes.push_back(
+                        ShapeDesc(argv[i], ss.str(), defaultScheme));
             }
-        }
-        else if (!strcmp(argv[i], "-l")) {
-            maxlevel = atoi(argv[++i]);
-        }
-        else if (!strcmp(argv[i], "-e")) {
-            const char *type = argv[++i];
-            if (!strcmp(type, "bspline")) {
-                endCapType = Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS;
+        } else if (!strcmp(argv[i], "-a")) {
+            adaptive = true;
+        } else if (!strcmp(argv[i], "-u")) {
+            adaptive = false;
+        } else if (!strcmp(argv[i], "-l")) {
+            if (++i < argc) level = parseIntArg(argv[i], 8);
+        } else if (!strcmp(argv[i], "-bilinear")) {
+            defaultScheme = kBilinear;
+        } else if (!strcmp(argv[i], "-catmark")) {
+            defaultScheme = kCatmark;
+        } else if (!strcmp(argv[i], "-loop")) {
+            defaultScheme = kLoop;
+        } else if (!strcmp(argv[i], "-e")) {
+            char const * type = argv[++i];
+            if (!strcmp(type, "linear")) {
+                endCapType =
+                        Far::PatchTableFactory::Options::ENDCAP_BILINEAR_BASIS;
+            } else if (!strcmp(type, "regular")) {
+                endCapType =
+                        Far::PatchTableFactory::Options::ENDCAP_BSPLINE_BASIS;
             } else if (!strcmp(type, "gregory")) {
-                endCapType = Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+                endCapType =
+                        Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
             } else {
                 printf("Unknown endcap type %s\n", type);
                 return 1;
             }
-        }
-        else if (!strcmp(argv[i], "-double")) {
+        } else if (!strcmp(argv[i], "-double")) {
             runDouble = true;
+        } else if (!strcmp(argv[i], "-spreadsheet")) {
+            spreadsheet = true;
         }
     }
 
@@ -164,16 +211,66 @@ int main(int argc, char **argv)
         initShapes();
     }
 
+    std::vector< std::vector<Result> > resultsByLevel(level+1);
+
     for (int i = 0; i < (int)g_shapes.size(); ++i) {
+        std::string const & name = g_shapes[i].name;
         Shape const * shape = Shape::parseObj(g_shapes[i]);
 
-        for (int lv = 1; lv <= maxlevel; ++lv) {
-            printf("---- %s, level %d ----\n", g_shapes[i].name.c_str(), lv);
+        for (int lv = 1; lv <= level; ++lv) {
+            Result result;
             if (runDouble) {
-                doPerf<double>(shape, lv, endCapType);
+                result = doPerf<double>(name, shape, lv, adaptive, endCapType);
             } else {
-                doPerf<float>(shape, lv, endCapType);
+                result = doPerf<float>(name, shape, lv, adaptive, endCapType);
             }
+            printf("---- %s, level %d ----\n", result.name.c_str(), lv);
+            printf("TopologyRefiner::Refine     %f %5.2f%%\n",
+                   result.timeRefine,
+                   result.timeRefine/result.timeTotal*100);
+            printf("StencilTableFactory::Create %f %5.2f%%\n",
+                   result.timeStencilFactory,
+                   result.timeStencilFactory/result.timeTotal*100);
+            printf("PatchTableFactory::Create   %f %5.2f%%\n",
+                   result.timePatchFactory,
+                   result.timePatchFactory/result.timeTotal*100);
+            printf("StencilTableFactory::Append %f %5.2f%%\n",
+                   result.timeAppendStencil,
+                   result.timeAppendStencil/result.timeTotal*100);
+            printf("Total                       %f\n",
+                   result.timeTotal);
+            if (spreadsheet) {
+                resultsByLevel[lv].push_back(result);
+            }
+        }
+    }
+    if (spreadsheet) {
+        for (int lv=1; lv<(int)resultsByLevel.size(); ++lv) {
+            std::vector<Result> const & results = resultsByLevel[lv];
+            if (lv == 1) {
+                // spreadsheet header row
+                printf("level,");
+                for (int s=0; s<(int)results.size(); ++s) {
+                    Result const & result = results[s];
+                    printf("%s total,", result.name.c_str());
+                    printf("%s refine,", result.name.c_str());
+                    printf("%s patchFactory,", result.name.c_str());
+                    printf("%s stencilFactory,", result.name.c_str());
+                    printf("%s stencilAppend,", result.name.c_str());
+                }
+                printf("\n");
+            }
+            // spreadsheet data row
+            printf("%d,", lv);
+            for (int s=0; s<(int)results.size(); ++s) {
+                Result const & result = results[s];
+                printf("%f,", result.timeTotal);
+                printf("%f,", result.timeRefine);
+                printf("%f,", result.timePatchFactory);
+                printf("%f,", result.timeStencilFactory);
+                printf("%f,", result.timeAppendStencil);
+            }
+            printf("\n");
         }
     }
 }
