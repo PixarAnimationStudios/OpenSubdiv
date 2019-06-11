@@ -95,6 +95,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         release_31.rst
         release_32.rst
         release_33.rst
+        release_34.rst
         release_notes.rst
         release_notes_2x.rst
         sdc_overview.rst
