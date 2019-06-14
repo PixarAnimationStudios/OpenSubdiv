@@ -136,6 +136,7 @@
 #include "loop_pole360.h"
 #include "loop_saddle_edgecorner.h"
 #include "loop_saddle_edgeonly.h"
+#include "loop_tetrahedron.h"
 #include "loop_toroidal_tet.h"
 #include "loop_triangle_edgecorner.h"
 #include "loop_triangle_edgeonly.h"
