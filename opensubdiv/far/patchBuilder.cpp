@@ -1592,8 +1592,13 @@ SourcePatch::GetCornerRingPoints(int corner, int ringPoints[]) const {
         }
     } else {
         if (_corners[corner]._sharesWithNext) {
-            ringPoints[ringSize++] = _corners[cNext]._val2Interior
-                                   ? cPrev : _localRingOffsets[cNext];
+            if (_corners[cNext]._val2Interior) {
+                ringPoints[ringSize++] = cPrev;
+            } else if (_localRingSizes[cNext] == 0) {
+                ringPoints[ringSize++] = _localRingOffsets[cPrev];
+            } else {
+                ringPoints[ringSize++] = _localRingOffsets[cNext];
+            }
         }
     }
     assert(ringSize == _ringSizes[corner]);
