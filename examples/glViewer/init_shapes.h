@@ -72,6 +72,7 @@ static void initShapes() {
     g_defaultShapes.push_back(ShapeDesc("catmark_car",              catmark_car,              kCatmark));
 
     g_defaultShapes.push_back(ShapeDesc("loop_toroidal_tet",        loop_toroidal_tet,        kLoop));
+    g_defaultShapes.push_back(ShapeDesc("loop_tetrahedron",         loop_tetrahedron,         kLoop));
     g_defaultShapes.push_back(ShapeDesc("loop_cube",                loop_cube,                kLoop));
     g_defaultShapes.push_back(ShapeDesc("loop_cubes_semisharp",     loop_cubes_semisharp,     kLoop));
     g_defaultShapes.push_back(ShapeDesc("loop_cubes_infsharp",      loop_cubes_infsharp,      kLoop));
