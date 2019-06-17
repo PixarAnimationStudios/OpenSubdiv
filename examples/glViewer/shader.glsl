@@ -324,8 +324,8 @@ void main()
 #endif // PRIM_QUAD
 
 #ifdef PRIM_TRI
-    vec3 A = (inpt[1].v.position - inpt[0].v.position).xyz;
-    vec3 B = (inpt[2].v.position - inpt[0].v.position).xyz;
+    vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
+    vec3 B = (inpt[2].v.position - inpt[1].v.position).xyz;
     vec3 n0 = normalize(cross(B, A));
 
 #if defined(GEOMETRY_OUT_WIRE) || defined(GEOMETRY_OUT_LINE)
