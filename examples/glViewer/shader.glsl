@@ -179,23 +179,29 @@ out block {
     OSD_USER_VARYING_DECLARE
 } outpt;
 
+uniform isamplerBuffer OsdFVarParamBuffer;
+layout(std140) uniform OsdFVarArrayData {
+    OsdPatchArray fvarPatchArray[2];
+};
+
 vec2
 interpolateFaceVarying(vec2 uv, int fvarOffset)
 {
     int patchIndex = OsdGetPatchIndex(gl_PrimitiveID);
 
+    OsdPatchArray array = fvarPatchArray[0];
+
+    ivec3 fvarPatchParam = texelFetch(OsdFVarParamBuffer, patchIndex).xyz;
+    OsdPatchParam param = OsdPatchParamInit(fvarPatchParam.x,
+                                            fvarPatchParam.y,
+                                            fvarPatchParam.z);
+
+    int patchType = OsdPatchParamIsRegular(param) ? array.regDesc : array.desc;
+
     float wP[20], wDu[20], wDv[20], wDuu[20], wDuv[20], wDvv[20];
-#ifdef LOOP
-    int patchType = OSD_PATCH_DESCRIPTOR_TRIANGLES;
-    OsdPatchParam param = OsdPatchParamInit(0, 0, 0);
     int numPoints = OsdEvaluatePatchBasisNormalized(patchType, param,
                 uv.s, uv.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
-#else
-    int patchType = OSD_PATCH_DESCRIPTOR_QUADS;
-    OsdPatchParam param = OsdPatchParamInit(0, 0, 0);
-    int numPoints = OsdEvaluatePatchBasisNormalized(patchType, param,
-                uv.s, uv.t, wP, wDu, wDv, wDuu, wDuv, wDvv);
-#endif
+
     int patchArrayStride = numPoints;
 
     int primOffset = patchIndex * patchArrayStride;
@@ -230,27 +236,22 @@ void emit(int index, vec3 normal)
 #endif
 
 #ifdef SHADING_FACEVARYING_COLOR
-#ifdef LOOP  // ----- scheme : LOOP
-
 #ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
+    // interpolate fvar data at refined tri or quad vertex locations
+#ifdef PRIM_TRI
     vec2 trist[3] = vec2[](vec2(0,0), vec2(1,0), vec2(0,1));
     vec2 st = trist[index];
-#else
-    vec2 st = inpt[index].v.tessCoord;
 #endif
-    vec2 uv = interpolateFaceVarying(st, /*fvarOffset=*/0);
-
-#else        // ----- scheme : CATMARK / BILINEAR
-
-#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
+#ifdef PRIM_QUAD
     vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
     vec2 st = quadst[index];
+#endif
 #else
+    // interpolate fvar data at tessellated vertex locations
     vec2 st = inpt[index].v.tessCoord;
 #endif
-    vec2 uv = interpolateFaceVarying(st, /*fvarOffset=*/0);
 
-#endif      // ------ scheme
+    vec2 uv = interpolateFaceVarying(st, /*fvarOffset*/0);
     outpt.color = vec3(uv.s, uv.t, 0);
 #endif
 
@@ -502,7 +503,7 @@ getAdaptivePatchColor(ivec3 patchParam)
         patchType = 3; // CORNER (not correct for patches that are not isolated)
     }
 
-#if defined(OSD_PATCH_ENABLE_SINGLE_CREASE) && !defined(LOOP)
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     // check this after boundary/corner since single crease patch also has edgeCount.
     if (inpt.vSegments.y > 0) {
         patchType = 1;
