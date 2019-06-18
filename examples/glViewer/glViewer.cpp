@@ -184,9 +184,9 @@ int   g_freeze = 0,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapGregoryBasis,
-      g_smoothCornerPatch = 0,
+      g_smoothCornerPatch = 1,
       g_singleCreasePatch = 1,
-      g_infSharpPatch = 0,
+      g_infSharpPatch = 1,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
