@@ -139,9 +139,9 @@ int g_currentShape = 0,
     g_level = 2,
     g_kernel = kCPU,
     g_endCap = kEndCapGregoryBasis,
-    g_smoothCornerPatch = 0,
+    g_smoothCornerPatch = 1,
     g_singleCreasePatch = 0,
-    g_infSharpPatch = 0,
+    g_infSharpPatch = 1,
     g_numElements = 3;
 
 int   g_running = 1,

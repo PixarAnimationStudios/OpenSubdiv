@@ -303,12 +303,13 @@ struct PipelineConfig {
 -(instancetype)initWithDelegate:(id<OSDRendererDelegate>)delegate {
     self = [super init];
     if (self) {
-        self.useSmoothCornerPatch = false;
+        self.useSmoothCornerPatch = true;
         self.useSingleCreasePatch = true;
-        self.useInfinitelySharpPatch = false;
+        self.useInfinitelySharpPatch = true;
         self.useStageIn = !TARGET_OS_EMBEDDED;
-        self.endCapMode = kEndCapBSplineBasis;
-        self.useScreenspaceTessellation = true;
+        self.endCapMode = kEndCapGregoryBasis;
+        self.useScreenspaceTessellation = false;
+        self.useFractionalTessellation = false;
         self.usePatchClipCulling = false;
         self.usePatchIndexBuffer = false;
         self.usePatchBackfaceCulling = false;

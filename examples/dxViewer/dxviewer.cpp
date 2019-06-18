@@ -135,15 +135,15 @@ int   g_freeze = 0,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapGregoryBasis,
-      g_smoothCornerPatch = 0,
+      g_smoothCornerPatch = 1,
       g_singleCreasePatch = 1,
-      g_infSharpPatch = 0,
+      g_infSharpPatch = 1,
       g_drawNormals = 0,
       g_mbutton[3] = {0, 0, 0};
 
-int   g_screenSpaceTess = 1,
-      g_fractionalSpacing = 1,
-      g_patchCull = 1,
+int   g_screenSpaceTess = 0,
+      g_fractionalSpacing = 0,
+      g_patchCull = 0,
       g_displayPatchCounts = 0;
 
 float g_rotate[2] = {0, 0},

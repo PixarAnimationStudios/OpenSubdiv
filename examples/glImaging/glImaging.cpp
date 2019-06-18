@@ -658,12 +658,12 @@ int main(int argc, char ** argv) {
         }
         ofs << "</tr>\n";
 
-        for (size_t i = 0; i < g_shapes.size(); ++i) {
+        for (size_t i = 0; i < g_defaultShapes.size(); ++i) {
             ofs << "<tr>\n";
-            ofs << "<td>" << g_shapes[i].name << "</td>\n";
+            ofs << "<td>" << g_defaultShapes[i].name << "</td>\n";
             for (size_t k = 0; k < kernels.size(); ++k) {
                 ofs << "<td>";
-                ofs << "<img src='" << prefix << "_" << kernels[k] << "_" << g_shapes[i].name << ".png'>";
+                ofs << "<img src='" << prefix << "_" << kernels[k] << "_" << g_defaultShapes[i].name << ".png'>";
                 ofs << "</td>";
             }
             ofs << "</tr>\n";
@@ -698,9 +698,9 @@ int main(int argc, char ** argv) {
             }
         }
 #endif
-        for (size_t i = 0; i < g_shapes.size(); ++i) {
+        for (size_t i = 0; i < g_defaultShapes.size(); ++i) {
             // run test
-            runTest(g_shapes[i], kernel, isolationLevel, adaptive, &shaderCache);
+            runTest(g_defaultShapes[i], kernel, isolationLevel, adaptive, &shaderCache);
 
             if (writeToFile) {
                 // read back pixels
@@ -708,7 +708,7 @@ int main(int argc, char ** argv) {
                 glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, &data[0]);
 
                 // write image
-                std::string filename = prefix + "_" + kernel + "_" + g_shapes[i].name + ".png";
+                std::string filename = prefix + "_" + kernel + "_" + g_defaultShapes[i].name + ".png";
                 // flip vertical
                 stbi_write_png(filename.c_str(), width, height, 3, &data[width*3*(height-1)], -width*3);
             }
