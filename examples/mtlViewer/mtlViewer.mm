@@ -47,11 +47,13 @@
 #import <opensubdiv/osd/mtlComputeEvaluator.h>
 #import <opensubdiv/osd/mtlPatchShaderSource.h>
 
-#import "../common/simple_math.h"
 #import "../../regression/common/far_utils.h"
-#import "init_shapes.h"
+#import "../common/argOptions.h"
 #import "../common/mtlUtils.h"
 #import "../common/mtlControlMeshDisplay.h"
+#import "../common/simple_math.h"
+#import "../common/viewerArgsUtils.h"
+#import "init_shapes.h"
 
 #define VERTEX_BUFFER_INDEX 0
 #define PATCH_INDICES_BUFFER_INDEX 1
@@ -187,6 +189,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     bool _needsRebuild;
     NSString* _osdShaderSource;
     simd::float3 _meshCenter;
+    float _meshSize;
     NSMutableArray<NSString*>* _loadedModels;
     int _patchCounts[DISPATCHSLOTS];
 }
@@ -300,6 +303,38 @@ struct PipelineConfig {
     return config;
 }
 
+-(void)_processArgs {
+
+    NSEnumerator *argsArray =
+            [[[NSProcessInfo processInfo] arguments] objectEnumerator];
+
+    std::vector<char *> argsVector;
+    for (id arg in argsArray) {
+        argsVector.push_back((char *)[arg UTF8String]);
+    }
+
+    ArgOptions args;
+
+    args.Parse(argsVector.size(), argsVector.data());
+
+    // Parse remaining args
+    const std::vector<const char *> &rargs = args.GetRemainingArgs();
+    for (size_t i = 0; i < rargs.size(); ++i) {
+
+        if (!strcmp(rargs[i], "-lg")) {
+            self.legacyGregoryEnabled = true;
+        } else {
+            args.PrintUnrecognizedArgWarning(rargs[i]);
+        }
+    }
+
+    self.yup = args.GetYUp();
+    self.useAdaptive = args.GetAdaptive();
+    self.refinementLevel = args.GetLevel();
+
+    ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
+}
+
 -(instancetype)initWithDelegate:(id<OSDRendererDelegate>)delegate {
     self = [super init];
     if (self) {
@@ -315,12 +350,15 @@ struct PipelineConfig {
         self.usePatchBackfaceCulling = false;
         self.usePrimitiveBackfaceCulling = false;
         self.useAdaptive = true;
+        self.yup = false;
         self.kernelType = kMetal;
         self.refinementLevel = 2;
         self.tessellationLevel = 1;
         self.shadingMode = kShadingPatchType;
         self.displayStyle = kDisplayStyleWireOnShaded;
-        self.legacyGregoryEnabled = true;
+        self.legacyGregoryEnabled = false;
+
+        [self _processArgs];
 
         _frameCount = 0;
         _animationFrames = 0;
@@ -408,6 +446,10 @@ struct PipelineConfig {
     _frameCount++;
 
     return renderEncoder;
+}
+
+-(void)fitFrame {
+    _cameraData.dollyDistance = _meshSize;
 }
 
 -(void)_renderMesh:(id<MTLRenderCommandEncoder>)renderCommandEncoder {
@@ -669,7 +711,6 @@ struct PipelineConfig {
 
     auto shapeDesc = &g_defaultShapes[[_loadedModels indexOfObject:_currentModel]];
     _shape.reset(Shape::parseObj(shapeDesc->data.c_str(), shapeDesc->scheme));
-    const auto scheme = shapeDesc->scheme;
 
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*_shape);
@@ -747,7 +788,6 @@ struct PipelineConfig {
     }
 
     _vertexData.resize(refBaseLevel.GetNumVertices() * numElements);
-    _meshCenter = simd::float3{0,0,0};
 
     for(int i = 0; i < refBaseLevel.GetNumVertices(); ++i)
     {
@@ -756,14 +796,24 @@ struct PipelineConfig {
         _vertexData[i * numElements + 2] = _shape->verts[i * 3 + 2];
     }
 
-    for(auto vertexIdx = 0; vertexIdx < refBaseLevel.GetNumVertices(); ++vertexIdx)
-    {
-        _meshCenter[0] += _vertexData[vertexIdx * numElements + 0];
-        _meshCenter[1] += _vertexData[vertexIdx * numElements + 1];
-        _meshCenter[2] += _vertexData[vertexIdx * numElements + 2];
+    // compute model bounding
+    float min[3] = { FLT_MAX, FLT_MAX, FLT_MAX};
+    float max[3] = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
+    for (int i = 0; i < refBaseLevel.GetNumVertices(); ++i) {
+        for (int j = 0; j < 3; ++j) {
+            float v = _vertexData[i*numElements+j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
     }
 
-    _meshCenter /= (_shape->verts.size() / 3);
+    _meshSize = 0.0f;
+    for (int j = 0; j < 3; ++j) {
+        _meshCenter[j] = (min[j] + max[j]) * 0.5f;
+        _meshSize += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    _meshSize = sqrt(_meshSize);
+
     _mesh->UpdateVertexBuffer(_vertexData.data(), 0, refBaseLevel.GetNumVertices());
     _mesh->Refine();
     _mesh->Synchronize();
@@ -1278,14 +1328,15 @@ struct PipelineConfig {
     translate(pData->ModelViewMatrix, 0, 0, -_cameraData.dollyDistance);
     rotate(pData->ModelViewMatrix, _cameraData.rotationY, 1, 0, 0);
     rotate(pData->ModelViewMatrix, _cameraData.rotationX, 0, 1, 0);
-    rotate(pData->ModelViewMatrix, -90, 1, 0, 0); // z-up model
+    if (!_yup) {
+        rotate(pData->ModelViewMatrix, -90, 1, 0, 0);
+    }
     translate(pData->ModelViewMatrix, -_meshCenter[0], -_meshCenter[1], -_meshCenter[2]);
     inverseMatrix(pData->ModelViewInverseMatrix, pData->ModelViewMatrix);
 
     identity(pData->ProjectionMatrix);
     perspective(pData->ProjectionMatrix, 45.0, _cameraData.aspectRatio, 0.01f, 500.0);
     multMatrix(pData->ModelViewProjectionMatrix, pData->ModelViewMatrix, pData->ProjectionMatrix);
-
 }
 
 -(void)_initializeBuffers {
@@ -1294,9 +1345,9 @@ struct PipelineConfig {
 }
 
 -(void)_initializeCamera {
-    _cameraData.dollyDistance = 4;
     _cameraData.rotationY = 0;
     _cameraData.rotationX = 0;
+    _cameraData.dollyDistance = 5;
     _cameraData.aspectRatio = 1;
 }
 

@@ -87,12 +87,17 @@ enum {
 
 -(void)keyDown:(NSEvent *)event {
     const auto key = [event.charactersIgnoringModifiers characterAtIndex:0];
-    if(key == '=') {
+    if (hud.KeyDown(key)) {
+        return;
+    } else if(key == '=') {
         _controller.osdRenderer.tessellationLevel = std::min(_controller.osdRenderer.tessellationLevel + 1, 16);
     } else if (key == '-') {
         _controller.osdRenderer.tessellationLevel = std::max(_controller.osdRenderer.tessellationLevel - 1, 0);
-    } else if(!hud.KeyDown(key))
+    } else if (key == 'f') {
+        [_controller.osdRenderer fitFrame];
+    } else {
         [super keyDown:event];
+    }
 }
 
 -(void)scrollWheel:(NSEvent *)event {
@@ -300,8 +305,8 @@ enum {
     hud.AddCheckBox("Fractional spacing (T)",  _osdRenderer.useFractionalTessellation,
                       10, y, callbackCheckbox, kHUD_CB_FRACTIONAL_SPACING, 't');
     y += 20;
-    hud.AddCheckBox("Frustum Patch Culling (F)",  _osdRenderer.usePatchClipCulling,
-                      10, y, callbackCheckbox, kHUD_CB_PATCH_CULL, 'f');
+    hud.AddCheckBox("Frustum Patch Culling (P)",  _osdRenderer.usePatchClipCulling,
+                      10, y, callbackCheckbox, kHUD_CB_PATCH_CULL, 'p');
     y += 20;
     hud.AddCheckBox("Backface Culling (B)", _osdRenderer.usePatchBackfaceCulling,
                     10, y, callbackCheckbox, kHUD_CB_BACK_CULL, 'b');
@@ -392,7 +397,7 @@ enum {
         hud.AddPullDownButton(endcap_pulldown, "Gregory",
                                 kEndCapGregoryBasis,
                                 _osdRenderer.endCapMode == kEndCapGregoryBasis);
-        if (true || _osdRenderer.legacyGregoryEnabled) {
+        if (_osdRenderer.legacyGregoryEnabled) {
             hud.AddPullDownButton(endcap_pulldown, "LegacyGregory",
                                     kEndCapLegacyGregory,
                                     _osdRenderer.endCapMode == kEndCapLegacyGregory);
@@ -402,7 +407,7 @@ enum {
     for (int i = 1; i < 11; ++i) {
         char level[16];
         sprintf(level, "Lv. %d", i);
-        hud.AddRadioButton(3, level, i==2, 10, 310+i*20, callbackLevel, i, '0'+(i%10));
+        hud.AddRadioButton(3, level, i==_osdRenderer.refinementLevel, 10, 310+i*20, callbackLevel, i, '0'+(i%10));
     }
 
     int shapes_pulldown = hud.AddPullDown("Shape (N)", -300, 10, 300, callbackModel, 'n');
