@@ -236,7 +236,7 @@ struct FVarData
         glBindTexture(GL_TEXTURE_BUFFER, textureBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, buffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
-        glBindTexture(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
 
@@ -251,7 +251,7 @@ struct FVarData
         glBindTexture(GL_TEXTURE_BUFFER, textureParamBuffer);
         glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, buffer);
         glBindTexture(GL_TEXTURE_BUFFER, 0);
-        glBindTexture(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
     }
@@ -545,13 +545,11 @@ GetEffect(bool uvDraw = false) {
 
 struct EffectDesc {
     EffectDesc(OpenSubdiv::Far::PatchDescriptor desc,
-               OpenSubdiv::Far::PatchDescriptor fvarDesc,
-               Effect effect) : desc(desc), fvarDesc(fvarDesc),
+               Effect effect) : desc(desc),
                                 effect(effect),
                                 maxValence(0), numElements(0) { }
 
     OpenSubdiv::Far::PatchDescriptor desc;
-    OpenSubdiv::Far::PatchDescriptor fvarDesc;
     Effect effect;
     int maxValence;
     int numElements;
@@ -559,10 +557,9 @@ struct EffectDesc {
     bool operator < (const EffectDesc &e) const {
         return
             (desc < e.desc || ((desc == e.desc &&
-            (fvarDesc < e.fvarDesc || ((fvarDesc == e.fvarDesc &&
             (maxValence < e.maxValence || ((maxValence == e.maxValence) &&
             (numElements < e.numElements || ((numElements == e.numElements) &&
-            (effect < e.effect)))))))))));
+            (effect < e.effect))))))));
     }
 };
 
@@ -589,11 +586,6 @@ public:
 
         if (type == Far::PatchDescriptor::QUADS) {
             ss << "#define PRIM_QUAD\n";
-        } else if (type == Far::PatchDescriptor::TRIANGLES ||
-                   type == Far::PatchDescriptor::LOOP ||
-                   type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
-            ss << "#define PRIM_TRI\n";
-            ss << "#define LOOP\n";
         } else {
             ss << "#define PRIM_TRI\n";
         }
@@ -624,14 +616,6 @@ public:
 
         if (! effectDesc.desc.IsAdaptive()) {
             ss << "#define SHADING_FACEVARYING_UNIFORM_SUBDIVISION\n";
-        }
-
-        if (effectDesc.desc.IsAdaptive()) {
-            if (effectDesc.fvarDesc.GetType() == Far::PatchDescriptor::REGULAR) {
-                ss << "#define SHADING_FACEVARYING_SMOOTH_BSPLINE_BASIS\n";
-            } else if (effectDesc.fvarDesc.GetType() == Far::PatchDescriptor::GREGORY_BASIS) {
-                ss << "#define SHADING_FACEVARYING_SMOOTH_GREGORY_BASIS\n";
-            }
         }
 
         // include osd PatchCommon
@@ -699,7 +683,7 @@ public:
             glUniformBlockBinding(program, uboIndex, g_tessellationBinding);
 
         g_fvarArrayDataBinding = 2;
-        uboIndex = glGetUniformBlockIndex(program, "FVarArrayData");
+        uboIndex = glGetUniformBlockIndex(program, "OsdFVarArrayData");
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_fvarArrayDataBinding);
 
@@ -802,10 +786,9 @@ bindTextures() {
 
 static GLenum
 bindProgram(Effect effect,
-            OpenSubdiv::Osd::PatchArray const & patch,
-            OpenSubdiv::Far::PatchDescriptor const & fvarDesc) {
+            OpenSubdiv::Osd::PatchArray const & patch) {
 
-    EffectDesc effectDesc(patch.GetDescriptor(), fvarDesc, effect);
+    EffectDesc effectDesc(patch.GetDescriptor(), effect);
 
     typedef OpenSubdiv::Far::PatchDescriptor Descriptor;
 
@@ -884,9 +867,6 @@ display() {
 
     glBindVertexArray(g_vao);
 
-    OpenSubdiv::Far::PatchDescriptor fvarDesc =
-        g_mesh->GetFarPatchTable()->GetFVarPatchDescriptor(0);
-
     OpenSubdiv::Osd::PatchArrayVector const & patches =
         g_mesh->GetPatchTable()->GetPatchArrays();
 
@@ -900,7 +880,7 @@ display() {
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        GLenum primType = bindProgram(GetEffect(), patch, fvarDesc);
+        GLenum primType = bindProgram(GetEffect(), patch);
 
         glDrawElements(
             primType,
@@ -934,7 +914,7 @@ display() {
     for (int i = 0; i < (int)patches.size(); ++i) {
         OpenSubdiv::Osd::PatchArray const & patch = patches[i];
 
-        GLenum primType = bindProgram(GetEffect(/*uvDraw=*/ true), patch, fvarDesc);
+        GLenum primType = bindProgram(GetEffect(/*uvDraw=*/ true), patch);
 
         glDrawElements(
             primType,
