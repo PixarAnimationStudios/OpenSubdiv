@@ -833,7 +833,12 @@ PatchBuilder::GetIrregularPatchCornerSpans(int levelIndex, Index faceIndex,
 
         //  Sharpen the span if a corner or subject to inf-sharp features:
         if (vTag._corner) {
-            cornerSpans[i]._sharp = true;
+            //  Corners tagged in FVar space need additional qualification:
+            if (isFVarMisMatch) {
+                cornerSpans[i]._sharp = (cornerSpans[i]._numFaces == 1) || isNonManifold;
+            } else {
+                cornerSpans[i]._sharp = true;
+            }
         } else if (isNonManifold) {
             cornerSpans[i]._sharp = vTag._infSharp;
         } else if (testInfSharpFeatures) {
