@@ -150,8 +150,9 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
     PerFrameBuffer<unsigned> _patchIndexBuffers[DISPATCHSLOTS];
 
-    unsigned _tessFactorOffsets[DISPATCHSLOTS];
+    unsigned _tessFactorsOffsets[DISPATCHSLOTS];
     unsigned _perPatchVertexOffsets[DISPATCHSLOTS];
+    unsigned _perPatchTessFactorsOffsets[DISPATCHSLOTS];
 
     unsigned _threadgroupSizes[DISPATCHSLOTS];
     id<MTLComputePipelineState> _computePipelines[DISPATCHSLOTS];
@@ -477,7 +478,8 @@ struct PipelineConfig {
         if (pipelineConfig.useTessellation) {
             [renderCommandEncoder setVertexBufferOffset:patch.primitiveIdBase * sizeof(int) * 3 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
 
-            [renderCommandEncoder setTessellationFactorBuffer:_tessFactorsBuffer offset:_tessFactorOffsets[patchType] instanceStride:0];
+            [renderCommandEncoder setTessellationFactorBuffer:_tessFactorsBuffer offset:_tessFactorsOffsets[patchType] instanceStride:0];
+            [renderCommandEncoder setVertexBufferOffset:_perPatchTessFactorsOffsets[patchType] atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
 
             if (!pipelineConfig.drawIndexed) {
                 [renderCommandEncoder setVertexBufferOffset:_perPatchVertexOffsets[patchType] atIndex:OSD_PERPATCHVERTEX_BUFFER_INDEX];
@@ -620,12 +622,15 @@ struct PipelineConfig {
     [computeCommandEncoder setBuffer:_mesh->GetPatchTable()->GetPatchParamBuffer() offset:0 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
     [computeCommandEncoder setBuffer:_frameConstantsBuffer offset:0 atIndex:FRAME_CONST_BUFFER_INDEX];
 
-    [computeCommandEncoder setBuffer:_perPatchTessFactorsBuffer offset:0 atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
-
     for (auto& patch : _mesh->GetPatchTable()->GetPatchArrays())
     {
         auto patchType = patch.desc.GetType();
         PipelineConfig pipelineConfig = [self _lookupPipelineConfig:patchType useSingleCreasePatch:_useSingleCreasePatch];
+
+        // Don't compute tess factors when not using tessellation
+        if (!pipelineConfig.useTessellation) {
+            continue;
+        }
 
         [computeCommandEncoder setComputePipelineState:_computePipelines[patchType]];
 
@@ -633,7 +638,8 @@ struct PipelineConfig {
         [computeCommandEncoder setBufferOffset:patch.indexBase * sizeof(unsigned) atIndex:CONTROL_INDICES_BUFFER_INDEX];
 
         if (pipelineConfig.useTessellation) {
-            [computeCommandEncoder setBuffer:_tessFactorsBuffer offset:_tessFactorOffsets[patchType] atIndex:PATCH_TESSFACTORS_INDEX];
+            [computeCommandEncoder setBuffer:_tessFactorsBuffer offset:_tessFactorsOffsets[patchType] atIndex:PATCH_TESSFACTORS_INDEX];
+            [computeCommandEncoder setBuffer:_perPatchTessFactorsBuffer offset:_perPatchTessFactorsOffsets[patchType] atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
             [computeCommandEncoder setBuffer:_perPatchVertexBuffer offset:_perPatchVertexOffsets[patchType] atIndex:OSD_PERPATCHVERTEX_BUFFER_INDEX];
         }
         if (pipelineConfig.useLegacyBuffers) {
@@ -880,7 +886,8 @@ struct PipelineConfig {
 
 -(void)_rebuildBuffers {
     auto totalPatches = 0;
-    auto totalPatchDataSize = 0;
+    auto totalPerPatchVertexSize = 0;
+    auto totalPerPatchTessFactorsSize = 0;
     auto totalTessFactorsSize = 0;
 
     if (_usePatchIndexBuffer)
@@ -907,9 +914,11 @@ struct PipelineConfig {
                 {
                     _patchIndexBuffers[patchType].alloc(_context.device, patch.GetNumPatches(), @"patch indices", MTLResourceStorageModePrivate);
                 }
-                _perPatchVertexOffsets[patchType] = totalPatchDataSize;
-                _tessFactorOffsets[patchType] = totalTessFactorsSize;
-                totalPatchDataSize += elementFloats * sizeof(float) * patch.GetNumPatches() * pipelineConfig.numControlPointsPerPatchToDraw;
+                _perPatchTessFactorsOffsets[patchType] = totalPerPatchTessFactorsSize;
+                _perPatchVertexOffsets[patchType] = totalPerPatchVertexSize;
+                _tessFactorsOffsets[patchType] = totalTessFactorsSize;
+                totalPerPatchTessFactorsSize += 2 * 4 * sizeof(float) * patch.GetNumPatches();
+                totalPerPatchVertexSize += elementFloats * sizeof(float) * patch.GetNumPatches() * pipelineConfig.numControlPointsPerPatchToDraw;
                 totalTessFactorsSize += patch.GetNumPatches() * (pipelineConfig.useTriangleTessellation
                                                                  ? sizeof(MTLTriangleTessellationFactorsHalf)
                                                                  : sizeof(MTLQuadTessellationFactorsHalf));
@@ -919,8 +928,8 @@ struct PipelineConfig {
         }
 
         _tessFactorsBuffer.alloc(_context.device, totalTessFactorsSize, @"tessellation factors buffer", MTLResourceStorageModePrivate);
-        _perPatchVertexBuffer.alloc(_context.device, totalPatchDataSize, @"per patch data", MTLResourceStorageModePrivate);
-        _perPatchTessFactorsBuffer.alloc(_context.device, 2 * 4 * sizeof(float) * totalPatches, @"hs constant data", MTLResourceStorageModePrivate);
+        _perPatchVertexBuffer.alloc(_context.device, totalPerPatchVertexSize, @"per patch data", MTLResourceStorageModePrivate);
+        _perPatchTessFactorsBuffer.alloc(_context.device, totalPerPatchTessFactorsSize, @"per patch tess factors", MTLResourceStorageModePrivate);
     }
 }
 
@@ -1178,6 +1187,25 @@ struct PipelineConfig {
                             vertexDesc.attributes[i].bufferIndex = OSD_PERPATCHVERTEX_BUFFER_INDEX;
                             vertexDesc.attributes[i].format = MTLVertexFormatFloat3;
                             vertexDesc.attributes[i].offset = i * sizeof(float) * 3;
+                        }
+
+                        if(_useScreenspaceTessellation)
+                        {
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stepFunction = MTLVertexStepFunctionPerPatch;
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stepRate = 1;
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stride = sizeof(float) * 4 * 2;
+
+                            // PatchInput :: float4 tessOuterLo [[attribute(5)]];
+                            // OsdPerPatchTessFactors :: float4 tessOuterLo;
+                            vertexDesc.attributes[5].bufferIndex = OSD_PERPATCHTESSFACTORS_BUFFER_INDEX;
+                            vertexDesc.attributes[5].format = MTLVertexFormatFloat4;
+                            vertexDesc.attributes[5].offset = 0;
+
+                            // PatchInput :: float4 tessOuterHi [[attribute(6)]];
+                            // OsdPerPatchTessFactors :: float4 tessOuterHi;
+                            vertexDesc.attributes[6].bufferIndex = OSD_PERPATCHTESSFACTORS_BUFFER_INDEX;
+                            vertexDesc.attributes[6].format = MTLVertexFormatFloat4;
+                            vertexDesc.attributes[6].offset = sizeof(float) * 4;
                         }
                     break;
                     case Far::PatchDescriptor::QUADS:
