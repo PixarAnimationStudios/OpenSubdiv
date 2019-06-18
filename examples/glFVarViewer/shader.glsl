@@ -167,7 +167,7 @@ out block {
 } outpt;
 
 uniform isamplerBuffer OsdFVarParamBuffer;
-layout(std140) uniform FVarArrayData {
+layout(std140) uniform OsdFVarArrayData {
     OsdPatchArray fvarPatchArray[2];
 };
 
@@ -211,25 +211,22 @@ void emit(int index, vec3 normal)
     outpt.v.normal = normal;
 #endif
 
-#ifdef LOOP  // ----- scheme : LOOP
+#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
+    // interpolate fvar data at refined tri or quad vertex locations
+#ifdef PRIM_TRI
     vec2 trist[3] = vec2[](vec2(0,0), vec2(1,0), vec2(0,1));
-#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
     vec2 st = trist[index];
-#else
-    vec2 st = inpt[index].v.tessCoord;
 #endif
-    vec2 uv = interpolateFaceVarying(st, /*fvarOffset*/0);
-
-#else        // ----- scheme : CATMARK / BILINEAR
-
-#ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
+#ifdef PRIM_QUAD
     vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
     vec2 st = quadst[index];
+#endif
 #else
+    // interpolate fvar data at tessellated vertex locations
     vec2 st = inpt[index].v.tessCoord;
 #endif
+
     vec2 uv = interpolateFaceVarying(st, /*fvarOffset*/0);
-#endif      // ------ scheme
 
     outpt.color = vec3(uv.s, uv.t, 0);
 

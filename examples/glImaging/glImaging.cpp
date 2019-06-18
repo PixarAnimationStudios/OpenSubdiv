@@ -117,11 +117,6 @@ public:
         } else if (type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
             ss << "#define OSD_PATCH_GREGORY_TRIANGLE\n";
         }
-        if (type == Far::PatchDescriptor::TRIANGLES ||
-            type == Far::PatchDescriptor::LOOP ||
-            type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
-            ss << "#define LOOP\n";
-        }
         
         if (desc.IsAdaptive()) {
             ss << "#define SMOOTH_NORMALS\n";

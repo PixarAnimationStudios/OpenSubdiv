@@ -44,6 +44,13 @@
         mix(mix(inpt[a].color, inpt[b].color, UV.x), \
             mix(inpt[c].color, inpt[d].color, UV.x), UV.y)
 
+#undef OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE
+#define OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE(UV, a, b, c) \
+    outpt.color = \
+        inpt[a].color * (1.0f - UV.x - UV.y) + \
+        inpt[b].color * UV.x + \
+        inpt[c].color * UV.y;
+
 //--------------------------------------------------------------
 // Uniforms / Uniform Blocks
 //--------------------------------------------------------------
@@ -358,7 +365,7 @@ getAdaptivePatchColor(ivec3 patchParam)
         patchType = 3; // CORNER (not correct for patches that are not isolated)
     }
 
-#if defined(OSD_PATCH_ENABLE_SINGLE_CREASE) && !defined(LOOP)
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     // check this after boundary/corner since single crease patch also has edgeCount.
     if (inpt.vSegments.y > 0) {
         patchType = 1;

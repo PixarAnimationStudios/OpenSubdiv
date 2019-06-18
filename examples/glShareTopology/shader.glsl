@@ -424,7 +424,7 @@ getAdaptivePatchColor(ivec3 patchParam)
         patchType = 3; // CORNER (not correct for patches that are not isolated)
     }
 
-#if defined(OSD_PATCH_ENABLE_SINGLE_CREASE) && !defined(LOOP)
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
     // check this after boundary/corner since single crease patch also has edgeCount.
     if (inpt.vSegments.y > 0) {
         patchType = 1;
