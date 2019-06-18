@@ -68,9 +68,6 @@ typedef struct {
 @property (nonatomic) unsigned refinementLevel;
 @property (nonatomic) float tessellationLevel;
 
-@property (readonly, nonatomic) NSArray<NSString*>* loadedModels;
-@property (nonatomic) NSString* currentModel;
-
 @property (readonly, nonatomic) Camera* camera;
 
 

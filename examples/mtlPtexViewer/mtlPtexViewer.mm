@@ -26,7 +26,6 @@
 
 #import "../common/simple_math.h"
 #import "../../regression/common/far_utils.h"
-#import "init_shapes.h"
 #import "../common/mtlUtils.h"
 #import "../common/mtlControlMeshDisplay.h"
 #import "../common/MTLPtexMipmapTexture.h"
@@ -152,7 +151,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     bool _needsRebuild, _doAdaptive;
     NSString* _osdShaderSource;
     simd::float3 _meshCenter;
-    NSMutableArray<NSString*>* _loadedModels;
     int _numVertexElements, _numVertices;
     std::vector<float> _vertexData, _animatedVertices;
     int _numFrames, _animationFrames;
@@ -204,7 +202,6 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
         [self _initializeBuffers];
         [self _initializeCamera];
         [self _initializeLights];
-        [self _initializeModels];
     }
     return self;
 }
@@ -1195,28 +1192,11 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     _lightsBuffer.markModified();
 }
 
--(void)_initializeModels {
-    initShapes();
-    _loadedModels = [[NSMutableArray alloc] initWithCapacity:g_defaultShapes.size()];
-    int i = 0;
-    for(auto& shape : g_defaultShapes)
-    {
-        _loadedModels[i++] = [NSString stringWithUTF8String:shape.name.c_str()];
-    }
-    _currentModel = _loadedModels[0];
-}
-
-
 //Setters for triggering _needsRebuild on property change
 
 -(void)setKernelType:(KernelType)kernelType {
     _needsRebuild |= kernelType != _kernelType;
     _kernelType = kernelType;
-}
-
--(void)setCurrentModel:(NSString *)currentModel {
-    _needsRebuild |= ![currentModel isEqualToString:_currentModel];
-    _currentModel = currentModel;
 }
 
 -(void)setRefinementLevel:(unsigned int)refinementLevel {
