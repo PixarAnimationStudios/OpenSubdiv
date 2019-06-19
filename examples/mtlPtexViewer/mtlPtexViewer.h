@@ -63,13 +63,12 @@ typedef struct {
 
 -(id<MTLRenderCommandEncoder>)drawFrame:(id<MTLCommandBuffer>)commandBuffer;
 
+-(void)fitFrame;
+
 @property (readonly, nonatomic) id<OSDRendererDelegate> delegate;
 
 @property (nonatomic) unsigned refinementLevel;
-@property (nonatomic) float tessellationLevel;
-
-@property (readonly, nonatomic) NSArray<NSString*>* loadedModels;
-@property (nonatomic) NSString* currentModel;
+@property (nonatomic) int tessellationLevel;
 
 @property (readonly, nonatomic) Camera* camera;
 
@@ -80,7 +79,8 @@ typedef struct {
 @property (nonatomic) bool usePatchIndexBuffer;
 @property (nonatomic) bool usePatchBackfaceCulling;
 @property (nonatomic) bool usePatchClipCulling;
-@property (nonatomic) bool useSingleCrease;
+@property (nonatomic) bool useSmoothCornerPatch;
+@property (nonatomic) bool useSingleCreasePatch;
 @property (nonatomic) bool useInfinitelySharpPatch;
 @property (nonatomic) bool useStageIn;
 @property (nonatomic) bool usePrimitiveBackfaceCulling;
@@ -91,6 +91,7 @@ typedef struct {
 @property (nonatomic) bool displayControlMeshVertices;
 @property (nonatomic) bool displaySpecular;
 @property (nonatomic) bool displayOcclusion;
+@property (nonatomic) bool yup;
 @property (nonatomic) float mipmapBias;
 @property (nonatomic) float displacementScale;
 

@@ -90,12 +90,17 @@ enum {
 
 -(void)keyDown:(NSEvent *)event {
     const auto key = [event.charactersIgnoringModifiers characterAtIndex:0];
-    if(key == '=') {
-        _controller.osdRenderer.tessellationLevel = std::min(_controller.osdRenderer.tessellationLevel + 1, 16.0f);
+    if (hud.KeyDown(key)) {
+        return;
+    } else if(key == '=') {
+        _controller.osdRenderer.tessellationLevel = std::min(_controller.osdRenderer.tessellationLevel + 1, 16);
     } else if (key == '-') {
-        _controller.osdRenderer.tessellationLevel = std::max(_controller.osdRenderer.tessellationLevel - 1, 0.0f);
-    } else if(!hud.KeyDown(key))
+        _controller.osdRenderer.tessellationLevel = std::max(_controller.osdRenderer.tessellationLevel - 1, 0);
+    } else if (key == 'f') {
+        [_controller.osdRenderer fitFrame];
+    } else {
         [super keyDown:event];
+    }
 }
 
 -(void)scrollWheel:(NSEvent *)event {
@@ -183,6 +188,9 @@ enum {
                 break;
             case kHUD_CB_FRACTIONAL_SPACING:
                 self.osdRenderer.useFractionalTessellation = checked;
+                break;
+            case kHUD_CB_SEAMLESS_MIPMAP:
+                self.osdRenderer.useSeamlessMipmap = checked;
                 break;
             default:
                 assert("Unknown checkbox ID" && 0);
@@ -397,8 +405,6 @@ enum {
     
     auto commandBuffer = [_commandQueue commandBuffer];
     
-    _osdRenderer.displacementScale = 3;
-    
     double avg = 0;
     for(int i = 0; i < FRAME_HISTORY; i++)
         avg += _frameBeginTimestamp[i];
@@ -408,7 +414,7 @@ enum {
     
     auto& hud = self.view->hud;
     if(hud.IsVisible()) {
-        hud.DrawString(10, -120, "Tess level : %f", _osdRenderer.tessellationLevel);
+        hud.DrawString(10, -120, "Tess level : %d", _osdRenderer.tessellationLevel);
         hud.DrawString(10, -20, "FPS = %3.1f", 1.0 / avg);
         
         //Disable Culling & Force Fill mode when drawing the UI

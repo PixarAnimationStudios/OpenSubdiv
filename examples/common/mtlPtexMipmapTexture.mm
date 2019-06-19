@@ -46,7 +46,17 @@ const char* MTLPtexMipmapTexture::GetShaderSource() {
 MTLPtexMipmapTexture * MTLPtexMipmapTexture::Create(Osd::MTLContext *deviceContext, PtexTexture *reader, int maxLevels) {
     const auto maxNumPages = 2048;
 
-    PtexMipmapTextureLoader loader(reader, maxNumPages, maxLevels);
+    size_t targetMemory = 0;
+
+    // Read the ptex data and pack the texels
+    bool padAlpha = reader->numChannels()==3;
+
+    PtexMipmapTextureLoader loader(reader,
+                                   maxNumPages,
+                                   maxLevels,
+                                   targetMemory,
+                                   true/*seemlessMipmap*/,
+                                   padAlpha);
     const auto numFaces = loader.GetNumFaces();
     
     const auto layoutBuffer = [deviceContext->device newBufferWithBytes:loader.GetLayoutBuffer() length:numFaces * 6 * sizeof(short) options:Osd::MTLDefaultStorageMode];
@@ -54,7 +64,7 @@ MTLPtexMipmapTexture * MTLPtexMipmapTexture::Create(Osd::MTLContext *deviceConte
     const auto textureDescriptor = [MTLTextureDescriptor new];
     int bpp = 0;
     textureDescriptor.pixelFormat = [&]() {
-        const auto numChannels = reader->numChannels();
+        const auto numChannels = reader->numChannels() + padAlpha;
         switch(reader->dataType()) {
             case Ptex::dt_uint16:
                 bpp = sizeof(short) * numChannels;
