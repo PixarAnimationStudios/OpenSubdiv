@@ -556,10 +556,15 @@ Hud::Rebuild(int width, int height, int framebufferWidth, int framebufferHeight)
         }
     }
 
-    drawString(_staticVboSource, _windowWidth-80, _windowHeight-48, .5, .5, .5,
-               "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f");
-    drawString(_staticVboSource, _windowWidth-80, _windowHeight-32, .5, .5, .5,
-               "\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f");
+    // draw the character cells corresponding to the logo
+    drawString(_staticVboSource, _windowWidth-128, _windowHeight-44, .5, .5, .5,
+               "\x06\x07\x08\x09");
+    drawString(_staticVboSource, _windowWidth-128, _windowHeight-28, .5, .5, .5,
+               "\x16\x17\x18\x19");
+    drawString(_staticVboSource, _windowWidth-92, _windowHeight-36, .5, .5, .5,
+               "\x0a\x0b\x0c\x0d");
+    drawString(_staticVboSource, _windowWidth-58, _windowHeight-36, .5, .5, .5,
+               "\x1a\x1b\x1c\x1d\x1e\x1f");
 }
 
 bool
