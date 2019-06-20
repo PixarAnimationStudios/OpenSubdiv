@@ -87,6 +87,8 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         intro.rst
         license.rst
         mod_notes.rst
+        mtlviewer.rst
+        mtlptexviewer.rst
         osd_overview.rst
         osd_shader_interface.rst
         porting.rst
