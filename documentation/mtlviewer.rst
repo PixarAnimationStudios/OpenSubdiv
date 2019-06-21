@@ -1,5 +1,5 @@
 ..  
-     Copyright 2013 Pixar
+     Copyright 2019 Pixar
   
      Licensed under the Apache License, Version 2.0 (the "Apache License")
      with the following modification; you may not use this file except in
@@ -22,39 +22,23 @@
      language governing permissions and limitations under the Apache License.
   
 
-dxViewer
---------
+mtlViewer
+---------
 
 .. contents::
    :local:
    :backlinks: none
 
-SYNOPSIS
-========
-
-.. parsed-literal:: 
-   :class: codefhead
-
-   **dxViewer** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *refinement level*] [**-c** *animation loops*]
-      *objfile(s)* [**-catmark**] [**-loop**] [**-bilinear**]
-
 DESCRIPTION
 ===========
 
-``dxViewer`` is a stand-alone application that showcases the application of 
+``mtlViewer`` is a stand-alone application that showcases the application of 
 uniform and feature adaptive subdivision schemes to a collection of geometric
 shapes. Multiple controls are available to experiment with the algorithms.
 
-.. image:: images/dxviewer.png 
+.. image:: images/mtlviewer.png 
    :width: 400px
    :align: center
-   :target: images/dxviewer.png 
-
-OPTIONS
-=======
-
-See the description of the
-`common comand line options <code_examples.html#common-command-line-options>`__
-for the subset of common options supported here.
+   :target: images/mtlviewer.png 
 
 .. include:: examples_see_also.rst
