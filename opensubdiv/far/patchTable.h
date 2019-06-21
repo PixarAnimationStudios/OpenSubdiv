@@ -168,7 +168,7 @@ public:
     StencilTableReal<REAL> const *GetLocalPointStencilTable() const;
 
     /// \brief Tests if the precision of the stencil table to compute local point
-    /// vertex values matches the given floating point type <REAL>.
+    /// vertex values matches the given floating point type \<REAL\>.
     template <typename REAL> bool LocalPointStencilPrecisionMatchesType() const;
 
     /// \brief Updates local point vertex values.
@@ -198,7 +198,7 @@ public:
     StencilTableReal<REAL> const *GetLocalPointVaryingStencilTable() const;
 
     /// \brief Tests if the precision of the stencil table to compute local point
-    /// varying values matches the given floating point type <REAL>.
+    /// varying values matches the given floating point type \<REAL\>.
     template <typename REAL> bool LocalPointVaryingStencilPrecisionMatchesType() const;
 
     /// \brief Updates local point varying values.
@@ -228,7 +228,7 @@ public:
     StencilTableReal<REAL> const * GetLocalPointFaceVaryingStencilTable(int channel = 0) const;
 
     /// \brief Tests if the precision of the stencil table to compute local point
-    /// face-varying values matches the given floating point type <REAL>.
+    /// face-varying values matches the given floating point type \<REAL\>.
     template <typename REAL> bool LocalPointFaceVaryingStencilPrecisionMatchesType() const;
 
     /// \brief Updates local point face-varying values.

@@ -44,12 +44,20 @@ public:
     ///
     struct Options {
 
+        /// \brief Choice for approximating irregular patches (end-caps)
+        ///
+        /// This enum specifies how irregular patches (end-caps) are approximated.
+        /// A basis is chosen, rather than a specific patch type, and has a
+        /// corresponding patch type for each subdivision scheme, i.e. a quad and
+        /// triangular patch type exists for each basis.  These choices provide a
+        /// trade-off between surface quality and performance.
+        ///
         enum EndCapType {
-            ENDCAP_NONE = 0,             ///< no endcap
-            ENDCAP_BILINEAR_BASIS,       ///< use bilinear quads (4 cp) as end-caps
-            ENDCAP_BSPLINE_BASIS,        ///< use BSpline basis patches (16 cp) as end-caps
-            ENDCAP_GREGORY_BASIS,        ///< use Gregory basis patches (20 cp) as end-caps
-            ENDCAP_LEGACY_GREGORY        ///< use legacy (2.x) Gregory patches (4 cp + valence table) as end-caps
+            ENDCAP_NONE = 0,        ///< unspecified
+            ENDCAP_BILINEAR_BASIS,  ///< use linear patches (simple quads or tris)
+            ENDCAP_BSPLINE_BASIS,   ///< use BSpline-like patches (same patch type as regular)
+            ENDCAP_GREGORY_BASIS,   ///< use Gregory patches (highest quality, recommended default)
+            ENDCAP_LEGACY_GREGORY   ///< legacy option for 2.x style Gregory patches (Catmark only)
         };
 
         Options(unsigned int maxIsolation=10) :
@@ -73,10 +81,10 @@ public:
              fvarChannelIndices(0)
         { }
 
-        /// \brief Get endcap patch type
+        /// \brief Get endcap basis type
         EndCapType GetEndCapType() const { return (EndCapType)endCapType; }
 
-        /// \brief Set endcap patch type
+        /// \brief Set endcap basis type
         void SetEndCapType(EndCapType e) { endCapType = e; }
 
         /// \brief Set precision of vertex patches
@@ -175,7 +183,7 @@ public:
     //  It is no longer used internally and is being kept here to respect preservation
     //  of the public interface, but it will be deprecated at the earliest opportunity.
     //
-    /// \brief Obsolete internal struct accidentally exposed for public use -- due to
+    /// \brief Obsolete internal struct not intended for public use -- due to
     /// be deprecated.
     //
     struct PatchFaceTag {

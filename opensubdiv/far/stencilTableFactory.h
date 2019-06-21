@@ -120,7 +120,7 @@ public:
     /// @param localPointStencilTable
     ///                             StencilTable for the change of basis patch points.
     ///
-    /// @param factorize            If factorize set to true, endcap stencils will be
+    /// @param factorize            If factorize is set to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
@@ -140,7 +140,7 @@ public:
     /// @param localPointStencilTable
     ///                             StencilTable for the change of basis patch points.
     ///
-    /// @param factorize            If factorize set to true, endcap stencils will be
+    /// @param factorize            If factorize is set to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
@@ -166,7 +166,7 @@ public:
     ///
     /// @param channel              face-varying channel
     ///
-    /// @param factorize            If factorize sets to true, endcap stencils will be
+    /// @param factorize            If factorize is set to true, endcap stencils will be
     ///                             factorized with supporting vertices from baseStencil
     ///                             table so that the endcap points can be computed
     ///                             directly from control vertices.
