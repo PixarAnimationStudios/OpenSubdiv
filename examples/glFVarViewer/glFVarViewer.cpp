@@ -1169,7 +1169,7 @@ initHUD() {
                       10,  60, callbackControlEdges, 0, 'h');
     g_hud.AddCheckBox("Control vertices (J)", g_controlMeshDisplay.GetVerticesDisplay(),
                       10,  80, callbackControlVertices, 0, 'j');
-    g_hud.AddCheckBox("UV Backface Culling (B)", g_uvCullBackface,
+    g_hud.AddCheckBox("UV Backface Culling (B)", g_uvCullBackface != 0,
                       10, 100, callbackUVCullBackface, 0, 'b');
 
     int shading_pulldown = g_hud.AddPullDown("Display Style (W)",
