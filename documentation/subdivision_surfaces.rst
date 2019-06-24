@@ -139,8 +139,18 @@ the surface they define compared to the similar Bezier patch.  The two patches i
 that example actually represent exactly the same piece of surface -- each with a set
 of control points having different effects on it.  In mathematical terms, each control
 point has a "basis function" associated with it that affects the surface in a particular
-way when only that point is moved.  It is these basis functions that often give rise
-to the names of the different patches.
+way when only that point is moved:
+
++--------------------------------------+--------------------------------------+
+| .. image:: images/basis_bspline.jpg  | .. image:: images/basis_bezier.jpg   |
+|    :align:  center                   |    :align:  center                   |
+|    :width:  80%                      |    :width:  80%                      |
+|    :target: images/basis_bspline.jpg |    :target: images/basis_bezier.jpg  |
+|                                      |                                      |
+| Bicubic B-Spline basis function      | Bicubic Bezier basis funciton        |
++--------------------------------------+--------------------------------------+
+
+It is these basis functions that often give rise to the names of the different patches.
 
 There are pros and cons to these different properties of the control points of patches,
 which become more apparent as we assemble patches into piecewise surfaces.
@@ -635,8 +645,7 @@ involving topology (computing the weights) and combining the data separately.
 |    :width:  95%                       |    :width:  95%                       |    :width:  95%                       |
 |    :target: images/data_pose_1.jpg    |    :target: images/data_pose_2.jpg    |    :target: images/data_pose_3.jpg    |
 +---------------------------------------+---------------------------------------+---------------------------------------+
-| Three shapes resulting from three sets of positions for the a mesh of complex but fixed topology.                     |
-| (currently stand-in images until we have an animated character approved for publication)                              |
+| Three shapes resulting from three sets of positions for a mesh of fixed topology.                                     |
 +---------------------------------------+---------------------------------------+---------------------------------------+
     
 When the topology is fixed, enormous savings are possible by pre-computing information
