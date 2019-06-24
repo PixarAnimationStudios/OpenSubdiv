@@ -29,12 +29,20 @@ mtlPtexViewer
    :local:
    :backlinks: none
 
+SYNOPSIS
+========
+
+.. parsed-literal::
+   :class: codefhead
+
+   **open** **mtlPtexViewer.app** **--args** [**-yup**] [**-u**] [**-a**] [**-l** *isolation level*]
+       *ptex color file*
+       *ptex displacement file*
+
 DESCRIPTION
 ===========
 
-``mtlPtexViewer`` is a stand-alone application that showcases advanced HDR shading
-with color, displacement, occlusion and specular ptex maps. Multiple controls 
-are available to experiment with the algorithms.
+``mtlPtexViewer`` is a stand-alone application demonstrating shading with color and displacement ptex maps. Multiple controls are available to experiment with the algorithms.
 
 .. image:: images/mtlptexviewer.png
    :width: 400px
@@ -45,13 +53,9 @@ KEYBOARD CONTROLS
 =================
 
    .. code:: c++
-   
+
       q      : quit
-      esc    : hide GUI
-      x      : save screenshot
       f      : fit frame
       +/-    : increase / decrease tessellation rate
-      r      : reload and re-compile the shader files
-      e      : draw normals
 
 .. include:: examples_see_also.rst
