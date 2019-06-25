@@ -342,7 +342,7 @@ struct PipelineConfig {
         self.useSmoothCornerPatch = true;
         self.useSingleCreasePatch = true;
         self.useInfinitelySharpPatch = true;
-        self.useStageIn = !TARGET_OS_EMBEDDED;
+        self.useStageIn = true;
         self.endCapMode = kEndCapGregoryBasis;
         self.useScreenspaceTessellation = false;
         self.useFractionalTessellation = false;

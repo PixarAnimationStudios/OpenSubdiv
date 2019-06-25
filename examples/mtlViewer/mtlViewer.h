@@ -30,8 +30,8 @@
 typedef enum {
     kEndCapBilinearBasis = 0,
     kEndCapBSplineBasis,
-    kEndCapLegacyGregory,
     kEndCapGregoryBasis,
+    kEndCapLegacyGregory,
 } EndCap;
 
 typedef enum {
