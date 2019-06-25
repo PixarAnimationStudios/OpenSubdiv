@@ -38,19 +38,25 @@ of the software.
    :widths: 50 50
 
    * - | `glViewer <glviewer.html>`_
+       | `glFVarViewer <glfvarviewer.html>`_
        | `glEvalLimit <glevallimit.html>`_
-       | `glPaintTest <glpainttest.html>`_
-       | `glPtexViewer <glptexviewer.html>`_
-     - | `glFVarViewer <glfvarviewer.html>`_
        | `glStencilViewer <glstencilviewer.html>`_
+     - | `glPtexViewer <glptexviewer.html>`_
+       | `glPaintTest <glpainttest.html>`_
        | `glShareTopology <glsharetopology.html>`_
 
 .. list-table:: **DirectX examples**
    :class: quickref
-   :widths: 50 50
 
    * - | `dxViewer <dxviewer.html>`_
      - | `dxPtexViewer <dxptexviewer.html>`_
+
+.. list-table:: **Metal examples**
+   :class: quickref
+   :widths: 50 50
+
+   * - | `mtlViewer <mtlviewer.html>`_
+     - | `mtlPtexViewer <mtlptexviewer.html>`_
 
 ----
 

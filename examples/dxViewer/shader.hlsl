@@ -416,11 +416,7 @@ getAdaptivePatchColor(int3 patchParam, float2 vSegments)
     if (vSegments.y > 0) {
         patchType = 1;
     }
-#endif
-
-    // XXX: it looks like edgeCount != 0 for gregory_boundary.
-    //      there might be a bug somewhere.
-#if defined OSD_PATCH_GREGORY
+#elif defined OSD_PATCH_GREGORY
     patchType = 4;
 #elif defined OSD_PATCH_GREGORY_BOUNDARY
     patchType = 5;

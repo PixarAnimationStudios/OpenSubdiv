@@ -1960,7 +1960,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
     const char *diffuseEnvironmentMap = NULL, *specularEnvironmentMap = NULL;
     const char *colorFilename = NULL, *displacementFilename = NULL,
         *occlusionFilename = NULL, *specularFilename = NULL;
-    int memLimit;
+    int memLimit = 0;
 
     for (int i = 0; i < (int)argv.size(); ++i) {
         if (strstr(argv[i].c_str(), ".obj"))

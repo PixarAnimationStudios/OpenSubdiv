@@ -109,7 +109,7 @@ int g_running = 1,
     g_displayDisplacement = 0,
     g_mbutton[3] = {0, 0, 0};
 
-int g_brushSize = 500;
+int g_brushSize = 100;
 int g_frame = 0;
 
 GLuint g_ptexPages = 0,
@@ -704,16 +704,16 @@ display() {
             averageFps += g_fpsTimeSamples[i]/(float)NUM_FPS_TIME_SAMPLES;
         }
 
-        g_hud.DrawString(10, -180, "Tess level (+/-): %d", g_tessLevel);
+        g_hud.DrawString(10, -100, "Tess level (+/-): %d", g_tessLevel);
         if (numPrimsGenerated > 1000000) {
-            g_hud.DrawString(10, -160, "Primitives      : %3.1f million", (float)numPrimsGenerated/1000000.0);
+            g_hud.DrawString(10, -80, "Primitives      : %3.1f million", (float)numPrimsGenerated/1000000.0);
         } else if (numPrimsGenerated > 1000) {
-            g_hud.DrawString(10, -160, "Primitives      : %3.1f thousand", (float)numPrimsGenerated/1000.0);
+            g_hud.DrawString(10, -80, "Primitives      : %3.1f thousand", (float)numPrimsGenerated/1000.0);
         } else {
-            g_hud.DrawString(10, -160, "Primitives      : %d", numPrimsGenerated);
+            g_hud.DrawString(10, -80, "Primitives      : %d", numPrimsGenerated);
         }
-        g_hud.DrawString(10, -140, "Vertices        : %d", g_mesh->GetNumVertices());
-        g_hud.DrawString(10, -20,  "FPS             : %3.1f", averageFps);
+        g_hud.DrawString(10, -60, "Vertices        : %d", g_mesh->GetNumVertices());
+        g_hud.DrawString(10, -20, "FPS             : %3.1f", averageFps);
     }
 
     g_hud.Flush();
@@ -961,6 +961,12 @@ callbackModel(int m) {
     createOsdMesh();
 }
 
+static void
+callbackBrushSize(float value, int /* data */) {
+
+    g_brushSize = (int)value;
+}
+
 //------------------------------------------------------------------------------
 static void
 initHUD() {
@@ -981,6 +987,9 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Wire", 0, g_wire==0);
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", 1, g_wire==1);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_wire==2);
+
+    g_hud.AddSlider("Brush size", 10, 500, g_brushSize,
+                     350, -60, 40, true, callbackBrushSize, 0);
 
     for (int i = 1; i < 11; ++i) {
         char level[16];

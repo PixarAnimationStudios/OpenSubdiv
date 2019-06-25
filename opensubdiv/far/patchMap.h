@@ -62,7 +62,7 @@ public:
     /// face indices and not the base face indices (see Far::PtexIndices for more
     /// details).
     ///
-    /// @param patchFaceId  The index of the face
+    /// @param patchFaceId  The index of the patch (Ptex) face
     ///
     /// @param u       Local u parameter
     ///

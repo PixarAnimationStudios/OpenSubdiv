@@ -184,9 +184,9 @@ int   g_freeze = 0,
       g_displayStyle = kDisplayStyleWireOnShaded,
       g_adaptive = 1,
       g_endCap = kEndCapGregoryBasis,
-      g_smoothCornerPatch = 0,
+      g_smoothCornerPatch = 1,
       g_singleCreasePatch = 1,
-      g_infSharpPatch = 0,
+      g_infSharpPatch = 1,
       g_mbutton[3] = {0, 0, 0},
       g_running = 1;
 
@@ -233,7 +233,9 @@ GLuint g_transformUB = 0,
        g_tessellationUB = 0,
        g_tessellationBinding = 1,
        g_lightingUB = 0,
-       g_lightingBinding = 2;
+       g_lightingBinding = 2,
+       g_fvarArrayDataUB = 0,
+       g_fvarArrayDataBinding = 3;
 
 struct Transform {
     float ModelViewMatrix[16];
@@ -251,7 +253,7 @@ GLuint g_vao = 0;
 struct FVarData
 {
     FVarData() :
-        textureBuffer(0) {
+        textureBuffer(0), textureParamBuffer(0) {
     }
     ~FVarData() {
         Release();
@@ -260,11 +262,17 @@ struct FVarData
         if (textureBuffer)
             glDeleteTextures(1, &textureBuffer);
         textureBuffer = 0;
+        if (textureParamBuffer)
+            glDeleteTextures(1, &textureParamBuffer);
+        textureParamBuffer = 0;
     }
     void Create(OpenSubdiv::Far::PatchTable const *patchTable,
                 int fvarWidth, std::vector<float> const & fvarSrcData) {
+
+        using namespace OpenSubdiv;
+
         Release();
-        OpenSubdiv::Far::ConstIndexArray indices = patchTable->GetFVarValues();
+        Far::ConstIndexArray indices = patchTable->GetFVarValues();
 
         // expand fvardata to per-patch array
         std::vector<float> data;
@@ -289,8 +297,22 @@ struct FVarData
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glDeleteBuffers(1, &buffer);
+
+        Far::ConstPatchParamArray fvarParam = patchTable->GetFVarPatchParams();
+        glGenBuffers(1, &buffer);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glBufferData(GL_ARRAY_BUFFER, fvarParam.size()*sizeof(Far::PatchParam),
+                     &fvarParam[0], GL_STATIC_DRAW);
+
+        glGenTextures(1, &textureParamBuffer);
+        glBindTexture(GL_TEXTURE_BUFFER, textureParamBuffer);
+        glTexBuffer(GL_TEXTURE_BUFFER, GL_RG32I, buffer);
+        glBindTexture(GL_TEXTURE_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glDeleteBuffers(1, &buffer);
     }
-    GLuint textureBuffer;
+    GLuint textureBuffer, textureParamBuffer;
 } g_fvarData;
 
 //------------------------------------------------------------------------------
@@ -780,11 +802,6 @@ public:
             break;
         }
 
-        if (type == Far::PatchDescriptor::TRIANGLES ||
-            type == Far::PatchDescriptor::LOOP ||
-            type == Far::PatchDescriptor::GREGORY_TRIANGLE) {
-            ss << "#define LOOP\n";
-        }
         if (type != Far::PatchDescriptor::TRIANGLES &&
             type != Far::PatchDescriptor::QUADS) {
             ss << "#define SMOOTH_NORMALS\n";
@@ -869,6 +886,10 @@ public:
         if (uboIndex != GL_INVALID_INDEX)
             glUniformBlockBinding(program, uboIndex, g_lightingBinding);
 
+        uboIndex = glGetUniformBlockIndex(program, "OsdFVarArrayData");
+        if (uboIndex != GL_INVALID_INDEX)
+            glUniformBlockBinding(program, uboIndex, g_fvarArrayDataBinding);
+
         // assign texture locations
         GLint loc;
         glUseProgram(program);
@@ -878,15 +899,18 @@ public:
         if ((loc = glGetUniformLocation(program, "OsdFVarDataBuffer")) != -1) {
             glUniform1i(loc, 1); // GL_TEXTURE1
         }
-        // for legacy gregory patches
-        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
+        if ((loc = glGetUniformLocation(program, "OsdFVarParamBuffer")) != -1) {
             glUniform1i(loc, 2); // GL_TEXTURE2
         }
-        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
+        // for legacy gregory patches
+        if ((loc = glGetUniformLocation(program, "OsdVertexBuffer")) != -1) {
             glUniform1i(loc, 3); // GL_TEXTURE3
         }
-        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
+        if ((loc = glGetUniformLocation(program, "OsdValenceBuffer")) != -1) {
             glUniform1i(loc, 4); // GL_TEXTURE4
+        }
+        if ((loc = glGetUniformLocation(program, "OsdQuadOffsetBuffer")) != -1) {
+            glUniform1i(loc, 5); // GL_TEXTURE5
         }
         glUseProgram(0);
 
@@ -899,6 +923,9 @@ ShaderCache g_shaderCache;
 //------------------------------------------------------------------------------
 static void
 updateUniformBlocks() {
+
+    using namespace OpenSubdiv;
+
     if (! g_transformUB) {
         glGenBuffers(1, &g_transformUB);
         glBindBuffer(GL_UNIFORM_BUFFER, g_transformUB);
@@ -931,6 +958,29 @@ updateUniformBlocks() {
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     glBindBufferBase(GL_UNIFORM_BUFFER, g_tessellationBinding, g_tessellationUB);
+
+    // Update and bind fvar patch array state
+    if (g_mesh->GetPatchTable()->GetNumFVarChannels() > 0) {
+        Osd::PatchArrayVector const &fvarPatchArrays =
+            g_mesh->GetPatchTable()->GetFVarPatchArrays();
+
+        // bind patch arrays UBO (std140 struct size padded to vec4 alignment)
+        int patchArraySize =
+            sizeof(GLint) * ((sizeof(Osd::PatchArray)/sizeof(GLint) + 3) & ~3);
+        if (!g_fvarArrayDataUB) {
+            glGenBuffers(1, &g_fvarArrayDataUB);
+        }
+        glBindBuffer(GL_UNIFORM_BUFFER, g_fvarArrayDataUB);
+        glBufferData(GL_UNIFORM_BUFFER,
+            fvarPatchArrays.size()*patchArraySize, NULL, GL_STATIC_DRAW);
+        for (int i=0; i<(int)fvarPatchArrays.size(); ++i) {
+            glBufferSubData(GL_UNIFORM_BUFFER,
+                i*patchArraySize, sizeof(Osd::PatchArray), &fvarPatchArrays[i]);
+        }
+
+        glBindBufferBase(GL_UNIFORM_BUFFER,
+                g_fvarArrayDataBinding, g_fvarArrayDataUB);
+    }
 
     // Update and bind lighting state
     struct Lighting {
@@ -978,17 +1028,20 @@ bindTextures() {
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_BUFFER,
                       g_fvarData.textureBuffer);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_BUFFER,
+                      g_fvarData.textureParamBuffer);
     }
 
     // legacy gregory
     if (g_legacyGregoryPatchTable) {
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_BUFFER,
-                      g_legacyGregoryPatchTable->GetVertexTextureBuffer());
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_BUFFER,
-                      g_legacyGregoryPatchTable->GetVertexValenceTextureBuffer());
+                      g_legacyGregoryPatchTable->GetVertexTextureBuffer());
         glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_BUFFER,
+                      g_legacyGregoryPatchTable->GetVertexValenceTextureBuffer());
+        glActiveTexture(GL_TEXTURE5);
         glBindTexture(GL_TEXTURE_BUFFER,
                       g_legacyGregoryPatchTable->GetQuadOffsetsTextureBuffer());
     }

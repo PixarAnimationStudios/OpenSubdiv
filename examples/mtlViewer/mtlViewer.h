@@ -30,8 +30,8 @@
 typedef enum {
     kEndCapBilinearBasis = 0,
     kEndCapBSplineBasis,
-    kEndCapLegacyGregory,
     kEndCapGregoryBasis,
+    kEndCapLegacyGregory,
 } EndCap;
 
 typedef enum {
@@ -86,6 +86,8 @@ typedef struct {
 
 -(id<MTLRenderCommandEncoder>)drawFrame:(id<MTLCommandBuffer>)commandBuffer;
 
+-(void)fitFrame;
+
 @property (readonly, nonatomic) id<OSDRendererDelegate> delegate;
 
 @property (nonatomic) unsigned refinementLevel;
@@ -109,6 +111,7 @@ typedef struct {
 @property (nonatomic) bool useStageIn;
 @property (nonatomic) bool usePrimitiveBackfaceCulling;
 @property (nonatomic) bool useAdaptive;
+@property (nonatomic) bool yup;
 @property (nonatomic) bool freeze;
 @property (nonatomic) bool animateVertices;
 @property (nonatomic) bool displayControlMeshEdges;

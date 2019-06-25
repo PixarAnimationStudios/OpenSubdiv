@@ -255,16 +255,16 @@ kernel void eval_patches(
                                   as_type<float>(patchCoords[current*5+3]),
                                   as_type<float>(patchCoords[current*5+4]));
 
-    OsdPatchArray patchArray = OsdPatchArrayInit(patchArrays[current*6+0],
-                                                 patchArrays[current*6+1],
-                                                 patchArrays[current*6+2],
-                                                 patchArrays[current*6+3],
-                                                 patchArrays[current*6+4],
-                                                 patchArrays[current*6+5]);
+    OsdPatchArray patchArray = OsdPatchArrayInit(patchArrays[patchCoord.arrayIndex*6+0],
+                                                 patchArrays[patchCoord.arrayIndex*6+1],
+                                                 patchArrays[patchCoord.arrayIndex*6+2],
+                                                 patchArrays[patchCoord.arrayIndex*6+3],
+                                                 patchArrays[patchCoord.arrayIndex*6+4],
+                                                 patchArrays[patchCoord.arrayIndex*6+5]);
 
-    OsdPatchParam patchParam = OsdPatchParamInit(patchParams[current*3+0],
-                                                 patchParams[current*3+1],
-                                  as_type<float>(patchParams[current*3+2]));
+    OsdPatchParam patchParam = OsdPatchParamInit(patchParams[patchCoord.patchIndex*3+0],
+                                                 patchParams[patchCoord.patchIndex*3+1],
+                                  as_type<float>(patchParams[patchCoord.patchIndex*3+2]));
 
     int patchType = OsdPatchParamIsRegular(patchParam)
         ? patchArray.regDesc : patchArray.desc;

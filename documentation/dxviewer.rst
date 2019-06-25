@@ -35,8 +35,8 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **dxViewer** [**-u**] [**-a**] [**-l** *refinement level*] [**-c** *animation loops*]
-      *objfile(s)* [**-anim**] [**-catmark**] [**-loop**] [**-bilinear**]
+   **dxViewer** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *refinement level*] [**-c** *animation loops*]
+      *objfile(s)* [**-catmark**] [**-loop**] [**-bilinear**]
 
 DESCRIPTION
 ===========
@@ -49,12 +49,6 @@ shapes. Multiple controls are available to experiment with the algorithms.
    :width: 400px
    :align: center
    :target: images/dxviewer.png 
-
-.. container:: notebox
-
-   * **Note:** 
-     
-      dxViewer requires Microsoft's DirectX D3D11 SDK
 
 OPTIONS
 =======

@@ -121,7 +121,7 @@ int   g_running = 1,
       g_repeatCount=0;
 
 bool g_adaptive=true,
-     g_infSharpPatch=false;
+     g_infSharpPatch=true;
 
 float g_rotate[2] = {0, 0},
       g_dolly = 5,

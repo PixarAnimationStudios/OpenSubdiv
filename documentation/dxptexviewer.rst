@@ -35,7 +35,7 @@ SYNOPSIS
 .. parsed-literal:: 
    :class: codefhead
 
-   **dxPtexViewer** [**-f**] [**-l** *isolation level*] [**-c** *animation loops*] [**-y**]
+   **dxPtexViewer** [**-f**] [**-yup**] [**-u**] [**-a**] [**-l** *isolation level*] [**-c** *animation loops*]
        [**-e** *environment map*] [**-d** *HDR diffuse map*] [**-s** *HDR specular map*]
        [**--disp** *displacement scale*]
        *ptex color file*
@@ -51,7 +51,11 @@ DESCRIPTION
 with color, displacement, occlusion and specular ptex maps. Multiple controls 
 are available to experiment with the algorithms.
 
-.. include:: under_development.rst
+.. image:: images/dxptexviewer.png
+    :width: 400px
+    :align: center
+    :target: images/dxptexviewer.png
+
 
 
 OPTIONS
@@ -98,7 +102,7 @@ for the subset of common options supported here.
   the data contained in all the ptex files !)
 
 
-Keyboard Controls
+KEYBOARD CONTROLS
 =================
 
    .. code:: c++

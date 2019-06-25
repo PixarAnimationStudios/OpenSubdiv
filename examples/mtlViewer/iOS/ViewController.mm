@@ -98,7 +98,7 @@
     _osdRenderer.displayControlMeshVertices = _controlMeshSwitch.isOn;
     _osdRenderer.displayControlMeshEdges = _controlMeshSwitch.isOn;
     _osdRenderer.usePatchClipCulling = _patchClipCullingSwitch.isOn;
-    _osdRenderer.useFractionalTessellation = _osdRenderer.useScreenspaceTessellation;
+    _osdRenderer.useFractionalTessellation = _osdRenderer.useFractionalTessellation;
     _osdRenderer.useAdaptive = true;
     _osdRenderer.freeze = true;
     _osdRenderer.animateVertices = false;
@@ -210,7 +210,7 @@
         _osdRenderer.displayControlMeshVertices = sender.isOn;
     } else if(sender == _screenspaceTessellationSwitch) {
         _osdRenderer.useScreenspaceTessellation = sender.isOn;
-        _osdRenderer.useFractionalTessellation = _osdRenderer.useScreenspaceTessellation;
+        _osdRenderer.useFractionalTessellation = _osdRenderer.useFractionalTessellation;
     }
 }
 

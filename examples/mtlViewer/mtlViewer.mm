@@ -47,11 +47,13 @@
 #import <opensubdiv/osd/mtlComputeEvaluator.h>
 #import <opensubdiv/osd/mtlPatchShaderSource.h>
 
-#import "../common/simple_math.h"
 #import "../../regression/common/far_utils.h"
-#import "init_shapes.h"
+#import "../common/argOptions.h"
 #import "../common/mtlUtils.h"
 #import "../common/mtlControlMeshDisplay.h"
+#import "../common/simple_math.h"
+#import "../common/viewerArgsUtils.h"
+#import "init_shapes.h"
 
 #define VERTEX_BUFFER_INDEX 0
 #define PATCH_INDICES_BUFFER_INDEX 1
@@ -150,8 +152,9 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
 
     PerFrameBuffer<unsigned> _patchIndexBuffers[DISPATCHSLOTS];
 
-    unsigned _tessFactorOffsets[DISPATCHSLOTS];
+    unsigned _tessFactorsOffsets[DISPATCHSLOTS];
     unsigned _perPatchVertexOffsets[DISPATCHSLOTS];
+    unsigned _perPatchTessFactorsOffsets[DISPATCHSLOTS];
 
     unsigned _threadgroupSizes[DISPATCHSLOTS];
     id<MTLComputePipelineState> _computePipelines[DISPATCHSLOTS];
@@ -187,6 +190,7 @@ using PerFrameBuffer = MTLRingBuffer<DataType, FRAME_LAG>;
     bool _needsRebuild;
     NSString* _osdShaderSource;
     simd::float3 _meshCenter;
+    float _meshSize;
     NSMutableArray<NSString*>* _loadedModels;
     int _patchCounts[DISPATCHSLOTS];
 }
@@ -300,26 +304,62 @@ struct PipelineConfig {
     return config;
 }
 
+-(void)_processArgs {
+
+    NSEnumerator *argsArray =
+            [[[NSProcessInfo processInfo] arguments] objectEnumerator];
+
+    std::vector<char *> argsVector;
+    for (id arg in argsArray) {
+        argsVector.push_back((char *)[arg UTF8String]);
+    }
+
+    ArgOptions args;
+
+    args.Parse(argsVector.size(), argsVector.data());
+
+    // Parse remaining args
+    const std::vector<const char *> &rargs = args.GetRemainingArgs();
+    for (size_t i = 0; i < rargs.size(); ++i) {
+
+        if (!strcmp(rargs[i], "-lg")) {
+            self.legacyGregoryEnabled = true;
+        } else {
+            args.PrintUnrecognizedArgWarning(rargs[i]);
+        }
+    }
+
+    self.yup = args.GetYUp();
+    self.useAdaptive = args.GetAdaptive();
+    self.refinementLevel = args.GetLevel();
+
+    ViewerArgsUtils::PopulateShapes(args, &g_defaultShapes);
+}
+
 -(instancetype)initWithDelegate:(id<OSDRendererDelegate>)delegate {
     self = [super init];
     if (self) {
-        self.useSmoothCornerPatch = false;
+        self.useSmoothCornerPatch = true;
         self.useSingleCreasePatch = true;
-        self.useInfinitelySharpPatch = false;
-        self.useStageIn = !TARGET_OS_EMBEDDED;
-        self.endCapMode = kEndCapBSplineBasis;
-        self.useScreenspaceTessellation = true;
+        self.useInfinitelySharpPatch = true;
+        self.useStageIn = true;
+        self.endCapMode = kEndCapGregoryBasis;
+        self.useScreenspaceTessellation = false;
+        self.useFractionalTessellation = false;
         self.usePatchClipCulling = false;
         self.usePatchIndexBuffer = false;
         self.usePatchBackfaceCulling = false;
         self.usePrimitiveBackfaceCulling = false;
         self.useAdaptive = true;
+        self.yup = false;
         self.kernelType = kMetal;
         self.refinementLevel = 2;
         self.tessellationLevel = 1;
         self.shadingMode = kShadingPatchType;
         self.displayStyle = kDisplayStyleWireOnShaded;
-        self.legacyGregoryEnabled = true;
+        self.legacyGregoryEnabled = false;
+
+        [self _processArgs];
 
         _frameCount = 0;
         _animationFrames = 0;
@@ -409,6 +449,10 @@ struct PipelineConfig {
     return renderEncoder;
 }
 
+-(void)fitFrame {
+    _cameraData.dollyDistance = _meshSize;
+}
+
 -(void)_renderMesh:(id<MTLRenderCommandEncoder>)renderCommandEncoder {
 
     auto patchVertexBuffer = _mesh->BindVertexBuffer();
@@ -476,7 +520,8 @@ struct PipelineConfig {
         if (pipelineConfig.useTessellation) {
             [renderCommandEncoder setVertexBufferOffset:patch.primitiveIdBase * sizeof(int) * 3 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
 
-            [renderCommandEncoder setTessellationFactorBuffer:_tessFactorsBuffer offset:_tessFactorOffsets[patchType] instanceStride:0];
+            [renderCommandEncoder setTessellationFactorBuffer:_tessFactorsBuffer offset:_tessFactorsOffsets[patchType] instanceStride:0];
+            [renderCommandEncoder setVertexBufferOffset:_perPatchTessFactorsOffsets[patchType] atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
 
             if (!pipelineConfig.drawIndexed) {
                 [renderCommandEncoder setVertexBufferOffset:_perPatchVertexOffsets[patchType] atIndex:OSD_PERPATCHVERTEX_BUFFER_INDEX];
@@ -619,12 +664,15 @@ struct PipelineConfig {
     [computeCommandEncoder setBuffer:_mesh->GetPatchTable()->GetPatchParamBuffer() offset:0 atIndex:OSD_PATCHPARAM_BUFFER_INDEX];
     [computeCommandEncoder setBuffer:_frameConstantsBuffer offset:0 atIndex:FRAME_CONST_BUFFER_INDEX];
 
-    [computeCommandEncoder setBuffer:_perPatchTessFactorsBuffer offset:0 atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
-
     for (auto& patch : _mesh->GetPatchTable()->GetPatchArrays())
     {
         auto patchType = patch.desc.GetType();
         PipelineConfig pipelineConfig = [self _lookupPipelineConfig:patchType useSingleCreasePatch:_useSingleCreasePatch];
+
+        // Don't compute tess factors when not using tessellation
+        if (!pipelineConfig.useTessellation) {
+            continue;
+        }
 
         [computeCommandEncoder setComputePipelineState:_computePipelines[patchType]];
 
@@ -632,7 +680,8 @@ struct PipelineConfig {
         [computeCommandEncoder setBufferOffset:patch.indexBase * sizeof(unsigned) atIndex:CONTROL_INDICES_BUFFER_INDEX];
 
         if (pipelineConfig.useTessellation) {
-            [computeCommandEncoder setBuffer:_tessFactorsBuffer offset:_tessFactorOffsets[patchType] atIndex:PATCH_TESSFACTORS_INDEX];
+            [computeCommandEncoder setBuffer:_tessFactorsBuffer offset:_tessFactorsOffsets[patchType] atIndex:PATCH_TESSFACTORS_INDEX];
+            [computeCommandEncoder setBuffer:_perPatchTessFactorsBuffer offset:_perPatchTessFactorsOffsets[patchType] atIndex:OSD_PERPATCHTESSFACTORS_BUFFER_INDEX];
             [computeCommandEncoder setBuffer:_perPatchVertexBuffer offset:_perPatchVertexOffsets[patchType] atIndex:OSD_PERPATCHVERTEX_BUFFER_INDEX];
         }
         if (pipelineConfig.useLegacyBuffers) {
@@ -668,7 +717,6 @@ struct PipelineConfig {
 
     auto shapeDesc = &g_defaultShapes[[_loadedModels indexOfObject:_currentModel]];
     _shape.reset(Shape::parseObj(shapeDesc->data.c_str(), shapeDesc->scheme));
-    const auto scheme = shapeDesc->scheme;
 
     // create Far mesh (topology)
     Sdc::SchemeType sdctype = GetSdcType(*_shape);
@@ -746,7 +794,6 @@ struct PipelineConfig {
     }
 
     _vertexData.resize(refBaseLevel.GetNumVertices() * numElements);
-    _meshCenter = simd::float3{0,0,0};
 
     for(int i = 0; i < refBaseLevel.GetNumVertices(); ++i)
     {
@@ -755,14 +802,24 @@ struct PipelineConfig {
         _vertexData[i * numElements + 2] = _shape->verts[i * 3 + 2];
     }
 
-    for(auto vertexIdx = 0; vertexIdx < refBaseLevel.GetNumVertices(); ++vertexIdx)
-    {
-        _meshCenter[0] += _vertexData[vertexIdx * numElements + 0];
-        _meshCenter[1] += _vertexData[vertexIdx * numElements + 1];
-        _meshCenter[2] += _vertexData[vertexIdx * numElements + 2];
+    // compute model bounding
+    float min[3] = { FLT_MAX, FLT_MAX, FLT_MAX};
+    float max[3] = {-FLT_MAX,-FLT_MAX,-FLT_MAX};
+    for (int i = 0; i < refBaseLevel.GetNumVertices(); ++i) {
+        for (int j = 0; j < 3; ++j) {
+            float v = _vertexData[i*numElements+j];
+            min[j] = std::min(min[j], v);
+            max[j] = std::max(max[j], v);
+        }
     }
 
-    _meshCenter /= (_shape->verts.size() / 3);
+    _meshSize = 0.0f;
+    for (int j = 0; j < 3; ++j) {
+        _meshCenter[j] = (min[j] + max[j]) * 0.5f;
+        _meshSize += (max[j]-min[j])*(max[j]-min[j]);
+    }
+    _meshSize = sqrt(_meshSize);
+
     _mesh->UpdateVertexBuffer(_vertexData.data(), 0, refBaseLevel.GetNumVertices());
     _mesh->Refine();
     _mesh->Synchronize();
@@ -879,7 +936,8 @@ struct PipelineConfig {
 
 -(void)_rebuildBuffers {
     auto totalPatches = 0;
-    auto totalPatchDataSize = 0;
+    auto totalPerPatchVertexSize = 0;
+    auto totalPerPatchTessFactorsSize = 0;
     auto totalTessFactorsSize = 0;
 
     if (_usePatchIndexBuffer)
@@ -906,9 +964,11 @@ struct PipelineConfig {
                 {
                     _patchIndexBuffers[patchType].alloc(_context.device, patch.GetNumPatches(), @"patch indices", MTLResourceStorageModePrivate);
                 }
-                _perPatchVertexOffsets[patchType] = totalPatchDataSize;
-                _tessFactorOffsets[patchType] = totalTessFactorsSize;
-                totalPatchDataSize += elementFloats * sizeof(float) * patch.GetNumPatches() * pipelineConfig.numControlPointsPerPatchToDraw;
+                _perPatchTessFactorsOffsets[patchType] = totalPerPatchTessFactorsSize;
+                _perPatchVertexOffsets[patchType] = totalPerPatchVertexSize;
+                _tessFactorsOffsets[patchType] = totalTessFactorsSize;
+                totalPerPatchTessFactorsSize += 2 * 4 * sizeof(float) * patch.GetNumPatches();
+                totalPerPatchVertexSize += elementFloats * sizeof(float) * patch.GetNumPatches() * pipelineConfig.numControlPointsPerPatchToDraw;
                 totalTessFactorsSize += patch.GetNumPatches() * (pipelineConfig.useTriangleTessellation
                                                                  ? sizeof(MTLTriangleTessellationFactorsHalf)
                                                                  : sizeof(MTLQuadTessellationFactorsHalf));
@@ -918,8 +978,8 @@ struct PipelineConfig {
         }
 
         _tessFactorsBuffer.alloc(_context.device, totalTessFactorsSize, @"tessellation factors buffer", MTLResourceStorageModePrivate);
-        _perPatchVertexBuffer.alloc(_context.device, totalPatchDataSize, @"per patch data", MTLResourceStorageModePrivate);
-        _perPatchTessFactorsBuffer.alloc(_context.device, 2 * 4 * sizeof(float) * totalPatches, @"hs constant data", MTLResourceStorageModePrivate);
+        _perPatchVertexBuffer.alloc(_context.device, totalPerPatchVertexSize, @"per patch data", MTLResourceStorageModePrivate);
+        _perPatchTessFactorsBuffer.alloc(_context.device, totalPerPatchTessFactorsSize, @"per patch tess factors", MTLResourceStorageModePrivate);
     }
 }
 
@@ -1178,6 +1238,25 @@ struct PipelineConfig {
                             vertexDesc.attributes[i].format = MTLVertexFormatFloat3;
                             vertexDesc.attributes[i].offset = i * sizeof(float) * 3;
                         }
+
+                        if(_useScreenspaceTessellation)
+                        {
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stepFunction = MTLVertexStepFunctionPerPatch;
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stepRate = 1;
+                            vertexDesc.layouts[OSD_PERPATCHTESSFACTORS_BUFFER_INDEX].stride = sizeof(float) * 4 * 2;
+
+                            // PatchInput :: float4 tessOuterLo [[attribute(5)]];
+                            // OsdPerPatchTessFactors :: float4 tessOuterLo;
+                            vertexDesc.attributes[5].bufferIndex = OSD_PERPATCHTESSFACTORS_BUFFER_INDEX;
+                            vertexDesc.attributes[5].format = MTLVertexFormatFloat4;
+                            vertexDesc.attributes[5].offset = 0;
+
+                            // PatchInput :: float4 tessOuterHi [[attribute(6)]];
+                            // OsdPerPatchTessFactors :: float4 tessOuterHi;
+                            vertexDesc.attributes[6].bufferIndex = OSD_PERPATCHTESSFACTORS_BUFFER_INDEX;
+                            vertexDesc.attributes[6].format = MTLVertexFormatFloat4;
+                            vertexDesc.attributes[6].offset = sizeof(float) * 4;
+                        }
                     break;
                     case Far::PatchDescriptor::QUADS:
                         //Quads cannot use stage in, due to the need for re-indexing.
@@ -1277,14 +1356,15 @@ struct PipelineConfig {
     translate(pData->ModelViewMatrix, 0, 0, -_cameraData.dollyDistance);
     rotate(pData->ModelViewMatrix, _cameraData.rotationY, 1, 0, 0);
     rotate(pData->ModelViewMatrix, _cameraData.rotationX, 0, 1, 0);
-    rotate(pData->ModelViewMatrix, -90, 1, 0, 0); // z-up model
+    if (!_yup) {
+        rotate(pData->ModelViewMatrix, -90, 1, 0, 0);
+    }
     translate(pData->ModelViewMatrix, -_meshCenter[0], -_meshCenter[1], -_meshCenter[2]);
     inverseMatrix(pData->ModelViewInverseMatrix, pData->ModelViewMatrix);
 
     identity(pData->ProjectionMatrix);
     perspective(pData->ProjectionMatrix, 45.0, _cameraData.aspectRatio, 0.01f, 500.0);
     multMatrix(pData->ModelViewProjectionMatrix, pData->ModelViewMatrix, pData->ProjectionMatrix);
-
 }
 
 -(void)_initializeBuffers {
@@ -1293,9 +1373,9 @@ struct PipelineConfig {
 }
 
 -(void)_initializeCamera {
-    _cameraData.dollyDistance = 4;
     _cameraData.rotationY = 0;
     _cameraData.rotationX = 0;
+    _cameraData.dollyDistance = 5;
     _cameraData.aspectRatio = 1;
 }
 

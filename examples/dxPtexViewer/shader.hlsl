@@ -465,13 +465,7 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
     };
 
     int patchType = 0;
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    if (sharpness > 0) {
-        pattern = 1;
-    }
-#endif
 
-    int pattern = countbits(OsdGetPatchTransitionMask(patchParam));
     int edgeCount = countbits(OsdGetPatchBoundaryMask(patchParam));
     if (edgeCount == 1) {
         patchType = 2; // BOUNDARY
@@ -480,15 +474,19 @@ getAdaptivePatchColor(int3 patchParam, float sharpness)
         patchType = 3; // CORNER
     }
 
-    // XXX: it looks like edgeCount != 0 for some gregory boundary patches.
-    //      there might be a bug somewhere...
-#if defined OSD_PATCH_GREGORY
+#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
+    if (sharpness > 0) {
+        patchType = 1;
+    }
+#elif defined OSD_PATCH_GREGORY
     patchType = 4;
 #elif defined OSD_PATCH_GREGORY_BOUNDARY
     patchType = 5;
 #elif defined OSD_PATCH_GREGORY_BASIS
     patchType = 6;
 #endif
+
+    int pattern = countbits(OsdGetPatchTransitionMask(patchParam));
 
     return patchColors[6*patchType + pattern];
 }

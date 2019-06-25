@@ -50,8 +50,8 @@ The following is a minimal example of GLSL code explaining how client shader cod
 uses OpenSubdiv shader functions to tessellate patches of a patch table.
 
 
-Tessellation Control Shader Example (for BSpline patches)
-*********************************************************
+Tessellation Control Shader Example (for B-Spline patches)
+**********************************************************
 
 .. code:: glsl
 
@@ -88,8 +88,8 @@ Tessellation Control Shader Example (for BSpline patches)
 
 
 
-Tessellation Evaluation Shader Example (for BSpline patches)
-************************************************************
+Tessellation Evaluation Shader Example (for B-Spline patches)
+*************************************************************
 
 .. code:: glsl
 
@@ -160,7 +160,8 @@ are stored in a OsdPerPatchVertexGreogryBasis struct.
 
 .. code:: glsl
 
-  void OsdComputePerPatchVertexGregoryBasis(
+  void
+  OsdComputePerPatchVertexGregoryBasis(
       ivec3 patchParam, int ID, vec3 cv, out OsdPerPatchVertexGregoryBasis result)
 
 The tessellation evaluation shader takes an array of OsdPerPatchVertexGregoryBasis struct,
@@ -172,6 +173,54 @@ and then evaluates the patch using the OsdEvalPatchGregory() function.
   OsdEvalPatchGregory(ivec3 patchParam, vec2 UV, vec3 cv[20],
                       out vec3 P, out vec3 dPu, out vec3 dPv,
                       out vec3 N, out vec3 dNu, out vec3 dNv)
+
+
+Box-spline Triangle Patch
+*************************
+
+While regular triangle patches are expressed as triangular box-spline patches in Far::PatchTable,
+the **Osd** shader converts them into triangular Bezier patches for consistency.
+This conversion is performed in the tessellation control stage. The boundary edge evaluation is resolved during this conversion.
+OsdComputePerPatchVertexBoxSplineTriangle() can be used for this process.
+The resulting Bezier control vertices are stored in OsdPerPatchVertexBezier struct.
+
+.. code:: glsl
+
+  void
+  OsdComputePerPatchVertexBoxSplineTriangle(
+      ivec3 patchParam, int ID, vec3 cv[12], out OsdPerPatchVertexBezier result);
+
+The tessellation evaluation shader takes an array of OsdPerPatchVertexBezier struct,
+and then evaluates the patch using the OsdEvalPatchBezierTriangle() function.
+
+.. code:: glsl
+
+  void OsdEvalPatchBezierTriangle(ivec3 patchParam, vec2 UV,
+                                  OsdPerPatchVertexBezier cv[15],
+                                  out vec3 P, out vec3 dPu, out vec3 dPv,
+                                  out vec3 N, out vec3 dNu, out vec3 dNv)
+
+
+Gregory Triangle Patch
+**********************
+
+OsdComputePerPatchVertexGregoryBasis() can be used for the quartic triangular Gregory patches (although no basis conversion involved for the Gregory triangle patches) and the resulting vertices are stored in a OsdPerPatchVertexGreogryBasis struct.
+
+.. code:: glsl
+
+  void
+  OsdComputePerPatchVertexGregoryBasis(
+      ivec3 patchParam, int ID, vec3 cv, out OsdPerPatchVertexGregoryBasis result)
+
+The tessellation evaluation shader takes an array of OsdPerPatchVertexGregoryBasis struct,
+and then evaluates the patch using the OsdEvalPatchGregoryTriangle() function.
+
+.. code:: glsl
+
+  void
+  OsdEvalPatchGregoryTriangle(ivec3 patchParam, vec2 UV, vec3 cv[18],
+                              out vec3 P, out vec3 dPu, out vec3 dPv,
+                              out vec3 N, out vec3 dNu, out vec3 dNv)
 
 
 Legacy Gregory Patch (2.x compatibility)
@@ -190,12 +239,6 @@ Tessellation levels
 
 **Osd** provides both uniform and screen-space adaptive tessellation level computation.
 
-Uniform tessellation
-  OsdGetTessLevelsUniform()
-
-Screen-space adaptive tessellation
-  OsdGetTessLevelsAdaptiveLimitPoints()
-
 Because of the nature of `feature adaptive subdivision <far_overview.html>`__,
 we need to pay extra attention for a patch's outer tessellation level for the screen-space
 adaptive case so that cracks don't appear.
@@ -212,31 +255,63 @@ as separate levels for the two segments of the edge split at the middle.
 
 .. image:: images/osd_shader_transition.png
 
-Then the tessellation evaluation shader takes gl_TessCoord and those two values, and remaps
-gl_TessCoord using OsdGetTessParameterization() to ensure the parameters are consistent
+Tessellation levels at each tessellated vertex
+**********************************************
+
+The tessellation evaluation shader takes gl_TessCoord and those two values, and remaps
+gl_TessCoord using OsdGetTessParameterization() or OsdGetTessLevelParameterizationTriangle() to ensure the parameters are consistent
 across adjacent patches.
+
+.. code:: glsl
+
+  vec2 OsdGetTessParameterization(vec2 uv, vec4 tessOuterLo, vec4 tessOuterHi);
+
+.. code:: glsl
+
+  vec2 OsdGetTessParameterizationTriangle(vec3 uvw, vec4 tessOuterLo, vec4 tessOuterHi);
 
 .. image:: images/osd_shader_param_remap.png
 
-.. code:: glsl
+Tessellation levels computed at each patch
+******************************************
 
-  vec2 OsdGetTessParameterization(vec2 uv, vec4 tessOuterLo, vec4 tessOuterHi)
-
-These tessellation levels can be computed by OsdGetTessLevelsAdaptiveLimitPoints()
-in the tessellation control shader. Note that this function requires all 16 bezier control
+These tessellation levels can be computed the corresponding method in the tesselation control shader. Note that these functions potentially requires all bezier control
 points, you need to call barrier() to ensure the conversion is done for all invocations.
 See osd/glslPatchBSpline.glsl for more details.
 
+Uniform
+~~~~~~~
+
 .. code:: glsl
 
-  void OsdGetTessLevelsAdaptiveLimitPoints(OsdPerPatchVertexBezier cpBezier[16],
-                                           ivec3 patchParam,
-                                           out vec4 tessLevelOuter, out vec2 tessLevelInner,
-                                           out vec4 tessOuterLo, out vec4 tessOuterHi)
+    void
+    OsdGetTessLevelsUniform(ivec3 patchParam,
+                     out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                     out vec4 tessOuterLo, out vec4 tessOuterHi)
 
-.. container:: notebox
+.. code:: glsl
 
- **Release Notes (3.0.0)**
+    void
+    OsdGetTessLevelsUniformTriangle(ivec3 patchParam,
+                     out vec4 tessLevelOuter, out vec2 tessLevelInner,
+                     out vec4 tessOuterLo, out vec4 tessOuterHi)
 
- * Currently OsdGetTessParameterization doesn't support fraction spacing.
-   It will be fixed in a future release.
+
+Screenspace
+~~~~~~~~~~~
+
+.. code:: glsl
+
+  void OsdEvalPatchBezierTessLevels(
+        OsdPerPatchVertexBezier cpBezier[16],
+        ivec3 patchParam,
+        out vec4 tessLevelOuter, out vec2 tessLevelInner,
+        out vec4 tessOuterLo, out vec4 tessOuterHi);
+
+.. code:: glsl
+
+  void OsdEvalPatchBezierTriangleTessLevels(
+        vec3 cv[15],
+        ivec3 patchParam,
+        out vec4 tessLevelOuter, out vec2 tessLevelInner,
+        out vec4 tessOuterLo, out vec4 tessOuterHi);
