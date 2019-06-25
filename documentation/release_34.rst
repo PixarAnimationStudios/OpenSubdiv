@@ -22,8 +22,8 @@
      language governing permissions and limitations under the Apache License.
 
 
-Overview of Release 3.4 (draft)
-===============================
+Overview of Release 3.4
+=======================
 
 .. contents::
    :local:
@@ -34,9 +34,8 @@ New Features
 
 Triangular Patches for Loop Subdivision
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Added support for drawing and evaluation of Loop subdivision meshes with
-triangular patches.  This includes the full set of Far and Osd interfaces
+Support for the drawing and evaluation of Loop subdivision meshes with
+triangular patches was added.  This includes the full set of Far and Osd interfaces
 for both evaluation and drawing.
 
 +-----------------------------------+-----------------------------------+
@@ -56,11 +55,18 @@ including creases, face-varying patches, non-manifold topology, etc.
 |    :target: images/loop_rel_3.png|    :target: images/loop_rel_4.png                              |
 +----------------------------------+----------------------------------------------------------------+
 
-Quartic triangular patches are used to exactly match the limit surface of
-Loop subdivision where the mesh is regular and approximated where irregular.
-As is the case with use of the Catmark scheme, application of Loop subdivision
-to dense, poorly modeled meshes may lead to unexpectedly poor performance or
-surface quality.
+The long standing requirement that Loop meshes be purely triangular remains, as
+Loop subdivision is not defined for non-triangular faces.  And as is the case with
+the use of the Catmark scheme, application of Loop subdivision to dense, poorly
+modeled meshes may lead to unexpectedly poor performance and/or surface quality.
+
+The patch representation used for Loop subdivision is intended to exactly match the
+underlying limit surface where regular, and so uses quartic triangular Box-splines.
+This is in contrast to approaches that use simpler patches to approximate the Loop
+limit surface everywhere.  As with Catmark, Gregory patches are used to approximate
+irregular areas.  Though other choices are available that compromise surface
+quality in favor of improved performance, they may be less effective with Loop than
+they are with Catmark.
 
 Major Improvements to Introductory Documentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,33 +125,17 @@ API Additions
 
 See associated `Doxygen <doxy_html/index.html>`__ for full details.
 
-Osd::MeshBits
-~~~~~~~~~~~~~
-    - enumeration MeshEndCapBilinearBasis
-
-Osd::PatchArray
-~~~~~~~~~~~~~~~
-    - GetDescriptorRegular()
-    - GetDescriptorIrregular()
-    - GetPatchTyperRegular()
-    - GetPatchTyperIrregular()
-    - GetStride()
-
-Osd extensions common to all shaders
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    - TBD
-
-Far construction and refinement of topology
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    - overloaded TopologyRefinerFactory::Create()
-    - extensions to TopologyRefiner::RefineAdaptive()
-
 Far extensions for triangular patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     - enum PatchDescriptor::Type::GREGORY_TRIANGLE
     - PatchParam::NormalizeTriangle()
     - PatchParam::UnnormalizeTriangle()
     - PatchParam::IsTriangleRotated()
+
+Construction and refinement of topology
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    - overloaded TopologyRefinerFactory::Create()
+    - extensions to TopologyRefiner::RefineAdaptive()
 
 Construction and interface of Far::PatchTable
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,6 +179,51 @@ Far member functions converted to templates for double precision
     - PatchTable::GetLocalPointVaryingStencilTable()
     - PatchTable::GetLocalPointFaceVaryingStencilTable()
     - PatchMap::FindPatch()
+
+Osd::MeshBits
+~~~~~~~~~~~~~
+    - enumeration MeshEndCapBilinearBasis
+
+Osd::PatchArray
+~~~~~~~~~~~~~~~
+    - GetDescriptorRegular()
+    - GetDescriptorIrregular()
+    - GetPatchTyperRegular()
+    - GetPatchTyperIrregular()
+    - GetStride()
+
+Osd extensions for patch evaluation common to all shaders
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    - struct OsdPatchArray and OsdPatchArrayInit()
+    - struct OsdPatchCoord and OsdPatchCoordInit()
+    - struct OsdPatchParam and OsdPatchParamInit()
+    - OsdPatchParamGetFaceId()
+    - OsdPatchParamGetU()
+    - OsdPatchParamGetV()
+    - OsdPatchParamGetTransition()
+    - OsdPatchParamGetBoundary()
+    - OsdPatchParamGetNonQuadRoot()
+    - OsdPatchParamGetDepth()
+    - OsdPatchParamGetParamFraction()
+    - OsdPatchParamIsRegular()
+    - OsdPatchParamIsTriangleRotated()
+    - OsdPatchParamNormalize()
+    - OsdPatchParamUnnormalize()
+    - OsdPatchParamNormalize(Triangle)
+    - OsdPatchParamUnnormalizeTriangle()
+    - OsdEvaluatePatchBasisNormalized()
+    - OsdEvaluatePatchBasis()
+
+Osd extensions for patch tessellation common to all shaders
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    - OsdInterpolatePatchCoordTriangle()
+    - OsdComputePerPatchVertexBoxSplineTriangle
+    - OsdEvalPatchBezierTriangle()
+    - OsdEvalPatchGregoryTriangle()
+    - OsdGetTessLevelsUniformTriangle()
+    - OsdEvalPatchBezierTessLevels()
+    - OsdEvalPatchBezierTriangleTessLevels()
+    - OsdGetTessParameterizationTriangle()
 
 Other Changes
 -------------

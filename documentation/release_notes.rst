@@ -31,6 +31,9 @@
 
 ----
 
+Release 3.4
+~~~~~~~~~~~
+
 Release 3.4.0 - Jun 2019
 ========================
 
@@ -62,6 +65,9 @@ code and configuration improvements.  For more information on the following, ple
     - Fixed Far::PrimvarRefiner internal limitFVar() prototype (GitHub #979)
     - Fixed Far::StencilTable append when base StencilTable empty (GitHub #982)
     - Patches around non-manifold vertices now free of cracks (GitHub #1013)
+
+Release 3.3
+~~~~~~~~~~~
 
 Release 3.3.3 - Jul 2018
 ========================
@@ -116,6 +122,9 @@ Release 3.3.0 is significant release adding an Osd implementation for Apple's Me
     - Fixed several instances of local variable shadowing that could cause build warnings
     - Updated continuous-integration build scripts and added testing on macOS
 
+Release 3.2
+~~~~~~~~~~~
+
 Release 3.2.0 - Feb 2017
 ========================
 
@@ -133,6 +142,9 @@ Release 3.2.0 is a minor release containing API additions and bug fixes
 
 **Bug Fixes**
     - Fixed a double delete of GL program in Osd::GLComputeEvaluator
+
+Release 3.1
+~~~~~~~~~~~
 
 Release 3.1.1 - Jan 2017
 ========================
@@ -178,6 +190,9 @@ code and configuration improvements.  For more information on the following, ple
     - Fixed bug interpolating face-varying data with Bilinear scheme
     - Fixed bug with refinement using Chaikin creasing
     - Fixed bugs with HUD sliders in the example viewers
+
+Release 3.0
+~~~~~~~~~~~
 
 Release 3.0.5 - Mar 2016
 ========================
@@ -315,7 +330,8 @@ Release 3.0.0 RC1
       supported.
     - The Osd layer was largely refactored.
 
+
 Previous 2.x Release Notes
-==========================
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `Previous releases <release_notes_2x.html>`_
