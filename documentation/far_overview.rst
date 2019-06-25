@@ -294,42 +294,21 @@ to refine primvar data.
 Far::PatchTable
 ================
 
-The patch table is a serialized topology representation. This container is
-generated using *Far::PatchTableFactory* from an instance
-*Far::TopologyRefiner* after a refinement has been applied. The
-FarPatchTableFactory traverses the data-structures of the TopologyRefiner and
-serializes the sub-faces into collections of bi-linear and bi-cubic patches as
-dictated by the refinement mode (uniform or adaptive). The patches are then
-sorted into arrays based on their types.
+PatchTable is the collection of patches derived from the refined faces of a particular mesh topology.
 
-.. container:: notebox
-
-   **Release Notes (3.0.0)**
-
-      The organization and API of Far::PatchTable is likely to change
-      in the 3.1 release to accommodate additional functionality including:
-      smooth face-varying interpolation on patches, and dynamic feature
-      adaptive isolation (DFAS), and patch evaluation of Loop subdivision
-      surfaces.
+This collection is created using *Far::PatchTableFactory* from an instance
+of *Far::TopologyRefiner* after refinement has been applied.
 
 Patch Arrays
 ************
 
-The patch table is a collection of control vertex indices. Meshes are decomposed
-into a collection of patches, which can be of different types. Each type
-has different requirements for the internal organization of its
-control-vertices. A PatchArray contains a sequence of multiple patches that
-share a common set of attributes.
+The PatchTable is organized into patch arrays. All patches in each array have
+the same type except for face-varying patch arrays which may have a mix of regular and irregular patch types.
 
-While all patches in a PatchArray will have the same type, each patch in the
-array is associated with a distinct *PatchParam* which specifies additional
-information about the individual patch.
+The *PatchDescriptor* provides the fundamental description of a patch, including the number of control points per patch as well as the basis for patch evaluation.
 
-Each PatchArray contains a patch *Descriptor* that provides the fundamental
-description of the patches in the array.
-
-The PatchArray *ArrayRange* provides the indices necessary to track the records
-of individual patches in the table.
+Each patch in the array is associated with a *PatchParam* which
+specifies additional information about the individual patch.
 
 .. image:: images/far_patchtables.png
    :align: center
@@ -350,19 +329,21 @@ PatchTable:
 +---------------------+------+---------------------------------------------+
 | LINES               | 2    | Lines : useful for cage drawing             |
 +---------------------+------+---------------------------------------------+
-| QUADS               | 4    | Bi-linear quads-only patches                |
+| QUADS               | 4    | Bi-linear quadrilaterals                    |
 +---------------------+------+---------------------------------------------+
-| TRIANGLES           | 3    | Bi-linear triangles-only mesh               |
+| TRIANGLES           | 3    | Linear triangles                            |
 +---------------------+------+---------------------------------------------+
-| LOOP                | n/a  | Loop patch (currently unsupported)          |
+| LOOP                | 12   | Quartic triangular Box-spline patches       |
 +---------------------+------+---------------------------------------------+
-| REGULAR             | 16   | B-spline Basis patches                      |
+| REGULAR             | 16   | Bi-cubic B-spline patches                   |
 +---------------------+------+---------------------------------------------+
 | GREGORY             | 4    | Legacy Gregory patches                      |
 +---------------------+------+---------------------------------------------+
 | GREGORY_BOUNDARY    | 4    | Legacy Gregory Boundary patches             |
 +---------------------+------+---------------------------------------------+
-| GREGORY_BASIS       | 20   | Gregory Basis patches                       |
+| GREGORY_BASIS       | 20   | Bi-cubic quadrilateral Gregory patches      |
++---------------------+------+---------------------------------------------+
+| GREGORY_TRIANGLE    | 18   | Quartic triangular Gregory patches          |
 +---------------------+------+---------------------------------------------+
 
 
@@ -371,6 +352,10 @@ table as well as the method used to evaluate values.
 
 Patch Parameterization
 **********************
+
+Here we describe the encoding of the patch parameterization for
+quadrilateral patches. The encoding for triangular patches is similar,
+please see the API documentation of Far::PatchParam for details.
 
 Each patch represents a specific portion of the parametric space of the
 coarse topological face identified by the PatchParam FaceId. As topological
@@ -435,11 +420,9 @@ sharpness parameter.
 
 .. container:: notebox
 
-   **Release Notes (3.0.0)**
+   **Release Notes (3.x)**
 
-      Currently, the crease sharpness parameter is encoded as a separate
-      PatchArray within the PatchTable. This parameter may be combined
-      with the other PatchParam values in future releases.  Also, evaluation
+      Evaluation
       of single-crease patches is currently only implemented for OSD patch
       drawing, but we expect to implement support in all of the evaluation
       code paths for future releases.
@@ -453,15 +436,6 @@ adaptively to the points of the coarse mesh. However, the final patches
 generated from irregular faces, e.g. patches incident on an extraordinary
 vertex might have a representation which requires additional local points.
 
-.. container:: notebox
-
-   **Release Notes (3.0.0)**
-
-      Currently, representations which require local points also require
-      the use of a StencilTable to compute the values of local points.
-      This requirement, as well as the rest of the API related to local
-      points may change in future releases.
-
 Legacy Gregory Patches
 **********************
 
@@ -471,15 +445,6 @@ not require any additional local points to be computed. Instead, when
 Legacy Gregory patches are used, the PatchTable must also have an alternative
 representation of the mesh topology encoded as a vertex valence table
 and a quad offsets table.
-
-.. container:: notebox
-
-   **Release Notes (3.0.0)**
-
-      The encoding and support for Legacy Gregory patches may change
-      in future releases. The current encoding of the vertex valence
-      and quad offsets tables may be prohibitively expensive for some
-      use cases.
 
 Far::StencilTable
 ==================

@@ -42,8 +42,8 @@ The main roles of **Osd** are:
     Compute limit surfaces by limit stencils on CPU/GPU backends
  - **Limit Evaluation with PatchTable**
     Compute limit surfaces by patch evaluation on CPU/GPU backends
- - **OpenGL/DX11 Drawing with hardware tessellation**
-    Provide GLSL/HLSL tessellation functions for patch table
+ - **OpenGL/DX11/Metal Drawing with hardware tessellation**
+    Provide GLSL/HLSL/Metal tessellation functions for patch table
  - **Interleaved/Batched buffer configuration**
     Provide consistent buffer descriptor to deal with arbitrary buffer layout.
  - **Cross-Platform Implementation**
@@ -98,7 +98,8 @@ as a stencil tables as long as Evaluator::EvalStencils() can access the necessar
 +-----------------------------+-----------------------+-------------------------+
 | DX11 ComputeShader (GPU)    | D3D11ComputeEvaluator | D3D11StencilTable       |
 +-----------------------------+-----------------------+-------------------------+
-
+| Metal (GPU)                 | MTLComputeEvaluator   | MTLStencilTable         |
++-----------------------------+-----------------------+-------------------------+
 
 Limit Stencil Evaluation
 ========================
@@ -141,17 +142,18 @@ Once all control vertices and local points are resolved by the stencil evaluatio
 | DX11 ComputeShader (GPU)    | | D3D11ComputeEvaluator | D3D11PatchTable         |
 |                             | | (*)not yet supported  |                         |
 +-----------------------------+-------------------------+-------------------------+
+| Metal ComputeShader (GPU)   | | MTLComputeEvaluator   | MTLPatchTable           |
++-----------------------------+-------------------------+-------------------------+
 
 .. container:: notebox
 
- **Release Notes (3.0.0)**
+ **Release Notes (3.x)**
 
- * GPU limit evaluation backends (Evaluator::EvalPatches()) only support
-   BSpline patches. Clients need to specify BSpline approximation for endcap
-   when creating a patch table. See `end capping <far_overview.html#endcap>`__.
+ * Osd evaluation backends (Evaluator::EvalPatches()) do not support
+   evaluation of single-crease or Legacy Gregory patch types.
 
-OpenGL/DX11 Drawing with Hardware Tessellation
-==============================================
+OpenGL/DX11/Metal Drawing with Hardware Tessellation
+====================================================
 
 One of the most interesting use cases of the **Osd** layer is realtime drawing
 of subdivision surfaces using hardware tessellation. This is somewhat similar to
@@ -264,6 +266,8 @@ The methods that need to be implemented for the Evaluators are:
 | | GLXFBEvaluator      |                        |                  |
 +-----------------------+------------------------+------------------+
 | D3D11ComputeEvaluator | D3D11 UAV              | BindD3D11UAV()   |
++-----------------------+------------------------+------------------+
+| MTLComputeEvaluator   | MTLBuffer              | BindMTLBuffer()  |
 +-----------------------+------------------------+------------------+
 
 The buffers can use these methods as a trigger of interop. **Osd** provides a default
