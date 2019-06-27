@@ -369,14 +369,23 @@ It is important to note that this uv parameterization is the intrinsic
 parameterization within a given patch or coarse face and is distinct
 from any client specified face-varying channel data.
 
-Patches which result from irregular coarse faces (non-quad faces in the
-Catmark scheme, or non-trianglular faces in the Loop scheme) are offset
-by the one additional level needed to "quadrangulate" or "triangulate"
-the irregular face.
-
 .. image:: images/far_patchUV.png
    :align: center
    :target: images/far_patchUV.png
+
+Patches which result from irregular coarse faces (non-quad faces in the
+Catmark scheme) are offset by the one additional level needed to
+"quadrangulate" the irregular face.  It is the indices of these offset
+faces that are stored in the PatchParam and used in other classes such
+as the Far::PatchMap.  These offset indices can be identified from the
+coarse face using the Far::PtexIndices class when needed.
+
++--------------------------------------------+--------------------------------------------+
+| .. image:: images/ptex_coarse.png          | .. image:: images/ptex_quadrangulated.png  |
+|    :align:  center                         |    :align:  center                         |
+|    :width:  100%                           |    :width:  100%                           |
+|    :target: images/ptex_coarse.png         |    :target: images/ptex_quadrangulated.png |
++--------------------------------------------+--------------------------------------------+
 
 A patch along an interpolated boundary edge is supported by an incomplete
 sets of control vertices. For consistency, patches in the PatchTable always
