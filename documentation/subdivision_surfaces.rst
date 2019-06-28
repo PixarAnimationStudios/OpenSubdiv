@@ -305,8 +305,8 @@ An arbitrary polygonal mesh will often not make a good subdivision cage, regardl
 of how good that polygonal mesh appears.
 
 As with rectangular piecewise parametric surfaces, the cage should be shaped to
-affect the underlying surface it is intended to represent.  See <Modeling Tips> for
-related recommendations.
+affect the underlying surface it is intended to represent.  See
+`Modeling Tips <mod_notes.html>`__ for related recommendations.
 
 ----
 
@@ -401,7 +401,7 @@ provides simple rules and a reasonable limit surface in most cases.
 
 As with the case of regular versus irregular features, since every face has a
 corresponding piece of surface associated with it -- whether locally manifold or
-not -- the term "arbitrary topology" can be made to include non-manifold topology.
+not -- the term "arbitrary topology" can be said to include non-manifold topology.
 
 ----
 
@@ -490,8 +490,8 @@ limit surface -- that is far more flexible than the results achieved from  unifo
 |    :width:  95%                              |    :width:  95%                              |
 |    :target: images/surface_bspline_tess1.jpg |    :target: images/surface_bspline_tess2.jpg |
 |                                              |                                              |
-| Uniform tessellation of B-spline surface     | Curvature-adaptive tessellation of B-spline  |
-|                                              | surface                                      |
+| Uniform (3x3) tessellation of B-spline       | Curvature-adaptive tessellation of B-spline  |
+| surface                                      | surface                                      |
 +----------------------------------------------+----------------------------------------------+
 
 For a simple parametric surface, the direct evaluation of the limit surface is also simple,
@@ -804,7 +804,8 @@ Subdivision Schemes
 
 OpenSubdiv provides two well known subdivision surface types -- Catmull-Clark (often referred
 to more tersely as "Catmark") and Loop subdivision.  Catmull-Clark is more widely used and
-suited to quad-dominant meshes, while Loop is preferred for purely triangulated meshes.
+suited to quad-dominant meshes, while Loop is preferred for (and requires) purely triangulated
+meshes.
 
 The many examples from previous sections have illustrated the more popular Catmull-Clark
 scheme.  For an example of Loop:
@@ -815,10 +816,6 @@ scheme.  For an example of Loop:
 |    :width:  95%                    |    :width:  95%                    |    :width:  95%                    |    :width:  95%                    |
 |    :target: images/loop_cage.jpg   |    :target: images/loop_sub1.jpg   |    :target: images/loop_sub2.jpg   |    :target: images/loop_surface.jpg|
 +------------------------------------+------------------------------------+------------------------------------+------------------------------------+
-
-*Note that while Loop subdivision has long been available, support for the limit surface
-of Loop subdivision (i.e. arbitrary evaluation of the surface via patches) is not supported
-prior to version 3.4.*
 
 ----
 

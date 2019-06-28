@@ -25,7 +25,7 @@
 Introduction
 ------------
 
-.. image:: images/insideout.png
+.. image:: http://graphics.pixar.com/opensubdiv/docs/images/opensubdiv_splash_v3_4_0.png
    :width: 100%
    :align: center
 
@@ -85,17 +85,17 @@ between Pixar and Microsoft.
     | *Feature Adaptive GPU Rendering of Catmull-Clark Subdivision Surfaces*
     | Matthias Niessner, Charles Loop, Mark Meyer, and Tony DeRose
     | ACM Transactions on Graphics, Vol. 31 No. 1 Article 6 January 2012 
-    | `<http://research.microsoft.com/en-us/um/people/cloop/tog2012.pdf>`_
+    | `<http://graphics.pixar.com/library/GPUSubdivRenderingA/paper.pdf>`_
     |
     | *Efficient Evaluation of Semi-Smooth Creases in Catmull-Clark Subdivision Surfaces*
     | Matthias Niessner, Charles Loop, and Guenter Greiner.
     | Eurographics Proceedings, Cagliari, 2012
-    | `<http://research.microsoft.com/en-us/um/people/cloop/EG2012.pdf>`_
+    | `<https://niessnerlab.org/papers/2012/1semismooth/niessner2012efficient.pdf>`_
     |
     | *Analytic Displacement Mapping using Hardware Tessellation*
     | Matthias Niessner, Charles Loop
     | ACM Transactions on Graphics, Vol. 32 No. 3 Article 26 June 2013
-    | `<http://research.microsoft.com/en-us/um/people/cloop/TOG2013.pdf>`_
+    | `<https://niessnerlab.org/papers/2013/3analytic/niessner2013analytic.pdf>`_
     
 ----
 
@@ -157,10 +157,6 @@ For details on how to contribute to OpenSubdiv, see the page on
 
 External Resources
 ==================
-
-Microsoft Research:
-    `Charles Loop <http://research.microsoft.com/en-us/um/people/cloop/>`__
-    `Matthias Niessner <http://lgdv.cs.fau.de/people/card/matthias/niessner/>`__
 
 Pixar Research:
     `Pixar R&D Portal <http://graphics.pixar.com/research/>`__
