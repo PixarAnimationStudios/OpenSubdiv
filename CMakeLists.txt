@@ -610,7 +610,7 @@ endif()
 
 add_custom_target( public_headers )
 
-macro(_add_doxy_headers headers)
+macro(osd_add_doxy_headers headers)
     if (NOT NO_DOC AND DOXYGEN_FOUND)
         file(RELATIVE_PATH path "${OpenSubdiv_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" )
 
@@ -649,7 +649,7 @@ endmacro()
 # characters we would need raw string literals from C++11 to do this directly.
 # To avoid depending on C++11 we instead use a small tool called "line_quote"
 # to generate source files that are suitable for direct inclusion.
-function(_stringify src_files varname)
+function(osd_stringify src_files varname)
 
     set(inc_files "")
 
@@ -674,7 +674,7 @@ function(_stringify src_files varname)
 endfunction()
 
 # Macro wrapper for adding a non-cuda dependent executable
-macro(_add_executable target folder)
+macro(osd_add_executable target folder)
 
     add_executable(${target} ${ARGN})
 
@@ -693,7 +693,7 @@ endmacro()
 
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
-macro(_add_possibly_cuda_executable target folder)
+macro(osd_add_possibly_cuda_executable target folder)
     if(CUDA_FOUND)
         cuda_add_executable(${target} ${ARGN})
     else()
@@ -715,7 +715,7 @@ endmacro()
 
 # Macro for adding a cuda library if cuda is found and a regular
 # library otherwise.
-macro(_add_possibly_cuda_library target folder)
+macro(osd_add_possibly_cuda_library target folder)
     if(CUDA_FOUND)
         cuda_add_library(${target} ${ARGN})
     else()
@@ -731,31 +731,9 @@ endmacro()
 
 
 # Macro for adding a (potentially cuda) GLFW executable.
-macro(_add_glfw_executable target folder)
+macro(osd_add_glfw_executable target folder)
 
-    _add_possibly_cuda_executable(${target} ${folder} ${ARGN})
-
-#
-# manuelk : commenting this out as it seems to be causing more problems than 
-# it is worth. Moving glfw as a native git recursive dependency will make this
-# redundant anyway.
-#
-
-#    if(WIN32)
-#        # Windows needs some of its dependency dll's copied into the same
-#        # directory as the executable.
-#        set(LIBRARIES ${GLFW_LIBRARIES})
-#        foreach (LIB ${LIBRARIES} )
-#            string(REPLACE ".lib" ".dll" DLL ${LIB})
-#            string(REPLACE ".LIB" ".DLL" DLL ${DLL})
-#            add_custom_command(
-#                TARGET ${target} POST_BUILD
-#                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#                    ${DLL}
-#                    $<TARGET_FILE_DIR:${target}>
-#            )
-#        endforeach()
-#    endif()
+    osd_add_possibly_cuda_executable(${target} ${folder} ${ARGN})
 
     if(APPLE)
         set_property (TARGET ${target} APPEND_STRING PROPERTY

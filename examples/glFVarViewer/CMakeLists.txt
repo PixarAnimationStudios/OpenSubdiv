@@ -50,11 +50,11 @@ endif()
 
 #-------------------------------------------------------------------------------
 
-_stringify("${SHADER_FILES}" INC_FILES)
+osd_stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_glfw_executable(glFVarViewer "examples"
+osd_add_glfw_executable(glFVarViewer "examples"
     glFVarViewer.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"

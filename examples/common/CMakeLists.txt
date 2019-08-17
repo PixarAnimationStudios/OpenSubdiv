@@ -187,7 +187,7 @@ include_directories(
 set(INC_FILES )
 
 if(OPENGL_FOUND OR DXSDK_FOUND OR METAL_FOUND)
-_stringify("${EXAMPLES_COMMON_SHADER_FILES}" INC_FILES)
+osd_stringify("${EXAMPLES_COMMON_SHADER_FILES}" INC_FILES)
 
 source_group("Shaders" FILES ${EXAMPLES_COMMON_SHADER_FILES})
 source_group("Inc" FILES ${INC_FILES})

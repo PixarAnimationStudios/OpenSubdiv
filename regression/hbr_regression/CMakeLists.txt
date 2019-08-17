@@ -24,7 +24,7 @@
 
 include_directories("${OPENSUBDIV_INCLUDE_DIR}")
 
-_add_possibly_cuda_executable(hbr_regression "regression"
+osd_add_possibly_cuda_executable(hbr_regression "regression"
    main.cpp
     $<TARGET_OBJECTS:regression_common_obj>
 )
@@ -44,7 +44,7 @@ add_definitions(
 )
 
 
-_add_executable(hbr_baseline "regression"
+osd_add_executable(hbr_baseline "regression"
    baseline.cpp
     $<TARGET_OBJECTS:regression_common_obj>
 )

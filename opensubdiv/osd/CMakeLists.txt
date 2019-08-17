@@ -362,7 +362,7 @@ list(APPEND DOXY_HEADER_FILES ${CUDA_PUBLIC_HEADERS})
 
 #-------------------------------------------------------------------------------
 
-_stringify("${KERNEL_FILES}" INC_FILES)
+osd_stringify("${KERNEL_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
@@ -398,7 +398,7 @@ if( GPU_SOURCE_FILES )
     )
 endif()
 
-_add_doxy_headers( "${DOXY_HEADER_FILES}" )
+osd_add_doxy_headers( "${DOXY_HEADER_FILES}" )
 
 install(
     FILES

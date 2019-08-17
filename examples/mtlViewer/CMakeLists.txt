@@ -85,10 +85,10 @@ list(APPEND PLATFORM_LIBRARIES
     "-framework QuartzCore"
 )
 
-_stringify("mtlViewer.metal" INC_FILES)
+osd_stringify("mtlViewer.metal" INC_FILES)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_executable(mtlViewer "examples/mtlViewer"
+osd_add_executable(mtlViewer "examples/mtlViewer"
     MACOSX_BUNDLE
     "${PLATFORM_FILES}"
     "${INC_FILES}"

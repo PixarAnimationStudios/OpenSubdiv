@@ -75,7 +75,7 @@ if (NOT NO_LIB)
 endif()
 
 #-------------------------------------------------------------------------------
-_add_doxy_headers( "${DOXY_HEADER_FILES}" )
+osd_add_doxy_headers( "${DOXY_HEADER_FILES}" )
 
 install(
     FILES

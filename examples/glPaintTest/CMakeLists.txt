@@ -46,11 +46,11 @@ if( OPENCL_FOUND )
     include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
-_stringify("${SHADER_FILES}" INC_FILES)
+osd_stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-_add_glfw_executable(glPaintTest "examples"
+osd_add_glfw_executable(glPaintTest "examples"
     glPaintTest.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"

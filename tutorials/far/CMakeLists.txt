@@ -23,7 +23,7 @@
 #
 macro(_add_far_tutorial NAME)
 
-     _add_executable(${NAME} "tutorials/far"
+     osd_add_executable(${NAME} "tutorials/far"
         ${ARGN}
         $<TARGET_OBJECTS:sdc_obj>
         $<TARGET_OBJECTS:vtr_obj>
