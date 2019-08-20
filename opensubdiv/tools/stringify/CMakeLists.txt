@@ -29,7 +29,7 @@ if(CMAKE_CROSSCOMPILING)
 endif()
 
 if(NOT CMAKE_CROSSCOMPILING)
-	_add_executable(stringify "opensubdiv/tools"
+	osd_add_executable(stringify "opensubdiv/tools"
 	    main.cpp
 	)
 	install(TARGETS stringify DESTINATION ${CMAKE_BINDIR_BASE})

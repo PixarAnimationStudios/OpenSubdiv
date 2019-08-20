@@ -44,7 +44,6 @@ set(PUBLIC_HEADER_FILES
 )
 
 #-------------------------------------------------------------------------------
-#_add_doxy_headers( "${PUBLIC_HEADER_FILES}" )
 
 install( 
     FILES

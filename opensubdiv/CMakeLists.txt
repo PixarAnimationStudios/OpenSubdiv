@@ -167,7 +167,7 @@ if (NOT NO_LIB)
     if( OSD_GPU )
         # this macro uses FindCUDA.cmake to compile .cu kernel files
         # the target then adds the other obj dependencies and include files
-        _add_possibly_cuda_library(osd_static_gpu "opensubdiv"
+        osd_add_possibly_cuda_library(osd_static_gpu "opensubdiv"
                 STATIC
                 version.cpp
                 $<TARGET_OBJECTS:osd_gpu_obj>
@@ -221,7 +221,7 @@ if (NOT NO_LIB)
 
         #---------------------------------------------------
         if( OSD_GPU )
-            _add_possibly_cuda_library(osd_dynamic_gpu "opensubdiv"
+            osd_add_possibly_cuda_library(osd_dynamic_gpu "opensubdiv"
                 SHARED
                 version.cpp
                 $<TARGET_OBJECTS:osd_gpu_obj>

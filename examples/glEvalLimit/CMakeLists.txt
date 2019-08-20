@@ -50,7 +50,7 @@ if( TBB_FOUND )
     )
 endif()
 
-_add_glfw_executable(glEvalLimit "examples"
+osd_add_glfw_executable(glEvalLimit "examples"
     glEvalLimit.cpp
     particles.cpp
     particles.h
