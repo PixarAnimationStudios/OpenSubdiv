@@ -988,7 +988,7 @@ initHUD() {
     g_hud.AddPullDownButton(shading_pulldown, "Shaded", 1, g_wire==1);
     g_hud.AddPullDownButton(shading_pulldown, "Wire+Shaded", 2, g_wire==2);
 
-    g_hud.AddSlider("Brush size", 10, 500, g_brushSize,
+    g_hud.AddSlider("Brush size", 10.0f, 500.0f, (float)g_brushSize,
                      350, -60, 40, true, callbackBrushSize, 0);
 
     for (int i = 1; i < 11; ++i) {
