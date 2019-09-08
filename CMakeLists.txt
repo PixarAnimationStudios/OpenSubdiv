@@ -125,9 +125,9 @@ if (CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 # Detect Clang (until a cmake version provides built-in variables)
-if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGCC 1)
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
@@ -212,9 +212,6 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
     endif()
 
 elseif(MSVC)
-
-    # Turn on all warnings
-    list(APPEND OSD_COMPILER_FLAGS /Wall)
 
     list(APPEND OSD_COMPILER_FLAGS
                     /W3     # Use warning level recommended for production purposes.
