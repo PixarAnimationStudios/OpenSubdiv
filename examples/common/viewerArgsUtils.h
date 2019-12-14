@@ -28,7 +28,7 @@
 #include <vector>
 
 class ArgOptions;
-class ShapeDesc;
+struct ShapeDesc;
 class ObjAnim;
 
 namespace ViewerArgsUtils {
