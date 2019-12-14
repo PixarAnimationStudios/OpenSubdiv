@@ -29,7 +29,7 @@ GLFWwindow* g_window=0;
 GLFWmonitor* g_primary=0;
 
 #include "../../regression/common/far_utils.h"
-#include "../common/argOptions.h"
+#include "../../regression/common/arg_utils.h"
 #include "../common/viewerArgsUtils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"

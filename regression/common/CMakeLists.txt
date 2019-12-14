@@ -23,10 +23,12 @@
 #
 
 set(REGRESSION_COMMON_SOURCE_FILES
+    arg_utils.cpp
     shape_utils.cpp
 )
 
 set(REGRESSION_COMMON_HEADER_FILES
+    arg_utils.h
     cmp_utils.h
     hbr_utils.h
     shape_utils.h

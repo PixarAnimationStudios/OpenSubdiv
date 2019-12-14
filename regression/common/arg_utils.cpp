@@ -22,8 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../common/argOptions.h"
+#include "arg_utils.h"
 
+#include <fstream>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,4 +100,27 @@ ArgOptions::PrintUnrecognizedArgsWarnings() const
     for(size_t i = 0; i < _remainingArgs.size(); ++i) {
         PrintUnrecognizedArgWarning(_remainingArgs[i]);
     }
+}
+
+int
+ArgOptions::AppendObjShapes(std::vector<ShapeDesc>& shapes, bool warn) const
+{
+    size_t originalShapesSize = shapes.size();
+
+    for (size_t i = 0; i < GetObjFiles().size(); ++i) {
+        std::ifstream ifs(GetObjFiles()[i]);
+        if (ifs) {
+            std::stringstream ss;
+            ss << ifs.rdbuf();
+            ifs.close();
+            std::string str = ss.str();
+            shapes.push_back(ShapeDesc(
+                        GetObjFiles()[i], str.c_str(),
+                        GetDefaultScheme()));
+        } else if (warn) {
+            printf("Warning: cannot open shape file '%s'\n",
+                   GetObjFiles()[i]);
+        }
+    }
+    return shapes.size() - originalShapesSize;
 }

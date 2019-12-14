@@ -69,7 +69,7 @@
 #include <opensubdiv/osd/glMesh.h>
 
 #include "../../regression/common/far_utils.h"
-#include "../common/argOptions.h"
+#include "../../regression/common/arg_utils.h"
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "../common/glShaderCache.h"

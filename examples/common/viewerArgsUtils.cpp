@@ -24,10 +24,11 @@
 
 #include "../common/viewerArgsUtils.h"
 
+#include "../../regression/common/arg_utils.h"
+#include "../../regression/common/shape_utils.h"
 #include "../common/objAnim.h"
 
-#include <fstream>
-#include <sstream>
+#include <stdio.h>
 
 namespace ViewerArgsUtils {
 
@@ -54,28 +55,9 @@ void
 PopulateShapes(const ArgOptions &args,
                std::vector<ShapeDesc> *defaultShapes)
 {
-    if (!defaultShapes)
-        return;
-
-    if (args.GetObjFiles().empty())
-        return;
-
-    for (size_t i = 0; i < args.GetObjFiles().size(); ++i) {
-        std::ifstream ifs(args.GetObjFiles()[i]);
-        if (ifs) {
-            std::stringstream ss;
-            ss << ifs.rdbuf();
-            ifs.close();
-            std::string str = ss.str();
-            defaultShapes->push_back(ShapeDesc(
-                        args.GetObjFiles()[i], str.c_str(), 
-                        args.GetDefaultScheme()));
-        } else {
-            printf("Warning: cannot open shape file '%s'\n", 
-                   args.GetObjFiles()[i]);
-        }
+    if (defaultShapes) {
+        args.AppendObjShapes(*defaultShapes, true /* print warnings */);
     }
-
 }
 
 void 

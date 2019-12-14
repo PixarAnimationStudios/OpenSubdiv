@@ -74,7 +74,7 @@ OpenSubdiv::Osd::GLLegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 bool g_legacyGregoryEnabled = false;
 
 #include "../../regression/common/far_utils.h"
-#include "../common/argOptions.h"
+#include "../../regression/common/arg_utils.h"
 #include "../common/glHud.h"
 #include "../common/glUtils.h"
 #include "../common/glControlMeshDisplay.h"
