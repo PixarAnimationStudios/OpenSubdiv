@@ -29,7 +29,6 @@ set(EXAMPLES_COMMON_SHADER_FILES
 )
 
 set(EXAMPLES_COMMON_SOURCE_FILES
-    argOptions.cpp
     font_image.cpp
     hdr_reader.cpp
     hud.cpp
@@ -39,7 +38,6 @@ set(EXAMPLES_COMMON_SOURCE_FILES
 )
 
 set(EXAMPLES_COMMON_HEADER_FILES
-    argOptions.h
     font_image.h
     hdr_reader.h
     hud.h

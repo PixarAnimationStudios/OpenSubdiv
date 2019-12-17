@@ -93,7 +93,7 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "PtexUtils.h"
 
 #include "../../regression/common/far_utils.h"
-#include "../common/argOptions.h"
+#include "../../regression/common/arg_utils.h"
 #include "../common/objAnim.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"

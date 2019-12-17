@@ -22,10 +22,10 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef COMMON_ARGS_H
-#define COMMON_ARGS_H
+#ifndef ARG_UTILS_H
+#define ARG_UTILS_H
 
-#include "../../regression/common/shape_utils.h"
+#include "shape_utils.h"
 
 #include <vector>
 
@@ -67,7 +67,13 @@ public:
 
     const std::vector<const char *> GetRemainingArgs() const {
         return _remainingArgs; }
- 
+
+
+    // Operations on parsed arguments
+    //
+
+    int AppendObjShapes(std::vector<ShapeDesc>& shapes, bool warn = true) const;
+
 private:
 
     bool _adaptive;

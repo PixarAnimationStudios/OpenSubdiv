@@ -25,13 +25,11 @@
 #ifndef VIEWER_ARGS_UTILS_H
 #define VIEWER_ARGS_UTILS_H
 
-#include "../../regression/common/shape_utils.h"
-
-#include "../common/argOptions.h"
-
-class ObjAnim;
-
 #include <vector>
+
+class ArgOptions;
+struct ShapeDesc;
+class ObjAnim;
 
 namespace ViewerArgsUtils {
 

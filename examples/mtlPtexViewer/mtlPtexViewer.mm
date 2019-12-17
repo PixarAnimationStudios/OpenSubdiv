@@ -24,7 +24,7 @@
 #import <opensubdiv/osd/mtlPatchShaderSource.h>
 
 #import "../../regression/common/far_utils.h"
-#import "../common/argOptions.h"
+#import "../../regression/common/arg_utils.h"
 #import "../common/mtlUtils.h"
 #import "../common/mtlControlMeshDisplay.h"
 #import "../common/mtlPtexMipmapTexture.h"

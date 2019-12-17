@@ -62,7 +62,7 @@ OpenSubdiv::Osd::D3D11LegacyGregoryPatchTable *g_legacyGregoryPatchTable = NULL;
 bool g_legacyGregoryEnabled = false;
 
 #include "../../regression/common/far_utils.h"
-#include "../common/argOptions.h"
+#include "../../regression/common/arg_utils.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11ControlMeshDisplay.h"
