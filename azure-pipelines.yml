@@ -1,0 +1,50 @@
+trigger:
+- master
+- dev
+
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  steps:
+  - script: |
+      sudo apt-get -qq update;
+      sudo pip install --upgrade pip
+      sudo apt-get install python-setuptools;
+      sudo apt-get install libglew-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev;
+      sudo python build_scripts/build_osd.py --tbb --omp --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
+    displayName: 'Building OpenSubdiv'
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: 'osd-linux'
+      targetPath: "/home/vsts/OSDinst"
+
+
+- job: macOS
+  pool:
+    vmImage: 'macOS-10.13'
+  steps:
+  - script: |
+      # The SYSTEM env var is used by the Makefile of glew and having it set trips it up
+      unset SYSTEM
+      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_10.1.app/Contents/Developer"
+      python build_scripts/build_osd.py --tbb --generator Xcode --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
+    displayName: 'Building OpenSubdiv'
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: 'osd-macOS'
+      targetPath: "  /Users/runner/OSDinst"
+
+- job: Windows
+  pool:
+    vmImage: 'VS2017-Win2016'
+  steps:
+  - script: |
+      call C:\"Program Files (x86)"\"Microsoft Visual Studio"\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+      call set PATH=C:/Python27amd64;C:/Python27amd64/Scripts;%PATH%
+      call python build_scripts/build_osd.py --tbb --omp --build %HOME%/OSDgen/build --src %HOME%/OSDgen/src %HOME%/OSDinst
+    displayName: 'Building OpenSubdiv'
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: 'osd-win64'
+      targetPath: "D:/OSDinst"
