@@ -70,6 +70,7 @@ osd_add_possibly_cuda_executable(dxPtexViewer "examples" WIN32
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:regression_far_utils_obj>
     $<TARGET_OBJECTS:examples_common_obj>
+    $<TARGET_OBJECTS:examples_common_ptex_obj>
 )
 
 target_link_libraries(dxPtexViewer

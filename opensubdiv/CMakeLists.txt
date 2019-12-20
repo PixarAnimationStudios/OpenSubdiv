@@ -42,13 +42,6 @@ if (NOT NO_LIB)
     )
 
     #---------------------------------------------------------------------------
-    if( PTEX_FOUND )
-        include_directories( "${PTEX_INCLUDE_DIR}" )
-        list(APPEND PLATFORM_CPU_LIBRARIES
-            ${PTEX_LIBRARY}
-        )
-    endif()
-
     if( OPENMP_FOUND )
         if (CMAKE_COMPILER_IS_GNUCXX)
             list(APPEND PLATFORM_CPU_LIBRARIES gomp)
