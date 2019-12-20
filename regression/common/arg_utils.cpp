@@ -102,7 +102,7 @@ ArgOptions::PrintUnrecognizedArgsWarnings() const
     }
 }
 
-int
+size_t
 ArgOptions::AppendObjShapes(std::vector<ShapeDesc>& shapes, bool warn) const
 {
     size_t originalShapesSize = shapes.size();
