@@ -45,7 +45,8 @@ if (WIN32)
             "${PROJECT_SOURCE_DIR}/extern/glew/include"
         DOC "The directory where GL/glew.h resides" )
 
-    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
+    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64" OR
+        "${CMAKE_GENERATOR_PLATFORM}" MATCHES "x64")
         set(ARCH x64)
     else()
         set(ARCH x86)

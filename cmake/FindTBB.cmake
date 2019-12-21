@@ -69,7 +69,8 @@ set (TBB_LIB_ARCH "")
 
 if (WIN32)
 
-    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
+    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64" OR
+        "${CMAKE_GENERATOR_PLATFORM}" MATCHES "x64")
         set(WINPATH intel64)
     else ()
         set(WINPATH ia32)
