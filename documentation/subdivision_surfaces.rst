@@ -830,11 +830,13 @@ The following choices are available via the enumeration *Sdc::Options::VtxBounda
 +----------------------------------+----------------------------------------------------------+
 | Mode                             | Behavior                                                 |
 +==================================+==========================================================+
-| **VTX_BOUNDARY_NONE**            | No boundary edge interpolation should occur; instead     |
-|                                  | boundary faces are implicitly tagged as holes so that    |
-|                                  | the boundary vertices continue to support the adjacent   |
-|                                  | interior faces, but no surface corresponding to the      |
-|                                  | boundary faces is generated                              |
+| **VTX_BOUNDARY_NONE**            | No boundary edge interpolation is applied by default;    |
+|                                  | boundary faces are tagged as holes so that the boundary  |
+|                                  | vertices continue to support the adjacent interior       |
+|                                  | faces, but no surface corresponding to the boundary      |
+|                                  | faces is generated; boundary faces can be selectively    |
+|                                  | interpolated by sharpening all boundary edges incident   |
+|                                  | the vertices of the face                                 |
 +----------------------------------+----------------------------------------------------------+
 | **VTX_BOUNDARY_EDGE_ONLY**       | A sequence of boundary vertices defines a smooth curve   |
 |                                  | to which the limit surface along boundary faces extends  |
@@ -854,7 +856,8 @@ In practice, it is rare to use no boundary interpolation at all -- this feature 
 its uses in allowing separate meshes to be seamlessly joined together by replicating
 the vertices along boundaries, but these uses are limited.  Given the global nature
 of the setting, it is usually preferable to explicitly make the boundary faces holes
-in the areas where surfaces from separate meshes are joined.
+in the areas where surfaces from separate meshes are joined, rather than sharpening
+edges to interpolate the desired boundaries everywhere else.
 
 The remaining "edge only" and "edge and corner" choices are then solely distinguished
 by whether or not the surface at corner vertices is smooth or sharp.
