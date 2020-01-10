@@ -179,6 +179,39 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
     bool sharpenNonManFeatures  = true; //(options.GetNonManifoldInterpolation() == Sdc::Options::NON_MANIFOLD_SHARP);
 
     //
+    //  Before initializing edge and vertex tags, tag any qualifying boundary faces
+    //  as holes before the sharpness of incident vertices and edges is affected by
+    //  boundary interpolation rules.
+    //
+    //  Faces will be excluded (tagged as holes) if they contain a vertex on a
+    //  boundary that did not have all of its incident boundary edges sharpened
+    //  (not just the boundary edges within the face), so inspect the vertices
+    //  and tag their incident faces when necessary:
+    //
+    if (makeBoundaryFacesHoles) {
+        for (Vtr::Index vIndex = 0; vIndex < baseLevel.getNumVertices(); ++vIndex) {
+            Vtr::ConstIndexArray vEdges = baseLevel.getVertexEdges(vIndex);
+            Vtr::ConstIndexArray vFaces = baseLevel.getVertexFaces(vIndex);
+
+            //  Only need consider manifold boundary and non-manifold vertices:
+            if ((vEdges.size() > vFaces.size()) || baseLevel.getVertexTag(vIndex)._nonManifold) {
+                bool excludeIncidentFaces = false;
+                for (int i = 0; !excludeIncidentFaces && (i < vEdges.size()); ++i) {
+                    excludeIncidentFaces = (baseLevel.getNumEdgeFaces(vEdges[i]) == 1) &&
+                            !Sdc::Crease::IsInfinite(baseLevel.getEdgeSharpness(vEdges[i]));
+                }
+                if (excludeIncidentFaces) {
+                    for (int i = 0; i < vFaces.size(); ++i) {
+                        baseLevel.getFaceTag(vFaces[i])._hole = true;
+                    }
+                    //  Need to tag the Refiner (the Level does not keep track of this):
+                    refiner._hasHoles = true;
+                }
+            }
+        }
+    }
+
+    //
     //  Process the Edge tags first, as Vertex tags (notably the Rule) are dependent on
     //  properties of their incident edges.
     //
@@ -328,19 +361,6 @@ TopologyRefinerFactoryBase::prepareComponentTagsAndSharpness(TopologyRefiner& re
                     vTag._incidIrregFace = true;
                     break;
                 }
-            }
-        }
-
-        //
-        //  Having just decided if a vertex is on a boundary, and with its incident faces
-        //  available, mark incident faces as holes.
-        //
-        if (makeBoundaryFacesHoles && vTag._boundary) {
-            for (int i = 0; i < vFaces.size(); ++i) {
-                baseLevel.getFaceTag(vFaces[i])._hole = true;
-
-                //  Don't forget this -- but it will eventually move to the Level
-                refiner._hasHoles = true;
             }
         }
     }
