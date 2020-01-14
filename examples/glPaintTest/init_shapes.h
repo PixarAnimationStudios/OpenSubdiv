@@ -42,6 +42,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("catmark_dart_edgeonly",    catmark_dart_edgeonly,    kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_edgecorner",       catmark_edgecorner,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_edgeonly",         catmark_edgeonly,         kCatmark ) );
+    g_defaultShapes.push_back( ShapeDesc("catmark_edgenone",         catmark_edgenone,         kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_quadstrips",       catmark_quadstrips,       kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_fan",              catmark_fan,              kCatmark ) );
     g_defaultShapes.push_back( ShapeDesc("catmark_gregory_test1",    catmark_gregory_test1,    kCatmark ) );
@@ -70,6 +71,7 @@ static void initShapes() {
     g_defaultShapes.push_back( ShapeDesc("loop_cube_asymmetric",     loop_cube_asymmetric,     kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgecorner", loop_triangle_edgecorner, kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgeonly",   loop_triangle_edgeonly,   kLoop ) );
+    g_defaultShapes.push_back( ShapeDesc("loop_triangle_edgenone",   loop_triangle_edgenone,   kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_xord_interior",       loop_xord_interior,       kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_xord_boundary",       loop_xord_boundary,       kLoop ) );
     g_defaultShapes.push_back( ShapeDesc("loop_icosahedron",         loop_icosahedron,         kLoop ) );
