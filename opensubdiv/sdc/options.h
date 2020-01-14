@@ -51,9 +51,11 @@ namespace Sdc {
 class Options {
 public:
     enum VtxBoundaryInterpolation {
-        VTX_BOUNDARY_NONE = 0,        ///< do not interpolate boundaries
-        VTX_BOUNDARY_EDGE_ONLY,       ///< sharpen edges
-        VTX_BOUNDARY_EDGE_AND_CORNER  ///< sharpen edges and corners
+        VTX_BOUNDARY_NONE = 0,        ///< no boundary interpolation, except where
+                                      ///< boundary edges were explicitly sharpened
+        VTX_BOUNDARY_EDGE_ONLY,       ///< all boundary edges sharpened and interpolated
+        VTX_BOUNDARY_EDGE_AND_CORNER  ///< all boundary edges and corner vertices
+                                      ///< sharpened and interpolated
     };
     enum FVarLinearInterpolation {
         FVAR_LINEAR_NONE = 0,         ///< smooth everywhere ("edge only")
