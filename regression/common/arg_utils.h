@@ -72,7 +72,8 @@ public:
     // Operations on parsed arguments
     //
 
-    int AppendObjShapes(std::vector<ShapeDesc>& shapes, bool warn = true) const;
+    size_t AppendObjShapes(std::vector<ShapeDesc>& shapes,
+                           bool warn = true) const;
 
 private:
 

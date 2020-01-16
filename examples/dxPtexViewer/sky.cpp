@@ -164,9 +164,9 @@ Sky::initialize(ID3D11Device * device) {
         for (int v = 0; v < V_DIV; ++v) {
             float s = float(2*M_PI*float(u)/U_DIV);
             float t = float(M_PI*float(v)/(V_DIV-1));
-            vbo.push_back(-sin(t)*sin(s));
-            vbo.push_back(cos(t));
-            vbo.push_back(-sin(t)*cos(s));
+            vbo.push_back(-sinf(t)*sinf(s));
+            vbo.push_back(cosf(t));
+            vbo.push_back(-sinf(t)*cosf(s));
             vbo.push_back(u/float(U_DIV));
             vbo.push_back(v/float(V_DIV));
 
