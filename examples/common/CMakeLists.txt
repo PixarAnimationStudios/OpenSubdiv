@@ -22,12 +22,6 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(EXAMPLES_COMMON_SHADER_FILES
-     glslPtexCommon.glsl
-     hlslPtexCommon.hlsl
-     mtlPtexCommon.metal
-)
-
 set(EXAMPLES_COMMON_SOURCE_FILES
     font_image.cpp
     hdr_reader.cpp
@@ -140,40 +134,66 @@ endif()
 
 #-------------------------------------------------------------------------------
 if( PTEX_FOUND )
-    list(APPEND EXAMPLES_COMMON_HEADER_FILES
+    list(APPEND EXAMPLES_COMMON_PTEX_HEADER_FILES
         ptexMipmapTextureLoader.h
     )
-    list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+    list(APPEND EXAMPLES_COMMON_PTEX_SOURCE_FILES
         ptexMipmapTextureLoader.cpp
     )
     if( OPENGL_FOUND )
-        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        list(APPEND EXAMPLES_COMMON_PTEX_SOURCE_FILES
             glPtexMipmapTexture.cpp
         )
-        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        list(APPEND EXAMPLES_COMMON_PTEX_HEADER_FILES
             glPtexMipmapTexture.h
         )
     endif()
     if( DXSDK_FOUND )
-        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        list(APPEND EXAMPLES_COMMON_PTEX_SOURCE_FILES
             d3d11PtexMipmapTexture.cpp
         )
-        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        list(APPEND EXAMPLES_COMMON_PTEX_HEADER_FILES
             d3d11PtexMipmapTexture.h
         )
     endif()
     if( METAL_FOUND )
-        list(APPEND EXAMPLES_COMMON_SOURCE_FILES
+        list(APPEND EXAMPLES_COMMON_PTEX_SOURCE_FILES
             mtlPtexMipmapTexture.mm
         )
-        list(APPEND EXAMPLES_COMMON_HEADER_FILES
+        list(APPEND EXAMPLES_COMMON_PTEX_HEADER_FILES
             mtlPtexMipmapTexture.h
         )
     endif()
-    include_directories( "${PTEX_INCLUDE_DIR}" )
-    list(APPEND PLATFORM_CPU_LIBRARIES
-        ${PTEX_LIBRARY}
+
+    set(EXAMPLES_COMMON_PTEX_SHADER_FILES
+         glslPtexCommon.glsl
+         hlslPtexCommon.hlsl
+         mtlPtexCommon.metal
     )
+
+set(EXAMPLES_COMMON_PTEX_INC_FILES )
+    if(EXAMPLES_COMMON_PTEX_SHADER_FILES)
+        osd_stringify("${EXAMPLES_COMMON_PTEX_SHADER_FILES}"
+                      EXAMPLES_COMMON_PTEX_INC_FILES)
+
+        source_group("Shaders" FILES ${EXAMPLES_COMMON_PTEX_SHADER_FILES})
+        source_group("Inc" FILES ${EXAMPLES_COMMON_PTEX_INC_FILES})
+    endif()
+
+    include_directories( "${PTEX_INCLUDE_DIR}" )
+
+    add_library(examples_common_ptex_obj
+        OBJECT
+            ${EXAMPLES_COMMON_PTEX_SOURCE_FILES}
+            ${EXAMPLES_COMMON_PTEX_HEADER_FILES}
+            ${EXAMPLES_COMMON_PTEX_INC_FILES}
+    )
+
+    set_target_properties(examples_common_ptex_obj
+        PROPERTIES
+            FOLDER "examples"
+    )
+
 endif()
 #-------------------------------------------------------------------------------
 
@@ -182,26 +202,14 @@ include_directories(
     "${CMAKE_CURRENT_BINARY_DIR}"
 )
 
-set(INC_FILES )
-
-if(OPENGL_FOUND OR DXSDK_FOUND OR METAL_FOUND)
-osd_stringify("${EXAMPLES_COMMON_SHADER_FILES}" INC_FILES)
-
-source_group("Shaders" FILES ${EXAMPLES_COMMON_SHADER_FILES})
-source_group("Inc" FILES ${INC_FILES})
-endif()
-
 add_library(examples_common_obj
     OBJECT
         ${EXAMPLES_COMMON_SOURCE_FILES}
         ${EXAMPLES_COMMON_HEADER_FILES}
-        ${INC_FILES}
 )
 
 set_target_properties(examples_common_obj
     PROPERTIES
         FOLDER "examples"
 )
-
-
 
