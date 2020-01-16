@@ -42,13 +42,14 @@ if (WIN32)
             "$ENV{DXSDK_LOCATION}/Include"
             "${DXSDK_ROOT}/Include"
             "$ENV{DXSDK_ROOT}/Include"
+            "C:/Program Files (x86)/Windows Kits/10/Include/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um"`
             "C:/Program Files (x86)/Windows Kits/8.1/Include/um"
-            "C:/Program Files (x86)/Windows Kits/10/Include/*/um"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Include"
             "C:/Program Files/Microsoft DirectX SDK*/Include"
     )
 
-    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64")
+    if ("${CMAKE_GENERATOR}" MATCHES "[Ww]in64" OR
+        "${CMAKE_GENERATOR_PLATFORM}" MATCHES "x64")
         set(ARCH x64)
     else()
         set(ARCH x86)
@@ -61,8 +62,8 @@ if (WIN32)
             "$ENV{DXSDK_LOCATION}/Lib/${ARCH}"
             "${DXSDK_ROOT}/Lib/${ARCH}"
             "$ENV{DXSDK_ROOT}/Lib/${ARCH}"
+            "C:/Program Files (x86)/Windows Kits/10/Lib/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um/${ARCH}"
             "C:/Program Files (x86)/Windows Kits/8.1/Lib/winv6.3/um/${ARCH}"
-            "C:/Program Files (x86)/Windows Kits/10/Lib/*/um/${ARCH}"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Lib/${ARCH}"
             "C:/Program Files/Microsoft DirectX SDK*/Lib/${ARCH}"
     )
