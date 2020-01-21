@@ -48,6 +48,7 @@
 //      written in Obj format to the standard output.
 //
 
+#include "../../../regression/common/arg_utils.h"
 #include "../../../regression/common/far_utils.h"
 
 #include <opensubdiv/far/topologyDescriptor.h>
@@ -496,33 +497,35 @@ public:
         noTessFlag(false),
         noOutputFlag(false) {
 
-        for (int i = 1; i < argc; ++i) {
-            if (strstr(argv[i], ".obj")) {
-                if (inputObjFile.empty()) {
-                    inputObjFile = std::string(argv[i]);
-                } else {
-                    fprintf(stderr, "Warning: .obj file '%s' ignored\n", argv[i]);
-                }
-            } else if (!strcmp(argv[i], "-l")) {
-                if (++i < argc) maxPatchDepth = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-level")) {
-                if (++i < argc) maxPatchDepth = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-bilinear")) {
-                schemeType = Sdc::SCHEME_BILINEAR;
-            } else if (!strcmp(argv[i], "-catmark")) {
-                schemeType = Sdc::SCHEME_CATMARK;
-            } else if (!strcmp(argv[i], "-loop")) {
-                schemeType = Sdc::SCHEME_LOOP;
-            } else if (!strcmp(argv[i], "-groups")) {
-                if (++i < argc) numPatchGroups = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-mult")) {
-                if (++i < argc) geoMultiplier = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-notess")) {
+        //  Parse and assign standard arguments and Obj files:
+        ArgOptions args;
+        args.Parse(argc, argv);
+
+        maxPatchDepth = args.GetLevel();
+        schemeType = ConvertShapeSchemeToSdcType(args.GetDefaultScheme());
+
+        const std::vector<const char *> objFiles = args.GetObjFiles();
+        if (!objFiles.empty()) {
+            for (size_t i = 1; i < objFiles.size(); ++i) {
+                fprintf(stderr,
+                    "Warning: .obj file '%s' ignored\n", objFiles[i]);
+            }
+            inputObjFile = std::string(objFiles[0]);
+        }
+
+        //  Parse remaining arguments specific to this example:
+        const std::vector<const char *> &rargs = args.GetRemainingArgs();
+        for (size_t i = 0; i < rargs.size(); ++i) {
+            if (!strcmp(rargs[i], "-groups")) {
+                if (++i < rargs.size()) numPatchGroups = atoi(rargs[i]);
+            } else if (!strcmp(rargs[i], "-mult")) {
+                if (++i < rargs.size()) geoMultiplier = atoi(rargs[i]);
+            } else if (!strcmp(rargs[i], "-notess")) {
                 noTessFlag = true;
-            } else if (!strcmp(argv[i], "-nooutput")) {
+            } else if (!strcmp(rargs[i], "-nooutput")) {
                 noOutputFlag = true;
             } else {
-                fprintf(stderr, "Warning: Argument '%s' ignored\n", argv[i]);
+                fprintf(stderr, "Warning: Argument '%s' ignored\n", rargs[i]);
             }
         }
     }
