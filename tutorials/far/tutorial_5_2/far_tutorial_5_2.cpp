@@ -279,6 +279,7 @@ namespace {
         posVector.resize(numVertices);
         std::memcpy(&posVector[0], &shape->verts[0], numVertices * 3 * sizeof(float));
 
+        delete shape;
         return refiner;
     }
 } // end namespace
