@@ -48,6 +48,7 @@
 //      written in Obj format to the standard output.
 //
 
+#include "../../../regression/common/arg_utils.h"
 #include "../../../regression/common/far_utils.h"
 
 #include <opensubdiv/far/topologyDescriptor.h>
@@ -172,8 +173,7 @@ namespace {
             for (int y = 0; y < multiplier; ++y) {
                 for (int z = 0; z < multiplier; ++z) {
                     appendDefaultPrimitive(Pos(x * 2.0f, y * 2.0f, z * 2.0f),
-                                           vertsPerFace, faceVerts,
-                                           positionsPerVert);
+                        vertsPerFace, faceVerts, positionsPerVert);
                 }
             }
         }
@@ -189,14 +189,16 @@ namespace {
         std::vector<int>   topVertsPerFace;
         std::vector<Index> topFaceVerts;
 
-        createDefaultGeometry(multiplier, topVertsPerFace, topFaceVerts, posVector);
+        createDefaultGeometry(
+            multiplier, topVertsPerFace, topFaceVerts, posVector);
 
         typedef Far::TopologyDescriptor Descriptor;
 
         Sdc::SchemeType type = OpenSubdiv::Sdc::SCHEME_CATMARK;
 
         Sdc::Options options;
-        options.SetVtxBoundaryInterpolation(Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
+        options.SetVtxBoundaryInterpolation(
+            Sdc::Options::VTX_BOUNDARY_EDGE_AND_CORNER);
 
         Descriptor desc;
         desc.numVertices = (int) posVector.size();
@@ -207,7 +209,8 @@ namespace {
         //  Instantiate a Far::TopologyRefiner from the descriptor.
         Far::TopologyRefiner * refiner =
             Far::TopologyRefinerFactory<Descriptor>::Create(desc,
-                Far::TopologyRefinerFactory<Descriptor>::Options(type, options));
+                Far::TopologyRefinerFactory<Descriptor>::Options(
+                    type, options));
 
         if (refiner == 0) {
             exit(EXIT_FAILURE);
@@ -254,10 +257,11 @@ namespace {
             ifs.close();
             std::string shapeString = ss.str();
 
-            shape = Shape::parseObj(
-                shapeString.c_str(), ConvertSdcTypeToShapeScheme(schemeType), false);
+            shape = Shape::parseObj(shapeString.c_str(),
+                ConvertSdcTypeToShapeScheme(schemeType), false);
             if (shape == 0) {
-                fprintf(stderr, "Error:  Cannot create Shape from .obj file '%s'\n", filename);
+                fprintf(stderr, "Error:  Cannot create Shape "
+                    "from .obj file '%s'\n", filename);
                 return 0;
             }
         } else {
@@ -268,17 +272,21 @@ namespace {
         Sdc::SchemeType sdcType    = GetSdcType(*shape);
         Sdc::Options    sdcOptions = GetSdcOptions(*shape);
 
-        Far::TopologyRefiner * refiner = Far::TopologyRefinerFactory<Shape>::Create(*shape,
-            Far::TopologyRefinerFactory<Shape>::Options(sdcType, sdcOptions));
+        Far::TopologyRefiner * refiner =
+            Far::TopologyRefinerFactory<Shape>::Create(*shape,
+                Far::TopologyRefinerFactory<Shape>::Options(
+                    sdcType, sdcOptions));
         if (refiner == 0) {
-            fprintf(stderr, "Error:  Unable to construct TopologyRefiner from .obj file '%s'\n", filename);
+            fprintf(stderr, "Error:  Unable to construct TopologyRefiner "
+                "from .obj file '%s'\n", filename);
             return 0;
         }
 
         int numVertices = refiner->GetNumVerticesTotal();
         posVector.resize(numVertices);
-        std::memcpy(&posVector[0], &shape->verts[0], numVertices * 3 * sizeof(float));
+        std::memcpy(&posVector[0], &shape->verts[0], numVertices * sizeof(Pos));
 
+        delete shape;
         return refiner;
     }
 } // end namespace
@@ -330,23 +338,26 @@ PatchGroup::PatchGroup(Far::PatchTableFactory::Options patchOptions,
         basePositions(basePositionsArg), 
         baseFaces(baseFacesArg) {
 
-    //  Create a local refiner (sharing the base level), apply adaptive refinement
-    //  to the given subset of base faces, and construct a patch table (and its
-    //  associated map) for the same set of faces:
+    //  Create a local refiner (sharing the base level), apply adaptive
+    //  refinement to the given subset of base faces, and construct a patch
+    //  table (and its associated map) for the same set of faces:
     //
     Far::ConstIndexArray groupFaces(&baseFaces[0], (int)baseFaces.size());
 
     Far::TopologyRefiner *localRefiner =
-        Far::TopologyRefinerFactory<Far::TopologyDescriptor>::Create(baseRefiner);
+        Far::TopologyRefinerFactory<Far::TopologyDescriptor>::Create(
+            baseRefiner);
 
-    localRefiner->RefineAdaptive(patchOptions.GetRefineAdaptiveOptions(), groupFaces);
+    localRefiner->RefineAdaptive(
+        patchOptions.GetRefineAdaptiveOptions(), groupFaces);
 
     patchTable = Far::PatchTableFactory::Create(*localRefiner, patchOptions,
-                    groupFaces);
+        groupFaces);
 
     patchMap = new Far::PatchMap(*patchTable);
 
-    patchFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(baseRefiner.GetSchemeType());
+    patchFaceSize =
+        Sdc::SchemeTypeTraits::GetRegularFaceSize(baseRefiner.GetSchemeType());
 
     //  Compute the number of refined and local points needed to evaluate the
     //  patches, allocate and interpolate.  This varies from tutorial_5_1 in
@@ -456,9 +467,11 @@ PatchGroup::TessellateBaseFace(int face, PosVector & tessPoints,
         for (int cv = 0; cv < cvIndices.size(); ++cv) {
             int cvIndex = cvIndices[cv];
             if (cvIndex < numBaseVerts) {
-                pos.AddWithWeight(basePositions[cvIndex], pWeights[cv]);
+                pos.AddWithWeight(basePositions[cvIndex],
+                    pWeights[cv]);
             } else {
-                pos.AddWithWeight(localPositions[cvIndex - numBaseVerts], pWeights[cv]);
+                pos.AddWithWeight(localPositions[cvIndex - numBaseVerts],
+                    pWeights[cv]);
             }
         }
     }
@@ -495,33 +508,35 @@ public:
         noTessFlag(false),
         noOutputFlag(false) {
 
-        for (int i = 1; i < argc; ++i) {
-            if (strstr(argv[i], ".obj")) {
-                if (inputObjFile.empty()) {
-                    inputObjFile = std::string(argv[i]);
-                } else {
-                    fprintf(stderr, "Warning: .obj file '%s' ignored\n", argv[i]);
-                }
-            } else if (!strcmp(argv[i], "-l")) {
-                if (++i < argc) maxPatchDepth = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-level")) {
-                if (++i < argc) maxPatchDepth = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-bilinear")) {
-                schemeType = Sdc::SCHEME_BILINEAR;
-            } else if (!strcmp(argv[i], "-catmark")) {
-                schemeType = Sdc::SCHEME_CATMARK;
-            } else if (!strcmp(argv[i], "-loop")) {
-                schemeType = Sdc::SCHEME_LOOP;
-            } else if (!strcmp(argv[i], "-groups")) {
-                if (++i < argc) numPatchGroups = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-mult")) {
-                if (++i < argc) geoMultiplier = atoi(argv[i]);
-            } else if (!strcmp(argv[i], "-notess")) {
+        //  Parse and assign standard arguments and Obj files:
+        ArgOptions args;
+        args.Parse(argc, argv);
+
+        maxPatchDepth = args.GetLevel();
+        schemeType = ConvertShapeSchemeToSdcType(args.GetDefaultScheme());
+
+        const std::vector<const char *> objFiles = args.GetObjFiles();
+        if (!objFiles.empty()) {
+            for (size_t i = 1; i < objFiles.size(); ++i) {
+                fprintf(stderr,
+                    "Warning: .obj file '%s' ignored\n", objFiles[i]);
+            }
+            inputObjFile = std::string(objFiles[0]);
+        }
+
+        //  Parse remaining arguments specific to this example:
+        const std::vector<const char *> &rargs = args.GetRemainingArgs();
+        for (size_t i = 0; i < rargs.size(); ++i) {
+            if (!strcmp(rargs[i], "-groups")) {
+                if (++i < rargs.size()) numPatchGroups = atoi(rargs[i]);
+            } else if (!strcmp(rargs[i], "-mult")) {
+                if (++i < rargs.size()) geoMultiplier = atoi(rargs[i]);
+            } else if (!strcmp(rargs[i], "-notess")) {
                 noTessFlag = true;
-            } else if (!strcmp(argv[i], "-nooutput")) {
+            } else if (!strcmp(rargs[i], "-nooutput")) {
                 noOutputFlag = true;
             } else {
-                fprintf(stderr, "Warning: Argument '%s' ignored\n", argv[i]);
+                fprintf(stderr, "Warning: Argument '%s' ignored\n", rargs[i]);
             }
         }
     }
@@ -550,9 +565,9 @@ main(int argc, char **argv) {
     std::vector<Pos> basePositions;
 
     Far::TopologyRefiner * baseRefinerPtr = args.inputObjFile.empty() ?
-            createTopologyRefinerDefault(args.geoMultiplier, basePositions) :
-            createTopologyRefinerFromObj(args.inputObjFile, args.schemeType,
-                                         basePositions);
+        createTopologyRefinerDefault(args.geoMultiplier, basePositions) :
+        createTopologyRefinerFromObj(args.inputObjFile, args.schemeType,
+            basePositions);
     assert(baseRefinerPtr);
     Far::TopologyRefiner & baseRefiner = *baseRefinerPtr;
 
@@ -608,7 +623,7 @@ main(int argc, char **argv) {
         //  vertices and faces in Obj format to standard output:
         //
         PatchGroup patchGroup(patchOptions,
-                baseRefiner, basePtexIndices, basePositions, baseFaces);
+            baseRefiner, basePtexIndices, basePositions, baseFaces);
 
         if (args.noTessFlag) continue;
 
@@ -630,7 +645,8 @@ main(int argc, char **argv) {
                 int vBase = 1 + objVertCount;
                 for (int k = 0; k < nTris; ++k) {
                     int const * v = tessFaces[k].v;
-                    printf("f %d %d %d\n", vBase + v[0], vBase + v[1], vBase + v[2]);
+                    printf("f %d %d %d\n",
+                        vBase + v[0], vBase + v[1], vBase + v[2]);
                 }
                 objVertCount += nVerts;
             }
