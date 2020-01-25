@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2020 DreamWorks Animation LLC.
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -21,48 +21,8 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
-macro(_add_far_tutorial NAME)
-
-     osd_add_executable(${NAME} "tutorials/far"
-        ${ARGN}
-        $<TARGET_OBJECTS:sdc_obj>
-        $<TARGET_OBJECTS:vtr_obj>
-        $<TARGET_OBJECTS:far_obj>
-     )
-
-     install(TARGETS ${NAME} DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
-
-endmacro()
-
-
-set(TUTORIALS
-    tutorial_1_1
-    tutorial_1_2
-    tutorial_2_1
-    tutorial_2_2
-    tutorial_2_3
-    tutorial_3_1
-    tutorial_4_1
-    tutorial_4_2
-    tutorial_4_3
-    tutorial_5_1
-    tutorial_5_2
-    tutorial_5_3
-)
-
-foreach(tutorial ${TUTORIALS})
-
-    add_subdirectory("${tutorial}")
-
-    list(APPEND TUTORIAL_TARGETS "far_${tutorial}")
-
-    add_test(far_${tutorial} ${EXECUTABLE_OUTPUT_PATH}/far_${tutorial})
-
-endforeach()
-
-add_custom_target(far_tutorials DEPENDS ${TUTORIAL_TARGETS})
-
-set_target_properties(far_tutorials
-    PROPERTIES 
-        FOLDER "tutorials/far"
+_add_far_tutorial(
+    far_tutorial_5_3
+    far_tutorial_5_3.cpp
+    $<TARGET_OBJECTS:regression_common_obj>
 )

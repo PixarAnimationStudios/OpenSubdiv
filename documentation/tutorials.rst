@@ -142,6 +142,12 @@ Tutorial 5.2
  of a potentially large mesh by creating and evaluating separate PatchTables for selected
  groups of faces of the mesh.  `[code] <far_tutorial_5_2.html>`__
 
+Tutorial 5.3
+^^^^^^^^^^^^
+ Building on the previous tutorials for both PatchTables and StencilTables, this example
+ shows how to construct a LimitStencilTable to repeatedly evaluate an arbitrary
+ collection of points on the limit surface.  `[code] <far_tutorial_5_3.html>`__
+
 ----
 
 Osd Tutorials
