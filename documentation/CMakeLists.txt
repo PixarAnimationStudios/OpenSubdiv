@@ -182,6 +182,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         far/tutorial_4_3/far_tutorial_4_3.cpp
         far/tutorial_5_1/far_tutorial_5_1.cpp
         far/tutorial_5_2/far_tutorial_5_2.cpp
+        far/tutorial_5_3/far_tutorial_5_3.cpp
         osd/tutorial_0/osd_tutorial_0.cpp
     )
 
