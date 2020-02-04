@@ -303,7 +303,8 @@ option(NO_OPENCL "Disable OpenCL backend" OFF)
 option(NO_CLEW "Disable CLEW wrapper library" OFF)
 option(NO_OPENGL "Disable OpenGL support")
 option(NO_METAL "Disable Metal support" OFF)
-option(NO_DX "Disable DirectX support")
+option(NO_DX11 "Disable DirectX 11 support")
+option(NO_DX12 "Disable DirectX 12 support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
 option(NO_GLFW "Disable components depending on GLFW" OFF)
@@ -358,7 +359,18 @@ if (OPENGL_FOUND AND NOT IOS)
     endif()
 endif()
 
-if (WIN32 AND NOT NO_DX)
+if (WIN32 AND NOT NO_DX12)
+   find_package(DX12SDK)
+   if(DX12SDK_FOUND)
+      # The DX12 SDK (Win 10 SDK) is a super-set of the DXSDK
+      set(DXSDK_FOUND TRUE)
+      
+      set(DXSDK_INCLUDE_DIR ${D3D12_INCLUDE_DIRS})
+      set(DXSDK_LIBRARIES ${D3D12_LIBRARIES})
+   endif()
+endif()
+
+if (WIN32 AND NOT NO_DX11 AND NOT DXSDK_FOUND)
    find_package(DXSDK)
 endif()
 
@@ -484,7 +496,7 @@ if(OPENCL_FOUND)
         endif()
     endif()
 
-    if (DXSDK_FOUND AND NOT NO_DX)
+    if (DXSDK_FOUND AND NOT NO_DX11)
         if (OPENCL_CL_D3D11_H_FOUND)
             set(OPENCL_D3D11_INTEROP_FOUND "YES")
             add_definitions(
@@ -575,13 +587,19 @@ if (WIN32)
             -DGLEW_STATIC
         )
     endif()
+    
+    if(DX12SDK_FOUND AND NOT NO_DX12)
+        add_definitions(
+            -DOPENSUBDIV_HAS_DX12
+        )
+    endif()
 
-    if (DXSDK_FOUND AND NOT NO_DX)
+    if (DXSDK_FOUND AND NOT NO_DX11)
         add_definitions(
             -DOPENSUBDIV_HAS_DX11SDK
         )
         set(OSD_GPU TRUE)
-    elseif(NOT NO_DX)
+    elseif(NOT NO_DX11)
         message(WARNING
             "DirectX11 SDK was not found. "
             "If you do have DXSDK installed and see this message, "

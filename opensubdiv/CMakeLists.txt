@@ -82,7 +82,12 @@ if (NOT NO_LIB)
         )
     endif()
 
-    if( DXSDK_FOUND )
+	if ( DX12SDK_FOUND )
+		include_directories( "${D3D12_INCLUDE_DIRS}" )
+        list(APPEND PLATFORM_GPU_LIBRARIES
+            ${D3D12_LIBRARIES}
+        )
+	elseif( DXSDK_FOUND )
         include_directories( "${DXSDK_INCLUDE_DIR}" )
         list(APPEND PLATFORM_GPU_LIBRARIES
             ${DXSDK_LIBRARIES}

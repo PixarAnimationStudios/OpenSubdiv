@@ -140,6 +140,7 @@ D3D11StencilTable::D3D11StencilTable(Far::StencilTable const *stencilTable,
         _sizes = _offsets = _indices = _weights = NULL;
         _sizesBuffer = _offsetsBuffer = _indicesBuffer = _weightsBuffer = NULL;
     }
+    device->Release();
 }
 
 D3D11StencilTable::~D3D11StencilTable() {
@@ -298,6 +299,7 @@ D3D11ComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     cbDesc.ByteWidth = sizeof(KernelUniformArgs);
     device->CreateBuffer(&cbDesc, NULL, &_uniformArgs);
 
+    SAFE_RELEASE(device);
     return true;
 }
 
@@ -323,6 +325,8 @@ D3D11ComputeEvaluator::Synchronize(ID3D11DeviceContext *deviceContext) {
     while (S_OK != deviceContext->GetData(query, NULL, 0, 0));
 
     SAFE_RELEASE(query);
+    SAFE_RELEASE(device);
+
 }
 
 bool

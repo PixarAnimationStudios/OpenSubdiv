@@ -62,6 +62,7 @@ private:
     ID3D11RasterizerState *_rasterizerState;
     ID3D11Buffer* _constantBuffer;
     int _staticVboCount;
+    int _vboBufferSize;
 };
 
 #endif  // OPENSUBDIV_EXAMPLES_D3D11_HUD_H

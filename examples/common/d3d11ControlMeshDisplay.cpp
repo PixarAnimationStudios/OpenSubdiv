@@ -141,6 +141,8 @@ D3D11ControlMeshDisplay::createProgram() {
 
     device->CreateBuffer(&cbDesc, NULL, &_constantBuffer);
     assert(_constantBuffer);
+
+    SAFE_RELEASE(device);
     return true;
 }
 
@@ -264,5 +266,7 @@ D3D11ControlMeshDisplay::SetTopology(
     srvDesc.Buffer.NumElements = _numEdges;
     hr = device->CreateShaderResourceView(_edgeSharpness, &srvDesc, &_edgeSharpnessSRV);
     assert(_edgeSharpnessSRV);
+
+    SAFE_RELEASE(device);
 }
 

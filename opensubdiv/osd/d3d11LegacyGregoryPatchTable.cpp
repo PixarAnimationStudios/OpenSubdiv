@@ -135,6 +135,7 @@ D3D11LegacyGregoryPatchTable::Create(Far::PatchTable const *farPatchTable,
         }
     }
 
+    pd3d11Device->Release();
     return result;
 }
 
@@ -154,6 +155,8 @@ D3D11LegacyGregoryPatchTable::UpdateVertexBuffer(
     srvd.Buffer.NumElements = numVertices * numVertexElements;
     HRESULT hr = pd3d11Device->CreateShaderResourceView(vbo, &srvd,
                                                         &_vertexSRV);
+    
+    pd3d11Device->Release();
     if (FAILED(hr)) {
         return;
     }
