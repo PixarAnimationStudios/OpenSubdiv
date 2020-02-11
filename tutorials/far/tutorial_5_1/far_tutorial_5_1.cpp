@@ -157,7 +157,7 @@ int main(int, char **) {
     //
     int maxPatchLevel = 3;
 
-    Far::PatchTableFactory::Options patchOptions;
+    Far::PatchTableFactory::Options patchOptions(maxPatchLevel);
     patchOptions.SetPatchPrecision<Real>();
     patchOptions.useInfSharpPatch = true;
     patchOptions.generateVaryingTables = false;
@@ -171,6 +171,7 @@ int main(int, char **) {
     if (assignAdaptiveOptionsExplicitly) {
         adaptiveOptions.useInfSharpPatch = true;
     } else {
+        // Be sure patch options were intialized with the desired max level
         adaptiveOptions = patchOptions.GetRefineAdaptiveOptions();
     }
     assert(adaptiveOptions.useInfSharpPatch == patchOptions.useInfSharpPatch);
