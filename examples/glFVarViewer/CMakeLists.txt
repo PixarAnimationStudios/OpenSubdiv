@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-# *** uvViewer ***
+# *** glFVarViewer ***
 
 set(SHADER_FILES
      shader.glsl
@@ -60,7 +60,7 @@ osd_add_glfw_executable(glFVarViewer "examples"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:regression_far_utils_obj>
-    $<TARGET_OBJECTS:examples_common_obj>
+    $<TARGET_OBJECTS:examples_common_gl_obj>
 )
 
 target_link_libraries(glFVarViewer

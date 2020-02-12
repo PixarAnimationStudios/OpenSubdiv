@@ -42,15 +42,6 @@ if (OPENCL_FOUND)
     include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
 
-# XXX: This is unfortunate, we should probably refactor examples_common_obj
-# to separate out the GL from the DX dependencies so that we don't end up
-# in the situation where we have to link in GLFW for dxViewer.
-if (GLFW_FOUND)
-    list(APPEND PLATFORM_LIBRARIES
-        "${GLFW_LIBRARIES}"
-    )
-endif()
-
 set(SOURCE_FILES
     dxViewer.cpp
 )
@@ -64,7 +55,7 @@ osd_add_possibly_cuda_executable(dxViewer "examples" WIN32
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
     $<TARGET_OBJECTS:regression_far_utils_obj>
-    $<TARGET_OBJECTS:examples_common_obj>
+    $<TARGET_OBJECTS:examples_common_dx11_obj>
 )
 
 target_link_libraries(dxViewer

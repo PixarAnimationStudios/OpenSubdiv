@@ -65,7 +65,7 @@ osd_add_glfw_executable(farViewer "examples"
     $<TARGET_OBJECTS:vtr_obj>
     $<TARGET_OBJECTS:far_obj>
     $<TARGET_OBJECTS:regression_common_obj>
-    $<TARGET_OBJECTS:examples_common_obj>
+    $<TARGET_OBJECTS:examples_common_gl_obj>
 )
 target_link_libraries(farViewer
     ${PLATFORM_LIBRARIES}
