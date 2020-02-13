@@ -42,7 +42,7 @@ if (WIN32)
             "$ENV{DXSDK_LOCATION}/Include"
             "${DXSDK_ROOT}/Include"
             "$ENV{DXSDK_ROOT}/Include"
-            "C:/Program Files (x86)/Windows Kits/10/Include/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um"`
+            "C:/Program Files (x86)/Windows Kits/10/Include/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/um"
             "C:/Program Files (x86)/Windows Kits/8.1/Include/um"
             "C:/Program Files (x86)/Microsoft DirectX SDK*/Include"
             "C:/Program Files/Microsoft DirectX SDK*/Include"
