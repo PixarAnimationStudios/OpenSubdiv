@@ -63,7 +63,9 @@ OpenSubdiv::Osd::D3D11MeshInterface *g_mesh;
 #include "Ptexture.h"
 #include "PtexUtils.h"
 
+#include "../../regression/common/arg_utils.h"
 #include "../../regression/common/far_utils.h"
+#include "../common/objAnim.h"
 #include "../common/stopwatch.h"
 #include "../common/simple_math.h"
 #include "../common/d3d11Hud.h"
@@ -208,7 +210,7 @@ float g_animTime = 0;
 std::vector<float> g_positions,
                    g_normals;
 
-std::vector<std::vector<float> > g_animPositions;
+ObjAnim const * g_objAnim = 0;
 
 Sky * g_sky=0;
 
@@ -323,34 +325,16 @@ updateGeom() {
 
     int nverts = (int)g_positions.size() / 3;
 
-    if (g_moveScale && g_adaptive && !g_animPositions.empty()) {
+    if (g_moveScale && g_adaptive && g_objAnim) {
 
         // baked animation only works with adaptive for now
         // (since non-adaptive requires normals)
-        int nkeys = (int)g_animPositions.size();
-        const float fps = 24.0f;
+        // but we clear space in the buffer for normals since
+        // we do not have an easy shader variant with positions only
+        int numElements = 6; //g_adaptive ? 3 : 6;
+        std::vector<float> vertex(nverts*numElements, 0.0f);
 
-        float p = fmodf(g_animTime * fps, (float)nkeys);
-        int key = (int)p;
-        float b = p - key;
-
-        std::vector<float> vertex;
-        vertex.reserve(nverts*3);
-        for (int vert = 0; vert<nverts; ++vert) {
-
-            float const * p0 = &g_animPositions[key][vert*3],
-                        * p1 = &g_animPositions[(key+1)%nkeys][vert*3];
-
-            for (int i=0; i<3; ++i, ++p0, ++p1) {
-                vertex.push_back(*p0*(1.0f-b) + *p1*b);
-            }
-
-            // adaptive patches don't need normals, but we do not have an
-            // an easy shader variant with positions only
-            vertex.push_back(0.0f);
-            vertex.push_back(0.0f);
-            vertex.push_back(0.0f);
-        }
+        g_objAnim->InterpolatePositions(g_animTime, &vertex[0], numElements);
 
         g_mesh->UpdateVertexBuffer(&vertex[0], 0, nverts);
 
@@ -950,6 +934,9 @@ bindProgram(Effect effect, OpenSubdiv::Osd::PatchArray const & patch) {
         translate(pData->ModelViewMatrix, -g_pan[0], -g_pan[1], -g_dolly);
         rotate(pData->ModelViewMatrix, g_rotate[1], 1, 0, 0);
         rotate(pData->ModelViewMatrix, g_rotate[0], 0, 1, 0);
+        if (!g_yup) {
+            rotate(pData->ModelViewMatrix, -90, 1, 0, 0);
+        }
         translate(pData->ModelViewMatrix, -g_center[0], -g_center[1], -g_center[2]);
 
         identity(pData->ProjectionMatrix);
@@ -1910,8 +1897,7 @@ void usage(const char *program) {
     printf("          -c count                : frame count until exit (for profiler)\n");
     printf("          -d <diffseEnvMap.hdr>   : diffuse environment map for IBL\n");
     printf("          -e <specularEnvMap.hdr> : specular environment map for IBL\n");
-    printf("          -s <shaderfile.glsl>    : custom shader file\n");
-    printf("          -y                      : Y-up model\n");
+    printf("          -yup                    : Y-up model\n");
     printf("          -m level                : max mimmap level (default=10)\n");
     printf("          -x <ptex limit MB>      : ptex target memory size\n");
     printf("          --disp <scale>          : Displacment scale\n");
@@ -1955,46 +1941,48 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
                         hInstance,
                         NULL);
 
-    std::vector<std::string> argv = tokenize(lpCmdLine);
-    std::vector<std::string> animobjs;
     const char *diffuseEnvironmentMap = NULL, *specularEnvironmentMap = NULL;
     const char *colorFilename = NULL, *displacementFilename = NULL,
         *occlusionFilename = NULL, *specularFilename = NULL;
     int memLimit = 0;
 
-    for (int i = 0; i < (int)argv.size(); ++i) {
-        if (strstr(argv[i].c_str(), ".obj"))
-            animobjs.push_back(argv[i]);
-        else if (argv[i] == "-l")
-            g_level = atoi(argv[++i].c_str());
-        else if (argv[i] == "-c")
-            g_repeatCount = atoi(argv[++i].c_str());
-        else if (argv[i] == "-d")
-            diffuseEnvironmentMap = argv[++i].c_str();
-        else if (argv[i] == "-e")
-            specularEnvironmentMap = argv[++i].c_str();
-        else if (argv[i] == "-f")
-            g_fullscreen = true;
-        else if (argv[i] == "-y")
-            g_yup = true;
-        else if (argv[i] == "-m")
-            g_maxMipmapLevels = atoi(argv[++i].c_str());
-        else if (argv[i] == "-x")
-            memLimit = atoi(argv[++i].c_str());
-        else if (argv[i] == "--disp")
-            g_displacementScale = (float)atof(argv[++i].c_str());
-        else if (colorFilename == NULL)
-            colorFilename = argv[i].c_str();
-        else if (displacementFilename == NULL) {
-            displacementFilename = argv[i].c_str();
+    ArgOptions args;
+    args.Parse(__argc, __argv);
+
+    std::vector<const char *> animobjs = args.GetObjFiles();
+    g_fullscreen = args.GetFullScreen();
+
+    g_yup = args.GetYUp();
+    g_adaptive = args.GetAdaptive();
+    g_level = args.GetLevel();
+    g_repeatCount = args.GetRepeatCount();
+
+    const std::vector<const char *> &argvRem = args.GetRemainingArgs();
+    for (size_t i = 0; i < argvRem.size(); ++i) {
+        if (!strcmp(argvRem[i], "-d")) {
+            diffuseEnvironmentMap = argvRem[++i];
+        } else if (!strcmp(argvRem[i], "-e")) {
+            specularEnvironmentMap = argvRem[++i];
+        } else if (!strcmp(argvRem[i], "-m")) {
+            g_maxMipmapLevels = atoi(argvRem[++i]);
+        } else if (!strcmp(argvRem[i], "-x")) {
+            memLimit = atoi(argvRem[++i]);
+        } else if (!strcmp(argvRem[i], "--disp")) {
+            g_displacementScale = (float)atof(argvRem[++i]);
+        } else if (colorFilename == NULL) {
+            colorFilename = argvRem[i];
+        } else if (displacementFilename == NULL) {
+            displacementFilename = argvRem[i];
             g_displacement = DISPLACEMENT_BILINEAR;
             g_normal = NORMAL_BIQUADRATIC;
         } else if (occlusionFilename == NULL) {
-            occlusionFilename = argv[i].c_str();
+            occlusionFilename = argvRem[i];
             g_occlusion = 1;
         } else if (specularFilename == NULL) {
-            specularFilename = argv[i].c_str();
+            specularFilename = argvRem[i];
             g_specular = 1;
+        } else {
+            args.PrintUnrecognizedArgWarning(argvRem[i]);
         }
     }
 
@@ -2002,7 +1990,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
 
     g_ptexColorFilename = colorFilename;
     if (g_ptexColorFilename == NULL) {
-        usage(argv[0].c_str());
+        usage(__argv[0]);
         return 1;
     }
 
@@ -2027,30 +2015,22 @@ WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmd
 
     // load animation obj sequences (optional)
     if (!animobjs.empty()) {
-        for (int i = 0; i < (int)animobjs.size(); ++i) {
-            std::ifstream ifs(animobjs[i].c_str());
-            if (ifs) {
-                std::stringstream ss;
-                ss << ifs.rdbuf();
-                ifs.close();
-
-                printf("Reading %s\r", animobjs[i].c_str());
-                std::string str = ss.str();
-                Shape *shape = Shape::parseObj(str.c_str(), kCatmark);
-
-                if (shape->verts.size() != g_positions.size()) {
-                    printf("Error: vertex count doesn't match.\n");
-                    goto end;
-                }
-
-                g_animPositions.push_back(shape->verts);
-                delete shape;
-            } else {
-                printf("Error in reading %s\n", animobjs[i].c_str());
-                goto end;
-            }
+        //  The Scheme passed here should ideally match the Ptex geometry
+        //  (not the defaults from the command line), but only the vertex
+        //  positions of the ObjAnim are used, so it is effectively ignored
+        g_objAnim = ObjAnim::Create(animobjs, kCatmark);
+        if (g_objAnim == 0) {
+            printf("Error in reading animation Obj file sequence\n");
+            goto end;
         }
-        printf("\n");
+
+        const Shape *animShape = g_objAnim->GetShape();
+        if (animShape->verts.size() != g_positions.size()) {
+            printf("Error in animation sequence, "
+                   "does not match ptex vertex count\n");
+            goto end;
+        }
+
     }
 
     // IBL textures

@@ -351,7 +351,7 @@ updateGeom() {
     if (g_moveScale && g_adaptive && g_objAnim) {
 
         std::vector<float> vertex;
-        vertex.reserve(nverts*3);
+        vertex.resize(nverts*3);
 
         g_objAnim->InterpolatePositions(g_animTime, &vertex[0], 3);
 
