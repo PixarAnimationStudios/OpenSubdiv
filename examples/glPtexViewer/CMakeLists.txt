@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-# *** ptexViewer ***
+# *** glPtexViewer ***
 
 set(SHADER_FILES
      shader.glsl
@@ -65,7 +65,7 @@ osd_add_glfw_executable(glPtexViewer "examples"
     "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
-    $<TARGET_OBJECTS:examples_common_obj>
+    $<TARGET_OBJECTS:examples_common_gl_obj>
     $<TARGET_OBJECTS:examples_common_ptex_obj>
 )
 

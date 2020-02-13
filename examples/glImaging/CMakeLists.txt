@@ -22,6 +22,8 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
+# *** glImaging ***
+
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
     "${GLFW_INCLUDE_DIR}"
@@ -62,7 +64,7 @@ osd_add_glfw_executable(glImaging "examples"
     "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>
-    $<TARGET_OBJECTS:examples_common_obj>
+    $<TARGET_OBJECTS:examples_common_gl_obj>
 )
 
 target_link_libraries(glImaging
