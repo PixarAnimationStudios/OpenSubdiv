@@ -125,9 +125,9 @@ if (CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 # Detect Clang (until a cmake version provides built-in variables)
-if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+if(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
     set(CMAKE_COMPILER_IS_CLANGCC 1)
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Intel")
+elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
