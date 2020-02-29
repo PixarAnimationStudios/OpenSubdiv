@@ -126,8 +126,14 @@ public:
         VTagSize _infIrregular    : 1;  // fixed
 
         //  Alternate constructor and accessor for dealing with integer bits directly:
-        explicit VTag(VTagSize bits) { *this = *reinterpret_cast<VTag const *>(&bits); }
-        VTagSize getBits() const { return *reinterpret_cast<VTagSize const *>(this); }
+        explicit VTag(VTagSize bits) {
+            std::memcpy(this, &bits, sizeof(bits));
+        }
+        VTagSize getBits() const {
+            VTagSize bits;
+            std::memcpy(&bits, this, sizeof(bits));
+            return bits;
+        }
 
         static VTag BitwiseOr(VTag const vTags[], int size = 4);
     };
@@ -145,8 +151,14 @@ public:
         ETagSize _semiSharp    : 1;  // variable
 
         //  Alternate constructor and accessor for dealing with integer bits directly:
-        explicit ETag(ETagSize bits) { *this = *reinterpret_cast<ETag const *>(&bits); }
-        ETagSize getBits() const { return *reinterpret_cast<ETagSize const *>(this); }
+        explicit ETag(ETagSize bits) {
+            std::memcpy(this, &bits, sizeof(bits));
+        }
+        ETagSize getBits() const {
+            ETagSize bits;
+            std::memcpy(&bits, this, sizeof(bits));
+            return bits;
+        }
 
         static ETag BitwiseOr(ETag const eTags[], int size = 4);
     };

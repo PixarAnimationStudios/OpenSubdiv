@@ -135,6 +135,16 @@ public:
         ValueTagSize _infIrregular  : 1;  // value span includes inf-sharp irregularity
 
         Level::VTag combineWithLevelVTag(Level::VTag) const;
+
+        //  Alternate constructor and accessor for dealing with integer bits directly:
+        explicit ValueTag(ValueTagSize bits) {
+            std::memcpy(this, &bits, sizeof(bits));
+        }
+        ValueTagSize getBits() const {
+            ValueTagSize bits;
+            std::memcpy(&bits, this, sizeof(bits));
+            return bits;
+        }
     };
 
     typedef Vtr::ConstArray<ValueTag> ConstValueTagArray;
