@@ -24,26 +24,24 @@
 
 add_subdirectory(common)
 
-if (NOT NO_OPENGL)
-    if (OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
+if (OPENGL_FOUND AND GLFW_FOUND)
 
-        add_subdirectory(glViewer)
-        add_subdirectory(glEvalLimit)
-        add_subdirectory(glShareTopology)
-        add_subdirectory(glFVarViewer)
-        add_subdirectory(glStencilViewer)
-        add_subdirectory(glImaging)
-        add_subdirectory(farViewer)
+    add_subdirectory(glViewer)
+    add_subdirectory(glEvalLimit)
+    add_subdirectory(glShareTopology)
+    add_subdirectory(glFVarViewer)
+    add_subdirectory(glStencilViewer)
+    add_subdirectory(glImaging)
+    add_subdirectory(farViewer)
 
-        if (OPENGL_4_3_FOUND AND (NOT APPLE))
-            add_subdirectory(glPaintTest)
-        endif()
-
-        if (PTEX_FOUND AND ZLIB_FOUND)
-            add_subdirectory(glPtexViewer)
-        endif()
-
+    if (OPENGL_4_2_FOUND)
+        add_subdirectory(glPaintTest)
     endif()
+
+    if (PTEX_FOUND AND ZLIB_FOUND)
+        add_subdirectory(glPtexViewer)
+    endif()
+
 endif()
 
 if (DXSDK_FOUND AND NOT NO_DX)
@@ -57,8 +55,11 @@ if (DXSDK_FOUND AND NOT NO_DX)
 endif()
 
 if (METAL_FOUND AND NOT NO_METAL)
+
     add_subdirectory(mtlViewer)
+
     if(PTEX_FOUND)
         add_subdirectory(mtlPtexViewer)
     endif()
+
 endif()

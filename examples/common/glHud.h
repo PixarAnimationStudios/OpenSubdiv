@@ -25,9 +25,9 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_HUD_H
 #define OPENSUBDIV_EXAMPLES_GL_HUD_H
 
-#include "hud.h"
+#include "glLoader.h"
 
-#include <opensubdiv/osd/opengl.h>
+#include "hud.h"
 
 class GLhud : public Hud {
 

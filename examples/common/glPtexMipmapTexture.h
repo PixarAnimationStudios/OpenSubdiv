@@ -25,8 +25,9 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_PTEX_MIPMAP_TEXTURE_H
 #define OPENSUBDIV_EXAMPLES_GL_PTEX_MIPMAP_TEXTURE_H
 
+#include "glLoader.h"
+
 #include <opensubdiv/osd/nonCopyable.h>
-#include <opensubdiv/osd/opengl.h>
 
 #include <Ptexture.h>
 #include <stdlib.h>

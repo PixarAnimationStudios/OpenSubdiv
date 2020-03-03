@@ -22,23 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(_WIN32)
-        // XXX Must include windows.h here or GLFW pollutes the global namespace
-        #define WIN32_LEAN_AND_MEAN
-        #include <windows.h>
-    #endif
-#endif
+#include "glLoader.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -657,12 +641,7 @@ main(int argc, char ** argv) {
     }
     glfwMakeContextCurrent(g_window);
     
-#if defined(OSD_USES_GLEW)
-    if (GLenum r = glewInit() != GLEW_OK) {
-        printf("Failed to initialize glew. error = %d\n", r);
-        exit(1);
-    }
-#endif
+    OpenSubdiv::internal::GLLoader::applicationInitializeGL();
 
     printf("precision : %f\n",PRECISION);
 

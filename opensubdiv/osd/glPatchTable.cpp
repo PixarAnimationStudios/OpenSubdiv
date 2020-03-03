@@ -22,10 +22,11 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "glLoader.h"
+
 #include "../osd/glPatchTable.h"
 
 #include "../far/patchTable.h"
-#include "../osd/opengl.h"
 #include "../osd/cpuPatchTable.h"
 
 namespace OpenSubdiv {

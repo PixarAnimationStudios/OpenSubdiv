@@ -29,17 +29,16 @@ set(SHADER_FILES
      paintShader.glsl
 )
 
-list(APPEND PLATFORM_LIBRARIES
-    "${OSD_LINK_TARGET}"
-    "${OPENGL_LIBRARY}"
-    "${GLEW_LIBRARY}"
-    "${GLFW_LIBRARIES}"
-)
-
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
-    "${GLEW_INCLUDE_DIR}"
+    "${OPENGL_LOADER_INCLUDE_DIRS}"
     "${GLFW_INCLUDE_DIR}"
+)
+
+list(APPEND PLATFORM_LIBRARIES
+    "${OSD_LINK_TARGET}"
+    "${OPENGL_LOADER_LIBRARIES}"
+    "${GLFW_LIBRARIES}"
 )
 
 if( OPENCL_FOUND )

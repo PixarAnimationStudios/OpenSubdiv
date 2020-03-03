@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../common/glUtils.h"
+#include "glLoader.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -79,49 +79,29 @@ bool g_legacyGregoryEnabled = false;
 #include "../common/glUtils.h"
 #include "../common/glControlMeshDisplay.h"
 #include "../common/glShaderCache.h"
+#include "../common/glUtils.h"
 #include "../common/objAnim.h"
 #include "../common/simple_math.h"
 #include "../common/stopwatch.h"
 #include "../common/viewerArgsUtils.h"
 #include <opensubdiv/osd/glslPatchShaderSource.h>
 
-
-
-/* Function to get the correct shader file based on the opengl version.
-  The implementation varies depending if glew is available or not. In case it
-  is available the capabilities are queried during execution and the correct
-  source is returned. If glew is not available the version is determined at
-  compile time */
 static const char *shaderSource(){
-#if ! defined(OSD_USES_GLEW)
-
-static const char *res =
-#if defined(GL_ARB_tessellation_shader) || defined(GL_VERSION_4_0)
+    static const char *res = NULL;
+    if (!res) {
+        static const char *gen =
 #include "shader.gen.h"
-#else
+            ;
+        static const char *gen3 =
 #include "shader_gl3.gen.h"
-#endif
-;
-#else
-        static const char *res = NULL;
-        if (!res){
-            static const char *gen =
-#include "shader.gen.h"
-                ;
-            static const char *gen3 =
-#include "shader_gl3.gen.h"
-                ;
-            //Determine the shader file to use. Since some opengl implementations
-            //define that an extension is available but not an implementation 
-            //for it you cannot trust in the glew header definitions to know that is
-            //available, but you need to query it during runtime.
-            if (GLUtils::SupportsAdaptiveTessellation())
-                res = gen;
-            else
-                res = gen3;
+            ;
+        if (GLUtils::SupportsAdaptiveTessellation()) {
+            res = gen;
+        } else {
+            res = gen3;
         }
-#endif
-        return res;
+    }
+    return res;
 }
 
 #include <cfloat>
@@ -1776,6 +1756,8 @@ int main(int argc, char ** argv) {
     }
 
     glfwMakeContextCurrent(g_window);
+
+    GLUtils::InitializeGL();
     GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
@@ -1786,21 +1768,6 @@ int main(int argc, char ** argv) {
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowCloseCallback(g_window, windowClose);
-
-#if defined(OSD_USES_GLEW)
-#ifdef CORE_PROFILE
-    // this is the only way to initialize glew correctly under core profile context.
-    glewExperimental = true;
-#endif
-    if (GLenum r = glewInit() != GLEW_OK) {
-        printf("Failed to initialize glew. Error = %s\n", glewGetErrorString(r));
-        exit(1);
-    }
-#ifdef CORE_PROFILE
-    // clear GL errors which were generated during glewInit()
-    glGetError();
-#endif
-#endif
 
     // activate feature adaptive tessellation if OSD supports it
     if (g_adaptive) {

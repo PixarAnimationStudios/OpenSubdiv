@@ -60,25 +60,14 @@ if (NOT NO_LIB)
     endif()
 
     if( OPENGL_FOUND )
-        if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
-            include_directories("${OPENGL_INCLUDE_DIR}")
-        endif()
-        if (GLEW_FOUND)
-            include_directories("${GLEW_INCLUDE_DIR}")
-        endif()
+        include_directories(${OPENGL_LOADER_INCLUDE_DIRS})
         list(APPEND PLATFORM_GPU_LIBRARIES
-            ${OPENGL_LIBRARY}
+            ${OPENGL_LOADER_LIBRARIES}
         )
     elseif( OPENGLES_FOUND )
         include_directories("${OPENGLES_INCLUDE_DIR}")
         list(APPEND PLATFORM_GPU_LIBRARIES
             ${OPENGLES_LIBRARIES}
-        )
-    endif()
-
-    if( OPENGL_4_2_FOUND OR OPENGL_4_3_FOUND)
-        list(APPEND PLATFORM_GPU_LIBRARIES
-            ${GLEW_LIBRARY}
         )
     endif()
 

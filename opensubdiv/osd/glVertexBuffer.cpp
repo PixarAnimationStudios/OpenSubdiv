@@ -22,9 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../osd/glVertexBuffer.h"
+#include "glLoader.h"
 
-#include "../osd/opengl.h"
+#include "../osd/glVertexBuffer.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

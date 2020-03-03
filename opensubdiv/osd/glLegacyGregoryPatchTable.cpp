@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "glLoader.h"
+
 #include "../osd/glLegacyGregoryPatchTable.h"
 
 namespace OpenSubdiv {
