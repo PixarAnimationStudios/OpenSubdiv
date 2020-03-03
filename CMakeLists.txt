@@ -428,6 +428,36 @@ if(GLEW_FOUND)
     add_definitions( -DOSD_USES_GLEW )
 endif()
 
+macro(osd_detect_gl_version header)
+
+   if (EXISTS "${header}")
+       file(STRINGS "${header}" VERSION_4_2 REGEX "^#define GL_VERSION_4_2.*$")
+       if (VERSION_4_2)
+           set(OPENGL_4_2_FOUND TRUE)
+       else ()
+           message(WARNING "OpenGL 4.2 dependent features not enabled")
+       endif ()
+
+       file(STRINGS "${header}" VERSION_4_3 REGEX "^#define GL_VERSION_4_3.*$")
+       if (VERSION_4_3)
+           SET(OPENGL_4_3_FOUND TRUE)
+       else ()
+           message(WARNING "OpenGL 4.3 dependent features not enabled")
+       endif ()
+   endif ()
+
+endmacro()
+
+if(GLEW_FOUND AND GLEW_INCLUDE_DIR)
+
+    osd_detect_gl_version(${GLEW_INCLUDE_DIR}/GL/glew.h)
+
+elseif(OPENGL_FOUND AND OPENGL_INCLUDE_DIR)
+
+    osd_detect_gl_version(${OPENGL_INCLUDE_DIR}/GL/glext.h)
+
+endif()
+
 # note : (GLSL transform feedback kernels require GL 4.2)
 if(GLEW_FOUND AND OPENGL_4_2_FOUND)
     add_definitions(
