@@ -34,28 +34,6 @@ if (NOT NO_REGRESSION)
 
     if(OPENGL_FOUND AND (GLEW_FOUND OR APPLE) AND GLFW_FOUND)
         add_subdirectory(osd_regression)
-    else()
-        set(MISSING "")
-
-        if (NOT OPENGL_FOUND)
-            list(APPEND MISSING OpenGL)
-        endif()
-
-        if (NOT GLEW_FOUND)
-            list(APPEND MISSING glew)
-        endif()
-
-        if (NOT GLFW_FOUND)
-            list(APPEND MISSING glfw)
-        endif()
-
-        message(WARNING
-            "The following libraries could not be found : ${MISSING}.  "
-            "The osd regression test will not be available.  "
-            "If you have these libraries installed, please specify their "
-            "path to cmake (through the GLEW_LOCATION and GLFW_LOCATION "
-            "command line arguments or environment variables)."
-        )
     endif()
 
 endif()

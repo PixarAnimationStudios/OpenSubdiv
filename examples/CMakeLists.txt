@@ -43,29 +43,6 @@ if (NOT NO_OPENGL)
             add_subdirectory(glPtexViewer)
         endif()
 
-    else()
-
-        set(MISSING "")
-
-        if (NOT OPENGL_FOUND)
-            list(APPEND MISSING OpenGL)
-        endif()
-
-        if (NOT GLEW_FOUND)
-            list(APPEND MISSING glew)
-        endif()
-
-        if (NOT GLFW_FOUND)
-            list(APPEND MISSING glfw)
-        endif()
-
-        message(WARNING
-            "The following libraries could not be found : ${MISSING}.  "
-            "The glViewer and ptexViewer examples will not be available.  "
-            "If you have these libraries installed, please specify their "
-            "path to cmake (through the GLEW_LOCATION and GLFW_LOCATION "
-            "command line arguments or environment variables)."
-        )
     endif()
 endif()
 
