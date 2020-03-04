@@ -54,22 +54,23 @@ GLPtexMipmapTexture::GetShaderSource()
 static GLuint
 genTextureBuffer(GLenum format, GLsizeiptr size, GLvoid const * data)
 {
-    GLuint buffer, result;
-    glGenBuffers(1, &buffer);
-    glGenTextures(1, & result);
+    GLuint buffer = 0;
+    GLuint result = 0;
 
-
-#if defined(GL_EXT_direct_state_access)
-    if (glNamedBufferDataEXT) {
-        glNamedBufferDataEXT(buffer, size, data, GL_STATIC_DRAW);
-        glTextureBufferEXT(result, GL_TEXTURE_BUFFER, format, buffer);
-    } else {
-#else
-    {
+#if defined(GL_ARB_direct_state_access)
+    if (OSD_OPENGL_HAS(ARB_direct_state_access)) {
+        glCreateBuffers(1, &buffer);
+        glNamedBufferData(buffer, size, data, GL_STATIC_DRAW);
+        glCreateTextures(GL_TEXTURE_BUFFER, 1, &result);
+        glTextureBuffer(result, format, buffer);
+    } else
 #endif
+    {
+        glGenBuffers(1, &buffer);
         glBindBuffer(GL_TEXTURE_BUFFER, buffer);
         glBufferData(GL_TEXTURE_BUFFER, size, data, GL_STATIC_DRAW);
 
+        glGenTextures(1, & result);
         glBindTexture(GL_TEXTURE_BUFFER, result);
         glTexBuffer(GL_TEXTURE_BUFFER, format, buffer);
 

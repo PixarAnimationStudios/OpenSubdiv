@@ -57,28 +57,28 @@ createGLTextureBuffer(std::vector<T> const & src, GLenum type) {
     GLint size = static_cast<int>(src.size()*sizeof(T));
     void const * ptr = &src.at(0);
 
-    GLuint buffer;
-    glGenBuffers(1, &buffer);
+    GLuint buffer = 0;
+    GLuint devicePtr = 0;
 
-    GLuint devicePtr;
-    glGenTextures(1, &devicePtr);
-
-#if defined(GL_EXT_direct_state_access)
-    if (glNamedBufferDataEXT && glTextureBufferEXT) {
-        glNamedBufferDataEXT(buffer, size, ptr, GL_STATIC_DRAW);
-        glTextureBufferEXT(devicePtr, GL_TEXTURE_BUFFER, type, buffer);
-    } else {
-#else
-    {
+#if defined(GL_ARB_direct_state_access)
+    if (OSD_OPENGL_HAS(ARB_direct_state_access)) {
+        glCreateBuffers(1, &buffer);
+        glNamedBufferData(buffer, size, ptr, GL_STATIC_DRAW);
+        glCreateTextures(GL_TEXTURE_BUFFER, 1, &devicePtr);
+        glTextureBuffer(devicePtr, type, buffer);
+    } else
 #endif
+    {
         GLint prev = 0;
 
         glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
+        glGenBuffers(1, &buffer);
         glBindBuffer(GL_ARRAY_BUFFER, buffer);
         glBufferData(GL_ARRAY_BUFFER, size, ptr, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, prev);
 
         glGetIntegerv(GL_TEXTURE_BINDING_BUFFER, &prev);
+        glGenTextures(1, &devicePtr);
         glBindTexture(GL_TEXTURE_BUFFER, devicePtr);
         glTexBuffer(GL_TEXTURE_BUFFER, type, buffer);
         glBindTexture(GL_TEXTURE_BUFFER, prev);
