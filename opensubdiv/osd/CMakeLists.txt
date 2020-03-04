@@ -160,7 +160,7 @@ if( OPENGL_4_2_FOUND )
         glslXFBKernel.glsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
-        ${GLEW_LIBRARY}
+        ${OPENGL_LOADER_LIBRARIES}
     )
 endif()
 
@@ -183,7 +183,7 @@ if( OPENGL_4_3_FOUND )
         glslComputeKernel.glsl
     )
     list(APPEND PLATFORM_GPU_LIBRARIES
-        ${GLEW_LIBRARY}
+        ${OPENGL_LOADER_LIBRARIES}
     )
 endif()
 

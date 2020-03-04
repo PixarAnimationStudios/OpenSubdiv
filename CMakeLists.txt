@@ -356,6 +356,9 @@ if (OPENGL_FOUND AND NOT IOS)
     else()
         find_package(GLEW REQUIRED)
     endif()
+    if(GLEW_FOUND)
+        add_definitions( -DOSD_USES_GLEW )
+    endif()
 endif()
 
 if (WIN32 AND NOT NO_DX)
@@ -423,13 +426,51 @@ if(GLFW_FOUND AND (GLFW_VERSION VERSION_EQUAL 3.0 OR GLFW_VERSION VERSION_GREATE
     add_definitions( -DGLFW_VERSION_3 )
 endif()
 
-# note: perhaps rename this to be more consistent, e.g. OPENSUBDIV_USES_GLEW
-if(GLEW_FOUND)
-    add_definitions( -DOSD_USES_GLEW )
+macro(osd_detect_gl_version header)
+
+   if (EXISTS "${header}")
+       file(STRINGS "${header}" VERSION_4_2 REGEX "^#define GL_VERSION_4_2.*$")
+       if (VERSION_4_2)
+           set(OPENGL_4_2_FOUND TRUE)
+       else ()
+           message(WARNING "OpenGL 4.2 dependent features not enabled")
+       endif ()
+
+       file(STRINGS "${header}" VERSION_4_3 REGEX "^#define GL_VERSION_4_3.*$")
+       if (VERSION_4_3)
+           SET(OPENGL_4_3_FOUND TRUE)
+       else ()
+           message(WARNING "OpenGL 4.3 dependent features not enabled")
+       endif ()
+   endif ()
+
+endmacro()
+
+if(GLEW_FOUND AND GLEW_INCLUDE_DIR)
+
+    osd_detect_gl_version(${GLEW_INCLUDE_DIR}/GL/glew.h)
+    set(OPENGL_LOADER_INCLUDE_DIRS
+        ${GLEW_INCLUDE_DIR}
+        ${PROJECT_SOURCE_DIR}/glLoader)
+    set(OPENGL_LOADER_LIBRARIES
+        glLoader
+        ${GLEW_LIBRARY}
+        ${OPENGL_gl_LIBRARY})
+
+elseif(OPENGL_FOUND AND OPENGL_INCLUDE_DIR)
+
+    osd_detect_gl_version(${OPENGL_INCLUDE_DIR}/GL/glext.h)
+    set(OPENGL_LOADER_INCLUDE_DIRS
+        ${OPENGL_INCLUDE_DIR}
+        ${PROJECT_SOURCE_DIR}/glLoader)
+    set(OPENGL_LOADER_LIBRARIES
+        glLoader
+        ${OPENGL_gl_LIBRARY})
+
 endif()
 
 # note : (GLSL transform feedback kernels require GL 4.2)
-if(GLEW_FOUND AND OPENGL_4_2_FOUND)
+if(OPENGL_4_2_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
     )
@@ -444,7 +485,7 @@ else()
 endif()
 
 # note : (GLSL compute shader kernels require GL 4.3)
-if(GLEW_FOUND AND OPENGL_4_3_FOUND)
+if(OPENGL_4_3_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_GLSL_COMPUTE
     )
@@ -758,6 +799,10 @@ endif()
 
 if (NOT NO_TESTS)
     enable_testing()
+endif()
+
+if (NOT NO_OPENGL)
+    add_subdirectory(glLoader)
 endif()
 
 add_subdirectory(opensubdiv)

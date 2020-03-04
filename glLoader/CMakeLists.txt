@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2020 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,18 +22,28 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-add_subdirectory(common)
-
-if (NOT NO_REGRESSION)
-
-    add_subdirectory(hbr_regression)
-
-    add_subdirectory(far_regression)
-
-    add_subdirectory(far_perf)
-
-    if(OPENGL_FOUND AND GLFW_FOUND)
-        add_subdirectory(osd_regression)
-    endif()
-
+if( APPLE OR UNIX )
+    add_definitions(-fPIC)
 endif()
+
+list(APPEND GLLOADER_SOURCE_FILES
+    glLoader.cpp
+)
+
+list(APPEND GLLOADER_HEADER_FILES
+    glLoader.h
+)
+
+include_directories(
+    "${OPENGL_LOADER_INCLUDE_DIRS}"
+)
+
+list(APPEND PLATFORM_LIBRARIES
+    "${OPENGL_LOADER_LIBRARIES}"
+)
+
+add_library(glLoader
+    STATIC
+        ${GLLOADER_SOURCE_FILES}
+        ${GLLOADER_HEADER_FILES}
+)

@@ -32,19 +32,15 @@ set(SHADER_FILES
 
 include_directories(
     "${OPENSUBDIV_INCLUDE_DIR}"
+    "${OPENGL_LOADER_INCLUDE_DIRS}"
     "${GLFW_INCLUDE_DIR}"
 )
 
 list(APPEND PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
-    "${OPENGL_LIBRARY}"
+    "${OPENGL_LOADER_LIBRARIES}"
     "${GLFW_LIBRARIES}"
 )
-
-if ( GLEW_FOUND )
-    include_directories("${GLEW_INCLUDE_DIR}")
-    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
-endif()
 
 if( OPENCL_FOUND )
     include_directories("${OPENCL_INCLUDE_DIRS}")

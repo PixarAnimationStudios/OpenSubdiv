@@ -25,10 +25,11 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_SCENE_BASE_H
 #define OPENSUBDIV_EXAMPLES_GL_SHARE_TOPOLOGY_SCENE_BASE_H
 
+#include "glLoader.h"
+
 #include <opensubdiv/far/patchDescriptor.h>
 #include <opensubdiv/far/patchTable.h>
 #include <opensubdiv/osd/bufferDescriptor.h>
-#include <opensubdiv/osd/opengl.h>
 
 struct Shape;
 

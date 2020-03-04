@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../common/glUtils.h"
+#include "glLoader.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window=0;
@@ -76,6 +76,7 @@ GLFWmonitor* g_primary=0;
 #include "../common/simple_math.h"
 #include "../common/glHud.h"
 #include "../common/glShaderCache.h"
+#include "../common/glUtils.h"
 
 #include <opensubdiv/osd/glslPatchShaderSource.h>
 static const char *shaderSource =
@@ -1090,8 +1091,7 @@ initHUD() {
     g_hud.AddPullDownButton(compute_pulldown, "GLSL TransformFeedback", kGLSL);
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    // Must also check at run time for OpenGL 4.3
-    if (GLEW_VERSION_4_3) {
+    if (GLUtils::GL_ARBComputeShaderOrGL_VERSION_4_3()) {
         g_hud.AddPullDownButton(compute_pulldown, "GLSL Compute", kGLSLCompute);
     }
 #endif
@@ -1195,6 +1195,8 @@ int main(int argc, char ** argv) {
     }
 
     glfwMakeContextCurrent(g_window);
+
+    GLUtils::InitializeGL();
     GLUtils::PrintGLVersion();
 
     // accommodate high DPI displays (e.g. mac retina displays)
@@ -1205,21 +1207,6 @@ int main(int argc, char ** argv) {
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
     glfwSetWindowCloseCallback(g_window, windowClose);
-
-#if defined(OSD_USES_GLEW)
-#ifdef CORE_PROFILE
-    // this is the only way to initialize glew correctly under core profile context.
-    glewExperimental = true;
-#endif
-    if (GLenum r = glewInit() != GLEW_OK) {
-        printf("Failed to initialize glew. Error = %s\n", glewGetErrorString(r));
-        exit(1);
-    }
-#ifdef CORE_PROFILE
-    // clear GL errors which were generated during glewInit()
-    glGetError();
-#endif
-#endif
 
     initShapes();
     initGL();

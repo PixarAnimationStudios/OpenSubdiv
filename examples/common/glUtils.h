@@ -25,31 +25,15 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_UTILS_H
 #define OPENSUBDIV_EXAMPLES_GL_UTILS_H
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
-
-#include <opensubdiv/osd/opengl.h>
+#include "glLoader.h"
 
 #include <cstdio>
 #include <string>
 #include <iostream>
 
-#define CORE_PROFILE
-
 namespace GLUtils {
+
+void InitializeGL();
 
 void SetMinimumGLVersion(int argc=0, char **argv=NULL);
 

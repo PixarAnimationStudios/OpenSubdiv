@@ -22,8 +22,9 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "glLoader.h"
+
 #include "../osd/cudaGLVertexBuffer.h"
-#include "../osd/opengl.h"
 #include "../far/error.h"
 
 #include <cuda_runtime.h>

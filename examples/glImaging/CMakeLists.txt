@@ -24,29 +24,21 @@
 
 # *** glImaging ***
 
-include_directories(
-    "${OPENSUBDIV_INCLUDE_DIR}"
-    "${GLFW_INCLUDE_DIR}"
-)
-
 set(SHADER_FILES
      shader.glsl
 )
 
-set(SOURCE_FILES
-    glImaging.cpp
+include_directories(
+    "${OPENSUBDIV_INCLUDE_DIR}"
+    "${OPENGL_LOADER_INCLUDE_DIRS}"
+    "${GLFW_INCLUDE_DIR}"
 )
 
 set(PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
-    "${OPENGL_LIBRARY}"
+    "${OPENGL_LOADER_LIBRARIES}"
     "${GLFW_LIBRARIES}"
 )
-
-if ( GLEW_FOUND )
-    include_directories("${GLEW_INCLUDE_DIR}")
-    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
-endif()
 
 if ( OPENCL_FOUND )
     list(APPEND PLATFORM_LIBRARIES
@@ -60,7 +52,7 @@ osd_stringify("${SHADER_FILES}" INC_FILES)
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 osd_add_glfw_executable(glImaging "examples"
-    "${SOURCE_FILES}"
+    glImaging.cpp
     "${SHADER_FILES}"
     "${INC_FILES}"
     $<TARGET_OBJECTS:regression_common_obj>

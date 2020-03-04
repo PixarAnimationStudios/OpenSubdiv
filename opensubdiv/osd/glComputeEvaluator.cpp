@@ -22,16 +22,19 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "glLoader.h"
+
 #include "../osd/glComputeEvaluator.h"
 #include "../osd/glslPatchShaderSource.h"
+
+#include "../far/error.h"
+#include "../far/stencilTable.h"
 
 #include <cassert>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "../far/error.h"
-#include "../far/stencilTable.h"
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {

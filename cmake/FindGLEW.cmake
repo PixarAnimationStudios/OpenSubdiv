@@ -100,28 +100,6 @@ if (${CMAKE_HOST_UNIX})
             DOC "The GLEW library")
 endif ()
 
-if (GLEW_INCLUDE_DIR AND EXISTS "${GLEW_INCLUDE_DIR}/GL/glew.h")
-
-   file(STRINGS "${GLEW_INCLUDE_DIR}/GL/glew.h" GLEW_4_2 REGEX "^#define GL_VERSION_4_2.*$")
-   if (GLEW_4_2)
-       set(OPENGL_4_2_FOUND TRUE)
-   else ()
-       message(WARNING
-       "glew-1.7.0 or newer needed for supporting OpenGL 4.2 dependent features"
-       )
-   endif ()
-
-   file(STRINGS "${GLEW_INCLUDE_DIR}/GL/glew.h" GLEW_4_3 REGEX "^#define GL_VERSION_4_3.*$")
-   if (GLEW_4_3)
-       SET(OPENGL_4_3_FOUND TRUE)
-   else ()
-       message(WARNING
-       "glew-1.9.0 or newer needed for supporting OpenGL 4.3 dependent features"
-       )
-   endif ()
-
-endif ()
-
 find_package_handle_standard_args(GLEW
     REQUIRED_VARS
         GLEW_INCLUDE_DIR

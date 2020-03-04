@@ -1,5 +1,5 @@
 //
-//   Copyright 2015 Pixar
+//   Copyright 2020 Pixar
 //
 //   Licensed under the Apache License, Version 2.0 (the "Apache License")
 //   with the following modification; you may not use this file except in
@@ -22,42 +22,49 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV_EXAMPLES_GL_SHADER_CACHE_H
-#define OPENSUBDIV_EXAMPLES_GL_SHADER_CACHE_H
-
 #include "glLoader.h"
 
-#include <map>
-#include <string>
-#include "./shaderCache.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-class GLDrawConfig {
-public:
-    explicit GLDrawConfig(const std::string &version);
-    ~GLDrawConfig();
 
-    bool CompileAndAttachShader(GLenum shaderType, const std::string &source);
-    bool Link();
+namespace OpenSubdiv {
+namespace internal {
+namespace GLLoader {
 
-    GLuint GetProgram() const {
-        return _program;
-    }
 
-private:
-    GLuint _program;
-    std::string _version;
-    int _numShaders;
-};
-
-// workaround for template alias
-#if 0
-template <typename DESC_TYPE>
-using GLShaderCache = ShaderCacheT<DESC_TYPE, GLDrawConfig>;
-#else
-template <typename DESC_TYPE>
-class GLShaderCache : public ShaderCacheT<DESC_TYPE, GLDrawConfig> {
-};
+bool
+applicationInitializeGL()
+{
+#if defined(OSD_USES_GLEW)
+#define CORE_PROFILE
+#ifdef CORE_PROFILE
+    // this is the only way to initialize GLEW (before GLEW 1.13)
+    // correctly under core profile context.
+    glewExperimental = true;
 #endif
+    GLenum status = glewInit();
+    if (status != GLEW_OK) {
+        printf("Failed to initialize glew. Error = %s\n",
+               glewGetErrorString(status));
+        return false;
+    }
+#ifdef CORE_PROFILE
+    // clear GL errors which were generated during glewInit()
+    glGetError();
+#endif
+#endif
+    return true;
+}
+
+bool
+libraryInitializeGL()
+{
+    // do nothing
+    return true;
+}
 
 
-#endif  // OPENSUBDIV_EXAMPLES_GL_SHADER_CACHE_H
+}  // namespace GLLoader
+}  // namespace internal
+}  // namespace OpenSubdiv

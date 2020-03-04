@@ -71,7 +71,7 @@ if(CUDA_FOUND)
     )
 endif()
 
-if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
+if(OPENGL_FOUND AND GLFW_FOUND)
 
     list(APPEND EXAMPLES_COMMON_GL_SOURCE_FILES
         glControlMeshDisplay.cpp
@@ -87,13 +87,7 @@ if( OPENGL_FOUND AND (GLEW_FOUND AND GLFW_FOUND) OR (APPLE AND GLFW_FOUND))
         glShaderCache.h
     )
 
-    if (NOT "${OPENGL_INCLUDE_DIR}" STREQUAL "")
-        include_directories("${OPENGL_INCLUDE_DIR}")
-    endif()
-
-    if (GLEW_FOUND)
-        include_directories("${GLEW_INCLUDE_DIR}")
-    endif()
+    include_directories(${OPENGL_LOADER_INCLUDE_DIRS})
 
     if (GLFW_FOUND)
         include_directories("${GLFW_INCLUDE_DIR}")

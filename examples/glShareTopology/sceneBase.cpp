@@ -22,11 +22,16 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "glLoader.h"
+
 #include "sceneBase.h"
-#include <limits>
+
 #include "../../regression/common/far_utils.h"
+
 #include <opensubdiv/far/patchTableFactory.h>
 #include <opensubdiv/far/stencilTableFactory.h>
+
+#include <limits>
 
 using namespace OpenSubdiv;
 

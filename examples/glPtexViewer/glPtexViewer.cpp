@@ -22,21 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#if defined(__APPLE__)
-    #if defined(OSD_USES_GLEW)
-        #include <GL/glew.h>
-    #else
-        #include <OpenGL/gl3.h>
-    #endif
-    #define GLFW_INCLUDE_GL3
-    #define GLFW_NO_GLU
-#else
-    #include <stdlib.h>
-    #include <GL/glew.h>
-    #if defined(WIN32)
-        #include <GL/wglew.h>
-    #endif
-#endif
+#include "glLoader.h"
 
 #include <GLFW/glfw3.h>
 GLFWwindow* g_window = 0;
@@ -99,10 +85,10 @@ OpenSubdiv::Osd::GLMeshInterface *g_mesh;
 #include "../common/simple_math.h"
 #include "../common/glControlMeshDisplay.h"
 #include "../common/glHud.h"
-#include "../common/glUtils.h"
 #include "../common/hdr_reader.h"
 #include "../common/glPtexMipmapTexture.h"
 #include "../common/glShaderCache.h"
+#include "../common/glUtils.h"
 
 #include <opensubdiv/osd/glslPatchShaderSource.h>
 static const char *g_defaultShaderSource =
@@ -1819,26 +1805,13 @@ int main(int argc, char ** argv) {
     }
 
     glfwMakeContextCurrent(g_window);
+
+    GLUtils::InitializeGL();
     GLUtils::PrintGLVersion();
 
     glfwSetKeyCallback(g_window, keyboard);
     glfwSetCursorPosCallback(g_window, motion);
     glfwSetMouseButtonCallback(g_window, mouse);
-
-#if defined(OSD_USES_GLEW)
-#ifdef CORE_PROFILE
-    // this is the only way to initialize glew correctly under core profile context.
-    glewExperimental = true;
-#endif
-    if (GLenum r = glewInit() != GLEW_OK) {
-        printf("Failed to initialize glew. error = %d\n", r);
-        exit(1);
-    }
-#ifdef CORE_PROFILE
-    // clear GL errors which was generated during glewInit()
-    glGetError();
-#endif
-#endif
 
     initGL();
 

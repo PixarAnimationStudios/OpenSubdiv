@@ -25,7 +25,8 @@
 #ifndef OPENSUBDIV_EXAMPLES_GL_CONTROL_MESH_DISPLAY_H
 #define OPENSUBDIV_EXAMPLES_GL_CONTROL_MESH_DISPLAY_H
 
-#include <opensubdiv/osd/opengl.h>
+#include "glLoader.h"
+
 #include <opensubdiv/far/topologyLevel.h>
 
 class GLControlMeshDisplay {

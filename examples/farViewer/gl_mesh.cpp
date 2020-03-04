@@ -22,6 +22,8 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+#include "glLoader.h"
+
 #include "gl_mesh.h"
 #include "gl_fontutils.h"
 

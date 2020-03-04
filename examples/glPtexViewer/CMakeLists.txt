@@ -30,36 +30,29 @@ set(SHADER_FILES
      skyshader.glsl
 )
 
+include_directories(
+    "${OPENSUBDIV_INCLUDE_DIR}"
+    "${OPENGL_LOADER_INCLUDE_DIRS}"
+    "${GLFW_INCLUDE_DIR}"
+    "${PTEX_INCLUDE_DIR}"
+)
+
 list(APPEND PLATFORM_LIBRARIES
     "${OSD_LINK_TARGET}"
-    "${OPENGL_LIBRARY}"
+    "${OPENGL_LOADER_LIBRARIES}"
     "${GLFW_LIBRARIES}"
     "${PTEX_LIBRARY}"
     "${ZLIB_LIBRARY}"
 )
 
-include_directories(
-    "${OPENSUBDIV_INCLUDE_DIR}"
-    "${GLFW_INCLUDE_DIR}"
-    "${PTEX_INCLUDE_DIR}"
-)
-
-if ( GLEW_FOUND )
-    include_directories("${GLEW_INCLUDE_DIR}")
-    list(APPEND PLATFORM_LIBRARIES "${GLEW_LIBRARY}")
-endif()
-
 if( OPENCL_FOUND )
     include_directories("${OPENCL_INCLUDE_DIRS}")
 endif()
-
-#-------------------------------------------------------------------------------
 
 osd_stringify("${SHADER_FILES}" INC_FILES)
 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-#-------------------------------------------------------------------------------
 osd_add_glfw_executable(glPtexViewer "examples"
     glPtexViewer.cpp
     "${SHADER_FILES}"

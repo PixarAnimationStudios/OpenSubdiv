@@ -22,7 +22,7 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#include "../common/glUtils.h"
+#include "glLoader.h"
 
 #include <iostream>
 #include <fstream>
@@ -73,6 +73,7 @@
 #include "../common/patchColors.h"
 #include "../common/stb_image_write.h"    // common.obj has an implementation.
 #include "../common/glShaderCache.h"
+#include "../common/glUtils.h"
 #include "init_shapes.h"
 
 using namespace OpenSubdiv;
@@ -531,19 +532,9 @@ int main(int argc, char ** argv) {
     }
 
     glfwMakeContextCurrent(window);
-    GLUtils::PrintGLVersion();
 
-#if defined(OSD_USES_GLEW)
-    // this is the only way to initialize glew correctly under core profile context.
-    glewExperimental = true;
-    if (GLenum r = glewInit() != GLEW_OK) {
-        std::cout << "Failed to initialize glew. Error = "
-                  << glewGetErrorString(r) << "\n";
-        exit(1);
-    }
-    // clear GL errors generated during glewInit()
-    glGetError();
-#endif
+    GLUtils::InitializeGL();
+    GLUtils::PrintGLVersion();
 
     // by default, test all available kernels
     if (kernels.empty()) {
@@ -561,12 +552,12 @@ int main(int argc, char ** argv) {
         kernels.push_back("CL");
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-    if (GLEW_VERSION_4_1) { // check availability in current context
+    if (OSD_OPENGL_HAS(VERSION_4_1)) {
         kernels.push_back("XFB");
     }
 #endif
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
-    if (GLEW_VERSION_4_3) { // check availability in current context
+    if (OSD_OPENGL_HAS(VERSION_4_3)) {
         kernels.push_back("GLSL");
     }
 #endif
