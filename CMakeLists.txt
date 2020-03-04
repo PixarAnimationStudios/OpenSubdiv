@@ -306,7 +306,7 @@ option(NO_METAL "Disable Metal support" OFF)
 option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
-option(NO_GLEW "Disable use of GLEW" OFF)
+option(NO_GLEW "Disable use of GLEW" ON)
 option(NO_GLFW "Disable components depending on GLFW" OFF)
 option(NO_GLFW_X11 "Disable GLFW components depending on X11" OFF)
 
