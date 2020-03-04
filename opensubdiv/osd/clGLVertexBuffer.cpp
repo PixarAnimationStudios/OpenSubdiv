@@ -38,6 +38,9 @@ CLGLVertexBuffer::CLGLVertexBuffer(int numElements,
                                          cl_context /* clContext */)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _clQueue(0), _clMemory(0), _clMapped(false) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 CLGLVertexBuffer::~CLGLVertexBuffer() {

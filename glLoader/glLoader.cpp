@@ -36,7 +36,12 @@ namespace GLLoader {
 bool
 applicationInitializeGL()
 {
-#if defined(OSD_USES_GLEW)
+#if defined(OSD_USES_INTERNAL_GLAPILOADER)
+    // -- GLAPILOADER
+    return OpenSubdiv::internal::GLApi::glApiLoad();
+
+#elif defined(OSD_USES_GLEW)
+    // -- GLEW
 #define CORE_PROFILE
 #ifdef CORE_PROFILE
     // this is the only way to initialize GLEW (before GLEW 1.13)
@@ -60,8 +65,12 @@ applicationInitializeGL()
 bool
 libraryInitializeGL()
 {
-    // do nothing
+#if defined(OSD_USES_INTERNAL_GLAPILOADER)
+    return OpenSubdiv::internal::GLApi::glApiLoad();
+#else
+    // otherwise do nothing
     return true;
+#endif
 }
 
 

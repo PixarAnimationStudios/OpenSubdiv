@@ -31,6 +31,11 @@
 /// function entry points at run-time and to define types, enum values,
 /// and function prototypes needed at compile-time.
 ///
+/// There are three components to this library:
+///   glLoader.h        -- interface (this header file)
+///   glApi.h           -- low-level generated OpenGL API loader
+///   khrplatform.h     -- khronos.org abstraction for low-level platform types
+///
 /// To use:
 ///   - Include "glloader.h"
 ///
@@ -132,35 +137,17 @@
 /// The boolean variables described here are defined in an internal namespace.
 ///
 
-#if defined(OSD_USES_GLEW)
+#if defined(OSD_USES_INTERNAL_GLAPILOADER)
+    // -- GLAPILOADER
+    #include "glApi.h"
+
+    #define OSD_OPENGL_HAS(token) (GLAPILOADER_GL_##token)
+
+#elif defined(OSD_USES_GLEW)
     // -- GLEW
     #include <GL/glew.h>
 
     #define OSD_OPENGL_HAS(token) (GLEW_##token)
-
-#else
-
-    // -- PLATFORM
-    #if defined(__APPLE__)
-        #include "TargetConditionals.h"
-        #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
-            #include <OpenGLES/ES2/gl.h>
-        #else
-            #include <OpenGL/gl3.h>
-        #endif
-    #elif defined(ANDROID)
-        #include <GLES2/gl2.h>
-    #elif defined(_WIN32)
-        #define WIN32_LEAN_AND_MEAN
-        #include <GL/gl.h>
-        #include <windows.h>
-    #else
-        #define GL_GLEXT_PROTOTYPES
-        #include <GL/gl.h>
-        #include <GL/glext.h>
-    #endif
-
-    #define OSD_OPENGL_HAS(token) (GL_##token)
 
 #endif
 
@@ -182,6 +169,11 @@ extern bool libraryInitializeGL();
 }  // namespace GLLoader
 }  // namespace internal
 }  // namespace OpenSubdiv
+
+
+#if defined(OSD_USES_INTERNAL_GLAPILOADER)
+using namespace OpenSubdiv::internal::GLApi;
+#endif
 
 
 #endif  // OPENSUBDIV3_GLLOADER_H

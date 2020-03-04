@@ -130,6 +130,9 @@ GLComputeEvaluator::GLComputeEvaluator()
       _patchArraysSSBO(0) {
     memset (&_stencilKernel, 0, sizeof(_stencilKernel));
     memset (&_patchKernel, 0, sizeof(_patchKernel));
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 GLComputeEvaluator::~GLComputeEvaluator() {

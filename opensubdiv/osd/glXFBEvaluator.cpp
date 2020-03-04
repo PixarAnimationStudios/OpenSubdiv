@@ -157,6 +157,9 @@ GLXFBEvaluator::GLXFBEvaluator(bool interleavedDerivativeBuffers)
     : _srcBufferTexture(0),
       _patchArraysUBO(0),
       _interleavedDerivativeBuffers(interleavedDerivativeBuffers) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 GLXFBEvaluator::~GLXFBEvaluator() {

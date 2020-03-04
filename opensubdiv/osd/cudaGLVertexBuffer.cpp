@@ -40,6 +40,9 @@ namespace Osd {
 CudaGLVertexBuffer::CudaGLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _devicePtr(0), _cudaResource(0) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 CudaGLVertexBuffer::~CudaGLVertexBuffer() {

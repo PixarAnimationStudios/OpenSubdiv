@@ -35,6 +35,9 @@ GLVertexBuffer::GLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements),
       _numVertices(numVertices),
       _vbo(0) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 GLVertexBuffer::~GLVertexBuffer() {
