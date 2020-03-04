@@ -1050,20 +1050,17 @@ FVarLevel::getFaceCompositeValueTag(Index faceIndex) const {
 
     typedef ValueTag::ValueTagSize ValueTagSize;
 
-    ValueTag       compTag;
-    ValueTagSize & compInt = *(reinterpret_cast<ValueTagSize *>(&compTag));
-
-    compInt = 0;
+    ValueTagSize compInt = 0;
     for (int i = 0; i < faceValues.size(); ++i) {
         Index srcValueIndex = findVertexValueIndex(faceVerts[i], faceValues[i]);
         assert(_vertValueIndices[srcValueIndex] == faceValues[i]);
 
-        ValueTag const &     srcTag = _vertValueTags[srcValueIndex];
-        ValueTagSize const & srcInt = *(reinterpret_cast<ValueTagSize const *>(&srcTag));
+        ValueTag const &   srcTag = _vertValueTags[srcValueIndex];
+        ValueTagSize const srcInt = srcTag.getBits();
 
         compInt |= srcInt;
     }
-    return compTag;
+    return ValueTag(compInt);
 }
 
 } // end namespace internal
