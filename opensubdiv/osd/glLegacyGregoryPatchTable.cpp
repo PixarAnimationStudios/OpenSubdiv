@@ -35,6 +35,9 @@ GLLegacyGregoryPatchTable::GLLegacyGregoryPatchTable() :
     _vertexTextureBuffer(0), _vertexValenceTextureBuffer(0),
     _quadOffsetsTextureBuffer(0) {
     _quadOffsetsBase[0] = _quadOffsetsBase[1] = 0;
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 GLLegacyGregoryPatchTable::~GLLegacyGregoryPatchTable() {

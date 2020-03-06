@@ -37,6 +37,9 @@ namespace Osd {
 CpuGLVertexBuffer::CpuGLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _cpuBuffer(0), _dataDirty(true) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 CpuGLVertexBuffer::~CpuGLVertexBuffer() {

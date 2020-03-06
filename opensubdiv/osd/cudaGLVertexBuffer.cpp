@@ -40,6 +40,9 @@ namespace Osd {
 CudaGLVertexBuffer::CudaGLVertexBuffer(int numElements, int numVertices)
     : _numElements(numElements), _numVertices(numVertices),
       _vbo(0), _devicePtr(0), _cudaResource(0) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 CudaGLVertexBuffer::~CudaGLVertexBuffer() {
@@ -106,18 +109,20 @@ CudaGLVertexBuffer::allocate() {
 
     int size = _numElements * _numVertices * sizeof(float);
 
-    glGenBuffers(1, &_vbo);
 
-#if defined(GL_EXT_direct_state_access)
-    if (glNamedBufferDataEXT) {
-        glNamedBufferDataEXT(_vbo, size, 0, GL_DYNAMIC_DRAW);
-    } else {
-#else
-    {
+#if defined(GL_ARB_direct_state_access)
+    if (OSD_OPENGL_HAS(ARB_direct_state_access)) {
+        glCreateBuffers(1, &_vbo);
+        glNamedBufferData(_vbo, size, 0, GL_DYNAMIC_DRAW);
+    } else
 #endif
+    {
+        GLint prev = 0;
+        glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prev);
+        glGenBuffers(1, &_vbo);
         glBindBuffer(GL_ARRAY_BUFFER, _vbo);
         glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, prev);
     }
 
     // register vbo as cuda resource

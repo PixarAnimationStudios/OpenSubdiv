@@ -37,6 +37,9 @@ namespace Osd {
 GLPatchTable::GLPatchTable() :
     _patchIndexBuffer(0), _patchParamBuffer(0),
     _patchIndexTexture(0), _patchParamTexture(0) {
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 GLPatchTable::~GLPatchTable() {

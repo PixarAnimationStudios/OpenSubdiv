@@ -52,18 +52,18 @@ createSSBO(std::vector<T> const & src) {
     }
 
     GLuint devicePtr = 0;
-    glGenBuffers(1, &devicePtr);
 
-#if defined(GL_EXT_direct_state_access)
-    if (glNamedBufferDataEXT) {
-        glNamedBufferDataEXT(devicePtr, src.size()*sizeof(T),
-                             &src.at(0), GL_STATIC_DRAW);
-    } else {
-#else
-    {
+#if defined(GL_ARB_direct_state_access)
+    if (OSD_OPENGL_HAS(ARB_direct_state_access)) {
+        glCreateBuffers(1, &devicePtr);
+        glNamedBufferData(devicePtr, src.size()*sizeof(T),
+                          &src.at(0), GL_STATIC_DRAW);
+    } else
 #endif
+    {
         GLint prev = 0;
         glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &prev);
+        glGenBuffers(1, &devicePtr);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, devicePtr);
         glBufferData(GL_SHADER_STORAGE_BUFFER, src.size()*sizeof(T),
                      &src.at(0), GL_STATIC_DRAW);
@@ -130,6 +130,9 @@ GLComputeEvaluator::GLComputeEvaluator()
       _patchArraysSSBO(0) {
     memset (&_stencilKernel, 0, sizeof(_stencilKernel));
     memset (&_patchKernel, 0, sizeof(_patchKernel));
+
+    // Initialize internal OpenGL loader library if necessary
+    OpenSubdiv::internal::GLLoader::libraryInitializeGL();
 }
 
 GLComputeEvaluator::~GLComputeEvaluator() {

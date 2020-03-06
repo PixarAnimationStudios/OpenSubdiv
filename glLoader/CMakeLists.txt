@@ -28,10 +28,13 @@ endif()
 
 list(APPEND GLLOADER_SOURCE_FILES
     glLoader.cpp
+    glApi.cpp
 )
 
 list(APPEND GLLOADER_HEADER_FILES
     glLoader.h
+    glApi.h
+    khrplatform.h
 )
 
 include_directories(

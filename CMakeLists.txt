@@ -306,6 +306,7 @@ option(NO_METAL "Disable Metal support" OFF)
 option(NO_DX "Disable DirectX support")
 option(NO_TESTS "Disable all tests")
 option(NO_GLTESTS "Disable GL tests")
+option(NO_GLEW "Disable use of GLEW" ON)
 option(NO_GLFW "Disable components depending on GLFW" OFF)
 option(NO_GLFW_X11 "Disable GLFW components depending on X11" OFF)
 
@@ -351,13 +352,17 @@ if (OPENGL_FOUND AND NOT IOS)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENGL
     )
-    if (APPLE)
-        find_package(GLEW)
-    else()
-        find_package(GLEW REQUIRED)
+    if (NOT NO_GLEW)
+        if (APPLE)
+            find_package(GLEW)
+        else()
+            find_package(GLEW REQUIRED)
+        endif()
     endif()
     if(GLEW_FOUND)
         add_definitions( -DOSD_USES_GLEW )
+    else()
+        add_definitions( -DOSD_USES_INTERNAL_GLAPILOADER )
     endif()
 endif()
 
@@ -457,9 +462,9 @@ if(GLEW_FOUND AND GLEW_INCLUDE_DIR)
         ${GLEW_LIBRARY}
         ${OPENGL_gl_LIBRARY})
 
-elseif(OPENGL_FOUND AND OPENGL_INCLUDE_DIR)
+elseif(OPENGL_FOUND)
 
-    osd_detect_gl_version(${OPENGL_INCLUDE_DIR}/GL/glext.h)
+    osd_detect_gl_version(${PROJECT_SOURCE_DIR}/glLoader/glApi.h)
     set(OPENGL_LOADER_INCLUDE_DIRS
         ${OPENGL_INCLUDE_DIR}
         ${PROJECT_SOURCE_DIR}/glLoader)
