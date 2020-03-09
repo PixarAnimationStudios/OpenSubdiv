@@ -106,11 +106,7 @@ else()
 endif()
 
 # List library files
-foreach(TBB_LIB tbb             tbb_debug
-                tbbmalloc       tbbmalloc_debug
-                tbbmalloc_proxy tbbmalloc_proxy_debug
-                tbb_preview     tbb_preview_debug)
-
+foreach(TBB_LIB tbb             tbb_debug)
 
     find_library(TBB_${TBB_LIB}_LIBRARY
         NAMES
