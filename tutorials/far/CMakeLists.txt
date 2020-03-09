@@ -21,7 +21,7 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
-macro(_add_far_tutorial NAME)
+macro(osd_add_far_tutorial NAME)
 
      osd_add_executable(${NAME} "tutorials/far"
         ${ARGN}
