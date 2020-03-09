@@ -312,6 +312,13 @@ option(NO_GLFW_X11 "Disable GLFW components depending on X11" OFF)
 
 option(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES "Enable true derivative evaluation for Gregory basis patches" OFF)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
+# Save the current value of BUILD_SHARED_LIBS and restore it after
+# processing Find* modules, since some of the Find* modules invoked
+# below may wind up stomping over this value.
+set(build_shared_libs "${BUILD_SHARED_LIBS}")
+
 set(OSD_GPU FALSE)
 
 # Check for dependencies
@@ -376,6 +383,8 @@ if (NOT NO_DOC)
 else()
     set(DOXYGEN_EXECUTABLE )
 endif()
+
+set(BUILD_SHARED_LIBS "${build_shared_libs}")
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
 # disabled.  Also, add preprocessor defines that can be used in the source
@@ -607,11 +616,19 @@ if( OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES )
     add_definitions(-DOPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
 endif()
 
-# Link examples & regressions dynamically against Osd
-if( OSD_GPU )
-    set( OSD_LINK_TARGET osd_dynamic_cpu osd_dynamic_gpu )
+# Link examples & regressions against Osd
+if( BUILD_SHARED_LIBS )
+    if( OSD_GPU )
+        set( OSD_LINK_TARGET osd_dynamic_gpu osd_dynamic_cpu )
+    else()
+        set( OSD_LINK_TARGET osd_dynamic_cpu )
+    endif()
 else()
-    set( OSD_LINK_TARGET osd_dynamic_cpu )
+    if( OSD_GPU )
+        set( OSD_LINK_TARGET osd_static_gpu osd_static_cpu )
+    else()
+        set( OSD_LINK_TARGET osd_static_cpu )
+    endif()
 endif()
 
 if (WIN32)
