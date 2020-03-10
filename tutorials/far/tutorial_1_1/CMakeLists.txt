@@ -21,7 +21,7 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
-_add_far_tutorial(
+osd_add_far_tutorial(
     far_tutorial_1_1
     far_tutorial_1_1.cpp
 )
