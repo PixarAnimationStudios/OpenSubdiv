@@ -110,6 +110,14 @@ def GetVisualStudioCompilerAndVersion():
             return (msvcCompiler, tuple(int(v) for v in match.groups()))
     return None
 
+def IsVisualStudio2019OrGreater():
+    VISUAL_STUDIO_2019_VERSION = (16, 0)
+    msvcCompilerAndVersion = GetVisualStudioCompilerAndVersion()
+    if msvcCompilerAndVersion:
+        _, version = msvcCompilerAndVersion
+        return version >= VISUAL_STUDIO_2019_VERSION
+    return False
+
 def IsVisualStudio2017OrGreater():
     VISUAL_STUDIO_2017_VERSION = (15, 0)
     msvcCompilerAndVersion = GetVisualStudioCompilerAndVersion()
@@ -208,11 +216,15 @@ def RunCMake(context, force, extraArgs = None):
         os.makedirs(buildDir)
 
     generator = context.cmakeGenerator
+    generatorPlatform = context.cmakeGeneratorPlatform
 
     # On Windows, we need to explicitly specify the generator to ensure we're
     # building a 64-bit project. (Surely there is a better way to do this?)
     if generator is None and Windows():
-        if IsVisualStudio2017OrGreater():
+        if IsVisualStudio2019OrGreater():
+            generator = "Visual Studio 16 2019"
+            generatorPlatform = "x64"
+        elif IsVisualStudio2017OrGreater():
             generator = "Visual Studio 15 2017 Win64"
         else:
             generator = "Visual Studio 14 2015 Win64"
@@ -240,6 +252,9 @@ def RunCMake(context, force, extraArgs = None):
     # Format generator appropriately
     if generator is not None:
         generator = '-G "{gen}"'.format(gen=generator)
+
+    if generatorPlatform is not None:
+        generator += ' -A "{arch}"'.format(arch=generatorPlatform)
 
     with CurrentWorkingDirectory(buildDir):
         Run('cmake '
@@ -726,6 +741,9 @@ group.add_argument("--force-all", action="store_true",
 group.add_argument("--generator", type=str,
                    help=("CMake generator to use when building libraries with "
                          "cmake"))
+group.add_argument("--generatorPlatform", type=str,
+                   help=("CMake generator platform if supported by generator "
+                         "to use when building libraries with cmake"))
 
 group = parser.add_argument_group(title="3rd Party Dependency Build Options")
 group.add_argument("--src", type=str,
@@ -854,6 +872,7 @@ class InstallContext:
 
         # CMake generator
         self.cmakeGenerator = args.generator
+        self.cmakeGeneratorPlatform = args.generatorPlatform
 
         # Number of jobs
         self.numJobs = args.jobs
