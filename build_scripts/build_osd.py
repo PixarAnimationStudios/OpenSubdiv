@@ -104,11 +104,19 @@ def GetVisualStudioCompilerAndVersion():
         # VisualStudioVersion environment variable should be set by the
         # Visual Studio Command Prompt.
         match = re.search(
-            "(\d+).(\d+)", 
+            "(\d+).(\d+)",
             os.environ.get("VisualStudioVersion", ""))
         if match:
             return (msvcCompiler, tuple(int(v) for v in match.groups()))
     return None
+
+def IsVisualStudio2019OrGreater():
+    VISUAL_STUDIO_2019_VERSION = (16, 0)
+    msvcCompilerAndVersion = GetVisualStudioCompilerAndVersion()
+    if msvcCompilerAndVersion:
+        _, version = msvcCompilerAndVersion
+        return version >= VISUAL_STUDIO_2019_VERSION
+    return False
 
 def IsVisualStudio2017OrGreater():
     VISUAL_STUDIO_2017_VERSION = (15, 0)
@@ -137,7 +145,7 @@ def Run(cmd, logCommandOutput = True):
         # Let exceptions escape from subprocess calls -- higher level
         # code will handle them.
         if logCommandOutput:
-            p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, 
+            p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT)
             while True:
                 l = p.stdout.readline()
@@ -186,14 +194,14 @@ def CopyDirectory(context, srcDir, destDir):
     """Copy directory like shutil.copytree."""
     instDestDir = os.path.join(context.instDir, destDir)
     if os.path.isdir(instDestDir):
-        shutil.rmtree(instDestDir)    
+        shutil.rmtree(instDestDir)
 
     PrintCommandOutput("Copying {srcDir} to {destDir}\n"
                        .format(srcDir=srcDir, destDir=instDestDir))
     shutil.copytree(srcDir, instDestDir)
 
 def RunCMake(context, force, extraArgs = None):
-    """Invoke CMake to configure, build, and install a library whose 
+    """Invoke CMake to configure, build, and install a library whose
     source code is located in the current working directory."""
     # Create a directory for out-of-source builds in the build directory
     # using the name of the current working directory.
@@ -208,11 +216,15 @@ def RunCMake(context, force, extraArgs = None):
         os.makedirs(buildDir)
 
     generator = context.cmakeGenerator
+    generatorPlatform = context.cmakeGeneratorPlatform
 
     # On Windows, we need to explicitly specify the generator to ensure we're
     # building a 64-bit project. (Surely there is a better way to do this?)
     if generator is None and Windows():
-        if IsVisualStudio2017OrGreater():
+        if IsVisualStudio2019OrGreater():
+            generator = "Visual Studio 16 2019"
+            generatorPlatform = "x64"
+        elif IsVisualStudio2017OrGreater():
             generator = "Visual Studio 15 2017 Win64"
         else:
             generator = "Visual Studio 14 2015 Win64"
@@ -240,6 +252,9 @@ def RunCMake(context, force, extraArgs = None):
     # Format generator appropriately
     if generator is not None:
         generator = '-G "{gen}"'.format(gen=generator)
+
+    if generatorPlatform is not None:
+        generator += ' -A "{arch}"'.format(arch=generatorPlatform)
 
     with CurrentWorkingDirectory(buildDir):
         Run('cmake '
@@ -276,7 +291,7 @@ def DownloadFileWithCurl(url, outputFilename):
     # meter doesn't get written to the log file.
     Run("curl {progress} -L -o {filename} {url}".format(
         progress="-#" if verbosity >= 2 else "-s",
-        filename=outputFilename, url=url), 
+        filename=outputFilename, url=url),
         logCommandOutput=False)
 
 def DownloadFileWithPowershell(url, outputFilename):
@@ -296,16 +311,16 @@ def DownloadFileWithUrllib(url, outputFilename):
 
 def DownloadURL(url, context, force, dontExtract = None):
     """Download and extract the archive file at given URL to the
-    source directory specified in the context. 
+    source directory specified in the context.
 
     dontExtract may be a sequence of path prefixes that will
     be excluded when extracting the archive.
 
-    Returns the absolute path to the directory where files have 
+    Returns the absolute path to the directory where files have
     been extracted."""
     with CurrentWorkingDirectory(context.srcDir):
-        # Extract filename from URL and see if file already exists. 
-        filename = url.split("/")[-1]       
+        # Extract filename from URL and see if file already exists.
+        filename = url.split("/")[-1]
         if force and os.path.exists(filename):
             os.remove(filename)
 
@@ -365,14 +380,14 @@ def DownloadURL(url, context, force, dontExtract = None):
                 archive = tarfile.open(filename)
                 rootDir = archive.getnames()[0].split('/')[0]
                 if dontExtract != None:
-                    members = (m for m in archive.getmembers() 
+                    members = (m for m in archive.getmembers()
                                if not any((fnmatch.fnmatch(m.name, p)
                                            for p in dontExtract)))
             elif zipfile.is_zipfile(filename):
                 archive = zipfile.ZipFile(filename)
                 rootDir = archive.namelist()[0].split('/')[0]
                 if dontExtract != None:
-                    members = (m for m in archive.getnames() 
+                    members = (m for m in archive.getnames()
                                if not any((fnmatch.fnmatch(m, p)
                                            for p in dontExtract)))
             else:
@@ -467,7 +482,7 @@ def InstallTBB_LinuxOrMacOS(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(TBB_URL, context, force)):
         # TBB does not support out-of-source builds in a custom location.
         Run('make -j{procs} {buildArgs}'
-            .format(procs=context.numJobs, 
+            .format(procs=context.numJobs,
                     buildArgs=" ".join(buildArgs)))
 
         CopyFiles(context, "build/*_release/libtbb*.*", "lib")
@@ -476,42 +491,6 @@ def InstallTBB_LinuxOrMacOS(context, force, buildArgs):
 
 TBB = Dependency("TBB", InstallTBB, "include/tbb/tbb.h")
 
-
-############################################################
-# GLEW
-
-if Windows():
-    GLEW_URL = "https://downloads.sourceforge.net/project/glew/glew/2.0.0/glew-2.0.0-win32.zip"
-else:
-    # Important to get source package from this URL and NOT github. This package
-    # contains pre-generated code that the github repo does not.
-    GLEW_URL = "https://downloads.sourceforge.net/project/glew/glew/2.0.0/glew-2.0.0.tgz"
-
-def InstallGLEW(context, force, buildArgs):
-    if Windows():
-        InstallGLEW_Windows(context, force)
-    elif Linux() or MacOS():
-        InstallGLEW_LinuxOrMacOS(context, force, buildArgs)
-
-def InstallGLEW_Windows(context, force):
-    with CurrentWorkingDirectory(DownloadURL(GLEW_URL, context, force)):
-        # On Windows, we install headers and pre-built binaries per
-        # https://glew.sourceforge.net/install.html
-        # Note that we are installing just the shared library. This is required
-        # by the OpenSubdiv build; if the static library is present, that one 
-        # will be used and that causes errors with OpenSubdiv.
-        CopyFiles(context, "bin\\Release\\x64\\glew32.dll", "bin")
-        CopyFiles(context, "lib\\Release\\x64\\glew32.lib", "lib")
-        CopyDirectory(context, "include\\GL", "include\\GL")
-
-def InstallGLEW_LinuxOrMacOS(context, force, buildArgs):
-    with CurrentWorkingDirectory(DownloadURL(GLEW_URL, context, force)):
-        Run('make GLEW_DEST="{instDir}" -j{procs} {buildArgs} install'
-            .format(instDir=context.instDir,
-                    procs=context.numJobs,
-                    buildArgs=" ".join(buildArgs)))
-
-GLEW = Dependency("GLEW", InstallGLEW, "include/GL/glew.h")
 
 ############################################################
 # GLFW
@@ -554,14 +533,14 @@ def InstallPtex_Windows(context, force, buildArgs):
         # file to prevent that. Since we don't need the static library we'll
         # rename that.
         #
-        # In addition src\tests\CMakeLists.txt adds -DPTEX_STATIC to the 
-        # compiler but links tests against the dynamic library, causing the 
+        # In addition src\tests\CMakeLists.txt adds -DPTEX_STATIC to the
+        # compiler but links tests against the dynamic library, causing the
         # links to fail. We patch the file to not add the -DPTEX_STATIC
-        PatchFile('src\\ptex\\CMakeLists.txt', 
+        PatchFile('src\\ptex\\CMakeLists.txt',
                   [("set_target_properties(Ptex_static PROPERTIES OUTPUT_NAME Ptex)",
                     "set_target_properties(Ptex_static PROPERTIES OUTPUT_NAME Ptexs)")])
         PatchFile('src\\tests\\CMakeLists.txt',
-                  [("add_definitions(-DPTEX_STATIC)", 
+                  [("add_definitions(-DPTEX_STATIC)",
                     "# add_definitions(-DPTEX_STATIC)")])
 
         RunCMake(context, force, buildArgs)
@@ -640,13 +619,12 @@ def InstallOpenSubdiv(context, force, buildArgs):
         # NO_OPENGL
         # NO_METAL
         # NO_GLTESTS
+        # NO_GLEW
         # NO_GLFW
         # NO_GLFW_X11
 
-        # OpenSubdiv's FindGLEW module won't look in CMAKE_PREFIX_PATH, so
-        # we need to explicitly specify GLEW_LOCATION here.
-        extraArgs.append('-DGLEW_LOCATION="{instDir}"'
-                         .format(instDir=context.instDir))
+        # OpenSubdiv's FindGLFW module won't look in CMAKE_PREFIX_PATH, so
+        # we need to explicitly specify GLFW_LOCATION here.
         extraArgs.append('-DGLFW_LOCATION="{instDir}"'
                          .format(instDir=context.instDir))
 
@@ -655,7 +633,7 @@ def InstallOpenSubdiv(context, force, buildArgs):
 
         RunCMake(context, force, extraArgs)
 
-OPENSUBDIV = Dependency("OpenSubdiv", InstallOpenSubdiv, 
+OPENSUBDIV = Dependency("OpenSubdiv", InstallOpenSubdiv,
                         "include/opensubdiv/version.h")
 
 ############################################################
@@ -675,16 +653,16 @@ options, like --force or --build-args.
 
 - Downloading Libraries:
 If curl or powershell (on Windows) are installed and located in PATH, they
-will be used to download dependencies. Otherwise, a built-in downloader will 
+will be used to download dependencies. Otherwise, a built-in downloader will
 be used.
 
 - Specifying Custom Build Arguments:
 Users may specify custom build arguments for libraries using the --build-args
-option. This values for this option must take the form <library name>,<option>. 
-These arguments will be passed directly to the build system for the specified 
-library. Multiple quotes may be needed to ensure arguments are passed on 
+option. This values for this option must take the form <library name>,<option>.
+These arguments will be passed directly to the build system for the specified
+library. Multiple quotes may be needed to ensure arguments are passed on
 exactly as desired. Users must ensure these arguments are suitable for the
-specified library and do not conflict with other options, otherwise build 
+specified library and do not conflict with other options, otherwise build
 errors may occur.
 """.format(
     libraryList=" ".join(sorted([d.name for d in AllDependencies])))
@@ -693,11 +671,11 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
     description=programDescription)
 
-parser.add_argument("install_dir", type=str, 
+parser.add_argument("install_dir", type=str,
                     help="Directory where OpenSubdiv will be installed")
 parser.add_argument("-n", "--dry_run", dest="dry_run", action="store_true",
                     help="Only summarize what would happen")
-                    
+
 group = parser.add_mutually_exclusive_group()
 group.add_argument("-v", "--verbose", action="count", default=1,
                    dest="verbosity",
@@ -726,6 +704,9 @@ group.add_argument("--force-all", action="store_true",
 group.add_argument("--generator", type=str,
                    help=("CMake generator to use when building libraries with "
                          "cmake"))
+group.add_argument("--generatorPlatform", type=str,
+                   help=("CMake generator platform if supported by generator "
+                         "to use when building libraries with cmake"))
 
 group = parser.add_argument_group(title="3rd Party Dependency Build Options")
 group.add_argument("--src", type=str,
@@ -751,47 +732,47 @@ subgroup.add_argument("--no-docs", dest="build_docs", action="store_false",
 subgroup = group.add_mutually_exclusive_group()
 subgroup.add_argument("--examples", dest="build_examples", action="store_true",
                       default=True, help="Build examples (default)")
-subgroup.add_argument("--no-examples", dest="build_example", 
+subgroup.add_argument("--no-examples", dest="build_example",
                       action="store_false",
                       help="Do not build examples")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--tutorials", dest="build_tutorials", 
+subgroup.add_argument("--tutorials", dest="build_tutorials",
                       action="store_true",
                       default=True, help="Build tutorials (default)")
-subgroup.add_argument("--no-tutorials", dest="build_tutorial", 
+subgroup.add_argument("--no-tutorials", dest="build_tutorial",
                       action="store_false",
                       help="Do not build tutorials")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--ptex", dest="build_ptex", action="store_true", 
-                      default=False, 
+subgroup.add_argument("--ptex", dest="build_ptex", action="store_true",
+                      default=False,
                       help="Enable Ptex support")
-subgroup.add_argument("--no-ptex", dest="enable_ptex", 
+subgroup.add_argument("--no-ptex", dest="build_ptex",
                       action="store_false",
                       help="Disable Ptex support (default)")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--tbb", dest="build_tbb", action="store_true", 
-                      default=False, 
+subgroup.add_argument("--tbb", dest="build_tbb", action="store_true",
+                      default=False,
                       help="Enable TBB support")
-subgroup.add_argument("--no-tbb", dest="enable_tbb", 
+subgroup.add_argument("--no-tbb", dest="build_tbb",
                       action="store_false",
                       help="Disable TBB support (default)")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--omp", dest="build_omp", action="store_true", 
-                      default=False, 
+subgroup.add_argument("--omp", dest="build_omp", action="store_true",
+                      default=False,
                       help="Enable OMP support")
-subgroup.add_argument("--no-omp", dest="enable_omp", 
+subgroup.add_argument("--no-omp", dest="build_omp",
                       action="store_false",
                       help="Disable OMP support (default)")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--cuda", dest="build_cuda", action="store_true", 
-                      default=False, 
+subgroup.add_argument("--cuda", dest="build_cuda", action="store_true",
+                      default=False,
                       help="Enable CUDA support")
-subgroup.add_argument("--no-cuda", dest="enable_cuda", 
+subgroup.add_argument("--no-cuda", dest="build_cuda",
                       action="store_false",
                       help="Disable CUDA support (default)")
 
@@ -799,18 +780,18 @@ group.add_argument("--cuda-location", type=str,
                    help="Directory where the CUDA SDK is installed.")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--opencl", dest="build_opencl", action="store_true", 
-                      default=False, 
+subgroup.add_argument("--opencl", dest="build_opencl", action="store_true",
+                      default=False,
                       help="Enable OpenCL support")
-subgroup.add_argument("--no-opencl", dest="enable_opencl", 
+subgroup.add_argument("--no-opencl", dest="build_opencl",
                       action="store_false",
                       help="Disable OpenCL support (default)")
 
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--directx", dest="build_dx", action="store_true", 
-                      default=False, 
+subgroup.add_argument("--directx", dest="build_dx", action="store_true",
+                      default=False,
                       help="Enable DirectX support")
-subgroup.add_argument("--no-directx", dest="enable_opencl", 
+subgroup.add_argument("--no-directx", dest="build_dx",
                       action="store_false",
                       help="Disable DirectX support (default)")
 
@@ -827,13 +808,13 @@ class InstallContext:
         self.osdInstDir = os.path.abspath(args.install_dir)
 
         # Directory where dependencies will be installed
-        self.instDir = (os.path.abspath(args.inst) if args.inst 
+        self.instDir = (os.path.abspath(args.inst) if args.inst
                         else self.osdInstDir)
 
         # Directory where dependencies will be downloaded and extracted
         self.srcDir = (os.path.abspath(args.src) if args.src
                        else os.path.join(self.osdInstDir, "src"))
-        
+
         # Directory where OpenSubdiv and dependencies will be built
         self.buildDir = (os.path.abspath(args.build) if args.build
                          else os.path.join(self.osdInstDir, "build"))
@@ -854,6 +835,7 @@ class InstallContext:
 
         # CMake generator
         self.cmakeGenerator = args.generator
+        self.cmakeGeneratorPlatform = args.generatorPlatform
 
         # Number of jobs
         self.numJobs = args.jobs
@@ -889,10 +871,10 @@ class InstallContext:
         self.buildOpenCL = args.build_opencl
         self.buildDX = args.build_dx
         self.buildPtex = args.build_ptex
-       
+
     def GetBuildArguments(self, dep):
         return self.buildArgs.get(dep.name.lower(), [])
-       
+
     def ForceBuildDependency(self, dep):
         return self.forceBuildAll or dep.name.lower() in self.forceBuild
 
@@ -917,7 +899,7 @@ if extraPaths:
 
 # Determine list of dependencies that are required based on options
 # user has selected.
-requiredDependencies = [GLEW, GLFW]
+requiredDependencies = [GLFW]
 
 if context.buildPtex:
     # Assume zlib already exists on Linux platforms and don't build
@@ -955,7 +937,7 @@ if context.buildDocs:
     if not find_executable("doxygen"):
         PrintError("doxygen not found -- please install it and adjust your PATH")
         sys.exit(1)
-        
+
     if not find_executable("dot"):
         PrintError("dot not found -- please install graphviz and adjust your "
                    "PATH")
@@ -1010,7 +992,7 @@ summaryMsg = summaryMsg.format(
     cmakeGenerator=("Default" if not context.cmakeGenerator
                     else context.cmakeGenerator),
     downloader=(context.downloaderName),
-    dependencies=("None" if not dependenciesToBuild else 
+    dependencies=("None" if not dependenciesToBuild else
                   ", ".join([d.name for d in dependenciesToBuild])),
     buildArgs=FormatBuildArguments(context.buildArgs),
     buildTBB=("On" if context.buildTBB else "Off"),
@@ -1030,7 +1012,7 @@ if args.dry_run:
     sys.exit(0)
 
 # Ensure directory structure is created and is writable.
-for dir in [context.osdInstDir, context.instDir, context.srcDir, 
+for dir in [context.osdInstDir, context.instDir, context.srcDir,
             context.buildDir]:
     try:
         if os.path.isdir(dir):
@@ -1049,7 +1031,7 @@ try:
     # Download and install 3rd-party dependencies, followed by OpenSubdiv.
     for dep in dependenciesToBuild + [OPENSUBDIV]:
         PrintStatus("Installing {dep}...".format(dep=dep.name))
-        dep.installer(context, 
+        dep.installer(context,
                       buildArgs=context.GetBuildArguments(dep),
                       force=context.ForceBuildDependency(dep))
 except Exception as e:
