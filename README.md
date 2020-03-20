@@ -8,10 +8,10 @@ Feel free to use it and let us know what you think.
 
 For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://graphics.pixar.com).
 
-|        |  Linux and OSX |  Windows  |
-|:------:|:-------:|:---------:|
-| master | [![Linux and OSX Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=master)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/master?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
-| dev | [![Linux Build Status](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv.svg?branch=dev)](https://travis-ci.org/PixarAnimationStudios/OpenSubdiv) | [![Windows Build Status](https://ci.appveyor.com/api/projects/status/mcmwg4q9m8kgi9im/branch/dev?svg=true)](https://ci.appveyor.com/project/c64kernal/opensubdiv-ddr8q) |
+|         |   Linux   |  Windows  |   macOS   |
+|:-------:|:---------:|:---------:|:---------:|
+|   dev   | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=dev&amp;jobName=Linux)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=dev) | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=dev&amp;jobName=Windows)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=dev) | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=dev&amp;jobName=macOS)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=dev) |
+|  master | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=master&amp;jobName=Linux)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=master&amp;jobName=Windows)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=master&amp;jobName=macOS)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=master) |
 
 ## Documents
  * [User Documents](http://graphics.pixar.com/opensubdiv/docs/intro.html)
@@ -35,7 +35,6 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 
 | Lib                                                                | Min Version | Note                        |
 | ------------------------------------------------------------------ | ----------- | ----------------------------|
-| [GLEW](http://glew.sourceforge.net)                                | 1.9.0       | GL backend (Win/Linux only) |
 | [CUDA](http://developer.nvidia.com/cuda-toolkit)                   | 4.0         | cuda backend                |
 | [TBB](https://www.threadingbuildingblocks.org)                     | 4.0         | TBB backend                 |
 | [OpenCL](http://www.khronos.org/opencl)                            | 1.1         | CL backend                  |
@@ -63,15 +62,11 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 
 ### All platforms:
 
-  * Install cmake, GLFW and GLEW (GLEW is not required on OSX)
+  * Install cmake and GLFW
 
-   make sure GLEW and GLFW install directories configured as follows:
+   make sure GLFW install directories are configured as follows:
 
 ```
-   ${GLEW_LOCATION}/include/GL/glew.h
-   ${GLEW_LOCATION}/lib/libGLEW.a (linux)
-   ${GLEW_LOCATION}/lib/glew32.lib (windows)
-
    ${GLFW_LOCATION}/include/GLFW/glfw3.h
    ${GLFW_LOCATION}/lib/libglfw3.a (linux)
    ${GLFW_LOCATION}/lib/glfw3.lib (windows)
@@ -86,27 +81,26 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 
 ### Windows (Visual Studio)
 
-  * run cmake:
 ```
-"c:/Program Files (x86)/CMake/bin/cmake.exe" ^
-    -G "Visual Studio 12 Win64" ^
+cmake ^
+    -G "Visual Studio 15 2017 Win64" ^
     -D NO_PTEX=1 -D NO_DOC=1 ^
     -D NO_OMP=1 -D NO_TBB=1 -D NO_CUDA=1 -D NO_OPENCL=1 -D NO_CLEW=1 ^
-    -D "GLEW_LOCATION=*YOUR GLEW INSTALL LOCATION*" ^
     -D "GLFW_LOCATION=*YOUR GLFW INSTALL LOCATION*" ^
     ..
+
+cmake --build . --config Release --target install
 ```
-  * Open OpenSubdiv.sln in VisualStudio and build.
 
 ### Linux
 
 ```
 cmake -D NO_PTEX=1 -D NO_DOC=1 \
       -D NO_OMP=1 -D NO_TBB=1 -D NO_CUDA=1 -D NO_OPENCL=1 -D NO_CLEW=1 \
-      -D GLEW_LOCATION="*YOUR GLEW INSTALL LOCATION*" \
       -D GLFW_LOCATION="*YOUR GLFW INSTALL LOCATION*" \
       ..
-make
+
+cmake --build . --config Release --target install
 ```
 
 ### macOS
@@ -116,7 +110,8 @@ cmake -G Xcode -D NO_PTEX=1 -D NO_DOC=1 \
       -D NO_OMP=1 -D NO_TBB=1 -D NO_CUDA=1 -D NO_OPENCL=1 -D NO_CLEW=1 \
       -D GLFW_LOCATION="*YOUR GLFW INSTALL LOCATION*" \
       ..
-make
+
+cmake --build . --config Release --target install
 ```
 
 ### iOS
@@ -144,7 +139,6 @@ SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path) cmake -D NO_PTEX=1 -D NO_DOC=1 \
 
 -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA Toolkit]
 -DPTEX_LOCATION=[path to Ptex]
--DGLEW_LOCATION=[path to GLEW]
 -DGLFW_LOCATION=[path to GLFW]
 -DSTRINGIFY_LOCATION=[path to stringify utility]
 
