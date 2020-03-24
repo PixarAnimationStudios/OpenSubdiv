@@ -34,6 +34,31 @@
 Release 3.4
 ~~~~~~~~~~~
 
+Release 3.4.1 - Mar 2020
+========================
+
+Release 3.4.1 is a minor release including bug fixes and configuration improvements
+
+**Changes**
+    - GLEW is no longer required by default (GitHub #1183 #1184)
+    - Removed false Ptex link dependency from libosdCPU (GitHub #1174)
+    - Removed false GLFW link dependency from DX11 and Metal examples (GitHub #1178)
+    - Removed link dependency on unused TBB libraries (GitHub #1064)
+    - Added option to disable building of dynamic shared libraries (GitHub #1169)
+    - Added new tutorial for Far::LimitStencilTable (GitHub #1176)
+    - Updated use of EXT_direct_state_access to ARB_direct_state_access (GitHub #1184)
+    - Fixed C++ strict aliasing warnings (GitHub #1182)
+    - Fixed MSVC warnings in example code (GitHub #1158 #1172)
+    - Fixed compatibility with Visual Studio 2019 (GitHub #1173 #1189)
+    - Fixed CMake CMP0054 warnings (GitHub #1180)
+    - Added prefix to OpenSubdiv CMake macros (GitHub #1157)
+    - Moved utilities in examples/common to regression/common (GitHub #1167)
+    - Minor fixes to Far tutorials (GitHub #1175 #1177)
+    - Switched to Azure Pipelines for continuous integration testing instead of Travis-CI and AppVeyor (GitHub #1168 #1190)
+
+**Bug Fixes**
+    - Fixed selective boundary interpolation for case Sdc::Options::VTX_BOUNDARY_NONE (GitHub #1170 #1171)
+
 Release 3.4.0 - Jun 2019
 ========================
 
