@@ -64,6 +64,7 @@ if (NOT NO_LIB)
         list(APPEND PLATFORM_GPU_LIBRARIES
             ${OPENGL_LOADER_LIBRARIES}
         )
+        set(OPENGL_LOADER_OBJS $<TARGET_OBJECTS:glLoader_obj>)
     elseif( OPENGLES_FOUND )
         include_directories("${OPENGLES_INCLUDE_DIR}")
         list(APPEND PLATFORM_GPU_LIBRARIES
@@ -153,6 +154,7 @@ if (NOT NO_LIB)
                 STATIC
                 version.cpp
                 $<TARGET_OBJECTS:osd_gpu_obj>
+                ${OPENGL_LOADER_OBJS}
                 ${CUDA_KERNEL_FILES}
         )
         set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)

@@ -467,7 +467,7 @@ if(GLEW_FOUND AND GLEW_INCLUDE_DIR)
         ${GLEW_INCLUDE_DIR}
         ${PROJECT_SOURCE_DIR}/glLoader)
     set(OPENGL_LOADER_LIBRARIES
-        glLoader
+        $<TARGET_OBJECTS:glLoader_obj>
         ${GLEW_LIBRARY}
         ${OPENGL_gl_LIBRARY})
 
@@ -478,7 +478,7 @@ elseif(OPENGL_FOUND)
         ${OPENGL_INCLUDE_DIR}
         ${PROJECT_SOURCE_DIR}/glLoader)
     set(OPENGL_LOADER_LIBRARIES
-        glLoader
+        $<TARGET_OBJECTS:glLoader_obj>
         ${OPENGL_gl_LIBRARY})
 
 endif()

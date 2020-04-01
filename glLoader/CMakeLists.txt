@@ -45,8 +45,8 @@ list(APPEND PLATFORM_LIBRARIES
     "${OPENGL_LOADER_LIBRARIES}"
 )
 
-add_library(glLoader
-    STATIC
+add_library(glLoader_obj
+    OBJECT
         ${GLLOADER_SOURCE_FILES}
         ${GLLOADER_HEADER_FILES}
 )
