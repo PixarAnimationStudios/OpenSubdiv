@@ -34,10 +34,10 @@
 Release 3.4
 ~~~~~~~~~~~
 
-Release 3.4.1 - Mar 2020
+Release 3.4.2 - Apr 2020
 ========================
 
-Release 3.4.1 is a minor release including bug fixes and configuration improvements
+Release 3.4.2 is a minor release including bug fixes and configuration improvements
 
 **Changes**
     - GLEW is no longer required by default (GitHub #1183 #1184)
@@ -58,6 +58,7 @@ Release 3.4.1 is a minor release including bug fixes and configuration improveme
 
 **Bug Fixes**
     - Fixed selective boundary interpolation for case Sdc::Options::VTX_BOUNDARY_NONE (GitHub #1170 #1171)
+    - Fixed static library linking to address missing symbols (GitHub #1192)
 
 Release 3.4.0 - Jun 2019
 ========================
