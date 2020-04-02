@@ -209,6 +209,7 @@ if (NOT NO_LIB)
                 SHARED
                 version.cpp
                 $<TARGET_OBJECTS:osd_gpu_obj>
+                ${OPENGL_LOADER_OBJS}
                 ${CUDA_KERNEL_FILES}
             )
 
@@ -277,6 +278,7 @@ if (NOT NO_LIB)
             $<TARGET_OBJECTS:far_obj>
             $<TARGET_OBJECTS:osd_cpu_obj>
             $<TARGET_OBJECTS:osd_gpu_obj>
+            ${OPENGL_LOADER_OBJS}
         )
 
         set_target_properties(
@@ -310,6 +312,7 @@ if (NOT NO_LIB)
                 $<TARGET_OBJECTS:far_obj>
                 $<TARGET_OBJECTS:osd_cpu_obj>
                 $<TARGET_OBJECTS:osd_gpu_obj>
+                ${OPENGL_LOADER_OBJS}
             )
 
             set_target_properties(
