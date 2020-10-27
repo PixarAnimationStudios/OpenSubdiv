@@ -12,7 +12,7 @@ jobs:
       sudo pip install --upgrade pip
       sudo apt-get install python-setuptools;
       sudo apt-get install libglew-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev;
-      sudo python build_scripts/build_osd.py --tests --tbb --omp --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
+      sudo python build_scripts/build_osd.py -vvv --tests --tbb --omp --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
     displayName: 'Building OpenSubdiv'
   - script: |
       cd $HOME/OSDgen/build/s

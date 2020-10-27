@@ -72,6 +72,9 @@ def PrintCommandOutput(output):
         sys.stdout.write(output)
 
 def PrintError(error):
+    if verbosity >= 3 and sys.exc_info()[1] is not None:
+        import traceback
+        traceback.print_exc()
     print("ERROR:", error)
 
 # Helpers for determining platform
@@ -89,7 +92,8 @@ def GetCommandOutput(command):
     """Executes the specified command and returns output or None."""
     try:
         return subprocess.check_output(
-            shlex.split(command), stderr=subprocess.STDOUT).strip()
+            shlex.split(command),
+            stderr=subprocess.STDOUT).decode(GetLocale(), 'replace').strip()
     except subprocess.CalledProcessError:
         pass
     return None
