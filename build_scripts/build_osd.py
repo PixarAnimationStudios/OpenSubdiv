@@ -26,6 +26,7 @@ from __future__ import print_function
 from distutils.spawn import find_executable
 
 import argparse
+import codecs
 import contextlib
 import datetime
 import distutils
@@ -150,7 +151,7 @@ def Run(cmd, logCommandOutput = True):
     """Run the specified command in a subprocess."""
     PrintInfo('Running "{cmd}"'.format(cmd=cmd))
 
-    with open("log.txt", "a") as logfile:
+    with codecs.open("log.txt", "a", "utf-8") as logfile:
         logfile.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
         logfile.write("\n")
         logfile.write(cmd)
