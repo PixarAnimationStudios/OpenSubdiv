@@ -731,6 +731,11 @@ namespace {
         }
         Level::VTag compVTag = Level::VTag::BitwiseOr(vTags, fVerts.size());
 
+        //  Incomplete faces (incomplete neighborhood) are unconditionally excluded:
+        if (compVTag._incomplete) {
+            return false;
+        }
+
         //  Select non-manifold features if specified, otherwise treat as inf-sharp:
         if (compVTag._nonManifold && featureMask.selectNonManifold) {
             return true;
