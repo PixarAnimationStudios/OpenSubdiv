@@ -46,26 +46,26 @@ verbosity = 1
 
 def Print(msg):
     if verbosity > 0:
-        print msg
+        print(msg)
 
 def PrintWarning(warning):
     if verbosity > 0:
-        print "WARNING:", warning
+        print("WARNING:", warning)
 
 def PrintStatus(status):
     if verbosity >= 1:
-        print "STATUS:", status
+        print("STATUS:", status)
 
 def PrintInfo(info):
     if verbosity >= 2:
-        print "INFO:", info
+        print("INFO:", info)
 
 def PrintCommandOutput(output):
     if verbosity >= 3:
         sys.stdout.write(output)
 
 def PrintError(error):
-    print "ERROR:", error
+    print("ERROR:", error)
 
 # Helpers for determining platform
 def Windows():
