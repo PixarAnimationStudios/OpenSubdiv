@@ -118,6 +118,7 @@ TopologyRefiner::Unrefine() {
         delete _refinements[i];
     }
     _refinements.clear();
+    _maxLevel = 0;
 
     assembleFarLevels();
 }
