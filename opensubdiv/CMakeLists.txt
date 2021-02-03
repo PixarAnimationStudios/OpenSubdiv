@@ -287,7 +287,7 @@ if (NOT NO_LIB)
             FRAMEWORK true
             INSTALL_NAME_DIR "@rpath/OpenSubdiv.framework/OpenSubdiv"
             INSTALL_RPATH "@executable_path/Frameworks;@loader_path/Frameworks"
-            OUTPUT_NAME OpenSubdiv
+            OUTPUT_NAME OpenSubdiv_static
             CLEAN_DIRECT_OUTPUT true
         )
 
@@ -301,6 +301,19 @@ if (NOT NO_LIB)
              PUBLIC_HEADER  DESTINATION "${CMAKE_INCDIR_BASE}"
              ARCHIVE DESTINATION "${CMAKE_LIBDIR_BASE}")
 
+        foreach(file ${PUBLIC_HEADER_FILES})
+            add_custom_command(TARGET osd_static_framework POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/opensubdiv/${file}"
+                "$<TARGET_FILE_DIR:osd_static_framework>/Headers/${file}"
+            )
+        endforeach(file)
+
+        add_custom_command(TARGET osd_static_framework POST_BUILD
+            COMMAND ln -sf
+            "Versions/Current/Headers"
+            "$<TARGET_FILE_DIR:osd_static_framework>/../../Headers"
+        )
 
         #shared framework
         if (BUILD_SHARED_LIBS)
