@@ -58,13 +58,7 @@ if (RST2HTML_EXECUTABLE)
     # The above code may fail to find a version. Which will make the REGEX
     # REPLACE below fail and break the build. So we check for an empty
     # VERSION_STRING.
-    if ("${VERSION_STRING}" STREQUAL "")
-
-        set(DOCUTILS_FOUND "NO")
-
-    else()
-
-        set(DOCUTILS_FOUND "YES")
+    if (NOT "${VERSION_STRING}" STREQUAL "")
 
         # find the version
         # ex : rst2html (Docutils 0.6 [release], Python 2.6.6, on linux2)
@@ -79,23 +73,20 @@ if (RST2HTML_EXECUTABLE)
 
         set(DOCUTILS_VERSION ${VERSION_STRING})
 
-        include(FindPackageHandleStandardArgs)
-
-        find_package_handle_standard_args(Docutils
-            REQUIRED_VARS
-                RST2HTML_EXECUTABLE
-            VERSION_VAR
-                DOCUTILS_VERSION
-        )
-
-        mark_as_advanced(
-            RST2HTML_EXECUTABLE
-        )
-
     endif()
 
-else()
-
-    set(DOCUTILS_FOUND "NO")
-
 endif()
+
+include(FindPackageHandleStandardArgs)
+
+find_package_handle_standard_args(Docutils
+    REQUIRED_VARS
+        RST2HTML_EXECUTABLE
+        DOCUTILS_VERSION
+    VERSION_VAR
+        DOCUTILS_VERSION
+)
+
+mark_as_advanced(
+    RST2HTML_EXECUTABLE
+)
