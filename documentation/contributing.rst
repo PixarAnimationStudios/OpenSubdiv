@@ -34,12 +34,12 @@ Contributing to OpenSubdiv
 Contributor License Agreement
 =============================
 
-In order for us to accept code submissions (merge git pull-requests), contributors 
-need to sign the Contributor License Agreement (CLA). There are two CLAs, one for 
-individuals and one for corporations. As for the end-user license, both are based 
-on Apache. They are found in the code repository (`individual form 
-<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_individual.pdf>`__,
-`corporate form <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/OpenSubdivCLA_corporate.pdf>`__). 
+In order for us to accept code submissions (merge git pull-requests), contributors
+need to sign the Contributor License Agreement (CLA). There are two CLAs, one for
+individuals and one for corporations. As for the end-user license, both are based
+on Apache. They are found in the code repository (`individual form
+<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/release/OpenSubdivCLA_individual.pdf>`__,
+`corporate form <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/release/OpenSubdivCLA_corporate.pdf>`__).
 Please email the signed CLA to opensubdiv-cla@pixar.com.
 
 Understand Git
@@ -64,7 +64,7 @@ changes. You will need to integrate changes from the source tree as you work;
 the following outlines the workflow used by core OpenSubdiv engineers at Pixar
 and DreamWorks:
 
-#. Fork the master repository into your own local copy. This can be done via the
+#. Fork the repository into your own local copy. This can be done via the
    GitHub website using the "fork" button.
 
 #. Clone your fork locally:
@@ -78,7 +78,7 @@ and DreamWorks:
    result of cloning your remote repository, but upstream must be setup manually:
 
      | git remote add **upstream** https://github.com/PixarAnimationStudios/OpenSubdiv.git
-   
+
    Verify your remotes are setup correctly:
 
      | git remote -v
@@ -113,7 +113,7 @@ and DreamWorks:
    Notice the "--rebase" option here. It updates the current branch to the
    upstream/dev branch and rebases all edits so they are at the head of your
    local feature branch.
-   
+
    Alternatively, you can rebase all your work at once when your feature is
    complete.
 
@@ -122,7 +122,7 @@ Sending a Pull Request
 
 First, rebase and squash your changes appropriately to produce a clean set of
 changes at the head of your tree. We require changes to be grouped locally to
-ensure that rolling back changes can be done easily. 
+ensure that rolling back changes can be done easily.
 
 If you've followed the steps above, your pending change should already be queued
 up as required. If you have not, you may need to rebase and squash changes at

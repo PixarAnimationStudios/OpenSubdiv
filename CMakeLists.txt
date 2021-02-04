@@ -58,10 +58,10 @@ message(STATUS "Using cmake version ${CMAKE_VERSION}")
 
 #-------------------------------------------------------------------------------
 # Determine if the project is built as a subproject (using add_subdirectory)
-# or if it is the master project.
-set(MASTER_PROJECT OFF)
+# or if it is the main project.
+set(MAIN_PROJECT OFF)
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-    set(MASTER_PROJECT ON)
+    set(MAIN_PROJECT ON)
 endif()
 
 # Specify the default install path

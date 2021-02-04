@@ -3,7 +3,7 @@ clone_folder: c:\projects\OpenSubdiv
 
 branches:
     only:
-        - master
+        - release
         - dev
         - dev_appv
 
