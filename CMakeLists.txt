@@ -104,7 +104,7 @@ if(LIBRARY_OUTPUT_PATH_ROOT)
     SET( CMAKE_INSTALL_PREFIX "${LIBRARY_OUTPUT_PATH_ROOT}/" )
 endif()
 
-if (MASTER_PROJECT)
+if (MAIN_PROJECT)
     # Set the directory where the executables will be stored.
     set(EXECUTABLE_OUTPUT_PATH
         "${PROJECT_BINARY_DIR}/bin"
