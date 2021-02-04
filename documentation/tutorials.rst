@@ -32,7 +32,7 @@ Tutorials
 ----
 
 The tutorial source code can be found in the `github.com repository
-<https://github.com/PixarAnimationStudios/OpenSubdiv/tree/master/tutorials>`__
+<https://github.com/PixarAnimationStudios/OpenSubdiv/tree/release/tutorials>`__
 or in your local ``<repository root>/tutorials``.
 
 Far Tutorials

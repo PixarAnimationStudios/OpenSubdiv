@@ -64,7 +64,7 @@ def Process(srcfile, title):
     rest += basename+"\n"
     rest += ("-" * len(basename))+"\n\n"
 
-    rest += "`<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/tutorials/"+title+">`_\n"
+    rest += "`<https://github.com/PixarAnimationStudios/OpenSubdiv/blob/release/tutorials/"+title+">`_\n"
 
     rest += ("\n"
              "----\n"

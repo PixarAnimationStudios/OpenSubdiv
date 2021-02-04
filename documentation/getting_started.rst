@@ -40,7 +40,7 @@ You can access the OpenSubdiv Git repository at https://github.com/PixarAnimatio
 
 From there, there are several ways of downloading the OpenSubdiv source code.
 
-    - Zip archive : downloaded from `here <https://github.com/PixarAnimationStudios/OpenSubdiv/archive/master.zip>`__
+    - Zip archive : downloaded from `here <https://github.com/PixarAnimationStudios/OpenSubdiv/archive/release.zip>`__
 
     - Using a GUI client : you can find a list `here <http://git-scm.com/downloads/guis>`__
       Please refer to the documentation of your preferred application.
@@ -75,7 +75,7 @@ Since version 1.1.0, OpenSubdiv has adopted the `Git Flow
 
 Our active development branch is named *dev* : all new features and bug fixes should
 be submitted to this branch. The changes submitted to the dev branch are periodically
-patched to the 'master' branch as new versions are released.
+patched to the 'release' branch as new versions are released.
 
 .. image:: images/git_flow.png
    :align: center
@@ -88,7 +88,7 @@ _____________________
 The Git Flow `tools <https://github.com/nvie/gitflow>`__ are not a requisite for
 working with the OpenSubdiv code base, but new work should always be performed in
 the *dev* branch, or dedicated feature-branches. By default, a cloned repository
-will be pointing to the 'master' branch. You can switch to the *dev* branch using
+will be pointing to the 'release' branch. You can switch to the *dev* branch using
 the following command:
 
 .. code:: c++
@@ -106,14 +106,14 @@ Which should return:
 .. code:: c++
 
     * dev
-      master
+      release
 
 
 API Versions
 ____________
 
 OpenSubdiv maintains an internal API versioning system. The version number can be
-read from the file `./opensubdiv/version.h <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/master/opensubdiv/version.h>`__.
+read from the file `./opensubdiv/version.h <https://github.com/PixarAnimationStudios/OpenSubdiv/blob/release/opensubdiv/version.h>`__.
 Following the Git-Flow pattern, our releases are indexed using Git's tagging
 system.
 
@@ -132,7 +132,7 @@ Checking out version 1.2.0:
 Making Changes
 ______________
 
-Direct push access to the OpenSubdiv master repository is currently limited to a
+Direct push access to the OpenSubdiv repository is currently limited to a
 small internal development team. External code should be submitted by sending Git
 `pull-requests <https://help.github.com/articles/using-pull-requests>`__ from
 forks of our *dev* branch.
@@ -157,7 +157,7 @@ The OpenSubdiv code base contains the following main areas:
 | **./tutorials/**     | Tutorials showing how to manipulate the APIs of OpenSubdiv.                           |
 +----------------------+---------------------------------------------------------------------------------------+
 | **./documentation/** | The reStructuredText source files along with python scripts that generate the HTML    |
-|                      | documentation site.                                                                   |                                                                                                           
+|                      | documentation site.                                                                   |
 +----------------------+---------------------------------------------------------------------------------------+
 | **./regression/**    | Standalone regression tests and baseline data to help maintain the integrity of       |
 |                      | our APIs. If GPU SDKs are detected, some tests will attempt to run computations       |
