@@ -34,6 +34,26 @@
 Release 3.4
 ~~~~~~~~~~~
 
+Release 3.4.4 - Feb 2021
+========================
+
+Release 3.4.4 is a minor release including bug fixes and configuration improvements
+
+**Changes**
+    - The "master" branch on GitHub has been renamed "release" (GitHub #1218 #1219)
+    - The CMake configuration has been updated to allow use as a sub-project (GitHub #1206)
+    - Removed obsolete references to hbr from examples/farViewer (GitHub #1217)
+
+**Bug Fixes**
+    - Fixed bug with sparse PatchTables and irregular face-varying seams (GitHub #1203)
+    - Fixed loss of precision when using double precision stencil tables (GitHub #1207)
+    - Fixed reset of Far::TopologyRefiner::GetMaxLevel() after call to Unrefine() (GitHub #1208)
+    - Fixed linking with -ldl on unix systems (GitHub #1196)
+    - Fixed naming and installation of macOS frameworks (GitHub #1194 #1201)
+    - Fixed GL version and extension processing and dynamic loading on macOS (GitHub #1216)
+    - Fixed FindDocutils.cmake to be more robust (GitHub #1213 #1220)
+    - Fixed errors using build_scripts/build_osd.py with Python3 (GitHub #1206)
+
 Release 3.4.3 - Apr 2020
 ========================
 
