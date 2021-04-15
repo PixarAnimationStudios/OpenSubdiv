@@ -135,6 +135,12 @@ public:
 
     /// \brief Return if the vertex is a boundary
     bool IsVertexBoundary(Index v) const { return _level->getVertexTag(v)._boundary; }
+
+    /// \brief Return if the vertex is a corner
+    bool IsVertexCorner(Index v) const { return _level->getVertexTag(v)._corner; }
+	
+    /// \brief Return if the vertex is a extraordinary
+    bool IsVertexExtraOrdinary(Index v) const { return _level->getVertexTag(v)._xordinary; }
     //@}
 
     //@{
