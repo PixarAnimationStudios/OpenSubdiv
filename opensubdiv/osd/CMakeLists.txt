@@ -249,6 +249,7 @@ if( METAL_FOUND )
         mtlPatchTable.mm
         mtlVertexBuffer.mm
         mtlPatchShaderSource.mm
+        mtlCommon.mm
     )
 
     set_source_files_properties(

@@ -47,48 +47,6 @@ MTLPatchTable::~MTLPatchTable()
 
 }
 
-static id<MTLBuffer> createBuffer(const void* data, const size_t length,
-                                  MTLContext* context)
-{
-    if(length == 0)
-        return nil;
-#if TARGET_OS_IOS || TARGET_OS_TV
-    return [context->device newBufferWithBytes:data length:length options:MTLResourceOptionCPUCacheModeDefault];
-#elif TARGET_OS_OSX
-#if !OSD_METAL_DEFERRED
-    @autoreleasepool
-    {
-        auto cmdBuf = [context->commandQueue commandBuffer];
-#else
-    {
-        auto cmdBuf = context->MetalGetCommandBuffer(context->commandQueue);
-#endif
-        auto blitEncoder = [cmdBuf blitCommandEncoder];
-        
-        auto stageBuffer = [context->device newBufferWithBytes:data length:length options:MTLResourceOptionCPUCacheModeDefault];
-        
-        auto finalBuffer = [context->device newBufferWithLength:length options:MTLResourceStorageModePrivate];
-        
-        [blitEncoder copyFromBuffer:stageBuffer sourceOffset:0 toBuffer:finalBuffer destinationOffset:0 size:length];
-        [blitEncoder endEncoding];
-#if OSD_METAL_DEFERRED
-        context->MetalCommitCommandBuffer(cmdBuf);
-        context->MetalWaitUntilCompleted(cmdBuf);
-#else
-        [cmdBuf commit];
-        [cmdBuf waitUntilCompleted];
-#endif
-        
-#if !__has_feature(objc_arc)
-        [stageBuffer release];
-#endif
-
-    return finalBuffer;
-  }
-#endif
-}
-
-
 MTLPatchTable* MTLPatchTable::Create(const Far::PatchTable *farPatchTable, MTLContext* context)
 {
     auto patchTable = new MTLPatchTable();
@@ -110,13 +68,13 @@ bool MTLPatchTable::allocate(Far::PatchTable const *farPatchTable, MTLContext* c
 
     _patchArrays.assign(cpuTable.GetPatchArrayBuffer(), cpuTable.GetPatchArrayBuffer() + numPatchArrays);
 
-    _indexBuffer = createBuffer(cpuTable.GetPatchIndexBuffer(), indexSize * sizeof(unsigned), context);
+    _indexBuffer = context->CreateBuffer(cpuTable.GetPatchIndexBuffer(), indexSize * sizeof(unsigned));
     if(_indexBuffer == nil)
         return false;
 
     _indexBuffer.label = @"OSD PatchIndexBuffer";
 
-    _patchParamBuffer = createBuffer(cpuTable.GetPatchParamBuffer(), patchParamSize * sizeof(PatchParam), context);
+    _patchParamBuffer = context->CreateBuffer(cpuTable.GetPatchParamBuffer(), patchParamSize * sizeof(PatchParam));
     if(_patchParamBuffer == nil)
         return false;
 
@@ -124,7 +82,7 @@ bool MTLPatchTable::allocate(Far::PatchTable const *farPatchTable, MTLContext* c
 
     _varyingPatchArrays.assign(cpuTable.GetVaryingPatchArrayBuffer(), cpuTable.GetVaryingPatchArrayBuffer() + numPatchArrays);
 
-    _varyingPatchIndexBuffer = createBuffer(cpuTable.GetVaryingPatchIndexBuffer(), sizeof(int) * cpuTable.GetVaryingPatchIndexSize(), context);
+    _varyingPatchIndexBuffer = context->CreateBuffer(cpuTable.GetVaryingPatchIndexBuffer(), sizeof(int) * cpuTable.GetVaryingPatchIndexSize());
     if(_varyingPatchIndexBuffer == nil && cpuTable.GetVaryingPatchIndexSize() > 0)
         return false;
 
@@ -135,11 +93,11 @@ bool MTLPatchTable::allocate(Far::PatchTable const *farPatchTable, MTLContext* c
     for(auto fvc = 0; fvc < numFVarChannels; fvc++)
     {
         _fvarPatchArrays[fvc].assign(cpuTable.GetFVarPatchArrayBuffer(fvc), cpuTable.GetFVarPatchArrayBuffer(fvc) + numPatchArrays);
-        _fvarIndexBuffers[fvc] = createBuffer(cpuTable.GetFVarPatchIndexBuffer(fvc), cpuTable.GetFVarPatchIndexSize(fvc) * sizeof(int), context);
+        _fvarIndexBuffers[fvc] = context->CreateBuffer(cpuTable.GetFVarPatchIndexBuffer(fvc), cpuTable.GetFVarPatchIndexSize(fvc) * sizeof(int));
         if(_fvarIndexBuffers[fvc] == nil)
             return false;
 
-        _fvarParamBuffers[fvc] = createBuffer(cpuTable.GetFVarPatchParamBuffer(fvc), cpuTable.GetFVarPatchParamSize(fvc) * sizeof(PatchParam), context);
+        _fvarParamBuffers[fvc] = context->CreateBuffer(cpuTable.GetFVarPatchParamBuffer(fvc), cpuTable.GetFVarPatchParamSize(fvc) * sizeof(PatchParam));
         if(_fvarParamBuffers[fvc] == nil)
             return false;
     }

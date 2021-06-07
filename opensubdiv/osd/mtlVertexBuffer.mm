@@ -69,6 +69,7 @@ CPUMTLVertexBuffer* CPUMTLVertexBuffer::Create(int numElements, int numVertices,
 
 void CPUMTLVertexBuffer::UpdateData(const float* src, int startVertex, int numVertices, MTLContext* context)
 {
+    (void)context;
     _dirty = true;
     memcpy(((float*)_buffer.contents) + startVertex * _numElements, src, _numElements * numVertices * sizeof(float));
 }
@@ -81,6 +82,7 @@ float* CPUMTLVertexBuffer::BindCpuBuffer()
 
 id<MTLBuffer> CPUMTLVertexBuffer::BindMTLBuffer(MTLContext* context)
 {
+    (void)context;
 #if TARGET_OS_OSX
     if(_dirty)
         [_buffer didModifyRange:NSMakeRange(0, _buffer.length)];

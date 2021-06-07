@@ -99,53 +99,6 @@ static const char *KernelSource =
 #include "mtlComputeKernel.gen.h"
 ;
 
-template <typename T>
-static id<MTLBuffer> createBuffer(const std::vector<T> &vec,
-                                      MTLContext* context)
-{
-    if (vec.empty()) {
-        return nil;
-    }
-
-    const auto length = sizeof(T) * vec.size();
-#if TARGET_OS_IOS || TARGET_OS_TV
-    return [context->device newBufferWithBytes:vec.data() length:length options:MTLResourceOptionCPUCacheModeDefault];
-#elif TARGET_OS_OSX
-
-#if !OSD_METAL_DEFERRED
-    @autoreleasepool
-    {
-        auto cmdBuf = [context->commandQueue commandBuffer];
-#else
-    {
-        auto cmdBuf = context->MetalGetCommandBuffer(context->commandQueue);
-#endif
-        auto blitEncoder = [cmdBuf blitCommandEncoder];
-        
-        auto stageBuffer = [context->device newBufferWithBytes:vec.data() length:length options:MTLResourceOptionCPUCacheModeDefault];
-        
-        auto finalBuffer = [context->device newBufferWithLength:length options:MTLResourceStorageModePrivate];
-        
-        [blitEncoder copyFromBuffer:stageBuffer sourceOffset:0 toBuffer:finalBuffer destinationOffset:0 size:length];
-        [blitEncoder endEncoding];
-#if OSD_METAL_DEFERRED
-        context->MetalCommitCommandBuffer(cmdBuf);
-        context->MetalWaitUntilCompleted(cmdBuf);
-#else
-        [cmdBuf commit];
-        [cmdBuf waitUntilCompleted];
-#endif
-      
-
-#if !__has_feature(objc_arc)
-      [stageBuffer release];
-#endif
-
-    return finalBuffer;
-  }
-#endif
-}
-
 using namespace OpenSubdiv::OPENSUBDIV_VERSION;
 using namespace Osd;
 
@@ -160,10 +113,10 @@ MTLStencilTable::MTLStencilTable(Far::StencilTable const *stencilTable,
     {
       auto sizes = stencilTable->GetSizes();
 
-      _sizesBuffer = createBuffer(stencilTable->GetSizes(), context);
-      _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), context);
-      _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), context);
-      _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
+      _sizesBuffer = context->CreateBuffer(stencilTable->GetSizes());
+      _offsetsBuffer = context->CreateBuffer(stencilTable->GetOffsets());
+      _indicesBuffer = context->CreateBuffer(stencilTable->GetControlIndices());
+      _weightsBuffer = context->CreateBuffer(stencilTable->GetWeights());
 
       _sizesBuffer.label = @"StencilTable Sizes";
       _offsetsBuffer.label = @"StencilTable Offsets";
@@ -189,15 +142,15 @@ MTLStencilTable::MTLStencilTable(Far::LimitStencilTable const *stencilTable,
     {
       auto sizes = stencilTable->GetSizes();
 
-      _sizesBuffer = createBuffer(stencilTable->GetSizes(), context);
-      _offsetsBuffer = createBuffer(stencilTable->GetOffsets(), context);
-      _indicesBuffer = createBuffer(stencilTable->GetControlIndices(), context);
-      _weightsBuffer = createBuffer(stencilTable->GetWeights(), context);
-      _duWeightsBuffer = createBuffer(stencilTable->GetDuWeights(), context);
-      _dvWeightsBuffer = createBuffer(stencilTable->GetDvWeights(), context);
-      _duuWeightsBuffer = createBuffer(stencilTable->GetDuuWeights(), context);
-      _duvWeightsBuffer = createBuffer(stencilTable->GetDuvWeights(), context);
-      _dvvWeightsBuffer = createBuffer(stencilTable->GetDvvWeights(), context);
+      _sizesBuffer = context->CreateBuffer(stencilTable->GetSizes());
+      _offsetsBuffer = context->CreateBuffer(stencilTable->GetOffsets());
+      _indicesBuffer = context->CreateBuffer(stencilTable->GetControlIndices());
+      _weightsBuffer = context->CreateBuffer(stencilTable->GetWeights());
+      _duWeightsBuffer = context->CreateBuffer(stencilTable->GetDuWeights());
+      _dvWeightsBuffer = context->CreateBuffer(stencilTable->GetDvWeights());
+      _duuWeightsBuffer = context->CreateBuffer(stencilTable->GetDuuWeights());
+      _duvWeightsBuffer = context->CreateBuffer(stencilTable->GetDuvWeights());
+      _dvvWeightsBuffer = context->CreateBuffer(stencilTable->GetDvvWeights());
 
       _sizesBuffer.label = @"StencilTable Sizes";
       _offsetsBuffer.label = @"StencilTable Offsets";

@@ -29,6 +29,7 @@
 
 #include <Metal/Metal.h>
 #include <cstddef>
+#include <vector>
 
 #define OSD_METAL_DEFERRED 0
 
@@ -65,20 +66,27 @@ public:
      i.e. Each call to OSD will generate a Metal command buffer and wait for its completion.
      */
     
-    virtual id<MTLCommandBuffer> MetalGetCommandBuffer(id<MTLCommandQueue> cmdQueue)   { return [cmdQueue commandBuffer]; };
-    virtual void                 MetalCommitCommandBuffer(id<MTLCommandBuffer> cmdBuf) { [cmdBuf commit]; }
-    virtual void                 MetalWaitUntilCompleted(id<MTLCommandBuffer> cmdBuf)  { [cmdBuf waitUntilCompleted]; }
+    virtual id<MTLCommandBuffer> GetCommandBuffer(id<MTLCommandQueue> cmdQueue)   { return [cmdQueue commandBuffer]; };
+    virtual void                 CommitCommandBuffer(id<MTLCommandBuffer> cmdBuf) { [cmdBuf commit]; }
+    virtual void                 WaitUntilCompleted(id<MTLCommandBuffer> cmdBuf)  { [cmdBuf waitUntilCompleted]; }
 #if !__has_feature(objc_arc)
-    virtual void                 MetalReleaseMetalBuffer(id<MTLBuffer> buffer)         { [buffer release]; }
+    virtual void                 ReleaseMetalBuffer(id<MTLBuffer> buffer)         { [buffer release]; }
 #endif
-        
+
+
 #endif
+    id<MTLBuffer> CreateBuffer(const void* data, const size_t length);
+
+    template <typename T>
+    id<MTLBuffer> CreateBuffer(const std::vector<T> &vec)
+    {
+        return CreateBuffer(vec.data(), sizeof(T) * vec.size());
+    }
 };
 
 } // end namespace Osd
 
 } // end namespace OPENSUBDIV_VERSION
-using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
 
