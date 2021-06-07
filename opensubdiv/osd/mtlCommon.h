@@ -70,7 +70,7 @@ public:
     virtual void                 CommitCommandBuffer(id<MTLCommandBuffer> cmdBuf) { [cmdBuf commit]; }
     virtual void                 WaitUntilCompleted(id<MTLCommandBuffer> cmdBuf)  { [cmdBuf waitUntilCompleted]; }
 #if !__has_feature(objc_arc)
-    virtual void                 ReleaseMetalBuffer(id<MTLBuffer> buffer)         { [buffer release]; }
+    virtual void                 ReleaseBuffer(id<MTLBuffer> buffer)              { [buffer release]; }
 #endif
 
 
