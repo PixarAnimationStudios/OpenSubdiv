@@ -111,18 +111,31 @@ static id<MTLBuffer> createBuffer(const std::vector<T> &vec,
 #if TARGET_OS_IOS || TARGET_OS_TV
     return [context->device newBufferWithBytes:vec.data() length:length options:MTLResourceOptionCPUCacheModeDefault];
 #elif TARGET_OS_OSX
-  @autoreleasepool {
-    auto cmdBuf = [context->commandQueue commandBuffer];
-    auto blitEncoder = [cmdBuf blitCommandEncoder];
 
-    auto stageBuffer = [context->device newBufferWithBytes:vec.data() length:length options:MTLResourceOptionCPUCacheModeDefault];
-
-    auto finalBuffer = [context->device newBufferWithLength:length options:MTLResourceStorageModePrivate];
-
-    [blitEncoder copyFromBuffer:stageBuffer sourceOffset:0 toBuffer:finalBuffer destinationOffset:0 size:length];
-    [blitEncoder endEncoding];
-    [cmdBuf commit];
-    [cmdBuf waitUntilCompleted];
+#if !OSD_METAL_DEFERRED
+    @autoreleasepool
+    {
+        auto cmdBuf = [context->commandQueue commandBuffer];
+#else
+    {
+        auto cmdBuf = context->MetalGetCommandBuffer(context->commandQueue);
+#endif
+        auto blitEncoder = [cmdBuf blitCommandEncoder];
+        
+        auto stageBuffer = [context->device newBufferWithBytes:vec.data() length:length options:MTLResourceOptionCPUCacheModeDefault];
+        
+        auto finalBuffer = [context->device newBufferWithLength:length options:MTLResourceStorageModePrivate];
+        
+        [blitEncoder copyFromBuffer:stageBuffer sourceOffset:0 toBuffer:finalBuffer destinationOffset:0 size:length];
+        [blitEncoder endEncoding];
+#if OSD_METAL_DEFERRED
+        context->MetalCommitCommandBuffer(cmdBuf);
+        context->MetalWaitUntilCompleted(cmdBuf);
+#else
+        [cmdBuf commit];
+        [cmdBuf waitUntilCompleted];
+#endif
+      
 
 #if !__has_feature(objc_arc)
       [stageBuffer release];
@@ -461,8 +474,12 @@ bool MTLComputeEvaluator::EvalStencils(
 
     memcpy(_parameterBuffer.contents, &args, sizeof(args));
 
+#if OSD_METAL_DEFERRED
+    auto commandBuffer = context->MetalGetCommandBuffer(commandQueue);
+#else
     auto commandBuffer = [commandQueue commandBuffer];
-
+#endif
+    
     auto computeEncoder = [commandBuffer computeCommandEncoder];
 
     [computeEncoder setBuffer:_parameterBuffer offset:0 atIndex:PARAMETER_BUFFER_INDEX];
@@ -499,8 +516,13 @@ bool MTLComputeEvaluator::EvalStencils(
                    threadsPerThreadgroup:threadsPerGroup];
 
     [computeEncoder endEncoding];
+#if OSD_METAL_DEFERRED
+    context->MetalCommitCommandBuffer(commandBuffer);
+    context->MetalWaitUntilCompleted(commandBuffer);
+#else
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+#endif
 
     return true;
 }
@@ -560,8 +582,12 @@ MTLComputeEvaluator::EvalPatches(
 
     assert(device != nil && commandQueue != nil);
 
+#if OSD_METAL_DEFERRED
+    auto commandBuffer = context->MetalGetCommandBuffer(commandQueue);
+#else
     auto commandBuffer = [commandQueue commandBuffer];
-    auto computeCommandEncoder = [commandBuffer computeCommandEncoder];
+#endif
+   auto computeCommandEncoder = [commandBuffer computeCommandEncoder];
 
     mtl::KernelUniformArgs args;
     args.batchStart = 0;
@@ -600,8 +626,13 @@ MTLComputeEvaluator::EvalPatches(
                    threadsPerThreadgroup:threadsPerGroup];
 
     [computeCommandEncoder endEncoding];
+#if OSD_METAL_DEFERRED
+    context->MetalCommitCommandBuffer(commandBuffer);
+    context->MetalWaitUntilCompleted(commandBuffer);
+#else
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+#endif
 
     return true;
 }

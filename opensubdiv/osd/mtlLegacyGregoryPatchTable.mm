@@ -32,8 +32,14 @@ namespace Osd {
 static id<MTLBuffer> createBuffer(const void* data, const size_t length,
                                   MTLContext* context)
 {
-  @autoreleasepool {
-    auto cmdBuf = [context->commandQueue commandBuffer];
+#if !OSD_METAL_DEFERRED
+    @autoreleasepool
+    {
+        auto cmdBuf = [context->commandQueue commandBuffer];
+#else
+    {
+        auto cmdBuf = context->MetalGetCommandBuffer(context->commandQueue);
+#endif
     auto blitEncoder = [cmdBuf blitCommandEncoder];
 
     auto stageBuffer = [context->device newBufferWithBytes:data length:length options:MTLResourceOptionCPUCacheModeDefault];
@@ -42,11 +48,16 @@ static id<MTLBuffer> createBuffer(const void* data, const size_t length,
 
     [blitEncoder copyFromBuffer:stageBuffer sourceOffset:0 toBuffer:finalBuffer destinationOffset:0 size:length];
     [blitEncoder endEncoding];
+#if OSD_METAL_DEFERRED
+    context->MetalCommitCommandBuffer(cmdBuf);
+    context->MetalWaitUntilCompleted(cmdBuf);
+#else
     [cmdBuf commit];
     [cmdBuf waitUntilCompleted];
-
+#endif
+    
 #if !__has_feature(objc_arc)
-      [stageBuffer release];
+    [stageBuffer release];
 #endif
 
     return finalBuffer;

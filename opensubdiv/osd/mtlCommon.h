@@ -27,20 +27,52 @@
 
 #include "../version.h"
 
+#include <Metal/Metal.h>
 #include <cstddef>
+
+#define OSD_METAL_DEFERRED 0
 
 @protocol MTLDevice;
 @protocol MTLCommandQueue;
+@protocol MTLCommandBuffer;
+@protocol MTLBuffer;
 
-namespace OpenSubdiv {
-namespace OPENSUBDIV_VERSION {
-
-namespace Osd {
-
-class MTLContext {
+namespace OpenSubdiv
+{
+namespace OPENSUBDIV_VERSION
+{
+namespace Osd
+{
+class MTLContext
+{
 public:
-        id<MTLDevice> device = nullptr;
-        id<MTLCommandQueue> commandQueue = nullptr;
+	id<MTLDevice> device = nullptr;
+	id<MTLCommandQueue> commandQueue = nullptr;
+
+    
+#if OSD_METAL_DEFERRED
+    /*
+      Interface designed to let an application manage how OSD will generate it's data when using Metal.
+     The intention is to support applications that may have to make many OSD calls per frame and don't want to
+     incur the overhead of scheduling each OSD call as a seperate GPU workload and wait for its completion.
+     By overriding the functions below an application can merge all OSD GPU workloads into a single command buffer
+     and execute (commit) it at a time of it's choosing. It may also choose to integrate its own workloads into the
+     command buffer. If it does that it must ensure that no command encoders are active prior to any OSD call.
+      OSD will allocate the MTLBuffers for the output data but it's up to the application to release them as only it
+     can say when the data can be freed.
+     
+      If none of the virtual functions are overridden then the provided versions will drive OSD in normal fashion.
+     i.e. Each call to OSD will generate a Metal command buffer and wait for its completion.
+     */
+    
+    virtual id<MTLCommandBuffer> MetalGetCommandBuffer(id<MTLCommandQueue> cmdQueue)   { return [cmdQueue commandBuffer]; };
+    virtual void                 MetalCommitCommandBuffer(id<MTLCommandBuffer> cmdBuf) { [cmdBuf commit]; }
+    virtual void                 MetalWaitUntilCompleted(id<MTLCommandBuffer> cmdBuf)  { [cmdBuf waitUntilCompleted]; }
+#if !__has_feature(objc_arc)
+    virtual void                 MetalReleaseMetalBuffer(id<MTLBuffer> buffer)         { [buffer release]; }
+#endif
+        
+#endif
 };
 
 } // end namespace Osd
@@ -49,5 +81,6 @@ public:
 using namespace OPENSUBDIV_VERSION;
 
 } // end namespace OpenSubdiv
+
 
 #endif //OPENSUBDIV3_OSD_MTL_COMMON_H
