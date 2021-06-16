@@ -49,7 +49,7 @@ Feature Adaptive GPU Rendering of Catmull-Clark Subdivision Surfaces (2012)
 .. raw:: html
 
     <center>
-    <iframe width="640" height="360" src="http://www.youtube.com/embed/uogAzQoVdNU" frameborder="0" allowfullscreen></iframe>
+    <iframe width="640" height="360" src="https://www.youtube.com/embed/uogAzQoVdNU" frameborder="0" allowfullscreen></iframe>
     </center>
 
 Open Subdivision Technology Review (2012)
@@ -58,7 +58,7 @@ Open Subdivision Technology Review (2012)
 .. raw:: html
 
     <center>
-    <iframe width="640" height="360" src="http://www.youtube.com/embed/Y-3L9BOTEtw" frameborder="0" allowfullscreen></iframe>
+    <iframe width="640" height="360" src="https://www.youtube.com/embed/Y-3L9BOTEtw" frameborder="0" allowfullscreen></iframe>
     </center>
 
 First public demonstration of OpenSubdiv at Siggraph 2012.
@@ -69,7 +69,7 @@ Autodesk User Group At Anaheim (2013)
 .. raw:: html
 
     <center>
-    <iframe width="640" height="360" src="http://www.youtube.com/embed/9lFwFoCxysI" frameborder="0" allowfullscreen></iframe>
+    <iframe width="640" height="360" src="https://www.youtube.com/embed/9lFwFoCxysI" frameborder="0" allowfullscreen></iframe>
     </center>
 
 Bill Polson, Director of Industry Strategy at Pixar Animation Studios
@@ -80,7 +80,7 @@ Why Model with Subdivisions (2013)
 .. raw:: html
 
     <center>
-    <iframe src="http://player.vimeo.com/video/70600180" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://player.vimeo.com/video/70600180" width="640" height="360" frameborder="0" allowfullscreen></iframe>
     </center>
 
 Ivo Kos, Modelling Technical Director at Pixar Animation Studios
@@ -91,7 +91,7 @@ Meet the Experts: The OpenSubdiv Project (2013)
 .. raw:: html
 
     <center>
-        <iframe width="640" height="360" src="http://www.youtube.com/embed/xFZazwvYc5o" frameborder="0" allowfullscreen></iframe>
+        <iframe width="640" height="360" src="https://www.youtube.com/embed/xFZazwvYc5o" frameborder="0" allowfullscreen></iframe>
     </center>
 
 Join special guests, Bill Polson, Dirk Van Gelder, Manuel Kraemer,

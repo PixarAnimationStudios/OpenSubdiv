@@ -199,7 +199,7 @@ them:
 .. raw:: html
 
     <center>
-    <iframe width="640" height="360" src="http://www.youtube.com/embed/k_S1INdEmdI" frameborder="0" allowfullscreen></iframe>
+    <iframe width="640" height="360" src="https://www.youtube.com/embed/k_S1INdEmdI" frameborder="0" allowfullscreen></iframe>
     </center>
 
 ----
@@ -211,6 +211,6 @@ feature films.
 .. raw:: html
 
     <center>
-    <iframe src="http://player.vimeo.com/video/70600180" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+    <iframe src="https://player.vimeo.com/video/70600180" width="640" height="360" frameborder="0" allowfullscreen></iframe>
     </center>
 
