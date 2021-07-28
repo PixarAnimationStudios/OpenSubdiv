@@ -46,53 +46,42 @@ Videos
 Feature Adaptive GPU Rendering of Catmull-Clark Subdivision Surfaces (2012)
 ***************************************************************************
 
-.. raw:: html
-
-    <center>
-    <iframe width="640" height="360" src="https://www.youtube.com/embed/uogAzQoVdNU" frameborder="0" allowfullscreen></iframe>
-    </center>
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/feature_adaptive_siggraph2012.png
+   :align:  center
+   :width:  75%
+   :target: https://www.youtube.com/embed/uogAzQoVdNU
 
 Open Subdivision Technology Review (2012)
 *****************************************
 
-.. raw:: html
-
-    <center>
-    <iframe width="640" height="360" src="https://www.youtube.com/embed/Y-3L9BOTEtw" frameborder="0" allowfullscreen></iframe>
-    </center>
-
-First public demonstration of OpenSubdiv at Siggraph 2012.
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/opensubdiv_intro_autodesk2012.png
+   :align:  center
+   :width:  75%
+   :target: https://www.youtube.com/embed/Y-3L9BOTEtw
 
 Autodesk User Group At Anaheim (2013)
 *************************************
 
-.. raw:: html
-
-    <center>
-    <iframe width="640" height="360" src="https://www.youtube.com/embed/9lFwFoCxysI" frameborder="0" allowfullscreen></iframe>
-    </center>
-
-Bill Polson, Director of Industry Strategy at Pixar Animation Studios
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/opensubdiv_demo_autodesk2013.png
+   :align:  center
+   :width:  75%
+   :target: https://www.youtube.com/embed/9lFwFoCxysI
 
 Why Model with Subdivisions (2013)
 **********************************
 
-.. raw:: html
-
-    <center>
-    <iframe src="https://player.vimeo.com/video/70600180" width="640" height="360" frameborder="0" allowfullscreen></iframe>
-    </center>
-
-Ivo Kos, Modelling Technical Director at Pixar Animation Studios
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/subdiv_modeling_pixar2013.png
+   :align:  center
+   :width:  75%
+   :target: https://player.vimeo.com/video/70600180
 
 Meet the Experts: The OpenSubdiv Project (2013)
 ***********************************************
 
-.. raw:: html
-
-    <center>
-        <iframe width="640" height="360" src="https://www.youtube.com/embed/xFZazwvYc5o" frameborder="0" allowfullscreen></iframe>
-    </center>
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/meet_the_experts_autodesk2013.png
+   :align:  center
+   :width:  75%
+   :target: https://www.youtube.com/embed/xFZazwvYc5o
 
 Join special guests, Bill Polson, Dirk Van Gelder, Manuel Kraemer,
 Takahito Tejima, David G. Yu and Dale Ruffolo, from Pixar Animation
