@@ -1191,7 +1191,7 @@ PatchTableBuilder::populatePatches() {
 
     //  Populate patch data buffers
     //
-    //  Intentionally declare local vairables to contain patch topology info
+    //  Intentionally declare local variables to contain patch topology info
     //  outside the loop to avoid repeated memory de-allocation/re-allocation
     //  associated with a change-of-basis.
     PatchInfo patchInfo;
@@ -1241,7 +1241,7 @@ PatchTableBuilder::populatePatches() {
         *arrayBuilder->pptr++ = patchParam;
 
         //
-        //  Assignment of face-varying patches is split between the comon/trivial
+        //  Assignment of face-varying patches is split between the common/trivial
         //  case of linear patches and the more complex non-linear cases:
         //
         assert((_fvarChannelIndices.size() > 0) == _requiresFVarPatches);
@@ -1582,7 +1582,7 @@ PatchTableBuilder::LocalPointHelper::appendLocalPointStencils(
     int                         sourcePointOffset) {
 
     //
-    //  Resize the StencilTable members to accomodate all rows and elements from
+    //  Resize the StencilTable members to accommodate all rows and elements from
     //  the given set of points represented by the matrix
     //
     StencilTableReal<REAL>* stencilTable = _stencilTable.Get<REAL>();

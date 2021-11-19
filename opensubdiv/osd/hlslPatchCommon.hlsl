@@ -972,7 +972,7 @@ OsdEvalPatchGregory(int3 patchParam, float2 UV, float3 cv[20],
 //                        . .   . .   . .
 //                         0 --- 1 --- 2
 //
-//  The equivalant quartic Bezier triangle (15 points):
+//  The equivalent quartic Bezier triangle (15 points):
 //
 //                              14
 //                              . .

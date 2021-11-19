@@ -147,7 +147,7 @@ way when only that point is moved:
 |    :width:  80%                      |    :width:  80%                      |
 |    :target: images/basis_bspline.jpg |    :target: images/basis_bezier.jpg  |
 |                                      |                                      |
-| Bicubic B-Spline basis function      | Bicubic Bezier basis funciton        |
+| Bicubic B-Spline basis function      | Bicubic Bezier basis function        |
 +--------------------------------------+--------------------------------------+
 
 It is these basis functions that often give rise to the names of the different patches.

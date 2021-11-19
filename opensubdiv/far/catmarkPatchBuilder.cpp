@@ -494,7 +494,7 @@ namespace {
     //  entries in place and deal with them as a post-process here.
     //
     //  The SourcePatch is also sensitive to the presence of such valence-2
-    //  vertices for its own reasons (it needs to identifiy a unique set of
+    //  vertices for its own reasons (it needs to identify a unique set of
     //  source points from a set of corner rings), so a simple query of its
     //  corners indicates when this post-process is necessary.  (And since
     //  this case is a rare occurrence, efficiency is not a major concern.)
@@ -841,7 +841,7 @@ void
 GregoryConverter<REAL>::Convert(Matrix & matrix) const {
 
     //
-    //  Initialize the sparse matrix to accomodate the coefficients for each
+    //  Initialize the sparse matrix to accommodate the coefficients for each
     //  row/point -- identify common topological cases to treat more easily
     //  (and note that specializing the popoluation of the matrix may also be
     //  worthwhile in such cases)
@@ -1155,7 +1155,7 @@ GregoryConverter<REAL>::computeIrregularInteriorEdgePoints(
             pWeights, epWeights, emWeights);
 
     //
-    //  Transer the weights for the ring into the stencil form of the required
+    //  Transfer the weights for the ring into the stencil form of the required
     //  Point type.  The limit mask for position involves all ring weights, and
     //  since Ep and Em depend on it, there should be no need to filter weights
     //  with value 0:
@@ -1682,7 +1682,7 @@ BSplineConverter<REAL>::convertIrregularCorner(int irregularCorner,
     //
     //  We use the ordering of points in the retrieved 1-ring for which weights
     //  of the Catmark limit points are computed.  So rather than re-order the
-    //  ring to accomodate contributing source points, identify the locations
+    //  ring to accommodate contributing source points, identify the locations
     //  of the source points in the 1-ring so we can set coefficients
     //  appropriately:
     //

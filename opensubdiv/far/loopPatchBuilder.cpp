@@ -482,7 +482,7 @@ namespace {
     //  entries in place and deal with them as a post-process here.
     //
     //  The SourcePatch is also sensitive to the presence of such valence-2
-    //  vertices for its own reasons (it needs to identifiy a unique set of
+    //  vertices for its own reasons (it needs to identify a unique set of
     //  source points from a set of corner rings), so a simple query of its
     //  corners indicates when this post-process is necessary.  (And since
     //  this case is a rare occurrence, efficiency is not a major concern.)
@@ -817,7 +817,7 @@ void
 GregoryTriConverter<REAL>::Convert(Matrix & matrix) const {
 
     //
-    //  Initialize the sparse matrix to accomodate the coefficients for each
+    //  Initialize the sparse matrix to accommodate the coefficients for each
     //  row/point -- identify common topological cases to treat more easily
     //  (and note that specializing the population of the matrix may also be
     //  worthwhile in such cases)
@@ -1183,7 +1183,7 @@ GregoryTriConverter<REAL>::computeIrregularInteriorEdgePoints(
             pWeights, epWeights, emWeights);
 
     //
-    //  Transer the weights for the ring into the stencil form of the required
+    //  Transfer the weights for the ring into the stencil form of the required
     //  Point type.  The limit mask for position involves all ring weights, and
     //  since Ep and Em depend on it, there should be no need to filter weights
     //  with value 0:
@@ -1757,7 +1757,7 @@ convertToLoop(SourcePatch const & sourcePatch, SparseMatrix<REAL> & matrix) {
     //
     //  For the full 12x15 conversion matrix from 15-point quartic Bezier patch
     //  back to a Box spline patch, the matrix rows and columns are ordered
-    //  according to control point orientations used elsewhere.  Correllation of
+    //  according to control point orientations used elsewhere.  Correlation of
     //  points between the Bezier and Gregory points is as follows:
     //
     //      Q0  Q1  Q2  Q3  Q4  Q5  Q6   Q7  Q8  Q9  Q10   Q11  Q12  Q13  Q14

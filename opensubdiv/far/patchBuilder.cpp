@@ -350,7 +350,7 @@ namespace {
 
     //
     //  Functions to encode/decode the 5-bit boundary mask for a triangular patch
-    //  from the two 3-bit boundary vertex and bounday edge masks.  When referring
+    //  from the two 3-bit boundary vertex and boundary edge masks.  When referring
     //  to a "boundary vertex" in the encoded bits, we are referring to a vertex on
     //  a boundary while its incident edges of the triangle are not boundaries --
     //  topologically distinct from a vertex at the end of a boundary edge.

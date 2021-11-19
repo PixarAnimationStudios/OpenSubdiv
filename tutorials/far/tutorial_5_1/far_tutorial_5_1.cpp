@@ -153,7 +153,7 @@ int main(int, char **) {
     //
     // Choose patches adaptively refined to level 3 since the sharpest crease
     // in the shape is 3.0f (in g_creaseweights[]), and include the inf-sharp
-    // crease option just to illustrate the need to syncronize options.
+    // crease option just to illustrate the need to synchronize options.
     //
     int maxPatchLevel = 3;
 
@@ -164,14 +164,14 @@ int main(int, char **) {
     patchOptions.endCapType =
         Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
 
-    // Initialize corresonding options for adaptive refinement:
+    // Initialize corresponding options for adaptive refinement:
     Far::TopologyRefiner::AdaptiveOptions adaptiveOptions(maxPatchLevel);
 
     bool assignAdaptiveOptionsExplicitly = false;
     if (assignAdaptiveOptionsExplicitly) {
         adaptiveOptions.useInfSharpPatch = true;
     } else {
-        // Be sure patch options were intialized with the desired max level
+        // Be sure patch options were initialized with the desired max level
         adaptiveOptions = patchOptions.GetRefineAdaptiveOptions();
     }
     assert(adaptiveOptions.useInfSharpPatch == patchOptions.useInfSharpPatch);

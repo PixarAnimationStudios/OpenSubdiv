@@ -275,7 +275,7 @@ across adjacent patches.
 Tessellation levels computed at each patch
 ******************************************
 
-These tessellation levels can be computed the corresponding method in the tesselation control shader. Note that these functions potentially requires all bezier control
+These tessellation levels can be computed the corresponding method in the tessellation control shader. Note that these functions potentially requires all bezier control
 points, you need to call barrier() to ensure the conversion is done for all invocations.
 See osd/glslPatchBSpline.glsl for more details.
 

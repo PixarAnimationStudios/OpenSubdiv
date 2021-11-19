@@ -402,7 +402,7 @@ PatchGroup::TessellateBaseFace(int face, PosVector & tessPoints,
 
     //  Tessellate the face with points at the midpoint of the face and at
     //  each corner, and triangles connecting the midpoint to each edge.
-    //  Irregular faces require an aribrary number of corners points, but
+    //  Irregular faces require an arbitrary number of corners points, but
     //  all are at the origin of the child face of the irregular base face:
     //
     float const quadPoints[5][2] = { { 0.5f, 0.5f },
