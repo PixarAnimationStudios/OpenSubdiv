@@ -50,7 +50,7 @@ if (DOXYGEN_FOUND)
 else()
 
     message(WARNING
-        "Doxyen was not found : support for Doxygen automated API documentation is disabled.")
+        "Doxygen was not found : support for Doxygen automated API documentation is disabled.")
 
 endif()
 
