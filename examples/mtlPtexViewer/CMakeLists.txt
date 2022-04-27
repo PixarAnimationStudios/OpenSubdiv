@@ -117,4 +117,4 @@ target_link_libraries(mtlPtexViewer
 )
 
 
-install(TARGETS mtlPtexViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS mtlPtexViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

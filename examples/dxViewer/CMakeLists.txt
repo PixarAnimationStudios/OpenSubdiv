@@ -62,4 +62,4 @@ target_link_libraries(dxViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS dxViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS dxViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

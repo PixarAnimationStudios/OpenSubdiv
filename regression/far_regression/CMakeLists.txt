@@ -40,7 +40,7 @@ osd_add_executable(far_regression "regression"
     $<TARGET_OBJECTS:regression_common_obj>
 )
 
-install(TARGETS far_regression DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS far_regression EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")
 
 add_test(far_regression ${EXECUTABLE_OUTPUT_PATH}/far_regression)
 

@@ -112,4 +112,4 @@ target_link_libraries(mtlViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS mtlViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS mtlViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

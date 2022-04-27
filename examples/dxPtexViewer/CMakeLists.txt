@@ -68,4 +68,4 @@ target_link_libraries(dxPtexViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS dxPtexViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS dxPtexViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

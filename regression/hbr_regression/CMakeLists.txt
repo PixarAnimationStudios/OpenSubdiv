@@ -49,5 +49,5 @@ osd_add_executable(hbr_baseline "regression"
     $<TARGET_OBJECTS:regression_common_obj>
 )
 
-install(TARGETS hbr_baseline DESTINATION "${CMAKE_BINDIR_BASE}")
-install(TARGETS hbr_regression DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS hbr_baseline EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS hbr_regression EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

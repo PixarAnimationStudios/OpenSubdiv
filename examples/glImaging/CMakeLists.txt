@@ -63,7 +63,7 @@ target_link_libraries(glImaging
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glImaging DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glImaging EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")
 
 if (NOT NO_GLTESTS)
     add_test(glImaging ${EXECUTABLE_OUTPUT_PATH}/glImaging -w test -l 3 -s 256 256 -a)

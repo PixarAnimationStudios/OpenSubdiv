@@ -61,4 +61,4 @@ target_link_libraries(glFVarViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glFVarViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glFVarViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

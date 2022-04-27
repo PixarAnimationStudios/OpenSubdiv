@@ -47,7 +47,7 @@ target_link_libraries(osd_regression
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS osd_regression DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS osd_regression EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")
 
 if (NOT NO_GLTESTS)
     add_test(osd_regression ${EXECUTABLE_OUTPUT_PATH}/osd_regression)

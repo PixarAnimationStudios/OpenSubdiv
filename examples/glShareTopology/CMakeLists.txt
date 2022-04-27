@@ -61,4 +61,4 @@ target_link_libraries(glShareTopology
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glShareTopology DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glShareTopology EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

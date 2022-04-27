@@ -61,4 +61,4 @@ target_link_libraries(glEvalLimit
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glEvalLimit DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glEvalLimit EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

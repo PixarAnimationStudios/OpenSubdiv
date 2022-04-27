@@ -67,4 +67,4 @@ target_link_libraries(farViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS farViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS farViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

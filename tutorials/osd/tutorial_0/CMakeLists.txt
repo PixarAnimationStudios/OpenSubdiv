@@ -35,5 +35,5 @@ target_link_libraries(osd_tutorial_0
     osd_static_cpu
 )
 
-install(TARGETS osd_tutorial_0 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+install(TARGETS osd_tutorial_0 EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
 

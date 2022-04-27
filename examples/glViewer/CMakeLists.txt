@@ -62,4 +62,4 @@ target_link_libraries(glViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

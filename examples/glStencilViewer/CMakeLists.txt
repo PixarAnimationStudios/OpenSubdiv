@@ -52,4 +52,4 @@ target_link_libraries(glStencilViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glStencilViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glStencilViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

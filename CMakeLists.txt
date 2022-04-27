@@ -853,3 +853,32 @@ endif()
 if (NOT NO_DOC)
     add_subdirectory(documentation)
 endif()
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.0.2)
+    #
+    # CMake Config.
+    #
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+
+    configure_package_config_file(
+        opensubdiv-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/opensubdiv-config.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}
+    )
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/opensubdiv-config-version.cmake
+        VERSION ${OSD_SONAME}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(EXPORT opensubdiv-targets
+        NAMESPACE OpenSubdiv::
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME})
+
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/opensubdiv-config.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/opensubdiv-config-version.cmake
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}
+    )
+endif()

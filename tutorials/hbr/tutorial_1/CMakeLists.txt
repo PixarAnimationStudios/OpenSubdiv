@@ -30,5 +30,5 @@ osd_add_executable(hbr_tutorial_1 "tutorials/hbr"
     ${SOURCE_FILES}
 )
 
-install(TARGETS hbr_tutorial_1 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+install(TARGETS hbr_tutorial_1 EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
 

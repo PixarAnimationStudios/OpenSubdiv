@@ -61,4 +61,4 @@ target_link_libraries(glPaintTest
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glPaintTest DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glPaintTest EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")

@@ -66,4 +66,4 @@ target_link_libraries(glPtexViewer
     ${PLATFORM_LIBRARIES}
 )
 
-install(TARGETS glPtexViewer DESTINATION "${CMAKE_BINDIR_BASE}")
+install(TARGETS glPtexViewer EXPORT opensubdiv-targets DESTINATION "${CMAKE_BINDIR_BASE}")
