@@ -30,10 +30,10 @@ jobs:
 
 - job: macOS
   pool:
-    vmImage: 'macOS-10.14'
+    vmImage: 'macOS-10.15'
   steps:
   - script: |
-      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_10.1.app/Contents/Developer"
+      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_12.4.app/Contents/Developer"
       python build_scripts/build_osd.py --tests --tbb --generator Xcode --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
     displayName: 'Building OpenSubdiv'
   - script: |
