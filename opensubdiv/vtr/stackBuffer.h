@@ -123,7 +123,7 @@ StackBuffer<TYPE,SIZE,POD_TYPE>::deallocate() {
 //
 //  Explicit element-wise construction and destruction within allocated memory.
 //  Compilers do not always optimize out the iteration here even when there is
-//  no construction or destruction, so the POD_TYPE arguement can be used to
+//  no construction or destruction, so the POD_TYPE argument can be used to
 //  force this when/if it becomes an issue (and it has been in some cases).
 //
 template <typename TYPE, unsigned int SIZE, bool POD_TYPE>

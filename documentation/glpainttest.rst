@@ -54,7 +54,7 @@ OPTIONS
 =======
 
 See the description of the
-`common comand line options <code_examples.html#common-command-line-options>`__
+`common command line options <code_examples.html#common-command-line-options>`__
 for the subset of common options supported here.
 
 KEYBOARD CONTROLS

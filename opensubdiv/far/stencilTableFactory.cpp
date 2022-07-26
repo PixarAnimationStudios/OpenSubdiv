@@ -506,7 +506,7 @@ LimitStencilTableFactoryReal<REAL>::Create(TopologyRefiner const & refiner,
         patchtable = PatchTableFactory::Create(refiner, patchTableOptions);
     }
 
-    // Append local point stencils and further verfiy size of given StencilTable:
+    // Append local point stencils and further verify size of given StencilTable:
     StencilTableReal<REAL> const * localstencils = 0;
     if (interpolateVertex) {
         localstencils = patchtable->GetLocalPointStencilTable<REAL>();

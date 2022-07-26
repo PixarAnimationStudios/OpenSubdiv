@@ -62,7 +62,7 @@ OPTIONS
 =======
 
 See the description of the
-`common comand line options <code_examples.html#common-command-line-options>`__
+`common command line options <code_examples.html#common-command-line-options>`__
 for the subset of common options supported here.
 
 **-y**
@@ -86,15 +86,15 @@ for the subset of common options supported here.
   A ptex file containing RGB channels read as material albedo color.
   
 *ptex displacement file*
-  A single-channel ptex file (preferrably float precision) containing the 
+  A single-channel ptex file (preferably float precision) containing the 
   displacement values.
 
 *ptex occlusion file*
-  A single-channel ptex file (preferrably 8 bits precision) containing a 
+  A single-channel ptex file (preferably 8 bits precision) containing a 
   pre-computed ambient occlusion signal.
 
 *ptex specular file*
-  A single-channel ptex file (preferrably 8 bits precision) applied to modulate
+  A single-channel ptex file (preferably 8 bits precision) applied to modulate
   the specular reflectance of the material
   
 *objfile(s)*
@@ -110,7 +110,7 @@ KEYBOARD CONTROLS
       q      : quit
       esc    : hide GUI
       f      : fit frame
-      +/-    : increase / decrese tessellation rate
+      +/-    : increase / decrease tessellation rate
 
 
 

@@ -191,7 +191,7 @@ int main(int, char **) {
     refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(maxlevel));
 
     //  Allocate and populate data buffers for vertex primvar data -- positions and
-    //  UVs. We assign UV coordiantes by simply projecting/assigning XY values.
+    //  UVs. We assign UV coordinates by simply projecting/assigning XY values.
     //  The position and UV buffers use their associated data types, while the
     //  combined buffer uses 5 floats per vertex.
     //

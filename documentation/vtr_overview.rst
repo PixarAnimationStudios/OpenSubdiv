@@ -54,7 +54,7 @@ similarly efficient to refine, but the topology is fixed once defined.
 representation of vertices, faces, etc. than Hbr in that they are not even
 parameterized by an interface to such components.  So the same set of Vtr
 objects can eventually be used to serve more than one representation of these
-components.  The primary requirement is that a mesh be expressable as an
+components.  The primary requirement is that a mesh be expressible as an
 indexable set (i.e. a vector or array) of vertices, edges and faces. The index
 of a component uniquely identifies it and properties are retrieved by referring
 to it by index.

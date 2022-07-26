@@ -73,7 +73,7 @@ Major Improvements to Introductory Documentation
 A significant rewrite of the `Subdivision Surfaces <subdivision_surfaces.html>`__
 page is included in this release.  The new documentation emphasizes the *piecewise
 parameteric surface* nature of subdivision surfaces and the implications of
-supporting *arbitary topology*.
+supporting *arbitrary topology*.
 
 +---------------------------------------+---------------------------------------+
 | .. image:: images/val6_regular.jpg    | .. image:: images/val6_irregular.jpg  |
@@ -91,7 +91,7 @@ Sparse Patch Tables
 Interfaces in Far for the construction of PatchTables and the required adaptive
 refinement have been extended to apply to an arbitrary subset of faces.  This
 allows patches for either large meshes or meshes that may otherwise benefit
-from some kind of partioning (e.g. areas of static and dynamic topology) to be
+from some kind of partitioning (e.g. areas of static and dynamic topology) to be
 managed in an arbitrary number of groups.  In the extreme, a PatchTable forming
 the tree of patches for a single base face can be constructed.
 

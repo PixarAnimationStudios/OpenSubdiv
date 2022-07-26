@@ -611,7 +611,7 @@ fragment float4 fragment_main(
         ,device ushort* textureOcclusion_Packing [[buffer(OCCLUSION_BUFFER_INDEX)]]
 #endif
 #if USE_SPECULAR_RESOURCES
-        ,texture2d_array<float, acess::read> textureSpecular_Data [[texture(SPECULAR_TEXTURE_INDEX)]]
+        ,texture2d_array<float, access::read> textureSpecular_Data [[texture(SPECULAR_TEXTURE_INDEX)]]
         ,device ushort* textureSpecular_Packing [[buffer(SPECULAR_BUFFER_INDEX)]]
 #endif
         ,const constant LightSource (&lightSource [[buffer(0)]]) [NUM_LIGHTS]

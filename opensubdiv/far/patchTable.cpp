@@ -486,8 +486,8 @@ PatchTable::populateVaryingVertices() {
     // In order to support evaluation of varying data we need to access
     // the varying values indexed by the zero ring vertices of the vertex
     // patch. This indexing is redundant for triangles and quads and
-    // could be made redunant for other patch types if we reorganized
-    // the vertex patch indices so that the zero ring indices always occured
+    // could be made redundant for other patch types if we reorganized
+    // the vertex patch indices so that the zero ring indices always occurred
     // first. This will also need to be updated when we add support for
     // triangle patches.
     int numVaryingCVs = _varyingDesc.GetNumControlVertices();

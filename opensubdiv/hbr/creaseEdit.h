@@ -75,7 +75,7 @@ public:
                 sharp = HbrHalfedge<T>::k_InfinitelySharp;
             // We have to make sure the neighbor of the edge exists at
             // this point. Otherwise, if it comes into being late, it
-            // will clobber the overriden sharpness and we will lose
+            // will clobber the overridden sharpness and we will lose
             // the edit.
             face->GetEdge(edgeid)->GuaranteeNeighbor();
             face->GetEdge(edgeid)->SetSharpness(sharp);

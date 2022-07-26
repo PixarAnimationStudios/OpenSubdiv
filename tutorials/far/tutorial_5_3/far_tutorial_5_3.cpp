@@ -522,7 +522,7 @@ main(int argc, char **argv) {
     //
     //  Apply the constructed LimitStencilTable to compute limit positions
     //  from the base level vertex positions.  This is trivial if computing
-    //  all positions in one invokation.  The UpdateValues method (and those
+    //  all positions in one invocation.  The UpdateValues method (and those
     //  for derivatives) are overloaded to optionally accept a subrange of
     //  indices to distribute the computation:
     //

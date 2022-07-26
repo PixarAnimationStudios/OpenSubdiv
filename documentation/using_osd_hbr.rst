@@ -529,7 +529,7 @@ Here is some sample code:
 
             if (not fvt.IsInitialized()) {
 
-                // if no fvar daa exists yet on the vertex
+                // if no fvar data exists yet on the vertex
                 fvt.SetAllData(2, fvdata);
 
             } else if (not fvt.CompareAll(2, fvdata)) {

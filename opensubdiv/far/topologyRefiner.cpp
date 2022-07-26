@@ -299,7 +299,7 @@ namespace internal {
             InitializeFeatures(options, regFaceSize);
         }
 
-        //  These are the two primary methods intended for use -- intialization via a set of Options
+        //  These are the two primary methods intended for use -- initialization via a set of Options
         //  and reduction of the subsequent feature set (which presumes prior initialization with the
         //  same set as give)
         //
@@ -336,7 +336,7 @@ namespace internal {
         //
         //  The inf-sharp single-crease case now corresponds to an inf-sharp regular crease
         //  in the interior -- and since such regular creases on the boundary are never
-        //  considered for selection (just as interior smoot regular faces are not), this
+        //  considered for selection (just as interior smooth regular faces are not), this
         //  feature is only relevant for the interior case.  So aside from it being used
         //  when regular inf-sharp features are all selected, it can also be used for the
         //  single-crease case.

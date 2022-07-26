@@ -91,7 +91,7 @@ id<MTLBuffer> CPUMTLVertexBuffer::BindMTLBuffer(MTLContext* context)
 
 
 
-} //end namepsace Osd
+} //end namespace Osd
 
 } //end namespace OPENSUBDIV_VERSION
 } //end namespace OpenSubdiv
