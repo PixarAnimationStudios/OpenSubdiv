@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2021
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -21,24 +21,44 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
+macro(osd_add_bfr_tutorial NAME)
+
+     osd_add_executable(${NAME} "tutorials/bfr"
+        ${ARGN}
+        $<TARGET_OBJECTS:sdc_obj>
+        $<TARGET_OBJECTS:vtr_obj>
+        $<TARGET_OBJECTS:far_obj>
+        $<TARGET_OBJECTS:bfr_obj>
+     )
+
+     install(TARGETS ${NAME} DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+
+endmacro()
 
 
-include_directories(
-    "${OPENSUBDIV_INCLUDE_DIR}/"
+set(TUTORIALS
+    tutorial_1_1
+    tutorial_1_2
+    tutorial_1_3
+    tutorial_1_4
+    tutorial_2_1
+    tutorial_2_2
+    tutorial_3_1
 )
 
-add_subdirectory(hbr)
+foreach(tutorial ${TUTORIALS})
 
-add_subdirectory(far)
+    add_subdirectory("${tutorial}")
 
-add_subdirectory(bfr)
+    list(APPEND TUTORIAL_TARGETS "bfr_${tutorial}")
 
-add_subdirectory(osd)
+    add_test(bfr_${tutorial} ${EXECUTABLE_OUTPUT_PATH}/bfr_${tutorial})
 
-add_custom_target(tutorials
-    DEPENDS
-        hbr_tutorials
-        far_tutorials
-        bfr_tutorials
-        osd_tutorials
+endforeach()
+
+add_custom_target(bfr_tutorials DEPENDS ${TUTORIAL_TARGETS})
+
+set_target_properties(bfr_tutorials
+    PROPERTIES 
+        FOLDER "tutorials/bfr"
 )

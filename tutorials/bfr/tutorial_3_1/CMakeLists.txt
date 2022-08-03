@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2021 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,23 +22,19 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-
-include_directories(
-    "${OPENSUBDIV_INCLUDE_DIR}/"
+set(SOURCE_FILES
+    bfr_tutorial_3_1.cpp
+    customSurfaceFactory.cpp
 )
 
-add_subdirectory(hbr)
-
-add_subdirectory(far)
-
-add_subdirectory(bfr)
-
-add_subdirectory(osd)
-
-add_custom_target(tutorials
-    DEPENDS
-        hbr_tutorials
-        far_tutorials
-        bfr_tutorials
-        osd_tutorials
+osd_add_executable(bfr_tutorial_3_1 "tutorials/bfr"
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
+    $<TARGET_OBJECTS:bfr_obj>
+    $<TARGET_OBJECTS:regression_common_obj>
 )
+
+install(TARGETS bfr_tutorial_3_1 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
+
