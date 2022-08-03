@@ -110,6 +110,8 @@ if (NOT NO_LIB)
 
     add_subdirectory(far)
 
+    add_subdirectory(bfr)
+
     add_subdirectory(osd)
 
     #---------------------------------------------------------------------------
@@ -131,6 +133,7 @@ if (NOT NO_LIB)
         $<TARGET_OBJECTS:sdc_obj>
         $<TARGET_OBJECTS:vtr_obj>
         $<TARGET_OBJECTS:far_obj>
+        $<TARGET_OBJECTS:bfr_obj>
         $<TARGET_OBJECTS:osd_cpu_obj>
     )
 
@@ -179,6 +182,7 @@ if (NOT NO_LIB)
             $<TARGET_OBJECTS:sdc_obj>
             $<TARGET_OBJECTS:vtr_obj>
             $<TARGET_OBJECTS:far_obj>
+            $<TARGET_OBJECTS:bfr_obj>
             $<TARGET_OBJECTS:osd_cpu_obj>
         )
 
@@ -245,6 +249,7 @@ if (NOT NO_LIB)
         get_directory_property(SDC_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/sdc DEFINITION PUBLIC_HEADER_FILES)
         get_directory_property(HBR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/hbr DEFINITION PUBLIC_HEADER_FILES)
         get_directory_property(VTR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/vtr DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(BFR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/bfr DEFINITION PUBLIC_HEADER_FILES)
 
 
         foreach(file ${OSD_HEADER_FILES})
@@ -267,6 +272,10 @@ if (NOT NO_LIB)
             list(APPEND PUBLIC_HEADER_FILES "vtr/${file}")
         endforeach(file)
 
+        foreach(file ${BFR_HEADER_FILES})
+            list(APPEND PUBLIC_HEADER_FILES "bfr/${file}")
+        endforeach(file)
+
         list(APPEND PUBLIC_HEADER_FILES "version.h")
 
         #static framework
@@ -276,6 +285,7 @@ if (NOT NO_LIB)
             $<TARGET_OBJECTS:sdc_obj>
             $<TARGET_OBJECTS:vtr_obj>
             $<TARGET_OBJECTS:far_obj>
+            $<TARGET_OBJECTS:bfr_obj>
             $<TARGET_OBJECTS:osd_cpu_obj>
             $<TARGET_OBJECTS:osd_gpu_obj>
             ${OPENGL_LOADER_OBJS}
@@ -323,6 +333,7 @@ if (NOT NO_LIB)
                 $<TARGET_OBJECTS:sdc_obj>
                 $<TARGET_OBJECTS:vtr_obj>
                 $<TARGET_OBJECTS:far_obj>
+                $<TARGET_OBJECTS:bfr_obj>
                 $<TARGET_OBJECTS:osd_cpu_obj>
                 $<TARGET_OBJECTS:osd_gpu_obj>
                 ${OPENGL_LOADER_OBJS}
