@@ -69,7 +69,8 @@ def Process(srcfile, title):
     rest += ("\n"
              "----\n"
              "\n"
-             ".. code:: c\n")
+             ".. code:: c++\n"
+             "\n")
 
     code = ReadFile(srcfile)
 
