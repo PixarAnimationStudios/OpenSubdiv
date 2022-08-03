@@ -1,5 +1,5 @@
 #
-#   Copyright 2013 Pixar
+#   Copyright 2021 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -22,20 +22,33 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-add_subdirectory(common)
+include_directories("${OPENSUBDIV_INCLUDE_DIR}")
 
-if (NOT NO_REGRESSION)
+set(SOURCE_FILES
+    main.cpp
+    bfrSurfaceEvaluator.cpp
+    farPatchEvaluator.cpp
+)
 
-    add_subdirectory(bfr_evaluate)
+set(PLATFORM_LIBRARIES
+    "${OSD_LINK_TARGET}"
+)
 
-    add_subdirectory(hbr_regression)
+osd_add_executable(bfr_evaluate "regression"
+    ${SOURCE_FILES}
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
+    $<TARGET_OBJECTS:bfr_obj>
+    $<TARGET_OBJECTS:regression_common_obj>
+)
 
-    add_subdirectory(far_regression)
+install(TARGETS bfr_evaluate DESTINATION "${CMAKE_BINDIR_BASE}")
 
-    add_subdirectory(far_perf)
+add_test(bfr_evaluate_pos ${EXECUTABLE_OUTPUT_PATH}/bfr_evaluate
+                          -all -silent -l 3 -pass 2 -d1)
+add_test(bfr_evaluate_uv1 ${EXECUTABLE_OUTPUT_PATH}/bfr_evaluate
+                          -all -silent -l 3 -pass 0 -skippos -uv -uvint 1)
+add_test(bfr_evaluate_uv5 ${EXECUTABLE_OUTPUT_PATH}/bfr_evaluate
+                          -all -silent -l 3 -pass 0 -skippos -uv -uvint 5)
 
-    if(OPENGL_FOUND AND GLFW_FOUND)
-        add_subdirectory(osd_regression)
-    endif()
-
-endif()
