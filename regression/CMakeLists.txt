@@ -26,6 +26,8 @@ add_subdirectory(common)
 
 if (NOT NO_REGRESSION)
 
+    add_subdirectory(bfr_evaluate)
+
     add_subdirectory(hbr_regression)
 
     add_subdirectory(far_regression)

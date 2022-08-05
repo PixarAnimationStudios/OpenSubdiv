@@ -222,6 +222,8 @@ protected:
     //  Copy constructor exposed via the factory class:
     TopologyRefiner(TopologyRefiner const & source);
 
+public:
+    //  Levels and Refinements available internally (avoids need for more friends)
     Vtr::internal::Level & getLevel(int l) { return *_levels[l]; }
     Vtr::internal::Level const & getLevel(int l) const { return *_levels[l]; }
 
