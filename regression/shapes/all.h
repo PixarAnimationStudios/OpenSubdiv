@@ -106,6 +106,9 @@
 #include "catmark_torus_creases0.h"
 #include "catmark_torus_creases1.h"
 #include "catmark_val2_interior.h"
+#include "catmark_val2_back2back.h"
+#include "catmark_val2_foldover.h"
+#include "catmark_val2_nonman.h"
 #include "catmark_xord_interior.h"
 #include "catmark_xord_boundary.h"
 
@@ -144,5 +147,6 @@
 #include "loop_triangle_edgeonly.h"
 #include "loop_xord_boundary.h"
 #include "loop_xord_interior.h"
+#include "loop_val2_interior.h"
 
 #endif   // OPENSUBDIV_REGRESSION_SHAPES_ALL_H

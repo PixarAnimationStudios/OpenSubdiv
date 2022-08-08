@@ -35,6 +35,86 @@ The tutorial source code can be found in the `github.com repository
 <https://github.com/PixarAnimationStudios/OpenSubdiv/tree/release/tutorials>`__
 or in your local ``<repository root>/tutorials``.
 
+Bfr Tutorials
+=============
+
+1. Basic Evaluation and Tessellation
+************************************
+
+Tutorial 1.1
+^^^^^^^^^^^^
+ This tutorial illustrates the use of Bfr::SurfaceFactory and Bfr::Surface
+ to evaluate points on the limit of each face. The limit positions at all
+ corners of the face are evaluated and connected to the limit position in
+ the center of the face -- creating a simple triangular tessellation.
+ `[code] <bfr_tutorial_1_1.html>`__
+
+Tutorial 1.2
+^^^^^^^^^^^^
+ This tutorial shows the added use of Bfr::Tessellation to identify the
+ set of points and connectivity for a uniform tessellation. Both a Surface
+ and Tessellation is identified for each face, with the Tessellation
+ indicating which points are to be evaluated by the Surface.
+ `[code] <bfr_tutorial_1_2.html>`__
+
+.. image:: images/bfr_tutorial_1_2.png
+   :align: center
+   :height: 100px
+   :target: images/bfr_tutorial_1_2.png
+
+Tutorial 1.3
+^^^^^^^^^^^^
+ This tutorial extends the previous tutorial on uniform Tessellation by
+ adding face-varying Surfaces to compute corresponding UVs for each
+ evaluated position.  `[code] <bfr_tutorial_1_3.html>`__
+
+Tutorial 1.4
+^^^^^^^^^^^^
+ This tutorial extends the previous tutorial on uniform tessellation of
+ position and UV by illustrating how additional mesh data interleaved with
+ the position and UV data is easily handled.  `[code] <bfr_tutorial_1_4.html>`__
+
+2. More on Bfr::Tessellation
+****************************
+
+Tutorial 2.1
+^^^^^^^^^^^^
+ This tutorial extends the use of Tessellation to illustrate the use of
+ non-uniform tessellation rates per edge. A simple edge-length metric is
+ used to determine the tessellation rate for each edge of a face.
+ `[code] <bfr_tutorial_2_1.html>`__
+
+.. image:: images/bfr_tutorial_2_1.png
+   :align: center
+   :height: 100px
+   :target: images/bfr_tutorial_2_1.png
+
+Tutorial 2.2
+^^^^^^^^^^^^
+ This tutorial is a more complex extension of the use of Tessellation
+ that illustrates how the separation and association of tessellation data
+ with the boundary and interior of the face can be used. Limit points
+ evaluated on the vertices and edges of a face (the boundary of the
+ Tessellation) are computed once and shared with adjacent faces --
+ creating a topologically watertight tessellation of the mesh.
+ `[code] <bfr_tutorial_2_2.html>`__
+
+3. Creating a Custom Bfr::SurfaceFactory
+****************************************
+
+Tutorial 3.1
+^^^^^^^^^^^^
+ This tutorial shows a basic example of the more advanced topic of creating
+ a subclass of SurfaceFactory adapted to a connected mesh representation --
+ requiring an implementation of the SurfaceFactoryMeshAdapter interface for
+ that mesh.  A simplified version of the implementation of Far::TopologyRefiner
+ is provided.  (Note that the `[code] <bfr_tutorial_3_1.html>`__ imported
+ here is that of the main program, not the separate header and source files
+ of the custom subclass illustrated -- which current documentation scripts
+ cannot import.)
+
+----
+
 Far Tutorials
 =============
 
@@ -49,7 +129,7 @@ Tutorial 1.1
 
 .. image:: images/far_tutorial_1_1.0.png
    :align: center
-   :width: 100px
+   :height: 100px
    :target: images/far_tutorial_1_1.0.png
 
 Tutorial 1.2
@@ -70,7 +150,7 @@ Tutorial 2.1
 
 .. image:: images/far_tutorial_2_1.0.png
    :align: center
-   :width: 100px
+   :height: 100px
    :target: images/far_tutorial_2_1.0.png
 
 Tutorial 2.2
@@ -82,7 +162,7 @@ Tutorial 2.2
 
 .. image:: images/far_tutorial_2_2.0.png
    :align: center
-   :width: 100px
+   :height: 100px
    :target: images/far_tutorial_2_2.0.png
 
 Tutorial 2.3
@@ -133,7 +213,7 @@ Tutorial 5.1
 
 .. image:: images/far_tutorial_5_1.0.png
    :align: center
-   :width: 100px
+   :height: 100px
    :target: images/far_tutorial_5_1.0.png
 
 Tutorial 5.2
@@ -191,6 +271,6 @@ Tutorial 2
 
 .. image:: images/hbr_tutorial_2.0.png
    :align: center
-   :width: 100px
+   :height: 100px
    :target: images/hbr_tutorial_2.0.png
 

@@ -31,11 +31,14 @@ add_subdirectory(hbr)
 
 add_subdirectory(far)
 
+add_subdirectory(bfr)
+
 add_subdirectory(osd)
 
 add_custom_target(tutorials
     DEPENDS
         hbr_tutorials
         far_tutorials
+        bfr_tutorials
         osd_tutorials
 )

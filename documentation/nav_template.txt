@@ -67,6 +67,14 @@
                             <li><a href="far_overview.html#far-patchtable">Patch Table</a></li>
                             <li><a href="far_overview.html#far-stenciltable">Stencil Table</a></li>
                         </ul>
+                        <li><a href="bfr_overview.html">Bfr</a></li>
+                        <ul>
+                            <li><a href="bfr_overview.html#bfr-navlink-evaluation">Evaluation</a></li>
+                            <li><a href="bfr_overview.html#bfr-navlink-parameterization">Parameterization</a></li>
+                            <li><a href="bfr_overview.html#bfr-navlink-tessellation">Tessellation</a></li>
+                            <li><a href="bfr_overview.html#bfr-navlink-surfacefactory">More on Surface Factory</a></li>
+                            <li><a href="bfr_overview.html#bfr-navlink-customizing">Custom Surface Factory</a></li>
+                        </ul>
                         <li><a href="osd_overview.html">Osd</a></li>
                         <ul>
                             <li><a href="osd_shader_interface.html">Shader Interface</a></li>
