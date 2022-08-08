@@ -244,12 +244,12 @@ if (NOT NO_LIB)
 
     # Build frameworks  ----------------------------------
     if(APPLE)
-        get_directory_property(OSD_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/osd DEFINITION PUBLIC_HEADER_FILES)
-        get_directory_property(FAR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/far DEFINITION PUBLIC_HEADER_FILES)
-        get_directory_property(SDC_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/sdc DEFINITION PUBLIC_HEADER_FILES)
-        get_directory_property(HBR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/hbr DEFINITION PUBLIC_HEADER_FILES)
-        get_directory_property(VTR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/vtr DEFINITION PUBLIC_HEADER_FILES)
-        get_directory_property(BFR_HEADER_FILES DIRECTORY ${CMAKE_SOURCE_DIR}/opensubdiv/bfr DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(OSD_HEADER_FILES DIRECTORY ${PROJECT_SOURCE_DIR}/opensubdiv/osd DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(FAR_HEADER_FILES DIRECTORY ${PROJECT_SOURCE_DIR}/opensubdiv/far DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(SDC_HEADER_FILES DIRECTORY ${PROJECT_SOURCE_DIR}/opensubdiv/sdc DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(HBR_HEADER_FILES DIRECTORY ${PROJECT_SOURCE_DIR}/opensubdiv/hbr DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(VTR_HEADER_FILES DIRECTORY ${PROJECT_SOURCE_DIR}/opensubdiv/vtr DEFINITION PUBLIC_HEADER_FILES)
+        get_directory_property(BFR_HEADER_FILES DIRECTORY ${PROJECT_SOURCE_DIR}/opensubdiv/bfr DEFINITION PUBLIC_HEADER_FILES)
 
 
         foreach(file ${OSD_HEADER_FILES})
