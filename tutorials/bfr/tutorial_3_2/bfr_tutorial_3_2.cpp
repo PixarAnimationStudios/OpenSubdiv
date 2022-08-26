@@ -166,7 +166,7 @@ public:
     //  Public methods to retrieved cached Surfaces and their pre-computed
     //  patch points:
     //
-    bool FaceHasLimitSurface(int face) { return _entries[face].hasLimit > 0; }
+    bool FaceHasLimitSurface(int face) { return _entries[face].hasLimit; }
 
     Surface const * GetSurface(int face) { return _entries[face].surface.get();}
 
