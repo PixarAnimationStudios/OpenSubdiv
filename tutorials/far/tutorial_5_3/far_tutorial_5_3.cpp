@@ -228,7 +228,8 @@ namespace {
 
         int numVertices = refiner->GetNumVerticesTotal();
         posVector.resize(numVertices);
-        std::memcpy(&posVector[0], &shape->verts[0], numVertices * sizeof(Pos));
+        std::memcpy(&posVector[0].p[0], &shape->verts[0],
+                    numVertices * 3 * sizeof(float));
 
         delete shape;
         return refiner;

@@ -222,10 +222,10 @@ int main(int, char **) {
     Far::PtexIndices ptexIndices(*refiner);
 
     // Generate random samples on each ptex face
-    int nsamples = 200,
+    int nsamplesPerFace = 200,
         nfaces = ptexIndices.GetNumFaces();
 
-    std::vector<LimitFrame> samples(nsamples * nfaces);
+    std::vector<LimitFrame> samples(nsamplesPerFace * nfaces);
 
     srand( static_cast<int>(2147483647) );
 
@@ -233,7 +233,7 @@ int main(int, char **) {
 
     for (int face=0, count=0; face<nfaces; ++face) {
 
-        for (int sample=0; sample<nsamples; ++sample, ++count) {
+        for (int sample=0; sample<nsamplesPerFace; ++sample, ++count) {
 
             Real s = (Real)rand()/(Real)RAND_MAX,
                  t = (Real)rand()/(Real)RAND_MAX;
@@ -303,6 +303,9 @@ int main(int, char **) {
         printf("select deriv1Shape deriv2Shape;\n");
     }
 
+    delete refiner;
+    delete patchTable;
+    return EXIT_SUCCESS;
 }
 
 //------------------------------------------------------------------------------

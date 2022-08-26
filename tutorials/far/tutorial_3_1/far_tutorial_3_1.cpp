@@ -269,7 +269,7 @@ bool
 TopologyRefinerFactory<Converter>::assignComponentTopology(
     TopologyRefiner & refiner, Converter const & conv) {
 
-    typedef Far::IndexArray      IndexArray;
+    using Far::IndexArray;
 
     { // Face relations:
         int nfaces = conv.GetNumFaces();
@@ -488,6 +488,9 @@ int main(int, char **) {
             printf("\n");
         }
     }
+
+    delete refiner;
+    return EXIT_SUCCESS;
 }
 
 //------------------------------------------------------------------------------

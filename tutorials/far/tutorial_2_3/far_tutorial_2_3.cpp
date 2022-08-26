@@ -523,5 +523,8 @@ int main(int argc, char ** argv) {
             printf("\n");
         }
     }
+
+    delete refiner;
+    return EXIT_SUCCESS;
 }
 //------------------------------------------------------------------------------

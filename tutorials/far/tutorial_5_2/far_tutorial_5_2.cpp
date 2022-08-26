@@ -172,7 +172,8 @@ namespace {
         for (int x = 0; x < multiplier; ++x) {
             for (int y = 0; y < multiplier; ++y) {
                 for (int z = 0; z < multiplier; ++z) {
-                    appendDefaultPrimitive(Pos(x * 2.0f, y * 2.0f, z * 2.0f),
+                    appendDefaultPrimitive(
+                        Pos((float)x * 2.0f, (float)y * 2.0f, (float)z * 2.0f),
                         vertsPerFace, faceVerts, positionsPerVert);
                 }
             }
@@ -284,7 +285,8 @@ namespace {
 
         int numVertices = refiner->GetNumVerticesTotal();
         posVector.resize(numVertices);
-        std::memcpy(&posVector[0], &shape->verts[0], numVertices * sizeof(Pos));
+        std::memcpy(&posVector[0].p[0], &shape->verts[0],
+                    numVertices * 3 * sizeof(float));
 
         delete shape;
         return refiner;
