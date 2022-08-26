@@ -1,5 +1,5 @@
 #
-#   Copyright 2021 Pixar
+#   Copyright 2022 Pixar
 #
 #   Licensed under the Apache License, Version 2.0 (the "Apache License")
 #   with the following modification; you may not use this file except in
@@ -23,6 +23,6 @@
 #
 
 osd_add_bfr_tutorial(
-    bfr_tutorial_1_1
-    bfr_tutorial_1_1.cpp
+    bfr_tutorial_1_5
+    bfr_tutorial_1_5.cpp
 )

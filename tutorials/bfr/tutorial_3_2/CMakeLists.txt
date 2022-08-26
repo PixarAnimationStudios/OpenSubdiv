@@ -23,6 +23,6 @@
 #
 
 osd_add_bfr_tutorial(
-    bfr_tutorial_1_1
-    bfr_tutorial_1_1.cpp
+    bfr_tutorial_3_2
+    bfr_tutorial_3_2.cpp
 )

@@ -48,6 +48,7 @@
 #include <string>
 #include <cstring>
 #include <cstdio>
+#include <cassert>
 
 //  Local headers with support for this tutorial in "namespace tutorial"
 #include "./meshLoader.h"
@@ -110,17 +111,27 @@ private:
 };
 
 //
-//  Local helpers for the main tessellation function that follows:
+//  Simple local structs supporting shared points for vertices and edges:
 //
 namespace {
-    inline bool
-    DoEdgeVertexIndicesIncrease(int edgeInFace, ConstIndexArray & faceVerts) {
+    struct SharedVertex {
+        SharedVertex() : pointIndex(-1) { }
 
-        int v0InFace = edgeInFace;
-        int v1InFace = (v0InFace == (faceVerts.size()-1)) ? 0 : (v0InFace+1);
+        bool IsSet() const { return pointIndex >= 0; }
+        void Set(int index) { pointIndex = index; }
 
-        return (faceVerts[v0InFace] < faceVerts[v1InFace]);
-    }
+        int pointIndex;
+    };
+
+    struct SharedEdge {
+        SharedEdge() : pointIndex(-1), numPoints(0) { }
+
+        bool IsSet() const { return pointIndex >= 0; }
+        void Set(int index, int n) { pointIndex = index, numPoints = n; }
+
+        int pointIndex;
+        int numPoints;
+    };
 } // end namespace
 
 //
@@ -128,14 +139,22 @@ namespace {
 //  tessellate each face -- writing results in Obj format.
 //
 //  This tessellation function differs from earlier tutorials in that it
-//  computes and used shared points at vertices and edges of the mesh.
-//  These are computed and used as encountered by the faces -- rather than
-//  computing all shared vertex and edge points at once (which is more
-//  amenable to threading).
+//  computes and reuses shared points at vertices and edges of the mesh.
+//  There are several ways to compute these shared points, and which is
+//  best depends on context.
 //
-//  This method has the advantage of only constructing face Surfaces once
-//  per face, but requires additional book-keeping, and accesses memory
-//  less coherently (making threading more difficult).
+//  Dealing with shared data poses complications for threading in general,
+//  so computing all points for the vertices and edges up front may be
+//  preferred -- despite the fact that faces will be visited more than once
+//  (first when generating potentially shared vertex or edge points, and
+//  later when generating any interior points). The loops for vertices and
+//  edges can be threaded and the indexing of the shared points is simpler.
+//
+//  For the single-threaded case here, the faces are each processed in
+//  order and any shared points will be computed and used as needed. So
+//  each face is visited once (and so each Surface initialized once) but
+//  the bookkeeping to deal with indices of shared points becomes more
+//  complicated.
 //
 void
 tessellateToObj(Far::TopologyRefiner const & meshTopology,
@@ -173,7 +192,7 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
     //  memory is involved with these variables, it is preferred to declare
     //  them outside that loop to preserve and reuse that dynamic memory.
     //
-    Surface posSurface;
+    Surface faceSurface;
 
     std::vector<float> facePatchPoints;
 
@@ -193,13 +212,13 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
     tessOptions.PreserveQuads(options.tessQuadsFlag);
 
     //
-    //  Vectors to identify shared tessellation points at vertices and
-    //  edges and their indices around the boundary of a face:
+    //  Declare vectors to identify shared tessellation points at vertices
+    //  and edges and their indices around the boundary of a face:
     //
     Far::TopologyLevel const & baseLevel = meshTopology.GetLevel(0);
 
-    std::vector<int> sharedVertexPointIndex(baseLevel.GetNumVertices(), -1);
-    std::vector<int> sharedEdgePointIndex(baseLevel.GetNumEdges(), -1);
+    std::vector<SharedVertex> sharedVerts(baseLevel.GetNumVertices());
+    std::vector<SharedEdge>   sharedEdges(baseLevel.GetNumEdges());
 
     std::vector<int> tessBoundaryIndices;
 
@@ -216,7 +235,7 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
         //  Initialize the Surface for this face -- if valid (skipping
         //  holes and boundary faces in some rare cases):
         //
-        if (!meshSurfaceFactory.InitVertexSurface(faceIndex, &posSurface)) {
+        if (!meshSurfaceFactory.InitVertexSurface(faceIndex, &faceSurface)) {
             continue;
         }
 
@@ -224,12 +243,12 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
         //  Declare a simple uniform Tessellation for the Parameterization
         //  of this face and identify coordinates of the points to evaluate:
         //
-        Bfr::Tessellation tessPattern(posSurface.GetParameterization(),
+        Bfr::Tessellation tessPattern(faceSurface.GetParameterization(),
                                       options.tessUniformRate, tessOptions);
 
-        int numTessCoords = tessPattern.GetNumCoords();
+        int numOutCoords = tessPattern.GetNumCoords();
 
-        outCoords.resize(numTessCoords * 2);
+        outCoords.resize(numOutCoords * 2);
 
         tessPattern.GetCoords(outCoords.data());
 
@@ -240,29 +259,30 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
         //  Resize patch point and output arrays:
         int pointSize = 3;
 
-        facePatchPoints.resize(posSurface.GetNumPatchPoints() * pointSize);
+        facePatchPoints.resize(faceSurface.GetNumPatchPoints() * pointSize);
 
-        outPos.resize(numTessCoords * pointSize);
-        outDu.resize(numTessCoords * pointSize);
-        outDv.resize(numTessCoords * pointSize);
+        outPos.resize(numOutCoords * pointSize);
+        outDu.resize(numOutCoords * pointSize);
+        outDv.resize(numOutCoords * pointSize);
 
-        posSurface.PreparePatchPoints(meshVertexPositions.data(), pointSize,
-                                      facePatchPoints.data(), pointSize);
+        //  Populate the patch point array:
+        faceSurface.PreparePatchPoints(meshVertexPositions.data(), pointSize,
+                                       facePatchPoints.data(), pointSize);
 
         //
         //  Evaluate the sample points of the Tessellation:
         //
-        //  First we traverse the boundary of the face to determine whether
+        //  First traverse the boundary of the face to determine whether
         //  to evaluate or share points on vertices and edges of the face.
         //  Both pre-existing and new boundary points are identified by
-        //  index in an index buffer for later use.  The interior points
-        //  are trivially computed after the boundary is dealt with.
+        //  index in an array for later use.  The interior points are all
+        //  trivially computed after the boundary is dealt with.
         //
         //  Identify the boundary and interior coords and initialize the
-        //  buffer for the potentially shared boundary points:
+        //  index array for the potentially shared boundary points:
         //
         int numBoundaryCoords = tessPattern.GetNumBoundaryCoords();
-        int numInteriorCoords = numTessCoords - numBoundaryCoords;
+        int numInteriorCoords = numOutCoords - numBoundaryCoords;
 
         float const * tessBoundaryCoords = &outCoords[0];
         float const * tessInteriorCoords = &outCoords[numBoundaryCoords*2];
@@ -274,56 +294,91 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
 
         //
         //  Walk around the face, inspecting each vertex and outgoing edge,
-        //  and populating the boundary index buffer in the process:
+        //  and populating the index array of boundary points:
         //
         float * patchPointData = facePatchPoints.data();
 
         int boundaryIndex = 0;
         int numFacePointsEvaluated = 0;
         for (int i = 0; i < fVerts.size(); ++i) {
-            //  Evaluate and/or retrieve the shared point for the vertex:
-            {
-                int & vertPointIndex = sharedVertexPointIndex[fVerts[i]];
-                if (vertPointIndex < 0) {
-                    vertPointIndex = numMeshPointsEvaluated ++;
+            Index vertIndex = fVerts[i];
+            Index edgeIndex = fEdges[i];
+            int   edgeRate  = options.tessUniformRate;
 
-                    float const * uv = &tessBoundaryCoords[boundaryIndex*2];
+            //
+            //  Evaluate/assign or retrieve the shared point for the vertex:
+            //
+            SharedVertex & sharedVertex = sharedVerts[vertIndex];
+            if (!sharedVertex.IsSet()) {
+                //  Identify indices of the new shared point in both the
+                //  mesh and face and increment their inventory:
+                int indexInMesh = numMeshPointsEvaluated++;
+                int indexInFace = numFacePointsEvaluated++;
 
-                    int k = (numFacePointsEvaluated ++) * pointSize;
-                    posSurface.Evaluate(uv, patchPointData, pointSize,
-                                        &outPos[k], &outDu[k], &outDv[k]);
-                }
-                tessBoundaryIndices[boundaryIndex++] = vertPointIndex;
+                sharedVertex.Set(indexInMesh);
+
+                //  Evaluate new shared point and assign index to boundary:
+                float const * uv = &tessBoundaryCoords[boundaryIndex*2];
+
+                int pIndex = indexInFace * pointSize;
+                faceSurface.Evaluate(uv, patchPointData, pointSize,
+                        &outPos[pIndex], &outDu[pIndex], &outDv[pIndex]);
+
+                tessBoundaryIndices[boundaryIndex++] = indexInMesh;
+            } else {
+                //  Assign shared vertex point index to boundary:
+                tessBoundaryIndices[boundaryIndex++] = sharedVertex.pointIndex;
             }
 
-            //  Evaluate and/or retrieve all shared points for the edge:
-            int N = options.tessUniformRate - 1;
-            if (N) {
-                //  Be careful to respect ordering of the edge and its
-                //  points when both evaluating and identifying indices:
-                bool edgeIsNotReversed = DoEdgeVertexIndicesIncrease(i, fVerts);
+            //
+            //  Evaluate/assign or retrieve all shared points for the edge:
+            //
+            //  To keep this simple, assume the edge is manifold. So the
+            //  second face sharing the edge has that edge in the opposite
+            //  direction in its boundary relative to the first face --
+            //  making it necessary to reverse the order of shared points
+            //  for the boundary of the second face.
+            //
+            //  To support a non-manifold edge, all subsequent faces that
+            //  share the assigned shared edge must determine if their
+            //  orientation of that edge is reversed relative to the first
+            //  face for which the shared edge points were evaluated. So a
+            //  little more book-keeping and/or inspection is required.
+            //
+            if (edgeRate > 1) {
+                int pointsPerEdge = edgeRate - 1;
 
-                int iOffset = edgeIsNotReversed ? 0 : (N - 1);
-                int iDelta  = edgeIsNotReversed ? 1 : -1;
+                SharedEdge & sharedEdge = sharedEdges[edgeIndex];
+                if (!sharedEdge.IsSet()) {
+                    //  Identify indices of the new shared points in both the
+                    //  mesh and face and increment their inventory:
+                    int nextInMesh = numMeshPointsEvaluated;
+                    int nextInFace = numFacePointsEvaluated;
 
-                int & edgePointIndex = sharedEdgePointIndex[fEdges[i]];
-                if (edgePointIndex < 0) {
-                    edgePointIndex = numMeshPointsEvaluated;
+                    numFacePointsEvaluated += pointsPerEdge;
+                    numMeshPointsEvaluated += pointsPerEdge;
 
+                    sharedEdge.Set(nextInMesh, pointsPerEdge);
+
+                    //  Evaluate shared points and assign indices to boundary:
                     float const * uv = &tessBoundaryCoords[boundaryIndex*2];
 
-                    int iNext = numFacePointsEvaluated + iOffset;
-                    for (int j = 0; j < N; ++j, iNext += iDelta, uv += 2) {
-                        int k = iNext * pointSize;
-                        posSurface.Evaluate(uv, patchPointData, pointSize,
-                                            &outPos[k], &outDu[k], &outDv[k]);
+                    for (int j = 0; j < pointsPerEdge; ++j, uv += 2) {
+                        int pIndex = (nextInFace++) * pointSize;
+                        faceSurface.Evaluate(uv, patchPointData, pointSize,
+                            &outPos[pIndex], &outDu[pIndex], &outDv[pIndex]);
+
+                        tessBoundaryIndices[boundaryIndex++] = nextInMesh++;
                     }
-                    numFacePointsEvaluated += N;
-                    numMeshPointsEvaluated += N;
-                }
-                int iNext = edgePointIndex + iOffset;
-                for (int j = 0; j < N; ++j, iNext += iDelta) {
-                    tessBoundaryIndices[boundaryIndex++] = iNext;
+                } else {
+                    //  See note above on simplification for manifold edges
+                    assert(!baseLevel.IsEdgeNonManifold(edgeIndex));
+
+                    //  Assign shared points to boundary in reverse order:
+                    int nextInMesh = sharedEdge.pointIndex + pointsPerEdge - 1;
+                    for (int j = 0; j < pointsPerEdge; ++j) {
+                        tessBoundaryIndices[boundaryIndex++] = nextInMesh--;
+                    }
                 }
             }
         }
@@ -337,16 +392,16 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
 
             int iLast = numFacePointsEvaluated + numInteriorCoords;
             for (int i = numFacePointsEvaluated; i < iLast; ++i, uv += 2) {
-                int k = i * pointSize;
-                posSurface.Evaluate(uv, patchPointData, pointSize,
-                                    &outPos[k], &outDu[k], &outDv[k]);
+                int pIndex = i * pointSize;
+                faceSurface.Evaluate(uv, patchPointData, pointSize,
+                         &outPos[pIndex], &outDu[pIndex], &outDv[pIndex]);
             }
             numFacePointsEvaluated += numInteriorCoords;
             numMeshPointsEvaluated += numInteriorCoords;
         }
 
         //
-        //  Remember to trim/resize the buffers storing evaluation results
+        //  Remember to trim/resize the arrays storing evaluation results
         //  for new points to reflect the size actually populated.
         //
         outPos.resize(numFacePointsEvaluated * pointSize);
@@ -371,7 +426,7 @@ tessellateToObj(Far::TopologyRefiner const & meshTopology,
         //  the indices of shared boundary points assembled above and a
         //  suitable offset for the new interior points added:
         //
-        int tessInteriorOffset = numMeshPointsEvaluated - numTessCoords;
+        int tessInteriorOffset = numMeshPointsEvaluated - numOutCoords;
 
         int numFacets = tessPattern.GetNumFacets();
         outFacets.resize(numFacets * tessFacetSize);

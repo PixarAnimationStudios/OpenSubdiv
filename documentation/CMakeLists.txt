@@ -188,9 +188,11 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
         bfr/tutorial_1_2/bfr_tutorial_1_2.cpp
         bfr/tutorial_1_3/bfr_tutorial_1_3.cpp
         bfr/tutorial_1_4/bfr_tutorial_1_4.cpp
+        bfr/tutorial_1_5/bfr_tutorial_1_5.cpp
         bfr/tutorial_2_1/bfr_tutorial_2_1.cpp
         bfr/tutorial_2_2/bfr_tutorial_2_2.cpp
         bfr/tutorial_3_1/bfr_tutorial_3_1.cpp
+        bfr/tutorial_3_2/bfr_tutorial_3_2.cpp
         osd/tutorial_0/osd_tutorial_0.cpp
     )
 
