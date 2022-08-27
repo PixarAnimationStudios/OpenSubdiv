@@ -206,6 +206,7 @@ int main(int, char **) {
 
     delete vertexStencils;
     delete varyingStencils;
+    return EXIT_SUCCESS;
 }
 
 //------------------------------------------------------------------------------

@@ -155,6 +155,7 @@ int main(int, char **) {
 
     delete refiner;
     delete stencilTable;
+    return EXIT_SUCCESS;
 }
 
 //------------------------------------------------------------------------------

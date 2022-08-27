@@ -289,4 +289,7 @@ int main(int, char **) {
         }
         printf("\n");
     }
+
+    delete refiner;
+    return EXIT_SUCCESS;
 }
