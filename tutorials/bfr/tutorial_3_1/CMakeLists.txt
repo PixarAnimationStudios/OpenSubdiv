@@ -22,19 +22,8 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-set(SOURCE_FILES
+osd_add_bfr_tutorial(
+    bfr_tutorial_3_1
     bfr_tutorial_3_1.cpp
     customSurfaceFactory.cpp
 )
-
-osd_add_executable(bfr_tutorial_3_1 "tutorials/bfr"
-    ${SOURCE_FILES}
-    $<TARGET_OBJECTS:sdc_obj>
-    $<TARGET_OBJECTS:vtr_obj>
-    $<TARGET_OBJECTS:far_obj>
-    $<TARGET_OBJECTS:bfr_obj>
-    $<TARGET_OBJECTS:regression_common_obj>
-)
-
-install(TARGETS bfr_tutorial_3_1 DESTINATION "${CMAKE_BINDIR_BASE}/tutorials")
-

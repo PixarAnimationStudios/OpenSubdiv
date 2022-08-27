@@ -38,6 +38,17 @@ or in your local ``<repository root>/tutorials``.
 Bfr Tutorials
 =============
 
+All tutorials for the Bfr interface follow a similar pattern:  without any
+command line arguments, a default mesh (usually a cube) is used and the
+results printed to standard output in Obj format. Command line arguments
+can be used to specify an alternate mesh for input, as well as directing
+the output to a specified Obj file.
+
+Some tutorials may offer additional command line options to trigger internal
+options relevant to the topic, e.g. those illustrating tessellation may
+support a -quads option to use the option to tessellate quad-bases subdivision
+meshes with quads.
+
 1. Basic Evaluation and Tessellation
 ************************************
 
@@ -74,8 +85,14 @@ Tutorial 1.4
  position and UV by illustrating how additional mesh data interleaved with
  the position and UV data is easily handled.  `[code] <bfr_tutorial_1_4.html>`__
 
-2. More on Bfr::Tessellation
-****************************
+Tutorial 1.5
+^^^^^^^^^^^^
+ This tutorial is similar to the first tutorial showing uniform tessellation
+ of position but makes use of limit stencils for its evaluation of points of
+ the tessellation pattern. `[code] <bfr_tutorial_1_5.html>`__
+
+2. More on Tessellation
+***********************
 
 Tutorial 2.1
 ^^^^^^^^^^^^
@@ -99,8 +116,8 @@ Tutorial 2.2
  creating a topologically watertight tessellation of the mesh.
  `[code] <bfr_tutorial_2_2.html>`__
 
-3. Creating a Custom Bfr::SurfaceFactory
-****************************************
+3. Additional Topics
+********************
 
 Tutorial 3.1
 ^^^^^^^^^^^^
@@ -112,6 +129,15 @@ Tutorial 3.1
  here is that of the main program, not the separate header and source files
  of the custom subclass illustrated -- which current documentation scripts
  cannot import.)
+
+Tutorial 3.2
+^^^^^^^^^^^^
+ This tutorial shows how to initialize and retain Surfaces for later use.
+ The simple uniform tessellation tutorial is modified to first create and
+ populate a simple caching structure that initializes and stores the
+ Surfaces for all faces of the mesh. The loop for each face of the mesh
+ then retrieves its Surface and associated patch points from the cache.
+ `[code] <bfr_tutorial_3_2.html>`__
 
 ----
 
