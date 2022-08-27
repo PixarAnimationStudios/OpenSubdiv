@@ -89,8 +89,8 @@ EvalBasisLinear(REAL s, REAL t,
 
             wDst[0] =  1.0f;
             wDst[1] = -1.0f;
-            wDst[2] = -1.0f;
-            wDst[3] =  1.0f;
+            wDst[2] =  1.0f;
+            wDst[3] = -1.0f;
         }
     }
     return 4;
@@ -412,7 +412,11 @@ EvalBasisGregory(REAL s, REAL t,
     REAL df2 = sC + tC;  df2 = (df2 <= 0.0f) ? (REAL)1.0f : (1.0f / df2);
     REAL df3 = s  + tC;  df3 = (df3 <= 0.0f) ? (REAL)1.0f : (1.0f / df3);
 
-    REAL G[8] = { s*df0, t*df0,  t*df1, sC*df1,  sC*df2, tC*df2,  tC*df3, s*df3 };
+    //  Make sure the G[i] for pairs of interior points sum to 1 in all cases:
+    REAL G[8] = { s*df0, (1.0f -  s*df0),
+                  t*df1, (1.0f -  t*df1),
+                 sC*df2, (1.0f - sC*df2),
+                 tC*df3, (1.0f - tC*df3) };
 
     //  Combined weights for boundary and interior points:
     for (int i = 0; i < 12; ++i) {
