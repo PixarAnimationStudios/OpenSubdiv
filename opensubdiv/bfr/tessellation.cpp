@@ -253,7 +253,7 @@ namespace {
     //
     struct FacetStrip {
     public:
-        FacetStrip() { std::memset(this, 0, sizeof(*this)); }
+        FacetStrip() { std::memset((void*) this, 0, sizeof(*this)); }
 
         int connectUniformQuads(    FacetArray facets) const;
         int connectUniformTris(     FacetArray facets) const;
@@ -1988,7 +1988,7 @@ qsub::GetNonUniformFacets(int N, int const outerRes[], int innerRes,
 void
 Tessellation::initializeDefaults() {
 
-    std::memset(this, 0, sizeof(*this));
+    std::memset((void*) this, 0, sizeof(*this));
 
     //  Assign any non-zero defaults:
     _triangulate = true;

@@ -1618,6 +1618,7 @@ namespace {
         }
     }
 
+#ifdef FAR_DEBUG_LOOP_PATCH_BUILDER
     void
     _printSourcePatch(SourcePatch const & patch, bool printCornerInfo = true,
                                                  bool printRingPoints = true) {
@@ -1650,6 +1651,7 @@ namespace {
             }
         }
     }
+#endif
 }
 
 

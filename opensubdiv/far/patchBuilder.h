@@ -64,7 +64,7 @@ namespace Far {
 class SourcePatch {
 public:
     struct Corner {
-        Corner() { std::memset(this, 0, sizeof(Corner)); }
+        Corner() { std::memset((void*) this, 0, sizeof(Corner)); }
 
         LocalIndex _numFaces;   // valence of corner vertex
         LocalIndex _patchFace;  // location of patch within incident faces
@@ -81,7 +81,7 @@ public:
     };
 
 public:
-    SourcePatch() { std::memset(this, 0, sizeof(SourcePatch)); }
+    SourcePatch() { std::memset((void*) this, 0, sizeof(SourcePatch)); }
     ~SourcePatch() { }
 
     //  To be called after all Corners have been initialized (hope to
