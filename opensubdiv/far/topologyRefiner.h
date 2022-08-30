@@ -118,9 +118,12 @@ public:
     struct UniformOptions {
 
         UniformOptions(int level) :
-            refinementLevel(level),
+            refinementLevel(level & 0xf),
             orderVerticesFromFacesFirst(false),
             fullTopologyInLastLevel(false) { }
+
+        /// \brief Set uniform refinement level
+        void SetRefinementLevel(int level) { refinementLevel = level & 0xf; }
 
         unsigned int refinementLevel:4,             ///< Number of refinement iterations
                      orderVerticesFromFacesFirst:1, ///< Order child vertices from faces first
@@ -153,12 +156,18 @@ public:
     struct AdaptiveOptions {
 
         AdaptiveOptions(int level) :
-            isolationLevel(level),
-            secondaryLevel(15),
+            isolationLevel(level & 0xf),
+            secondaryLevel(0xf),
             useSingleCreasePatch(false),
             useInfSharpPatch(false),
             considerFVarChannels(false),
             orderVerticesFromFacesFirst(false) { }
+
+        /// \brief Set isolation level
+        void SetIsolationLevel(int level) { isolationLevel = level & 0xf; }
+
+        /// \brief Set secondary isolation level
+        void SetSecondaryLevel(int level) { secondaryLevel = level & 0xf; }
 
         unsigned int isolationLevel:4;              ///< Number of iterations applied to isolate
                                                     ///< extraordinary vertices and creases

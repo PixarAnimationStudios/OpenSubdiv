@@ -86,7 +86,8 @@ PatchTreeBuilder::PatchTreeBuilder(TopologyRefiner & faceRefiner,
     //
     TopologyRefiner::AdaptiveOptions adaptiveOptions(adaptiveLevelPrimary);
 
-    adaptiveOptions.secondaryLevel       = adaptiveLevelSecondary;
+    adaptiveOptions.SetSecondaryLevel(adaptiveLevelSecondary);
+
     adaptiveOptions.useInfSharpPatch     = true;
     adaptiveOptions.useSingleCreasePatch = false;
     adaptiveOptions.considerFVarChannels = false;

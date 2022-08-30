@@ -67,7 +67,7 @@ public:
              triangulateQuads(false),
              useSingleCreasePatch(false),
              useInfSharpPatch(false),
-             maxIsolationLevel(maxIsolation),
+             maxIsolationLevel(maxIsolation & 0xf),
              endCapType(ENDCAP_GREGORY_BASIS),
              shareEndCapPatchPoints(true),
              generateVaryingTables(true),
@@ -85,7 +85,10 @@ public:
         EndCapType GetEndCapType() const { return (EndCapType)endCapType; }
 
         /// \brief Set endcap basis type
-        void SetEndCapType(EndCapType e) { endCapType = e; }
+        void SetEndCapType(EndCapType e) { endCapType = e & 0x7; }
+
+        /// \brief Set maximum isolation level
+        void SetMaxIsolationLevel(unsigned int level) { maxIsolationLevel = level & 0xf; }
 
         /// \brief Set precision of vertex patches
         template <typename REAL> void SetPatchPrecision();

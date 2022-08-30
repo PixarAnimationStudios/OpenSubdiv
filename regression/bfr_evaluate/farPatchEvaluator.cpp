@@ -73,8 +73,8 @@ FarPatchEvaluator<REAL>::FarPatchEvaluator(
 
     Far::TopologyRefiner::AdaptiveOptions refineOptions =
             patchOptions.GetRefineAdaptiveOptions();
-    refineOptions.isolationLevel = primaryLevel;
-    refineOptions.secondaryLevel = secondaryLevel;
+    refineOptions.SetIsolationLevel(primaryLevel);
+    refineOptions.SetSecondaryLevel(secondaryLevel);
 
     //
     //  Create a TopologyRefiner (sharing the base) to adaptively refine
