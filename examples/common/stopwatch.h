@@ -43,14 +43,15 @@ public:
     void Start() {
         struct timeval l_rtime;
         gettimeofday(&l_rtime,0);
-        _elapsed = l_rtime.tv_sec + l_rtime.tv_usec/1000000.0;
+        _elapsed = (double)l_rtime.tv_sec + (double)l_rtime.tv_usec/1000000.0;
     }
 
     void Stop() {
         struct timeval l_rtime;
 
         gettimeofday(&l_rtime,0);
-        _elapsed = (l_rtime.tv_sec + l_rtime.tv_usec/1000000.0) - _elapsed;
+        _elapsed = ((double)l_rtime.tv_sec + (double)l_rtime.tv_usec/1000000.0)
+                 - _elapsed;
         _totalElapsed += _elapsed;
     }
 

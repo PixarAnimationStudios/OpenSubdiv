@@ -33,7 +33,7 @@
 static int
 parseIntArg(const char* argString, int dfltValue = 0) {
     char *argEndptr;
-    int argValue = strtol(argString, &argEndptr, 10);
+    int argValue = (int) strtol(argString, &argEndptr, 10);
     if (*argEndptr != 0) {
         printf("Warning: non-integer option parameter '%s' ignored\n", 
 			   argString);

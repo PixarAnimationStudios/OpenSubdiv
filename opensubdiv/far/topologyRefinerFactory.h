@@ -451,7 +451,7 @@ template <class MESH>
 inline void
 TopologyRefinerFactory<MESH>::setNumBaseFaceVertices(TopologyRefiner & newRefiner, Index f, int count) {
     newRefiner._levels[0]->resizeFaceVertices(f, count);
-    newRefiner._hasIrregFaces |= (count != newRefiner._regFaceSize);
+    newRefiner._hasIrregFaces = newRefiner._hasIrregFaces || (count != newRefiner._regFaceSize);
 }
 template <class MESH>
 inline void
@@ -553,7 +553,7 @@ template <class MESH>
 inline void
 TopologyRefinerFactory<MESH>::setBaseFaceHole(TopologyRefiner & newRefiner, Index f, bool b) {
     newRefiner._levels[0]->setFaceHole(f, b);
-    newRefiner._hasHoles |= b;
+    newRefiner._hasHoles = newRefiner._hasHoles || b;
 }
 
 template <class MESH>

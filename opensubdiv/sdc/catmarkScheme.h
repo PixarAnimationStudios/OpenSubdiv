@@ -277,9 +277,11 @@ Scheme<SCHEME_CATMARK>::assignSmoothLimitMask(VERTEX const& vertex, MASK& posMas
         posMask.FaceWeight(2) = fWeight;
         posMask.FaceWeight(3) = fWeight;
     } else {
-        Weight fWeight = 1.0f / (Weight)(valence * (valence + 5.0f));
+        Weight Valence = (Weight) valence;
+
+        Weight fWeight = 1.0f / (Valence * (Valence + 5.0f));
         Weight eWeight = 4.0f * fWeight;
-        Weight vWeight = (Weight)(1.0f - valence * (eWeight + fWeight));
+        Weight vWeight = 1.0f - Valence * (eWeight + fWeight);
 
         posMask.VertexWeight(0) = vWeight;
         for (int i = 0; i < valence; ++i) {

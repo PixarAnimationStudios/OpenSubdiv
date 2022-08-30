@@ -221,10 +221,10 @@ namespace {
         ConstIndexArray      vFaces   = level.getVertexFaces(vIndex);
         ConstLocalIndexArray vInFaces = level.getVertexFaceLocalIndices(vIndex);
 
-        vSpan._startFace = vFaces.size();
+        vSpan._startFace = (LocalIndex) vFaces.size();
         for (int i = 0; i < vFaces.size(); ++i) {
             if ((vFaces[i] == startFace) && (vInFaces[i] == startCorner)) {
-                vSpan._startFace = i;
+                vSpan._startFace = (LocalIndex) i;
                 break;
             }
         }
@@ -1137,8 +1137,8 @@ PatchBuilder::assembleIrregularSourcePatch(
         } else {
             ConstIndexArray vFaces = level.getVertexFaces(fVerts[corner]);
 
-            patchCorner._numFaces  = vFaces.size();
-            patchCorner._patchFace = vFaces.FindIndex(faceIndex);
+            patchCorner._numFaces  = (LocalIndex) vFaces.size();
+            patchCorner._patchFace = (LocalIndex) vFaces.FindIndex(faceIndex);
             patchCorner._boundary  = vTag._boundary;
         }
         patchCorner._sharp = cornerSpans[corner]._sharp;

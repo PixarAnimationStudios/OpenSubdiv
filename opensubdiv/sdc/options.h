@@ -89,33 +89,34 @@ public:
     VtxBoundaryInterpolation GetVtxBoundaryInterpolation() const { return (VtxBoundaryInterpolation) _vtxBoundInterp; }
 
     /// \brief Set vertex boundary interpolation rule
-    void SetVtxBoundaryInterpolation(VtxBoundaryInterpolation b) { _vtxBoundInterp = b; }
+    void SetVtxBoundaryInterpolation(VtxBoundaryInterpolation b) { _vtxBoundInterp = (EnumIntType) b; }
 
     /// \brief Get face-varying interpolation rule
     FVarLinearInterpolation GetFVarLinearInterpolation() const { return (FVarLinearInterpolation) _fvarLinInterp; }
 
     /// \brief Set face-varying interpolation rule
-    void SetFVarLinearInterpolation(FVarLinearInterpolation b) { _fvarLinInterp = b; }
+    void SetFVarLinearInterpolation(FVarLinearInterpolation b) { _fvarLinInterp = (EnumIntType) b; }
 
     /// \brief Get edge crease rule
     CreasingMethod GetCreasingMethod() const { return (CreasingMethod) _creasingMethod; }
 
     /// \brief Set edge crease rule
-    void SetCreasingMethod(CreasingMethod c) { _creasingMethod = c; }
+    void SetCreasingMethod(CreasingMethod c) { _creasingMethod = (EnumIntType) c; }
 
     /// \brief Get triangle subdivision weights rule (Catmark scheme only !)
     TriangleSubdivision GetTriangleSubdivision() const { return (TriangleSubdivision) _triangleSub; }
 
     /// \brief Set triangle subdivision weights rule (Catmark scheme only !)
-    void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = t; }
+    void SetTriangleSubdivision(TriangleSubdivision t) { _triangleSub = (EnumIntType) t; }
 
 private:
+    //  Use a small integer type to pack these rather than bitfields:
+    typedef unsigned char EnumIntType;
 
-    //  Bitfield members:
-    unsigned int _vtxBoundInterp  : 2,
-                 _fvarLinInterp   : 3,
-                 _creasingMethod  : 2,
-                 _triangleSub     : 2;
+    EnumIntType _vtxBoundInterp;
+    EnumIntType _fvarLinInterp;
+    EnumIntType _creasingMethod;
+    EnumIntType _triangleSub;
 };
 
 } // end namespace sdc
