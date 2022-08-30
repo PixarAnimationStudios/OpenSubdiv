@@ -32,7 +32,7 @@
 
 #include <cassert>
 #include <sstream>
-#include <string>
+#include <cstring>
 #include <vector>
 
 
@@ -128,8 +128,8 @@ GLStencilTableSSBO::~GLStencilTableSSBO() {
 GLComputeEvaluator::GLComputeEvaluator()
     : _workGroupSize(64),
       _patchArraysSSBO(0) {
-    memset (&_stencilKernel, 0, sizeof(_stencilKernel));
-    memset (&_patchKernel, 0, sizeof(_patchKernel));
+    std::memset((void*) &_stencilKernel, 0, sizeof(_stencilKernel));
+    std::memset((void*) &_patchKernel, 0, sizeof(_patchKernel));
 
     // Initialize internal OpenGL loader library if necessary
     OpenSubdiv::internal::GLLoader::libraryInitializeGL();

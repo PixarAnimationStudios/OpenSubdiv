@@ -969,9 +969,14 @@ PrimvarRefinerReal<REAL>::interpFVarFromVerts(int level, T const & src, U & dst,
             Vtr::internal::FVarLevel::ConstValueTagArray pValueTags = parentFVar.getVertexValueTags(vert);
             Vtr::internal::FVarLevel::ConstValueTagArray cValueTags = childFVar.getVertexValueTags(cVert);
 
-            for (int cSibling = 0; cSibling < cVertValues.size(); ++cSibling) {
-                int pSibling = refineFVar.getChildValueParentSource(cVert, cSibling);
-                assert(pSibling == cSibling);
+            for (int cSiblingIndex = 0; cSiblingIndex < cVertValues.size(); ++cSiblingIndex) {
+                int pSiblingIndex = refineFVar.getChildValueParentSource(cVert, cSiblingIndex);
+                assert(pSiblingIndex == cSiblingIndex);
+
+                typedef Vtr::internal::FVarLevel::Sibling SiblingIntType;
+
+                SiblingIntType cSibling = (SiblingIntType) cSiblingIndex;
+                SiblingIntType pSibling = (SiblingIntType) pSiblingIndex;
 
                 Vtr::Index pVertValue = pVertValues[pSibling];
                 Vtr::Index cVertValue = cVertValues[cSibling];
