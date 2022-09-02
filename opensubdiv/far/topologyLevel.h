@@ -130,11 +130,36 @@ public:
     /// \brief Return if the vertex is non-manifold
     bool IsVertexNonManifold(Index v) const { return _level->isVertexNonManifold(v); }
 
-    /// \brief Return if the edge is a boundary
+    /// \brief Return if the edge is a boundary (only one incident face)
     bool IsEdgeBoundary(Index e) const   { return _level->getEdgeTag(e)._boundary; }
 
-    /// \brief Return if the vertex is a boundary
+    /// \brief Return if the vertex is on a boundary (at least one incident boundary edge)
     bool IsVertexBoundary(Index v) const { return _level->getVertexTag(v)._boundary; }
+
+    /// \brief Return if the vertex is a corner (only one incident face)
+    bool IsVertexCorner(Index v) const { return (_level->getNumVertexFaces(v) == 1); }
+
+    /// \brief Return if the valence of the vertex is regular (must be manifold)
+    ///
+    /// Note that this test only determines if the valence of the vertex is regular
+    /// with respect to the assigned subdivision scheme -- not if the neighborhood
+    /// around the vertex is regular. The latter depends on a number of factors
+    /// including the incident faces of the vertex (they must all be regular) and
+    /// the presence of sharpness at the vertex itself or its incident edges.
+    ///
+    /// The regularity of the valence is a necessary but not a sufficient condition
+    /// in determining the regularity of the neighborhood. For example, while the
+    /// valence of an interior vertex may be regular, its neighborhood is not if the
+    /// vertex was made infinitely sharp.  Conversely, a corner vertex is considered
+    /// regular by its valence but its neighborhood is not if the vertex was not made
+    /// infinitely sharp.
+    ///
+    /// Whether the valence of the vertex is regular is also a property that remains
+    /// the same for the vertex in all subdivision levels. In contrast, the regularity
+    /// of the region around the vertex may change as the presence of irregular faces
+    /// or semi-sharp features is reduced by subdivision.
+    ///
+    bool IsVertexValenceRegular(Index v) const { return !_level->getVertexTag(v)._xordinary || IsVertexCorner(v); }
     //@}
 
     //@{
@@ -149,6 +174,18 @@ public:
 
     /// \brief Return the sharpness assigned a given vertex
     float GetVertexSharpness(Index v) const { return _level->getVertexSharpness(v); }
+
+    /// \brief Return if the edge is infinitely-sharp
+    bool IsEdgeInfSharp(Index e) const { return _level->getEdgeTag(e)._infSharp; }
+
+    /// \brief Return if the vertex is infinitely-sharp
+    bool IsVertexInfSharp(Index v) const { return _level->getVertexTag(v)._infSharp; }
+
+    /// \brief Return if the edge is semi-sharp
+    bool IsEdgeSemiSharp(Index e) const { return _level->getEdgeTag(e)._semiSharp; }
+
+    /// \brief Return if the vertex is semi-sharp
+    bool IsVertexSemiSharp(Index v) const { return _level->getVertexTag(v)._semiSharp; }
 
     /// \brief Return if a given face has been tagged as a hole
     bool  IsFaceHole(Index f) const         { return _level->isFaceHole(f); }
