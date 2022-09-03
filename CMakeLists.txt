@@ -318,6 +318,7 @@ option(NO_GLTESTS "Disable GL tests")
 option(NO_GLEW "Disable use of GLEW" ON)
 option(NO_GLFW "Disable components depending on GLFW" OFF)
 option(NO_GLFW_X11 "Disable GLFW components depending on X11" OFF)
+option(NO_MACOS_FRAMEWORK "Disable generation of framework on macOS" OFF)
 
 option(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES "Enable true derivative evaluation for Gregory basis patches" OFF)
 
