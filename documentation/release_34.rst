@@ -72,7 +72,7 @@ Major Improvements to Introductory Documentation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 A significant rewrite of the `Subdivision Surfaces <subdivision_surfaces.html>`__
 page is included in this release.  The new documentation emphasizes the *piecewise
-parameteric surface* nature of subdivision surfaces and the implications of
+parametric surface* nature of subdivision surfaces and the implications of
 supporting *arbitary topology*.
 
 +---------------------------------------+---------------------------------------+

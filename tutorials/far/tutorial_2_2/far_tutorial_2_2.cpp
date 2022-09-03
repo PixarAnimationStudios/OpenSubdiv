@@ -333,7 +333,7 @@ int main(int, char **) {
         // Print colors
         int firstOfLastColors = refiner->GetNumFVarValuesTotal(channelColor) - ncolors;
 
-        for (int fvvert = 0; fvvert < nuvs; ++fvvert) {
+        for (int fvvert = 0; fvvert < ncolors; ++fvvert) {
             FVarVertexColor const & c = fvVertsColor[firstOfLastColors + fvvert];
             printf("c %f %f %f %f\n", c.r, c.g, c.b, c.a);
         }
@@ -355,5 +355,8 @@ int main(int, char **) {
             printf("\n");
         }
     }
+
+    delete refiner;
+    return EXIT_SUCCESS;
 }
 //------------------------------------------------------------------------------

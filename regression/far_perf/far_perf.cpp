@@ -134,10 +134,7 @@ RunPerfTest(Shape const & shape, TestOptions const & options) {
     FarStencilTable const * vertexStencils = NULL;
     if (options.createStencils) {
         s.Start();
-
-        typename FarStencilTableFactory::Options options;
-        vertexStencils = FarStencilTableFactory::Create(*refiner, options);
-
+        vertexStencils = FarStencilTableFactory::Create(*refiner);
         s.Stop();
         result.timeStencilFactory = s.GetElapsed();
     } else {
@@ -273,7 +270,7 @@ PrintResultCSV(TestResult const & result, PrintOptions const & options) {
 static int
 parseIntArg(char const * argString, int dfltValue = 0) {
     char *argEndptr;
-    int argValue = strtol(argString, &argEndptr, 10);
+    int argValue = (int) strtol(argString, &argEndptr, 10);
     if (*argEndptr != 0) {
         fprintf(stderr,
                 "Warning: non-integer option parameter '%s' ignored\n",

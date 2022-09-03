@@ -77,6 +77,12 @@ public:
     PatchDescriptor( PatchDescriptor const & d ) :
         _type(d.GetType()) { }
 
+    /// \brief Assignment operator
+    PatchDescriptor & operator=( PatchDescriptor const & d ) {
+        _type = d.GetType();
+        return *this;
+    }
+
     /// \brief Returns the type of the patch
     Type GetType() const {
         return (Type)_type;

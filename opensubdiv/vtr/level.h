@@ -100,7 +100,7 @@ public:
         //  When cleared, the VTag ALMOST represents a smooth, regular, interior
         //  vertex -- the Type enum requires a bit be explicitly set for Smooth,
         //  so that must be done explicitly if desired on initialization.
-        void clear() { std::memset(this, 0, sizeof(VTag)); }
+        void clear() { std::memset((void*) this, 0, sizeof(VTag)); }
 
         typedef unsigned short VTagSize;
 
@@ -141,7 +141,7 @@ public:
         ETag() { }
 
         //  When cleared, the ETag represents a smooth, manifold, interior edge
-        void clear() { std::memset(this, 0, sizeof(ETag)); }
+        void clear() { std::memset((void*) this, 0, sizeof(ETag)); }
 
         typedef unsigned char ETagSize;
 
@@ -165,7 +165,7 @@ public:
     struct FTag {
         FTag() { }
 
-        void clear() { std::memset(this, 0, sizeof(FTag)); }
+        void clear() { std::memset((void*) this, 0, sizeof(FTag)); }
 
         typedef unsigned char FTagSize;
 
@@ -191,9 +191,9 @@ public:
     //  use of the const method here to direct inspection of the member.
     //
     struct VSpan {
-        VSpan() { std::memset(this, 0, sizeof(VSpan)); }
+        VSpan() { std::memset((void*) this, 0, sizeof(VSpan)); }
 
-        void clear()            { std::memset(this, 0, sizeof(VSpan)); }
+        void clear()            { std::memset((void*) this, 0, sizeof(VSpan)); }
         bool isAssigned() const { return _numFaces > 0; }
 
         LocalIndex _numFaces;
@@ -801,7 +801,7 @@ Level::resizeFaces(int faceCount) {
     _faceVertCountsAndOffsets.resize(2 * faceCount);
 
     _faceTags.resize(faceCount);
-    std::memset(&_faceTags[0], 0, _faceCount * sizeof(FTag));
+    std::memset((void*) &_faceTags[0], 0, _faceCount * sizeof(FTag));
 }
 inline void
 Level::resizeFaceVertices(int totalFaceVertCount) {
@@ -822,7 +822,7 @@ Level::resizeEdges(int edgeCount) {
     _edgeTags.resize(edgeCount);
 
     if (edgeCount>0) {
-        std::memset(&_edgeTags[0], 0, _edgeCount * sizeof(ETag));
+        std::memset((void*) &_edgeTags[0], 0, _edgeCount * sizeof(ETag));
     }
 }
 inline void
@@ -846,7 +846,7 @@ Level::resizeVertices(int vertCount) {
 
     _vertSharpness.resize(vertCount);
     _vertTags.resize(vertCount);
-    std::memset(&_vertTags[0], 0, _vertCount * sizeof(VTag));
+    std::memset((void*) &_vertTags[0], 0, _vertCount * sizeof(VTag));
 }
 inline void
 Level::resizeVertexFaces(int totalVertFaceCount) {

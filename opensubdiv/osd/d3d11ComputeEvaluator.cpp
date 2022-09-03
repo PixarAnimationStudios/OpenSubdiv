@@ -236,11 +236,11 @@ D3D11ComputeEvaluator::Compile(BufferDescriptor const &srcDesc,
     ss << _workGroupSize;  std::string workgroupSizeValue(ss.str()); ss.str("");
 
     D3D_SHADER_MACRO defines[] =
-        { "LENGTH", lengthValue.c_str(),
-          "SRC_STRIDE", srcStrideValue.c_str(),
-          "DST_STRIDE", dstStrideValue.c_str(),
-          "WORK_GROUP_SIZE", workgroupSizeValue.c_str(),
-          0, 0 };
+        { { "LENGTH", lengthValue.c_str() },
+          { "SRC_STRIDE", srcStrideValue.c_str() },
+          { "DST_STRIDE", dstStrideValue.c_str() },
+          { "WORK_GROUP_SIZE", workgroupSizeValue.c_str() },
+          { 0, 0 } };
 
     ID3DBlob * computeShaderBuffer = NULL;
     ID3DBlob * errorBuffer = NULL;

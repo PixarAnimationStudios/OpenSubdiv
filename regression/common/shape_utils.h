@@ -122,7 +122,7 @@ struct Shape {
     char FindMaterial(char const * name) {
         for (int i=0; i<(int)mtls.size(); ++i) {
             if (mtls[i]->name==name) {
-                return i;
+                return (char) i;
             }
         }
         return -1;

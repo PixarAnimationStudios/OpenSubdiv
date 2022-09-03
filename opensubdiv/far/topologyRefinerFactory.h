@@ -322,6 +322,19 @@ protected:
     //  Not to be specialized:
     //
     static bool populateBaseLevel(TopologyRefiner& refiner, MESH const& mesh, Options options);
+
+private:
+    //
+    //  An oversight in the interfaces of the error reporting function between the factory
+    //  class and the Vtr::Level requires this adapter function to avoid warnings.
+    //
+    //  The static class method requires a reference as the MESH argument, but the interface
+    //  for Vtr::Level requires a pointer (void*). So this adapter with a MESH* argument is
+    //  used to effectively cast the function pointer required by Vtr::Level error reporting:
+    //
+    static void reportInvalidTopologyAdapter(TopologyError errCode, char const * msg, MESH const * mesh) {
+        reportInvalidTopology(errCode, msg, *mesh);
+    }
 };
 
 
@@ -380,7 +393,7 @@ TopologyRefinerFactory<MESH>::populateBaseLevel(TopologyRefiner& refiner, MESH c
     //  Otherwise edges and remaining topology will be completed from the face-vertices:
     //
     bool             validate = options.validateFullTopology;
-    TopologyCallback callback = reinterpret_cast<TopologyCallback>(reportInvalidTopology);
+    TopologyCallback callback = reinterpret_cast<TopologyCallback>(reportInvalidTopologyAdapter);
     void const *     userData = &mesh;
         
     if (! assignComponentTopology(refiner, mesh)) return false;
@@ -438,7 +451,7 @@ template <class MESH>
 inline void
 TopologyRefinerFactory<MESH>::setNumBaseFaceVertices(TopologyRefiner & newRefiner, Index f, int count) {
     newRefiner._levels[0]->resizeFaceVertices(f, count);
-    newRefiner._hasIrregFaces |= (count != newRefiner._regFaceSize);
+    newRefiner._hasIrregFaces = newRefiner._hasIrregFaces || (count != newRefiner._regFaceSize);
 }
 template <class MESH>
 inline void
@@ -540,7 +553,7 @@ template <class MESH>
 inline void
 TopologyRefinerFactory<MESH>::setBaseFaceHole(TopologyRefiner & newRefiner, Index f, bool b) {
     newRefiner._levels[0]->setFaceHole(f, b);
-    newRefiner._hasHoles |= b;
+    newRefiner._hasHoles = newRefiner._hasHoles || b;
 }
 
 template <class MESH>

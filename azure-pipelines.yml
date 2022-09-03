@@ -5,13 +5,13 @@ trigger:
 jobs:
 - job: Linux
   pool:
-    vmImage: 'ubuntu-18.04'
+    vmImage: 'ubuntu-20.04'
   steps:
   - script: |
       sudo apt-get -qq update;
       sudo pip install --upgrade pip
       sudo apt-get install python-setuptools;
-      sudo apt-get install libglew-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev;
+      sudo apt-get install libglew-dev libxrandr-dev libxxf86vm-dev libxcursor-dev libxinerama-dev libxi-dev
       sudo python build_scripts/build_osd.py --tests --tbb --omp --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
     displayName: 'Building OpenSubdiv'
   - script: |
@@ -30,10 +30,10 @@ jobs:
 
 - job: macOS
   pool:
-    vmImage: 'macOS-10.14'
+    vmImage: 'macOS-11'
   steps:
   - script: |
-      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_10.1.app/Contents/Developer"
+      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_13.2.app/Contents/Developer"
       python build_scripts/build_osd.py --tests --tbb --generator Xcode --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
     displayName: 'Building OpenSubdiv'
   - script: |

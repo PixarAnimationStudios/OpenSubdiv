@@ -22,9 +22,9 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-project(OpenSubdiv)
-
 cmake_minimum_required(VERSION 2.8.6)
+
+project(OpenSubdiv)
 
 # Turn on folder support
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

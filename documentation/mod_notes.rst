@@ -196,11 +196,10 @@ An excellent short tutorial from the Guerrilla CG Project that illustrates many
 of the common pitfalls of subdivision modeling, and the strategies to overcome
 them:
 
-.. raw:: html
-
-    <center>
-    <iframe width="640" height="360" src="https://www.youtube.com/embed/k_S1INdEmdI" frameborder="0" allowfullscreen></iframe>
-    </center>
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/subdiv_topology_guerrillacg.png
+   :align:  center
+   :width:  75%
+   :target: https://www.youtube.com/embed/k_S1INdEmdI
 
 ----
 
@@ -208,9 +207,8 @@ Ivo Kos, Modelling Technical Director at Pixar Animation Studios, shows some of
 the modeling techniques he uses when modeling props and architecture sets for
 feature films.
 
-.. raw:: html
-
-    <center>
-    <iframe src="https://player.vimeo.com/video/70600180" width="640" height="360" frameborder="0" allowfullscreen></iframe>
-    </center>
+.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/subdiv_modeling_pixar2013.png
+   :align:  center
+   :width:  75%
+   :target: https://player.vimeo.com/video/70600180
 

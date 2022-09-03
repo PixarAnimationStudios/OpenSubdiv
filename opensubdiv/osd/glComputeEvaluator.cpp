@@ -32,7 +32,7 @@
 
 #include <cassert>
 #include <sstream>
-#include <string>
+#include <cstring>
 #include <vector>
 
 
@@ -128,8 +128,8 @@ GLStencilTableSSBO::~GLStencilTableSSBO() {
 GLComputeEvaluator::GLComputeEvaluator()
     : _workGroupSize(64),
       _patchArraysSSBO(0) {
-    memset (&_stencilKernel, 0, sizeof(_stencilKernel));
-    memset (&_patchKernel, 0, sizeof(_patchKernel));
+    std::memset((void*) &_stencilKernel, 0, sizeof(_stencilKernel));
+    std::memset((void*) &_patchKernel, 0, sizeof(_patchKernel));
 
     // Initialize internal OpenGL loader library if necessary
     OpenSubdiv::internal::GLLoader::libraryInitializeGL();
@@ -325,6 +325,8 @@ GLComputeEvaluator::EvalStencils(
     if (dvvWeightsBuffer)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 15, dvvWeightsBuffer);
 
+    GLint activeProgram;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &activeProgram);
     glUseProgram(_stencilKernel.program);
 
     glUniform1i(_stencilKernel.uniformStart,     start);
@@ -354,7 +356,7 @@ GLComputeEvaluator::EvalStencils(
 
     glDispatchCompute((count + _workGroupSize - 1) / _workGroupSize, 1, 1);
 
-    glUseProgram(0);
+    glUseProgram(activeProgram);
 
     glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
     for (int i = 0; i < 16; ++i) {
@@ -418,6 +420,8 @@ GLComputeEvaluator::EvalPatches(
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, patchIndexBuffer);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, patchParamsBuffer);
 
+    GLint activeProgram;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &activeProgram);
     glUseProgram(_patchKernel.program);
 
     glUniform1i(_patchKernel.uniformSrcOffset, srcDesc.offset);
@@ -456,7 +460,7 @@ GLComputeEvaluator::EvalPatches(
 
     glDispatchCompute((numPatchCoords + _workGroupSize - 1) / _workGroupSize, 1, 1);
 
-    glUseProgram(0);
+    glUseProgram(activeProgram);
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);

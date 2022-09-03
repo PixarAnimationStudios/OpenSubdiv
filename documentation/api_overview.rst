@@ -61,6 +61,10 @@ Layers list:
 |                                         | *Far* also provides a fully-featured single-threaded                           |
 |                                         | implementation of subdivision interpolation algorithms.                        |
 +-----------------------------------------+--------------------------------------------------------------------------------+
+| | **Bfr**                               | A suite of classes to provide parameterization, evaluation                     |
+| | Bace Face Representation              | and tessellation on the CPU.  *Bfr* is more flexible and more                  |
+| | `Bfr Overview <bfr_overview.html>`__  | scalable than *Osd* but potentially less efficient.                            |
++-----------------------------------------+--------------------------------------------------------------------------------+
 | | **Osd**                               |                                                                                |
 | | OpenSubdiv cross platform             | A suite of classes to provide parallel subdivision                             |
 | | `Osd Overview <osd_overview.html>`__  | kernels and drawing utilities on a variety of platforms                        |
