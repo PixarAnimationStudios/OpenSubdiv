@@ -71,6 +71,10 @@ if(CUDA_FOUND)
     )
 endif()
 
+if(DEFINED OPENGL_LOADER_INCLUDE_DIRS)
+    include_directories(${OPENGL_LOADER_INCLUDE_DIRS})
+endif()
+
 if(OPENGL_FOUND AND GLFW_FOUND)
 
     list(APPEND EXAMPLES_COMMON_GL_SOURCE_FILES
@@ -86,8 +90,6 @@ if(OPENGL_FOUND AND GLFW_FOUND)
         glUtils.h
         glShaderCache.h
     )
-
-    include_directories(${OPENGL_LOADER_INCLUDE_DIRS})
 
     if (GLFW_FOUND)
         include_directories("${GLFW_INCLUDE_DIR}")
