@@ -16,7 +16,7 @@ jobs:
     displayName: 'Building OpenSubdiv'
   - script: |
       cd $HOME/OSDgen/build/s
-      sudo ctest -T test -R far
+      sudo ctest -T test -R "bfr|far"
     displayName: 'Testing OpenSubdiv'
   - task: PublishTestResults@2
     inputs:
@@ -38,7 +38,7 @@ jobs:
     displayName: 'Building OpenSubdiv'
   - script: |
       cd $HOME/OSDgen/build/s
-      ctest -T test -R far
+      ctest -T test -R "bfr|far"
     displayName: 'Testing OpenSubdiv'
   - task: PublishTestResults@2
     inputs:
@@ -60,7 +60,7 @@ jobs:
     displayName: 'Building OpenSubdiv'
   - script: |
       cd %HOME%/OSDgen/build/s
-      ctest -T test -R far
+      ctest -T test -R "bfr|far"
     displayName: 'Testing OpenSubdiv'
   - task: PublishTestResults@2
     inputs:
