@@ -62,7 +62,7 @@ build and installation instructions.
 
 Required
 ________
-    - `CMake <http://www.cmake.org/>`__ version 2.8
+    - `CMake <http://www.cmake.org/>`__ version 3.12
 
 Optional
 ________

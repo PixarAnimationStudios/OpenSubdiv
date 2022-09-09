@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-cmake_minimum_required(VERSION 2.8.6)
+cmake_minimum_required(VERSION 3.12)
 
 project(OpenSubdiv)
 
