@@ -58,7 +58,6 @@ initShapes(std::vector<ShapeDesc> & shapes) {
     shapes.push_back(ShapeDesc("catmark_hole_test3",       catmark_hole_test3,       kCatmark));
     shapes.push_back(ShapeDesc("catmark_hole_test4",       catmark_hole_test4,       kCatmark));
     shapes.push_back(ShapeDesc("catmark_chaikin0",         catmark_chaikin0,         kCatmark));
-    shapes.push_back(ShapeDesc("catmark_chaikin1",         catmark_chaikin1,         kCatmark));
     shapes.push_back(ShapeDesc("catmark_chaikin2",         catmark_chaikin2,         kCatmark));
     shapes.push_back(ShapeDesc("catmark_smoothtris0",      catmark_smoothtris0,      kCatmark));
     shapes.push_back(ShapeDesc("catmark_smoothtris1",      catmark_smoothtris1,      kCatmark));
