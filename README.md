@@ -29,7 +29,7 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 
 | Lib                           | Min Version | Note       |
 | ----------------------------- | ----------- | ---------- |
-| [CMake](http://www.cmake.org) | 2.8.6       | *Required* |
+| [CMake](http://www.cmake.org) | 3.12        | *Required* |
 
  * Osd optional requirements:
 
