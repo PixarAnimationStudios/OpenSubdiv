@@ -22,16 +22,17 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
+from __future__ import print_function
 
 import os
 import sys
 import string
 import re
-import HTMLParser
+from html.parser import HTMLParser
 
-class HtmlToTextParser(HTMLParser.HTMLParser):
+class HtmlToTextParser(HTMLParser):
     def __init__(self):
-        HTMLParser.HTMLParser.__init__(self)
+        HTMLParser.__init__(self)
         self.m_text = []
         self.m_inTitle = False
         self.m_inScript = False
@@ -49,7 +50,7 @@ class HtmlToTextParser(HTMLParser.HTMLParser):
             self.m_text.append(text + ' ')
         if self.m_inTitle:
             self.m_title = str(text)
-            
+
     def handle_endtag(self, tag):
         if tag.lower() == "title": self.m_inTitle = False
         if tag.lower() == "script": self.m_inScript = False
@@ -58,7 +59,7 @@ class HtmlToTextParser(HTMLParser.HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag.lower() == "title": self.m_inTitle = True
         if tag.lower() == "script": self.m_inScript = True
-        if tag.lower() == "style": self.m_inStyle = True        
+        if tag.lower() == "style": self.m_inStyle = True
         if tag.lower() == "div":
             for attr in attrs:
                 if (len(attr)>=2 and \
@@ -71,7 +72,7 @@ class HtmlToTextParser(HTMLParser.HTMLParser):
 
     def GetText(self):
         return ''.join(self.m_text).strip()
-        
+
     def GetTitle(self):
         return self.m_title
 
@@ -89,27 +90,27 @@ def ReadNavigationTemplate( filePath ):
     try:
         navFile = open( filePath, "r")
     except IOError:
-        print "Could not open file \'"+filePath+"\'"
-    
+        print("Could not open file \'"+filePath+"\'")
+
     with navFile:
-        print "Navigation template: \'"+filePath+"\'"
+        print("Navigation template: \'"+filePath+"\'")
         navHtml = navFile.read()
         navHtml = StripHTMLComments(navHtml)
         navFile.close()
         navHtml = StripHTMLComments(navHtml)
-        
+
     return navHtml
-    
+
 #-------------------------------------------------------------------------------
 def WriteIndexFile( outputFile, content ):
     outputPath = os.path.dirname( outputFile )
-    
+
     try:
-        os.makedirs( outputPath );
+        os.makedirs( outputPath )
     except:
         pass
 
-    print "Creating Search-Index File : \""+outputFile+"\""
+    print("Creating Search-Index File : \""+outputFile+"\"")
 
     f = open(outputFile, "w")
     f.write(content)
@@ -117,8 +118,8 @@ def WriteIndexFile( outputFile, content ):
 
 #-------------------------------------------------------------------------------
 def Usage():
-    print str(sys.argv[0])+" <input directory> <output directory> <html template>"
-    exit(1);
+    print(str(sys.argv[0])+" <input directory> <output directory> <html template>")
+    exit(1)
 
 
 #-------------------------------------------------------------------------------
@@ -129,10 +130,10 @@ if (len(sys.argv)<3):
 rootDir = str(sys.argv[1])
 
 navTemplate = str(sys.argv[2])
-    
+
 navHtml = ReadNavigationTemplate( navTemplate )
 
-print "Scanning : \'"+rootDir+"\'"
+print("Scanning : \'"+rootDir+"\'")
 
 searchIndex = 'var tipuesearch = { "pages": [ '
 
@@ -157,7 +158,7 @@ for root, dirs, files in os.walk(rootDir):
                 parser.feed(html)
                 title = parser.GetTitle()
                 text = parser.GetText()
-            except HTMLParser.HTMLParseError:
+            except HTMLParser.error:
                 continue
 
             msg = "    \""+inputFile+"\" - "
@@ -172,22 +173,22 @@ for root, dirs, files in os.walk(rootDir):
 
             # if necessary, insert navigation html
             if (not parser.HasNavigationSection()):
-                loc = string.find(html,"<body>")
+                loc = html.find("<body>")
                 html = html[:loc+6] + navHtml + html[loc+6:]
 
                 msg += "added navigation"
 
             # replace the article title placeholder with the real title
             if title:
-                html = string.replace(html,"OSD_ARTICLE_TITLE", title)
+                html = html.replace("OSD_ARTICLE_TITLE", title)
             else:
-                html = string.replace(html,"OSD_ARTICLE_TITLE", "")
+                html = html.replace("OSD_ARTICLE_TITLE", "")
 
             f.seek(0)
             f.write(html)
             f.close()
 
-            print msg
+            print(msg)
 
 searchIndex = searchIndex + "]};"
 
