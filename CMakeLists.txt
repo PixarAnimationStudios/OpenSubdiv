@@ -712,7 +712,7 @@ macro(osd_add_doxy_headers headers)
             list(APPEND headerfiles ${targetname} )
         endforeach()
 
-        add_dependencies( public_headers DEPENDS ${headerfiles} )
+        add_dependencies( public_headers ${headerfiles} )
     endif()
 endmacro()
 
