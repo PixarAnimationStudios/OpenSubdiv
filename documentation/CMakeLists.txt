@@ -54,10 +54,10 @@ else()
 
 endif()
 
-find_package(PythonInterp 2.6)
+find_package(Python COMPONENTS Interpreter)
 
 # ReST - HTML documentation
-if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
+if (DOCUTILS_FOUND AND Python_Interpreter_FOUND)
 
     set(HTML_FILES
          search.html
@@ -209,7 +209,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
             OUTPUT
                 "${rstfile}"
             COMMAND
-                "${PYTHON_EXECUTABLE}"
+                "${Python_EXECUTABLE}"
             ARGS
                 "${CMAKE_CURRENT_SOURCE_DIR}/processTutorials.py"
                 "${infile}"
@@ -302,7 +302,7 @@ if (DOCUTILS_FOUND AND PYTHONINTERP_FOUND)
     # build search index and insert navigation tab
     add_custom_target(search_index
         COMMAND
-            "${PYTHON_EXECUTABLE}"
+            "${Python_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/processHtml.py"
             "${CMAKE_CURRENT_BINARY_DIR}"
             "${CMAKE_CURRENT_SOURCE_DIR}/nav_template.txt"
