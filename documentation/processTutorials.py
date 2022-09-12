@@ -22,6 +22,7 @@
 #   KIND, either express or implied. See the Apache License for the specific
 #   language governing permissions and limitations under the Apache License.
 #
+from __future__ import print_function
 
 import os
 import sys
@@ -33,7 +34,7 @@ def ReadFile(inputfile):
     try:
         f = open( inputfile, "r")
     except IOError:
-        print "Could not read file \'"+inputfile+"\'"
+        print("Could not read file \'"+inputfile+"\'")
     content = f.read()
     f.close()
     return content
@@ -42,13 +43,13 @@ def ReadFile(inputfile):
 def WriteToFile(outputfile, content):
     outputPath = os.path.dirname(outputfile)
     try:
-        os.makedirs(outputPath);
+        os.makedirs(outputPath)
     except:
         pass
     try:
         f = open(outputfile, "w")
     except IOError:
-        print "Could not write file \'"+outputfile+"\'"
+        print("Could not write file \'"+outputfile+"\'")
     f.write(content)
     f.close()
 
@@ -86,8 +87,8 @@ def Process(srcfile, title):
 
 #-------------------------------------------------------------------------------
 def Usage():
-    print str(sys.argv[0])+" <input file> <output file> <title>"
-    exit(1);
+    print(str(sys.argv[0])+" <input file> <output file> <title>")
+    exit(1)
 
 
 #-------------------------------------------------------------------------------
