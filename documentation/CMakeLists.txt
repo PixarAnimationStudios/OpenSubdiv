@@ -54,8 +54,6 @@ else()
 
 endif()
 
-find_package(Python COMPONENTS Interpreter)
-
 # ReST - HTML documentation
 if (DOCUTILS_FOUND AND Python_Interpreter_FOUND)
 

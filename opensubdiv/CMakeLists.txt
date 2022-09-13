@@ -55,10 +55,6 @@ if (NOT NO_LIB)
         )
     endif()
 
-    if(OPENGL_FOUND OR OPENCL_FOUND OR DXSDK_FOUND OR METAL_FOUND)
-        add_subdirectory(tools/stringify)
-    endif()
-
     if( OPENGL_FOUND )
         include_directories(${OPENGL_LOADER_INCLUDE_DIRS})
         list(APPEND PLATFORM_GPU_LIBRARIES
