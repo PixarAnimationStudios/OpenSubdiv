@@ -394,6 +394,9 @@ else()
     set(DOXYGEN_EXECUTABLE )
 endif()
 
+# Python is used optionally to process source and documentation source files.
+find_package(Python COMPONENTS Interpreter)
+
 set(BUILD_SHARED_LIBS "${build_shared_libs}")
 
 # Warn about missing dependencies that will cause parts of OpenSubdiv to be
@@ -717,18 +720,34 @@ macro(osd_add_doxy_headers headers)
 endmacro()
 
 # Kernel Stringification
-# We want to use preprocessor include directives to include GLSL and OpenCL
+# We want to use preprocessor include directives to include GLSL, OpenCL, etc.
 # kernel source files in cpp files, but since the sources contain newline
 # characters we would need raw string literals from C++11 to do this directly.
-# To avoid depending on C++11 we instead use a small tool called "line_quote"
+# To avoid depending on C++11 we instead use a small tool called "stringify"
 # to generate source files that are suitable for direct inclusion.
+
+# We provide a Python implementation for configurability, e.g. to
+# use when cross compiling or building multi-architecture binaries.
+# We also provide a C++ binary implementation so that Python is not
+# required (for backward compatibility).
+if (OPENGL_FOUND OR OPENCL_FOUND OR DXSDK_FOUND OR METAL_FOUND)
+    if(Python_Interpreter_FOUND)
+        set(OSD_STRINGIFY_TOOL ${CMAKE_CURRENT_SOURCE_DIR}/tools/stringify/stringify.py)
+        set(OSD_STRINGIFY ${Python_EXECUTABLE} ${OSD_STRINGIFY_TOOL})
+    else()
+        set(OSD_STRINGIFY_TOOL stringify)
+        set(OSD_STRINGIFY ${OSD_STRINGIFY_TOOL})
+        set(OSD_USES_STRINGIFY_TOOL_BINARY TRUE)
+    endif()
+endif()
+
 function(osd_stringify src_files varname)
 
     set(inc_files "")
 
     foreach(src_file ${src_files})
 
-    string(REGEX REPLACE ".*[.](.*)" "\\1" extension "${src_file}")
+        string(REGEX REPLACE ".*[.](.*)" "\\1" extension "${src_file}")
 
         string(REGEX REPLACE "(.*)[.].*" "\\1.gen.h" inc_file "${src_file}")
         list(APPEND inc_files "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}")
@@ -737,9 +756,9 @@ function(osd_stringify src_files varname)
             OUTPUT
                 "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
             COMMAND
-                stringify "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}" "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
+                ${OSD_STRINGIFY} "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}" "${CMAKE_CURRENT_BINARY_DIR}/${inc_file}"
             DEPENDS
-                stringify "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}"
+                ${OSD_STRINGIFY_TOOL} "${CMAKE_CURRENT_SOURCE_DIR}/${src_file}"
         )
 
     endforeach()
@@ -835,6 +854,10 @@ endif()
 
 if (NOT NO_OPENGL)
     add_subdirectory(glLoader)
+endif()
+
+if (OSD_USES_STRINGIFY_TOOL_BINARY)
+    add_subdirectory(tools/stringify)
 endif()
 
 add_subdirectory(opensubdiv)
