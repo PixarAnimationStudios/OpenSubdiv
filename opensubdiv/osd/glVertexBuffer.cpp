@@ -59,7 +59,7 @@ void
 GLVertexBuffer::UpdateData(const float *src, int startVertex, int numVertices,
                            void * /*deviceContext*/) {
 
-    int size = numVertices * _numElements * sizeof(float);
+    int size = numVertices * _numElements * (int) sizeof(float);
 #if defined(GL_ARB_direct_state_access)
     if (OSD_OPENGL_HAS(ARB_direct_state_access)) {
         glNamedBufferSubData(_vbo,
@@ -96,7 +96,7 @@ GLVertexBuffer::BindVBO(void * /*deviceContext*/) {
 bool
 GLVertexBuffer::allocate() {
 
-    int size = _numElements * _numVertices * sizeof(float);
+    int size = _numElements * _numVertices * (int) sizeof(float);
 
 
 #if defined(GL_ARB_direct_state_access)

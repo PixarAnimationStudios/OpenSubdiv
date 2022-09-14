@@ -1276,7 +1276,7 @@ PatchTableBuilder::populatePatches() {
                    patchParam.GetU(), patchParam.GetV(),
                    patchParam.GetDepth(),
                    patchParam.NonQuadRoot(),
-                   fvcPatchInfo.paramBoundaryMask,
+                   (unsigned short) fvcPatchInfo.paramBoundaryMask,
                    patchParam.GetTransition(),
                    fvcPatchInfo.isRegular);
             }
