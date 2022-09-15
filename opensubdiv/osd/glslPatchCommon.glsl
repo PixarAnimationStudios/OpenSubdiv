@@ -97,8 +97,8 @@ struct OutputVertex {
     vec3 normal;
     vec3 tangent;
     vec3 bitangent;
-    centroid vec4 patchCoord; // u, v, faceLevel, faceId
-    centroid vec2 tessCoord; // tesscoord.st
+    vec4 patchCoord; // u, v, faceLevel, faceId
+    vec2 tessCoord; // tesscoord.st
 #if defined OSD_COMPUTE_NORMAL_DERIVATIVES
     vec3 Nu;
     vec3 Nv;
