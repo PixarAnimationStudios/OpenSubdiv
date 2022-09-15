@@ -137,6 +137,7 @@ if (NOT NO_LIB)
     set_target_properties(osd_static_cpu
         PROPERTIES
             OUTPUT_NAME osdCPU
+            EXPORT_NAME osdCPU_static
             CLEAN_DIRECT_OUTPUT 1
             FOLDER "opensubdiv"
     )
@@ -157,7 +158,11 @@ if (NOT NO_LIB)
                 ${OPENGL_LOADER_OBJS}
                 ${CUDA_KERNEL_FILES}
         )
-        set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(osd_static_gpu
+            PROPERTIES
+                OUTPUT_NAME osdGPU
+                EXPORT_NAME osdGPU_static
+                CLEAN_DIRECT_OUTPUT 1)
 
         target_link_libraries(osd_static_gpu
             ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
@@ -186,6 +191,7 @@ if (NOT NO_LIB)
             set_target_properties(osd_dynamic_cpu
                 PROPERTIES
                     OUTPUT_NAME osdCPU
+                    EXPORT_NAME osdCPU
                     CLEAN_DIRECT_OUTPUT 1
                     SOVERSION ${OSD_SONAME}
                 )
@@ -193,6 +199,7 @@ if (NOT NO_LIB)
             set_target_properties(osd_dynamic_cpu
                 PROPERTIES
                     OUTPUT_NAME osdCPU
+                    EXPORT_NAME osdCPU
                     CLEAN_DIRECT_OUTPUT 1
                 )
         endif()
@@ -217,6 +224,7 @@ if (NOT NO_LIB)
                 set_target_properties(osd_dynamic_gpu
                     PROPERTIES
                         OUTPUT_NAME osdGPU
+                        EXPORT_NAME osdGPU
                         CLEAN_DIRECT_OUTPUT 1
                         SOVERSION ${OSD_SONAME}
                     )
@@ -224,6 +232,7 @@ if (NOT NO_LIB)
                 set_target_properties(osd_dynamic_gpu
                     PROPERTIES
                         OUTPUT_NAME osdGPU
+                        EXPORT_NAME osdGPU
                         CLEAN_DIRECT_OUTPUT 1
                     )
             endif()
@@ -288,6 +297,7 @@ if (NOT NO_LIB)
             INSTALL_NAME_DIR "@rpath/OpenSubdiv.framework/OpenSubdiv"
             INSTALL_RPATH "@executable_path/Frameworks;@loader_path/Frameworks"
             OUTPUT_NAME OpenSubdiv_static
+            EXPORT_NAME OpenSubdiv_static
             CLEAN_DIRECT_OUTPUT true
         )
 
@@ -336,6 +346,7 @@ if (NOT NO_LIB)
                 INSTALL_NAME_DIR "@rpath/OpenSubdiv.framework/OpenSubdiv"
                 INSTALL_RPATH "@executable_path/Frameworks;@loader_path/Frameworks"
                 OUTPUT_NAME OpenSubdiv
+                EXPORT_NAME OpenSubdiv
                 CLEAN_DIRECT_OUTPUT true
             )
 
