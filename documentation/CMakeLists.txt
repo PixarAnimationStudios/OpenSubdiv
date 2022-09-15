@@ -97,6 +97,7 @@ if (DOCUTILS_FOUND AND Python_Interpreter_FOUND)
         release_32.rst
         release_33.rst
         release_34.rst
+        release_35.rst
         release_notes.rst
         release_notes_2x.rst
         sdc_overview.rst
