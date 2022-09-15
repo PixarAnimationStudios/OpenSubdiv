@@ -136,6 +136,7 @@ if (NOT NO_LIB)
     set_target_properties(osd_static_cpu
         PROPERTIES
             OUTPUT_NAME osdCPU
+            EXPORT_NAME osdCPU_static
             CLEAN_DIRECT_OUTPUT 1
             FOLDER "opensubdiv"
     )
@@ -144,7 +145,7 @@ if (NOT NO_LIB)
         ${PLATFORM_CPU_LIBRARIES}
     )
 
-    install( TARGETS osd_static_cpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
+    install( TARGETS osd_static_cpu EXPORT opensubdiv-targets DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
     if( OSD_GPU )
         # this macro uses FindCUDA.cmake to compile .cu kernel files
@@ -156,13 +157,17 @@ if (NOT NO_LIB)
                 ${OPENGL_LOADER_OBJS}
                 ${CUDA_KERNEL_FILES}
         )
-        set_target_properties(osd_static_gpu PROPERTIES OUTPUT_NAME osdGPU CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(osd_static_gpu
+            PROPERTIES
+                OUTPUT_NAME osdGPU
+                EXPORT_NAME osdGPU_static
+                CLEAN_DIRECT_OUTPUT 1)
 
         target_link_libraries(osd_static_gpu
             ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
         )
 
-        install( TARGETS osd_static_gpu DESTINATION "${CMAKE_LIBDIR_BASE}" )
+        install( TARGETS osd_static_gpu EXPORT opensubdiv-targets DESTINATION "${CMAKE_LIBDIR_BASE}" )
     endif()
 
 
@@ -186,6 +191,7 @@ if (NOT NO_LIB)
             set_target_properties(osd_dynamic_cpu
                 PROPERTIES
                     OUTPUT_NAME osdCPU
+                    EXPORT_NAME osdCPU
                     CLEAN_DIRECT_OUTPUT 1
                     SOVERSION ${OSD_SONAME}
                 )
@@ -193,6 +199,7 @@ if (NOT NO_LIB)
             set_target_properties(osd_dynamic_cpu
                 PROPERTIES
                     OUTPUT_NAME osdCPU
+                    EXPORT_NAME osdCPU
                     CLEAN_DIRECT_OUTPUT 1
                 )
         endif()
@@ -201,7 +208,7 @@ if (NOT NO_LIB)
             ${PLATFORM_CPU_LIBRARIES}
         )
 
-        install( TARGETS osd_dynamic_cpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
+        install( TARGETS osd_dynamic_cpu EXPORT opensubdiv-targets LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
         #---------------------------------------------------
         if( OSD_GPU )
@@ -217,6 +224,7 @@ if (NOT NO_LIB)
                 set_target_properties(osd_dynamic_gpu
                     PROPERTIES
                         OUTPUT_NAME osdGPU
+                        EXPORT_NAME osdGPU
                         CLEAN_DIRECT_OUTPUT 1
                         SOVERSION ${OSD_SONAME}
                     )
@@ -224,6 +232,7 @@ if (NOT NO_LIB)
                 set_target_properties(osd_dynamic_gpu
                     PROPERTIES
                         OUTPUT_NAME osdGPU
+                        EXPORT_NAME osdGPU
                         CLEAN_DIRECT_OUTPUT 1
                     )
             endif()
@@ -233,7 +242,7 @@ if (NOT NO_LIB)
                 ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
             )
 
-            install( TARGETS osd_dynamic_gpu LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
+            install( TARGETS osd_dynamic_gpu EXPORT opensubdiv-targets LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}" )
         endif()
 
     endif()
@@ -294,6 +303,7 @@ if (NOT NO_LIB)
             INSTALL_NAME_DIR "@rpath/OpenSubdiv.framework/OpenSubdiv"
             INSTALL_RPATH "@executable_path/Frameworks;@loader_path/Frameworks"
             OUTPUT_NAME OpenSubdiv_static
+            EXPORT_NAME OpenSubdiv_static
             CLEAN_DIRECT_OUTPUT true
         )
 
@@ -301,7 +311,7 @@ if (NOT NO_LIB)
             ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
         )
 
-        install( TARGETS osd_static_framework
+        install( TARGETS osd_static_framework EXPORT opensubdiv-targets
              LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}"
              FRAMEWORK DESTINATION "${CMAKE_LIBDIR_BASE}"
              PUBLIC_HEADER  DESTINATION "${CMAKE_INCDIR_BASE}"
@@ -343,6 +353,7 @@ if (NOT NO_LIB)
                 INSTALL_NAME_DIR "@rpath/OpenSubdiv.framework/OpenSubdiv"
                 INSTALL_RPATH "@executable_path/Frameworks;@loader_path/Frameworks"
                 OUTPUT_NAME OpenSubdiv
+                EXPORT_NAME OpenSubdiv
                 CLEAN_DIRECT_OUTPUT true
             )
 
@@ -350,7 +361,7 @@ if (NOT NO_LIB)
                 ${PLATFORM_CPU_LIBRARIES} ${PLATFORM_GPU_LIBRARIES}
             )
 
-            install( TARGETS osd_dynamic_framework
+            install( TARGETS osd_dynamic_framework EXPORT opensubdiv-targets
                  FRAMEWORK DESTINATION "${CMAKE_LIBDIR_BASE}"
                  LIBRARY DESTINATION "${CMAKE_LIBDIR_BASE}"
                  PUBLIC_HEADER  DESTINATION "${CMAKE_INCDIR_BASE}"
@@ -373,6 +384,57 @@ if (NOT NO_LIB)
         endif()
 
     endif()
+
+    # Expose preprocessor macro to the interface so that client know which feature are enabled
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.0)
+        foreach(osd_target osd_static_cpu osd_static_gpu osd_dynamic_cpu osd_dynamic_gpu osd_static_framework osd_dynamic_framework)
+            if(TARGET ${osd_target})
+                if(CLEW_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_CLEW)
+                endif()
+                if(CUDA_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_CUDA)
+                endif()
+                if(DXSDK_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_DX11SDK)
+                endif()
+                if(METAL_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_METAL)
+                endif()
+                if(OPENCL_CL_D3D11_EXT_H_FOUND OR OPENCL_CL_D3D11_H_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_OPENCL_DX_INTEROP)
+                endif()
+                if(OPENCL_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_OPENCL)
+                endif()
+                if(OPENGL_4_2_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
+                endif()
+                if(OPENGL_4_3_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_GLSL_COMPUTE)
+                endif()
+                if(NOT NO_OPENGL AND OPENGL_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_OPENGL)
+                endif()
+                if(NOT NO_OPENGL AND OPENGLES_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_OPENGLES)
+                endif()
+                if(OPENMP_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_OPENMP)
+                endif()
+                if(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES)
+                endif()
+                if(PTEX_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_PTEX)
+                endif()
+                if(TBB_FOUND)
+                    target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_TBB)
+                endif()
+            endif()
+        endforeach()
+    endif()
+
 endif()
 
 #-------------------------------------------------------------------------------
