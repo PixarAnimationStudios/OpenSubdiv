@@ -261,6 +261,21 @@ elseif(MSVC)
                     #/D_SECURE_SCL=0
                     #/D_HAS_ITERATOR_DEBUGGING=0
     )
+	
+	if(CMAKE_GENERATOR STREQUAL "Ninja")
+	
+		list(APPEND OSD_COMPILER_FLAGS
+						#  warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+						/wd5045
+						
+						# warning C4711: function 'X' selected for automatic inline expansion
+						/wd4711
+						
+						# warning C4710: 'printf': function not inlined
+						/wd4710
+		)
+		
+	endif()
 
     option(MSVC_STATIC_CRT "Statically link MSVC CRT" OFF)
 
