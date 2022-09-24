@@ -678,16 +678,201 @@ tessellation to be reused.
 
 More on Bfr::SurfaceFactory
 ===========================
+The primary function of Bfr::SurfaceFactory is to identify and construct
+a representation of the limit surface for a given face of a mesh. It achieves
+this by inspecting the topology around the given face and constructing a
+suitable representation encapsulated in a Surface.
 
-Work in progress -- topics to include:
+The regions around a face can be divided into two categories based on their
+topology: those that are "regular" and those that are not, i.e. those that
+are "irregular". Recalling the illustration from `Irregular versus Irregular
+Features <subdivision_surfaces.html#regular-versus-irregular-features>`__:
 
-    * Bfr::RefinerSurfaceFactory as an example
-    * Bfr::SurfaceFactoryCache and its thread-safety
-    * thread-safe declaration and usage of SurfaceFactory
-    * using an external SurfaceFactoryCache with multiple meshes
++-----------------------------------------+-----------------------------------------+
+| .. image:: images/val6_regular.jpg      | .. image:: images/val6_irregular.jpg    |
+|    :align:  center                      |    :align:  center                      |
+|    :width:  100%                        |    :width:  100%                        |
+|    :target: images/val6_regular.jpg     |    :target: images/val6_irregular.jpg   |
++-----------------------------------------+-----------------------------------------+
+| Patches of regular Surfaces             | Potential patches of irregular Surfaces |
++-----------------------------------------+-----------------------------------------+
 
-      * serial
-      * parallel
+The representation of the limit surface for regular regions is trivial --
+it is a single parametric patch whose basis is determined by the subdivision
+scheme (e.g. uniform bicubic B-spline for Catmull-Clark). In contrast, the
+representation of the limit surface for an irregular region cannot be
+accurately represented so simply. It can be far more complex depending on the
+features present (extra-ordinary vertices, creasing of edges, etc.). It may
+be as simple as a different kind of parametric patch whose points are
+derived from those of the mesh, or it may often be a set of patches in a
+hierarchy resulting from local subdivision. (*Bfr* intentionally hides the
+details of these representations to allow future improvement.)
+
+The cost of determining and assembling the representations of irregular
+Surfaces is therefore often significant.  Some of the performance benefits of
+the SurfaceFactory are achieved by having it cache the complexities of the
+irregular surfaces that it encounters.
+
+In many common use cases, awareness and management of this caching is not
+necessary (as illustrated by the tutorials). But the thread-safe construction
+of Surfaces is one area where some awareness is required. Other use cases
+that share the cache between meshes are also worth exploring as they can
+further reduce potentially significant costs.
+
+
+Bfr::SurfaceFactoryCache
+************************
+The SurfaceFactoryCache is the class used by SurfaceFactory to cache the
+topological information that it can reuse for other similarly irregular
+faces of the mesh.  Though it is a publicly accessible class, the
+SurfaceFactoryCache has little to no public interface other than construction
+(made available to support more advanced cases covered later) and in most
+cases it can be completely ignored.
+
+Typically an instance of SurfaceFactory has an internal SurfaceFactoryCache
+member which is used by that factory for its lifetime.  Since that cache member
+is mutable -- potentially updated when an irregular Surface is created -- it
+does need to be thread-safe if the SurfaceFactory is to be used in a threaded
+context.
+
+To accommodate this need, SurfaceFactoryCache is defined as a base class with
+an accompanying class template to allow the trivial declaration of thread-safe
+subclasses:
+
+.. code:: c++
+
+    template <typename MUTEX_TYPE,
+              typename READ_LOCK_GUARD_TYPE,
+              typename WRITE_LOCK_GUARD_TYPE >
+    class SurfaceFactoryCacheThreaded : public SurfaceFactoryCache {
+        ...
+    };
+
+For example, a local type for a thread-safe cache using std::shared_mutex
+from C++17 could be simply declared as follows:
+
+.. code:: c++
+
+    #include <shared_mutex>
+
+    typedef Bfr::SurfaceFactoryCacheThreaded<
+                std::shared_mutex,
+                std::shared_lock<std::shared_mutex>,
+                std::unique_lock<std::shared_mutex> >
+            ThreadSafeCache;
+
+Such thread-safe cache types are essential when distributing the work of a
+single SurfaceFactory across multiple threads. They can be encapsulated in
+the definitions of subclasses of SurfaceFactory or used to define external
+cache instances for use with any subclass of SurfaceFactory.
+
+Defining a Thread-Safe SurfaceFactory
+*************************************
+
+The thread-safety of a SurfaceFactory is purely dependent on the
+thread-safety of the SurfaceFactoryCache that it uses. With caching
+disabled, any SurfaceFactory is thread-safe but will be far less
+efficient in dealing with irregular Surfaces.
+
+When a subclass of SurfaceFactory is defined (discussed in more detail
+later), one of its responsibilities is to identify and manage an instance of
+SurfaceFactoryCache for its internal use. Defining such a subclass is a
+simple matter of declaring a thread-safe SurfaceFactoryCache type (as noted
+above) along with a local member of that type to be used by each instance.
+
+Given the widespread use of the Far::TopologyRefiner in OpenSubdiv, and
+the lack of a connected mesh representation in many contexts, a subclass of
+SurfaceFactory is made available to use a TopologyRefiner as a mesh, i.e.
+the Bfr::RefinerSurfaceFactory subclass.
+
+Since many OpenSubdiv users may make use of the RefinerSurfaceFactory
+subclass, and they may have different preferences of threading model,
+the RefinerSurfaceFactory subclass is similarly defined as a class
+template to enable threading flexibility. In this case, the template
+is parameterized by the desired type of SurfaceFactoryCache, which
+embodies the threading specifications as noted above, i.e.:
+
+.. code:: c++
+
+    template <class CACHE_TYPE = SurfaceFactoryCache>
+    class RefinerSurfaceFactory : public ... {
+        ...
+    };
+
+The default template is the base SurfaceFactoryCache which is not thread-safe,
+but a simple declaration of a thread-safe cache type is sufficient to declare
+a similarly thread-safe RefinerSurfaceFactory type:
+
+.. code:: c++
+
+    #include <opensubdiv/bfr/surfaceFactoryCache.h>
+
+    //  Declare thread-safe cache type (see std::shared_mutex example above):
+    typedef Bfr::SurfaceFactoryCacheThreaded< ... > ThreadSafeCache;
+
+    //  Declare thread-safe factory type:
+    typedef Bfr::RefinerSurfaceFactory<ThreadSafeCache> ThreadSafeFactory;
+
+The resulting factory type safely allows the construction of Surfaces
+(and their subsequent evaluation and tessellation) to be distributed over
+multiple threads.
+
+
+Internal versus External SurfaceFactoryCache
+********************************************
+
+Typical usage of the SurfaceFactoryCache by the SurfaceFactory is to have
+the factory create an internal cache member to be used for the lifetime of
+the factory associated with a mesh. But the data stored in the cache is not
+in any way dependent on the factory or mesh used to create it. So a cache
+can potentially be shared by multiple factories.
+
+While such sharing is possible -- and the *Bfr* interfaces intentionally
+permit it -- any exploration should proceed with caution. Greater public
+knowledge and control of the cache is ultimately necessary to manage its
+potentially unbounded memory increase, and support in the public interface
+is currently limited.
+
+A cache stored as a member varialbe and managed exclusively by the factory
+is said to be "internal" while one managed exclusively by its client is
+said to be "external". In both cases, the factory deals with retrieving
+data from or adding data to the cache -- only management of the cache's
+ownership differs, and that ownership is never transferred.
+
+A subset of the methods of SurfaceFactory::Options provide the means of
+specifying the use of an internal or external cache, or no caching at all:
+
+.. code:: c++
+
+    // Assign an external cache to override the internal
+    Options & SetExternalCache(SurfaceFactoryCache * cache);
+
+    // Enable or disable caching (default is true):
+    Options & EnableCaching(bool on);
+
+As noted here, specifying an external cache will override use of a
+factory's internal cache. Disabling caching takes precedence over both,
+but is generally not practical and exists mainly to aide debugging.
+
+The common use of the internal cache is to create a SurfaceFactory and
+distribute processing of the Surfaces of its faces over multiple threads,
+or to construct Surfaces for the mesh for any other purpose while the
+mesh remains in scope. There is no need to deal explicitly with the
+SurfaceFactoryCache in these cases.
+
+Use cases for an external cache are more varied and explicit, including:
+
+    * creating a single external cache to process a sequence of meshes
+      on a single thread (cache thread-safety not required)
+    * creating a separate external cache on each thread to process a set
+      of meshes distributed over multiple threads (cache thread-safety
+      not required)
+    * creating a single external cache for multiple meshes distributed
+      over multiple threads (cache thread-safety required, and beware of
+      unbounded memory growth here)
+
+Future extensions to the public interface of SurfaceFactoryCache may be
+made to support common use cases as their common needs are made clearer.
 
 ----
 
@@ -696,15 +881,226 @@ Work in progress -- topics to include:
 Customizing a Bfr::SurfaceFactory
 =================================
 
-Work in progress -- topics to include:
+One of the goals of *Bfr* is to provide a lightweight interface for the
+evaluation of Surfaces from any connected mesh representation. In order to
+do so, the factory needs to gather topological information from that mesh
+representation. That information is provide to the factory through
+inheritance: a subclass of SurfaceFactory is defined that fulfills all
+requirements of the factory.
 
-    * SurfaceFactory and Bfr::SurfaceFactoryMeshAdapter
-    * fulfilling the SurfaceFactoryMeshAdapter interface
+It must be made clear that a subclass can only be created from a *connected*
+mesh representation, i.e. a representation that includes connectivity or
+adjacency relationships between its components (vertices, faces and edges).
 
-      * retrieving simple properties of a face
-      * retrieving indices at all face-vertices
-      * retrieving indices for the neighborhood around a face-vertex
-      * accelerated retrieval for regular face neighborhoods
+Classes for simple containers of mesh topology used for external formats
+(e.g. USD, Alembic, etc.) are generally not *connected*. Many applications
+construct a connected mesh representation for internal use when loading such
+mesh data -- using a variety of techniques including half-edges, winged-edges
+or table-based relationships. There are many choices here that offer a variety
+of trade-offs depending on usage (e.g. fixed vs dynamic topology) and so no
+"best" solution. Once constructed and available within an application, *Bfr*
+strives to take advantage of that representation.
 
-    * customizing a subclass of SurfaceFactory
+As a minimum requirement for supporting a subclass of SurfaceFactory, a
+connected mesh representation must be able to efficiently identify the
+incident faces of any given vertex. As noted earlier, when no such
+representation is available, users can construct a Far::TopologyRefiner for
+their connected mesh and use Bfr::RefinerSurfaceFactory.
+
+There are three requirements of a subclass of SurfaceFactory:
+
+    * fulfill the interface required to adapt the connected mesh to the factory
+    * provide an internal cache for the factory of the preferred type
+    * extend the existing SurfaceFactory interface for the connected mesh type
+
+The first of these is the most significant and is the focus here. The second
+was mentioned previously with the SurfaceFactoryCache and is trivial. The last
+should also be trivial and is generally optional (at minimum the subclass will
+need a constructor to create an instance of the factory from a given mesh, but
+anything more is not strictly essential).
+
+It is important to note that anyone attempting to write such a subclass must
+have an intimate understanding of the topological capabilities and limitations
+of the mesh representation involved. The SurfaceFactory is topologically
+robust in that it will support meshes with a wide range of degenerate or
+non-manifold features, but in order to process topology efficiently, a
+subclass needs to indicate when and where those degeneracies may occur.
+
+A simplified implementation of the Bfr::RefinerSurfaceFactory is provided in
+the tutorials for illustration purposes.
+
+The Bfr::SurfaceFactoryMeshAdapter Interface
+********************************************
+
+The SurfaceFactoryMeshAdapter class defines the interface used to satisfy the
+topological requirements of the SurfaceFactory. An implementation for a
+particular mesh class provides the base factory with everything needed to
+identify the limit surface of a given face from its surrounding topology.
+The SurfaceFactory actually inherits the SurfaceFactoryMeshAdapter interface
+but does not implement it -- deferring that to its subclasses -- since
+separate subclasses of SurfaceFactoryMeshAdapter serve no other purpose.
+
+The limit surface for a face is fully defined by the complete set of incident
+vertices, faces and edges surrounding the face.  But it is difficult to
+accurately and efficiently assemble and represent all of that required
+information in a single class or query for all possible cases.  So the mesh
+adapter interface provides a suite of methods to allow the factory to gather
+only what it needs for the Surface required -- which may differ considerably
+according to whether the Surface is for vertex or face-varying data, linear or
+non-linear, etc.
+
+The virtual methods required can be organized into small groups devoted to
+particular aspects of construction. A description of the methods and purposes
+for each group follows, with more details and exact signatures available in
+the accompanying Doxygen for the SurfaceFactoryMeshAdapter class.
+
+**Basic Properties of a Face**
+
+A small set of simple methods indicate whether the SurfaceFactory needs to
+create a Surface for a face, and if so, how:
+
+.. code:: c++
+
+    virtual bool isFaceHole(Index faceIndex) const = 0;
+
+    virtual int getFaceSize(Index faceIndex) const = 0;
+
+These are trivial and self-explanatory.
+
+**Identifying Indices for an Entire Face**
+
+If the Surface requested turns out to be linearly interpolated (e.g. for
+varying or linear face-varying data) indices for the control point data
+are all assigned to the face and can be trivially identified:
+
+.. code:: c++
+
+    virtual int getFaceVertexIndices(Index faceIndex,
+                    Index vertexIndices[]) const = 0;
+
+    virtual int getFaceFVarValueIndices(Index faceIndex,
+                    FVarID faceVaryingID,
+                    Index  faceVaryingIndices[]) const = 0;
+
+Since multiple sets of face-varying data with different topology may be
+assigned to the mesh, an identifier needs to be specified both in the
+public interface when requesting a Surface and here when the factory
+assembles it. How a face-varying identifier is interpreted is completely
+determined by the subclass through the implementation of the methods
+that require it.
+
+**Specifying the Neighborhood Around a Vertex**
+
+When the Surface requested is not linear, the entire neighborhood around
+the face must be determined. This is achieved by specifying the
+neighborhoods around each of the vertices of the face, which the factory
+then assembles.
+
+For the neighborhood of each face-vertex, the factory obtains a complete
+specification in a simple VertexDescriptor class. An instance of
+VertexDescriptor is provided and populated with the following method:
+
+.. code:: c++
+
+    virtual int populateFaceVertexDescriptor(
+                    Index faceIndex, int faceVertex,
+                    VertexDescriptor * vertexDescriptor) const = 0;
+
+Within this method, the given VertexDescriptor instance is initialized
+using a small suite of VertexDescriptor methods that specify the following
+information about the vertex and its neighborhood:
+
+    * whether the neighborhood is manifold (ordered counter-clockwise)
+    * whether the vertex is on a boundary
+    * the sizes of all or each incident face
+    * the sharpness of the vertex
+    * the sharpness of edges of incident faces
+
+These methods are specified between Initialize() and Finalize() methods, so
+an interior vertex of valence 4 with three incident quads and one incident
+triangle might be specified as follows:
+
+.. code:: c++
+
+    int vertexValence = 4;
+    vertexDescriptor.Initialize(vertexValence);
+        vertexDescriptor.SetManifold(true);
+        vertexDescriptor.SetBoundary(false);
+
+        vertexDescriptor.SetIncidentFaceSize(0, 4);
+        vertexDescriptor.SetIncidentFaceSize(1, 4);
+        vertexDescriptor.SetIncidentFaceSize(2, 3);
+        vertexDescriptor.SetIncidentFaceSize(3, 4);
+    vertexDescriptor.Finalize();
+
+Specifying the vertex neighborhood as manifold is critical to allowing the
+factory to inspect the neighborhood efficiently. A manifold vertex has its
+incident faces and edges ordered in a counter-clockwise orientation and is
+free of degeneracies. If it is not clear that a vertex is manifold, it
+should not be set as such or the factory's inspection of associated data
+will not be correct.
+
+**Identifying Indices Around a Vertex**
+
+When the Surface requested is not linear, the indices of control point data
+for the entire neighborhood of the face are ultimately required, and that
+entire set is similarly determined by identifying the indices for each of
+the neighborhoods of the face-vertices:
+
+.. code:: c++
+
+    virtual int getFaceVertexIncidentFaceVertexIndices(
+                    Index faceIndex, int faceVertex,
+                    Index vertexIndices[]) const = 0;
+
+    virtual int getFaceVertexIncidentFaceFVarValueIndices(
+                    Index faceIndex, int faceVertex,
+                    FVarID faceVaryingID,
+                    Index  faceVaryingIndices[]) const = 0;
+
+As was the case with the methods retrieving indices for the entire face, one
+exists for identifying indices vertex data while another exists to identify
+indices for a specified set of face-varying data.
+
+Customizing the Subclass Interface
+**********************************
+
+Once the topological requirements of a subclass have been satisfied for its
+mesh representation, minor customizations of the inherited interface of
+SurfaceFactory may be useful.
+
+Consider a class called Mesh and its associated subclass of SurfaceFactory
+called MeshSurfaceFactory.
+
+At minimum, a constructor of MeshSurfaceFactory is necessary to construct
+an instance for a particular instance of mesh. This is typically achieved
+as follows:
+
+.. code:: c++
+
+    MeshSurfaceFactory(Mesh const & mesh,
+                       Options const & options);
+
+In addition to the Mesh instance, such a constructor passes a set of
+Options (i.e. SurfaceFactory::Options) to the base SurfaceFactory. Any
+additional arguments are possible here, e.g. perhaps only a single
+face-varying UV set is supported, and that might be specified by
+identifying it on construction.
+
+Given that mesh representations often have their own associated classes that
+internally contain the actual data, it may be useful to provide a few other
+conveniences to simplify working with a Mesh. For example, if mesh data is
+stored in a class called MeshPrimvar, a method to construct a Surface from
+a given MeshPrimvar may be useful, e.g.:
+
+.. code:: c++
+
+    bool InitPrimvarSurface(int faceIndex,
+                            MeshPrimvar const & meshPrimvar,
+                            Surface<float> * surface);
+
+which would then determine the nature of the MeshPrimvar data (interpolated
+as vertex, varying or face-varying) and act accordingly. It may also be
+worth simplifying the template complexity here if only one precision is
+ever required.
 
