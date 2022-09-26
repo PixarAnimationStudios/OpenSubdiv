@@ -60,6 +60,10 @@ Tutorial 1.1
  the center of the face -- creating a simple triangular tessellation.
  `[code] <bfr_tutorial_1_1.html>`__
 
+   .. image:: images/bfr_tutorial_1_1.png
+      :height: 100px
+      :target: images/bfr_tutorial_1_1.png
+
 Tutorial 1.2
 ^^^^^^^^^^^^
  This tutorial shows the added use of Bfr::Tessellation to identify the
@@ -68,10 +72,21 @@ Tutorial 1.2
  indicating which points are to be evaluated by the Surface.
  `[code] <bfr_tutorial_1_2.html>`__
 
-.. image:: images/bfr_tutorial_1_2.png
-   :align: center
-   :height: 100px
-   :target: images/bfr_tutorial_1_2.png
+ Tessellation patterns for quad-based subdivision schemes can optionally
+ preserve quads (left) or be fully triangulated (center), while triangular
+ schemes always yield triangles (right):
+
+   .. image:: images/bfr_tutorial_1_2_a.png
+      :height: 100px
+      :target: images/bfr_tutorial_1_2_a.png
+
+   .. image:: images/bfr_tutorial_1_2_b.png
+      :height: 100px
+      :target: images/bfr_tutorial_1_2_b.png
+
+   .. image:: images/bfr_tutorial_1_2_c.png
+      :height: 100px
+      :target: images/bfr_tutorial_1_2_c.png
 
 Tutorial 1.3
 ^^^^^^^^^^^^
@@ -101,10 +116,21 @@ Tutorial 2.1
  used to determine the tessellation rate for each edge of a face.
  `[code] <bfr_tutorial_2_1.html>`__
 
-.. image:: images/bfr_tutorial_2_1.png
-   :align: center
-   :height: 100px
-   :target: images/bfr_tutorial_2_1.png
+ The following contrasts uniform tessellation (left) with the resulting
+ length-based tessellations -- preserving quads (center) and fully
+ triangulated (right):
+
+   .. image:: images/bfr_tutorial_2_1_a.png
+      :height: 100px
+      :target: images/bfr_tutorial_2_1_a.png
+
+   .. image:: images/bfr_tutorial_2_1_b.png
+      :height: 100px
+      :target: images/bfr_tutorial_2_1_b.png
+
+   .. image:: images/bfr_tutorial_2_1_c.png
+      :height: 100px
+      :target: images/bfr_tutorial_2_1_c.png
 
 Tutorial 2.2
 ^^^^^^^^^^^^
