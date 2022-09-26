@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0 - 3.4 Release Notes
+3.0 - 3.5 Release Notes
 -----------------------
 
 .. contents::
@@ -30,6 +30,47 @@
    :backlinks: none
 
 ----
+
+Release 3.5
+~~~~~~~~~~~
+
+Release 3.5.0 - Sep 2022
+========================
+
+Release 3.5.0 is a significant release with new features, several
+configuration improvements, and a few other improvements and bug fixes.
+For more information on the following, see `Release 3.5 <release_35.html>`__
+
+**Deprecation Announcements**
+    - Hbr is deprecated and will be removed from subsequent releases
+
+**New Features**
+    - Simplified Surface Evaluation (Bfr)
+    - Tessellation Patterns (Bfr)
+
+**Changes**
+    - Suppression of GCC compiler warnings (GitHub #1253, #1254, #1270)
+    - Additional methods for Far::TopologyLevel (GitHub #1227, #1255)
+    - Improved mixed partial derivative at Gregory patch corners (GitHub #1252)
+    - Minor improvements to Far tutorials (GitHub #1226, #1241)
+    - Added CMake config (GitHub #1242)
+    - Updated CMake minimum version to 3.12 (GitHub #1237, #1261)
+    - Updated documentation build scripts for Python 3 (#1265, #1266)
+    - Updated 'stringify' build tool for improved cross compilation support
+      (GitHub #1267)
+    - Added 'NO_MACOS_FRAMEWORKS' build option (GitHub #1238)
+    - Updated Azure pipelines agents for Unbuntu and macOS (GitHub #1247, #1256)
+    - Removed obsolete AppVeyor and Travis CI scripts (GitHub #1259)
+
+**Bug Fixes**
+    - Cache active program for Osd::GLComputeEvaluator (GitHub #1244)
+    - Fixed member initialization warnings in Osd::D3D11ComputeEvaluator
+      (GitHub #1239)
+    - Fixed GLSL shader source to remove storage qualifiers from struct members
+      (GitHub #1271)
+    - Fixed use of CMake variables for Apple builds (GitHub #1235)
+    - Fixed build errors when using OpenGL without GLFW (GitHub #1257)
+    - Fixed links to embedded videos (GitHub #1231)
 
 Release 3.4
 ~~~~~~~~~~~

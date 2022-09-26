@@ -25,7 +25,7 @@
 Introduction
 ------------
 
-.. image:: http://graphics.pixar.com/opensubdiv/docs/images/opensubdiv_splash_v3_4_0.png
+.. image:: http://graphics.pixar.com/opensubdiv/docs/images/opensubdiv_splash_v3_5_0.png
    :width: 100%
    :align: center
 
