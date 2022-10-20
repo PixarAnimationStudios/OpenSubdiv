@@ -238,6 +238,15 @@ elseif(MSVC)
                     # warning C4548: expression before comma has no effect; expected expression with side-effect
                     /wd4548
 
+                    # warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+                    /wd5045
+
+                    # warning C4711: function 'X' selected for automatic inline expansion
+                    /wd4711
+
+                    # warning C4710: 'printf': function not inlined
+                    /wd4710
+
                     # Make sure WinDef.h does not define min and max macros which
                     # will conflict with std::min() and std::max().
                     /DNOMINMAX
