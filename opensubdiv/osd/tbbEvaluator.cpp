@@ -25,7 +25,7 @@
 #include "../osd/tbbEvaluator.h"
 #include "../osd/tbbKernel.h"
 
-#include <tbb/task_scheduler_init.h>
+#include <tbb/task_scheduler_observer.h>
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -216,9 +216,11 @@ TbbEvaluator::Synchronize(void *) {
 void
 TbbEvaluator::SetNumThreads(int numThreads) {
     if (numThreads == -1) {
-        tbb::task_scheduler_init init;
+        // tbb::task_scheduler_init init;
+        std::thread::hardware_concurrency();
     } else {
-        tbb::task_scheduler_init init(numThreads);
+        // tbb::task_scheduler_init init(numThreads);
+        numThreads = std::thread::hardware_concurrency();
     }
 }
 

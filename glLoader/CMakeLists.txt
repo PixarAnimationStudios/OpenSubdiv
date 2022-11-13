@@ -22,9 +22,9 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-if( APPLE OR UNIX )
+#if( APPLE OR UNIX)
     add_definitions(-fPIC)
-endif()
+#endif()
 
 list(APPEND GLLOADER_SOURCE_FILES
     glLoader.cpp
