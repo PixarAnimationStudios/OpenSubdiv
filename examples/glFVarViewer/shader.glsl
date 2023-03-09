@@ -106,6 +106,9 @@ OSD_USER_VARYING_ATTRIBUTE_DECLARE
 
 out block {
     OutputVertex v;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -124,6 +127,9 @@ void main()
 #if defined OSD_COMPUTE_NORMAL_DERIVATIVES
     outpt.v.Nu = vec3(0);
     outpt.v.Nv = vec3(0);
+#endif
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    outpt.vSegments = vec2(0);
 #endif
     // --
 
@@ -157,12 +163,18 @@ void main()
 layout(triangle_strip, max_vertices = EDGE_VERTS) out;
 in block {
     OutputVertex v;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt[EDGE_VERTS];
 
 out block {
     OutputVertex v;
     noperspective out vec4 edgeDistance;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } outpt;
 
@@ -209,6 +221,10 @@ void emit(int index, vec3 normal)
     outpt.v.normal = inpt[index].v.normal;
 #else
     outpt.v.normal = normal;
+#endif
+
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    outpt.vSegments = inpt[index].vSegments;
 #endif
 
 #ifdef SHADING_FACEVARYING_UNIFORM_SUBDIVISION
@@ -342,6 +358,9 @@ void main()
 in block {
     OutputVertex v;
     noperspective in vec4 edgeDistance;
+#ifdef OSD_PATCH_ENABLE_SINGLE_CREASE
+    vec2 vSegments;
+#endif
     OSD_USER_VARYING_DECLARE
 } inpt;
 
