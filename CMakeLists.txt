@@ -26,6 +26,17 @@ cmake_minimum_required(VERSION 3.12)
 
 project(OpenSubdiv)
 
+# Set C++ standard requirements, allowing overrides
+if (NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 14)
+endif()
+if (NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+if (NOT DEFINED CMAKE_CXX_EXTENSIONS)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+endif()
+
 # Turn on folder support
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -437,12 +448,6 @@ endif()
 
 if( METAL_FOUND AND NOT NO_METAL)
     set(OSD_GPU TRUE)
-    if (CMAKE_COMPILER_IS_CLANGCC)
-        # When building with Metal support enabled, we need to explicitly
-        # request that the C++ code be compiled with C++11 since some example
-        # code for Metal relies on functionality only available in C++11.
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    endif()
 endif()
 
 if( OPENGL_FOUND AND NOT NO_OPENGL)

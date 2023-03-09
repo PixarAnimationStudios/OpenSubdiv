@@ -108,10 +108,6 @@ if(IOS)
     )
 endif()
 
-
-
-set_property (TARGET mtlPtexViewer PROPERTY CXX_STANDARD 14)
-
 target_link_libraries(mtlPtexViewer
     ${PLATFORM_LIBRARIES}
 )
