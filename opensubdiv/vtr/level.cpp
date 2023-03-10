@@ -1130,7 +1130,7 @@ Level::gatherQuadRegularCornerPatchPoints(
 //             6           7           8
 */
 int
-Level::gatherTriRegularInteriorPatchPoints(Index fIndex, Index points[12], int rotation) const
+Level::gatherTriRegularInteriorPatchPoints(Index fIndex, Index points[], int rotation) const
 {
     ConstIndexArray  fVerts = getFaceVertices(fIndex);
     ConstIndexArray  fEdges = getFaceEdges(fIndex);
