@@ -25,7 +25,7 @@
 #ifndef STOPWATCH_H
 #define STOPWATCH_H
 
-#if (_WIN32 || _WIN64)
+#if (_WIN32)
     #include <windows.h>
 #else
     #include <sys/types.h>
@@ -37,7 +37,7 @@ class Stopwatch {
 
 public:
 
-#ifndef _WINDOWS
+#ifndef _WIN32
     Stopwatch() : _totalElapsed(0) { }
 
     void Start() {
@@ -91,7 +91,7 @@ public:
 
 private:
 
-#ifndef _WINDOWS
+#ifndef _WIN32
     double _elapsed;
     double _totalElapsed;
 #else

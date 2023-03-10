@@ -171,6 +171,15 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
         list(APPEND OSD_COMPILER_FLAGS -Wall -Wextra)
     endif()
 
+    if(WIN32)
+        # Make sure the constants in <math.h>/<cmath> get defined.
+        list(APPEND OSD_COMPILER_FLAGS -D_USE_MATH_DEFINES)
+
+        # Make sure WinDef.h does not define min and max macros which
+        # will conflict with std::min() and std::max().
+        list(APPEND OSD_COMPILER_FLAGS -DNOMINMAX)
+    endif()
+
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spuriously set off this warning in both gcc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
