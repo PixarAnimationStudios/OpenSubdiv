@@ -768,6 +768,10 @@ IrregularPatchBuilder::sharpenBoundaryControlEdges(
     //  sharp. And only boundary edges of the base face are sharpened
     //  here -- it is not necessary to deal with others.
     //
+    //  Append boundary edge sharpness to existing sharp edges:
+    edgeVertPairs += *numSharpEdges * 2;
+    edgeSharpness += *numSharpEdges;
+
     int faceSize = _surface.GetFaceSize();
 
     for (int corner = 0; corner < faceSize; ++corner) {
