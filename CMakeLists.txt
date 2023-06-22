@@ -490,17 +490,16 @@ if(GLEW_FOUND AND GLEW_INCLUDE_DIR)
         ${PROJECT_SOURCE_DIR}/glLoader)
     set(OPENGL_LOADER_LIBRARIES
         ${GLEW_LIBRARY}
-        ${OPENGL_gl_LIBRARY}
+        OpenGL::GL
         ${CMAKE_DL_LIBS})
 
 elseif(OPENGL_FOUND)
 
     osd_detect_gl_version(${PROJECT_SOURCE_DIR}/glLoader/glApi.h)
     set(OPENGL_LOADER_INCLUDE_DIRS
-        ${OPENGL_INCLUDE_DIR}
         ${PROJECT_SOURCE_DIR}/glLoader)
     set(OPENGL_LOADER_LIBRARIES
-        ${OPENGL_gl_LIBRARY}
+        OpenGL::GL
         ${CMAKE_DL_LIBS})
 
 endif()
