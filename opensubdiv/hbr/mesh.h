@@ -899,8 +899,8 @@ HbrMesh<T>::PrintStats(std::ostream &out) {
             sumsides += f->GetNumVertices();
         }
     }
-    out << "Mesh has " << nfaces << " faces\n";
-    out << "Average sidedness " << (float) sumsides / nfaces << "\n";
+    out << "Mesh has " << numfaces << " faces\n";
+    out << "Average sidedness " << (float) sumsides / numfaces << "\n";
 }
 
 template <class T>
