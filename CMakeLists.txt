@@ -803,6 +803,11 @@ macro(osd_add_possibly_cuda_executable target folder)
 
     set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
+    # Workaround link dependencies for cuda examples on platforms with GLX
+    if(CUDA_FOUND AND OpenGL_GLX_FOUND)
+        target_link_libraries(${target} OpenGL::GLX)
+    endif()
+
     if(CMAKE_COMPILER_IS_ICC)
         target_link_libraries(${target} ${ICC_LIBRARIES})
     endif()
