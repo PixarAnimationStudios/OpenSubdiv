@@ -546,7 +546,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
 
         int totalOrder = ds + dt;
         if (totalOrder == 0) {
-            S *= OSD_REAL_CAST(1.0 / 12.0);
+            S *= OSD_REAL_CAST(1.0f / 12.0f);
 
             w[0]  = S * (1 - 2*M[1] - 4*M[2]          + 6*M[4] + 6*M[5] + 2*M[6]          - 6*M[8] - 4*M[9] -   M[10] - 2*M[11] + 2*M[13] +   M[14]);
             w[1]  = S * (1 + 2*M[1] - 2*M[2]          - 6*M[4]          - 4*M[6]          + 6*M[8] + 2*M[9] + 2*M[10] + 4*M[11] - 2*M[13] -   M[14]);
@@ -561,7 +561,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
             w[10] = S * (                                                                            2*M[9]                     - 2*M[13] -   M[14]);
             w[11] = S * (                                                                                                         2*M[13] +   M[14]);
         } else if (totalOrder == 1) {
-            S *= OSD_REAL_CAST(1.0 / 6.0);
+            S *= OSD_REAL_CAST(1.0f / 6.0f);
 
             if (ds != 0) {
                 w[0]  = S * (-1          + 3*M[2] + 3*M[3]          - 3*M[5] - 2*M[6] - 3*M[7] +   M[9]);
@@ -618,7 +618,7 @@ Osd_EvalBasisLinearTri(OSD_REAL s, OSD_REAL t,
                 w[10] = S * (                M[2] -   M[4] -   M[5]);
                 w[11] = S * (                         M[4] +   M[5]);
             } else {
-                S *= OSD_REAL_CAST(1.0 / 2.0);
+                S *= OSD_REAL_CAST(1.0f / 2.0f);
 
                 w[0]  = S * ( 1          - 2*M[2] -   M[3] +   M[5]);
                 w[1]  = S * (-1          + 2*M[2] + 2*M[3] -   M[5]);
