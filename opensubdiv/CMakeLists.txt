@@ -312,7 +312,7 @@ if (NOT NO_LIB)
             $<TARGET_OBJECTS:far_obj>
             $<TARGET_OBJECTS:bfr_obj>
             $<TARGET_OBJECTS:osd_cpu_obj>
-            $<TARGET_OBJECTS:osd_gpu_obj>
+            $<$<TARGET_EXISTS:osd_gpu_obj>:$<TARGET_OBJECTS:osd_gpu_obj>>
             ${OPENGL_LOADER_OBJS}
         )
 
@@ -361,7 +361,7 @@ if (NOT NO_LIB)
                 $<TARGET_OBJECTS:far_obj>
                 $<TARGET_OBJECTS:bfr_obj>
                 $<TARGET_OBJECTS:osd_cpu_obj>
-                $<TARGET_OBJECTS:osd_gpu_obj>
+                $<$<TARGET_EXISTS:osd_gpu_obj>:$<TARGET_OBJECTS:osd_gpu_obj>>
                 ${OPENGL_LOADER_OBJS}
             )
 
