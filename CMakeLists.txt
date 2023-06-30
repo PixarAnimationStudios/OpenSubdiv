@@ -595,10 +595,13 @@ if(CUDA_FOUND)
 
     if (UNIX)
         list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
+        # Use OSD_CUDA_NVCC_FLAGS to specify --gpu-architecture or other CUDA
+        # compilation options. The overrides here are only for compatibility
+        # with older OpenSubdiv releases and obsolete CUDA versions.
         if (NOT DEFINED OSD_CUDA_NVCC_FLAGS)
             if (CUDA_VERSION_MAJOR LESS 6)
                 set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_11 )
-            else()
+            elseif (CUDA_VERSION_MAJOR LESS 8)
                 set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_20 )
             endif()
         endif()
