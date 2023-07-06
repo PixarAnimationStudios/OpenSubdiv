@@ -157,8 +157,6 @@ if(METAL_FOUND)
         mtlHud.h
     )
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
-
     add_library(examples_common_mtl_obj
         OBJECT
             ${EXAMPLES_COMMON_SOURCE_FILES}

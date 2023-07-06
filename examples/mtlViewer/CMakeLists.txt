@@ -104,10 +104,6 @@ if(IOS)
     )
 endif()
 
-
-
-set_property (TARGET mtlViewer PROPERTY CXX_STANDARD 14)
-
 target_link_libraries(mtlViewer
     ${PLATFORM_LIBRARIES}
 )
