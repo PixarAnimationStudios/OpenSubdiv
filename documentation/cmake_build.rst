@@ -105,6 +105,8 @@ The following configuration arguments can be passed to the CMake command line.
    -DCMAKE_LIBDIR_BASE=[library directory basename (default: lib)]
 
    -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
+   -DOSD_CUDA_NVCC_FLAGS=[CUDA options, e.g. --gpu-architecture]
+
    -DPTEX_LOCATION=[path to Ptex]
    -DGLFW_LOCATION=[path to GLFW]
    -DTBB_LOCATION=[path to Intel's TBB]

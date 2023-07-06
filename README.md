@@ -135,6 +135,8 @@ SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path) cmake -D NO_PTEX=1 -D NO_DOC=1 \
 -DCMAKE_TOOLCHAIN_FILE=[toolchain file for crossplatform builds]
 
 -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA Toolkit]
+-DOSD_CUDA_NVCC_FLAGS=[CUDA options, e.g. --gpu-architecture]
+
 -DPTEX_LOCATION=[path to Ptex]
 -DGLFW_LOCATION=[path to GLFW]
 -DSTRINGIFY_LOCATION=[path to stringify utility]
