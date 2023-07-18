@@ -504,7 +504,6 @@ elseif(OPENGL_FOUND)
     set(OPENGL_LOADER_INCLUDE_DIRS
         ${PROJECT_SOURCE_DIR}/glLoader)
     set(OPENGL_LOADER_LIBRARIES
-        OpenGL::GL
         ${CMAKE_DL_LIBS})
 
 endif()
