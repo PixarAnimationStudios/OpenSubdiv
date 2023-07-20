@@ -34,6 +34,24 @@
 Release 3.5
 ~~~~~~~~~~~
 
+Release 3.5.1 - July 2023
+=========================
+
+Release 3.5.1 is a minor release including bug fixes and configuration improvements.
+
+**Changes**
+    - Updated CMake to set fallback CMAKE_CXX_STANDARD to C++14 (GitHub #1276)
+    - Updated CMake with OpenGL import targets to avoid link errors (GitHub #1277)
+    - Updated CMake to set gpu architecture fallback only for older CUDA versions (GitHub #965 #1299)
+    - Updated CMake to use append for CMAKE_MODULE_PATH (GitHub #1296)
+    - Fixed interface includes for CMake config (GitHub #1278)
+    - Fixed warnings with newer and stricter use of Clang (GitHub #1275 #1289 #1290)
+    - Fixed potential float constant cast errors for OpenCL (GitHub #1285)
+    - Fixed generation of Apple Frameworks with no OSD_GPU targets enabled (GitHub #1224 #1236)
+**Bug Fixes**
+    - Fixed Bfr::Surface construction bug for rare topological case (GitHub #1301)
+    - Fixed CUDA example dependencies with GLX on Linux (GitHub #1294)
+
 Release 3.5.0 - Sep 2022
 ========================
 
