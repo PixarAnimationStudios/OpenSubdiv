@@ -242,9 +242,6 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
 
 elseif(MSVC)
 
-    # Turn on all warnings
-    list(APPEND OSD_COMPILER_FLAGS /Wall)
-
     list(APPEND OSD_COMPILER_FLAGS
                     /W3     # Use warning level recommended for production purposes.
                     /WX     # Treat all compiler warnings as errors.
