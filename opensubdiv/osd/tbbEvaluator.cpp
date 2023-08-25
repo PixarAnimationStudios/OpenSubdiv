@@ -25,7 +25,12 @@
 #include "../osd/tbbEvaluator.h"
 #include "../osd/tbbKernel.h"
 
+// Get TBB version from tbb/parallel_for used by osd/tbbKernel
+#include <tbb/parallel_for.h>
+#if defined(TBB_INTERFACE_VERSION_MAJOR) && (TBB_INTERFACE_VERSION_MAJOR < 12)
+// This is deprecated functionality.
 #include <tbb/task_scheduler_init.h>
+#endif
 
 namespace OpenSubdiv {
 namespace OPENSUBDIV_VERSION {
@@ -215,11 +220,15 @@ TbbEvaluator::Synchronize(void *) {
 /* static */
 void
 TbbEvaluator::SetNumThreads(int numThreads) {
+#if defined(TBB_INTERFACE_VERSION_MAJOR) && (TBB_INTERFACE_VERSION_MAJOR < 12)
+    // This is deprecated functionality. We preserve the existing behavior
+    // for consistency (when using older versions of tbb).
     if (numThreads == -1) {
         tbb::task_scheduler_init init;
     } else {
         tbb::task_scheduler_init init(numThreads);
     }
+#endif
 }
 
 }  // end namespace Osd

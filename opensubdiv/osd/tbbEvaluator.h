@@ -1226,8 +1226,7 @@ public:
     /// \brief synchronize all asynchronous computation invoked on this device.
     static void Synchronize(void *deviceContext = NULL);
 
-    /// \brief initialize tbb task schedular
-    ///        (optional: client may use tbb::task_scheduler_init)
+    /// \brief Deprecated. Client code should initialize TBB.
     ///
     /// @param numThreads      how many threads
     ///
