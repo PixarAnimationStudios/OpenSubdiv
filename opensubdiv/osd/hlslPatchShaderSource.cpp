@@ -69,10 +69,18 @@ static const char *gregoryTriangleShaderSource =
 
 /*static*/
 std::string
-HLSLPatchShaderSource::GetCommonShaderSource() {
+HLSLPatchShaderSource::GetPatchDrawingShaderSource() {
     std::stringstream ss;
     ss << std::string(commonShaderSource);
     ss << std::string(commonTessShaderSource);
+    return ss.str();
+}
+
+/*static*/
+std::string
+HLSLPatchShaderSource::GetCommonShaderSource() {
+    std::stringstream ss;
+    ss << GetPatchDrawingShaderSource();
     ss << std::string(patchLegacyShaderSource);
     return ss.str();
 }
