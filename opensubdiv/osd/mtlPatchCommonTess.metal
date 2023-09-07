@@ -81,6 +81,10 @@
 // (0,0)                                         (1,0)
 //
 
+#ifndef OSD_MAX_TESS_LEVEL
+#define OSD_MAX_TESS_LEVEL 64
+#endif
+
 float OsdComputePostProjectionSphereExtent(
         const float4x4 OsdProjectionMatrix, float3 center, float diameter)
 {

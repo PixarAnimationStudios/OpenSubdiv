@@ -24,173 +24,15 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-//----------------------------------------------------------
-// Patches.Common
-//----------------------------------------------------------
-
 #include <metal_stdlib>
-
-#define offsetof_(X, Y) &(((device X*)nullptr)->Y)
-
-#define OSD_IS_ADAPTIVE (OSD_PATCH_REGULAR || OSD_PATCH_BOX_SPLINE_TRIANGLE || OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY_TRIANGLE || OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY)
-
-#ifndef OSD_MAX_TESS_LEVEL
-#define OSD_MAX_TESS_LEVEL 64
-#endif
-
-#ifndef OSD_NUM_ELEMENTS
-#define OSD_NUM_ELEMENTS 3
-#endif
 
 using namespace metal;
 
-using OsdPatchParamBufferType = packed_int3;
-
-struct OsdPerVertexGregory {
-    float3 P;
-    short3 clipFlag;
-    int valence;
-    float3 e0;
-    float3 e1;
-#if OSD_PATCH_GREGORY_BOUNDARY
-    int zerothNeighbor;
-    float3 org;
-#endif
-    float3 r[OSD_MAX_VALENCE];
-};
-
-struct OsdPerPatchVertexGregory {
-    packed_float3 P;
-    packed_float3 Ep;
-    packed_float3 Em;
-    packed_float3 Fp;
-    packed_float3 Fm;
-};
-
-//----------------------------------------------------------
-// HLSL->Metal Compatibility
-//----------------------------------------------------------
-
-float4 mul(float4x4 a, float4 b)
-{
-    return a * b;
-}
-
-float3 mul(float4x4 a, float3 b)
-{
-    float3x3 m(a[0].xyz, a[1].xyz, a[2].xyz);
-    return m * b;
-
-}
-
-//----------------------------------------------------------
-// Patches.Common
-//----------------------------------------------------------
-
-struct HullVertex {
-    float4 position;
-#if OSD_ENABLE_PATCH_CULL
-    short3 clipFlag;
-#endif
-
-    float3 GetPosition() threadgroup
-    {
-        return position.xyz;
-    }
-
-    void SetPosition(float3 v) threadgroup
-    {
-        position.xyz = v;
-    }
-};
-
-// XXXdyu all downstream data can be handled by client code
-struct OsdPatchVertex {
-    float3 position;
-    float3 normal;
-    float3 tangent;
-    float3 bitangent;
-    float4 patchCoord; //u, v, faceLevel, faceId
-    float2 tessCoord; // tesscoord.st
-#if OSD_COMPUTE_NORMAL_DERIVATIVES
-    float3 Nu;
-    float3 Nv;
-#endif
-#if OSD_PATCH_ENABLE_SINGLE_CREASE
-    float2 vSegments;
-#endif
-};
-
-struct OsdPerPatchTessFactors {
-    float4 tessOuterLo;
-    float4 tessOuterHi;
-};
-
-struct OsdPerPatchVertexBezier {
-    packed_float3 P;
-#if OSD_PATCH_ENABLE_SINGLE_CREASE
-    packed_float3 P1;
-    packed_float3 P2;
-#if !USE_PTVS_SHARPNESS
-    float2 vSegments;
-#endif
-#endif
-};
-
-struct OsdPerPatchVertexGregoryBasis {
-    packed_float3 P;
-};
-
-#if OSD_PATCH_REGULAR || OSD_PATCH_BOX_SPLINE_TRIANGLE
-using PatchVertexType = HullVertex;
-using PerPatchVertexType = OsdPerPatchVertexBezier;
-#elif OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
-using PatchVertexType = OsdPerVertexGregory;
-using PerPatchVertexType = OsdPerPatchVertexGregory;
-#elif OSD_PATCH_GREGORY_BASIS || OSD_PATCH_GREGORY_TRIANGLE
-using PatchVertexType = HullVertex;
-using PerPatchVertexType = OsdPerPatchVertexGregoryBasis;
-#else
-using PatchVertexType = OsdInputVertexType;
-using PerPatchVertexType = OsdInputVertexType;
-#endif
-
-//Shared buffers used by OSD that are common to all kernels
-struct OsdPatchParamBufferSet
-{
-    const device OsdInputVertexType* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]];
-    const device unsigned* indexBuffer [[buffer(CONTROL_INDICES_BUFFER_INDEX)]];
-
-    const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
-
-    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEX_BUFFER_INDEX)]];
-
-#if !USE_PTVS_FACTORS
-    device OsdPerPatchTessFactors* patchTessBuffer [[buffer(OSD_PERPATCHTESSFACTORS_BUFFER_INDEX)]];
-#endif
-
-#if OSD_PATCH_GREGORY || OSD_PATCH_GREGORY_BOUNDARY
-    const device int* quadOffsetBuffer [[buffer(OSD_QUADOFFSET_BUFFER_INDEX)]];
-    const device int* valenceBuffer [[buffer(OSD_VALENCE_BUFFER_INDEX)]];
-#endif
-
-    const constant unsigned& kernelExecutionLimit [[buffer(OSD_KERNELLIMIT_BUFFER_INDEX)]];
-};
-
-//Shared buffers used by OSD that are common to all PTVS implementations
-struct OsdVertexBufferSet
-{
-    const device OsdInputVertexType* vertexBuffer [[buffer(VERTEX_BUFFER_INDEX)]];
-    const device unsigned* indexBuffer [[buffer(CONTROL_INDICES_BUFFER_INDEX)]];
-
-    const device OsdPatchParamBufferType* patchParamBuffer [[buffer(OSD_PATCHPARAM_BUFFER_INDEX)]];
-
-    device PerPatchVertexType* perPatchVertexBuffer [[buffer(OSD_PERPATCHVERTEX_BUFFER_INDEX)]];
-
-#if !USE_PTVS_FACTORS
-    device OsdPerPatchTessFactors* patchTessBuffer [[buffer(OSD_PERPATCHTESSFACTORS_BUFFER_INDEX)]];
-#endif
-};
+// The following callback functions are used when evaluating tessellation
+// rates and when using legacy patch drawing.
+float4x4 OsdModelViewMatrix();
+float4x4 OsdProjectionMatrix();
+float OsdTessLevel();
 
 // ----------------------------------------------------------------------------
 // Patch Parameters
@@ -204,25 +46,6 @@ struct OsdVertexBufferSet
 //    bitfield  -- refinement-level, non-quad, boundary, transition, uv-offset
 //    sharpness -- crease sharpness for single-crease patches
 //
-// These are stored in OsdPatchParamBuffer indexed by the value returned
-// from OsdGetPatchIndex() which is a function of the current PrimitiveID
-// along with an optional client provided offset.
-//
-
-int3 OsdGetPatchParam(int patchIndex, const device OsdPatchParamBufferType* osdPatchParamBuffer)
-{
-#if OSD_PATCH_ENABLE_SINGLE_CREASE
-    return int3(osdPatchParamBuffer[patchIndex]);
-#else
-    auto p = osdPatchParamBuffer[patchIndex];
-    return int3(p[0], p[1], 0);
-#endif
-}
-
-int OsdGetPatchIndex(int primitiveId)
-{
-    return primitiveId;
-}
 
 int OsdGetPatchFaceId(int3 patchParam)
 {
@@ -317,40 +140,6 @@ float4 OsdInterpolatePatchCoordTriangle(float2 localUV, int3 patchParam)
 }
 
 // ----------------------------------------------------------------------------
-// patch culling
-// ----------------------------------------------------------------------------
-
-bool OsdCullPerPatchVertex(
-        threadgroup PatchVertexType* patch,
-        float4x4 ModelViewMatrix
-        )
-{
-#if OSD_ENABLE_BACKPATCH_CULL && OSD_PATCH_REGULAR
-    auto v0 = float3(ModelViewMatrix * patch[5].position);
-    auto v3 = float3(ModelViewMatrix * patch[6].position);
-    auto v12 = float3(ModelViewMatrix * patch[9].position);
-
-    auto n = normalize(cross(v3 - v0, v12 - v0));
-    v0 = normalize(v0 + v3 + v12);
-
-    if(dot(v0, n) > 0.6f)
-    {
-        return false;
-    }
-#endif
-#if OSD_ENABLE_PATCH_CULL
-    short3 clipFlag = short3(0,0,0);
-    for(int i = 0; i < CONTROL_POINTS_PER_PATCH; ++i) {
-        clipFlag |= patch[i].clipFlag;
-    }
-    if (any(clipFlag != short3(3,3,3))) {
-        return false;
-    }
-#endif
-    return true;
-}
-
-// ----------------------------------------------------------------------------
 
 void
 OsdUnivar4x4(float u, thread float* B)
@@ -420,6 +209,17 @@ OsdUnivar4x4(float u, thread float* B, thread float* D, thread float* C)
 }
 
 // ----------------------------------------------------------------------------
+
+struct OsdPerPatchVertexBezier {
+    packed_float3 P;
+#if OSD_PATCH_ENABLE_SINGLE_CREASE
+    packed_float3 P1;
+    packed_float3 P2;
+#if !USE_PTVS_SHARPNESS
+    float2 vSegments;
+#endif
+#endif
+};
 
 float3
 OsdEvalBezier(float3 cp[16], float2 uv)
@@ -1088,6 +888,10 @@ OsdEvalPatchBezier(int3 patchParam, float2 UV,
 // Gregory Basis
 // ----------------------------------------------------------------------------
 
+struct OsdPerPatchVertexGregoryBasis {
+    packed_float3 P;
+};
+
 void
 OsdComputePerPatchVertexGregoryBasis(int3 patchParam, int ID, float3 cv,
                                      device OsdPerPatchVertexGregoryBasis& result)
@@ -1444,3 +1248,4 @@ OsdEvalPatchGregoryTriangle(int3 patchParam, float2 UV, float3 cv[18],
 
     OsdEvalPatchBezierTriangle(patchParam, UV, bezcv, P, dPu, dPv, N, dNu, dNv);
 }
+
