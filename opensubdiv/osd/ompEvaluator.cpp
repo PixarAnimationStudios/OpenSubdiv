@@ -24,9 +24,7 @@
 
 #include "../osd/ompEvaluator.h"
 #include "../osd/ompKernel.h"
-#include "../osd/patchBasisCommonTypes.h"
-#include "../osd/patchBasisCommon.h"
-#include "../osd/patchBasisCommonEval.h"
+#include "../osd/patchBasis.h"
 #include <omp.h>
 
 namespace OpenSubdiv {

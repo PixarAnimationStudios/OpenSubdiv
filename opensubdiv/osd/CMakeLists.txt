@@ -53,9 +53,8 @@ set(PUBLIC_HEADER_FILES
 )
 
 list(APPEND KERNEL_FILES
-    patchBasisCommonTypes.h
-    patchBasisCommon.h
-    patchBasisCommonEval.h
+    patchBasisTypes.h
+    patchBasis.h
 )
 
 set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})

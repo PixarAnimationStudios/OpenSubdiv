@@ -22,8 +22,31 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-#ifndef OPENSUBDIV3_OSD_PATCH_BASIS_COMMON_TYPES_H
-#define OPENSUBDIV3_OSD_PATCH_BASIS_COMMON_TYPES_H
+#ifndef OPENSUBDIV3_OSD_PATCH_BASIS_TYPES_H
+#define OPENSUBDIV3_OSD_PATCH_BASIS_TYPES_H
+
+/// This is an implementation of the functionality from osd/types.h
+/// which can be used from client shader and kernel code, i.e for
+/// GLSL, HLSL, CUDA, OpenCL, Metal, and C++ shaders and kernels.
+///
+/// This is defined within the OpenSubdiv::Osd namespace for C++, but
+/// the methods and types also have an Osd prefix for consistency with
+/// environments (e.g. GLSL, etc.) where C++ namespaces are not available.
+
+#if !defined(OSD_PATCH_BASIS_GLSL) && \
+    !defined(OSD_PATCH_BASIS_HLSL) && \
+    !defined(OSD_PATCH_BASIS_CUDA) && \
+    !defined(OSD_PATCH_BASIS_OPENCL) && \
+    !defined(OSD_PATCH_BASIS_METAL)
+
+#include "../version.h"
+
+namespace OpenSubdiv {
+namespace OPENSUBDIV_VERSION {
+
+namespace Osd {
+
+#endif
 
 #if defined(OSD_PATCH_BASIS_GLSL)
 
@@ -419,4 +442,19 @@ OsdPatchParamUnnormalizeTriangle(
     }
 }
 
-#endif /* OPENSUBDIV3_OSD_PATCH_BASIS_COMMON_TYPES_H */
+#if !defined(OSD_PATCH_BASIS_GLSL) && \
+    !defined(OSD_PATCH_BASIS_HLSL) && \
+    !defined(OSD_PATCH_BASIS_CUDA) && \
+    !defined(OSD_PATCH_BASIS_OPENCL) && \
+    !defined(OSD_PATCH_BASIS_METAL)
+
+}  // end namespace Osd
+
+}  // end namespace OPENSUBDIV_VERSION
+using namespace OPENSUBDIV_VERSION;
+
+}  // end namespace OpenSubdiv
+
+#endif
+
+#endif /* OPENSUBDIV3_OSD_PATCH_BASIS_TYPES_H */

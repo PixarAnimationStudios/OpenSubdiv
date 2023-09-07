@@ -24,9 +24,7 @@
 
 #include "../osd/cpuEvaluator.h"
 #include "../osd/cpuKernel.h"
-#include "../osd/patchBasisCommonTypes.h"
-#include "../osd/patchBasisCommon.h"
-#include "../osd/patchBasisCommonEval.h"
+#include "../osd/patchBasis.h"
 
 #include <cstdlib>
 
