@@ -49,9 +49,8 @@ if (NOT NO_LIB)
     endif()
 
     if( TBB_FOUND )
-        include_directories("${TBB_INCLUDE_DIR}")
         list(APPEND PLATFORM_CPU_LIBRARIES
-            ${TBB_LIBRARIES}
+            TBB::tbb
         )
     endif()
 

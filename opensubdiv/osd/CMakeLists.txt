@@ -88,8 +88,6 @@ set(TBB_PUBLIC_HEADERS
 )
 
 if( TBB_FOUND )
-    include_directories("${TBB_INCLUDE_DIR}")
-
     list(APPEND CPU_SOURCE_FILES
         tbbEvaluator.cpp
         tbbKernel.cpp
@@ -102,7 +100,7 @@ if( TBB_FOUND )
     endif()
 
     list(APPEND PLATFORM_CPU_LIBRARIES
-        ${TBB_LIBRARIES}
+        TBB::tbb
     )
 endif()
 
@@ -382,6 +380,10 @@ add_library(osd_cpu_obj
 set_target_properties(osd_cpu_obj
     PROPERTIES
         FOLDER "opensubdiv"
+)
+
+target_link_libraries(osd_cpu_obj
+    ${PLATFORM_CPU_LIBRARIES}
 )
 
 if( GPU_SOURCE_FILES ) 

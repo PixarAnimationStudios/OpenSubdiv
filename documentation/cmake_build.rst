@@ -104,12 +104,13 @@ The following configuration arguments can be passed to the CMake command line.
    -DCMAKE_INSTALL_PREFIX=[base path to install OpenSubdiv (default: Current directory)]
    -DCMAKE_LIBDIR_BASE=[library directory basename (default: lib)]
 
+   -DCMAKE_PREFIX_PATH=[semicolon-separated list of directories specifying installation prefixes to be searched by the find_package() command (default: empty list)]
+
    -DCUDA_TOOLKIT_ROOT_DIR=[path to CUDA]
    -DOSD_CUDA_NVCC_FLAGS=[CUDA options, e.g. --gpu-architecture]
 
    -DPTEX_LOCATION=[path to Ptex]
    -DGLFW_LOCATION=[path to GLFW]
-   -DTBB_LOCATION=[path to Intel's TBB]
    -DICC_LOCATION=[path to Intel's C++ Studio XE]
 
    -DNO_LIB=1        // disable the opensubdiv libs build (caveat emptor)

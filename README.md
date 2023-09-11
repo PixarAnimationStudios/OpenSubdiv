@@ -36,7 +36,7 @@ For more details about OpenSubdiv, see [Pixar Graphics Technologies](http://grap
 | Lib                                                                | Min Version | Note                        |
 | ------------------------------------------------------------------ | ----------- | ----------------------------|
 | [CUDA](http://developer.nvidia.com/cuda-toolkit)                   | 4.0         | cuda backend                |
-| [TBB](https://www.threadingbuildingblocks.org)                     | 4.0         | TBB backend                 |
+| [TBB](https://www.threadingbuildingblocks.org)                     | 2018        | TBB backend                 |
 | [OpenCL](http://www.khronos.org/opencl)                            | 1.1         | CL backend                  |
 | [DX11 SDK](http://www.microsoft.com/download/details.aspx?id=6812) |             | DX backend                  |
 | [Metal](https://developer.apple.com/metal/)                        | 1.2         | Metal backend               |
