@@ -361,6 +361,8 @@ OmpEvaluator::Synchronize(void * /*deviceContext*/) {
 /* static */
 void
 OmpEvaluator::SetNumThreads(int numThreads) {
+    // This is deprecated functionality. We preserve the existing behavior
+    // for consistency.
     omp_set_num_threads(numThreads);
 }
 

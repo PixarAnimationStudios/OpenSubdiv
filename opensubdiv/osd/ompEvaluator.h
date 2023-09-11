@@ -1225,6 +1225,7 @@ public:
 
     static void Synchronize(void *deviceContext = NULL);
 
+    /// \brief Deprecated. Client code should initialize OpenMP.
     static void SetNumThreads(int numThreads);
 };
 
