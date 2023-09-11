@@ -41,9 +41,8 @@ if( OPENCL_FOUND )
 endif()
 
 if( TBB_FOUND )
-    include_directories("${TBB_INCLUDE_DIR}")
     list(APPEND PLATFORM_LIBRARIES
-        "${TBB_LIBRARIES}"
+        TBB::tbb
     )
 endif()
 

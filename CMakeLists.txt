@@ -353,7 +353,7 @@ if(NOT NO_OMP)
     find_package(OpenMP)
 endif()
 if(NOT NO_TBB)
-    find_package(TBB 4.0)
+    find_package(TBB 2018 COMPONENTS tbb)
 endif()
 if (NOT NO_OPENGL)
     find_package(OpenGL)
@@ -446,9 +446,9 @@ else()
     if (NOT NO_TBB)
         message(WARNING
             "TBB was not found : support for TBB parallel compute kernels "
-            "will be disabled in Osd.  If your compiler supports TBB "
-            "directives, please refer to the FindTBB.cmake shared module "
-            "in your cmake installation.")
+            "will be disabled in Osd.  If your environment supports TBB, "
+            "please make sure that TBB's CMake config is available in the "
+            "find_package() search path.")
     endif()
 endif()
 
