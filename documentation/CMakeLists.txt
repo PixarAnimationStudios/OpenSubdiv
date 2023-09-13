@@ -269,7 +269,10 @@ if (DOCUTILS_FOUND AND Python_Interpreter_FOUND)
                 -E copy "${infile}" "${outfile}"
         )
 
-        add_custom_target( ${src} DEPENDS "${outfile}")
+        # Exclude generated search.html
+        if (NOT ${src} STREQUAL "search.html")
+            add_custom_target( ${src} DEPENDS "${outfile}")
+        endif()
 
         list(APPEND HTML_TARGETS ${src})
 
