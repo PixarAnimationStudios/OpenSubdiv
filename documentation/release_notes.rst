@@ -22,7 +22,7 @@
      language governing permissions and limitations under the Apache License.
 
 
-3.0 - 3.5 Release Notes
+3.0 - 3.6 Release Notes
 -----------------------
 
 .. contents::
@@ -30,6 +30,28 @@
    :backlinks: none
 
 ----
+
+Release 3.6
+~~~~~~~~~~~
+
+Release 3.6.0 - Sep 2023
+==============================
+
+Release 3.6.0 is a significant release with new features, several
+configuration improvements, and bug fixes.
+For more information on the following, see `Release 3.6 <release_36.html>`__
+
+**Changes**
+    - Updated Osd patch drawing shader source to exclude legacy shader constructs to improve compatibility with Vulkan, DX12, etc. (GitHub #1320)
+    - Installed Osd patch evaluation headers to allow use from client shaders and compute kernels (GitHub #1321)
+    - Updated CMake build to locate TBB using TBB's CMake config in order to support oneTBB (GitHub #1319)
+    - Updated CMake FindOpenCL module to support parsing version information from recent OpenCL headers (GitHub #1322)
+    - Removed obsolete .travis.yml (GitHub #1324)
+
+**Bug Fixes**
+    - Fixed inconsistent warning levels for MSVC builds when using Ninja (GitHub #1318)
+    - Fixed documentation build errors when using Ninja (GitHub #1323)
+    - Fixed build errors resulting from oneTBB API changes (GitHub #1317)
 
 Release 3.5
 ~~~~~~~~~~~
