@@ -44,13 +44,10 @@ static std::string patchLegacyShaderSource(
 #include "mtlPatchLegacy.gen.h"
 );
 static std::string patchBasisTypesShaderSource(
-#include "patchBasisCommonTypes.gen.h"
+#include "patchBasisTypes.gen.h"
 );
 static std::string patchBasisShaderSource(
-#include "patchBasisCommon.gen.h"
-);
-static std::string patchBasisEvalShaderSource(
-#include "patchBasisCommonEval.gen.h"
+#include "patchBasis.gen.h"
 );
 static std::string bsplineShaderSource(
 #include "mtlPatchBSpline.gen.h"
@@ -176,7 +173,6 @@ MTLPatchShaderSource::GetPatchBasisShaderSource() {
 #endif
     ss << patchBasisTypesShaderSource;
     ss << patchBasisShaderSource;
-    ss << patchBasisEvalShaderSource;
     return ss.str();
 }
 

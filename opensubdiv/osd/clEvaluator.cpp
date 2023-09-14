@@ -42,13 +42,10 @@ static const char *clSource =
 #include "clKernel.gen.h"
 ;
 static const char *patchBasisTypesSource =
-#include "patchBasisCommonTypes.gen.h"
+#include "patchBasisTypes.gen.h"
 ;
 static const char *patchBasisSource =
-#include "patchBasisCommon.gen.h"
-;
-static const char *patchBasisEvalSource =
-#include "patchBasisCommonEval.gen.h"
+#include "patchBasis.gen.h"
 ;
 
 // ----------------------------------------------------------------------------
@@ -175,9 +172,8 @@ CLEvaluator::Compile(BufferDescriptor const &srcDesc,
     const char *sources[] = { defineStr.c_str(),
                               patchBasisTypesSource,
                               patchBasisSource,
-                              patchBasisEvalSource,
                               clSource };
-    _program = clCreateProgramWithSource(_clContext, 5, sources, 0, &errNum);
+    _program = clCreateProgramWithSource(_clContext, 4, sources, 0, &errNum);
     if (errNum != CL_SUCCESS) {
         Far::Error(Far::FAR_RUNTIME_ERROR,
                    "clCreateProgramWithSource (%d)", errNum);

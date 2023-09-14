@@ -43,13 +43,10 @@ static const char *patchLegacyShaderSource =
 #include "hlslPatchLegacy.gen.h"
 ;
 static const char *patchBasisTypesShaderSource =
-#include "patchBasisCommonTypes.gen.h"
+#include "patchBasisTypes.gen.h"
 ;
 static const char *patchBasisShaderSource =
-#include "patchBasisCommon.gen.h"
-;
-static const char *patchBasisEvalShaderSource =
-#include "patchBasisCommonEval.gen.h"
+#include "patchBasis.gen.h"
 ;
 static const char *boxSplineTriangleShaderSource =
 #include "hlslPatchBoxSplineTriangle.gen.h"
@@ -94,7 +91,6 @@ HLSLPatchShaderSource::GetPatchBasisShaderSource() {
 #endif
     ss << std::string(patchBasisTypesShaderSource);
     ss << std::string(patchBasisShaderSource);
-    ss << std::string(patchBasisEvalShaderSource);
     return ss.str();
 }
 

@@ -52,13 +52,18 @@ set(PUBLIC_HEADER_FILES
     types.h
 )
 
-list(APPEND KERNEL_FILES
-    patchBasisCommonTypes.h
-    patchBasisCommon.h
-    patchBasisCommonEval.h
+set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
+
+# These are public but excluded from doxygen
+list(APPEND PUBLIC_HEADER_FILES
+    patchBasisTypes.h
+    patchBasis.h
 )
 
-set(DOXY_HEADER_FILES ${PUBLIC_HEADER_FILES})
+list(APPEND KERNEL_FILES
+    patchBasisTypes.h
+    patchBasis.h
+)
 
 #-------------------------------------------------------------------------------
 set(OPENMP_PUBLIC_HEADERS

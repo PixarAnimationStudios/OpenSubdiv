@@ -24,9 +24,8 @@
 
 #include <assert.h>
 #define OSD_PATCH_BASIS_CUDA
-#include "../osd/patchBasisCommonTypes.h"
-#include "../osd/patchBasisCommon.h"
-#include "../osd/patchBasisCommonEval.h"
+#include "../osd/patchBasisTypes.h"
+#include "../osd/patchBasis.h"
 
 // -----------------------------------------------------------------------------
 template<int N> struct DeviceVertex {

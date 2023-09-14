@@ -26,9 +26,7 @@
 #include "../osd/tbbKernel.h"
 #include "../osd/types.h"
 #include "../osd/bufferDescriptor.h"
-#include "../osd/patchBasisCommonTypes.h"
-#include "../osd/patchBasisCommon.h"
-#include "../osd/patchBasisCommonEval.h"
+#include "../osd/patchBasis.h"
 
 #include <cassert>
 #include <cstdlib>
