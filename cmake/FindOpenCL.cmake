@@ -177,7 +177,7 @@ if(_OPENCL_CPP_INCLUDE_DIRS)
     
     if(EXISTS "${OPENCL_INCLUDE_DIRS}/CL/cl.h")
     
-        file(STRINGS "${OPENCL_INCLUDE_DIRS}/CL/cl.h" LINES REGEX "^#define CL_VERSION_.*$")
+        file(STRINGS "${OPENCL_INCLUDE_DIRS}/CL/cl.h" LINES REGEX "^#define CL_VERSION_[0-9]_[0-9]")
 
         foreach(LINE ${LINES})
         
