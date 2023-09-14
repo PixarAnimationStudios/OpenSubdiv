@@ -147,18 +147,23 @@ GetPatchTypeSource(Far::PatchDescriptor::Type type) {
 
 /*static*/
 std::string
-MTLPatchShaderSource::GetCommonShaderSource() {
+MTLPatchShaderSource::GetPatchDrawingShaderSource() {
 #if TARGET_OS_IOS || TARGET_OS_TV
     return std::string("#define OSD_METAL_IOS 1\n")
                .append(commonShaderSource)
-               .append(commonTessShaderSource)
-               .append(patchLegacyShaderSource);
+               .append(commonTessShaderSource);
 #elif TARGET_OS_OSX
     return std::string("#define OSD_METAL_OSX 1\n")
                .append(commonShaderSource)
-               .append(commonTessShaderSource)
-               .append(patchLegacyShaderSource);
+               .append(commonTessShaderSource);
 #endif
+}
+
+/*static*/
+std::string
+MTLPatchShaderSource::GetCommonShaderSource() {
+    return GetPatchDrawingShaderSource()
+               .append(patchLegacyShaderSource);
 }
 
 /*static*/

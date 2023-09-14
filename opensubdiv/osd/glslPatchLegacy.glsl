@@ -22,6 +22,128 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
+//----------------------------------------------------------
+// Patches.Common
+//----------------------------------------------------------
+
+// XXXdyu all handling of varying data can be managed by client code
+#ifndef OSD_USER_VARYING_DECLARE
+#define OSD_USER_VARYING_DECLARE
+// type var;
+#endif
+
+#ifndef OSD_USER_VARYING_ATTRIBUTE_DECLARE
+#define OSD_USER_VARYING_ATTRIBUTE_DECLARE
+// layout(location = loc) in type var;
+#endif
+
+#ifndef OSD_USER_VARYING_PER_VERTEX
+#define OSD_USER_VARYING_PER_VERTEX()
+// output.var = var;
+#endif
+
+#ifndef OSD_USER_VARYING_PER_CONTROL_POINT
+#define OSD_USER_VARYING_PER_CONTROL_POINT(ID_OUT, ID_IN)
+// output[ID_OUT].var = input[ID_IN].var
+#endif
+
+#ifndef OSD_USER_VARYING_PER_EVAL_POINT
+#define OSD_USER_VARYING_PER_EVAL_POINT(UV, a, b, c, d)
+// output.var =
+//     mix(mix(input[a].var, input[b].var, UV.x),
+//         mix(input[c].var, input[d].var, UV.x), UV.y)
+#endif
+
+#ifndef OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE
+#define OSD_USER_VARYING_PER_EVAL_POINT_TRIANGLE(UV, a, b, c)
+// output.var =
+//     input[a].var * (1.0f-UV.x-UV.y) +
+//     input[b].var * UV.x +
+//     input[c].var * UV.y;
+#endif
+
+#if __VERSION__ < 420
+    #define centroid
+#endif
+
+struct ControlVertex {
+    vec4 position;
+#ifdef OSD_ENABLE_PATCH_CULL
+    ivec3 clipFlag;
+#endif
+};
+
+// XXXdyu all downstream data can be handled by client code
+struct OutputVertex {
+    vec4 position;
+    vec3 normal;
+    vec3 tangent;
+    vec3 bitangent;
+    vec4 patchCoord; // u, v, faceLevel, faceId
+    vec2 tessCoord; // tesscoord.st
+#if defined OSD_COMPUTE_NORMAL_DERIVATIVES
+    vec3 Nu;
+    vec3 Nv;
+#endif
+};
+
+mat4 OsdModelViewProjectionMatrix();
+int OsdGregoryQuadOffsetBase();
+int OsdPrimitiveIdBase();
+int OsdBaseVertex();
+
+#ifndef OSD_DISPLACEMENT_CALLBACK
+#define OSD_DISPLACEMENT_CALLBACK
+#endif
+
+// These are stored in OsdPatchParamBuffer indexed by the value returned
+// from OsdGetPatchIndex() which is a function of the current PrimitiveID
+// along with an optional client provided offset.
+
+uniform isamplerBuffer OsdPatchParamBuffer;
+
+int OsdGetPatchIndex(int primitiveId)
+{
+    return (primitiveId + OsdPrimitiveIdBase());
+}
+
+ivec3 OsdGetPatchParam(int patchIndex)
+{
+    return texelFetch(OsdPatchParamBuffer, patchIndex).xyz;
+}
+
+// ----------------------------------------------------------------------------
+// patch culling
+// ----------------------------------------------------------------------------
+
+#ifdef OSD_ENABLE_PATCH_CULL
+
+#define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)                     \
+    vec4 clipPos = OsdModelViewProjectionMatrix() * P;          \
+    bvec3 clip0 = lessThan(clipPos.xyz, vec3(clipPos.w));       \
+    bvec3 clip1 = greaterThan(clipPos.xyz, -vec3(clipPos.w));   \
+    outpt.v.clipFlag = ivec3(clip0) + 2*ivec3(clip1);           \
+
+#define OSD_PATCH_CULL(N)                            \
+    ivec3 clipFlag = ivec3(0);                       \
+    for(int i = 0; i < N; ++i) {                     \
+        clipFlag |= inpt[i].v.clipFlag;              \
+    }                                                \
+    if (clipFlag != ivec3(3) ) {                     \
+        gl_TessLevelInner[0] = 0;                    \
+        gl_TessLevelInner[1] = 0;                    \
+        gl_TessLevelOuter[0] = 0;                    \
+        gl_TessLevelOuter[1] = 0;                    \
+        gl_TessLevelOuter[2] = 0;                    \
+        gl_TessLevelOuter[3] = 0;                    \
+        return;                                      \
+    }
+
+#else
+#define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)
+#define OSD_PATCH_CULL(N)
+#endif
+
 // ----------------------------------------------------------------------------
 // Legacy Gregory
 // ----------------------------------------------------------------------------

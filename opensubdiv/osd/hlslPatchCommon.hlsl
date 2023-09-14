@@ -22,52 +22,11 @@
 //   language governing permissions and limitations under the Apache License.
 //
 
-//----------------------------------------------------------
-// Patches.Common
-//----------------------------------------------------------
-
-struct InputVertex {
-    float4 position : POSITION;
-    float3 normal : NORMAL;
-};
-
-struct HullVertex {
-    float4 position : POSITION;
-#ifdef OSD_ENABLE_PATCH_CULL
-    int3 clipFlag : CLIPFLAG;
-#endif
-};
-
-// XXXdyu all downstream data can be handled by client code
-struct OutputVertex {
-    float4 positionOut : SV_Position;
-    float4 position : POSITION1;
-    float3 normal : NORMAL;
-    float3 tangent : TANGENT;
-    float3 bitangent : TANGENT1;
-    float4 patchCoord : PATCHCOORD; // u, v, faceLevel, faceId
-    noperspective float4 edgeDistance : EDGEDISTANCE;
-#if defined(OSD_COMPUTE_NORMAL_DERIVATIVES)
-    float3 Nu : TANGENT2;
-    float3 Nv : TANGENT3;
-#endif
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    float2 vSegments : VSEGMENTS;
-#endif
-};
-
-// osd shaders need following functions defined
+// The following callback functions are used when evaluating tessellation
+// rates and when using legacy patch drawing.
 float4x4 OsdModelViewMatrix();
 float4x4 OsdProjectionMatrix();
-float4x4 OsdModelViewProjectionMatrix();
 float OsdTessLevel();
-int OsdGregoryQuadOffsetBase();
-int OsdPrimitiveIdBase();
-int OsdBaseVertex();
-
-#ifndef OSD_DISPLACEMENT_CALLBACK
-#define OSD_DISPLACEMENT_CALLBACK
-#endif
 
 // ----------------------------------------------------------------------------
 // Patch Parameters
@@ -81,31 +40,6 @@ int OsdBaseVertex();
 //    bitfield  -- refinement-level, non-quad, boundary, transition, uv-offset
 //    sharpness -- crease sharpness for single-crease patches
 //
-// These are stored in OsdPatchParamBuffer indexed by the value returned
-// from OsdGetPatchIndex() which is a function of the current PrimitiveID
-// along with an optional client provided offset.
-//
-
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    Buffer<uint3> OsdPatchParamBuffer : register( t0 );
-#else
-    Buffer<uint2> OsdPatchParamBuffer : register( t0 );
-#endif
-
-int OsdGetPatchIndex(int primitiveId)
-{
-    return (primitiveId + OsdPrimitiveIdBase());
-}
-
-int3 OsdGetPatchParam(int patchIndex)
-{
-#if defined OSD_PATCH_ENABLE_SINGLE_CREASE
-    return OsdPatchParamBuffer[patchIndex].xyz;
-#else
-    uint2 p = OsdPatchParamBuffer[patchIndex].xy;
-    return int3(p.x, p.y, 0);
-#endif
-}
 
 int OsdGetPatchFaceId(int3 patchParam)
 {
@@ -198,60 +132,6 @@ float4 OsdInterpolatePatchCoordTriangle(float2 localUV, int3 patchParam)
     }
     return result;
 }
-
-// ----------------------------------------------------------------------------
-// patch culling
-// ----------------------------------------------------------------------------
-
-#ifdef OSD_ENABLE_PATCH_CULL
-
-#define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)                     \
-    float4 clipPos = mul(OsdModelViewProjectionMatrix(), P);    \
-    int3 clip0 = int3(clipPos.x < clipPos.w,                    \
-                      clipPos.y < clipPos.w,                    \
-                      clipPos.z < clipPos.w);                   \
-    int3 clip1 = int3(clipPos.x > -clipPos.w,                   \
-                      clipPos.y > -clipPos.w,                   \
-                      clipPos.z > -clipPos.w);                  \
-    output.clipFlag = int3(clip0) + 2*int3(clip1);              \
-
-#define OSD_PATCH_CULL(N)                          \
-    int3 clipFlag = int3(0,0,0);                   \
-    for(int i = 0; i < N; ++i) {                   \
-        clipFlag |= patch[i].clipFlag;             \
-    }                                              \
-    if (any(clipFlag != int3(3,3,3))) {            \
-        output.tessLevelInner[0] = 0;              \
-        output.tessLevelInner[1] = 0;              \
-        output.tessLevelOuter[0] = 0;              \
-        output.tessLevelOuter[1] = 0;              \
-        output.tessLevelOuter[2] = 0;              \
-        output.tessLevelOuter[3] = 0;              \
-        output.tessOuterLo = float4(0,0,0,0);      \
-        output.tessOuterHi = float4(0,0,0,0);      \
-        return output;                             \
-    }
-
-#define OSD_PATCH_CULL_TRIANGLE(N)                          \
-    int3 clipFlag = int3(0,0,0);                   \
-    for(int i = 0; i < N; ++i) {                   \
-        clipFlag |= patch[i].clipFlag;             \
-    }                                              \
-    if (any(clipFlag != int3(3,3,3))) {            \
-        output.tessLevelInner[0] = 0;              \
-        output.tessLevelOuter[0] = 0;              \
-        output.tessLevelOuter[1] = 0;              \
-        output.tessLevelOuter[2] = 0;              \
-        output.tessOuterLo = float4(0,0,0,0);      \
-        output.tessOuterHi = float4(0,0,0,0);      \
-        return output;                             \
-    }
-
-#else
-#define OSD_PATCH_CULL_COMPUTE_CLIPFLAGS(P)
-#define OSD_PATCH_CULL(N)
-#define OSD_PATCH_CULL_TRIANGLE(N)
-#endif
 
 // ----------------------------------------------------------------------------
 
@@ -564,7 +444,7 @@ OsdFlipMatrix(float4x4 m)
 }
 
 // Regular BSpline to Bezier
-static float4x4 Q = {
+static const float4x4 Q = {
     1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
     0.f,     4.f/6.f, 2.f/6.f, 0.f,
     0.f,     2.f/6.f, 4.f/6.f, 0.f,
@@ -572,7 +452,7 @@ static float4x4 Q = {
 };
 
 // Infinitely Sharp (boundary)
-static float4x4 Mi = {
+static const float4x4 Mi = {
     1.f/6.f, 4.f/6.f, 1.f/6.f, 0.f,
     0.f,     4.f/6.f, 2.f/6.f, 0.f,
     0.f,     2.f/6.f, 4.f/6.f, 0.f,
