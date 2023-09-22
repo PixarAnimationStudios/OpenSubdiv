@@ -255,6 +255,9 @@ elseif(MSVC)
                     # warning C4548: expression before comma has no effect; expected expression with side-effect
                     /wd4548
 
+                    # warning C5051: attribute 'fallthrough' requires at least '/std:c++17'
+                    /wd5051
+
                     # Make sure WinDef.h does not define min and max macros which
                     # will conflict with std::min() and std::max().
                     /DNOMINMAX
