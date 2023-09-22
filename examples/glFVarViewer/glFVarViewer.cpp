@@ -520,13 +520,15 @@ fitFrame() {
 
 union Effect {
 
-    Effect(int displayStyle_, int uvDraw_) : value(0) {
+    Effect(int displayStyle_, int singleCreasePatch_, int uvDraw_) : value(0) {
         displayStyle = displayStyle_;
+        singleCreasePatch = singleCreasePatch_;
         uvDraw = uvDraw_;
     }
 
     struct {
         unsigned int displayStyle:3;
+        unsigned int singleCreasePatch:1;
         unsigned int uvDraw:1;
     };
     int value;
@@ -539,7 +541,7 @@ union Effect {
 static Effect
 GetEffect(bool uvDraw = false) {
 
-    return Effect(g_displayStyle, uvDraw);
+    return Effect(g_displayStyle, g_singleCreasePatch, uvDraw);
 }
 
 // ---------------------------------------------------------------------------
@@ -589,6 +591,11 @@ public:
             ss << "#define PRIM_QUAD\n";
         } else {
             ss << "#define PRIM_TRI\n";
+        }
+
+        if (effectDesc.effect.singleCreasePatch &&
+            type == Far::PatchDescriptor::REGULAR) {
+            ss << "#define OSD_PATCH_ENABLE_SINGLE_CREASE\n";
         }
 
         if (effectDesc.effect.uvDraw) {
