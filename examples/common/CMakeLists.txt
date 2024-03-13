@@ -60,8 +60,8 @@ if(OPENCL_FOUND)
     )
 endif()
 
-if(CUDA_FOUND)
-    include_directories("${CUDA_INCLUDE_DIRS}")
+if(CUDAToolkit_FOUND)
+    include_directories("${CUDAToolkit_INCLUDE_DIRS}")
 
     list(APPEND EXAMPLES_COMMON_SOURCE_FILES
         cudaDeviceContext.cpp
