@@ -51,10 +51,10 @@ DESCRIPTION
 with color, displacement, occlusion and specular ptex maps. Multiple controls 
 are available to experiment with the algorithms.
 
-.. image:: images/barb_1.jpg
+.. image:: images/barb_1.png
    :width: 400px
    :align: center
-   :target: images/barb_1.jpg
+   :target: images/barb_1.png
 
 OPTIONS
 =======
