@@ -331,7 +331,7 @@ set(CUDA_PUBLIC_HEADERS
     cudaVertexBuffer.h
 )
 
-if( CUDA_FOUND )
+if( CUDAToolkit_FOUND )
     list(APPEND GPU_SOURCE_FILES
         cudaEvaluator.cpp
         cudaPatchTable.cpp
