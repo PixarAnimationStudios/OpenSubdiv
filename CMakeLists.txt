@@ -22,7 +22,7 @@
 #   language governing permissions and limitations under the Apache License.
 #
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.17)
 
 project(OpenSubdiv)
 
@@ -383,7 +383,7 @@ if(NOT NO_OPENCL)
     endif()
 endif()
 if(NOT NO_CUDA)
-    find_package(CUDA 4.0)
+    find_package(CUDAToolkit 4.0)
 endif()
 if(NOT NO_GLFW AND NOT NO_OPENGL AND NOT ANDROID AND NOT IOS)
     find_package(GLFW 3.0.0)
@@ -600,29 +600,35 @@ else()
     endif()
 endif()
 
-if(CUDA_FOUND)
+if(CUDAToolkit_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_CUDA
         -DCUDA_ENABLE_DEPRECATED=0
     )
     set(OSD_GPU TRUE)
 
+    # Enable CUDA language support
+    enable_language(CUDA)
+
     if (UNIX)
-        list( APPEND CUDA_NVCC_FLAGS -Xcompiler -fPIC )
         # Use OSD_CUDA_NVCC_FLAGS to specify --gpu-architecture or other CUDA
         # compilation options. The overrides here are only for compatibility
         # with older OpenSubdiv releases and obsolete CUDA versions.
         if (NOT DEFINED OSD_CUDA_NVCC_FLAGS)
-            if (CUDA_VERSION_MAJOR LESS 6)
+            if (CUDAToolkit_VERSION_MAJOR LESS 6)
                 set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_11 )
-            elseif (CUDA_VERSION_MAJOR LESS 8)
+            elseif (CUDAToolkit_VERSION_MAJOR LESS 8)
                 set( OSD_CUDA_NVCC_FLAGS --gpu-architecture compute_20 )
             endif()
         endif()
     endif()
 
     if (DEFINED OSD_CUDA_NVCC_FLAGS)
-        list( APPEND CUDA_NVCC_FLAGS ${OSD_CUDA_NVCC_FLAGS})
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${OSD_CUDA_NVCC_FLAGS}")
+    endif()
+
+    if (UNIX)
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler -fPIC")
     endif()
 
 else()
@@ -630,7 +636,7 @@ else()
         message(WARNING
             "CUDA was not found : support for CUDA parallel compute kernels "
             "will be disabled in Osd.  If you have the CUDA SDK installed, please "
-            "refer to the FindCUDA.cmake shared module in your cmake installation.")
+            "make sure it's in your PATH or set CMAKE_CUDA_COMPILER.")
     endif()
 endif()
 
@@ -811,16 +817,18 @@ endmacro()
 # Macro for adding a cuda executable if cuda is found and a regular
 # executable otherwise.
 macro(osd_add_possibly_cuda_executable target folder)
-    if(CUDA_FOUND)
-        cuda_add_executable(${target} ${ARGN})
-    else()
         add_executable(${target} ${ARGN})
+
+    if(CUDAToolkit_FOUND)
+        # Link against CUDA runtime library (shared by default)
+        target_link_libraries(${target} CUDA::cudart)
+        set_property(TARGET ${target} PROPERTY CUDA_RUNTIME_LIBRARY Shared)
     endif()
 
     set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
     # Workaround link dependencies for cuda examples on platforms with GLX
-    if(CUDA_FOUND AND OpenGL_GLX_FOUND)
+    if(CUDAToolkit_FOUND AND OpenGL_GLX_FOUND)
         target_link_libraries(${target} OpenGL::GLX)
     endif()
 
@@ -838,11 +846,14 @@ endmacro()
 # Macro for adding a cuda library if cuda is found and a regular
 # library otherwise.
 macro(osd_add_possibly_cuda_library target folder)
-    if(CUDA_FOUND)
-        cuda_add_library(${target} ${ARGN})
-    else()
         add_library(${target} ${ARGN})
+
+    if(CUDAToolkit_FOUND)
+        # Link against CUDA runtime library (shared by default)
+        target_link_libraries(${target} CUDA::cudart)
+        set_property(TARGET ${target} PROPERTY CUDA_RUNTIME_LIBRARY Shared)
     endif()
+
     set_target_properties(${target} PROPERTIES FOLDER ${folder})
 
     if(APPLE)

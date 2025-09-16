@@ -88,8 +88,12 @@ if (NOT NO_LIB)
         )
     endif()
 
-    if( CUDA_FOUND )
-        include_directories( "${CUDA_INCLUDE_DIRS}" )
+    if( CUDAToolkit_FOUND )
+        # CUDA include directories are still needed for .cpp files that include CUDA headers
+        get_target_property(CUDA_INCLUDE_DIRS CUDA::cudart INTERFACE_INCLUDE_DIRECTORIES)
+        if(CUDA_INCLUDE_DIRS)
+            include_directories( "${CUDA_INCLUDE_DIRS}" )
+        endif()
     endif()
 
 
@@ -420,7 +424,7 @@ if (NOT NO_LIB)
                 if(CLEW_FOUND)
                     target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_CLEW)
                 endif()
-                if(CUDA_FOUND)
+                if(CUDAToolkit_FOUND)
                     target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_CUDA)
                 endif()
                 if(DXSDK_FOUND)
