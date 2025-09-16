@@ -120,6 +120,8 @@ if (NOT NO_LIB)
 
     #---------------------------------------------------------------------------
 
+    if (BUILD_STATIC_LIBS)
+
     # Build static libs ------------------------------------
     add_library(osd_static_cpu
         STATIC
@@ -178,6 +180,7 @@ if (NOT NO_LIB)
         install( TARGETS osd_static_gpu EXPORT opensubdiv-targets DESTINATION "${CMAKE_LIBDIR_BASE}" )
     endif()
 
+    endif() # Build static libs
 
     # Build dynamic libs  ----------------------------------
     if (BUILD_SHARED_LIBS AND NOT WIN32 AND NOT IOS)
