@@ -87,13 +87,12 @@ References
     | *Subdivision Surfaces in Character Animation*
     | Tony DeRose, Michael Kass, Tien Truong
     | Proceedings of SIGGRAPH 1998
-    | `<http://graphics.pixar.com/library/Geri/paper.pdf>`_
+    | `<https://research.pixar.com/docs/1998.SiggraphPapers.DKT.pdf>`_
     | `<http://doi.org/10.1145/280814.280826>`_
     |
     | *Efficient, Fair Interpolation Using Catmull-Clark Surfaces*
     | Mark Halstead, Michael Kass, Tony DeRose
     | SIGGRAPH 93 Conference Proceedings
-    | `<http://graphics.pixar.com/library/FairSubdivision/paper.pdf>`_
     | `<http://doi.org/10.1145/166117.166121>`_
     |
     | *Recursively generated B-spline surfaces on arbitrary topological meshes*

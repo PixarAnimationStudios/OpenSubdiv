@@ -10,9 +10,9 @@ For more details, please visit the web site [opensubdiv.org](https://opensubdiv.
 |  release | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=release&amp;jobName=Linux)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=release) | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=release&amp;jobName=Windows)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=release) | [![Build Status](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_apis/build/status/PixarAnimationStudios.OpenSubdiv?branchName=release&amp;jobName=macOS)](https://dev.azure.com/PixarAnimationStudios/OpenSubdiv/_build/latest?definitionId=2&branchName=release) |
 
 ## Documents
- * [User Documents](http://graphics.pixar.com/opensubdiv/docs/intro.html)
- * [Doxygen API Documents](http://graphics.pixar.com/opensubdiv/docs/doxy_html/index.html)
- * [Release Notes](http://graphics.pixar.com/opensubdiv/docs/release_notes.html)
+ * [User Documents](https://opensubdiv.org/docs/intro.html)
+ * [Doxygen API Documents](https://opensubdiv.org/docs/doxy_html/index.html)
+ * [Release Notes](https://opensubdiv.org/docs/release_notes.html)
 
 ## Forum
  * [OpenSubdiv Google Groups](https://groups.google.com/forum/embed/?place=forum/opensubdiv)
@@ -24,7 +24,7 @@ The OpenSubdiv core libraries are implemented in C++ with no dependencies other 
 The OpenSubdiv::Osd library contains additional conditionally compiled components which use specific external CPU and GPU APIs for evaluation and display and there are also optional interactive examples. Some of these optional aspects are enabled by default but can be disabled while configuring the OpenSubdiv build.
 
 For complete information, please see:
-[Building with CMake](http://graphics.pixar.com/opensubdiv/docs/cmake_build.html)
+[Building with CMake](https://opensubdiv.org/docs/cmake_build.html)
 
 ## Versions
 

@@ -8,7 +8,7 @@
 Introduction
 ------------
 
-.. image:: http://graphics.pixar.com/opensubdiv/docs/images/opensubdiv_splash_v3_7_0.png
+.. image:: https://opensubdiv.org/docs/images/opensubdiv_splash_v3_7_0.png
    :width: 100%
    :align: center
 
@@ -68,7 +68,7 @@ between Pixar and Microsoft.
     | *Feature Adaptive GPU Rendering of Catmull-Clark Subdivision Surfaces*
     | Matthias Niessner, Charles Loop, Mark Meyer, and Tony DeRose
     | ACM Transactions on Graphics, Vol. 31 No. 1 Article 6 January 2012 
-    | `<http://graphics.pixar.com/library/GPUSubdivRenderingA/paper.pdf>`_
+    | `<https://research.pixar.com/docs/2012.SiggraphPapers.NLMD.pdf>`_
     |
     | *Efficient Evaluation of Semi-Smooth Creases in Catmull-Clark Subdivision Surfaces*
     | Matthias Niessner, Charles Loop, and Guenter Greiner.
@@ -96,12 +96,12 @@ animation production.
     | *Subdivision for Modeling and Animation*
     | Denis Zorin, Peter Schroder
     | Course Notes of SIGGRAPH 1999
-    | `<http://www.multires.caltech.edu/pubs/sig99notes.pdf>`_
+    | `<https://www.multires.caltech.edu/pubs/sig99notes.pdf>`_
     |
     | *Subdivision Surfaces in Character Animation*
     | Tony DeRose, Michael Kass, Tien Truong
     | Proceedings of SIGGRAPH 1998
-    | `<http://graphics.pixar.com/library/Geri/paper.pdf>`_
+    | `<https://research.pixar.com/docs/1998.SiggraphPapers.DKT.pdf>`_
     |
     | *Recursively generated B-spline surfaces on arbitrary topological meshes*
     | Catmull, E.; Clark, J. Computer-Aided Design 10 (6) (1978)
@@ -129,6 +129,6 @@ For details on how to contribute to OpenSubdiv, see the page on
 External Resources
 ==================
 
-Pixar Research:
-    `Pixar R&D Portal <http://graphics.pixar.com/research/>`__
+Pixar Technology Libraries:
+    `<https://www.pixar.com/technology-libraries>`_
 

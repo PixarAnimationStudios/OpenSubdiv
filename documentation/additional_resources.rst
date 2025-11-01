@@ -20,7 +20,7 @@ Videos
 Feature Adaptive GPU Rendering of Catmull-Clark Subdivision Surfaces (2012)
 ***************************************************************************
 
-.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/feature_adaptive_siggraph2012.png
+.. image::  https://opensubdiv.org/videothumbnails/feature_adaptive_siggraph2012.png
    :align:  center
    :width:  75%
    :target: https://www.youtube.com/embed/uogAzQoVdNU
@@ -28,7 +28,7 @@ Feature Adaptive GPU Rendering of Catmull-Clark Subdivision Surfaces (2012)
 Open Subdivision Technology Review (2012)
 *****************************************
 
-.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/opensubdiv_intro_autodesk2012.png
+.. image::  https://opensubdiv.org/videothumbnails/opensubdiv_intro_autodesk2012.png
    :align:  center
    :width:  75%
    :target: https://www.youtube.com/embed/Y-3L9BOTEtw
@@ -36,7 +36,7 @@ Open Subdivision Technology Review (2012)
 Autodesk User Group At Anaheim (2013)
 *************************************
 
-.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/opensubdiv_demo_autodesk2013.png
+.. image::  https://opensubdiv.org/videothumbnails/opensubdiv_demo_autodesk2013.png
    :align:  center
    :width:  75%
    :target: https://www.youtube.com/embed/9lFwFoCxysI
@@ -44,7 +44,7 @@ Autodesk User Group At Anaheim (2013)
 Why Model with Subdivisions (2013)
 **********************************
 
-.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/subdiv_modeling_pixar2013.png
+.. image::  https://opensubdiv.org/videothumbnails/subdiv_modeling_pixar2013.png
    :align:  center
    :width:  75%
    :target: https://player.vimeo.com/video/70600180
@@ -52,7 +52,7 @@ Why Model with Subdivisions (2013)
 Meet the Experts: The OpenSubdiv Project (2013)
 ***********************************************
 
-.. image::  https://graphics.pixar.com/opensubdiv/videothumbnails/meet_the_experts_autodesk2013.png
+.. image::  https://opensubdiv.org/videothumbnails/meet_the_experts_autodesk2013.png
    :align:  center
    :width:  75%
    :target: https://www.youtube.com/embed/xFZazwvYc5o
