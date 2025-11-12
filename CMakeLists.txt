@@ -134,19 +134,6 @@ elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "Intel")
     set(CMAKE_COMPILER_IS_ICC 1)
 endif()
 
-
-if (NOT CMAKE_COMPILER_IS_ICC)
-    # Currently icc has a bug that asserts when linking rpaths containing long
-    # sequences of ':' that this command causes. The consequence is that examples
-    # built and installed using icc will not have an rpath pointing to the built
-    # OSD library which they depend on and will have to set LD_LIBRARY_PATH instead.
-    list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-endif()
-
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 # ensure that ARC is shown as enabled in the Xcode UI
 if(CMAKE_GENERATOR STREQUAL "Xcode")
     set (CMAKE_XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC "YES")
