@@ -359,7 +359,7 @@ CudaEvaluator::EvalPatches(
 /* static */
 void
 CudaEvaluator::Synchronize(void * /*deviceContext*/) {
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
 }
 
 }  // end namespace Osd
