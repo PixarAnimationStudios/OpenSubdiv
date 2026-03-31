@@ -6,6 +6,7 @@
 //
 
 #include "../bfr/tessellation.h"
+#include "../vtr/stackBuffer.h"
 
 #include <cstring>
 #include <cstdio>
@@ -242,13 +243,15 @@ namespace {
         int connectUniformTris(     FacetArray facets) const;
         int connectNonUniformFacets(FacetArray facets) const;
 
+        static int  countMixedFacets(int outer, int inner);
+        static bool endFacetsAreQuads(int outer, int inner);
+
     public:
         //  Members defining how the strip should be used:
         unsigned int quadTopology    : 1;
         unsigned int quadTriangulate : 1;
         unsigned int innerReversed   : 1;
 
-        unsigned int excludeFirstFace : 1;
         unsigned int splitFirstFace   : 1;
         unsigned int splitLastFace    : 1;
         unsigned int includeLastFace  : 1;
@@ -296,7 +299,7 @@ namespace {
 
         if (splitFirstFace) {
             nFacets += appendTri(facets + nFacets, out0, out0 + 1, in0);
-        } else if (!excludeFirstFace) {
+        } else {
             nFacets += appendQuad(facets + nFacets,
                              out0, out0 + 1, in0, outerPrev, quadTriangulate);
         }
@@ -337,8 +340,7 @@ namespace {
     FacetStrip::connectUniformTris(FacetArray facets) const {
 
         assert(!quadTopology);
-        assert(!excludeFirstFace);
-        assert(!includeLastFace);
+        assert(includeLastFace == splitLastFace);
         assert(!innerReversed);
         //
         //  Assign the set of tris for the "sawtooth" strip with N outer
@@ -403,6 +405,28 @@ namespace {
     }
 
     int
+    FacetStrip::countMixedFacets(int outer, int inner) {
+
+        int nFacets = std::max(outer, inner);
+
+        //  If lesser is odd, insert a triangle at the center for symmetry:
+        if ((nFacets & 1) == 0) {
+            nFacets += (outer& 1) || (inner& 1);
+        }
+        return nFacets;
+    }
+
+    bool
+    FacetStrip::endFacetsAreQuads(int outer, int inner) {
+
+        int minRate = std::min(outer, inner);
+        int maxRate = std::max(outer, inner);
+
+        //  Triangles occur at corners when (max > min*2):
+        return (minRate > 1) && (maxRate <= (minRate * 2));
+    }
+
+    int
     FacetStrip::connectNonUniformFacets(FacetArray facets) const {
 
         //
@@ -420,24 +444,23 @@ namespace {
         //  Note that the original implementation required the faces at the
         //  ends to be "split", i.e. a diagonal edge created between the
         //  first/last points of the inner and outer rings at both ends.
-        //  This has been adapted to allow the end faces to be left whole
-        //  (potentially quads) but only under limited circumstances: only
-        //  quad topology supports un-split faces at the ends, and both end
-        //  faces must be treated the same (avoiding symmetry issues).
+        //  This isolated the strip for an edge from those of its adjoining
+        //  edges.
         //
-        int allInnerEdges = innerEdges + 2 - splitFirstFace - splitLastFace;
-
+        //  This has since been adapted to allow end facets to be left whole
+        //  to be shared with the strips of adjoining edges. So the pattern
+        //  used for the strip will involve either the full extent of all
+        //  inner edges, or it may exclude the two inner edges at the ends
+        //  to define a set of facets that isolates it from its neighbors.
+        //
+        //  Initialize parametric dimensions and increments:
         int M = innerEdges + (quadTopology ? 2 : 3);
         int N = outerEdges;
 
         int dtOuter = M;
         int dtInner = N;
 
-        int dtMin = std::min(dtInner, dtOuter);
-        int dtMax = std::max(dtInner, dtOuter);
-
-        //  Use larger slope when M ~= N to accommodate tri insertion:
-        int dtSlopeMax = ((dtMax / 2) < dtMin) ? (dtMin - 1) : (dtMax / 2);
+        int dtSlopeMax = std::max(dtInner, dtOuter) / 2;
 
         int tOuterLast   = dtOuter *  N;
         int tOuterMiddle = tOuterLast / 2;
@@ -476,15 +499,13 @@ namespace {
         int tInner0 = tInnerOffset + dtInner;
         int cInner0 = innerFirst;
 
-        int tInner1 = tInner0 + (allInnerEdges ? dtInner : 0);
-        int cInner1 = (allInnerEdges == 1) ? innerLast : (innerFirst + dInner);
+        int tInner1 = tInner0 + (innerEdges ? dtInner : 0);
+        int cInner1 = (innerEdges == 1) ? innerLast : (innerFirst + dInner);
 
         //
         //  Adjust variables defining extremities for the inner edges when
         //  the first and/or last faces are not split (see notes above):
         //
-        assert(splitFirstFace == splitLastFace);
-
         if (!splitFirstFace) {
             tInner0 = tInnerOffset;
             tInner1 = tInner0 + dtInner;
@@ -492,48 +513,67 @@ namespace {
             cInner0 = outerPrev;
             cInner1 = innerFirst;
         }
-        if (!splitLastFace) {
+        if (!splitLastFace && includeLastFace) {
             tInnerLast += dtInner;
         }
 
         //
-        //  Walk forward through the strip, identifying each successive quad
-        //  and choosing the most "vertical" edge to use to triangulate it:
+        //  Determine the number of facets expected. Additional counts and
+        //  indices help maintain symmetry -- use the full number expected
+        //  to determine these before making any adjustments to the total
+        //  for the sharing or splitting of end facets:
         //
         bool keepQuads = quadTopology && !quadTriangulate;
 
+        bool fullInnerExtent = (!splitFirstFace && !splitLastFace) ||
+                (keepQuads && endFacetsAreQuads(outerEdges, innerEdges + 2));
+
+        int allInnerEdges = innerEdges + (fullInnerExtent ? 2 : 0);
+
         int nFacetsExpected = 0;
         if (keepQuads) {
-            nFacetsExpected = std::max(allInnerEdges, outerEdges);
-            //  Include a symmetric center triangle if any side is odd:
-            if ((nFacetsExpected & 1) == 0) {
-                nFacetsExpected += (allInnerEdges & 1) || (outerEdges & 1);
-            }
+            nFacetsExpected = countMixedFacets(outerEdges, allInnerEdges);
         } else {
-            nFacetsExpected = allInnerEdges + outerEdges;
+            nFacetsExpected = outerEdges + allInnerEdges;
         }
 
-        //  These help maintain symmetry where possible:
         int  nFacetsLeading = nFacetsExpected / 2;
         int  nFacetsMiddle  = nFacetsExpected & 1;
 
         int  middleFacet = nFacetsMiddle ? nFacetsLeading : -1;
         bool middleQuad  = keepQuads && (M & 1) && (N & 1);
 
+        int lastFacet = nFacetsExpected - 1;
+        if (!includeLastFace) {
+            nFacetsExpected --;
+            lastFacet = -1;
+        }
+
         //
         //  Assign all expected facets sequentially -- advancing references
         //  to the inner and outer edges according to what is used for each:
         //
+        bool splitEndQuads = keepQuads && (splitFirstFace || splitLastFace) &&
+                             fullInnerExtent;
+
         for (int facetIndex = 0; facetIndex < nFacetsExpected; ++facetIndex) {
             bool generateTriOuter = false;
             bool generateTriInner = false;
             bool generateQuad     = false;
 
             //
-            //  Detect simple cases first:  the symmetric center face or 
-            //  triangles in the absence of an inner or outer edge:
+            //  Detect simple cases first:  split end quads (which need to
+            //  be forced first to preserve topology and symmetry), the
+            //  center face providing symmetry, or triangles in the absence
+            //  of any remaining inner or outer edges:
             //
-            if (facetIndex == middleFacet) {
+            if ((facetIndex == 0) && splitEndQuads) {
+                generateTriOuter =  splitFirstFace;
+                generateQuad     = !splitFirstFace;
+            } else if ((facetIndex == lastFacet) && splitEndQuads) {
+                generateTriOuter =  splitLastFace;
+                generateQuad     = !splitLastFace;
+            } else if (facetIndex == middleFacet) {
                 if (middleQuad) {
                     generateQuad = true;
                 } else if (outerEdges & 1) {
@@ -674,7 +714,13 @@ public:
                                    int nBoundaryEdges, bool triangulate,
                                    FacetArray facets);
 private:
-    //  Private methods used by those above:
+    //  Private methods used by those above -- and also by the sub-face
+    //  parameterization, which needs similar quad topology:
+    friend class qsub;
+
+    static void shareCornerQuads(int const outerRes[], int uRes, int vRes,
+                                 bool share[]);
+
     static int countUniformCoords(int edgeRes);
     static int countNonUniformEdgeFacets(int outerRes, int innerRes);
 
@@ -769,6 +815,11 @@ public:
                                    FacetArray facets);
 private:
     //  Private methods used by those above:
+    typedef Vtr::internal::StackBuffer<bool,32,true> BoolVLArray;
+
+    static void shareCornerQuads(int N, int const outerRes[], int innerRes,
+                                 bool share[]);
+
     static int countUniformCoords(int N, int edgeRes);
 
     template <typename REAL>
@@ -823,16 +874,54 @@ quad::CountSegmentedFacets(int const outerRes[], bool triangulate) {
     }
 }
 
+void
+quad::shareCornerQuads(int const outer[], int uRes, int vRes, bool share[]) {
+
+    bool quadEndsOfEdge[4];
+
+    quadEndsOfEdge[0] = (outer[0] == uRes) ? true :
+                        FacetStrip::endFacetsAreQuads(outer[0], uRes);
+    quadEndsOfEdge[1] = (outer[1] == vRes) ? true :
+                        FacetStrip::endFacetsAreQuads(outer[1], vRes);
+    quadEndsOfEdge[2] = (outer[2] == uRes) ? true :
+                        FacetStrip::endFacetsAreQuads(outer[2], uRes);
+    quadEndsOfEdge[3] = (outer[3] == vRes) ? true :
+                        FacetStrip::endFacetsAreQuads(outer[3], vRes);
+
+    share[0] = quadEndsOfEdge[3] && quadEndsOfEdge[0];
+    share[1] = quadEndsOfEdge[0] && quadEndsOfEdge[1];
+    share[2] = quadEndsOfEdge[1] && quadEndsOfEdge[2];
+    share[3] = quadEndsOfEdge[2] && quadEndsOfEdge[3];
+
+    //
+    //  There are other cases where we may want to split the corner here,
+    //  e.g. when the quad becomes concave due to both outer rates much
+    //  lower than inner...
+    //
+    bool testConcavity = true;
+    if (testConcavity) {
+        share[0] &= (2*outer[3] > vRes) || (2*outer[0] > uRes);
+        share[1] &= (2*outer[0] > uRes) || (2*outer[1] > vRes);
+        share[2] &= (2*outer[1] > vRes) || (2*outer[2] > uRes);
+        share[3] &= (2*outer[2] > uRes) || (2*outer[3] > vRes);
+    }
+}
+
 int
 quad::countNonUniformEdgeFacets(int outerRes, int innerRes) {
 
-    int nFacets = std::max(outerRes, (innerRes - 2));
-
-    //  If the lesser is odd, a triangle will be added in the middle:
-    if ((nFacets & 1) == 0) {
-        nFacets += (outerRes & 1) || (innerRes & 1);
+    //
+    //  A non-uniform pattern occupies the full extent of the inner edges
+    //  when the ends are quads, otherwise it is inset -- excluding the
+    //  two inner edges at the ends:
+    //
+    if (outerRes == innerRes) {
+        return outerRes;
+    } else if (FacetStrip::endFacetsAreQuads(outerRes, innerRes)) {
+        return FacetStrip::countMixedFacets(outerRes, innerRes);
+    } else {
+        return FacetStrip::countMixedFacets(outerRes, innerRes - 2);
     }
-    return nFacets;
 }
 
 int
@@ -848,48 +937,33 @@ quad::CountNonUniformFacets(int const outerRes[], int const innerRes[],
     int innerVEdges = vRes - 2;
 
     int nInterior = innerUEdges * innerVEdges;
-
-    //  If triangulating, things are much simpler:
-    if (triangulate) {
-        int nFacets = nInterior * 2;
-
-        nFacets += innerUEdges + outerRes[0];
-        nFacets += innerVEdges + outerRes[1];
-        nFacets += innerUEdges + outerRes[2];
-        nFacets += innerVEdges + outerRes[3];
-        return nFacets;
-    }
-
-    //
-    //  Accumulate boundary facets for each edge based on uniformity...
-    //
-    //  A uniform edge contributes a quad for each inner edge, plus one
-    //  facet for the leading corner (quad if uniform, tri if not) and a
-    //  tri for the trailing corner if it is not uniform.  A non-uniform
-    //  edge contributes quads and tris based on the larger of the inner
-    //  and outer resolutions.
-    //
-    bool uniformEdges[4];
-    uniformEdges[0] = (outerRes[0] == uRes);
-    uniformEdges[1] = (outerRes[1] == vRes);
-    uniformEdges[2] = (outerRes[2] == uRes);
-    uniformEdges[3] = (outerRes[3] == vRes);
-
-    bool uniformCorners[4];
-    uniformCorners[0] = (uniformEdges[0] && uniformEdges[3]);
-    uniformCorners[1] = (uniformEdges[1] && uniformEdges[0]);
-    uniformCorners[2] = (uniformEdges[2] && uniformEdges[1]);
-    uniformCorners[3] = (uniformEdges[3] && uniformEdges[2]);
-
     int nBoundary = 0;
-    nBoundary += uniformEdges[0] ? (innerUEdges + 1 + !uniformCorners[1]) :
-                 countNonUniformEdgeFacets(outerRes[0], uRes);
-    nBoundary += uniformEdges[1] ? (innerVEdges + 1 + !uniformCorners[2]) :
-                 countNonUniformEdgeFacets(outerRes[1], vRes);
-    nBoundary += uniformEdges[2] ? (innerUEdges + 1 + !uniformCorners[3]) :
-                 countNonUniformEdgeFacets(outerRes[2], uRes);
-    nBoundary += uniformEdges[3] ? (innerVEdges + 1 + !uniformCorners[0]) :
-                 countNonUniformEdgeFacets(outerRes[3], vRes);
+
+    if (triangulate) {
+        //  Double the number of interior facets:
+        nInterior *= 2;
+
+        //  Accumulate facets for each boundary edge:
+        nBoundary += outerRes[0] + innerUEdges;
+        nBoundary += outerRes[1] + innerVEdges;
+        nBoundary += outerRes[2] + innerUEdges;
+        nBoundary += outerRes[3] + innerVEdges;
+    } else {
+        //  Accumulate facets for each boundary edge:
+        nBoundary += countNonUniformEdgeFacets(outerRes[0], uRes);
+        nBoundary += countNonUniformEdgeFacets(outerRes[1], vRes);
+        nBoundary += countNonUniformEdgeFacets(outerRes[2], uRes);
+        nBoundary += countNonUniformEdgeFacets(outerRes[3], vRes);
+
+        //  Decrement for corner facets shared by two boundary edges:
+        bool shareCorners[4];
+        shareCornerQuads(outerRes, uRes, vRes, shareCorners);
+
+        nBoundary -= shareCorners[0];
+        nBoundary -= shareCorners[1];
+        nBoundary -= shareCorners[2];
+        nBoundary -= shareCorners[3];
+    }
     return nInterior + nBoundary;
 }
 
@@ -1132,18 +1206,13 @@ quad::getBoundaryRingFacets(int const outerRes[], int uRes, int vRes,
                             int nBoundaryEdges, bool triangulate,
                             FacetArray facets) {
 
-    //  Identify edges and corners that should preserve uniform behavior:
-    bool uniformEdges[4];
-    uniformEdges[0] = (outerRes[0] == uRes);
-    uniformEdges[1] = (outerRes[1] == vRes);
-    uniformEdges[2] = (outerRes[2] == uRes);
-    uniformEdges[3] = (outerRes[3] == vRes);
-
-    bool uniformCorners[4];
-    uniformCorners[0] = (uniformEdges[0] && uniformEdges[3]);
-    uniformCorners[1] = (uniformEdges[1] && uniformEdges[0]);
-    uniformCorners[2] = (uniformEdges[2] && uniformEdges[1]);
-    uniformCorners[3] = (uniformEdges[3] && uniformEdges[2]);
+    //  Identify corners that can share facets where their edges meet:
+    bool shareCorners[4];
+    if (triangulate) {
+        std::fill(&shareCorners[0], &shareCorners[4], false);
+    } else {
+        shareCornerQuads(outerRes, uRes, vRes, shareCorners);
+    }
 
     //  Initialize inner edge counts and the FacetStrip for local use:
     assert((uRes > 1) && (vRes > 1));
@@ -1168,13 +1237,13 @@ quad::getBoundaryRingFacets(int const outerRes[], int uRes, int vRes,
     qStrip.innerReversed = false;
     qStrip.innerFirst    = innerRingStart;
     qStrip.innerLast     = innerRingStart + innerResU;
-    if (uniformEdges[0]) {
-        qStrip.splitFirstFace = !uniformCorners[0];
-        qStrip.splitLastFace  = !uniformCorners[1];
+
+    qStrip.splitFirstFace  = !shareCorners[0];
+    qStrip.splitLastFace   = !shareCorners[1];
+    qStrip.includeLastFace = !shareCorners[1];
+    if (outerRes[0] == uRes) {
         nFacets += qStrip.connectUniformQuads(facets + nFacets);
     } else {
-        qStrip.splitFirstFace = true;
-        qStrip.splitLastFace  = true;
         nFacets += qStrip.connectNonUniformFacets(facets + nFacets);
     }
 
@@ -1186,13 +1255,13 @@ quad::getBoundaryRingFacets(int const outerRes[], int uRes, int vRes,
     qStrip.innerReversed = false;
     qStrip.innerFirst    = qStrip.innerLast;
     qStrip.innerLast    += innerResV;
-    if (uniformEdges[1]) {
-        qStrip.splitFirstFace = !uniformCorners[1];
-        qStrip.splitLastFace  = !uniformCorners[2];
+
+    qStrip.splitFirstFace  = !shareCorners[1];
+    qStrip.splitLastFace   = !shareCorners[2];
+    qStrip.includeLastFace = !shareCorners[2];
+    if (outerRes[1] == vRes) {
         nFacets += qStrip.connectUniformQuads(facets + nFacets);
     } else {
-        qStrip.splitFirstFace = true;
-        qStrip.splitLastFace  = true;
         nFacets += qStrip.connectNonUniformFacets(facets + nFacets);
     }
 
@@ -1204,13 +1273,13 @@ quad::getBoundaryRingFacets(int const outerRes[], int uRes, int vRes,
     qStrip.innerReversed = (innerResV == 0);
     qStrip.innerFirst    = qStrip.innerLast;
     qStrip.innerLast    += innerResU * (qStrip.innerReversed ? -1 : 1);
-    if (uniformEdges[2]) {
-        qStrip.splitFirstFace = !uniformCorners[2];
-        qStrip.splitLastFace  = !uniformCorners[3];
+
+    qStrip.splitFirstFace  = !shareCorners[2];
+    qStrip.splitLastFace   = !shareCorners[3];
+    qStrip.includeLastFace = !shareCorners[3];
+    if (outerRes[2] == uRes) {
         nFacets += qStrip.connectUniformQuads(facets + nFacets);
     } else {
-        qStrip.splitFirstFace = true;
-        qStrip.splitLastFace  = true;
         nFacets += qStrip.connectNonUniformFacets(facets + nFacets);
     }
 
@@ -1222,13 +1291,13 @@ quad::getBoundaryRingFacets(int const outerRes[], int uRes, int vRes,
     qStrip.innerReversed = (innerResU == 0);
     qStrip.innerFirst    = qStrip.innerLast;
     qStrip.innerLast     = innerRingStart;
-    if (uniformEdges[3]) {
-        qStrip.splitFirstFace = !uniformCorners[3];
-        qStrip.splitLastFace  = !uniformCorners[0];
+
+    qStrip.splitFirstFace  = !shareCorners[3];
+    qStrip.splitLastFace   = !shareCorners[0];
+    qStrip.includeLastFace = !shareCorners[0];
+    if (outerRes[3] == vRes) {
         nFacets += qStrip.connectUniformQuads(facets + nFacets);
     } else {
-        qStrip.splitFirstFace = true;
-        qStrip.splitLastFace  = true;
         nFacets += qStrip.connectNonUniformFacets(facets + nFacets);
     }
     return nFacets;
@@ -1561,13 +1630,13 @@ tri::getBoundaryRingFacets(int const outerRes[], int innerRes,
     tStrip.outerPrev    = innerRingStart - 1;
     tStrip.innerFirst   = innerRingStart;
     tStrip.innerLast    = innerRingStart + innerEdges;
+
+    tStrip.splitFirstFace  = !uniformCorners[0];
+    tStrip.splitLastFace   = !uniformCorners[1];
+    tStrip.includeLastFace = !uniformCorners[1];
     if (uniformEdges[0]) {
-        tStrip.splitFirstFace = !uniformCorners[0];
-        tStrip.splitLastFace  = !uniformCorners[1];
         nFacets += tStrip.connectUniformTris(facets + nFacets);
     } else {
-        tStrip.splitFirstFace = true;
-        tStrip.splitLastFace  = true;
         nFacets += tStrip.connectNonUniformFacets(facets + nFacets);
     }
 
@@ -1577,13 +1646,13 @@ tri::getBoundaryRingFacets(int const outerRes[], int innerRes,
     tStrip.outerPrev    = tStrip.outerFirst - 1;
     tStrip.innerFirst   = tStrip.innerLast;
     tStrip.innerLast   += innerEdges;
+
+    tStrip.splitFirstFace  = !uniformCorners[1];
+    tStrip.splitLastFace   = !uniformCorners[2];
+    tStrip.includeLastFace = !uniformCorners[2];
     if (uniformEdges[1]) {
-        tStrip.splitFirstFace = !uniformCorners[1];
-        tStrip.splitLastFace  = !uniformCorners[2];
         nFacets += tStrip.connectUniformTris(facets + nFacets);
     } else {
-        tStrip.splitFirstFace = true;
-        tStrip.splitLastFace  = true;
         nFacets += tStrip.connectNonUniformFacets(facets + nFacets);
     }
 
@@ -1593,13 +1662,13 @@ tri::getBoundaryRingFacets(int const outerRes[], int innerRes,
     tStrip.outerPrev    = tStrip.outerFirst - 1;
     tStrip.innerFirst   = tStrip.innerLast;
     tStrip.innerLast    = innerRingStart;
+
+    tStrip.splitFirstFace  = !uniformCorners[2];
+    tStrip.splitLastFace   = !uniformCorners[0];
+    tStrip.includeLastFace = !uniformCorners[0];
     if (uniformEdges[2]) {
-        tStrip.splitFirstFace = !uniformCorners[2];
-        tStrip.splitLastFace  = !uniformCorners[0];
         nFacets += tStrip.connectUniformTris(facets + nFacets);
     } else {
-        tStrip.splitFirstFace = true;
-        tStrip.splitLastFace  = true;
         nFacets += tStrip.connectNonUniformFacets(facets + nFacets);
     }
     return nFacets;
@@ -1669,6 +1738,33 @@ qsub::CountUniformFacets(int N, int edgeRes, bool triangulate) {
     return (nQuads << (int)triangulate) + nCenter;
 }
 
+void
+qsub::shareCornerQuads(int N, int const outerRes[], int innerRes, bool share[]) {
+    BoolVLArray quadEndsOfEdge(N);
+
+    for (int i = 0; i < N; ++i) {
+        quadEndsOfEdge[i] = (outerRes[i] == innerRes) ? true :
+                FacetStrip::endFacetsAreQuads(outerRes[i], innerRes);
+    }
+    for (int i = 0; i < N; ++i) {
+        share[i] = quadEndsOfEdge[(i+N-1)%N] && quadEndsOfEdge[i];
+    }
+
+    //
+    //  There are other cases where we may want to split the corner here,
+    //  e.g. when the quad becomes concave due to both outer rates much
+    //  lower than inner...
+    //
+    bool testConcavity = true;
+    if (testConcavity) {
+        for (int i = 0; i < N; ++i) {
+            bool concave = (2*outerRes[(i+N-1)%N] <= innerRes) &&
+                           (2*outerRes[i] <= innerRes);
+            share[i] &= !concave;
+        }
+    }
+}
+
 int
 qsub::CountNonUniformFacets(int N, int const outerRes[], int innerRes,
                             bool triangulate) {
@@ -1690,17 +1786,17 @@ qsub::CountNonUniformFacets(int N, int const outerRes[], int innerRes,
     //  a tri for each inner edge and each outer edge:
     //
     int nBoundary = 0;
-    for (int i = 0; i < N; ++i) {
-        if (triangulate) {
-            nBoundary += nInnerEdges + outerRes[i];
-        } else if (outerRes[i] == innerRes) {
-            nBoundary += nInnerEdges + 1 + (innerRes != outerRes[(i+1) % N]);
-        } else {
-            int nEdge = std::max(nInnerEdges, outerRes[i]);
-            if ((nEdge & 1) == 0) {
-                nEdge += (nInnerEdges & 1) || (outerRes[i] & 1);
-            }
-            nBoundary += nEdge;
+    if (triangulate) {
+        for (int i = 0; i < N; ++i) {
+            nBoundary += outerRes[i] + nInnerEdges;
+        }
+    } else {
+        BoolVLArray shareCorners(N);
+        shareCornerQuads(N, outerRes, innerRes, shareCorners);
+
+        for (int i = 0; i < N; ++i) {
+            nBoundary += quad::countNonUniformEdgeFacets(outerRes[i], innerRes);
+            nBoundary -= shareCorners[i];
         }
     }
     return nInterior + nBoundary;
@@ -1943,6 +2039,14 @@ qsub::getBoundaryRingFacets(int N, int const outerRes[], int innerRes,
     qStrip.innerReversed   = false;
     qStrip.innerEdges      = innerEdges;
 
+    //  Need to know which corners are shared:
+    BoolVLArray shareCorners(N);
+    if (triangulate) {
+        std::fill(&shareCorners[0], &shareCorners[N], false);
+    } else {
+        shareCornerQuads(N, outerRes, innerRes, shareCorners);
+    }
+
     for (int edge = 0; edge < N; ++edge) {
         qStrip.outerEdges = outerRes[edge];
 
@@ -1966,16 +2070,14 @@ qsub::getBoundaryRingFacets(int N, int const outerRes[], int innerRes,
             qStrip.innerLast = innerRingStart;
         }
 
-        //  Test rates at, before and after this edge for uniform behavior:
-        if ((outerRes[edge] == innerRes) && (innerRes > 1)) {
-            qStrip.splitFirstFace = (outerRes[(edge-1+N) % N] != innerRes);
-            qStrip.splitLastFace  = (outerRes[(edge + 1) % N] != innerRes);
+        //  Identify splitting or sharing of facets at the ends:
+        qStrip.splitFirstFace  = !shareCorners[edge];
+        qStrip.splitLastFace   = !shareCorners[(edge+1)%N];
+        qStrip.includeLastFace = !shareCorners[(edge+1)%N];
 
+        if (outerRes[edge] == innerRes) {
             nFacets += qStrip.connectUniformQuads(facets+nFacets);
         } else {
-            qStrip.splitFirstFace = true;
-            qStrip.splitLastFace  = true;
-
             nFacets += qStrip.connectNonUniformFacets(facets + nFacets);
         }
     }
