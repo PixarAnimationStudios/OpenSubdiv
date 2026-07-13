@@ -5,7 +5,7 @@ trigger:
 jobs:
 - job: Linux
   pool:
-    vmImage: 'ubuntu-22.04'
+    vmImage: 'ubuntu-24.04'
   steps:
   - script: |
       sudo apt-get -qq update;
@@ -30,10 +30,10 @@ jobs:
 
 - job: macOS
   pool:
-    vmImage: 'macOS-14'
+    vmImage: 'macOS-15'
   steps:
   - script: |
-      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer"
+      /bin/bash -c "sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer"
       python build_scripts/build_osd.py --tests --onetbb --generator Xcode --build $HOME/OSDgen/build --src $HOME/OSDgen/src $HOME/OSDinst
     displayName: 'Building OpenSubdiv'
   - script: |
@@ -51,7 +51,7 @@ jobs:
 
 - job: Windows
   pool:
-    vmImage: 'windows-2022'
+    vmImage: 'windows-2025'
   steps:
   - script: |
       call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
