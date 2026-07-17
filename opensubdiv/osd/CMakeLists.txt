@@ -147,10 +147,6 @@ if( TBB_FOUND )
 
     list(APPEND PUBLIC_HEADER_FILES ${TBB_PUBLIC_HEADERS})
 
-    if (CMAKE_COMPILER_IS_GNUCXX)
-        list(APPEND PLATFORM_CPU_LIBRARIES gomp)
-    endif()
-
     list(APPEND PLATFORM_CPU_LIBRARIES
         TBB::tbb
     )
