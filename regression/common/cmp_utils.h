@@ -92,7 +92,7 @@ GetReorderedHbrVertexData(
             }
 
             // Populate refined levels
-            for (int level=1, ecount=0; level<=refiner.GetMaxLevel(); ++level) {
+            for (int level=1; level<=refiner.GetMaxLevel(); ++level) {
 
                 LevelMap & previous = maps[level-1],
                          & current = maps[level];
@@ -156,7 +156,6 @@ GetReorderedHbrVertexData(
                     assert(e);
                     current.edges[edge] = e;
                 }
-                ecount += refPrevLevel.GetNumEdges();
             }
         }
     };

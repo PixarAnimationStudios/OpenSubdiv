@@ -408,7 +408,7 @@ createFVarPatches(OpenSubdiv::Far::TopologyRefiner const & refiner,
         }
 
         std::vector<Vertex> verts(nverts);
-        memset(&verts[0], 0, verts.size()*sizeof(Vertex));
+        memset((void*)&verts[0], 0, verts.size()*sizeof(Vertex));
 
         /*
         OpenSubdiv::Far::PatchTable::PatchHandle handle;
