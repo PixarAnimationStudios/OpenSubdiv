@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cassert>
+#include <cmath>
 #include <limits>
 #include <algorithm>
 

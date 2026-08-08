@@ -174,6 +174,13 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
         list(APPEND OSD_COMPILER_FLAGS -DNOMINMAX)
     endif()
 
+    if(CMAKE_COMPILER_IS_CLANGCC)
+        # Since C++23 libc++ is in the process of splitting larger headers into smaller modular headers.
+        # Force this behavior for the older dialects to keep the C++23 build green.
+        # See https://libcxx.llvm.org/DesignDocs/HeaderRemovalPolicy.html
+        list(APPEND OSD_COMPILER_FLAGS -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES)
+    endif()
+
     # HBR uses the offsetof macro on a templated struct, which appears
     # to spuriously set off this warning in both gcc and Clang
     list(APPEND OSD_COMPILER_FLAGS -Wno-invalid-offsetof)
