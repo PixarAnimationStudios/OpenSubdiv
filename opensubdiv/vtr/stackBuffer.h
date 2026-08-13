@@ -98,6 +98,7 @@ inline void
 StackBuffer<TYPE,SIZE,POD_TYPE>::deallocate() {
 
     ::operator delete(_dynamicData);
+    _dynamicData = nullptr;
 
     _data = reinterpret_cast<TYPE*>(_staticData);
     _capacity = SIZE;
@@ -135,7 +136,7 @@ StackBuffer<TYPE,SIZE,POD_TYPE>::StackBuffer() :
     _data(reinterpret_cast<TYPE*>(_staticData)),
     _size(0),
     _capacity(SIZE),
-    _dynamicData(0) {
+    _dynamicData(nullptr) {
 
 }
 
@@ -145,7 +146,7 @@ StackBuffer<TYPE,SIZE,POD_TYPE>::StackBuffer(size_type size) :
     _data(reinterpret_cast<TYPE*>(_staticData)),
     _size(size),
     _capacity(SIZE),
-    _dynamicData(0) {
+    _dynamicData(nullptr) {
 
     if (size > SIZE) {
         allocate(size);
