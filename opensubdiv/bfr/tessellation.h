@@ -276,18 +276,18 @@ public:
     ///
 
     /// @brief Apply a common offset to all facet coordinate indices
-    void TransformFacetCoordIndices(int facetTuples[], int commonOffset);
+    void TransformFacetCoordIndices(int facetTuples[], int commonOffset) const;
 
     /// @brief Reassign indices of boundary coordinates while offseting
     ///        those of interior coordinates
     void TransformFacetCoordIndices(int facetTuples[],
                                     int const boundaryIndices[],
-                                    int       interiorOffset);
+                                    int       interiorOffset) const;
 
     /// @brief Reassign all facet coordinate indices
     void TransformFacetCoordIndices(int facetTuples[],
                                     int const boundaryIndices[],
-                                    int const interiorIndices[]);
+                                    int const interiorIndices[]) const;
     //@}
 
 private:
