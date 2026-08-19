@@ -20,7 +20,7 @@ namespace tutorial {
 //
 class ObjWriter {
 public:
-    ObjWriter(std::string const &filename = 0);
+    ObjWriter(std::string const &filename = {});
     ~ObjWriter();
 
     int GetNumVertices() const { return _numVertices; }

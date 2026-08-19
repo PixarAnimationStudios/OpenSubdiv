@@ -45,7 +45,7 @@ public:
         return bits;
     }
     void SetBits(IntType bits) {
-        std::memcpy(this, &bits, sizeof(*this));
+        std::memcpy((void*)this, &bits, sizeof(*this));
     }
     void Clear() {
         SetBits(0);

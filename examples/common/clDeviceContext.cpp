@@ -39,6 +39,8 @@
 #define message(...)    // fprintf(stderr, __VA_ARGS__)
 #define error(...)  fprintf(stderr, __VA_ARGS__)
 
+#if !defined(__APPLE__)
+
 // returns the first found platform.
 //
 static cl_platform_id
@@ -121,6 +123,8 @@ findExtensionSupportedDevice(cl_device_id *clDevices,
     return -1;
 }
 
+#endif  // !defined(__APPLE__)
+
 // --------------------------------------------------------------------------
 
 CLDeviceContext::CLDeviceContext() :
@@ -164,10 +168,8 @@ CLDeviceContext::Initialize() {
     }
 #endif
 
-    cl_int ciErrNum;
-    cl_platform_id cpPlatform = findPlatform();
-
 #if defined(_WIN32)
+    cl_platform_id cpPlatform = findPlatform();
     cl_context_properties props[] = {
         CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
         CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
@@ -182,6 +184,7 @@ CLDeviceContext::Initialize() {
         0
     };
 #else
+    cl_platform_id cpPlatform = findPlatform();
     cl_context_properties props[] = {
         CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
         CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
@@ -190,7 +193,9 @@ CLDeviceContext::Initialize() {
     };
 #endif
 
+
 #if defined(__APPLE__)
+    cl_int ciErrNum = CL_SUCCESS;
     _clContext = clCreateContext(props, 0, NULL, clLogMessagesToStdoutAPPLE,
                                  NULL, &ciErrNum);
     if (ciErrNum != CL_SUCCESS) {
@@ -250,6 +255,7 @@ CLDeviceContext::Initialize() {
         return false;
     }
 
+    cl_int ciErrNum = CL_SUCCESS;
     _clContext = clCreateContext(props, 1, &clDevices[clDeviceUsed],
                                  NULL, NULL, &ciErrNum);
 
