@@ -143,9 +143,12 @@ if (NOT CMAKE_COMPILER_IS_ICC)
     list(APPEND CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+if (NOT CMAKE_SKIP_RPATH)
+    # add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH
+    # (provided that the RPATH has not been disabled)
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+endif()
 
 # ensure that ARC is shown as enabled in the Xcode UI
 if(CMAKE_GENERATOR STREQUAL "Xcode")
