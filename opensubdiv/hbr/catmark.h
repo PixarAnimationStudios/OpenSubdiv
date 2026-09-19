@@ -19,10 +19,10 @@ namespace OPENSUBDIV_VERSION {
 template <class T>
 class HbrCatmarkSubdivision : public HbrSubdivision<T> {
 public:
-    HbrCatmarkSubdivision<T>()
+    HbrCatmarkSubdivision()
         : HbrSubdivision<T>(), triangleSubdivision(k_Normal) {}
 
-    HbrCatmarkSubdivision<T>(const HbrCatmarkSubdivision<T> &old)
+    HbrCatmarkSubdivision(const HbrCatmarkSubdivision<T> &old)
         : HbrSubdivision<T>(), triangleSubdivision(old.triangleSubdivision) {}
 
     virtual HbrSubdivision<T>* Clone() const {
