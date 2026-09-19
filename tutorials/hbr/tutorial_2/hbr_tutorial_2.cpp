@@ -48,6 +48,8 @@ struct Vertex {
         _position[2] = src._position[2];
     }
 
+    Vertex & operator= (Vertex const & other) = default;
+
     void Clear( void * =0 ) {
         _position[0]=_position[1]=_position[2]=0.0f;
     }
