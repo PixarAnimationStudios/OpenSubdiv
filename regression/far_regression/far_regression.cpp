@@ -44,6 +44,8 @@ struct xyzVV {
 
    ~xyzVV( ) { }
 
+    xyzVV & operator=(xyzVV const & other) = default;
+
     void AddWithWeight(const xyzVV& src, float weight) {
         _pos[0]+=weight*src._pos[0];
         _pos[1]+=weight*src._pos[1];

@@ -18,8 +18,8 @@
 //
 template <typename REAL>
 struct Vec3 {
-    Vec3<REAL>() { }
-    Vec3<REAL>(REAL x, REAL y, REAL z) { p[0] = x, p[1] = y, p[2] = z; }
+    Vec3() { }
+    Vec3(REAL x, REAL y, REAL z) { p[0] = x, p[1] = y, p[2] = z; }
 
     //  Clear() and AddWithWeight() required for interpolation:
     void Clear( void * =0 ) { p[0] = p[1] = p[2] = 0.0f; }

@@ -19,10 +19,10 @@ template <class T> class HbrHalfedge;
 template <class T> class HbrMesh;
 template <class T> class HbrSubdivision {
 public:
-    HbrSubdivision<T>()
+    HbrSubdivision()
         : creaseSubdivision(k_CreaseNormal) {}
 
-    virtual ~HbrSubdivision<T>() {}
+    virtual ~HbrSubdivision() {}
 
     virtual HbrSubdivision<T>* Clone() const = 0;
 

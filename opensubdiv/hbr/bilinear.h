@@ -19,7 +19,7 @@ namespace OPENSUBDIV_VERSION {
 template <class T>
 class HbrBilinearSubdivision : public HbrSubdivision<T> {
 public:
-    HbrBilinearSubdivision<T>()
+    HbrBilinearSubdivision()
         : HbrSubdivision<T>() {}
 
     virtual HbrSubdivision<T>* Clone() const {

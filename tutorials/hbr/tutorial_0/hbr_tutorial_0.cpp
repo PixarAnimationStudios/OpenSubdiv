@@ -45,6 +45,8 @@ struct Vertex {
         _position[2] = src._position[2];
     }
 
+    Vertex & operator= (Vertex const & other) = default;
+
     void Clear( void * =0 ) { }
 
     void AddWithWeight(Vertex const &, float ) { }
