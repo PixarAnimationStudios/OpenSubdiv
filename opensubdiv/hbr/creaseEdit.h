@@ -52,9 +52,9 @@ public:
             } else if (op == HbrHierarchicalEdit<T>::Subtract) {
                 sharp = face->GetEdge(edgeid)->GetSharpness() - sharpness;
             }
-            if (sharp < HbrHalfedge<T>::k_Smooth)
+            if (sharp < (float) HbrHalfedge<T>::k_Smooth)
                 sharp = HbrHalfedge<T>::k_Smooth;
-            if (sharp > HbrHalfedge<T>::k_InfinitelySharp)
+            if (sharp > (float) HbrHalfedge<T>::k_InfinitelySharp)
                 sharp = HbrHalfedge<T>::k_InfinitelySharp;
             // We have to make sure the neighbor of the edge exists at
             // this point. Otherwise, if it comes into being late, it

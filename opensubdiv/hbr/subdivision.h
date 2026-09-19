@@ -191,7 +191,7 @@ HbrSubdivision<T>::SubdivideCreaseWeight(HbrHalfedge<T>* edge, HbrVertex<T>* ver
 
     // In all methods, if the parent edge is infinitely sharp, the
     // child edge is also infinitely sharp
-    if (sharpness >= HbrHalfedge<T>::k_InfinitelySharp) {
+    if (sharpness >= (float) HbrHalfedge<T>::k_InfinitelySharp) {
         subedge->SetSharpness(HbrHalfedge<T>::k_InfinitelySharp);
     }
 
@@ -217,7 +217,7 @@ HbrSubdivision<T>::SubdivideCreaseWeight(HbrHalfedge<T>* edge, HbrVertex<T>* ver
                 // Skip original edge or it's opposite
                 if ((&edge==m_edge) || (&edge==m_edge->GetOpposite()))
                     return;
-                if (edge.GetSharpness() > HbrHalfedge<T>::k_Smooth) {
+                if (edge.GetSharpness() > (float) HbrHalfedge<T>::k_Smooth) {
                     m_childsharp += edge.GetSharpness();
                     ++m_count;
                 }
