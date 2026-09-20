@@ -48,11 +48,11 @@ These are the versions of external dependencies used to test the current release
 | ---------------------------------------------------------------------------- | ----------- | ---------------------- |
 | [GLFW](https://www.glfw.org)                                                 | 3.3.3       | OpenGL example viewers |
 | [Ptex](https://github.com/wdas/ptex)                                         | 2.4.2       | Ptex example viewers   |
-| [Zlib](https://www.zlib.net)                                                 | 1.2.13      | Ptex example viewers   |
+| [Zlib](https://www.zlib.net)                                                 | 1.3.2       | Ptex example viewers   |
 
 | Optional Documentation Dependencies                                          | Version     | Note                   |
 | ---------------------------------------------------------------------------- |------------ |----------------------- |
-| [Doxygen](https://www.doxygen.nl)                                            | 1.14.0      | C++ API Documentation  |
+| [Doxygen](https://www.doxygen.nl)                                            | 1.17.0      | C++ API Documentation  |
 | [Docutils](https://pypi.org/project/docutils)                                | 0.21.2      | general documentation  |
 | [Pygments](https://pypi.org/project/Pygments)                                | 2.19        | general documentation  |
 
