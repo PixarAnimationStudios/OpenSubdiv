@@ -71,8 +71,11 @@ if (NOT NO_LIB)
         )
     endif()
 
-    if( CUDA_FOUND )
-        include_directories( "${CUDA_INCLUDE_DIRS}" )
+    if( CUDAToolkit_FOUND )
+        include_directories( "${CUDAToolkit_INCLUDE_DIRS}" )
+        list(APPEND PLATFORM_GPU_LIBRARIES
+            CUDA::cudart
+        )
     endif()
 
 
@@ -134,7 +137,7 @@ if (NOT NO_LIB)
     install( TARGETS osd_static_cpu EXPORT opensubdiv-targets DESTINATION "${CMAKE_LIBDIR_BASE}" )
 
     if( OSD_GPU )
-        # this macro uses FindCUDA.cmake to compile .cu kernel files
+        # this macro uses native language support to compile .cu kernel files
         # the target then adds the other obj dependencies and include files
         osd_add_possibly_cuda_library(osd_static_gpu "opensubdiv"
                 STATIC
@@ -403,7 +406,7 @@ if (NOT NO_LIB)
                 if(CLEW_FOUND)
                     target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_CLEW)
                 endif()
-                if(CUDA_FOUND)
+                if(CUDAToolkit_FOUND)
                     target_compile_definitions(${osd_target} INTERFACE OPENSUBDIV_HAS_CUDA)
                 endif()
                 if(DXSDK_FOUND)
