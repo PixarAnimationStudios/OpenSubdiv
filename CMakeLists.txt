@@ -154,6 +154,7 @@ endif()
 
 
 set(OSD_COMPILER_FLAGS)
+set(OSD_COMPILER_DEFINES)
 
 # Disable spurious warnings in gcc builds and clang
 if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_ICC )
@@ -167,11 +168,11 @@ if (CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_IC
 
     if(WIN32)
         # Make sure the constants in <math.h>/<cmath> get defined.
-        list(APPEND OSD_COMPILER_FLAGS -D_USE_MATH_DEFINES)
+        list(APPEND OSD_COMPILER_DEFINES -D_USE_MATH_DEFINES)
 
         # Make sure WinDef.h does not define min and max macros which
         # will conflict with std::min() and std::max().
-        list(APPEND OSD_COMPILER_FLAGS -DNOMINMAX)
+        list(APPEND OSD_COMPILER_DEFINES -DNOMINMAX)
     endif()
 
     # HBR uses the offsetof macro on a templated struct, which appears
@@ -237,7 +238,9 @@ elseif(MSVC)
                     /wd4350
                     # warning C4548: expression before comma has no effect; expected expression with side-effect
                     /wd4548
+    )
 
+    list(APPEND OSD_COMPILER_DEFINES
                     # Make sure WinDef.h does not define min and max macros which
                     # will conflict with std::min() and std::max().
                     /DNOMINMAX
@@ -287,7 +290,10 @@ if(${SIMD} MATCHES "AVX")
     list(APPEND OSD_COMPILER_FLAGS -xAVX)
 endif()
 
-add_definitions(${OSD_COMPILER_FLAGS})
+list(JOIN OSD_COMPILER_FLAGS " " OSD_CXX_FLAGS)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OSD_CXX_FLAGS}")
+
+add_definitions(${OSD_COMPILER_DEFINES})
 
 #-------------------------------------------------------------------------------
 
