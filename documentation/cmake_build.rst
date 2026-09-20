@@ -167,7 +167,7 @@ build that can be run in GitShell :
     cmake -B buildDir \
           -D CMAKE_INSTALL_PREFIX=instDir \
           -G "Visual Studio 16 2019" -A x64 \
-          -D "GLFW_LOCATION=C:\path\to\glwf" \
+          -D "GLFW_LOCATION=C:\path\to\glfw" \
           -S .
 
 Here is a similar script for \*Nix-based platforms:
