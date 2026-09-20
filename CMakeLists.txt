@@ -5,7 +5,7 @@
 #   https://opensubdiv.org/license.
 #
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.17...3.21)
 
 project(OpenSubdiv)
 
