@@ -327,6 +327,11 @@ option(OSD_PATCH_SHADER_SOURCE_MSL "MSL Patch Shader Source" OFF)
 option(OPENSUBDIV_GREGORY_EVAL_TRUE_DERIVATIVES "Enable true derivative evaluation for Gregory basis patches" OFF)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(BUILD_STATIC_LIBS "Build static libraries" ON)
+
+if (NOT BUILD_SHARED_LIBS AND NOT BUILD_STATIC_LIBS)
+    message(FATAL_ERROR "Must enable BUILD_SHARED_LIBS or BUILD_STATIC_LIBS.")
+endif()
 
 # Save the current value of BUILD_SHARED_LIBS and restore it after
 # processing Find* modules, since some of the Find* modules invoked
