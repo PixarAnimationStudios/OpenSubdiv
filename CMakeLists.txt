@@ -419,9 +419,8 @@ set(BUILD_SHARED_LIBS "${build_shared_libs}")
 if(OPENMP_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_OPENMP
-        ${OpenMP_CXX_FLAGS}
     )
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 else()
     if (NOT NO_OMP)
         message(WARNING
@@ -435,7 +434,6 @@ endif()
 if(TBB_FOUND)
     add_definitions(
         -DOPENSUBDIV_HAS_TBB
-        ${TBB_CXX_FLAGS}
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TBB_CXX_FLAGS}")
 else()
