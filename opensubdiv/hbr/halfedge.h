@@ -652,7 +652,7 @@ template <class T>
 bool
 HbrHalfedge<T>::IsFVarInfiniteSharpAnywhere() {
 
-    if (sharpness > k_Smooth) {
+    if (sharpness > (float) k_Smooth) {
         return true;
     }
 
@@ -671,7 +671,7 @@ HbrHalfedge<T>::GetFVarSharpness(int datum, bool ignoreGeometry) {
     if (!ignoreGeometry) {
         // If it's a geometrically sharp edge it's going to be a
         // facevarying sharp edge too
-        if (sharpness > k_Smooth) {
+        if (sharpness > (float) k_Smooth) {
             SetFVarInfiniteSharp(datum, true);
             return k_InfinitelySharp;
         }

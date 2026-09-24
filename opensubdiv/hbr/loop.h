@@ -199,7 +199,7 @@ HbrLoopSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* face, H
         if (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryNone ||
             (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryAlwaysSharp &&
              fvarmask >= 1) ||
-            v->GetSharpness() > HbrVertex<T>::k_Smooth ||
+            v->GetSharpness() > (float) HbrVertex<T>::k_Smooth ||
             infcorner) {
             fv0.SetWithWeight(face->GetFVarData(index), fvarindex, fvarwidth, 1.0f);
         }
@@ -464,14 +464,14 @@ HbrLoopSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             HbrHalfedge<T>* childedge;
 
             childedge = child->GetEdge(i);
-            if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+            if ((sharpness = edge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
                     edge, edge->GetOrgVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
             childedge = child->GetEdge((i+2)%3);
-            if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+            if ((sharpness = prevedge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(
                     prevedge, prevedge->GetDestVertex(), childedge);
             }
@@ -523,14 +523,14 @@ HbrLoopSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face, Hb
                 HbrHalfedge<T>* childedge;
 
                 childedge = child->GetEdge(i);
-                if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                if ((sharpness = edge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
                         edge, edge->GetOrgVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
                 childedge = child->GetEdge((i+2)%3);
-                if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                if ((sharpness = prevedge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(
                         prevedge, prevedge->GetDestVertex(), childedge);
                 }
@@ -709,7 +709,7 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* mesh, HbrHalfedge<T>* edge) {
     //  A smooth edge has a limit if both endpoints have limits and
     //  the edge isn't on the boundary.
 
-    if (edge->GetSharpness() >= HbrHalfedge<T>::k_InfinitelySharp) return true;
+    if (edge->GetSharpness() >= (float) HbrHalfedge<T>::k_InfinitelySharp) return true;
 
     if (!HasLimit(mesh, edge->GetOrgVertex()) || !HasLimit(mesh, edge->GetDestVertex())) return false;
 
@@ -733,7 +733,7 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* /* mesh */, HbrVertex<T>* vertex) {
                 HbrHalfedge<T>* start = vertex->GetIncidentEdge(), *edge, *next;
                 edge = start;
                 while (edge) {
-                    if (edge->IsBoundary() && edge->GetSharpness() < HbrHalfedge<T>::k_InfinitelySharp) {
+                    if (edge->IsBoundary() && edge->GetSharpness() < (float) HbrHalfedge<T>::k_InfinitelySharp) {
                         return false;
                     }
                     next = vertex->GetNextEdge(edge);
@@ -741,7 +741,7 @@ HbrLoopSubdivision<T>::HasLimit(HbrMesh<T>* /* mesh */, HbrVertex<T>* vertex) {
                         break;
                     } else if (!next) {
                         edge = edge->GetPrev();
-                        if (edge->IsBoundary() && edge->GetSharpness() < HbrHalfedge<T>::k_InfinitelySharp) {
+                        if (edge->IsBoundary() && edge->GetSharpness() < (float) HbrHalfedge<T>::k_InfinitelySharp) {
                             return false;
                         }
                         break;
@@ -913,9 +913,9 @@ HbrLoopSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
     // Inherit extraordinary flag and sharpness
     if (vertex->IsExtraordinary()) v->SetExtraordinary();
     float sharp = vertex->GetSharpness();
-    if (sharp >= HbrVertex<T>::k_InfinitelySharp) {
+    if (sharp >= (float) HbrVertex<T>::k_InfinitelySharp) {
         v->SetSharpness(HbrVertex<T>::k_InfinitelySharp);
-    } else if (sharp > HbrVertex<T>::k_Smooth) {
+    } else if (sharp > (float) HbrVertex<T>::k_Smooth) {
         v->SetSharpness(std::max((float) HbrVertex<T>::k_Smooth, sharp - 1.0f));
     } else {
         v->SetSharpness(HbrVertex<T>::k_Smooth);

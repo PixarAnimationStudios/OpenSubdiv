@@ -53,10 +53,10 @@ public:
             } else if (op == HbrHierarchicalEdit<T>::Subtract) {
                 sharp = face->GetVertex(vertexid)->GetSharpness() - sharpness;
             }
-            if (sharp < HbrVertex<T>::k_Smooth) {
+            if (sharp < (float) HbrVertex<T>::k_Smooth) {
                 sharp = HbrVertex<T>::k_Smooth;
             }
-            if (sharp > HbrVertex<T>::k_InfinitelySharp) {
+            if (sharp > (float) HbrVertex<T>::k_InfinitelySharp) {
                 sharp = HbrVertex<T>::k_InfinitelySharp;
             }
             face->GetVertex(vertexid)->SetSharpness(sharp);

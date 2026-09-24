@@ -1168,7 +1168,7 @@ HbrVertex<T>::GetMask(bool next) {
     mask0 = mask1 = 0;
 
     // Mark volatility
-    if (sharpness > k_Smooth && sharpness < k_InfinitelySharp)
+    if (sharpness > (float) k_Smooth && sharpness < (float) k_InfinitelySharp)
         volatil = 1;
 
     // If the vertex is tagged as sharp immediately promote its mask
@@ -1197,7 +1197,7 @@ HbrVertex<T>::GetMask(bool next) {
             }
         }
         // If any incident edge is semisharp, mark the vertex as volatile
-        if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_InfinitelySharp) {
+        if (esharp > (float) HbrHalfedge<T>::k_Smooth && esharp < (float) HbrHalfedge<T>::k_InfinitelySharp) {
             volatil = 1;
         }
         nextedge = GetNextEdge(edge);
@@ -1217,7 +1217,7 @@ HbrVertex<T>::GetMask(bool next) {
                     mask1++;
                 }
             }
-            if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_InfinitelySharp) {
+            if (esharp > (float) HbrHalfedge<T>::k_Smooth && esharp < (float) HbrHalfedge<T>::k_InfinitelySharp) {
                 volatil = 1;
             }
             break;
@@ -1278,7 +1278,7 @@ HbrVertex<T>::GetFractionalMask() const {
     float mask = 0;
     float n = 0;
 
-    if (sharpness > k_Smooth && sharpness < k_Dart) {
+    if (sharpness > (float) k_Smooth && sharpness < (float) k_Dart) {
         mask += sharpness; ++n;
     }
 
@@ -1287,7 +1287,7 @@ HbrVertex<T>::GetFractionalMask() const {
     edge = start;
     while (edge) {
         float esharp = edge->GetSharpness();
-        if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_Sharp) {
+        if (esharp > (float) HbrHalfedge<T>::k_Smooth && esharp < (float) HbrHalfedge<T>::k_Sharp) {
             mask += esharp; ++n;
         }
         next = GetNextEdge(edge);
@@ -1296,7 +1296,7 @@ HbrVertex<T>::GetFractionalMask() const {
         } else if (!next) {
             // Special case for the last edge in a cycle.
             esharp = edge->GetPrev()->GetSharpness();
-            if (esharp > HbrHalfedge<T>::k_Smooth && esharp < HbrHalfedge<T>::k_Sharp) {
+            if (esharp > (float) HbrHalfedge<T>::k_Smooth && esharp < (float) HbrHalfedge<T>::k_Sharp) {
                 mask += esharp; ++n;
             }
             break;

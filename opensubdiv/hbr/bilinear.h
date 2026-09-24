@@ -164,7 +164,7 @@ HbrBilinearSubdivision<T>::transferFVarToChild(HbrMesh<T>* mesh, HbrFace<T>* fac
         if (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryNone ||
             (fvarinterp == HbrMesh<T>::k_InterpolateBoundaryAlwaysSharp &&
              fvarmask >= 1) ||
-            v->GetSharpness() > HbrVertex<T>::k_Smooth ||
+            v->GetSharpness() > (float) HbrVertex<T>::k_Smooth ||
             infcorner) {
             fv0.SetWithWeight(face->GetFVarData(index), fvarindex, fvarwidth, 1.0f);
         }
@@ -436,14 +436,14 @@ HbrBilinearSubdivision<T>::Refine(HbrMesh<T>* mesh, HbrFace<T>* face) {
             // Hand down edge sharpnesses
             childedge = vertex->Subdivide()->GetEdge(edge->Subdivide());
             assert(childedge);
-            if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+            if ((sharpness = edge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(edge, edge->GetOrgVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(edge);
 
             childedge = prevedge->Subdivide()->GetEdge(vertex->Subdivide());
             assert(childedge);
-            if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+            if ((sharpness = prevedge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                 HbrSubdivision<T>::SubdivideCreaseWeight(prevedge, prevedge->GetDestVertex(), childedge);
             }
             childedge->CopyFVarInfiniteSharpness(prevedge);
@@ -515,14 +515,14 @@ HbrBilinearSubdivision<T>::RefineFaceAtVertex(HbrMesh<T>* mesh, HbrFace<T>* face
                 // Hand down edge sharpness
                 childedge = vertex->Subdivide()->GetEdge(edge->Subdivide());
                 assert(childedge);
-                if ((sharpness = edge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                if ((sharpness = edge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(edge, edge->GetOrgVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(edge);
 
                 childedge = prevedge->Subdivide()->GetEdge(vertex->Subdivide());
                 assert(childedge);
-                if ((sharpness = prevedge->GetSharpness()) > HbrHalfedge<T>::k_Smooth) {
+                if ((sharpness = prevedge->GetSharpness()) > (float) HbrHalfedge<T>::k_Smooth) {
                     HbrSubdivision<T>::SubdivideCreaseWeight(prevedge, prevedge->GetDestVertex(), childedge);
                 }
                 childedge->CopyFVarInfiniteSharpness(prevedge);
@@ -870,9 +870,9 @@ HbrBilinearSubdivision<T>::Subdivide(HbrMesh<T>* mesh, HbrVertex<T>* vertex) {
     // Inherit extraordinary flag and sharpness
     if (vertex->IsExtraordinary()) v->SetExtraordinary();
     float sharp = vertex->GetSharpness();
-    if (sharp >= HbrVertex<T>::k_InfinitelySharp) {
+    if (sharp >= (float) HbrVertex<T>::k_InfinitelySharp) {
         v->SetSharpness(HbrVertex<T>::k_InfinitelySharp);
-    } else if (sharp > HbrVertex<T>::k_Smooth) {
+    } else if (sharp > (float) HbrVertex<T>::k_Smooth) {
         sharp -= 1.0f;
         if (sharp < (float) HbrVertex<T>::k_Smooth) {
             sharp = (float) HbrVertex<T>::k_Smooth;
