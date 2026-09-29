@@ -20,28 +20,68 @@ namespace Bfr {
 //
 //  Construction:
 //
-Parameterization::Parameterization(Sdc::SchemeType scheme, int faceSize) {
+namespace {
+    //
+    //  Simple internal utilities supporting sub-face parameterizations:
+    //
+    inline bool
+    isQuadSubFaceSizeValid(int faceSize) {
+        return (faceSize > 2) && (faceSize <= Limits::MaxFaceSize()) &&
+               (faceSize != 4);
+    }
+
+    //
+    //  The quad sub-face parameterization uses the integer square root
+    //  of the face size for its tiling to preserve accuracy. Computation
+    //  here avoids use of sqrt() for common lower face sizes:
+    //
+    inline int
+    computeQuadSubFaceUDim(int faceSize) {
+        return (faceSize < 10) ? (2 + (faceSize > 4)) :
+                                 (1 + (int) std::sqrt((float)(faceSize - 1)));
+    }
+}
+
+Parameterization::Parameterization(Sdc::SchemeType scheme, int faceSize) :
+        _type(0), _uDim(0), _faceSize(0) {
 
     int regFaceSize = Sdc::SchemeTypeTraits::GetRegularFaceSize(scheme);
 
-    _type     = (unsigned char) ((regFaceSize == 4) ? QUAD : TRI);
-    _faceSize = (unsigned short) faceSize;
-    _uDim     = 0;
+    if (regFaceSize == 3) {
+        //  Triangular schemes currently require triangular faces:
+        _type     = (unsigned char) TRI;
+        _faceSize = (faceSize == 3) ? 3 : 0;
+    } else if (faceSize == 4) {
+        //  Quad schemes with a quad face:
+        _type     = (unsigned char) QUAD;
+        _faceSize = 4;
+    } else if (isQuadSubFaceSizeValid(faceSize)) {
+        //  Quad schemes with a non-quad face (of valid face size):
+        _type     = (unsigned char)  QUAD_SUBFACES;
+        _faceSize = (unsigned short) faceSize;
+        _uDim     = (unsigned char)  computeQuadSubFaceUDim(faceSize);
+    }
+}
 
-    if (faceSize != regFaceSize) {
-        if ((faceSize < 3) || (faceSize > Limits::MaxFaceSize())) {
-            //  Reset size to 0 (invalid) for degenerate or excessive size
-            _faceSize = 0;
-        } else if (regFaceSize == 3) {
-            //  Reset size to 0 (invalid) for non-triangles of tri schemes:
-            _faceSize = 0;
-        } else {
-            //  Quad sub-faces -- use int sqrt for udim to preserve accuracy:
-            _type = QUAD_SUBFACES;
-            _uDim = (faceSize < 10) ?
-                    (unsigned char)(2 + (faceSize > 4)) :
-                    (unsigned char)(1 + (int) std::sqrt((float)(faceSize - 1)));
+Parameterization::Parameterization(Type type, int numSubFaces) :
+        _type((unsigned char) type), _uDim(0), _faceSize(0) {
+
+    switch (type) {
+    case TRI:
+        //  Any optionally specified sub-face count is ignored:
+        _faceSize = 3;
+        break;
+    case QUAD:
+        //  Any optionally specified sub-face count is ignored:
+        _faceSize = 4;
+        break;
+    case QUAD_SUBFACES:
+        //  Number of sub-faces is required here and must be valid:
+        if (isQuadSubFaceSizeValid(numSubFaces)) {
+            _faceSize = (unsigned short) numSubFaces;
+            _uDim     = (unsigned char)  computeQuadSubFaceUDim(numSubFaces);
         }
+        break;
     }
 }
 
