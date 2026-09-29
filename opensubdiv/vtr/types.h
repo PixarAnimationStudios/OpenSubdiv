@@ -11,6 +11,7 @@
 
 #include "../vtr/array.h"
 
+#include <limits>
 #include <vector>
 
 namespace OpenSubdiv {
@@ -36,7 +37,7 @@ namespace Vtr {
 //
 typedef int Index;
 
-static const Index INDEX_INVALID = -1;
+inline Index constexpr INDEX_INVALID = -1;
 
 inline bool IndexIsValid(Index index) { return (index != INDEX_INVALID); }
 
@@ -49,7 +50,7 @@ inline bool IndexIsValid(Index index) { return (index != INDEX_INVALID); }
 typedef unsigned short  LocalIndex;
 
 //  Declared as "int" since it's intended for more general use
-static const int VALENCE_LIMIT = ((1 << 16) - 1);  // std::numeric_limits<LocalIndex>::max()
+inline int constexpr VALENCE_LIMIT = std::numeric_limits<LocalIndex>::max();
 
 //
 //  Collections of integer types in variable or fixed sized arrays.  Note that the use

@@ -292,7 +292,7 @@ struct instantiatable
     typedef char no[2];
     template <typename C> static yes &chk(typename C::Instantiatable *t=0);
     template <typename C> static no  &chk(...);
-    static bool const value = sizeof(chk<EVALUATOR>(0)) == sizeof(yes);
+    static bool constexpr value = sizeof(chk<EVALUATOR>(0)) == sizeof(yes);
 };
 template <bool C, typename T=void>
 struct enable_if { typedef T type; };

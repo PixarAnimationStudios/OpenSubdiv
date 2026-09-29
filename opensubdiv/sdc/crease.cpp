@@ -12,13 +12,6 @@ namespace OPENSUBDIV_VERSION {
 namespace Sdc {
 
 //
-//  Declarations of creasing constants and non-inline methods:
-//
-float const Crease::SHARPNESS_SMOOTH   =  0.0f;
-float const Crease::SHARPNESS_INFINITE = 10.0f;
-
-
-//
 //  Creasing queries dependent on sharpness values:
 //
 Crease::Rule
