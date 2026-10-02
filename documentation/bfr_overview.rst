@@ -334,21 +334,24 @@ to retrieve the Parameterization from a Surface for use in some other context
 (e.g. passed to Bfr::Tessellation).
 
 The enumerated type Parameterization::Type currently defines three kinds of
-parameterizations -- one of which is assigned to each instance on construction
-according to the properties of the face:
+parameterizations -- one of which is assigned to an instance on construction.
+A subdivision scheme typically uses one Type for its regular faces and
+another for its irregular faces (one which partitions the face into multiple
+sub-faces). So the Parameterization for the face of a mesh is most conveniently
+constructed by specifying the scheme and face size, from which the Type is
+derived as follows:
 
-+---------------+--------------------------------------------------------------+
-| QUAD          | Applied to quadrilateral faces with a quad-based             |
-|               | subdivision scheme (e.g. Catmark or Bilinear).               |
-+---------------+--------------------------------------------------------------+
-| TRI           | Applied to triangular faces with a triangle-based            |
-|               | subdivision scheme (e.g. Loop).                              |
-+---------------+--------------------------------------------------------------+
-| QUAD_SUBFACES | Applied to non-quad faces with a quad-based subdivision      |
-|               | scheme -- dividing the face into quadrilateral sub-faces.    |
-+---------------+--------------------------------------------------------------+
++---------------+---------------------+-----------+--------------+
+| Type          | Subdivision Scheme  | Faces     | Face Size    |
++===============+=====================+===========+==============+
+| QUAD          | Catmark or Bilinear | quads     | 4            |
++---------------+---------------------+-----------+--------------+
+| QUAD_SUBFACES | Catmark or Bilinear | non-quads | 3, 5 or more |
++---------------+---------------------+-----------+--------------+
+| TRI           | Loop                | triangles | 3            |
++---------------+---------------------+-----------+--------------+
 
-Parameterizations that involve subdivision into sub-faces, e.g. QUAD_SUBFACES,
+Parameterizations that involve partitioning into sub-faces, e.g. QUAD_SUBFACES,
 may warrant some care as they are not continuous. Depending on how they are
 defined, the sub-faces may be disjoint (e.g. *Bfr*) or overlap in parametric
 space (e.g. Ptex).  To help these situations, methods to detect the presence
