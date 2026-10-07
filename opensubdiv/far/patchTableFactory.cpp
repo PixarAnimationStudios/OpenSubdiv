@@ -846,8 +846,8 @@ PatchTableBuilder::BuildUniformPolygons() {
                         ConstIndexArray fvalues =
                             refLevel.GetFaceFVarValues(face, refinerChannel);
                         for (int vert=0; vert<fvalues.size(); ++vert) {
-                            assert((levelFVarVertOffsets[fvc] + fvalues[vert])
-                                < (int)_table->getFVarValues(fvc).size());
+                            assert(&fptr[fvc][vert] <
+                                        _table->getFVarValues(fvc).end());
                             fptr[fvc][vert] =
                                 levelFVarVertOffsets[fvc] + fvalues[vert];
                         }
