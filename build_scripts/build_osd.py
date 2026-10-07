@@ -536,7 +536,7 @@ GLFW = Dependency("GLFW", InstallGLFW, "include/GLFW/glfw3.h")
 ############################################################
 # zlib
 
-ZLIB_URL = "https://github.com/madler/zlib/archive/v1.2.13.zip"
+ZLIB_URL = "https://github.com/madler/zlib/archive/v1.3.2.zip"
 
 def InstallZlib(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(ZLIB_URL, context, force)):
