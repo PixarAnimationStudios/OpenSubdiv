@@ -8,7 +8,7 @@
 Introduction
 ------------
 
-.. image:: https://opensubdiv.org/docs/images/opensubdiv_splash_v3_7_0.png
+.. image:: https://opensubdiv.org/images/opensubdiv_splash_v3_8_0.png
    :width: 100%
    :align: center
 

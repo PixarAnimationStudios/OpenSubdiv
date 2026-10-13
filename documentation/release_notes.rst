@@ -5,7 +5,7 @@
      https://opensubdiv.org/license.
 
 
-3.0 - 3.7 Release Notes
+3.0 - 3.8 Release Notes
 -----------------------
 
 .. contents::
@@ -14,6 +14,38 @@
 
 ----
 
+Release 3.8
+~~~~~~~~~~~
+
+Release 3.8.0 - October 2026
+============================
+
+Release 3.8.0 contains minor API additions along with bug fixes and other updates.
+For more information on the following, see `Release 3.8 <release_38.html>`__
+
+**Changes**
+    - Updated C++ Standard to C++17 (#1388)
+    - Updated CMake minimum required and policy max versions to 3.17 and 3.21 respectively (#1393)
+    - Updated to use FindCUDAToolkit (#1395)
+    - Updated default rpath link behavior (#1376)
+    - Updated public constants with inline use of constexpr (#1392)
+    - Added alternative constructor for Bfr::Parameterization (#1391)
+    - Clarified use of Bfr::Parameterization::Type in documentation (#1397)
+    - Improved Bfr::Tessellation quad-preserving patterns (#1386)
+    - Added const qualifier to Bfr::Tessellation transform methods (#1385)
+    - Addressed compiler warnings (#1387 #1389)
+    - Improved processing of compile and link flags (#1390 #1394)
+    - Updated recommended package dependencies (#1398)
+    - Addressed minor documentation issues (#1396)
+    - Updated azure pipelines agent configurations (#1382)
+    - Removed obsolete iOSToolchain.cmake (#1399)
+
+**Bug Fixes**
+    - Fixed potential double free in Bfr::Surface::operator=() (#1384)
+    - Fixed diagnostic assert in Far::PatchTableFactory (#1400)
+    - Fixed use of deprecated CUDA API (#1378)
+    - Fixed incorrect openmp link dependency when using TBB (#1375)
+
 Release 3.7
 ~~~~~~~~~~~
 
@@ -21,6 +53,7 @@ Release 3.7.0 - October 2025
 ============================
 
 Release 3.7.0 is a minor release containing bug fixes and other updates.
+For more information on the following, see `Release 3.7 <release_37.html>`__
 
 **Changes**
     - OpenSubdiv is now licensed under the Tomorrow Open Source Technology license. This is a renaming of the license, but the terms and conditions are the same as before.
