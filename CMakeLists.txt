@@ -139,6 +139,12 @@ if(CMAKE_GENERATOR STREQUAL "Xcode")
     set (CMAKE_XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC "YES")
 endif()
 
+# Use an origin relative rpath for installed targets
+if (APPLE)
+    list(APPEND CMAKE_INSTALL_RPATH "@loader_path/../lib")
+else()
+    list(APPEND CMAKE_INSTALL_RPATH "\$ORIGIN/../lib")
+endif()
 
 set(OSD_COMPILER_FLAGS)
 set(OSD_COMPILER_DEFINES)
