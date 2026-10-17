@@ -441,7 +441,7 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
 
     typedef typename MASK::Weight Weight;
 
-    Weight pWeight = edge.GetSharpness();
+    Weight pWeight = (edge.GetSharpness() > 1.0f) ? 1.0f : edge.GetSharpness();
     Weight cWeight = 1.0f - pWeight;
 
     mask.VertexWeight(0) = pWeight * 0.5f + cWeight * mask.VertexWeight(0);
