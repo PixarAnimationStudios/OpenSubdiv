@@ -27,3 +27,11 @@ install(TARGETS far_regression DESTINATION "${CMAKE_BINDIR_BASE}")
 
 add_test(far_regression ${EXECUTABLE_OUTPUT_PATH}/far_regression)
 
+osd_add_executable(far_chaikin "regression"
+    far_chaikin.cpp
+    $<TARGET_OBJECTS:sdc_obj>
+    $<TARGET_OBJECTS:vtr_obj>
+    $<TARGET_OBJECTS:far_obj>
+)
+
+add_test(far_chaikin ${EXECUTABLE_OUTPUT_PATH}/far_chaikin)
