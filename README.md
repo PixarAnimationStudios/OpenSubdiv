@@ -33,7 +33,7 @@ These are the versions of external dependencies used to test the current release
 | Core Dependencies                                                            | Version     | Note                   |
 | ---------------------------------------------------------------------------- | ----------- | ---------------------- |
 | C++ Standard Version                                                         | C++17       | minimum                |
-| [CMake](https://www.cmake.org)                                               | 3.17 - 3.21 | minimun                |
+| [CMake](https://www.cmake.org)                                               | 3.17 - 3.21 | minimum                |
 
 | Optional OpenSubdiv::Osd Dependencies                                        | Version     | Note                   |
 | ---------------------------------------------------------------------------- | ----------- | ---------------------- |
