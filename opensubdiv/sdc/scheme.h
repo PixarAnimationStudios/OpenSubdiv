@@ -361,7 +361,7 @@ Scheme<SCHEME>::ComputeFaceVertexMask(FACE const& face, MASK& mask) const {
 //  The overall process is as follows:
 //
 //      - quickly detect the most common specified or detected Smooth case and return
-//      - quickly detect a full Crease by child Rule assignment and return
+//      - quickly detect a full Crease by child Rule or excessive sharpness and return
 //      - determine from sharpness if unspecified child is a crease -- return if so
 //      - compute smooth mask for child and combine with crease from parent
 //
@@ -380,14 +380,15 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
     //
     //  If the parent was specified or determined to be Smooth, we can quickly return
     //  with a Smooth mask.  Otherwise the parent is a crease -- if the child was
-    //  also specified to be a crease, we can quickly return with a Crease mask.
+    //  specified as a crease, or the parent sharpness >= 1.0 (making any fractional
+    //  weighting favor the crease entirely) we can quickly return with a Crease mask.
     //
     if ((parentRule == Crease::RULE_SMOOTH) ||
        ((parentRule == Crease::RULE_UNKNOWN) && (edge.GetSharpness() <= 0.0f))) {
         assignSmoothMaskForEdge(edge, mask);
         return;
     }
-    if (childRule == Crease::RULE_CREASE) {
+    if ((childRule == Crease::RULE_CREASE) || (edge.GetSharpness() >= 1.0f)) {
         assignCreaseMaskForEdge(edge, mask);
         return;
     }
@@ -398,20 +399,12 @@ Scheme<SCHEME>::ComputeEdgeVertexMask(EDGE const&     edge,
     //  returning a Crease mask if the child is also determined to be a Crease) and
     //  continue if we have a transition to Smooth.
     //
-    //  Note when qualifying the child that if the parent sharpness > 1.0, regardless
-    //  of the creasing method, whether the child sharpness values decay to zero is
-    //  irrelevant -- the fractional weight for such a case (the value of the parent
-    //  sharpness) is > 1.0, and when clamped to 1 effectively yields a full crease.
-    //
     if (childRule == Crease::RULE_UNKNOWN) {
         Crease crease(_options);
 
         bool childIsCrease = false;
         if (parentRule == Crease::RULE_CREASE) {
             //  Child unknown as default value but parent Rule specified as Crease
-            childIsCrease = true;
-        } else if (edge.GetSharpness() >= 1.0f) {
-            //  Sharpness >= 1.0 always a crease -- see note above
             childIsCrease = true;
         } else if (crease.IsUniform()) {
             //  Sharpness < 1.0 is guaranteed to decay to 0.0 for Uniform child edges
