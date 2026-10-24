@@ -9,6 +9,7 @@
 #include "../vtr/stackBuffer.h"
 
 #include <cstring>
+#include <cstdlib>
 #include <cstdio>
 #include <cassert>
 #include <limits>
